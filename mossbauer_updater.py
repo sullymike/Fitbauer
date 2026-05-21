@@ -88,7 +88,7 @@ def latest_release(include_prereleases: bool = False, timeout: int = 15) -> Rele
     releases = list_releases(include_prereleases=include_prereleases, timeout=timeout)
     if not releases:
         raise RuntimeError("No hay releases publicadas en GitHub")
-    return max(releases, key=lambda r: version_tuple(r.tag))
+    return max(releases, key=lambda r: _version_key(r.tag))
 
 
 def choose_download(release: ReleaseInfo, prefer_exe: bool = False) -> tuple[str, str]:
