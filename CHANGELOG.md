@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.6
+
+- La variante `mossbauer_fe33_gui_v2IA.py` queda migrada también al cliente REST del laboratorio.
+- Sincronización de versión estable tras los cambios remotos del servidor.
+
 ## v0.1.5
 
 - La descarga y subida web usan la API REST oficial del laboratorio (`/api/v1/`) en lugar de scraping de HTML.
