@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 GITHUB_REPO = "sullymike/Mossbauer"
-LATEST_RELEASE_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
 RELEASES_URL = f"https://github.com/{GITHUB_REPO}/releases"
 
 
@@ -21,6 +21,8 @@ class ReleaseInfo:
     body: str
     zipball_url: str
     assets: list[dict]
+    prerelease: bool = False
+    draft: bool = False
 
 
 def version_tuple(version: str) -> tuple[int, ...]:
@@ -36,13 +38,7 @@ def is_newer(latest: str, current: str) -> bool:
     return a + (0,) * (size - len(a)) > b + (0,) * (size - len(b))
 
 
-def latest_release(timeout: int = 15) -> ReleaseInfo:
-    req = urllib.request.Request(
-        LATEST_RELEASE_API,
-        headers={"Accept": "application/vnd.github+json", "User-Agent": "MossbauerFe57-updater"},
-    )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
+def _release_from_json(data: dict) -> ReleaseInfo:
     return ReleaseInfo(
         tag=str(data.get("tag_name") or ""),
         name=str(data.get("name") or data.get("tag_name") or ""),
@@ -50,7 +46,29 @@ def latest_release(timeout: int = 15) -> ReleaseInfo:
         body=str(data.get("body") or ""),
         zipball_url=str(data.get("zipball_url") or ""),
         assets=list(data.get("assets") or []),
+        prerelease=bool(data.get("prerelease", False)),
+        draft=bool(data.get("draft", False)),
     )
+
+
+def list_releases(include_prereleases: bool = False, timeout: int = 15) -> list[ReleaseInfo]:
+    """Lista releases publicadas. Por defecto excluye prereleases y drafts."""
+    req = urllib.request.Request(
+        RELEASES_API,
+        headers={"Accept": "application/vnd.github+json", "User-Agent": "MossbauerFe57-updater"},
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    releases = [_release_from_json(item) for item in data]
+    return [r for r in releases if not r.draft and (include_prereleases or not r.prerelease)]
+
+
+def latest_release(include_prereleases: bool = False, timeout: int = 15) -> ReleaseInfo:
+    """Devuelve la release más nueva según versión, incluyendo betas si se pide."""
+    releases = list_releases(include_prereleases=include_prereleases, timeout=timeout)
+    if not releases:
+        raise RuntimeError("No hay releases publicadas en GitHub")
+    return max(releases, key=lambda r: version_tuple(r.tag))
 
 
 def choose_download(release: ReleaseInfo, prefer_exe: bool = False) -> tuple[str, str]:

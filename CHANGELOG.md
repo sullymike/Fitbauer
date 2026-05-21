@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.3
+
+- El actualizador puede comprobar solo releases estables o también prereleases/betas.
+- Nueva opción `Ayuda → Configurar actualizaciones...`.
+
 ## v0.1.2
 
 - La descarga web permite elegir carpeta destino y crear subcarpetas.

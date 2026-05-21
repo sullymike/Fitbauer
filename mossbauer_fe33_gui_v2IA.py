@@ -47,7 +47,7 @@ C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
 APP_NAME = "Mössbauer Fe-57 v2IA"
-APP_VERSION = "0.1.2"
+APP_VERSION = "0.1.3"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -498,6 +498,7 @@ class MossbauerFe33GUI(tk.Tk):
         help_menu.add_separator()
         help_menu.add_command(label="Changelog", command=self.show_changelog)
         help_menu.add_command(label="Buscar actualizaciones...", command=lambda: self.check_for_updates(silent=False))
+        help_menu.add_command(label="Configurar actualizaciones...", command=self.open_update_settings_dialog)
         menubar.add_cascade(label="Ayuda", menu=help_menu)
         self.config(menu=menubar)
 
@@ -1650,6 +1651,53 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
     def show_about(self) -> None:
         self.show_logo_popup(title=f"Acerca de Mössbauer Fe-57 v2IA v{APP_VERSION}", scale=2.6, click_to_close=False)
 
+    def update_settings_path(self) -> Path:
+        return CONFIG_DIR / "update_settings.json"
+
+    def update_settings_payload(self) -> dict:
+        path = self.update_settings_path()
+        if path.exists():
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    return data
+            except Exception:
+                pass
+        return {"channel": "stable"}
+
+    def save_update_settings_payload(self, data: dict) -> None:
+        try:
+            CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+            self.update_settings_path().write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception as exc:
+            messagebox.showerror("Actualizaciones", f"No se pudo guardar la configuración:\n{exc}")
+
+    def open_update_settings_dialog(self) -> None:
+        win = tk.Toplevel(self)
+        win.title("Configurar actualizaciones")
+        win.transient(self)
+        win.resizable(False, False)
+        frame = ttk.Frame(win, padding=14)
+        frame.pack(fill=tk.BOTH, expand=True)
+        settings = self.update_settings_payload()
+        channel_var = tk.StringVar(value=settings.get("channel", "stable"))
+        ttk.Label(frame, text="Canal de avisos de actualización:").pack(anchor=tk.W, pady=(0, 8))
+        ttk.Radiobutton(frame, text="Solo versiones estables", variable=channel_var, value="stable").pack(anchor=tk.W)
+        ttk.Radiobutton(frame, text="Estables y versiones no estables/beta", variable=channel_var, value="all").pack(anchor=tk.W)
+        ttk.Label(
+            frame,
+            text="Las versiones beta sirven para probar cambios. Si eliges betas, el programa avisará también de prereleases de GitHub.",
+            style="Subtitle.TLabel",
+            wraplength=430,
+        ).pack(anchor=tk.W, pady=(10, 12))
+        buttons = ttk.Frame(frame)
+        buttons.pack(fill=tk.X)
+        def save() -> None:
+            self.save_update_settings_payload({"channel": channel_var.get()})
+            win.destroy()
+        ttk.Button(buttons, text="Guardar", command=save, style="Accent.TButton").pack(side=tk.RIGHT)
+        ttk.Button(buttons, text="Cancelar", command=win.destroy).pack(side=tk.RIGHT, padx=(0, 8))
+
     def check_for_updates(self, silent: bool = False) -> None:
         """Comprueba GitHub Releases y descarga la nueva versión si existe."""
         import os
@@ -1665,6 +1713,8 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
             return
 
         current_version = APP_VERSION
+        update_settings = self.update_settings_payload()
+        include_prereleases = update_settings.get("channel", "stable") == "all"
 
         def downloads_dir() -> _Path:
             for name in ("Descargas", "Downloads"):
@@ -1688,7 +1738,7 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
 
         def worker() -> None:
             try:
-                release = latest_release()
+                release = latest_release(include_prereleases=include_prereleases)
                 newer = is_newer(release.tag, current_version)
             except Exception as exc:
                 if not silent:
@@ -1696,15 +1746,18 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
                 return
 
             def finish() -> None:
+                channel_txt = "estables y beta" if include_prereleases else "solo estables"
                 if not newer:
                     if not silent:
-                        messagebox.showinfo("Actualizaciones", f"Ya tienes la última versión ({current_version}).")
+                        messagebox.showinfo("Actualizaciones", f"Ya tienes la última versión ({current_version}) para el canal: {channel_txt}.")
                     return
                 body = (release.body or "").strip()
                 if len(body) > 900:
                     body = body[:900] + "…"
+                release_kind = "no estable/beta" if getattr(release, "prerelease", False) else "estable"
                 msg = (
-                    f"Hay una versión nueva disponible.\n\n"
+                    f"Hay una versión nueva disponible ({release_kind}).\n\n"
+                    f"Canal configurado: {channel_txt}\n"
                     f"Versión actual: {current_version}\n"
                     f"Nueva versión: {release.tag}\n\n"
                     f"{body}\n\n"
