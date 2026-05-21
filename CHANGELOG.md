@@ -8,6 +8,7 @@
 - La sesión JSON guarda un bloque `calibration` con la trazabilidad de la calibración usada.
 - Buscar la medida por nombre de fichero es ahora una sola llamada a la API.
 - Nuevo módulo `mossbauer_api_client.py` con el cliente reutilizable de la API.
+- La misma migración se aplica a la variante `mossbauer_fe33_gui_v2IA.py`.
 
 ## v0.1.4-beta.2
 
