@@ -1,6 +1,7 @@
 """Comprobación y descarga de nuevas versiones desde GitHub Releases."""
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -119,14 +120,93 @@ def choose_download(release: ReleaseInfo, prefer_exe: bool = False) -> tuple[str
     return release.html_url, f"Mossbauer-{release.tag or 'latest'}"
 
 
-def download_file(url: str, dest_dir: Path, filename: str | None = None, timeout: int = 60) -> Path:
+def sha256_file(path: Path, chunk_size: int = 1 << 20) -> str:
+    """SHA-256 hexadecimal de un fichero, leido por bloques."""
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for block in iter(lambda: fh.read(chunk_size), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def download_file(
+    url: str,
+    dest_dir: Path,
+    filename: str | None = None,
+    timeout: int = 60,
+    expected_sha256: str | None = None,
+) -> Path:
+    """Descarga un fichero. Si se da ``expected_sha256``, verifica su integridad.
+
+    Ante una verificacion fallida borra el fichero descargado y lanza
+    ``RuntimeError``, de modo que nunca se instale una descarga corrupta.
+    """
     dest_dir.mkdir(parents=True, exist_ok=True)
     name = filename or Path(urlparse(url).path).name or "Mossbauer-release"
     path = dest_dir / name
     req = urllib.request.Request(url, headers={"User-Agent": "MossbauerFe57-updater"})
     with urllib.request.urlopen(req, timeout=timeout) as resp, path.open("wb") as fh:
-        fh.write(resp.read())
+        shutil.copyfileobj(resp, fh)
+    if expected_sha256:
+        actual = sha256_file(path)
+        if actual.lower() != expected_sha256.strip().lower():
+            path.unlink(missing_ok=True)
+            raise RuntimeError(
+                "La verificacion SHA-256 de la descarga fallo "
+                f"(esperado {expected_sha256.strip().lower()}, obtenido {actual})."
+            )
     return path
+
+
+_SHA256_RE = re.compile(r"\b[0-9a-fA-F]{64}\b")
+_CHECKSUM_FILE_NAMES = {"sha256sums", "sha256sums.txt", "checksums.txt", "checksums.sha256"}
+
+
+def _sha256_from_checksum_text(text: str, target_name: str, *, sidecar: bool) -> str | None:
+    """Extrae el SHA-256 de un texto de checksum.
+
+    Para un sidecar (un unico fichero) basta el primer hash. Para un fichero de
+    sumas con varias lineas se exige que la linea mencione ``target_name``.
+    """
+    target = target_name.lower()
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        match = _SHA256_RE.search(line)
+        if not match:
+            continue
+        if sidecar or target in line.lower():
+            return match.group(0).lower()
+    return None
+
+
+def find_release_checksum(release: ReleaseInfo, filename: str, timeout: int = 30) -> str | None:
+    """Busca el SHA-256 publicado para ``filename`` entre los assets de la release.
+
+    Reconoce un asset ``<filename>.sha256`` o un fichero de sumas tipo
+    ``SHA256SUMS``. Devuelve ``None`` si la release no publica ningun checksum.
+    """
+    target = filename.lower()
+    sidecar_names = {f"{target}.sha256", f"{target}.sha256sum"}
+    for asset in release.assets:
+        name = str(asset.get("name") or "").lower()
+        url = str(asset.get("browser_download_url") or "")
+        if not url:
+            continue
+        sidecar = name in sidecar_names
+        if not sidecar and name not in _CHECKSUM_FILE_NAMES:
+            continue
+        req = urllib.request.Request(url, headers={"User-Agent": "MossbauerFe57-updater"})
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                text = resp.read().decode("utf-8", errors="replace")
+        except OSError:
+            continue
+        digest = _sha256_from_checksum_text(text, filename, sidecar=sidecar)
+        if digest:
+            return digest
+    return None
 
 
 def is_zip_update(path: Path) -> bool:

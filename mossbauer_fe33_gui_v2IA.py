@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 from pathlib import Path
@@ -337,11 +338,9 @@ def total_model(v: np.ndarray, baseline: float, slope: float, components: list[t
     return y
 
 
-def sextet_model(v: np.ndarray, delta: float, quad: float, bhf: float, gamma: float,
-                 depth: float, baseline: float, slope: float, int1: float,
-                 int2: float, int3: float) -> np.ndarray:
-    """Compatibilidad: un sextete con una sola anchura."""
-    return total_model(v, baseline, slope, [np.array([delta, quad, bhf, gamma, 1.0, 1.0, depth, int1, int2, int3])])
+def _log_warning(context: str, exc: BaseException) -> None:
+    """Anota en stderr un fallo no critico sin interrumpir la GUI."""
+    print(f"[Mossbauer] {context}: {type(exc).__name__}: {exc}", file=sys.stderr)
 
 
 class MossbauerFe33GUI(tk.Tk):
@@ -752,8 +751,8 @@ class MossbauerFe33GUI(tk.Tk):
             if info_text and hasattr(self, "info"):
                 self.info.delete("1.0", tk.END)
                 self.info.insert(tk.END, info_text)
-        except Exception:
-            pass
+        except Exception as exc:
+            _log_warning("No se pudieron cargar los ajustes guardados", exc)
         finally:
             self.updating_sliders = False
             self._refresh_distribution_tab_visibility(update=False)
@@ -762,8 +761,8 @@ class MossbauerFe33GUI(tk.Tk):
         try:
             CONFIG_DIR.mkdir(parents=True, exist_ok=True)
             SETTINGS_PATH.write_text(json.dumps(self.settings_payload(), ensure_ascii=False, indent=2), encoding="utf-8")
-        except Exception:
-            pass
+        except Exception as exc:
+            _log_warning("No se pudieron guardar los ajustes", exc)
 
     def on_close(self) -> None:
         self.save_settings()
@@ -1701,13 +1700,19 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
 
     def check_for_updates(self, silent: bool = False) -> None:
         """Comprueba GitHub Releases y descarga la nueva versión si existe."""
-        import os
         import threading
         import webbrowser
-        from pathlib import Path as _Path
 
         try:
-            from mossbauer_updater import choose_download, download_file, install_zip_update, is_newer, is_zip_update, latest_release
+            from mossbauer_updater import (
+                choose_download,
+                download_file,
+                find_release_checksum,
+                install_zip_update,
+                is_newer,
+                is_zip_update,
+                latest_release,
+            )
         except Exception as exc:
             if not silent:
                 messagebox.showerror("Actualizaciones", f"No se pudo cargar el actualizador: {exc}")
@@ -1717,26 +1722,37 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
         update_settings = self.update_settings_payload()
         include_prereleases = update_settings.get("channel", "stable") == "all"
 
-        def downloads_dir() -> _Path:
+        def downloads_dir() -> Path:
             for name in ("Descargas", "Downloads"):
-                p = _Path.home() / name
+                p = Path.home() / name
                 if p.exists():
                     return p
-            return _Path.home()
+            return Path.home()
 
-        def download_in_background(url: str, filename: str) -> None:
+        def download_in_background(release, url: str, filename: str) -> None:
             def worker_download() -> None:
                 try:
-                    path = download_file(url, downloads_dir(), filename)
+                    expected = find_release_checksum(release, filename)
+                except Exception:
+                    expected = None
+                try:
+                    path = download_file(url, downloads_dir(), filename, expected_sha256=expected)
                 except Exception as exc:
-                    self.after(0, lambda: messagebox.showerror("Actualizaciones", f"No se pudo descargar la actualización:\n{exc}"))
+                    self.after(0, lambda: messagebox.showerror("Actualizaciones", f"No se pudo descargar o verificar la actualización:\n{exc}"))
                     return
+                verified = expected is not None
 
                 def finish_download() -> None:
+                    integridad = (
+                        "Integridad verificada con SHA-256."
+                        if verified
+                        else "Aviso: la release no publica checksum; no se pudo verificar la integridad."
+                    )
                     if is_zip_update(path):
                         if messagebox.askyesno(
                             "Actualización descargada",
-                            f"Descargado en:\n{path}\n\n¿Instalar ahora sobre esta carpeta del programa?\n"
+                            f"Descargado en:\n{path}\n\n{integridad}\n\n"
+                            "¿Instalar ahora sobre esta carpeta del programa?\n"
                             "Después solo tendrás que cerrar y volver a abrir el programa.",
                         ):
                             try:
@@ -1752,7 +1768,8 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
                             return
                     messagebox.showinfo(
                         "Actualización descargada",
-                        f"Descargado en:\n{path}\n\nCierra el programa y usa ese fichero para instalar/ejecutar la nueva versión.",
+                        f"Descargado en:\n{path}\n\n{integridad}\n\n"
+                        "Cierra el programa y usa ese fichero para instalar/ejecutar la nueva versión.",
                     )
 
                 self.after(0, finish_download)
@@ -1787,7 +1804,7 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
                 )
                 if messagebox.askyesno("Actualización disponible", msg):
                     url, filename = choose_download(release, prefer_exe=(os.name == "nt"))
-                    download_in_background(url, filename)
+                    download_in_background(release, url, filename)
                 else:
                     if messagebox.askyesno("Actualizaciones", "¿Abrir la página de releases en el navegador?"):
                         webbrowser.open(release.html_url)
@@ -1996,8 +2013,8 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
                 saved_pass = saved.get("password", "")
                 saved_urls = saved.get("urls", {})
                 saved_dirs = saved.get("download_dirs", {})
-            except Exception:
-                pass
+            except Exception as exc:
+                _log_warning("credentials.json ilegible, se usan valores por defecto", exc)
         # Usar la URL guardada para este tipo si existe, si no la por defecto.
         effective_url = saved_urls.get(kind, default_url)
         default_dir_name = "calibraciones" if kind == "calibraciones" else "medidas"
@@ -2113,8 +2130,8 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
                         try:
                             existing = json.loads(cred_path.read_text(encoding="utf-8"))
                             existing_urls = existing.get("urls", {})
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            _log_warning("No se pudieron leer las URLs guardadas", exc)
                     # Guardar la URL actual para este tipo (mossbauer o calibraciones).
                     current_url = url_var.get().strip()
                     if current_url:
@@ -2123,8 +2140,8 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
                     if cred_path.exists():
                         try:
                             existing_dirs = json.loads(cred_path.read_text(encoding="utf-8")).get("download_dirs", {})
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            _log_warning("No se pudieron leer las carpetas guardadas", exc)
                     current_dir = dest_dir_var.get().strip()
                     if current_dir:
                         existing_dirs[kind] = current_dir
@@ -2469,8 +2486,8 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
                 saved_user = saved.get("username", "")
                 saved_pass = saved.get("password", "")
                 saved_urls = saved.get("urls", {})
-            except Exception:
-                pass
+            except Exception as exc:
+                _log_warning("credentials.json ilegible, se usan valores por defecto", exc)
 
         default_measure_id = "1357"
         if self.file_path:
@@ -2537,8 +2554,8 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
                     if cred_path.exists():
                         try:
                             existing_urls = json.loads(cred_path.read_text(encoding="utf-8")).get("urls", {})
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            _log_warning("No se pudieron leer las URLs guardadas", exc)
                     current_url = url_var.get().strip()
                     if current_url:
                         existing_urls["mossbauer_analysis"] = current_url
