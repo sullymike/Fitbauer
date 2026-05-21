@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.2
+
+- La descarga web permite elegir carpeta destino y crear subcarpetas.
+- Carpetas separadas recordables para medidas y calibraciones.
+- Las descargas se guardan directamente en la carpeta seleccionada con el nombre real de la web.
+
 ## v0.1.1
 
 - Instalador Python (`install.py`) para Linux/Windows sin necesidad de `.exe`.

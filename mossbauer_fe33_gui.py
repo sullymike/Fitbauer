@@ -12,7 +12,7 @@ import json
 import os
 import re
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 from pathlib import Path
 from html import unescape
 from urllib.parse import unquote, urljoin, urlparse
@@ -44,7 +44,7 @@ E_GAMMA = 14.4125e3 * 1.602176634e-19  # J
 C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
-APP_VERSION = "0.1.1"
+APP_VERSION = "0.1.2"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -1899,16 +1899,20 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
         saved_user = ""
         saved_pass = ""
         saved_urls: dict[str, str] = {}
+        saved_dirs: dict[str, str] = {}
         if cred_path.exists():
             try:
                 saved = json.loads(cred_path.read_text(encoding="utf-8"))
                 saved_user = saved.get("username", "")
                 saved_pass = saved.get("password", "")
                 saved_urls = saved.get("urls", {})
+                saved_dirs = saved.get("download_dirs", {})
             except Exception:
                 pass
         # Usar la URL guardada para este tipo si existe, si no la por defecto.
         effective_url = saved_urls.get(kind, default_url)
+        default_dir_name = "calibraciones" if kind == "calibraciones" else "medidas"
+        effective_dir = saved_dirs.get(kind, str(Path.home() / "Mossbauer" / default_dir_name))
 
         dialog = tk.Toplevel(self)
         dialog.title("Descargar datos desde web")
@@ -1938,25 +1942,57 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
         remember_var = tk.BooleanVar(value=bool(saved_user or saved_pass))
         ttk.Checkbutton(
             frm,
-            text="Recordar credenciales y URL en este ordenador (fichero local, no cifrado)",
+            text="Recordar credenciales, URL y carpeta en este ordenador (fichero local, no cifrado)",
             variable=remember_var,
         ).grid(row=2, column=2, sticky="w", padx=(8, 0), pady=3)
 
+        ttk.Label(frm, text="Carpeta destino:").grid(row=3, column=0, sticky="w", pady=3)
+        dest_dir_var = tk.StringVar(value=effective_dir)
+        ttk.Entry(frm, textvariable=dest_dir_var).grid(row=3, column=1, sticky="ew", pady=3)
+
+        def choose_dest_dir() -> None:
+            current = dest_dir_var.get().strip() or str(Path.home())
+            selected = filedialog.askdirectory(title="Selecciona o crea carpeta destino", initialdir=current if Path(current).exists() else str(Path.home()), mustexist=False)
+            if selected:
+                dest_dir_var.set(selected)
+
+        def create_subfolder() -> None:
+            base = dest_dir_var.get().strip() or str(Path.home() / "Mossbauer")
+            name = simpledialog.askstring("Crear carpeta", "Nombre de la nueva carpeta:", parent=dialog)
+            if not name:
+                return
+            safe = re.sub(r"[^\w.()+\- ]+", "_", name, flags=re.UNICODE).strip()
+            if not safe:
+                return
+            path = Path(base) / safe
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+            except Exception as exc:
+                messagebox.showerror("Carpeta", f"No se pudo crear la carpeta:\n{exc}")
+                return
+            dest_dir_var.set(str(path))
+            status_var.set(f"Carpeta destino: {path}")
+
+        dir_buttons = ttk.Frame(frm)
+        dir_buttons.grid(row=3, column=2, sticky="ew", padx=(8, 0), pady=3)
+        ttk.Button(dir_buttons, text="Elegir", command=choose_dest_dir, style="Small.TButton").pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Button(dir_buttons, text="Crear", command=create_subfolder, style="Small.TButton").pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
+
         status_var = tk.StringVar(value="Introduce credenciales y pulsa 'Listar' o descarga una URL directa.")
-        ttk.Label(frm, textvariable=status_var, style="Subtitle.TLabel", wraplength=720).grid(row=3, column=0, columnspan=3, sticky="w", pady=(4, 8))
+        ttk.Label(frm, textvariable=status_var, style="Subtitle.TLabel", wraplength=720).grid(row=4, column=0, columnspan=3, sticky="w", pady=(4, 8))
 
         search_var = tk.StringVar()
-        ttk.Label(frm, text="Buscar:").grid(row=4, column=0, sticky="w", pady=(0, 4))
+        ttk.Label(frm, text="Buscar:").grid(row=5, column=0, sticky="w", pady=(0, 4))
         search_entry = ttk.Entry(frm, textvariable=search_var)
-        search_entry.grid(row=4, column=1, sticky="ew", pady=(0, 4))
-        ttk.Button(frm, text="Limpiar", command=lambda: search_var.set(""), style="Small.TButton").grid(row=4, column=2, sticky="ew", padx=(8, 0), pady=(0, 4))
+        search_entry.grid(row=5, column=1, sticky="ew", pady=(0, 4))
+        ttk.Button(frm, text="Limpiar", command=lambda: search_var.set(""), style="Small.TButton").grid(row=5, column=2, sticky="ew", padx=(8, 0), pady=(0, 4))
 
         listbox = tk.Listbox(frm, height=10, activestyle="dotbox")
-        listbox.grid(row=5, column=0, columnspan=3, sticky="nsew", pady=4)
-        frm.rowconfigure(5, weight=1)
+        listbox.grid(row=6, column=0, columnspan=3, sticky="nsew", pady=4)
+        frm.rowconfigure(6, weight=1)
 
         debug_box = tk.Text(frm, height=8, wrap=tk.WORD, background="#111827", foreground="#d1fae5", insertbackground="#d1fae5", font=("TkFixedFont", 9))
-        debug_box.grid(row=6, column=0, columnspan=3, sticky="nsew", pady=(6, 0))
+        debug_box.grid(row=7, column=0, columnspan=3, sticky="nsew", pady=(6, 0))
 
         def apply_search_filter(*_args) -> None:
             nonlocal displayed_links
@@ -1994,9 +2030,18 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
                     current_url = url_var.get().strip()
                     if current_url:
                         existing_urls[kind] = current_url
+                    existing_dirs: dict[str, str] = {}
+                    if cred_path.exists():
+                        try:
+                            existing_dirs = json.loads(cred_path.read_text(encoding="utf-8")).get("download_dirs", {})
+                        except Exception:
+                            pass
+                    current_dir = dest_dir_var.get().strip()
+                    if current_dir:
+                        existing_dirs[kind] = current_dir
                     cred_path.parent.mkdir(parents=True, exist_ok=True)
                     cred_path.write_text(
-                        json.dumps({"username": user_var.get().strip(), "password": pass_var.get(), "urls": existing_urls}, ensure_ascii=False, indent=2),
+                        json.dumps({"username": user_var.get().strip(), "password": pass_var.get(), "urls": existing_urls, "download_dirs": existing_dirs}, ensure_ascii=False, indent=2),
                         encoding="utf-8",
                     )
                     os.chmod(cred_path, 0o600)
@@ -2284,22 +2329,33 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
                 status_var.set(f"Error descargando: {exc}")
                 return
 
-            save_path = filedialog.asksaveasfilename(
-                title="Guardar dato descargado",
-                initialfile=name,
-                defaultextension=".ws5",
-                filetypes=[("Mössbauer WS5/ADT", "*.ws5 *.adt"), ("Wissoft WS5", "*.ws5"), ("ADT antiguo", "*.adt"), ("Todos", "*")],
-            )
-            if not save_path:
-                return
-            path = Path(save_path)
+            dest_dir = dest_dir_var.get().strip()
+            if dest_dir:
+                path = Path(dest_dir) / name
+                try:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                except Exception as exc:
+                    status_var.set(f"No se pudo crear la carpeta destino: {exc}")
+                    return
+                if path.exists() and not messagebox.askyesno("Sobrescribir", f"Ya existe:\n{path}\n\n¿Sobrescribir?"):
+                    return
+            else:
+                save_path = filedialog.asksaveasfilename(
+                    title="Guardar dato descargado",
+                    initialfile=name,
+                    defaultextension=".ws5",
+                    filetypes=[("Mössbauer WS5/ADT", "*.ws5 *.adt"), ("Wissoft WS5", "*.ws5"), ("ADT antiguo", "*.adt"), ("Todos", "*")],
+                )
+                if not save_path:
+                    return
+                path = Path(save_path)
             path.write_bytes(content)
             status_var.set(f"Descargado: {path}")
             self.load_ws5(path)
             dialog.destroy()
 
         buttons = ttk.Frame(frm)
-        buttons.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(8, 0))
+        buttons.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(8, 0))
         buttons.columnconfigure(0, weight=1)
         buttons.columnconfigure(1, weight=1)
         ttk.Button(buttons, text="Listar", command=list_ws5).grid(row=0, column=0, sticky="ew", padx=(0, 5))
@@ -2317,6 +2373,7 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
         saved_user = ""
         saved_pass = ""
         saved_urls: dict[str, str] = {}
+        saved_dirs: dict[str, str] = {}
         if cred_path.exists():
             try:
                 saved = json.loads(cred_path.read_text(encoding="utf-8"))
