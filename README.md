@@ -128,7 +128,25 @@ La versión local está definida en `APP_VERSION`. Si existe una release con un 
 
 Las instrucciones para publicar versiones están en `RELEASES.md`.
 
-## 6. Guardado
+## 6. Instalación desde código
+
+Se puede instalar sin `.exe` con Python:
+
+```bash
+python3 install.py
+./mossbauer_v2IA
+```
+
+En Windows:
+
+```bat
+py install.py
+mossbauer_v2IA.bat
+```
+
+Más detalles en `INSTALL.md`.
+
+## 7. Guardado
 
 ### Guardar ajuste
 
