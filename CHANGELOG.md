@@ -1,6 +1,13 @@
 # Changelog
 
-## Versión actual
+## v0.1.1
+
+- Instalador Python (`install.py`) para Linux/Windows sin necesidad de `.exe`.
+- Comprobación de actualizaciones desde GitHub Releases.
+- Subida de sesiones JSON a la web en la entrada con el mismo fichero de datos.
+- Campo de nota al subir análisis web.
+
+## Versión inicial
 
 - Soporte para ficheros WS5 y ADT antiguos sin cabecera.
 - Descarga desde web con nombre real de fichero y extensión real `.ws5`/`.adt`.
