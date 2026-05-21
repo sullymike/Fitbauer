@@ -14,8 +14,6 @@ import re
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 from pathlib import Path
-from html import unescape
-from urllib.parse import unquote, urljoin, urlparse
 
 import numpy as np
 from scipy.optimize import least_squares
@@ -44,15 +42,36 @@ E_GAMMA = 14.4125e3 * 1.602176634e-19  # J
 C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
-APP_VERSION = "0.1.4"
+APP_VERSION = "0.1.5"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
 VOIGT_SIGMA = 0.05
 CONFIG_DIR = Path.home() / ".config" / "mossbauer_fe33_gui"
 SETTINGS_PATH = CONFIG_DIR / "settings.json"
+CREDENTIALS_PATH = CONFIG_DIR / "credentials.json"
 README_PATH = Path(__file__).with_name("README.md")
 CHANGELOG_PATH = Path(__file__).with_name("CHANGELOG.md")
+
+
+def load_credentials() -> dict:
+    """Lee credentials.json (usuario, contraseña, token y rutas guardadas)."""
+    if CREDENTIALS_PATH.exists():
+        try:
+            return json.loads(CREDENTIALS_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
+def save_credentials(data: dict) -> None:
+    """Guarda credentials.json (texto local sin cifrar, permisos restrictivos)."""
+    CREDENTIALS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CREDENTIALS_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        os.chmod(CREDENTIALS_PATH, 0o600)
+    except Exception:
+        pass
 
 
 def fe57_sextet_positions(bhf_t: float = BHF_DEFAULT_T) -> np.ndarray:
@@ -376,6 +395,8 @@ class MossbauerFe33GUI(tk.Tk):
         self.last_fit_param_errors: dict[str, float] = {}
         # Restricciones lineales: target = factor * source + offset.
         self.constraints: list[dict[str, object]] = []
+        # Calibración asociada al espectro actual (de la web o de un fichero).
+        self.calibration_info: dict | None = None
 
         self.vars: dict[str, tk.DoubleVar] = {}
         self.entry_vars: dict[str, tk.StringVar] = {}
@@ -898,10 +919,10 @@ Menú Archivo:
     Abre ficheros locales. Si existe .RES de Normos en el mismo directorio, se cargan el folding point, Vmax y parámetros iniciales automáticamente.
 
   Medidas web...
-    Abre una ventana para introducir una URL de listado o descarga. La URL, usuario y contraseña se pueden guardar en el fichero local de credenciales para reutilizarlos.
+    Lista y descarga medidas usando la API REST del laboratorio (no scraping). Pide usuario y contraseña una sola vez: con ellos obtiene un token que se guarda en el fichero local de credenciales y se reutiliza. Si la medida tiene una calibración asociada, opcionalmente descarga también su fichero y aplica el Vmax calibrado.
 
   Calibraciones web...
-    Igual que el anterior, pero guarda una URL separada para calibraciones dentro del mismo fichero de credenciales.
+    Igual que el anterior, pero lista y descarga las calibraciones α-Fe del laboratorio.
 
   Guardar ajuste...
     Exporta un fichero .dat con columnas: velocidad, datos normalizados, modelo, residuo, cuentas dobladas. En modo P(BHF) añade una tabla con BHF y P(BHF) normalizada.
@@ -910,7 +931,7 @@ Menú Archivo:
     Guarda en JSON todo el estado de trabajo: cuentas, parámetros, fijos, componentes, covarianza, errores, restricciones, texto de estado. Permite retomar el trabajo exactamente donde se dejó.
 
   Subir sesión JSON a web...
-    Busca en la lista web la entrada cuyo fichero de datos descargable tiene exactamente el mismo nombre que el fichero cargado y envía el JSON a su sección de análisis. Permite añadir una nota; si la web tiene campo de nota se envía allí, y en cualquier caso queda incluida dentro del JSON.
+    Sube el JSON de la sesión como nueva versión de análisis de una medida vía API. El botón "Buscar por nombre de fichero" localiza la medida cuyo .ws5 coincide con el fichero cargado (una sola llamada a la API). La API conserva todas las versiones sin sobrescribir. Permite añadir una nota, que se envía a la API y además queda incluida dentro del JSON.
 
   Cargar sesión...
     Recupera una sesión guardada. Si el fichero de datos original está accesible se recarga; si no, se usan las cuentas guardadas en el JSON.
@@ -1962,62 +1983,54 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
     def open_calibration_download_dialog(self) -> None:
         self.open_web_download_dialog(kind="calibraciones")
 
-    def open_web_download_dialog(self, default_url: str = "", kind: str = "mossbauer") -> None:
-        """Ventana sencilla para listar/descargar datos de una web con usuario y contraseña."""
+    def open_web_download_dialog(self, kind: str = "mossbauer") -> None:
+        """Lista y descarga medidas o calibraciones usando la API REST del laboratorio."""
         try:
-            import requests
+            from mossbauer_api_client import MatelecLabClient, DEFAULT_BASE_URL
         except Exception as exc:
-            messagebox.showerror("Web", f"No se pudo importar requests: {exc}")
+            messagebox.showerror(
+                "Web",
+                f"No se pudo cargar el cliente de la API: {exc}\n\n"
+                f"Asegúrate de tener instalado 'requests' (pip install requests).",
+            )
             return
 
-        cred_path = Path.home() / ".config" / "mossbauer_fe33_gui" / "credentials.json"
-        saved_user = ""
-        saved_pass = ""
-        saved_urls: dict[str, str] = {}
-        saved_dirs: dict[str, str] = {}
-        if cred_path.exists():
-            try:
-                saved = json.loads(cred_path.read_text(encoding="utf-8"))
-                saved_user = saved.get("username", "")
-                saved_pass = saved.get("password", "")
-                saved_urls = saved.get("urls", {})
-                saved_dirs = saved.get("download_dirs", {})
-            except Exception:
-                pass
-        # Usar la URL guardada para este tipo si existe, si no la por defecto.
-        effective_url = saved_urls.get(kind, default_url)
-        default_dir_name = "calibraciones" if kind == "calibraciones" else "medidas"
+        is_calibraciones = (kind == "calibraciones")
+        creds = load_credentials()
+        saved_dirs = creds.get("download_dirs", {})
+        default_dir_name = "calibraciones" if is_calibraciones else "medidas"
         effective_dir = saved_dirs.get(kind, str(Path.home() / "Mossbauer" / default_dir_name))
+        base_url = creds.get("api_base") or DEFAULT_BASE_URL
 
         dialog = tk.Toplevel(self)
-        dialog.title("Descargar datos desde web")
-        dialog.geometry("780x560")
+        dialog.title("Descargar calibraciones desde web" if is_calibraciones
+                     else "Descargar medidas desde web")
+        dialog.geometry("820x600")
         dialog.transient(self)
         dialog.configure(background="#edf4fb")
 
-        session = requests.Session()
-        found_links: list[tuple[str, str, str]] = []
-        displayed_links: list[tuple[str, str, str]] = []
+        items: list[dict] = []          # medidas o calibraciones cargadas
+        displayed: list[dict] = []      # subconjunto visible tras el filtro
 
         frm = ttk.Frame(dialog, padding=12)
         frm.pack(fill=tk.BOTH, expand=True)
         frm.columnconfigure(1, weight=1)
 
-        ttk.Label(frm, text="Página o URL directa:").grid(row=0, column=0, sticky="w", pady=3)
-        url_var = tk.StringVar(value=effective_url)
-        ttk.Entry(frm, textvariable=url_var).grid(row=0, column=1, columnspan=2, sticky="ew", pady=3)
+        ttk.Label(frm, text="Servidor:").grid(row=0, column=0, sticky="w", pady=3)
+        base_var = tk.StringVar(value=base_url)
+        ttk.Entry(frm, textvariable=base_var).grid(row=0, column=1, columnspan=2, sticky="ew", pady=3)
 
         ttk.Label(frm, text="Usuario:").grid(row=1, column=0, sticky="w", pady=3)
-        user_var = tk.StringVar(value=saved_user)
+        user_var = tk.StringVar(value=creds.get("username", ""))
         ttk.Entry(frm, textvariable=user_var).grid(row=1, column=1, sticky="ew", pady=3)
 
         ttk.Label(frm, text="Contraseña:").grid(row=2, column=0, sticky="w", pady=3)
-        pass_var = tk.StringVar(value=saved_pass)
+        pass_var = tk.StringVar(value=creds.get("password", ""))
         ttk.Entry(frm, textvariable=pass_var, show="•").grid(row=2, column=1, sticky="ew", pady=3)
-        remember_var = tk.BooleanVar(value=bool(saved_user or saved_pass))
+        remember_var = tk.BooleanVar(value=bool(creds.get("username") or creds.get("token")))
         ttk.Checkbutton(
             frm,
-            text="Recordar credenciales, URL y carpeta en este ordenador (fichero local, no cifrado)",
+            text="Recordar credenciales y token en este ordenador (fichero local, no cifrado)",
             variable=remember_var,
         ).grid(row=2, column=2, sticky="w", padx=(8, 0), pady=3)
 
@@ -2027,7 +2040,11 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
 
         def choose_dest_dir() -> None:
             current = dest_dir_var.get().strip() or str(Path.home())
-            selected = filedialog.askdirectory(title="Selecciona o crea carpeta destino", initialdir=current if Path(current).exists() else str(Path.home()), mustexist=False)
+            selected = filedialog.askdirectory(
+                title="Selecciona o crea carpeta destino",
+                initialdir=current if Path(current).exists() else str(Path.home()),
+                mustexist=False,
+            )
             if selected:
                 dest_dir_var.set(selected)
 
@@ -2053,461 +2070,273 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
         ttk.Button(dir_buttons, text="Elegir", command=choose_dest_dir, style="Small.TButton").pack(side=tk.LEFT, fill=tk.X, expand=True)
         ttk.Button(dir_buttons, text="Crear", command=create_subfolder, style="Small.TButton").pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
 
-        status_var = tk.StringVar(value="Introduce credenciales y pulsa 'Listar' o descarga una URL directa.")
-        ttk.Label(frm, textvariable=status_var, style="Subtitle.TLabel", wraplength=720).grid(row=4, column=0, columnspan=3, sticky="w", pady=(4, 8))
+        with_calib_var = tk.BooleanVar(value=not is_calibraciones)
+        if not is_calibraciones:
+            ttk.Checkbutton(
+                frm,
+                text="Descargar también la calibración asociada y aplicar su Vmax",
+                variable=with_calib_var,
+            ).grid(row=4, column=1, columnspan=2, sticky="w", pady=(0, 3))
+
+        status_var = tk.StringVar(value="Pulsa 'Listar' para cargar la lista desde la API.")
+        ttk.Label(frm, textvariable=status_var, style="Subtitle.TLabel", wraplength=760).grid(
+            row=5, column=0, columnspan=3, sticky="w", pady=(4, 8))
 
         search_var = tk.StringVar()
-        ttk.Label(frm, text="Buscar:").grid(row=5, column=0, sticky="w", pady=(0, 4))
+        ttk.Label(frm, text="Buscar:").grid(row=6, column=0, sticky="w", pady=(0, 4))
         search_entry = ttk.Entry(frm, textvariable=search_var)
-        search_entry.grid(row=5, column=1, sticky="ew", pady=(0, 4))
-        ttk.Button(frm, text="Limpiar", command=lambda: search_var.set(""), style="Small.TButton").grid(row=5, column=2, sticky="ew", padx=(8, 0), pady=(0, 4))
+        search_entry.grid(row=6, column=1, sticky="ew", pady=(0, 4))
+        ttk.Button(frm, text="Limpiar", command=lambda: search_var.set(""),
+                   style="Small.TButton").grid(row=6, column=2, sticky="ew", padx=(8, 0), pady=(0, 4))
 
-        listbox = tk.Listbox(frm, height=10, activestyle="dotbox")
-        listbox.grid(row=6, column=0, columnspan=3, sticky="nsew", pady=4)
-        frm.rowconfigure(6, weight=1)
+        listbox = tk.Listbox(frm, height=12, activestyle="dotbox")
+        listbox.grid(row=7, column=0, columnspan=3, sticky="nsew", pady=4)
+        frm.rowconfigure(7, weight=1)
 
-        debug_box = tk.Text(frm, height=8, wrap=tk.WORD, background="#111827", foreground="#d1fae5", insertbackground="#d1fae5", font=("TkFixedFont", 9))
-        debug_box.grid(row=7, column=0, columnspan=3, sticky="nsew", pady=(6, 0))
-
-        def apply_search_filter(*_args) -> None:
-            nonlocal displayed_links
-            words = [w for w in search_var.get().lower().split() if w]
-            displayed_links = []
-            listbox.delete(0, tk.END)
-            for item in found_links:
-                name, full, display = item
-                haystack = f"{display} {name} {full}".lower()
-                if all(w in haystack for w in words):
-                    displayed_links.append(item)
-                    listbox.insert(tk.END, f"{display}    {full}")
-            if found_links:
-                status_var.set(f"Mostrando {len(displayed_links)} de {len(found_links)} resultados.")
-
-        search_var.trace_add("write", apply_search_filter)
+        debug_box = tk.Text(frm, height=7, wrap=tk.WORD, background="#111827",
+                            foreground="#d1fae5", insertbackground="#d1fae5",
+                            font=("TkFixedFont", 9))
+        debug_box.grid(row=8, column=0, columnspan=3, sticky="nsew", pady=(6, 0))
 
         def debug(msg: str) -> None:
             debug_box.insert(tk.END, msg.rstrip() + "\n")
             debug_box.see(tk.END)
             dialog.update_idletasks()
 
-        def save_credentials_if_requested() -> None:
-            try:
-                if remember_var.get():
-                    # Leer las URLs ya guardadas para no perder las de otros tipos.
-                    existing_urls: dict[str, str] = {}
-                    if cred_path.exists():
-                        try:
-                            existing = json.loads(cred_path.read_text(encoding="utf-8"))
-                            existing_urls = existing.get("urls", {})
-                        except Exception:
-                            pass
-                    # Guardar la URL actual para este tipo (mossbauer o calibraciones).
-                    current_url = url_var.get().strip()
-                    if current_url:
-                        existing_urls[kind] = current_url
-                    existing_dirs: dict[str, str] = {}
-                    if cred_path.exists():
-                        try:
-                            existing_dirs = json.loads(cred_path.read_text(encoding="utf-8")).get("download_dirs", {})
-                        except Exception:
-                            pass
-                    current_dir = dest_dir_var.get().strip()
-                    if current_dir:
-                        existing_dirs[kind] = current_dir
-                    cred_path.parent.mkdir(parents=True, exist_ok=True)
-                    cred_path.write_text(
-                        json.dumps({"username": user_var.get().strip(), "password": pass_var.get(), "urls": existing_urls, "download_dirs": existing_dirs}, ensure_ascii=False, indent=2),
-                        encoding="utf-8",
-                    )
-                    os.chmod(cred_path, 0o600)
-                    debug(f"Credenciales y URLs guardadas en {cred_path} (texto local no cifrado).")
-                elif cred_path.exists():
-                    cred_path.unlink()
-                    debug("Credenciales guardadas eliminadas.")
-            except Exception as exc:
-                debug(f"No se pudieron guardar/eliminar credenciales: {exc}")
+        def describe(item: dict) -> str:
+            sample = item.get("sample") or "(sin muestra)"
+            date = item.get("date") or "sin fecha"
+            env = item.get("environment") or item.get("temperature") or "-"
+            vcal = item.get("velocity_calibrated")
+            vcal_txt = f" · v={vcal}" if vcal not in (None, "") else ""
+            return f"{sample} · {date} · {env}{vcal_txt}  [id {item.get('id')}]"
 
-        def response_for(url: str):
-            debug(f"GET {url}")
-            r = session.get(url, timeout=30, allow_redirects=True)
-            debug(f"  -> status={r.status_code} final={r.url}")
-            debug(f"  -> content-type={r.headers.get('content-type', '')} bytes={len(r.content)}")
-            if r.history:
-                debug("  -> redirects: " + " -> ".join(f"{h.status_code}:{h.url}" for h in r.history))
-            return r
+        def apply_search_filter(*_args) -> None:
+            nonlocal displayed
+            words = [w for w in search_var.get().lower().split() if w]
+            displayed = []
+            listbox.delete(0, tk.END)
+            for item in items:
+                haystack = " ".join(str(v) for v in item.values()).lower()
+                if all(w in haystack for w in words):
+                    displayed.append(item)
+                    listbox.insert(tk.END, describe(item))
+            if items:
+                status_var.set(f"Mostrando {len(displayed)} de {len(items)} resultados.")
 
-        def parse_inputs(form_html: str) -> dict[str, str]:
-            data: dict[str, str] = {}
-            for input_tag in re.findall(r"<input\b[^>]*>", form_html, flags=re.S | re.I):
-                name_m = re.search(r"\bname=[\"']([^\"']+)[\"']", input_tag, flags=re.I)
-                if not name_m:
-                    continue
-                value_m = re.search(r"\bvalue=[\"']([^\"']*)[\"']", input_tag, flags=re.I)
-                data[unescape(name_m.group(1))] = unescape(value_m.group(1)) if value_m else ""
-            return data
+        search_var.trace_add("write", apply_search_filter)
 
-        def input_name(form_html: str, input_type: str, preferred: tuple[str, ...] = ()) -> str | None:
-            candidates: list[str] = []
-            for input_tag in re.findall(r"<input\b[^>]*>", form_html, flags=re.S | re.I):
-                type_m = re.search(r"\btype=[\"']([^\"']+)[\"']", input_tag, flags=re.I)
-                typ = type_m.group(1).lower() if type_m else "text"
-                if typ != input_type:
-                    continue
-                name_m = re.search(r"\bname=[\"']([^\"']+)[\"']", input_tag, flags=re.I)
-                if name_m:
-                    candidates.append(unescape(name_m.group(1)))
-            for pref in preferred:
-                for cand in candidates:
-                    if cand.lower() == pref:
-                        return cand
-            return candidates[0] if candidates else None
-
-        def ensure_form_login(target_url: str) -> bool:
-            """Hace login Django/formulario si la petición acaba en una página de login."""
-            save_credentials_if_requested()
+        def build_client():
+            """Cliente autenticado: reusa el token guardado si vale, si no hace login."""
+            base = base_var.get().strip() or DEFAULT_BASE_URL
+            token = creds.get("token")
+            client = MatelecLabClient(base_url=base, token=token)
+            if token and client.token_is_valid():
+                debug("Token guardado válido; no hace falta login.")
+                return client
             user = user_var.get().strip()
             password = pass_var.get()
-            if not user and not password:
-                debug("LOGIN: sin usuario/contraseña; se intenta acceso como sesión ya abierta/anónima.")
-                return True
+            if not user or not password:
+                raise RuntimeError("Falta usuario o contraseña para obtener el token.")
+            debug(f"Obteniendo token nuevo para el usuario '{user}'...")
+            client.login(user, password)
+            creds["token"] = client.token
+            debug("Token obtenido correctamente.")
+            return client
 
-            debug("LOGIN: comprobando si la página redirige a formulario de acceso...")
-            r = response_for(target_url)
-            text = r.text
-            if re.search(r"/lab/download/(?:mossbauer|calibration)/\d+/datafile/?", text) or "Medidas Mössbauer" in text or "Calibr" in text:
-                debug("LOGIN: ya estamos autenticados; la página contiene la tabla de datos.")
-                return True
-
-            forms = re.findall(r"<form\b.*?</form>", text, flags=re.S | re.I)
-            login_form = None
-            for form in forms:
-                if re.search(r"type=[\"']password[\"']", form, flags=re.I):
-                    login_form = form
-                    break
-            if login_form is None:
-                debug("LOGIN: no encuentro formulario con campo password en la página recibida.")
-                debug("LOGIN: primeros 500 caracteres HTML: " + re.sub(r"\s+", " ", text[:500]))
-                return False
-
-            action_m = re.search(r"<form\b[^>]*\baction=[\"']([^\"']*)[\"']", login_form, flags=re.S | re.I)
-            post_url = urljoin(r.url, unescape(action_m.group(1))) if action_m else r.url
-            method_m = re.search(r"<form\b[^>]*\bmethod=[\"']([^\"']*)[\"']", login_form, flags=re.S | re.I)
-            method = method_m.group(1).lower() if method_m else "post"
-
-            data = parse_inputs(login_form)
-            user_name = input_name(login_form, "text", ("username", "user", "login", "email")) or input_name(login_form, "email", ("email", "username"))
-            pass_name = input_name(login_form, "password", ("password", "passwd"))
-            if user_name is None or pass_name is None:
-                debug(f"LOGIN: no pude detectar campos. user_name={user_name}, pass_name={pass_name}, inputs={list(data)}")
-                return False
-            data[user_name] = user
-            data[pass_name] = password
-            # Muchos formularios Django usan ?next=... en la action o hidden next.
-            if "next" in data and not data["next"]:
-                data["next"] = urlparse(target_url).path
-
-            debug(f"LOGIN: POST {post_url} method={method} user_field={user_name} pass_field={pass_name} campos={list(data.keys())}")
-            headers = {"Referer": r.url}
-            if method == "get":
-                r2 = session.get(post_url, params=data, headers=headers, timeout=30, allow_redirects=True)
-            else:
-                r2 = session.post(post_url, data=data, headers=headers, timeout=30, allow_redirects=True)
-            debug(f"LOGIN: respuesta status={r2.status_code} final={r2.url} bytes={len(r2.content)}")
-            if r2.history:
-                debug("LOGIN: redirects: " + " -> ".join(f"{h.status_code}:{h.url}" for h in r2.history))
-            if "csrf" in r2.text[:3000].lower() and re.search(r"type=[\"']password[\"']", r2.text, flags=re.I):
-                debug("LOGIN: seguimos en formulario de login. Posible CSRF/campos incorrectos/credenciales no aceptadas.")
-                return False
-
-            # Comprobación final en la URL objetivo.
-            r3 = response_for(target_url)
-            if re.search(r"/lab/download/(?:mossbauer|calibration)/\d+/datafile/?", r3.text) or "Medidas Mössbauer" in r3.text or "Calibr" in r3.text:
-                debug("LOGIN: correcto, ya se ve la tabla de datos.")
-                return True
-            debug("LOGIN: no se ve la tabla tras login; revisar debug de URLs y HTML.")
-            return False
-
-        def filename_from_url(url: str) -> str:
-            name = Path(urlparse(url).path).name or "descarga.ws5"
-            return name if name.lower().endswith((".ws5", ".adt")) else name + ".ws5"
-
-        def filename_from_response(response, fallback: str) -> str:
-            """Obtiene el nombre real indicado por la web en Content-Disposition."""
-            cd = response.headers.get("content-disposition", "")
-            m = re.search(r"filename\*=UTF-8''([^;]+)", cd, flags=re.I)
-            if m:
-                return Path(unquote(m.group(1))).name
-            m = re.search(r'filename="?([^";]+)"?', cd, flags=re.I)
-            if m:
-                return Path(unescape(m.group(1))).name
-            return fallback
-
-        def clean_text(html_fragment: str) -> str:
-            text = re.sub(r"<[^>]+>", " ", html_fragment)
-            text = unescape(text)
-            return re.sub(r"\s+", " ", text).strip()
-
-        def safe_filename(text: str, max_len: int = 90) -> str:
-            text = unescape(text).strip()
-            text = re.sub(r"[^\w.()+\-]+", "_", text, flags=re.UNICODE).strip("_")
-            return (text[:max_len] or "mossbauer")
-
-        def row_cells(row_html: str) -> list[str]:
-            cells = re.findall(r"<td\b[^>]*>(.*?)</td>", row_html, flags=re.S | re.I)
-            return [clean_text(c).replace("↓ datos", "").replace("Ver", "").replace("✏", "").strip() for c in cells]
-
-        def name_from_row(row_html: str, download_url: str, data_kind: str) -> str:
-            m_id = re.search(r"/(?:mossbauer|calibration)/(\d+)/datafile/", download_url)
-            item_id = m_id.group(1) if m_id else ""
-            cells = row_cells(row_html)
-            sample = cells[0] if cells else data_kind
-            date = next((c for c in cells if re.search(r"\b20\d{2}-\d{2}-\d{2}\b", c)), "sin_fecha")
-            prefix = "cal" if data_kind == "calibration" else "moss"
-            return safe_filename(f"{date}_{prefix}_{sample}_{item_id}") + ".ws5"
-
-        def display_from_row(row_html: str, download_url: str, data_kind: str) -> str:
-            m_id = re.search(r"/(?:mossbauer|calibration)/(\d+)/datafile/", download_url)
-            item_id = m_id.group(1) if m_id else ""
-            cells = row_cells(row_html)
-            sample = cells[0] if len(cells) > 0 else data_kind
-            date = cells[1] if len(cells) > 1 else "sin_fecha"
-            entorno = cells[2] if len(cells) > 2 else "-"
-            if data_kind == "calibration":
-                # Columnas típicas: muestra, fecha, entorno/T, línea, V entrada, V calibrada, ISO.
-                calibrado = " / ".join(c for c in [cells[5] if len(cells) > 5 else "", cells[6] if len(cells) > 6 else ""] if c) or "-"
-            else:
-                calibrado = cells[3] if len(cells) > 3 else "-"
-            return f"{sample} - {date} - {entorno} - {calibrado}  [id {item_id}]"
-
-        def list_ws5() -> None:
-            """Lee la tabla paginada de Mössbauer o calibraciones y extrae los enlaces de datos."""
-            nonlocal found_links, displayed_links
-            start_url = url_var.get().strip()
-            if not start_url:
+        def persist_credentials() -> None:
+            if not remember_var.get():
                 return
+            creds["username"] = user_var.get().strip()
+            creds["password"] = pass_var.get()
+            creds["api_base"] = base_var.get().strip() or DEFAULT_BASE_URL
+            dirs = creds.setdefault("download_dirs", {})
+            if dest_dir_var.get().strip():
+                dirs[kind] = dest_dir_var.get().strip()
+            save_credentials(creds)
+            debug("Credenciales y token guardados localmente.")
 
+        def do_list() -> None:
+            nonlocal items
             listbox.delete(0, tk.END)
-            found: dict[str, tuple[str, str]] = {}
-            visited: set[str] = set()
-            if not ensure_form_login(start_url):
-                status_var.set("No se pudo completar el login. Mira el panel debug.")
-                return
-            queue: list[str] = [start_url]
-            max_pages = 80
-            start = urlparse(start_url)
-            base_netloc = start.netloc
-            data_kind = "calibration" if "calibraciones" in start.path else "mossbauer"
-            list_path = "/lab/calibraciones" if data_kind == "calibration" else "/lab/mossbauer"
-            download_re = re.compile(rf"/lab/download/{data_kind}/\d+/datafile/?")
-
-            def clean_url(url: str) -> str:
-                p = urlparse(url)
-                return p._replace(fragment="").geturl()
-
-            def add_download(url: str, name: str, display: str | None = None) -> None:
-                found[url] = (name, display or name)
-
             try:
-                while queue and len(visited) < max_pages:
-                    current = clean_url(queue.pop(0))
-                    if current in visited:
-                        continue
-                    visited.add(current)
-                    status_var.set(f"Leyendo página {len(visited)}... encontrados {len(found)} espectros")
-                    dialog.update_idletasks()
-
-                    r = response_for(current)
-                    try:
-                        r.raise_for_status()
-                    except Exception as exc:
-                        debug(f"  !! HTTP error: {exc}")
-                        continue
-                    text = r.text
-                    lower_head = text[:3000].lower()
-                    debug(f"  -> title={re.search(r'<title>(.*?)</title>', text, flags=re.S|re.I).group(1).strip() if re.search(r'<title>(.*?)</title>', text, flags=re.S|re.I) else 'sin title'}")
-                    debug(f"  -> contains table={ '<table' in lower_head or '<table' in text.lower() }, login/form={ '<form' in lower_head }, data-links={len(download_re.findall(text))}")
-                    if any(s in lower_head for s in ("login", "iniciar sesión", "csrfmiddlewaretoken")):
-                        debug("  !! Parece página de login o formulario. Si no aparecen datos, la web no acepta autenticación básica y requiere login por formulario.")
-
-                    # Caso URL directa a fichero ws5.
-                    if current.lower().endswith(".ws5") or "<data" in lower_head:
-                        debug("  -> parece WS5 directo")
-                        add_download(r.url, filename_from_url(r.url))
-                        continue
-
-                    # En la tabla, los ficheros están en enlaces como:
-                    # /lab/download/mossbauer/1357/datafile/  con texto "↓ datos".
-                    rows = re.findall(r"<tr\b.*?</tr>", text, flags=re.S | re.I)
-                    debug(f"  -> filas <tr>: {len(rows)}")
-                    before = len(found)
-                    for row in rows:
-                        hrefs = re.findall(r"href=[\"']([^\"']+)[\"']", row, flags=re.I)
-                        for href in hrefs:
-                            href = unescape(href).strip()
-                            if download_re.search(href):
-                                full = clean_url(urljoin(r.url, href))
-                                name = name_from_row(row, full, data_kind)
-                                display = display_from_row(row, full, data_kind)
-                                debug(f"     datos: {display} -> {full}")
-                                add_download(full, name, display)
-                    debug(f"  -> nuevos datos en esta página: {len(found)-before}")
-
-                    # Compatibilidad por si hay enlaces directos .ws5 en alguna página.
-                    page_links = 0
-                    for href in re.findall(r"href=[\"']([^\"']+)[\"']", text, flags=re.I):
-                        href = unescape(href).strip()
-                        if not href or href.startswith(("#", "mailto:", "javascript:")):
-                            continue
-                        full = clean_url(urljoin(r.url, href))
-                        parsed = urlparse(full)
-                        if parsed.netloc != base_netloc:
-                            continue
-                        if ".ws5" in full.lower():
-                            add_download(full, filename_from_url(full))
-                        # Seguir solo paginación de la lista, no páginas Ver/Editar.
-                        elif parsed.path.rstrip("/") == list_path and "page=" in parsed.query:
-                            page_links += 1
-                            if full not in visited and full not in queue:
-                                queue.append(full)
-                    debug(f"  -> enlaces de paginación añadidos/vistos: {page_links}; cola={len(queue)}")
+                client = build_client()
             except Exception as exc:
-                debug(f"EXCEPCIÓN: {type(exc).__name__}: {exc}")
-                status_var.set(f"Error leyendo la lista paginada: {type(exc).__name__}: {exc}")
+                status_var.set(f"No se pudo autenticar: {exc}")
+                debug(f"ERROR autenticación: {type(exc).__name__}: {exc}")
                 return
-
-            # Los nombres empiezan por fecha ISO cuando se puede extraer: ordenar nuevo -> viejo.
-            found_links = [(name, url, display) for url, (name, display) in sorted(found.items(), key=lambda item: item[1][0].lower(), reverse=True)]
+            persist_credentials()
+            status_var.set("Cargando lista desde la API...")
+            dialog.update_idletasks()
+            try:
+                if is_calibraciones:
+                    items = list(client.iter_calibraciones())
+                else:
+                    items = list(client.iter_medidas())
+            except Exception as exc:
+                status_var.set(f"Error cargando la lista: {type(exc).__name__}: {exc}")
+                debug(f"ERROR: {type(exc).__name__}: {exc}")
+                return
+            debug(f"Recibidos {len(items)} elementos de la API.")
             apply_search_filter()
-
-            if found_links:
-                status_var.set(
-                    f"Encontrados {len(found_links)} espectros en {len(visited)} páginas. Selecciona uno y pulsa Descargar."
-                )
+            if items:
+                status_var.set(f"{len(items)} elementos. Selecciona uno y pulsa Descargar.")
             else:
-                status_var.set(f"No encontré enlaces de datos tras revisar {len(visited)} páginas. Mira el panel debug para ver status, redirects y HTML recibido.")
+                status_var.set("La API no devolvió elementos.")
 
-        def download_selected() -> None:
-            save_credentials_if_requested()
-            if displayed_links and listbox.curselection():
-                name, file_url, _display = displayed_links[listbox.curselection()[0]]
-            else:
-                file_url = url_var.get().strip()
-                name = filename_from_url(file_url)
-            if not file_url:
+        def do_download() -> None:
+            if not (displayed and listbox.curselection()):
+                status_var.set("Selecciona un elemento de la lista.")
                 return
+            item = displayed[listbox.curselection()[0]]
+            dest_dir = dest_dir_var.get().strip() or str(Path.home() / "Mossbauer")
             try:
-                r = response_for(file_url)
-                r.raise_for_status()
-                content = r.content
-                name = filename_from_response(r, name)
+                client = build_client()
             except Exception as exc:
-                status_var.set(f"Error descargando: {exc}")
+                status_var.set(f"No se pudo autenticar: {exc}")
+                debug(f"ERROR autenticación: {type(exc).__name__}: {exc}")
                 return
-
-            dest_dir = dest_dir_var.get().strip()
-            if dest_dir:
-                path = Path(dest_dir) / name
+            persist_credentials()
+            try:
+                if is_calibraciones:
+                    path = client.download_calibracion_datafile(item["id"], dest_dir)
+                    debug(f"Calibración descargada: {path}")
+                else:
+                    path = client.download_datafile(item["id"], dest_dir)
+                    debug(f"Medida descargada: {path}")
+            except Exception as exc:
+                status_var.set(f"Error descargando: {type(exc).__name__}: {exc}")
+                debug(f"ERROR: {type(exc).__name__}: {exc}")
+                return
+            self.load_ws5(Path(path))
+            if not is_calibraciones:
                 try:
-                    path.parent.mkdir(parents=True, exist_ok=True)
+                    self._apply_web_calibration(client, item, dest_dir,
+                                                with_calib_var.get(), debug)
                 except Exception as exc:
-                    status_var.set(f"No se pudo crear la carpeta destino: {exc}")
-                    return
-                if path.exists() and not messagebox.askyesno("Sobrescribir", f"Ya existe:\n{path}\n\n¿Sobrescribir?"):
-                    return
-            else:
-                save_path = filedialog.asksaveasfilename(
-                    title="Guardar dato descargado",
-                    initialfile=name,
-                    defaultextension=".ws5",
-                    filetypes=[("Mössbauer WS5/ADT", "*.ws5 *.adt"), ("Wissoft WS5", "*.ws5"), ("ADT antiguo", "*.adt"), ("Todos", "*")],
-                )
-                if not save_path:
-                    return
-                path = Path(save_path)
-            path.write_bytes(content)
+                    debug(f"Aviso: no se pudo asociar la calibración: {exc}")
             status_var.set(f"Descargado: {path}")
-            self.load_ws5(path)
             dialog.destroy()
 
         buttons = ttk.Frame(frm)
-        buttons.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(8, 0))
+        buttons.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(8, 0))
         buttons.columnconfigure(0, weight=1)
         buttons.columnconfigure(1, weight=1)
-        ttk.Button(buttons, text="Listar", command=list_ws5).grid(row=0, column=0, sticky="ew", padx=(0, 5))
-        ttk.Button(buttons, text="Descargar", command=download_selected, style="Accent.TButton").grid(row=0, column=1, sticky="ew", padx=(5, 0))
+        ttk.Button(buttons, text="Listar", command=do_list).grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        ttk.Button(buttons, text="Descargar", command=do_download, style="Accent.TButton").grid(
+            row=0, column=1, sticky="ew", padx=(5, 0))
+
+    def _apply_web_calibration(self, client, medida: dict, dest_dir: str,
+                               download_file: bool, debug) -> None:
+        """Asocia a la medida recién cargada su calibración de la web: guarda la
+        trazabilidad en self.calibration_info y aplica el Vmax calibrado."""
+        calib_id = medida.get("calibration_id")
+        if not calib_id:
+            debug("La medida no tiene calibración asociada en la web.")
+            return
+        calib = client.get_calibracion_de_medida(medida["id"])
+        if not calib:
+            debug("La API no devolvió la calibración asociada.")
+            return
+        info = {
+            "source": "web_api",
+            "medida_id": medida.get("id"),
+            "calibration_id": calib.get("id", calib_id),
+            "calibration_sample": calib.get("sample"),
+            "calibration_date": calib.get("date"),
+            "velocity_calibrated": calib.get("velocity_calibrated"),
+            "isomer_shift": calib.get("isomer_shift"),
+            "calibration_file_name": None,
+            "calibration_file_path": None,
+        }
+        if download_file:
+            try:
+                cpath = client.download_calibracion_datafile(calib["id"], dest_dir)
+                info["calibration_file_name"] = Path(cpath).name
+                info["calibration_file_path"] = str(cpath)
+                debug(f"Calibración asociada descargada: {cpath}")
+            except Exception as exc:
+                debug(f"No se pudo descargar el fichero de calibración: {exc}")
+        self.calibration_info = info
+        vmax = info.get("velocity_calibrated")
+        if vmax in (None, ""):
+            debug("La calibración no trae velocity_calibrated; no se aplica Vmax.")
+            return
+        try:
+            vmax = abs(float(vmax))
+        except (TypeError, ValueError):
+            debug(f"velocity_calibrated no numérico: {vmax!r}")
+            return
+        self.updating_sliders = True
+        self.vars["vmax"].set(vmax)
+        self.entry_vars["vmax"].set(self._format_value("vmax", vmax))
+        self.updating_sliders = False
+        self.refold_data()
+        self.update_plot()
+        debug(f"Vmax aplicado desde la calibración: {vmax}")
 
     def open_web_upload_analysis_dialog(self) -> None:
-        """Sube a la web el JSON de la sesión actual en la sección de análisis."""
+        """Sube el JSON de la sesión actual como nueva versión de análisis vía API."""
         try:
-            import requests
+            from mossbauer_api_client import MatelecLabClient, DEFAULT_BASE_URL
         except Exception as exc:
-            messagebox.showerror("Web", f"No se pudo importar requests: {exc}")
+            messagebox.showerror(
+                "Web",
+                f"No se pudo cargar el cliente de la API: {exc}\n\n"
+                f"Asegúrate de tener instalado 'requests' (pip install requests).",
+            )
             return
 
-        cred_path = CONFIG_DIR / "credentials.json"
-        saved_user = ""
-        saved_pass = ""
-        saved_urls: dict[str, str] = {}
-        saved_dirs: dict[str, str] = {}
-        if cred_path.exists():
-            try:
-                saved = json.loads(cred_path.read_text(encoding="utf-8"))
-                saved_user = saved.get("username", "")
-                saved_pass = saved.get("password", "")
-                saved_urls = saved.get("urls", {})
-            except Exception:
-                pass
-
-        default_measure_id = "1357"
-        if self.file_path:
-            ids = re.findall(r"(?:^|_)(\d{3,})(?=\D|$)", self.file_path.stem)
-            if ids:
-                default_measure_id = ids[-1]
-        default_url = saved_urls.get("mossbauer_analysis", f"https://matelec.qfa.uam.es/lab/mossbauer/{default_measure_id}/")
+        creds = load_credentials()
+        base_url = creds.get("api_base") or DEFAULT_BASE_URL
 
         dialog = tk.Toplevel(self)
-        dialog.title("Subir análisis JSON a web")
-        dialog.geometry("760x520")
+        dialog.title("Subir análisis JSON a la web")
+        dialog.geometry("780x540")
         dialog.transient(self)
         dialog.configure(background="#edf4fb")
 
-        session = requests.Session()
         frm = ttk.Frame(dialog, padding=12)
         frm.pack(fill=tk.BOTH, expand=True)
         frm.columnconfigure(1, weight=1)
 
-        ttk.Label(frm, text="Página de la medida:").grid(row=0, column=0, sticky="w", pady=3)
-        url_var = tk.StringVar(value=default_url)
-        ttk.Entry(frm, textvariable=url_var).grid(row=0, column=1, columnspan=2, sticky="ew", pady=3)
+        ttk.Label(frm, text="Servidor:").grid(row=0, column=0, sticky="w", pady=3)
+        base_var = tk.StringVar(value=base_url)
+        ttk.Entry(frm, textvariable=base_var).grid(row=0, column=1, columnspan=2, sticky="ew", pady=3)
 
         ttk.Label(frm, text="Usuario:").grid(row=1, column=0, sticky="w", pady=3)
-        user_var = tk.StringVar(value=saved_user)
+        user_var = tk.StringVar(value=creds.get("username", ""))
         ttk.Entry(frm, textvariable=user_var).grid(row=1, column=1, sticky="ew", pady=3)
 
         ttk.Label(frm, text="Contraseña:").grid(row=2, column=0, sticky="w", pady=3)
-        pass_var = tk.StringVar(value=saved_pass)
+        pass_var = tk.StringVar(value=creds.get("password", ""))
         ttk.Entry(frm, textvariable=pass_var, show="•").grid(row=2, column=1, sticky="ew", pady=3)
-        remember_var = tk.BooleanVar(value=bool(saved_user or saved_pass))
-        ttk.Checkbutton(frm, text="Recordar credenciales y URL", variable=remember_var).grid(row=2, column=2, sticky="w", padx=(8, 0), pady=3)
+        remember_var = tk.BooleanVar(value=bool(creds.get("username") or creds.get("token")))
+        ttk.Checkbutton(frm, text="Recordar credenciales y token", variable=remember_var).grid(
+            row=2, column=2, sticky="w", padx=(8, 0), pady=3)
 
         default_name = (self.file_path.stem if self.file_path else "mossbauer") + "_session.json"
         ttk.Label(frm, text="Nombre JSON:").grid(row=3, column=0, sticky="w", pady=3)
         name_var = tk.StringVar(value=default_name)
         ttk.Entry(frm, textvariable=name_var).grid(row=3, column=1, columnspan=2, sticky="ew", pady=3)
 
-        list_url = saved_urls.get("mossbauer", "https://matelec.qfa.uam.es/lab/mossbauer/")
-        list_url_var = tk.StringVar(value=list_url)
-        ttk.Label(frm, text="Lista para buscar:").grid(row=4, column=0, sticky="w", pady=3)
-        ttk.Entry(frm, textvariable=list_url_var).grid(row=4, column=1, columnspan=2, sticky="ew", pady=3)
+        ttk.Label(frm, text="Medida (id):").grid(row=4, column=0, sticky="w", pady=3)
+        medida_id_var = tk.StringVar(value="")
+        ttk.Entry(frm, textvariable=medida_id_var).grid(row=4, column=1, sticky="ew", pady=3)
 
         ttk.Label(frm, text="Nota:").grid(row=5, column=0, sticky="nw", pady=3)
-        note_text = tk.Text(frm, height=3, wrap=tk.WORD, background="#ffffff", foreground="#17202a", font=("TkDefaultFont", 9))
+        note_text = tk.Text(frm, height=3, wrap=tk.WORD, background="#ffffff",
+                            foreground="#17202a", font=("TkDefaultFont", 9))
         note_text.grid(row=5, column=1, columnspan=2, sticky="ew", pady=3)
 
-        status_var = tk.StringVar(value="Primero busca la entrada cuyo fichero de datos tenga el mismo nombre; después pulsa Subir.")
-        ttk.Label(frm, textvariable=status_var, style="Subtitle.TLabel", wraplength=710).grid(row=6, column=0, columnspan=3, sticky="w", pady=(4, 8))
+        status_var = tk.StringVar(
+            value="Busca la medida por el nombre del fichero cargado y pulsa Subir.")
+        ttk.Label(frm, textvariable=status_var, style="Subtitle.TLabel", wraplength=740).grid(
+            row=6, column=0, columnspan=3, sticky="w", pady=(4, 8))
 
-        debug_box = tk.Text(frm, height=16, wrap=tk.WORD, background="#111827", foreground="#d1fae5", insertbackground="#d1fae5", font=("TkFixedFont", 9))
+        debug_box = tk.Text(frm, height=14, wrap=tk.WORD, background="#111827",
+                            foreground="#d1fae5", insertbackground="#d1fae5",
+                            font=("TkFixedFont", 9))
         debug_box.grid(row=7, column=0, columnspan=3, sticky="nsew", pady=(6, 0))
         frm.rowconfigure(7, weight=1)
 
@@ -2516,295 +2345,110 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
             debug_box.see(tk.END)
             dialog.update_idletasks()
 
-        def save_credentials_if_requested() -> None:
-            try:
-                if remember_var.get():
-                    existing_urls: dict[str, str] = {}
-                    if cred_path.exists():
-                        try:
-                            existing_urls = json.loads(cred_path.read_text(encoding="utf-8")).get("urls", {})
-                        except Exception:
-                            pass
-                    current_url = url_var.get().strip()
-                    if current_url:
-                        existing_urls["mossbauer_analysis"] = current_url
-                    current_list_url = list_url_var.get().strip()
-                    if current_list_url:
-                        existing_urls["mossbauer"] = current_list_url
-                    cred_path.parent.mkdir(parents=True, exist_ok=True)
-                    cred_path.write_text(
-                        json.dumps({"username": user_var.get().strip(), "password": pass_var.get(), "urls": existing_urls}, ensure_ascii=False, indent=2),
-                        encoding="utf-8",
-                    )
-                    os.chmod(cred_path, 0o600)
-                    debug(f"Credenciales y URL guardadas en {cred_path}.")
-            except Exception as exc:
-                debug(f"No se pudieron guardar credenciales: {exc}")
-
-        def parse_inputs(form_html: str) -> dict[str, str]:
-            data: dict[str, str] = {}
-            for input_tag in re.findall(r"<input\b[^>]*>", form_html, flags=re.S | re.I):
-                type_m = re.search(r"\btype=[\"']([^\"']+)[\"']", input_tag, flags=re.I)
-                typ = (type_m.group(1).lower() if type_m else "text")
-                if typ in ("file", "submit", "button", "image", "reset"):
-                    continue
-                name_m = re.search(r"\bname=[\"']([^\"']+)[\"']", input_tag, flags=re.I)
-                if not name_m:
-                    continue
-                value_m = re.search(r"\bvalue=[\"']([^\"']*)[\"']", input_tag, flags=re.I)
-                data[unescape(name_m.group(1))] = unescape(value_m.group(1)) if value_m else ""
-            for select in re.findall(r"<select\b.*?</select>", form_html, flags=re.S | re.I):
-                name_m = re.search(r"<select\b[^>]*\bname=[\"']([^\"']+)[\"']", select, flags=re.S | re.I)
-                if not name_m:
-                    continue
-                options = re.findall(r"<option\b[^>]*>", select, flags=re.S | re.I)
-                chosen = next((o for o in options if re.search(r"\bselected\b", o, flags=re.I)), options[0] if options else "")
-                value_m = re.search(r"\bvalue=[\"']([^\"']*)[\"']", chosen, flags=re.I)
-                if value_m:
-                    data[unescape(name_m.group(1))] = unescape(value_m.group(1))
-            for textarea in re.findall(r"<textarea\b.*?</textarea>", form_html, flags=re.S | re.I):
-                name_m = re.search(r"<textarea\b[^>]*\bname=[\"']([^\"']+)[\"']", textarea, flags=re.S | re.I)
-                if not name_m:
-                    continue
-                value_m = re.search(r"<textarea\b[^>]*>(.*?)</textarea>", textarea, flags=re.S | re.I)
-                data[unescape(name_m.group(1))] = unescape(value_m.group(1)) if value_m else ""
-            return data
-
-        def input_name(form_html: str, input_type: str, preferred: tuple[str, ...] = ()) -> str | None:
-            candidates: list[str] = []
-            for input_tag in re.findall(r"<input\b[^>]*>", form_html, flags=re.S | re.I):
-                type_m = re.search(r"\btype=[\"']([^\"']+)[\"']", input_tag, flags=re.I)
-                typ = type_m.group(1).lower() if type_m else "text"
-                if typ == input_type:
-                    name_m = re.search(r"\bname=[\"']([^\"']+)[\"']", input_tag, flags=re.I)
-                    if name_m:
-                        candidates.append(unescape(name_m.group(1)))
-            for pref in preferred:
-                for cand in candidates:
-                    if cand.lower() == pref:
-                        return cand
-            return candidates[0] if candidates else None
-
-        def get_url(url: str):
-            debug(f"GET {url}")
-            r = session.get(url, timeout=30, allow_redirects=True)
-            debug(f"  -> status={r.status_code} final={r.url} bytes={len(r.content)}")
-            return r
-
-        def ensure_login(target_url: str) -> bool:
-            save_credentials_if_requested()
+        def build_client():
+            base = base_var.get().strip() or DEFAULT_BASE_URL
+            token = creds.get("token")
+            client = MatelecLabClient(base_url=base, token=token)
+            if token and client.token_is_valid():
+                debug("Token guardado válido.")
+                return client
             user = user_var.get().strip()
             password = pass_var.get()
-            r = get_url(target_url)
-            if not re.search(r"type=[\"']password[\"']", r.text, flags=re.I):
-                debug("LOGIN: no aparece formulario de contraseña; se continúa con la sesión actual.")
-                return True
-            if not user and not password:
-                debug("LOGIN: faltan usuario y contraseña.")
-                return False
-            forms = re.findall(r"<form\b.*?</form>", r.text, flags=re.S | re.I)
-            login_form = next((form for form in forms if re.search(r"type=[\"']password[\"']", form, flags=re.I)), None)
-            if login_form is None:
-                return False
-            action_m = re.search(r"<form\b[^>]*\baction=[\"']([^\"']*)[\"']", login_form, flags=re.S | re.I)
-            post_url = urljoin(r.url, unescape(action_m.group(1))) if action_m else r.url
-            method_m = re.search(r"<form\b[^>]*\bmethod=[\"']([^\"']*)[\"']", login_form, flags=re.S | re.I)
-            method = method_m.group(1).lower() if method_m else "post"
-            data = parse_inputs(login_form)
-            user_name = input_name(login_form, "text", ("username", "user", "login", "email")) or input_name(login_form, "email", ("email", "username"))
-            pass_name = input_name(login_form, "password", ("password", "passwd"))
-            if user_name is None or pass_name is None:
-                debug("LOGIN: no se pudieron detectar los campos usuario/contraseña.")
-                return False
-            data[user_name] = user
-            data[pass_name] = password
-            if "next" in data and not data["next"]:
-                data["next"] = urlparse(target_url).path
-            debug(f"LOGIN: enviando credenciales a {post_url}")
-            headers = {"Referer": r.url}
-            if method == "get":
-                r2 = session.get(post_url, params=data, headers=headers, timeout=30, allow_redirects=True)
-            else:
-                r2 = session.post(post_url, data=data, headers=headers, timeout=30, allow_redirects=True)
-            debug(f"LOGIN: respuesta status={r2.status_code} final={r2.url} bytes={len(r2.content)}")
-            r3 = get_url(target_url)
-            ok = not re.search(r"type=[\"']password[\"']", r3.text[:6000], flags=re.I)
-            debug("LOGIN: correcto." if ok else "LOGIN: parece que seguimos en la página de acceso.")
-            return ok
+            if not user or not password:
+                raise RuntimeError("Falta usuario o contraseña para obtener el token.")
+            debug(f"Obteniendo token para '{user}'...")
+            client.login(user, password)
+            creds["token"] = client.token
+            debug("Token obtenido.")
+            return client
 
-        def find_analysis_upload_form(html: str, base_url: str) -> tuple[str, dict[str, str], str, str] | None:
-            forms = re.findall(r"<form\b.*?</form>", html, flags=re.S | re.I)
-            scored: list[tuple[int, str, str]] = []
-            for form in forms:
-                file_name = input_name(form, "file")
-                if not file_name:
-                    continue
-                action_m = re.search(r"<form\b[^>]*\baction=[\"']([^\"']*)[\"']", form, flags=re.S | re.I)
-                action = urljoin(base_url, unescape(action_m.group(1))) if action_m else base_url
-                hay = re.sub(r"<[^>]+>", " ", form).lower() + " " + action.lower()
-                score = 0
-                if "análisis" in hay or "analisis" in hay or "analysis" in hay:
-                    score += 10
-                if "json" in hay:
-                    score += 2
-                scored.append((score, action, form))
-            if not scored:
-                return None
-            scored.sort(key=lambda item: item[0], reverse=True)
-            _score, action, form = scored[0]
-            file_name = input_name(form, "file")
-            if file_name is None:
-                return None
-            return action, parse_inputs(form), file_name, form
+        def persist_credentials() -> None:
+            if not remember_var.get():
+                return
+            creds["username"] = user_var.get().strip()
+            creds["password"] = pass_var.get()
+            creds["api_base"] = base_var.get().strip() or DEFAULT_BASE_URL
+            save_credentials(creds)
+            debug("Credenciales y token guardados localmente.")
 
-        def note_field_names(form_html: str) -> list[str]:
-            names: list[str] = []
-            for tag_re in (r"<textarea\b[^>]*>", r"<input\b[^>]*>"):
-                for tag in re.findall(tag_re, form_html, flags=re.S | re.I):
-                    name_m = re.search(r"\bname=[\"']([^\"']+)[\"']", tag, flags=re.I)
-                    if not name_m:
-                        continue
-                    name = unescape(name_m.group(1))
-                    lname = name.lower()
-                    if any(token in lname for token in ("note", "nota", "comment", "coment", "observ", "description", "descripcion", "descrip")):
-                        names.append(name)
-            return names
-
-        def filename_from_response(response, fallback: str) -> str:
-            cd = response.headers.get("content-disposition", "")
-            m = re.search(r"filename\*=UTF-8''([^;]+)", cd, flags=re.I)
-            if m:
-                return Path(unquote(m.group(1))).name
-            m = re.search(r'filename="?([^";]+)"?', cd, flags=re.I)
-            if m:
-                return Path(unescape(m.group(1))).name
-            return fallback
-
-        def find_measure_by_current_filename() -> None:
+        def find_medida() -> None:
             if not self.file_path:
-                status_var.set("No hay fichero de datos cargado; no se puede comparar el nombre.")
+                status_var.set("No hay fichero de datos cargado; no se puede buscar.")
                 return
-            target_name = self.file_path.name.strip().lower()
-            start_url = list_url_var.get().strip() or "https://matelec.qfa.uam.es/lab/mossbauer/"
-            if not ensure_login(start_url):
-                status_var.set("No se pudo iniciar sesión para buscar la entrada.")
-                return
-
-            status_var.set(f"Buscando en la web el fichero de datos: {self.file_path.name}")
-            dialog.update_idletasks()
-            visited: set[str] = set()
-            queue: list[str] = [start_url]
-            download_re = re.compile(r"/lab/download/mossbauer/(\d+)/datafile/?")
-            found: dict[str, str] = {}
-            max_pages = 80
-            base_netloc = urlparse(start_url).netloc
-
-            def clean_url(url: str) -> str:
-                p = urlparse(url)
-                return p._replace(fragment="").geturl()
-
             try:
-                while queue and len(visited) < max_pages:
-                    current = clean_url(queue.pop(0))
-                    if current in visited:
-                        continue
-                    visited.add(current)
-                    r = get_url(current)
-                    r.raise_for_status()
-                    text = r.text
-                    for href in re.findall(r"href=[\"']([^\"']+)[\"']", text, flags=re.I):
-                        href = unescape(href).strip()
-                        if not href or href.startswith(("#", "mailto:", "javascript:")):
-                            continue
-                        full = clean_url(urljoin(r.url, href))
-                        parsed = urlparse(full)
-                        if parsed.netloc != base_netloc:
-                            continue
-                        m = download_re.search(parsed.path)
-                        if m:
-                            found[full] = m.group(1)
-                        elif parsed.path.rstrip("/") == "/lab/mossbauer" and "page=" in parsed.query:
-                            if full not in visited and full not in queue:
-                                queue.append(full)
-                    status_var.set(f"Revisadas {len(visited)} páginas; {len(found)} ficheros candidatos...")
-                    dialog.update_idletasks()
-
-                debug(f"BUSCAR: comparando {len(found)} ficheros descargables con {self.file_path.name}")
-                for n, (file_url, item_id) in enumerate(found.items(), start=1):
-                    status_var.set(f"Comprobando fichero {n}/{len(found)}...")
-                    dialog.update_idletasks()
-                    r = session.get(file_url, timeout=30, allow_redirects=True)
-                    r.raise_for_status()
-                    web_name = filename_from_response(r, Path(urlparse(r.url).path).name).strip()
-                    debug(f"  id {item_id}: {web_name} <- {file_url}")
-                    if web_name.lower() == target_name:
-                        measure_url = urljoin(start_url, f"/lab/mossbauer/{item_id}/")
-                        url_var.set(measure_url)
-                        status_var.set(f"Encontrada entrada id {item_id} para {self.file_path.name}. Ya puedes pulsar Subir.")
-                        debug(f"BUSCAR: coincidencia exacta -> {measure_url}")
-                        return
-                status_var.set(f"No se encontró en la web ningún dato llamado exactamente {self.file_path.name}.")
+                client = build_client()
             except Exception as exc:
-                status_var.set(f"Error buscando entrada: {type(exc).__name__}: {exc}")
-                debug(f"BUSCAR EXCEPCIÓN: {type(exc).__name__}: {exc}")
+                status_var.set(f"No se pudo autenticar: {exc}")
+                debug(f"ERROR autenticación: {type(exc).__name__}: {exc}")
+                return
+            persist_credentials()
+            status_var.set(f"Buscando la medida del fichero {self.file_path.name}...")
+            dialog.update_idletasks()
+            try:
+                medida = client.find_medida_by_filename(self.file_path.name)
+            except Exception as exc:
+                status_var.set(f"Error buscando: {type(exc).__name__}: {exc}")
+                debug(f"ERROR: {type(exc).__name__}: {exc}")
+                return
+            if not medida:
+                status_var.set(
+                    f"La API no encontró ninguna medida con el fichero {self.file_path.name}.")
+                return
+            medida_id_var.set(str(medida["id"]))
+            status_var.set(
+                f"Medida encontrada: id {medida['id']} · {medida.get('sample', '')}. "
+                f"Ya puedes pulsar Subir.")
+            debug(f"Medida {medida['id']}: {medida.get('sample')} ({medida.get('date')})")
 
         def upload() -> None:
-            target_url = url_var.get().strip()
+            medida_id = medida_id_var.get().strip()
+            if not medida_id:
+                status_var.set("Indica el id de la medida o búscalo por nombre de fichero.")
+                return
             upload_name = name_var.get().strip() or default_name
             if not upload_name.lower().endswith(".json"):
                 upload_name += ".json"
-            if not target_url:
-                return
             try:
-                note = note_text.get("1.0", tk.END).strip()
-                session_data = self.session_payload()
-                if note:
-                    session_data["web_analysis_note"] = note
-                payload = json.dumps(session_data, ensure_ascii=False, indent=2).encode("utf-8")
-                if not ensure_login(target_url):
-                    status_var.set("No se pudo iniciar sesión. Revisa usuario/contraseña y el panel debug.")
-                    return
-                page = get_url(target_url)
-                page.raise_for_status()
-                form_info = find_analysis_upload_form(page.text, page.url)
-                if form_info is None:
-                    status_var.set("No encontré un formulario con campo de fichero en la sección de análisis.")
-                    debug("Busca en la página un formulario de subida en 'Análisis'. Si cambia el HTML habrá que ajustar el detector.")
-                    return
-                post_url, data, file_field, form_html = form_info
-                if note:
-                    note_fields = note_field_names(form_html)
-                    if note_fields:
-                        data[note_fields[0]] = note
-                        debug(f"UPLOAD: nota enviada en campo {note_fields[0]}")
-                    else:
-                        debug("UPLOAD: no encontré campo de nota en el formulario; la nota va incluida dentro del JSON.")
-                debug(f"UPLOAD: POST multipart {post_url} campo_fichero={file_field} campos={list(data.keys())}")
-                files = {file_field: (upload_name, payload, "application/json")}
-                r = session.post(post_url, data=data, files=files, headers={"Referer": page.url}, timeout=60, allow_redirects=True)
-                debug(f"UPLOAD: respuesta status={r.status_code} final={r.url} bytes={len(r.content)}")
-                try:
-                    r.raise_for_status()
-                except Exception:
-                    status_var.set(f"Error HTTP al subir: {r.status_code}")
-                    return
-                if re.search(r"type=[\"']password[\"']", r.text[:6000], flags=re.I):
-                    status_var.set("La web devolvió la página de login; no se subió el análisis.")
-                    return
-                status_var.set(f"Análisis subido como {upload_name}.")
-                messagebox.showinfo("Web", f"Análisis JSON subido a:\n{target_url}")
+                client = build_client()
             except Exception as exc:
-                status_var.set(f"Error subiendo análisis: {type(exc).__name__}: {exc}")
-                debug(f"EXCEPCIÓN: {type(exc).__name__}: {exc}")
+                status_var.set(f"No se pudo autenticar: {exc}")
+                debug(f"ERROR autenticación: {type(exc).__name__}: {exc}")
+                return
+            persist_credentials()
+            note = note_text.get("1.0", tk.END).strip()
+            session_data = self.session_payload()
+            if note:
+                session_data["web_analysis_note"] = note
+            payload = json.dumps(session_data, ensure_ascii=False, indent=2).encode("utf-8")
+            try:
+                result = client.upload_analysis(medida_id, data=payload,
+                                                filename=upload_name, note=note)
+            except ValueError as exc:
+                status_var.set(f"Subida rechazada: {exc}")
+                debug(str(exc))
+                return
+            except Exception as exc:
+                status_var.set(f"Error subiendo: {type(exc).__name__}: {exc}")
+                debug(f"ERROR: {type(exc).__name__}: {exc}")
+                return
+            version = result.get("version", "?")
+            status_var.set(f"Análisis subido como {upload_name} (versión {version}).")
+            debug(f"OK: {result}")
+            messagebox.showinfo(
+                "Web",
+                f"Análisis JSON subido a la medida {medida_id}.\nVersión: {version}")
+
+        ttk.Button(frm, text="Buscar por nombre de fichero", command=find_medida,
+                   style="Small.TButton").grid(row=4, column=2, sticky="ew", padx=(8, 0), pady=3)
 
         buttons = ttk.Frame(frm)
         buttons.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(8, 0))
         buttons.columnconfigure(0, weight=1)
         buttons.columnconfigure(1, weight=1)
-        buttons.columnconfigure(2, weight=1)
-        ttk.Button(buttons, text="Buscar entrada por nombre", command=find_measure_by_current_filename).grid(row=0, column=0, sticky="ew", padx=(0, 5))
-        ttk.Button(buttons, text="Subir", command=upload, style="Accent.TButton").grid(row=0, column=1, sticky="ew", padx=5)
-        ttk.Button(buttons, text="Cerrar", command=dialog.destroy).grid(row=0, column=2, sticky="ew", padx=(5, 0))
+        ttk.Button(buttons, text="Subir", command=upload, style="Accent.TButton").grid(
+            row=0, column=0, sticky="ew", padx=(0, 5))
+        ttk.Button(buttons, text="Cerrar", command=dialog.destroy).grid(
+            row=0, column=1, sticky="ew", padx=(5, 0))
 
     def open_file(self) -> None:
         filename = filedialog.askopenfilename(
@@ -2823,6 +2467,9 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
         self.file_path = path
         self.current_file_var.set(path.name)
         self.counts = counts
+        # Un fichero nuevo invalida cualquier calibración asociada previa;
+        # el diálogo de descarga web la repuebla después si procede.
+        self.calibration_info = None
         center = read_normos_folding_point(path)
         if center is None:
             center = find_best_integer_or_half_center(counts)
@@ -3896,6 +3543,7 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
             "file_path": str(self.file_path) if self.file_path else None,
             "file_name": self.file_path.name if self.file_path else None,
             "counts": self.counts.tolist() if self.counts is not None else None,
+            "calibration": self.calibration_info,
             "state_and_parameters_text": info_text,
             "model_state": model_state,
             "last_fit": last_fit,
@@ -3945,6 +3593,21 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
         self.dist_refine_global_var.set(bool(state.get("dist_refine_global", self.dist_refine_global_var.get())))
         self.constraints = list(state.get("constraints", data.get("constraints", self.constraints)))
         self.updating_sliders = False
+
+        self.calibration_info = data.get("calibration")
+        if self.calibration_info:
+            cal_v = self.calibration_info.get("velocity_calibrated")
+            if cal_v not in (None, "") and "vmax" in self.vars:
+                try:
+                    if abs(float(cal_v) - float(self.vars["vmax"].get())) > 1e-3:
+                        messagebox.showwarning(
+                            "Calibración",
+                            f"El Vmax de la sesión ({self.vars['vmax'].get():.4f}) difiere "
+                            f"del Vmax de la calibración asociada ({float(cal_v):.4f} mm/s, "
+                            f"calibración id {self.calibration_info.get('calibration_id')}).",
+                        )
+                except (TypeError, ValueError):
+                    pass
 
         last_fit = data.get("last_fit", {})
         self.last_fit_free_keys = list(last_fit.get("free_keys", []))
