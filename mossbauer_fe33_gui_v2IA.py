@@ -47,6 +47,7 @@ C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
 APP_NAME = "Mössbauer Fe-57 v2IA"
+APP_VERSION = "0.1.0"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -399,6 +400,7 @@ class MossbauerFe33GUI(tk.Tk):
             self.update_plot()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.after(150, self.show_startup_splash)
+        self.after(2500, lambda: self.check_for_updates(silent=True))
 
     def _build_ui(self) -> None:
         style = ttk.Style(self)
@@ -495,6 +497,7 @@ class MossbauerFe33GUI(tk.Tk):
         help_menu.add_command(label="Acerca de", command=self.show_about)
         help_menu.add_separator()
         help_menu.add_command(label="Changelog", command=self.show_changelog)
+        help_menu.add_command(label="Buscar actualizaciones...", command=lambda: self.check_for_updates(silent=False))
         menubar.add_cascade(label="Ayuda", menu=help_menu)
         self.config(menu=menubar)
 
@@ -1645,7 +1648,78 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
         ttk.Button(buttons, text="Cerrar", command=win.destroy, style="Accent.TButton").pack(side=tk.RIGHT)
 
     def show_about(self) -> None:
-        self.show_logo_popup(title="Acerca de Mössbauer Fe-57 v2IA", scale=2.6, click_to_close=False)
+        self.show_logo_popup(title=f"Acerca de Mössbauer Fe-57 v2IA v{APP_VERSION}", scale=2.6, click_to_close=False)
+
+    def check_for_updates(self, silent: bool = False) -> None:
+        """Comprueba GitHub Releases y descarga la nueva versión si existe."""
+        import os
+        import threading
+        import webbrowser
+        from pathlib import Path as _Path
+
+        try:
+            from mossbauer_updater import choose_download, download_file, is_newer, latest_release
+        except Exception as exc:
+            if not silent:
+                messagebox.showerror("Actualizaciones", f"No se pudo cargar el actualizador: {exc}")
+            return
+
+        current_version = APP_VERSION
+
+        def downloads_dir() -> _Path:
+            for name in ("Descargas", "Downloads"):
+                p = _Path.home() / name
+                if p.exists():
+                    return p
+            return _Path.home()
+
+        def download_in_background(url: str, filename: str) -> None:
+            def worker_download() -> None:
+                try:
+                    path = download_file(url, downloads_dir(), filename)
+                except Exception as exc:
+                    self.after(0, lambda: messagebox.showerror("Actualizaciones", f"No se pudo descargar la actualización:\n{exc}"))
+                    return
+                self.after(0, lambda: messagebox.showinfo(
+                    "Actualización descargada",
+                    f"Descargado en:\n{path}\n\nCierra el programa y usa ese fichero para instalar/ejecutar la nueva versión.",
+                ))
+            threading.Thread(target=worker_download, daemon=True).start()
+
+        def worker() -> None:
+            try:
+                release = latest_release()
+                newer = is_newer(release.tag, current_version)
+            except Exception as exc:
+                if not silent:
+                    self.after(0, lambda: messagebox.showerror("Actualizaciones", f"No se pudo comprobar GitHub Releases:\n{exc}"))
+                return
+
+            def finish() -> None:
+                if not newer:
+                    if not silent:
+                        messagebox.showinfo("Actualizaciones", f"Ya tienes la última versión ({current_version}).")
+                    return
+                body = (release.body or "").strip()
+                if len(body) > 900:
+                    body = body[:900] + "…"
+                msg = (
+                    f"Hay una versión nueva disponible.\n\n"
+                    f"Versión actual: {current_version}\n"
+                    f"Nueva versión: {release.tag}\n\n"
+                    f"{body}\n\n"
+                    "¿Quieres descargarla ahora?"
+                )
+                if messagebox.askyesno("Actualización disponible", msg):
+                    url, filename = choose_download(release, prefer_exe=(os.name == "nt"))
+                    download_in_background(url, filename)
+                else:
+                    if messagebox.askyesno("Actualizaciones", "¿Abrir la página de releases en el navegador?"):
+                        webbrowser.open(release.html_url)
+
+            self.after(0, finish)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def show_changelog(self) -> None:
         if CHANGELOG_PATH.exists():

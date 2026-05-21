@@ -20,6 +20,7 @@ Funciones principales:
 - Visualización de datos, modelo, componentes, fondo, residuo y distribución.
 - Porcentajes de área de componentes y errores aproximados.
 - Guardado de ajuste y guardado/carga de sesión completa.
+- Comprobación de nuevas versiones desde GitHub Releases y descarga de actualizaciones.
 
 ## 2. Datos, folding y velocidad
 
@@ -115,7 +116,19 @@ La opción **refinar δ y Γ globales** intenta optimizar también el desplazami
 - No interpretes detalles muy estrechos si `α` es demasiado pequeño.
 - Si una fase es claramente discreta, añádela como componente nítido.
 
-## 5. Guardado
+## 5. Actualizaciones
+
+El programa comprueba nuevas versiones publicadas en GitHub Releases al arrancar y también manualmente desde:
+
+```text
+Ayuda → Buscar actualizaciones...
+```
+
+La versión local está definida en `APP_VERSION`. Si existe una release con un tag superior, por ejemplo `v0.1.1`, el programa ofrece descargarla en `Descargas`/`Downloads`.
+
+Las instrucciones para publicar versiones están en `RELEASES.md`.
+
+## 6. Guardado
 
 ### Guardar ajuste
 
