@@ -1,0 +1,20 @@
+Comparacion con JA271025.PLT usando velocidad maxima 11.8788 mm/s
+
+Folding point por minimos cuadrados: 256.559647 canales (numeracion 1..512)
+Fichero mio generado: Ja271025_doblado_velocidad_cuentas.dat
+Fichero comparacion: Ja271025_comparacion_normos_vs_mio.dat
+
+Comparacion directa con la Experimental_data del PLT, normalizando mis cuentas por factor optimo:
+  factor mio = 2.38294450768e-06  (equivale a dividir por 419648.882622)
+  diferencia media = 3.1925815e-07
+  RMS = 0.0001258313
+  max |diferencia| = 0.00067630912
+  correlacion = 0.9999547891
+
+Si se reproduce el doblado entero que parece usar Normos, fp = 256.5 y pares (256,257), (255,258), ..., (1,512):
+  factor = 2.38294317453e-06  (equivale a dividir por 419649.117397)
+  RMS = 6.1621728e-05
+  max |diferencia| = 0.0007597512
+  correlacion = 0.9999887336
+
+Conclusion: el PLT de Normos coincide practicamente con un doblado entero centrado en 256.5, no con el folding point fraccionario 256.559647. La diferencia entre 256.5 y mi minimo es 0.059647 canales.

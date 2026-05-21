@@ -1,0 +1,35 @@
+{
+  "baseline": 0.9995270885624504,
+  "slope": -5.944598408498171e-06,
+  "alpha": 0.01,
+  "rms": 0.003998593858147978,
+  "success": true,
+  "message": "The first-order optimality measure is less than `tol`.",
+  "sharp_BHF_centers": [
+    33.0
+  ],
+  "sharp_weights": [
+    0.003147509608239173
+  ],
+  "input": "Ja271025.ws5",
+  "spectrum_file": "Ja271025_bhf_spectrum.dat",
+  "distribution_file": "Ja271025_bhf_distribution.dat",
+  "center_internal": 256.5041658402651,
+  "center_normos_equiv": 513.0083316805302,
+  "vmax": 11.8788,
+  "norm_factor": 419646.4548203503,
+  "delta": 0.0,
+  "quad": 0.1,
+  "gamma": 0.18,
+  "bmin": 0.0,
+  "bmax": 50.0,
+  "nbins": 20,
+  "peak_bhf": 1.25,
+  "area_weights_trapz": 0.17249625257289375,
+  "sharp_components": [
+    {
+      "bhf": 33.0,
+      "amplitude": 0.003147509608239173
+    }
+  ]
+}

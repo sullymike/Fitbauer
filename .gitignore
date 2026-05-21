@@ -1,0 +1,22 @@
+# No subir ejecutables
+*.exe
+*.EXE
+
+# No subir subdirectorios ni su contenido
+*/
+
+# Cachés/temporales habituales si aparecen en la raíz
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Entornos virtuales si aparecen en la raíz
+.venv/
+venv/
+env/
+
+# Temporales de sistema/editor
+*.tmp
+*.bak
+*~
+.DS_Store

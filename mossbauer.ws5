@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acceso al portal – Grupo de Investigación · UAM</title>
+  <meta name="description" content="Grupo de Investigación MATELEC de la Universidad Autónoma de Madrid. Nanomateriales, electroquímica y espectroscopía Mössbauer." />
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="MATELEC · UAM" />
+  <meta property="og:title" content="MATELEC – Grupo de Investigación · UAM" />
+  <meta property="og:description" content="Grupo de Investigación MATELEC de la Universidad Autónoma de Madrid. Nanomateriales, electroquímica y espectroscopía Mössbauer." />
+  <meta property="og:image" content="/static/img/logo5.0f0d926c78bd.png" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="icon" type="image/png" href="/static/img/favicon.77bee75d6c42.png" />
+  <link rel="stylesheet" href="/static/css/fonts.b8c680a82216.css" />
+  <link rel="stylesheet" href="/static/css/style.5230c4c5f308.css" />
+  
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+
+<header id="header">
+  <nav class="nav-container">
+    <a href="/" class="logo">
+      <img src="/static/img/logo5.0f0d926c78bd.png" alt="MATELEC" class="logo-img" />
+      <div class="logo-text">
+        <span class="logo-name">MATELEC</span>
+        <span class="logo-sub">Universidad Autónoma de Madrid</span>
+      </div>
+    </a>
+
+    <button class="nav-toggle" id="navToggle" aria-label="Menú">
+      <span></span><span></span><span></span>
+    </button>
+
+    <ul class="nav-links" id="navLinks">
+      <!-- Investigación dropdown -->
+      <li class="nav-dropdown">
+        <a href="/investigacion/" class="nav-dropdown-toggle ">
+          Investigación <span class="nav-arrow">▾</span>
+        </a>
+        <ul class="nav-dropdown-menu">
+          <li><a href="/investigacion/">
+            Líneas de investigación
+          </a></li>
+          <li><a href="/proyectos/">
+            Proyectos
+          </a></li>
+          <li><a href="/publicaciones/">
+            Publicaciones
+          </a></li>
+          <li><a href="/instrumentos/">
+            Instrumentación
+          </a></li>
+          
+          <li><a href="/web/labs/">
+            Laboratorios
+          </a></li>
+          
+        </ul>
+      </li>
+      <li><a href="/miembros/" >
+        Miembros
+      </a></li>
+      <li><a href="/tesis/" >
+        Tesis / TFG
+      </a></li>
+      <!-- Docencia dropdown -->
+      <li class="nav-dropdown">
+        <a href="/docencia/" class="nav-dropdown-toggle ">
+          Docencia 
+        </a>
+        
+      </li>
+      <li><a href="/galeria/" >
+        Galería
+      </a></li>
+      <li><a href="/contacto/" >
+        Contacto
+      </a></li>
+      
+      <li><a href="/web/colabora/" >
+        Colaboraciones
+      </a></li>
+      
+    </ul>
+
+    <div class="lang-toggle">
+      
+      <a class="lang-opt active" href="?lang=es">ES</a>
+      <span class="lang-sep">/</span>
+      <a class="lang-opt " href="?lang=en">EN</a>
+    </div>
+  </nav>
+</header>
+
+
+<main id="main">
+  
+<section class="section page-section">
+  <div class="container portal-auth-container">
+    <div class="portal-auth-card">
+      <p class="section-tag">Portal MATELEC</p>
+      <h1>Acceso al portal</h1>
+      <p class="portal-subtitle">Inicia sesión para editar tu perfil, tus nombres de autor y tus publicaciones.</p>
+
+      <form method="post" class="portal-auth-form" novalidate>
+        <input type="hidden" name="csrfmiddlewaretoken" value="yqcfbrnxqRp1tmSgOAqe3SN7sqiUATHtohS6x5GlxXtm7m3jZHqJjZIY57MPKoaB">
+
+        
+
+        <div class="portal-form-row">
+          <label for="id_username">Usuario</label>
+          <input
+            type="text"
+            name="username"
+            id="id_username"
+            autocomplete="username"
+            class="portal-input"
+            value=""
+            required
+          />
+          
+        </div>
+
+        <div class="portal-form-row">
+          <label for="id_password">Contraseña</label>
+          <input
+            type="password"
+            name="password"
+            id="id_password"
+            autocomplete="current-password"
+            class="portal-input"
+            required
+          />
+          
+        </div>
+
+        
+        <input type="hidden" name="next" value="/lab/mossbauer/" />
+        
+
+        <button type="submit" class="btn btn-primary">Entrar</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <img src="/static/img/logo5.0f0d926c78bd.png" alt="MATELEC" class="logo-img footer-logo-img" />
+          <div class="logo-text">
+            <span class="logo-name">MATELEC</span>
+            <span class="logo-sub">UAM</span>
+          </div>
+        </div>
+        <p>Síntesis y caracterización electroquímica y espectroscópica de materiales</p>
+      </div>
+
+      <div class="footer-links">
+        <h4>Navegación</h4>
+        <ul>
+          <li><a href="/investigacion/">Líneas de investigación</a></li>
+          <li><a href="/proyectos/">Proyectos</a></li>
+          <li><a href="/publicaciones/">Publicaciones</a></li>
+          <li><a href="/miembros/">Miembros</a></li>
+          <li><a href="/tesis/">Tesis / TFG</a></li>
+          <li><a href="/instrumentos/">Instrumentación</a></li>
+          <li><a href="/docencia/">Docencia</a></li>
+          <li><a href="/galeria/">Galería</a></li>
+          <li><a href="/contacto/">Contacto</a></li>
+          
+          <li><a href="/web/colabora/">
+            Colaboraciones
+          </a></li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-links">
+        <h4>Enlaces de interés</h4>
+        <ul>
+          
+          <li><a href="https://www.uam.es" target="_blank" rel="noopener">Universidad Autónoma de Madrid</a></li>
+          
+          <li><a href="https://www.uam.es/ciencias/inicio" target="_blank" rel="noopener">Facultad de Ciencias</a></li>
+          
+          <li><a href="https://www.uam.es/ciencias/facultad/departamentos/quimica-fisica-aplicada" target="_blank" rel="noopener">Dpto. Química Física Aplicada</a></li>
+          
+          <li><a href="https://www.ciencia.gob.es" target="_blank" rel="noopener">Ministerio de Ciencia</a></li>
+          
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>&copy; 2026 Grupo MATELEC · Universidad Autónoma de Madrid</p>
+      <p><a href="https://matelec.qfa.uam.es" target="_blank" rel="noopener">matelec.qfa.uam.es</a></p>
+    </div>
+  </div>
+</footer>
+
+<script src="/static/js/main.7a0570958529.js"></script>
+
+</body>
+</html>
