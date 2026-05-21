@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.1.5
+
+- La descarga y subida web usan la API REST oficial del laboratorio (`/api/v1/`) en lugar de scraping de HTML.
+- Autenticación por token: usuario y contraseña se piden una vez; el token se guarda y se reutiliza.
+- Al descargar una medida puede descargarse también su calibración asociada y aplicarse su Vmax automáticamente.
+- La sesión JSON guarda un bloque `calibration` con la trazabilidad de la calibración usada.
+- Buscar la medida por nombre de fichero es ahora una sola llamada a la API.
+- Nuevo módulo `mossbauer_api_client.py` con el cliente reutilizable de la API.
+
 ## v0.1.4-beta.2
 
 - Corregida la comparación de versiones beta para que no avise de la misma versión ya instalada.
