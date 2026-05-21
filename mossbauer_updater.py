@@ -29,16 +29,33 @@ class ReleaseInfo:
 
 
 def version_tuple(version: str) -> tuple[int, ...]:
-    """Convierte 'v1.2.3' o '1.2.3-beta' en tupla comparable (1, 2, 3)."""
-    nums = re.findall(r"\d+", version)
+    """Parte numérica base: 'v1.2.3-beta.1' -> (1, 2, 3)."""
+    text = version.strip().lower().lstrip("v")
+    base = re.split(r"[-+]", text, maxsplit=1)[0]
+    nums = re.findall(r"\d+", base)
     return tuple(int(n) for n in nums) if nums else (0,)
 
 
+def _version_key(version: str) -> tuple[tuple[int, ...], int, int]:
+    """Clave comparable: estable > prerelease para la misma base.
+
+    Ejemplos:
+    - v0.1.4-beta.1 < v0.1.4
+    - v0.1.4-beta.2 > v0.1.4-beta.1
+    """
+    text = version.strip().lower().lstrip("v")
+    base = version_tuple(text)
+    suffix = ""
+    if "-" in text:
+        suffix = text.split("-", 1)[1]
+    is_prerelease = any(token in suffix for token in ("a", "alpha", "b", "beta", "rc", "pre", "dev"))
+    pre_num = int(re.findall(r"\d+", suffix)[-1]) if is_prerelease and re.findall(r"\d+", suffix) else 0
+    stable_rank = 0 if is_prerelease else 1
+    return base, stable_rank, pre_num
+
+
 def is_newer(latest: str, current: str) -> bool:
-    a = version_tuple(latest)
-    b = version_tuple(current)
-    size = max(len(a), len(b))
-    return a + (0,) * (size - len(a)) > b + (0,) * (size - len(b))
+    return _version_key(latest) > _version_key(current)
 
 
 def _release_from_json(data: dict) -> ReleaseInfo:

@@ -44,7 +44,7 @@ E_GAMMA = 14.4125e3 * 1.602176634e-19  # J
 C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
-APP_VERSION = "0.1.4"
+APP_VERSION = "0.1.4-beta.2"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -769,6 +769,7 @@ class MossbauerFe33GUI(tk.Tk):
         logo = self._create_logo(body, scale=scale)
         logo.pack(pady=(0, 10))
         tk.Label(body, text="Mössbauer Fe-57", bg="#075985", fg="white", font=("TkDefaultFont", int(18 * scale), "bold")).pack()
+        tk.Label(body, text=f"Versión {APP_VERSION}", bg="#075985", fg="#fef08a", font=("TkDefaultFont", int(9 * scale), "bold")).pack(pady=(2, 0))
         tk.Label(body, text="Doblado, simulación y ajuste interactivo", bg="#075985", fg="#dff6ff", font=("TkDefaultFont", int(10 * scale))).pack(pady=(2, 8))
         tk.Label(body, text=APP_AUTHOR, bg="#075985", fg="#dff6ff", font=("TkDefaultFont", int(9 * scale))).pack()
         tk.Label(body, text=APP_DEPARTMENT, bg="#075985", fg="#dff6ff", font=("TkDefaultFont", int(9 * scale))).pack()

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.4-beta.2
+
+- Corregida la comparación de versiones beta para que no avise de la misma versión ya instalada.
+- La versión se muestra dentro de la ventana `Acerca de`.
+
 ## v0.1.4
 
 - El actualizador puede instalar automáticamente ZIPs de GitHub en la misma carpeta del programa.
