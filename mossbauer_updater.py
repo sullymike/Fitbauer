@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import tempfile
 import urllib.request
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
@@ -107,3 +110,49 @@ def download_file(url: str, dest_dir: Path, filename: str | None = None, timeout
     with urllib.request.urlopen(req, timeout=timeout) as resp, path.open("wb") as fh:
         fh.write(resp.read())
     return path
+
+
+def is_zip_update(path: Path) -> bool:
+    return path.suffix.lower() == ".zip" and zipfile.is_zipfile(path)
+
+
+def install_zip_update(archive_path: Path, app_dir: Path) -> None:
+    """Descomprime una actualización ZIP de GitHub encima del directorio actual.
+
+    GitHub genera ZIPs con una carpeta raíz. Esta función copia el contenido de esa
+    carpeta al directorio de la aplicación. No borra ni toca `.venv`, `.git`,
+    `__pycache__` ni copias de seguridad locales.
+    """
+    app_dir = app_dir.resolve()
+    skip_names = {".git", ".venv", "venv", "env", "__pycache__", ".update_backup"}
+    backup_dir = app_dir / ".update_backup"
+    backup_dir.mkdir(exist_ok=True)
+
+    with tempfile.TemporaryDirectory(prefix="mossbauer_update_") as tmp:
+        tmp_dir = Path(tmp)
+        with zipfile.ZipFile(archive_path) as zf:
+            zf.extractall(tmp_dir)
+        entries = [p for p in tmp_dir.iterdir()]
+        source = entries[0] if len(entries) == 1 and entries[0].is_dir() else tmp_dir
+
+        # Copia de seguridad mínima de ficheros que se van a sobrescribir.
+        for item in source.rglob("*"):
+            rel = item.relative_to(source)
+            if not rel.parts or rel.parts[0] in skip_names:
+                continue
+            dest = app_dir / rel
+            if item.is_file() and dest.exists() and dest.is_file():
+                backup_target = backup_dir / rel
+                backup_target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(dest, backup_target)
+
+        for item in source.rglob("*"):
+            rel = item.relative_to(source)
+            if not rel.parts or rel.parts[0] in skip_names:
+                continue
+            dest = app_dir / rel
+            if item.is_dir():
+                dest.mkdir(parents=True, exist_ok=True)
+            elif item.is_file():
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(item, dest)

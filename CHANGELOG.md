@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.4
+
+- El actualizador puede instalar automáticamente ZIPs de GitHub en la misma carpeta del programa.
+- Tras instalar una actualización solo hay que cerrar y volver a abrir el programa.
+- Se crea copia de seguridad de ficheros sobrescritos en `.update_backup`.
+
 ## v0.1.3
 
 - El actualizador puede comprobar solo releases estables o también prereleases/betas.

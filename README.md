@@ -124,7 +124,7 @@ El programa comprueba nuevas versiones publicadas en GitHub Releases al arrancar
 Ayuda → Buscar actualizaciones...
 ```
 
-La versión local está definida en `APP_VERSION`. Si existe una release con un tag superior, por ejemplo `v0.1.1`, el programa ofrece descargarla en `Descargas`/`Downloads`.
+La versión local está definida en `APP_VERSION`. Si existe una release con un tag superior, por ejemplo `v0.1.1`, el programa ofrece descargarla en `Descargas`/`Downloads`. Si la descarga es un ZIP de GitHub, puede descomprimirlo automáticamente en la misma carpeta del programa; después basta con reiniciar.
 
 Las instrucciones para publicar versiones están en `RELEASES.md`.
 

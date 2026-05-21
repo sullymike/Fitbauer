@@ -44,7 +44,7 @@ E_GAMMA = 14.4125e3 * 1.602176634e-19  # J
 C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
-APP_VERSION = "0.1.3"
+APP_VERSION = "0.1.4"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -1692,7 +1692,7 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
         from pathlib import Path as _Path
 
         try:
-            from mossbauer_updater import choose_download, download_file, is_newer, latest_release
+            from mossbauer_updater import choose_download, download_file, install_zip_update, is_newer, is_zip_update, latest_release
         except Exception as exc:
             if not silent:
                 messagebox.showerror("Actualizaciones", f"No se pudo cargar el actualizador: {exc}")
@@ -1716,10 +1716,31 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
                 except Exception as exc:
                     self.after(0, lambda: messagebox.showerror("Actualizaciones", f"No se pudo descargar la actualización:\n{exc}"))
                     return
-                self.after(0, lambda: messagebox.showinfo(
-                    "Actualización descargada",
-                    f"Descargado en:\n{path}\n\nCierra el programa y usa ese fichero para instalar/ejecutar la nueva versión.",
-                ))
+
+                def finish_download() -> None:
+                    if is_zip_update(path):
+                        if messagebox.askyesno(
+                            "Actualización descargada",
+                            f"Descargado en:\n{path}\n\n¿Instalar ahora sobre esta carpeta del programa?\n"
+                            "Después solo tendrás que cerrar y volver a abrir el programa.",
+                        ):
+                            try:
+                                install_zip_update(path, Path(__file__).resolve().parent)
+                            except Exception as exc:
+                                messagebox.showerror("Actualizaciones", f"No se pudo instalar la actualización:\n{exc}")
+                                return
+                            messagebox.showinfo(
+                                "Actualización instalada",
+                                "La nueva versión se ha descomprimido en la carpeta del programa.\n\n"
+                                "Cierra y vuelve a abrir el programa para usarla.",
+                            )
+                            return
+                    messagebox.showinfo(
+                        "Actualización descargada",
+                        f"Descargado en:\n{path}\n\nCierra el programa y usa ese fichero para instalar/ejecutar la nueva versión.",
+                    )
+
+                self.after(0, finish_download)
             threading.Thread(target=worker_download, daemon=True).start()
 
         def worker() -> None:
