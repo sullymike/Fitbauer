@@ -403,6 +403,9 @@ class MossbauerFe33GUI(tk.Tk):
         self.fixed_vars: dict[str, tk.BooleanVar] = {}
         self.slider_specs: dict[str, tuple[float, float, float]] = {}
 
+        self._theme_var = tk.StringVar(value="sv_ttk")
+        self._sv_available = False
+        self._sv_active = False
         self._build_ui()
 
         for default in (Path("FE040723.ws5"), Path("Ja271025.ws5")):
@@ -418,33 +421,99 @@ class MossbauerFe33GUI(tk.Tk):
         self.after(150, self.show_startup_splash)
         self.after(2500, lambda: self.check_for_updates(silent=True))
 
-    def _build_ui(self) -> None:
-        style = ttk.Style(self)
-        try:
-            style.theme_use("clam")
-        except tk.TclError:
-            pass
-        bg = "#eaf4ff"
-        card = "#f8fbff"
+    def _reconfigure_styles(self, style: ttk.Style, sv_active: bool) -> None:
         accent = "#0ea5d9"
         accent_dark = "#075985"
-        self.configure(background=bg)
-        style.configure("TFrame", background=bg)
-        style.configure("TLabelframe", background=card, borderwidth=1, relief="solid")
-        style.configure("TLabelframe.Label", background=bg)
-        style.configure("TLabel", background=bg, foreground="#17202a")
-        style.configure("Title.TLabel", font=("TkDefaultFont", 17, "bold"), foreground=accent_dark, background=bg)
+        if sv_active:
+            bg = style.lookup("TFrame", "background") or "#f0f0f0"
+            card = "#ffffff"
+            self.configure(background=bg)
+            style.configure("Section.TLabelframe", padding=10)
+            style.configure("Section.TLabelframe.Label", font=("TkDefaultFont", 10, "bold"), foreground=accent_dark)
+            style.configure("Title.TLabel", font=("TkDefaultFont", 17, "bold"), foreground=accent_dark)
+            style.configure("Subtitle.TLabel", font=("TkDefaultFont", 9), foreground="#4b6478")
+        else:
+            bg = "#eaf4ff"
+            card = "#f8fbff"
+            self.configure(background=bg)
+            style.configure("TFrame", background=bg)
+            style.configure("TLabelframe", background=card, borderwidth=1, relief="solid")
+            style.configure("TLabelframe.Label", background=bg)
+            style.configure("TLabel", background=bg, foreground="#17202a")
+            style.configure("Title.TLabel", font=("TkDefaultFont", 17, "bold"), foreground=accent_dark, background=bg)
+            style.configure("Subtitle.TLabel", font=("TkDefaultFont", 9), foreground="#4b6478", background=bg)
+            style.configure("Section.TLabelframe", padding=10, background=card, relief="solid")
+            style.configure("Section.TLabelframe.Label", font=("TkDefaultFont", 10, "bold"), foreground=accent_dark, background=bg)
+            style.configure("TNotebook", background=bg, borderwidth=0)
+            style.configure("TNotebook.Tab", padding=(12, 6), background="#cfefff", foreground="#0f3d5c")
+            style.map("TNotebook.Tab", background=[("selected", "#38bdf8")], foreground=[("selected", "white")])
         style.configure("Header.TLabel", font=("TkDefaultFont", 18, "bold"), foreground="white", background=accent_dark)
         style.configure("HeaderSub.TLabel", font=("TkDefaultFont", 9), foreground="#dff6ff", background=accent_dark)
-        style.configure("Subtitle.TLabel", font=("TkDefaultFont", 9), foreground="#4b6478", background=bg)
-        style.configure("Section.TLabelframe", padding=10, background=card, relief="solid")
-        style.configure("Section.TLabelframe.Label", font=("TkDefaultFont", 10, "bold"), foreground=accent_dark, background=bg)
         style.configure("Accent.TButton", padding=7, font=("TkDefaultFont", 9, "bold"), background=accent, foreground="white")
-        style.map("Accent.TButton", background=[("active", "#0284c7")])
-        style.configure("Small.TButton", padding=5, background="#d7efff")
-        style.configure("TNotebook", background=bg, borderwidth=0)
-        style.configure("TNotebook.Tab", padding=(12, 6), background="#cfefff", foreground="#0f3d5c")
-        style.map("TNotebook.Tab", background=[("selected", "#38bdf8")], foreground=[("selected", "white")])
+        style.map("Accent.TButton", background=[("active", "#0284c7"), ("pressed", "#0369a1")])
+        style.configure("Small.TButton", padding=(5, 4))
+        if not sv_active:
+            style.configure("TNotebook", borderwidth=0)
+        self._bg = bg
+        self._card = card
+        if hasattr(self, "file_label"):
+            self.file_label.configure(bg=card)
+        if hasattr(self, "info"):
+            self.info.configure(background=card)
+
+    def _switch_theme(self, theme: str) -> None:
+        style = ttk.Style(self)
+        _sv = False
+        if theme == "sv_ttk":
+            if not self._sv_available:
+                messagebox.showwarning("Tema", "sv_ttk no está instalado.\nEjecuta: pip install sv_ttk")
+                self._theme_var.set("clam")
+                return
+            try:
+                import sv_ttk
+                sv_ttk.set_theme("light")
+                _sv = True
+            except Exception as exc:
+                messagebox.showerror("Tema", f"No se pudo aplicar el tema:\n{exc}")
+                self._theme_var.set("clam")
+                return
+        else:
+            try:
+                style.theme_use("clam")
+            except tk.TclError:
+                pass
+        self._sv_active = _sv
+        self._reconfigure_styles(style, _sv)
+        self.save_settings()
+
+    def _build_ui(self) -> None:
+        style = ttk.Style(self)
+        _saved_theme = "sv_ttk"
+        try:
+            if SETTINGS_PATH.exists():
+                _saved_theme = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("theme", "sv_ttk")
+        except Exception:
+            pass
+        _sv = False
+        try:
+            import sv_ttk
+            self._sv_available = True
+            if _saved_theme != "clam":
+                sv_ttk.set_theme("light")
+                _sv = True
+        except ImportError:
+            self._sv_available = False
+        if not _sv:
+            try:
+                style.theme_use("clam")
+            except tk.TclError:
+                pass
+        self._sv_active = _sv
+        self._theme_var.set("sv_ttk" if _sv else "clam")
+        self._reconfigure_styles(style, _sv)
+        accent_dark = "#075985"
+        bg = self._bg
+        card = self._card
 
         menubar = tk.Menu(self)
         file_menu = tk.Menu(menubar, tearoff=0)
@@ -503,6 +572,13 @@ class MossbauerFe33GUI(tk.Tk):
         )
         options_menu.add_separator()
         options_menu.add_command(label="Restricciones entre parámetros...", command=self.open_constraints_dialog)
+        options_menu.add_separator()
+        theme_menu = tk.Menu(options_menu, tearoff=0)
+        theme_menu.add_radiobutton(label="Moderno (sv_ttk)", variable=self._theme_var,
+                                   value="sv_ttk", command=lambda: self._switch_theme("sv_ttk"))
+        theme_menu.add_radiobutton(label="Clásico (clam)", variable=self._theme_var,
+                                   value="clam", command=lambda: self._switch_theme("clam"))
+        options_menu.add_cascade(label="Tema visual", menu=theme_menu)
         menubar.add_cascade(label="Opciones", menu=options_menu)
 
         help_menu = tk.Menu(menubar, tearoff=0)
@@ -532,17 +608,21 @@ class MossbauerFe33GUI(tk.Tk):
         header.pack(fill=tk.X, pady=(0, 10))
         title_block = tk.Frame(header, bg="#075985", bd=0, highlightthickness=0)
         title_block.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=12, pady=8)
-        ttk.Label(title_block, text="Mössbauer Fe-57", style="Header.TLabel").pack(anchor=tk.W)
-        ttk.Label(title_block, text="Doblado, simulación y ajuste interactivo", style="HeaderSub.TLabel").pack(anchor=tk.W, pady=(0, 5))
-        ttk.Label(title_block, text=APP_AUTHOR, style="HeaderSub.TLabel").pack(anchor=tk.W)
-        ttk.Label(title_block, text=APP_DEPARTMENT, style="HeaderSub.TLabel").pack(anchor=tk.W)
+        tk.Label(title_block, text="Mössbauer Fe-57", bg=accent_dark, fg="white",
+                 font=("TkDefaultFont", 18, "bold")).pack(anchor=tk.W)
+        tk.Label(title_block, text="Doblado, simulación y ajuste interactivo", bg=accent_dark, fg="#dff6ff",
+                 font=("TkDefaultFont", 9)).pack(anchor=tk.W, pady=(0, 5))
+        tk.Label(title_block, text=APP_AUTHOR, bg=accent_dark, fg="#dff6ff",
+                 font=("TkDefaultFont", 9)).pack(anchor=tk.W)
+        tk.Label(title_block, text=APP_DEPARTMENT, bg=accent_dark, fg="#dff6ff",
+                 font=("TkDefaultFont", 9)).pack(anchor=tk.W)
 
         file_box = ttk.LabelFrame(controls, text="Fichero actual", style="Section.TLabelframe")
         file_box.pack(fill=tk.X, pady=(0, 8))
         self.file_label = tk.Label(
             file_box,
             textvariable=self.current_file_var,
-            bg="#dff6ff",
+            bg=card,
             fg="#083344",
             font=("TkDefaultFont", 12, "bold"),
             anchor="w",
@@ -561,7 +641,7 @@ class MossbauerFe33GUI(tk.Tk):
             height=12,
             wrap=tk.WORD,
             relief=tk.FLAT,
-            background="#f8fbff",
+            background=card,
             foreground="#102a43",
             font=("TkDefaultFont", 9),
         )
@@ -715,6 +795,7 @@ class MossbauerFe33GUI(tk.Tk):
             "fixed_distribution_path": str(self.fixed_distribution_path) if self.fixed_distribution_path else None,
             "dist_use_sharp": bool(self.dist_use_sharp_var.get()),
             "dist_refine_global": bool(self.dist_refine_global_var.get()),
+            "theme": self._theme_var.get(),
             "info_text": self.info.get("1.0", tk.END).strip() if hasattr(self, "info") else "",
             "constraints": self.constraints,
         }
@@ -754,6 +835,7 @@ class MossbauerFe33GUI(tk.Tk):
             self.fixed_distribution_path = Path(data["fixed_distribution_path"]) if data.get("fixed_distribution_path") else None
             self.dist_use_sharp_var.set(bool(data.get("dist_use_sharp", self.dist_use_sharp_var.get())))
             self.dist_refine_global_var.set(bool(data.get("dist_refine_global", self.dist_refine_global_var.get())))
+            self._theme_var.set(data.get("theme", "sv_ttk" if self._sv_active else "clam"))
             self.constraints = list(data.get("constraints", self.constraints))
             info_text = data.get("info_text")
             if info_text and hasattr(self, "info"):

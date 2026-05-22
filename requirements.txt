@@ -2,3 +2,4 @@ numpy>=2.0
 scipy
 matplotlib
 requests
+sv_ttk
