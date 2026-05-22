@@ -794,9 +794,10 @@ class MossbauerFe33GUI(tk.Tk):
         self.fig.tight_layout()
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=plot_area)
-        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-        toolbar = NavigationToolbar2Tk(self.canvas, plot_area)
+        toolbar = NavigationToolbar2Tk(self.canvas, plot_area, pack_toolbar=False)
         toolbar.update()
+        toolbar.pack(side=tk.BOTTOM, fill=tk.X)
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
     def settings_payload(self) -> dict:
         return {
