@@ -46,7 +46,7 @@ C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
 APP_NAME = "Mössbauer Fe-57 v2IA"
-APP_VERSION = "0.2.2"
+APP_VERSION = "0.2.3"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -2593,6 +2593,32 @@ class MossbauerFe33GUI(tk.Tk):
                     pairs.append({"param1": names[i], "param2": names[j], "corr": c})
         return {"max_abs_corr": float(max_abs), "max_pair": list(max_pair) if max_pair else [], "high_pairs": pairs, "threshold": float(threshold)}
 
+    def residual_diagnostics(self, residual: np.ndarray, sigma: np.ndarray | None = None) -> dict[str, float]:
+        """Diagnósticos simples para detectar estructura no aleatoria en el residuo."""
+        r = np.asarray(residual, dtype=float)
+        if sigma is not None and sigma.size == r.size:
+            r = r / sigma
+        r = r[np.isfinite(r)]
+        if r.size < 4:
+            return {}
+        r0 = r - float(np.mean(r))
+        denom = float(np.dot(r0, r0))
+        lag1 = float(np.dot(r0[:-1], r0[1:]) / denom) if denom > 0 else 0.0
+        signs = np.sign(r0)
+        signs = signs[signs != 0]
+        runs_z = 0.0
+        if signs.size > 2:
+            runs = 1 + int(np.sum(signs[1:] != signs[:-1]))
+            n_pos = int(np.sum(signs > 0)); n_neg = int(np.sum(signs < 0)); n_tot = n_pos + n_neg
+            if n_pos > 0 and n_neg > 0 and n_tot > 1:
+                mean_runs = 1.0 + 2.0 * n_pos * n_neg / n_tot
+                var_runs = (2.0 * n_pos * n_neg * (2.0 * n_pos * n_neg - n_tot)) / (n_tot ** 2 * max(n_tot - 1, 1))
+                if var_runs > 0:
+                    runs_z = float((runs - mean_runs) / np.sqrt(var_runs))
+        rev = r0[::-1]
+        anti = float(np.dot(r0, -rev) / denom) if denom > 0 else 0.0
+        return {"resid_lag1": lag1, "resid_runs_z": runs_z, "resid_antisym_corr": anti}
+
     def fit_statistics(self, residual: np.ndarray, sigma: np.ndarray | None, n_params: int) -> dict[str, float]:
         n = int(residual.size)
         k = int(max(n_params, 0))
@@ -2609,7 +2635,9 @@ class MossbauerFe33GUI(tk.Tk):
         rss_like = max(chi2, 1e-300)
         aic = float(n * np.log(rss_like / max(n, 1)) + 2 * k) if n else float("nan")
         bic = float(n * np.log(rss_like / max(n, 1)) + k * np.log(max(n, 1))) if n else float("nan")
-        return {"n": float(n), "n_params": float(k), "dof": float(dof), "rms": rms, "chi2": chi2, "red_chi2": red_chi2, "aic": aic, "bic": bic}
+        stats = {"n": float(n), "n_params": float(k), "dof": float(dof), "rms": rms, "chi2": chi2, "red_chi2": red_chi2, "aic": aic, "bic": bic}
+        stats.update(self.residual_diagnostics(residual, sigma))
+        return stats
 
     def current_model(self) -> np.ndarray | None:
         if self.fit_mode_var.get() == "bhf_distribution" and self.last_bhf_fit is not None:
@@ -2709,8 +2737,32 @@ class MossbauerFe33GUI(tk.Tk):
             res = self.model_from_values(values, vmax) - y
             return res / sigma if sigma is not None else res
 
+        def multistart_candidates() -> list[np.ndarray]:
+            candidates = [x0_arr]
+            rng = np.random.default_rng(12345)
+            span = hi_arr - lo_arr
+            for _ in range(8):
+                trial = x0_arr.copy()
+                for i, key in enumerate(free_keys + (["vmax"] if fit_velocity else [])):
+                    width = span[i]
+                    if not np.isfinite(width) or width <= 0:
+                        continue
+                    if key.endswith(("delta", "quad", "bhf", "gamma1", "depth", "vmax")):
+                        trial[i] += rng.normal(0.0, 0.12 * width)
+                    else:
+                        trial[i] += rng.normal(0.0, 0.08 * width)
+                candidates.append(np.clip(trial, lo_arr, hi_arr))
+            return candidates
+
         try:
-            result = least_squares(residual, x0_arr, bounds=(lo_arr, hi_arr), max_nfev=7000)
+            result = None
+            n_starts = 0
+            for candidate in multistart_candidates():
+                n_starts += 1
+                res_i = least_squares(residual, candidate, bounds=(lo_arr, hi_arr), max_nfev=7000)
+                if result is None or res_i.cost < result.cost:
+                    result = res_i
+            assert result is not None
         except Exception as exc:
             messagebox.showerror("Error en el ajuste", str(exc))
             return
@@ -2743,6 +2795,7 @@ class MossbauerFe33GUI(tk.Tk):
         values_final, vmax_final = unpack(result.x)
         final_residual = self.model_from_values(values_final, vmax_final) - y
         self.last_fit_stats = self.fit_statistics(final_residual, sigma, len(result.x))
+        self.last_fit_stats["n_starts"] = float(n_starts)
         self.set_params(values_final)
         if fit_velocity:
             self.vars["vmax"].set(vmax_final)
@@ -3214,8 +3267,15 @@ class MossbauerFe33GUI(tk.Tk):
             text.extend([
                 f"χ² reducido: {stats.get('red_chi2', float('nan')):.6g}  (χ²={stats.get('chi2', float('nan')):.6g}, gl={stats.get('dof', float('nan')):.0f})",
                 f"AIC = {stats.get('aic', float('nan')):.6g}    BIC = {stats.get('bic', float('nan')):.6g}    parámetros = {stats.get('n_params', float('nan')):.0f}",
+                f"Diagnóstico residuo: lag1={stats.get('resid_lag1', float('nan')):.3f}, runs z={stats.get('resid_runs_z', float('nan')):.3f}, antisim={stats.get('resid_antisym_corr', float('nan')):.3f}",
                 "Comparación de modelos: menor AIC/BIC es mejor si se ajustan los mismos datos.",
+                f"Autoarranques probados: {stats.get('n_starts', 1.0):.0f}",
             ])
+            if abs(stats.get('resid_lag1', 0.0)) > 0.35 or abs(stats.get('resid_runs_z', 0.0)) > 2.0 or stats.get('resid_antisym_corr', 0.0) > 0.45:
+                text.extend([
+                    "Aviso residuo: parece tener estructura no aleatoria.",
+                    "  Revisa modelo, folding point, calibración Vmax o componentes faltantes.",
+                ])
         if self.last_bhf_fit is not None:
             peak = float(self.last_bhf_fit.bhf_centers[int(np.argmax(self.last_bhf_fit.weights))])
             area = float(np.trapezoid(self.last_bhf_fit.weights, self.last_bhf_fit.bhf_centers))
@@ -3353,8 +3413,15 @@ class MossbauerFe33GUI(tk.Tk):
             text.extend([
                 f"χ² reducido: {stats.get('red_chi2', float('nan')):.6g}  (χ²={stats.get('chi2', float('nan')):.6g}, gl={stats.get('dof', float('nan')):.0f})",
                 f"AIC = {stats.get('aic', float('nan')):.6g}    BIC = {stats.get('bic', float('nan')):.6g}    parámetros = {stats.get('n_params', float('nan')):.0f}",
+                f"Diagnóstico residuo: lag1={stats.get('resid_lag1', float('nan')):.3f}, runs z={stats.get('resid_runs_z', float('nan')):.3f}, antisim={stats.get('resid_antisym_corr', float('nan')):.3f}",
                 "Comparación de modelos: menor AIC/BIC es mejor si se ajustan los mismos datos.",
+                f"Autoarranques probados: {stats.get('n_starts', 1.0):.0f}",
             ])
+            if abs(stats.get('resid_lag1', 0.0)) > 0.35 or abs(stats.get('resid_runs_z', 0.0)) > 2.0 or stats.get('resid_antisym_corr', 0.0) > 0.45:
+                text.extend([
+                    "Aviso residuo: parece tener estructura no aleatoria.",
+                    "  Revisa modelo, folding point, calibración Vmax o componentes faltantes.",
+                ])
         corr = self.last_fit_correlations
         if corr:
             max_pair = corr.get("max_pair") or []

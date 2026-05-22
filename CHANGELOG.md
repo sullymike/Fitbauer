@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.3
+
+- Diagnóstico de residuos: autocorrelación lag-1, test de rachas y correlación antisimétrica para detectar estructura no aleatoria.
+- Autoarranque múltiple determinista en ajustes discretos para reducir dependencia de valores iniciales.
+- Se mantienen las áreas por integración numérica como método único para Lorentziana/Voigt.
+
 ## v0.2.2
 
 - Diagnóstico de selección de modelo reforzado con mensaje explícito para comparar AIC/BIC.
