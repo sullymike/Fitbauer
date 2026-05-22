@@ -46,7 +46,7 @@ C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
 APP_NAME = "Mössbauer Fe-57 v2IA"
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.2.1"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -397,6 +397,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.last_fit_free_keys: list[str] = []
         self.last_fit_cov: np.ndarray | None = None
         self.last_fit_param_errors: dict[str, float] = {}
+        self.last_fit_stats: dict[str, float] = {}
         # Restricciones lineales: target = factor * source + offset.
         self.constraints: list[dict[str, object]] = []
         # Calibración asociada al espectro actual (de la web o de un fichero).
@@ -2469,20 +2470,20 @@ class MossbauerFe33GUI(tk.Tk):
         return components
 
     def component_area_from_params(self, kind: str, p: np.ndarray) -> float:
-        """Área integrada de absorción del componente (unidades relativas)."""
-        delta, quad, bhf, gamma1, gamma2, gamma3, depth, int1, int2, int3 = p
-        if kind == "Singlete":
-            return float(depth * np.pi * gamma1 * int1)
-        if kind == "Doblete":
-            g1 = gamma1
-            g2 = gamma1 * gamma2
-            return float(depth * np.pi * (int1 * g1 + int1 * int2 * g2))
-        i1 = int1
-        i2 = int1 * (2.0 / 3.0) * int2
-        i3 = int1 * (1.0 / 3.0) * int3
-        weights = np.array([i1, i2, i3, i3, i2, i1], dtype=float)
-        gammas = gamma1 * np.array([1.0, gamma2, gamma3, gamma3, gamma2, 1.0], dtype=float)
-        return float(depth * np.pi * np.sum(weights * gammas))
+        """Área integrada numérica de absorción del componente.
+
+        Se integra el perfil real usado en el ajuste sobre una malla de velocidad.
+        Así los porcentajes son consistentes tanto para Lorentziana como para
+        Voigt y para singlete/doblete/sextete.
+        """
+        if self.velocity is not None and self.velocity.size > 1:
+            vmin, vmax = float(np.min(self.velocity)), float(np.max(self.velocity))
+            n = max(2000, int(self.velocity.size) * 8)
+            v = np.linspace(vmin, vmax, n)
+        else:
+            v = np.linspace(-12.0, 12.0, 4000)
+        absorption = np.maximum(component_absorption(v, kind, p), 0.0)
+        return float(np.trapezoid(absorption, v))
 
     def component_area_percentages(self, values: dict[str, float] | None = None) -> tuple[list[int], np.ndarray, np.ndarray]:
         """Devuelve índices, áreas y porcentajes de los componentes activos."""
@@ -2555,6 +2556,36 @@ class MossbauerFe33GUI(tk.Tk):
         self.apply_constraints_to_vars()
         self.update_plot()
 
+    def data_sigma(self) -> np.ndarray | None:
+        """Incertidumbre 1σ de los datos normalizados por estadística Poisson.
+
+        El doblado promedia dos canales independientes. Para cuentas similares,
+        Var((c1+c2)/2) ≈ folded/2. Se impone un suelo para evitar pesos infinitos.
+        """
+        if self.folded_raw is None or self.y_data is None:
+            return None
+        sigma_counts = np.sqrt(np.maximum(self.folded_raw / 2.0, 1.0))
+        sigma = sigma_counts / max(float(self.norm_factor), 1e-12)
+        return np.maximum(sigma, 1e-9)
+
+    def fit_statistics(self, residual: np.ndarray, sigma: np.ndarray | None, n_params: int) -> dict[str, float]:
+        n = int(residual.size)
+        k = int(max(n_params, 0))
+        rss = float(np.sum(residual ** 2))
+        rms = float(np.sqrt(np.mean(residual ** 2))) if n else float("nan")
+        if sigma is not None and sigma.size == residual.size:
+            r = residual / sigma
+            chi2 = float(np.sum(r ** 2))
+        else:
+            chi2 = rss
+        dof = max(1, n - k)
+        red_chi2 = chi2 / dof
+        # AIC/BIC gaussianos con varianza estimada; constantes omitidas.
+        rss_like = max(chi2, 1e-300)
+        aic = float(n * np.log(rss_like / max(n, 1)) + 2 * k) if n else float("nan")
+        bic = float(n * np.log(rss_like / max(n, 1)) + k * np.log(max(n, 1))) if n else float("nan")
+        return {"n": float(n), "n_params": float(k), "dof": float(dof), "rms": rms, "chi2": chi2, "red_chi2": red_chi2, "aic": aic, "bic": bic}
+
     def current_model(self) -> np.ndarray | None:
         if self.fit_mode_var.get() == "bhf_distribution" and self.last_bhf_fit is not None:
             return self.last_bhf_fit.fitted_curve
@@ -2606,6 +2637,7 @@ class MossbauerFe33GUI(tk.Tk):
         if self.velocity is None or self.y_data is None:
             return
         y = self.y_data
+        sigma = self.data_sigma()
         keys = self.active_param_keys()
         self.apply_constraints_to_vars()
         constrained_targets = self.constrained_target_keys()
@@ -2649,7 +2681,8 @@ class MossbauerFe33GUI(tk.Tk):
 
         def residual(x: np.ndarray) -> np.ndarray:
             values, vmax = unpack(x)
-            return self.model_from_values(values, vmax) - y
+            res = self.model_from_values(values, vmax) - y
+            return res / sigma if sigma is not None else res
 
         try:
             result = least_squares(residual, x0_arr, bounds=(lo_arr, hi_arr), max_nfev=7000)
@@ -2661,6 +2694,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.last_fit_free_keys = free_keys.copy()
         self.last_fit_cov = None
         self.last_fit_param_errors = {}
+        self.last_fit_stats = {}
         try:
             n_obs = y.size
             n_par = len(result.x)
@@ -2679,6 +2713,8 @@ class MossbauerFe33GUI(tk.Tk):
             self.last_fit_param_errors = {}
 
         values_final, vmax_final = unpack(result.x)
+        final_residual = self.model_from_values(values_final, vmax_final) - y
+        self.last_fit_stats = self.fit_statistics(final_residual, sigma, len(result.x))
         self.set_params(values_final)
         if fit_velocity:
             self.vars["vmax"].set(vmax_final)
@@ -2934,6 +2970,14 @@ class MossbauerFe33GUI(tk.Tk):
             return
         self.last_bhf_fit = result
         self.last_bhf_sharp_indices = sharp_indices
+        n_params = int(nbins + int(fit_baseline) + int(fit_slope) + (len(sharp_indices) if self.dist_use_sharp_var.get() else 0))
+        if self.dist_shape_var.get() in ("Gaussiana", "Binomial"):
+            n_params = int(4 + int(fit_baseline) + int(fit_slope) + (len(sharp_indices) if self.dist_use_sharp_var.get() else 0))
+        if self.dist_shape_var.get() == "Fija":
+            n_params = int(3 + int(fit_baseline) + int(fit_slope) + (len(sharp_indices) if self.dist_use_sharp_var.get() else 0))
+        if self.dist_refine_global_var.get():
+            n_params += 2
+        self.last_fit_stats = self.fit_statistics(result.fitted_curve - self.y_data, self.data_sigma(), n_params)
         params_to_update = {"baseline": result.baseline, "slope": result.slope}
         if self.dist_use_sharp_var.get() and result.sharp_weights is not None:
             for idx, weight in zip(sharp_indices, result.sharp_weights):
@@ -3041,9 +3085,19 @@ class MossbauerFe33GUI(tk.Tk):
         if self.last_bhf_fit is None:
             return 0.0, [], 0.0, []
         gamma = self.vars["dist_gamma"].get()
-        # La distribución usa sextetes unitarios con intensidades 1 : 2/3 : 1/3
-        # y anchuras relativas 1,1,1. El área de un sextete unitario es 4πΓ.
-        dist_area = float(np.sum(np.maximum(self.last_bhf_fit.weights, 0.0)) * 4.0 * np.pi * gamma)
+        if self.velocity is not None and self.velocity.size > 1:
+            v = np.linspace(float(np.min(self.velocity)), float(np.max(self.velocity)), max(2000, int(self.velocity.size) * 8))
+        else:
+            v = np.linspace(-12.0, 12.0, 4000)
+        dist_abs = np.zeros_like(v, dtype=float)
+        variable = self.dist_variable_var.get()
+        for center, weight in zip(self.last_bhf_fit.bhf_centers, self.last_bhf_fit.weights):
+            if variable == "ΔEQ":
+                params = np.array([self.vars["dist_delta"].get(), float(center), self.vars["dist_fixed_bhf"].get(), gamma, 1.0, 1.0, max(float(weight), 0.0), 1.0, 1.0, 1.0], dtype=float)
+            else:
+                params = np.array([self.vars["dist_delta"].get(), self.vars["dist_quad"].get(), float(center), gamma, 1.0, 1.0, max(float(weight), 0.0), 1.0, 1.0, 1.0], dtype=float)
+            dist_abs += component_absorption(v, "Sextete", params)
+        dist_area = float(np.trapezoid(np.maximum(dist_abs, 0.0), v))
 
         sharp_areas: list[tuple[int, str, float]] = []
         if self.last_bhf_fit.sharp_weights is not None:
@@ -3078,6 +3132,12 @@ class MossbauerFe33GUI(tk.Tk):
             f"Subespectros nítidos: {', '.join(map(str, self.last_bhf_sharp_indices or self.active_sharp_component_indices_for_bhf())) if self.dist_use_sharp_var.get() else 'no'}",
             f"RMS ajuste: {rms:.6g}",
         ]
+        stats = self.last_fit_stats
+        if stats:
+            text.extend([
+                f"χ² reducido: {stats.get('red_chi2', float('nan')):.6g}  (χ²={stats.get('chi2', float('nan')):.6g}, gl={stats.get('dof', float('nan')):.0f})",
+                f"AIC = {stats.get('aic', float('nan')):.6g}    BIC = {stats.get('bic', float('nan')):.6g}    parámetros = {stats.get('n_params', float('nan')):.0f}",
+            ])
         if self.last_bhf_fit is not None:
             peak = float(self.last_bhf_fit.bhf_centers[int(np.argmax(self.last_bhf_fit.weights))])
             area = float(np.trapezoid(self.last_bhf_fit.weights, self.last_bhf_fit.bhf_centers))
@@ -3209,8 +3269,14 @@ class MossbauerFe33GUI(tk.Tk):
             f"Sextetes activos: {', '.join(map(str, active))}",
             f"Ajuste velocidad: {'sí, con patrón' if self.fit_velocity_var.get() else 'no'}",
             f"RMS ajuste: {rms:.6g}",
-            "",
         ]
+        stats = self.last_fit_stats
+        if stats:
+            text.extend([
+                f"χ² reducido: {stats.get('red_chi2', float('nan')):.6g}  (χ²={stats.get('chi2', float('nan')):.6g}, gl={stats.get('dof', float('nan')):.0f})",
+                f"AIC = {stats.get('aic', float('nan')):.6g}    BIC = {stats.get('bic', float('nan')):.6g}    parámetros = {stats.get('n_params', float('nan')):.0f}",
+            ])
+        text.append("")
         if len(pct_active) > 1:
             text.append("Porcentaje de área por componente:")
             for idx, area, pct in zip(pct_active, areas, percentages):
@@ -3269,6 +3335,7 @@ class MossbauerFe33GUI(tk.Tk):
             "free_keys": self.last_fit_free_keys,
             "covariance": self.last_fit_cov.tolist() if self.last_fit_cov is not None else None,
             "parameter_errors": self.last_fit_param_errors,
+            "fit_statistics": self.last_fit_stats,
             "info_text": info_text,
         }
         return {
@@ -3348,6 +3415,7 @@ class MossbauerFe33GUI(tk.Tk):
         cov = last_fit.get("covariance")
         self.last_fit_cov = np.array(cov, dtype=float) if cov is not None else None
         self.last_fit_param_errors = {k: float(v) for k, v in last_fit.get("parameter_errors", {}).items()}
+        self.last_fit_stats = {k: float(v) for k, v in last_fit.get("fit_statistics", {}).items()}
 
         self._refresh_distribution_tab_visibility(update=False)
         self.refold_data()
@@ -3411,6 +3479,10 @@ class MossbauerFe33GUI(tk.Tk):
             f.write(f"# center_internal = {self.vars['center'].get():.10g}\n")
             f.write(f"# vmax = {self.vars['vmax'].get():.10g}\n")
             f.write(f"# norm_factor = {self.norm_factor:.10g}\n")
+            if self.last_fit_stats:
+                for key in ("rms", "chi2", "red_chi2", "dof", "aic", "bic", "n_params"):
+                    if key in self.last_fit_stats:
+                        f.write(f"# {key} = {self.last_fit_stats[key]:.10g}\n")
             if self.fit_mode_var.get() == "bhf_distribution" and self.last_bhf_fit is not None:
                 f.write(f"# dist_delta = {self.vars['dist_delta'].get():.10g}\n")
                 f.write(f"# dist_quad = {self.vars['dist_quad'].get():.10g}\n")

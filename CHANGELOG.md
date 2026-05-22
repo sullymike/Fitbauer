@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.1
+
+- Ajuste discreto ponderado por incertidumbre Poisson de las cuentas dobladas.
+- Se muestran χ² reducido, AIC y BIC para comparar modelos.
+- Porcentajes de área calculados por integración numérica del perfil real, consistente con Lorentziana y Voigt.
+
 ## v0.2.0
 
 - Limpieza del repositorio: queda una única GUI oficial, `mossbauer_fe33_gui_v2IA.py`.
