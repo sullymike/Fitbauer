@@ -46,7 +46,7 @@ C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
 APP_NAME = "Mössbauer Fe-57 v2IA"
-APP_VERSION = "0.2.4"
+APP_VERSION = "0.2.5"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -2683,6 +2683,40 @@ class MossbauerFe33GUI(tk.Tk):
                 components.append((self.component_kind[idx].get(), params))
         return total_model(v, values["baseline"], values["slope"], components)
 
+    def open_progress_dialog(self, title: str, message: str = "Trabajando..."):
+        """Ventana simple de progreso para indicar que el cálculo sigue activo."""
+        dialog = tk.Toplevel(self)
+        dialog.title(title)
+        dialog.transient(self)
+        dialog.resizable(False, False)
+        frame = ttk.Frame(dialog, padding=14)
+        frame.pack(fill=tk.BOTH, expand=True)
+        status_var = tk.StringVar(value=message)
+        ttk.Label(frame, textvariable=status_var, wraplength=430).pack(anchor=tk.W, pady=(0, 10))
+        bar = ttk.Progressbar(frame, mode="indeterminate", length=420)
+        bar.pack(fill=tk.X)
+        bar.start(12)
+        dialog.update_idletasks()
+        x = self.winfo_rootx() + max(0, (self.winfo_width() - dialog.winfo_width()) // 2)
+        y = self.winfo_rooty() + max(0, (self.winfo_height() - dialog.winfo_height()) // 2)
+        dialog.geometry(f"+{x}+{y}")
+
+        def update(msg: str) -> None:
+            if dialog.winfo_exists():
+                status_var.set(msg)
+                dialog.update_idletasks()
+                self.update_idletasks()
+
+        def close() -> None:
+            try:
+                bar.stop()
+                if dialog.winfo_exists():
+                    dialog.destroy()
+            except tk.TclError:
+                pass
+
+        return dialog, update, close
+
     def fit_current_data(self) -> None:
         self.apply_constraints_to_vars()
         if self.fit_mode_var.get() == "bhf_distribution":
@@ -2755,16 +2789,24 @@ class MossbauerFe33GUI(tk.Tk):
                 candidates.append(np.clip(trial, lo_arr, hi_arr))
             return candidates
 
+        progress = self.open_progress_dialog("Ajustando", "Preparando autoarranques...")
+        _progress_dialog, update_progress, close_progress = progress
         try:
             result = None
             n_starts = 0
-            for candidate in multistart_candidates():
+            candidates = multistart_candidates()
+            for candidate in candidates:
                 n_starts += 1
+                update_progress(f"Ajuste discreto: autoarranque {n_starts}/{len(candidates)}...")
                 res_i = least_squares(residual, candidate, bounds=(lo_arr, hi_arr), max_nfev=7000)
                 if result is None or res_i.cost < result.cost:
                     result = res_i
+                    update_progress(f"Autoarranque {n_starts}/{len(candidates)} completado. Nuevo mejor coste: {res_i.cost:.6g}")
+                else:
+                    update_progress(f"Autoarranque {n_starts}/{len(candidates)} completado. Mejor coste: {result.cost:.6g}")
             assert result is not None
         except Exception as exc:
+            close_progress()
             messagebox.showerror("Error en el ajuste", str(exc))
             return
 
@@ -2793,6 +2835,7 @@ class MossbauerFe33GUI(tk.Tk):
             self.last_fit_param_errors = {}
             self.last_fit_correlations = {}
 
+        update_progress("Aplicando mejor ajuste y actualizando gráficos...")
         values_final, vmax_final = unpack(result.x)
         final_residual = self.model_from_values(values_final, vmax_final) - y
         self.last_fit_stats = self.fit_statistics(final_residual, sigma, len(result.x))
@@ -2803,6 +2846,7 @@ class MossbauerFe33GUI(tk.Tk):
             self.entry_vars["vmax"].set(self._format_value("vmax", vmax_final))
             self.refold_data()
         self.update_plot()
+        close_progress()
 
     def load_fixed_distribution_file(self) -> None:
         filename = filedialog.askopenfilename(
@@ -2876,28 +2920,35 @@ class MossbauerFe33GUI(tk.Tk):
         sharp_components = None
         if self.dist_use_sharp_var.get():
             sharp_components, _indices = self.build_bhf_sharp_components_from_active_components()
+        progress = self.open_progress_dialog("L-curve α", "Preparando escaneo de α...")
+        _progress_dialog, update_progress, close_progress = progress
         try:
             alphas = np.logspace(-8, 4, 31)
             variable = "quad" if self.dist_variable_var.get() == "ΔEQ" else "bhf"
-            scans = [fit_hyperfine_distribution_engine(
-                self.velocity,
-                self.y_data,
-                variable=variable,
-                delta=self.vars["dist_delta"].get(),
-                quad=self.vars["dist_quad"].get(),
-                bhf=self.vars["dist_fixed_bhf"].get(),
-                gamma=self.vars["dist_gamma"].get(),
-                pmin=bmin,
-                pmax=bmax,
-                nbins=nbins,
-                alpha=float(a),
-                fit_baseline=not self.fixed_vars["baseline"].get(),
-                fit_slope=not self.fixed_vars["slope"].get(),
-                baseline=self.vars["baseline"].get(),
-                slope=self.vars["slope"].get(),
-                sharp_components=sharp_components,
-            ) for a in alphas]
+            scans = []
+            for i, a in enumerate(alphas, start=1):
+                update_progress(f"Calculando α {i}/{len(alphas)}: {float(a):.3g}")
+                scans.append(fit_hyperfine_distribution_engine(
+                    self.velocity,
+                    self.y_data,
+                    variable=variable,
+                    delta=self.vars["dist_delta"].get(),
+                    quad=self.vars["dist_quad"].get(),
+                    bhf=self.vars["dist_fixed_bhf"].get(),
+                    gamma=self.vars["dist_gamma"].get(),
+                    pmin=bmin,
+                    pmax=bmax,
+                    nbins=nbins,
+                    alpha=float(a),
+                    fit_baseline=not self.fixed_vars["baseline"].get(),
+                    fit_slope=not self.fixed_vars["slope"].get(),
+                    baseline=self.vars["baseline"].get(),
+                    slope=self.vars["slope"].get(),
+                    sharp_components=sharp_components,
+                ))
+            update_progress("Preparando gráfica L-curve...")
         except Exception as exc:
+            close_progress()
             messagebox.showerror("L-curve α", str(exc))
             return
         L = second_difference_matrix(nbins)
@@ -2947,6 +2998,7 @@ class MossbauerFe33GUI(tk.Tk):
         canvas = FigureCanvasTkAgg(fig, master=dialog)
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         canvas.draw_idle()
+        close_progress()
         buttons = ttk.Frame(dialog, padding=8)
         buttons.pack(fill=tk.X)
         def save_alpha_table() -> None:
@@ -3078,8 +3130,11 @@ class MossbauerFe33GUI(tk.Tk):
                 sharp_components=sharp_components,
             )
 
+        progress = self.open_progress_dialog("Distribución hiperfina", "Preparando ajuste de distribución...")
+        _progress_dialog, update_progress, close_progress = progress
         try:
             if self.dist_refine_global_var.get():
+                update_progress("Refinando δ y Γ globales...")
                 x0 = np.array([self.vars["dist_delta"].get(), np.log(max(self.vars["dist_gamma"].get(), 0.03))], dtype=float)
                 lo = np.array([-2.5, np.log(0.03)], dtype=float)
                 hi = np.array([2.5, np.log(1.0)], dtype=float)
@@ -3091,11 +3146,14 @@ class MossbauerFe33GUI(tk.Tk):
                 outer = least_squares(residual_outer, np.clip(x0, lo, hi), bounds=(lo, hi), max_nfev=35)
                 delta_final = float(outer.x[0])
                 gamma_final = float(np.exp(outer.x[1]))
+                update_progress("Calculando distribución final...")
                 result = run_fit(delta_final, gamma_final)
                 self.set_params({"dist_delta": delta_final, "dist_gamma": gamma_final})
             else:
+                update_progress(f"Calculando distribución {self.dist_shape_var.get()}...")
                 result = run_fit(self.vars["dist_delta"].get(), self.vars["dist_gamma"].get())
         except Exception as exc:
+            close_progress()
             messagebox.showerror("Error en P(BHF)", str(exc))
             return
         self.last_bhf_fit = result
@@ -3113,8 +3171,10 @@ class MossbauerFe33GUI(tk.Tk):
         if self.dist_use_sharp_var.get() and result.sharp_weights is not None:
             for idx, weight in zip(sharp_indices, result.sharp_weights):
                 params_to_update[f"s{idx}_depth"] = float(weight)
+        update_progress("Actualizando parámetros y gráficos...")
         self.set_params(params_to_update)
         self.update_plot()
+        close_progress()
 
     def update_plot_bhf_distribution(self) -> None:
         self.fig.clear()

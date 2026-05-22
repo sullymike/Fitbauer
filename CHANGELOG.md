@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.5
+
+- Ventana de progreso durante ajustes discretos con autoarranques.
+- Progreso visible durante escaneo L-curve de α.
+- Progreso visible durante ajustes de distribución P(BHF)/P(ΔEQ), incluyendo refinamiento global.
+
 ## v0.2.4
 
 - Nueva opción `Archivo → Exportar informe Markdown/PDF...`.
