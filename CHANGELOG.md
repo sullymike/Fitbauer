@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.4
+
+- Nueva opción `Archivo → Exportar informe Markdown/PDF...`.
+- El informe Markdown resume trazabilidad, calibración, métricas, áreas, parámetros, errores, correlaciones y diagnóstico de residuos.
+- Si se solicita PDF, siempre se conserva también el Markdown y el PDF añade una página con la figura actual.
+
 ## v0.2.3
 
 - Diagnóstico de residuos: autocorrelación lag-1, test de rachas y correlación antisimétrica para detectar estructura no aleatoria.

@@ -46,7 +46,7 @@ C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
 APP_NAME = "Mössbauer Fe-57 v2IA"
-APP_VERSION = "0.2.3"
+APP_VERSION = "0.2.4"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -528,6 +528,7 @@ class MossbauerFe33GUI(tk.Tk):
         file_menu.add_command(label="Calibraciones web...", command=self.open_calibration_download_dialog)
         file_menu.add_separator()
         file_menu.add_command(label="Guardar ajuste...", command=self.save_fit)
+        file_menu.add_command(label="Exportar informe Markdown/PDF...", command=self.export_report_dialog)
         file_menu.add_separator()
         file_menu.add_command(label="Guardar sesión...", command=self.save_session_dialog)
         file_menu.add_command(label="Subir sesión JSON a web...", command=self.open_web_upload_analysis_dialog)
@@ -3615,6 +3616,183 @@ class MossbauerFe33GUI(tk.Tk):
             messagebox.showerror("Error cargando sesión", str(exc))
             return
         messagebox.showinfo("Sesión cargada", f"Sesión cargada desde:\n{filename}")
+
+    def build_markdown_report(self) -> str:
+        """Informe humano del ajuste actual en Markdown.
+
+        No sustituye a la sesión JSON ni al .dat: resume parámetros, métricas,
+        diagnóstico y trazabilidad para documentación/publicación.
+        """
+        from datetime import datetime
+
+        model = self.current_model()
+        residual = self.y_data - model if self.y_data is not None and model is not None else None
+        stats = self.last_fit_stats or (self.fit_statistics(model - self.y_data, self.data_sigma(), 0) if self.y_data is not None and model is not None else {})
+        lines: list[str] = []
+        lines.append("# Informe de ajuste Mössbauer Fe-57")
+        lines.append("")
+        lines.append(f"- **Fecha:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append(f"- **Programa:** {APP_NAME} v{APP_VERSION}")
+        lines.append(f"- **Fichero:** {self.file_path.name if self.file_path else '-'}")
+        lines.append(f"- **Modo:** {self.fit_mode_var.get()} / {self.dist_shape_var.get() if self.fit_mode_var.get() == 'bhf_distribution' else 'componentes discretos'}")
+        lines.append(f"- **Perfil:** {self.line_profile_var.get()}")
+        lines.append(f"- **Vmax:** {self.vars['vmax'].get():.8g} mm/s")
+        lines.append(f"- **Folding point interno:** {self.vars['center'].get():.8g}")
+        lines.append(f"- **Normalización:** {self.norm_factor:.8g}")
+        lines.append("")
+
+        if self.calibration_info:
+            lines.append("## Calibración asociada")
+            lines.append("")
+            lines.append("```json")
+            lines.append(json.dumps(self.calibration_info, ensure_ascii=False, indent=2))
+            lines.append("```")
+            lines.append("")
+
+        lines.append("## Métricas del ajuste")
+        lines.append("")
+        if stats:
+            lines.append("| Métrica | Valor |")
+            lines.append("|---|---:|")
+            for key, label in (("rms", "RMS"), ("chi2", "χ²"), ("red_chi2", "χ² reducido"), ("dof", "Grados de libertad"), ("aic", "AIC"), ("bic", "BIC"), ("n_params", "Parámetros")):
+                if key in stats:
+                    lines.append(f"| {label} | {stats[key]:.8g} |")
+            lines.append("")
+            lines.append("**Diagnóstico de residuo**")
+            lines.append("")
+            lines.append("| Indicador | Valor |")
+            lines.append("|---|---:|")
+            for key, label in (("resid_lag1", "Autocorrelación lag-1"), ("resid_runs_z", "Test de rachas z"), ("resid_antisym_corr", "Correlación antisimétrica")):
+                if key in stats:
+                    lines.append(f"| {label} | {stats[key]:.6g} |")
+            lines.append("")
+        else:
+            lines.append("No hay métricas disponibles.")
+            lines.append("")
+
+        if self.last_fit_correlations:
+            lines.append("## Correlaciones de parámetros")
+            lines.append("")
+            corr = self.last_fit_correlations
+            max_pair = corr.get("max_pair") or []
+            if max_pair:
+                lines.append(f"- Máxima |r| = {float(corr.get('max_abs_corr', 0.0)):.4g} entre `{max_pair[0]}` y `{max_pair[1]}`.")
+            high_pairs = corr.get("high_pairs") or []
+            if high_pairs:
+                lines.append("")
+                lines.append("| Parámetro 1 | Parámetro 2 | r |")
+                lines.append("|---|---|---:|")
+                for pair in high_pairs:
+                    lines.append(f"| `{pair['param1']}` | `{pair['param2']}` | {float(pair['corr']):.5g} |")
+            lines.append("")
+
+        lines.append("## Componentes y áreas")
+        lines.append("")
+        if self.fit_mode_var.get() == "bhf_distribution" and self.last_bhf_fit is not None:
+            dist_area, sharp_areas, dist_pct, sharp_pct = self.bhf_component_area_percentages()
+            lines.append("| Componente | Área | Porcentaje |")
+            lines.append("|---|---:|---:|")
+            lines.append(f"| Distribución {self.dist_variable_var.get()} | {dist_area:.8g} | {dist_pct:.5g}% |")
+            for idx, kind, pct in sharp_pct:
+                area = next((a for i, _k, a in sharp_areas if i == idx), 0.0)
+                lines.append(f"| Nítido {idx} ({kind}) | {area:.8g} | {pct:.5g}% |")
+        else:
+            active, areas, percentages = self.component_area_percentages()
+            lines.append("| Componente | Tipo | Área integrada | Porcentaje |")
+            lines.append("|---:|---|---:|---:|")
+            for idx, area, pct in zip(active, areas, percentages):
+                lines.append(f"| {idx} | {self.component_kind[idx].get()} | {area:.8g} | {pct:.5g}% |")
+        lines.append("")
+
+        lines.append("## Parámetros")
+        lines.append("")
+        lines.append("| Parámetro | Valor | Error 1σ | Fijo |")
+        lines.append("|---|---:|---:|:---:|")
+        for key in self.active_param_keys():
+            err = self.last_fit_param_errors.get(key)
+            err_txt = f"{err:.6g}" if err is not None else ""
+            fixed = "sí" if self.fixed_vars.get(key, tk.BooleanVar(value=False)).get() else "no"
+            lines.append(f"| `{key}` | {self.vars[key].get():.8g} | {err_txt} | {fixed} |")
+        if self.fit_mode_var.get() == "bhf_distribution":
+            for key in ("dist_delta", "dist_quad", "dist_fixed_bhf", "dist_gamma", "dist_bmin", "dist_bmax", "dist_nbins", "dist_log_alpha"):
+                if key in self.vars:
+                    lines.append(f"| `{key}` | {self.vars[key].get():.8g} |  |  |")
+        lines.append("")
+
+        if residual is not None:
+            lines.append("## Resumen numérico residual")
+            lines.append("")
+            lines.append(f"- Media residuo: {float(np.mean(residual)):.8g}")
+            lines.append(f"- Desv. típica residuo: {float(np.std(residual)):.8g}")
+            lines.append(f"- Máximo |residuo|: {float(np.max(np.abs(residual))):.8g}")
+            lines.append("")
+
+        lines.append("## Texto del panel Estado")
+        lines.append("")
+        lines.append("```text")
+        lines.append(self.info.get("1.0", tk.END).strip() if hasattr(self, "info") else "")
+        lines.append("```")
+        lines.append("")
+        lines.append("---")
+        lines.append("Informe generado automáticamente. Revisar siempre residuos, calibración y sentido físico de los parámetros.")
+        return "\n".join(lines) + "\n"
+
+    def export_report_pdf(self, pdf_path: Path, markdown_text: str) -> None:
+        from matplotlib.backends.backend_pdf import PdfPages
+        import textwrap
+
+        with PdfPages(pdf_path) as pdf:
+            lines = markdown_text.splitlines()
+            page_lines: list[str] = []
+            for line in lines:
+                wrapped = textwrap.wrap(line, width=95) or [""]
+                for w in wrapped:
+                    page_lines.append(w)
+                    if len(page_lines) >= 46:
+                        fig = Figure(figsize=(8.27, 11.69), dpi=100, facecolor="white")
+                        ax = fig.add_subplot(111)
+                        ax.axis("off")
+                        ax.text(0.04, 0.97, "\n".join(page_lines), va="top", ha="left", family="monospace", fontsize=8.5)
+                        pdf.savefig(fig, bbox_inches="tight")
+                        page_lines = []
+            if page_lines:
+                fig = Figure(figsize=(8.27, 11.69), dpi=100, facecolor="white")
+                ax = fig.add_subplot(111)
+                ax.axis("off")
+                ax.text(0.04, 0.97, "\n".join(page_lines), va="top", ha="left", family="monospace", fontsize=8.5)
+                pdf.savefig(fig, bbox_inches="tight")
+            if getattr(self, "fig", None) is not None:
+                pdf.savefig(self.fig, bbox_inches="tight")
+
+    def export_report_dialog(self) -> None:
+        default_name = (self.file_path.stem if self.file_path else "mossbauer") + "_informe.md"
+        filename = filedialog.asksaveasfilename(
+            title="Exportar informe Markdown",
+            initialfile=default_name,
+            defaultextension=".md",
+            filetypes=[("Markdown", "*.md"), ("Texto", "*.txt"), ("Todos", "*")],
+        )
+        if not filename:
+            return
+        md_path = Path(filename)
+        if md_path.suffix.lower() != ".md":
+            md_path = md_path.with_suffix(".md")
+        try:
+            report = self.build_markdown_report()
+            md_path.write_text(report, encoding="utf-8")
+        except Exception as exc:
+            messagebox.showerror("Informe", f"No se pudo escribir el informe Markdown:\n{exc}")
+            return
+        pdf_msg = ""
+        if messagebox.askyesno("Informe", "Informe Markdown guardado.\n\n¿Crear también PDF?"):
+            pdf_path = md_path.with_suffix(".pdf")
+            try:
+                self.export_report_pdf(pdf_path, report)
+                pdf_msg = f"\nPDF: {pdf_path}"
+            except Exception as exc:
+                messagebox.showerror("Informe PDF", f"El Markdown se guardó, pero no se pudo crear el PDF:\n{exc}")
+                return
+        messagebox.showinfo("Informe exportado", f"Markdown: {md_path}{pdf_msg}")
 
     def save_fit(self) -> None:
         if self.velocity is None or self.y_data is None or self.folded_raw is None:
