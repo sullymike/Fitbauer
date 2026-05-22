@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.7
+
+- Ayuda integrada actualizada con todas las modificaciones desde la v0.2 y nuevo capítulo "Novedades desde v0.2" con cómo se usa cada función (informe Markdown/PDF, bootstrap MC, presets físicos, diagnóstico de residuos, L-curve ampliada, etc.).
+- Capítulos de ayuda Folding, Modelo discreto, P(BHF): parámetros, Diagnóstico, Guardar y exportar y Atajos puestos al día.
+- Barra de matplotlib (guardar figura, zoom, coordenadas del cursor) anclada al borde inferior del lienzo: deja de quedar recortada en ventanas bajas o pantallas con escalado HiDPI.
+
 ## v0.2.6
 
 - Distribuciones Hesse-Rübartsch ponderadas por incertidumbre Poisson (`sigma`) en P(BHF)/P(ΔEQ) y L-curve.
