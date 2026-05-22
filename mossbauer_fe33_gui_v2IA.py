@@ -804,6 +804,7 @@ class MossbauerFe33GUI(tk.Tk):
             "fixed_distribution_path": str(self.fixed_distribution_path) if self.fixed_distribution_path else None,
             "dist_use_sharp": bool(self.dist_use_sharp_var.get()),
             "dist_refine_global": bool(self.dist_refine_global_var.get()),
+            "theme": self._theme_var.get(),
             "info_text": self.info.get("1.0", tk.END).strip() if hasattr(self, "info") else "",
             "constraints": self.constraints,
             "ai_ollama_url": self.ai_ollama_url_var.get(),
@@ -845,6 +846,7 @@ class MossbauerFe33GUI(tk.Tk):
             self.fixed_distribution_path = Path(data["fixed_distribution_path"]) if data.get("fixed_distribution_path") else None
             self.dist_use_sharp_var.set(bool(data.get("dist_use_sharp", self.dist_use_sharp_var.get())))
             self.dist_refine_global_var.set(bool(data.get("dist_refine_global", self.dist_refine_global_var.get())))
+            self._theme_var.set(data.get("theme", "sv_ttk" if self._sv_active else "clam"))
             self.constraints = list(data.get("constraints", self.constraints))
             self.ai_ollama_url_var.set(data.get("ai_ollama_url", self.ai_ollama_url_var.get()))
             self.ai_ollama_model_var.set(data.get("ai_ollama_model", self.ai_ollama_model_var.get()))
