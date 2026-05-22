@@ -4,9 +4,9 @@
 Uso:
     python install.py
 
-Crea un entorno virtual local, instala dependencias y genera lanzadores:
-- Linux/macOS: ./mossbauer y ./mossbauer_v2IA
-- Windows: mossbauer.bat y mossbauer_v2IA.bat
+Crea un entorno virtual local, instala dependencias y genera un lanzador:
+- Linux/macOS: ./mossbauer
+- Windows: mossbauer.bat
 """
 from __future__ import annotations
 
@@ -20,8 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 VENV_DIR = ROOT / ".venv"
 REQUIREMENTS = ROOT / "requirements.txt"
-MAIN_GUI = "mossbauer_fe33_gui.py"
-V2IA_GUI = "mossbauer_fe33_gui_v2IA.py"
+MAIN_GUI = "mossbauer_fe33_gui_v2IA.py"
 
 
 def run(cmd: list[str], **kwargs) -> None:
@@ -49,7 +48,7 @@ def install_dependencies() -> None:
     if REQUIREMENTS.exists():
         run([py, "-m", "pip", "install", "-r", str(REQUIREMENTS)])
     else:
-        run([py, "-m", "pip", "install", "numpy", "scipy", "matplotlib", "requests"])
+        run([py, "-m", "pip", "install", "numpy", "scipy", "matplotlib", "requests", "sv-ttk"])
 
 
 def make_posix_launcher(name: str, script: str) -> None:
@@ -78,20 +77,26 @@ def make_windows_launcher(name: str, script: str) -> None:
 
 def create_launchers() -> None:
     make_posix_launcher("mossbauer", MAIN_GUI)
-    make_posix_launcher("mossbauer_v2IA", V2IA_GUI)
     make_windows_launcher("mossbauer.bat", MAIN_GUI)
-    make_windows_launcher("mossbauer_v2IA.bat", V2IA_GUI)
 
 
 def smoke_test() -> None:
     py = str(venv_python())
-    run([py, "-m", "py_compile", str(ROOT / MAIN_GUI), str(ROOT / V2IA_GUI), str(ROOT / "mossbauer_updater.py")])
+    run([
+        py,
+        "-m",
+        "py_compile",
+        str(ROOT / MAIN_GUI),
+        str(ROOT / "mossbauer_updater.py"),
+        str(ROOT / "mossbauer_updater_ui.py"),
+        str(ROOT / "mossbauer_api_client.py"),
+        str(ROOT / "mossbauer_help.py"),
+    ])
 
 
 def main() -> int:
-    missing = [name for name in (MAIN_GUI, V2IA_GUI) if not (ROOT / name).exists()]
-    if missing:
-        print("Faltan ficheros principales:", ", ".join(missing), file=sys.stderr)
+    if not (ROOT / MAIN_GUI).exists():
+        print(f"Falta el fichero principal: {MAIN_GUI}", file=sys.stderr)
         return 1
     create_venv()
     install_dependencies()
@@ -99,9 +104,9 @@ def main() -> int:
     smoke_test()
     print("\nInstalación terminada.")
     if os.name == "nt":
-        print("Ejecuta: mossbauer_v2IA.bat")
+        print("Ejecuta: mossbauer.bat")
     else:
-        print("Ejecuta: ./mossbauer_v2IA")
+        print("Ejecuta: ./mossbauer")
     return 0
 
 

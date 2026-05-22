@@ -18,7 +18,6 @@ jobs:
           TAG="${{ github.ref_name }}"
           ZIP="Mossbauer-${TAG}.zip"
           zip "$ZIP" \
-            mossbauer_fe33_gui.py \
             mossbauer_fe33_gui_v2IA.py \
             mossbauer_api_client.py \
             mossbauer_help.py \

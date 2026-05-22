@@ -2,6 +2,8 @@
 
 Programa de escritorio para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
 
+Aplicación principal: `mossbauer_fe33_gui_v2IA.py`.
+
 Autor: Jorge Sánchez Marcos  
 Departamento de Química Física · UAM
 
@@ -134,14 +136,14 @@ Se puede instalar sin `.exe` con Python:
 
 ```bash
 python3 install.py
-./mossbauer_v2IA
+./mossbauer
 ```
 
 En Windows:
 
 ```bat
 py install.py
-mossbauer_v2IA.bat
+mossbauer.bat
 ```
 
 Más detalles en `INSTALL.md`.
@@ -173,6 +175,6 @@ Al cerrar, el programa guarda opciones persistentes en:
 ~/.config/mossbauer_fe33_gui/settings.json
 ```
 
-## 6. Panel Estado y parámetros
+## 8. Panel Estado y parámetros
 
 Este panel resume el estado del ajuste: fichero, folding, normalización, Vmax, fondo, RMS, parámetros, porcentajes de área, errores y parámetros fijados. En modo distribución muestra además el rango BHF, número de bins, α, pico de P(BHF) y porcentajes de distribución/componentes nítidos.

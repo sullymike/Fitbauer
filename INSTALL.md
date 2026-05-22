@@ -6,7 +6,7 @@ No hace falta descargar un `.exe`. Basta con tener Python instalado.
 
 ```bash
 python3 install.py
-./mossbauer_v2IA
+./mossbauer
 ```
 
 Si `python3` no existe, instala Python 3 con el gestor de paquetes de tu distribución.
@@ -21,27 +21,23 @@ Si `python3` no existe, instala Python 3 con el gestor de paquetes de tu distrib
 
 ```bat
 py install.py
-mossbauer_v2IA.bat
+mossbauer.bat
 ```
 
 Si `py` no funciona, probar:
 
 ```bat
 python install.py
-mossbauer_v2IA.bat
+mossbauer.bat
 ```
 
 ## Qué hace `install.py`
 
 - Crea un entorno virtual local `.venv`.
-- Instala dependencias desde `requirements.txt`:
-  - numpy
-  - scipy
-  - matplotlib
-  - requests
+- Instala dependencias desde `requirements.txt`.
 - Crea lanzadores:
-  - Linux/macOS: `mossbauer`, `mossbauer_v2IA`
-  - Windows: `mossbauer.bat`, `mossbauer_v2IA.bat`
+  - Linux/macOS: `mossbauer`
+  - Windows: `mossbauer.bat`
 
 ## Actualizar
 

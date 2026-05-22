@@ -9,7 +9,6 @@ https://github.com/sullymike/Mossbauer/releases
 ## Cómo publicar una versión nueva
 
 1. Cambiar `APP_VERSION` en:
-   - `mossbauer_fe33_gui.py`
    - `mossbauer_fe33_gui_v2IA.py`
 
 2. Actualizar `CHANGELOG.md`.
@@ -48,4 +47,4 @@ Ayuda → Buscar actualizaciones...
 
 Si el tag de GitHub, por ejemplo `v0.1.7`, es mayor que `APP_VERSION`, ofrece
 descargar el ZIP en la carpeta `Descargas`/`Downloads` y verificar su integridad
-con el `sha256sums.txt` adjunto (solo en la variante `v2IA`).
+con el `sha256sums.txt` adjunto.

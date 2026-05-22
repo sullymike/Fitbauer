@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['mossbauer_fe33_gui.py'],
+    ['mossbauer_fe33_gui_v2IA.py'],
     pathex=[],
     binaries=[],
     datas=[],
