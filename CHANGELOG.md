@@ -2,6 +2,8 @@
 
 ## v0.1.6
 
+- Ayuda, actualizador y cliente API extraídos a módulos independientes (`mossbauer_help.py`, `mossbauer_updater_ui.py`).
+- Los textos de ayuda documentan el token en `credentials.json`, el bloque `"calibration"` en el JSON de sesión y el aviso de desajuste de Vmax al cargar sesión.
 - La variante `mossbauer_fe33_gui_v2IA.py` queda migrada también al cliente REST del laboratorio.
 - Sincronización de versión estable tras los cambios remotos del servidor.
 

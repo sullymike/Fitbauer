@@ -4,6 +4,8 @@
 
 # No subir subdirectorios ni su contenido
 */
+!.github/
+!.github/workflows/
 
 # Cachés/temporales habituales si aparecen en la raíz
 __pycache__/
