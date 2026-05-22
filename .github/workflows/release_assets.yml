@@ -1,0 +1,53 @@
+name: Release assets
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Crear ZIP
+        run: |
+          TAG="${{ github.ref_name }}"
+          ZIP="Mossbauer-${TAG}.zip"
+          zip "$ZIP" \
+            mossbauer_fe33_gui.py \
+            mossbauer_fe33_gui_v2IA.py \
+            mossbauer_api_client.py \
+            mossbauer_help.py \
+            mossbauer_updater.py \
+            mossbauer_updater_ui.py \
+            mossbauer_distribution.py \
+            mossbauer_ws5.py \
+            fold_mossbauer.py \
+            fit_bhf_distribution_cli.py \
+            mossbauer_bhf_pipeline.py \
+            download_and_fit_calibrations.py \
+            install.py \
+            requirements.txt \
+            README.md \
+            CHANGELOG.md \
+            INSTALL.md \
+            RELEASES.md \
+            BHF_DISTRIBUTION.md \
+            LICENSE
+          echo "ZIP=$ZIP" >> "$GITHUB_ENV"
+
+      - name: Generar checksums SHA-256
+        run: |
+          sha256sum "$ZIP" > sha256sums.txt
+          echo "Checksums generados:"
+          cat sha256sums.txt
+
+      - name: Subir assets a la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.ref_name }}" "$ZIP" sha256sums.txt
