@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.0
+
+- Limpieza del repositorio: queda una única GUI oficial, `mossbauer_fe33_gui_v2IA.py`.
+- Instalador y releases simplificados para usar solo el lanzador `mossbauer` / `mossbauer.bat`.
+- Workflow de release actualizado para empaquetar solo la versión completa.
+
 ## v0.1.7
 
 - Tema visual moderno basado en `sv_ttk` (Sun Valley); aspecto limpio con sliders y checkboxes estilo Windows 11.
