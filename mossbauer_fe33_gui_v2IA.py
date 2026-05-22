@@ -977,7 +977,7 @@ class MossbauerFe33GUI(tk.Tk):
 
         parameter_labels = {
             # Folding y fondo
-            "Vmax", "Ajustar Vmax", "Folding point", "Base", "Pendiente",
+            "Vmax", "Ajustar Vmax", "Folding point", "Ajustar folding point", "Base", "Pendiente",
             # Tipos de componente
             "Singlete", "Doblete", "Sextete",
             # Parámetros de componente

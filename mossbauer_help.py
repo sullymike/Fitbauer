@@ -132,11 +132,16 @@ Parámetros:
   Vmax
     Velocidad máxima del transductor en mm/s. Construye el eje de velocidades desde −Vmax hasta +Vmax. El valor real se obtiene de la calibración con α-Fe. Valores típicos: 10–12 mm/s para espectros de Fe puro; hasta 20 mm/s para óxidos.
 
+    Si la medida se descargó de la web junto con su calibración asociada, el panel "Estado y parámetros" y el informe Markdown muestran la incertidumbre de Vmax de esa calibración (o avisan de que no consta de forma explícita). Tenla en cuenta como error sistemático de velocidad: no está incluida en los errores 1σ estadísticos del ajuste.
+
   Ajustar Vmax
-    Incluye Vmax como parámetro libre en el ajuste. Útil si la calibración no es exacta, pero conviene fijar BHF simultáneamente para evitar correlación perfecta entre Vmax y BHF.
+    Casilla "Ajustar Vmax con el patrón de líneas". Incluye Vmax como parámetro libre en el ajuste. Útil si la calibración no es exacta, pero conviene fijar BHF simultáneamente para evitar correlación perfecta entre Vmax y BHF. El programa avisa si intentas ajustar Vmax sin haber fijado el BHF de todos los sextetes activos.
 
   Folding point
     Centro interno de simetría en unidades de canales. Acepta valores fraccionarios como Normos. El "Valor Normos aprox." mostrado en pantalla equivale aproximadamente al doble.
+
+  Ajustar folding point
+    Casilla "Ajustar folding point dentro del ajuste". Si se activa, el folding point se incluye como parámetro libre del ajuste discreto: en cada iteración el espectro se vuelve a doblar con el centro propuesto y se renormaliza. Útil cuando el residuo muestra estructura antisimétrica (ver más abajo) y no se conoce el centro exacto. Conviene partir de un valor razonable (Ajuste → Buscar centro) y comprobar que el resultado sea físicamente plausible.
 
   Base
     Nivel de transmisión normalizado fuera de las líneas de absorción. Idealmente 1.0. Desviaciones indican mala normalización o saturación.
@@ -194,9 +199,29 @@ Porcentajes de área:
 
   El programa calcula el porcentaje de área de cada componente integrado sobre todas sus líneas. Son los valores que se publican habitualmente como "abundancias de fases". Aparecen en el panel Estado y parámetros tras cada ajuste.
 
+Cómo se hace el ajuste discreto:
+
+  Al pulsar "Ajustar" (botón "Ajuste" del panel o menú Ajuste → Ajustar) el programa:
+
+  • Pesa cada canal por su incertidumbre Poisson: los canales con más cuentas (menos ruido relativo) influyen más en el resultado.
+  • Lanza el ajuste desde 9 conjuntos de valores iniciales (autoarranque múltiple determinista) y conserva el de menor coste, para no depender de un único punto de partida.
+  • Muestra una ventana de progreso indicando el autoarranque en curso.
+  • Al terminar, vuelca en el panel "Estado y parámetros" las métricas, los errores 1σ y el diagnóstico del residuo.
+
 Errores 1σ:
 
   Si la covarianza del ajuste es estimable (Jacobiano bien condicionado), se muestran los errores estadísticos 1σ de cada parámetro libre. Son solo errores estadísticos; el error sistemático (folding, calibración, modelo) suele ser mayor.
+
+  Si la covarianza no es fiable, o si hay parámetros muy correlacionados, los errores se pueden estimar por remuestreo con Ajuste → Bootstrap errores (MC)... (ver el capítulo "Novedades desde v0.2").
+
+Métricas y diagnóstico tras el ajuste:
+
+  El panel "Estado y parámetros" muestra, además del RMS:
+
+  • χ², χ² reducido y grados de libertad. Un χ² reducido cercano a 1 indica un ajuste estadísticamente razonable.
+  • AIC y BIC, para comparar modelos sobre los mismos datos: a igualdad de datos, el menor valor es preferible.
+  • Correlación máxima entre parámetros libres, con aviso si hay parejas con |r| ≥ 0.95 (parámetros que no se pueden determinar por separado).
+  • Diagnóstico del residuo (autocorrelación lag-1, test de rachas y correlación antisimétrica), descrito en el capítulo "Diagnóstico".
 """),
             ("Perfil de línea", "Lorentziana y Voigt", """
 El programa admite dos perfiles de línea:
@@ -322,7 +347,7 @@ Control de regularización:
     Logaritmo del parámetro de regularización. Un valor de −2 a 0 es habitual. Variar en pasos de 0.5 y observar la estabilidad de P(BHF) y del RMS.
 
   L-curve α
-    Escanea automáticamente un rango de α y traza la curva L (log residuo vs. log rugosidad). El punto de máxima curvatura ("codo") suele indicar un α razonable. Es un punto de partida, no una respuesta definitiva.
+    El botón "L-curve α" escanea automáticamente un rango amplio de α (con ventana de progreso) y abre una ventana con dos gráficas: la curva L (log residuo vs. log rugosidad) y el RMS junto con el χ² reducido frente a α. Propone dos valores: el del codo de la L-curve (máxima curvatura) y un valor "de compromiso" (el más cercano a residuo y rugosidad mínimos a la vez). Los botones "Usar L-curve" y "Usar compromiso" aplican ese α directamente; "Guardar tabla" exporta a fichero la tabla completa del escaneo (α, RMS, residuo, rugosidad, χ², χ² reducido y campo del pico). Es un punto de partida, no una respuesta definitiva: conviene comprobar la estabilidad de P(BHF) alrededor del valor elegido.
 
   Distribución fija
     Carga una P(BHF) externa (dos columnas: BHF, peso) y la aplica sin ajustar los pesos. Útil para comparar con resultados de otras referencias o para refinar solo δ, Γ con una distribución conocida.
@@ -529,6 +554,21 @@ Guardar sesión (.json):
 
   La sesión permite retomar el trabajo exactamente donde se dejó, incluso en otro ordenador.
 
+Exportar informe Markdown/PDF:
+
+  La opción Archivo → Exportar informe Markdown/PDF... genera un informe legible del ajuste actual, pensado para documentación o para adjuntar a una publicación.
+
+  Cómo se hace:
+
+    1. Menú Archivo → Exportar informe Markdown/PDF...
+    2. Elige nombre y carpeta. Se guarda un fichero .md (Markdown).
+    3. El programa pregunta si quieres además un PDF. Si aceptas, crea un .pdf con el mismo contenido y una página final con la figura actual del espectro.
+    4. El Markdown se conserva siempre, también cuando se genera el PDF.
+
+  El informe resume: fecha y versión del programa, fichero y modo de ajuste, perfil de línea, trazabilidad de la calibración asociada, métricas (RMS, χ², χ² reducido, AIC, BIC), diagnóstico de residuos, correlaciones altas de parámetros, áreas y porcentajes por componente, tabla de parámetros con errores 1σ y el texto completo del panel Estado.
+
+  El informe no sustituye a la sesión .json (que es lo reproducible) ni al ajuste .dat (que contiene los datos numéricos punto a punto): es un resumen para humanos.
+
 Opciones automáticas:
 
   Al cerrar el programa se guardan preferencias de visualización y último directorio usado en:
@@ -543,6 +583,16 @@ Recomendaciones:
 """),
             ("Diagnóstico", "Residuos, errores frecuentes y buenas prácticas", """
 El residuo (datos − modelo) debe parecerse al ruido estadístico. Cualquier estructura sistemática indica que el modelo no es adecuado o que hay un problema instrumental.
+
+Indicadores automáticos del residuo:
+
+  Tras cada ajuste, el panel "Estado y parámetros" muestra tres indicadores que cuantifican si el residuo tiene estructura no aleatoria:
+
+  • Autocorrelación lag-1: correlación entre cada punto del residuo y el siguiente. Cerca de 0 indica residuo sin memoria; un valor alto (|lag1| > 0.35) indica que el modelo deja tendencias suaves sin describir.
+  • Test de rachas (z): compara el número de cambios de signo del residuo con lo esperado para ruido aleatorio. |z| > 2 indica demasiadas o demasiado pocas rachas, es decir, estructura sistemática.
+  • Correlación antisimétrica: mide cuánto se parece el residuo a su versión reflejada y con el signo cambiado. Un valor alto (> 0.45) es típico de un folding point incorrecto.
+
+  Si alguno de los tres se sale de rango, el panel muestra el aviso "el residuo parece tener estructura no aleatoria" y recuerda revisar el modelo, el folding point, la calibración Vmax o posibles componentes que falten. Son una ayuda, no un veredicto: confírmalo siempre mirando la gráfica del residuo.
 
 Patrones de residuo y sus causas habituales:
 
@@ -660,6 +710,18 @@ Controles principales:
   Menú Opciones → Restricciones
     Abre el diálogo de restricciones lineales entre parámetros.
 
+  Menú Opciones → Presets físicos de restricciones
+    Aplica con un clic relaciones físicas habituales (intensidades 3:2:1, anchuras iguales, ligar δ o Γ entre componentes). Ver el capítulo "Novedades desde v0.2".
+
+  Menú Ajuste → Bootstrap errores (MC)
+    Estima los errores de los parámetros por remuestreo Monte Carlo. Solo en modo discreto. Ver el capítulo "Novedades desde v0.2".
+
+  Menú Archivo → Exportar informe Markdown/PDF
+    Genera un informe legible del ajuste actual. Ver el capítulo "Guardar y exportar".
+
+  Menú Ayuda → Changelog
+    Muestra la lista completa de cambios de todas las versiones del programa.
+
   Casillas de entrada numérica
     Además de los sliders, se puede escribir un valor exacto en la casilla y pulsar Enter para aplicarlo.
 
@@ -694,5 +756,67 @@ Flujo para P(BHF) Gaussiana/Binomial con nítidos:
   4. Configurar los parámetros del nítido (p. ej. singlete o doblete paramagnético).
   5. Ajustar. El programa optimiza simultáneamente la distribución paramétrica y los pesos de los nítidos.
   6. Comparar el RMS con y sin nítidos para verificar que aportan mejora.
+"""),
+            ("Novedades desde v0.2", "Cambios y funciones nuevas desde la versión 0.2", """
+Este capítulo resume, versión por versión, todo lo que ha cambiado desde la v0.2.0 y explica cómo se usa cada función nueva. La versión instalada se ve en Ayuda → Acerca de, y la lista técnica completa en Ayuda → Changelog.
+
+v0.2.0 — Una única aplicación oficial:
+
+  El repositorio se limpió y queda una sola GUI oficial: mossbauer_fe33_gui_v2IA.py. El instalador y las releases usan solo el lanzador "mossbauer" / "mossbauer.bat". No hay que elegir entre variantes: siempre se abre esta aplicación.
+
+v0.2.1 — Ajuste ponderado y comparación de modelos:
+
+  • Ajuste discreto ponderado. El ajuste discreto pesa cada canal por su incertidumbre Poisson (σ ≈ √(cuentas dobladas / 2), normalizada). Es automático: no hay que activar nada. Los canales con más cuentas, menos ruidosos, pesan más.
+  • χ² reducido, AIC y BIC. Tras pulsar "Ajustar", el panel "Estado y parámetros" muestra χ², χ² reducido, grados de libertad, AIC y BIC.
+  • Cómo comparar dos modelos: ajusta el modelo A y anota AIC y BIC; cambia el modelo (por ejemplo añade un componente) y vuelve a ajustar; el modelo con AIC/BIC más bajo es preferible. Un χ² reducido cercano a 1 indica un ajuste estadísticamente razonable.
+  • Áreas por integración numérica. Los porcentajes de área se calculan integrando numéricamente el perfil real de cada componente, de forma consistente para Lorentziana y Voigt.
+
+v0.2.2 — Diagnóstico de modelo y correlaciones:
+
+  • Comparación de modelos. El panel Estado incluye explícitamente el recordatorio de que, a igualdad de datos, el menor AIC/BIC es mejor.
+  • Matriz de correlación resumida. Tras un ajuste discreto, el panel Estado muestra la correlación máxima entre parámetros libres y, si hay parejas con |r| ≥ 0.95, las lista con un aviso. Una correlación muy alta indica que esos parámetros no se pueden determinar por separado: conviene fijar uno o ligarlos con una restricción.
+  • L-curve de α ampliada. La ventana del botón "L-curve α" muestra también el χ² reducido frente a α, propone un valor "de compromiso" además del codo de la L-curve, y permite guardar la tabla completa del escaneo con el botón "Guardar tabla". Ver el capítulo "P(BHF): parámetros".
+
+v0.2.3 — Diagnóstico de residuos y autoarranque:
+
+  • Diagnóstico de residuos automático. Tras cada ajuste, el panel Estado muestra tres indicadores del residuo: autocorrelación lag-1, test de rachas (z) y correlación antisimétrica. Si alguno se sale de rango aparece el aviso "el residuo parece tener estructura no aleatoria". Ver el capítulo "Diagnóstico" para interpretarlos.
+  • Autoarranque múltiple determinista. El ajuste discreto ya no parte de un único punto: prueba automáticamente 9 conjuntos de valores iniciales (el actual más 8 perturbaciones reproducibles) y conserva el de menor coste. Es automático y reduce la dependencia de los valores iniciales. El número de autoarranques probados se indica en el panel Estado.
+
+v0.2.4 — Informe Markdown/PDF:
+
+  Nueva opción Archivo → Exportar informe Markdown/PDF... Genera un informe legible del ajuste actual: se guarda primero un fichero .md y, si se acepta, también un .pdf con una página final con la figura. El detalle del contenido y del procedimiento está en el capítulo "Guardar y exportar".
+
+v0.2.5 — Ventanas de progreso:
+
+  Los cálculos largos abren una ventana de progreso que indica en qué paso van, para que se vea que el programa sigue trabajando. Aparece en: ajustes discretos (muestra el autoarranque en curso), escaneo L-curve de α (muestra el α en curso) y ajustes de distribución P(BHF)/P(ΔEQ), incluido el refinamiento global. No hay que hacer nada: se abren y se cierran solas.
+
+v0.2.6 — Distribuciones pesadas, bootstrap y presets:
+
+  • Distribuciones P(BHF)/P(ΔEQ) ponderadas. El motor Hesse-Rübartsch y el escaneo L-curve pesan ahora cada canal por su incertidumbre Poisson, igual que el ajuste discreto. Es automático.
+  • Bootstrap Monte Carlo de errores. Menú Ajuste → Bootstrap errores (MC)... Estima los errores de los parámetros libres por remuestreo. Ver más abajo "Cómo usar el bootstrap".
+  • Presets físicos de restricciones. Menú Opciones → Presets físicos de restricciones... Aplica con un clic relaciones físicas habituales. Ver más abajo "Cómo usar los presets físicos".
+  • Ajuste del folding point dentro del ajuste. Casilla "Ajustar folding point dentro del ajuste" en el panel "Velocidad, folding y fondo". Ver el capítulo "Folding".
+  • Aviso de incertidumbre de calibración Vmax. Si la medida se descargó con su calibración asociada, el panel Estado y el informe muestran la incertidumbre de Vmax (o avisan de que no consta). Ayuda a tener presente el error sistemático de velocidad.
+
+Cómo usar el bootstrap Monte Carlo (v0.2.6):
+
+  1. Carga el espectro y haz un ajuste discreto normal, dejando libres los parámetros deseados.
+  2. Abre el menú Ajuste → Bootstrap errores (MC)...
+  3. Indica el número de réplicas (por defecto 30; entre 5 y 300). Más réplicas dan un error más estable pero tardan más.
+  4. El programa genera espectros sintéticos sumando ruido gaussiano (según la σ Poisson) al modelo ajustado y vuelve a ajustar cada uno.
+  5. La desviación típica de cada parámetro entre réplicas sustituye al error 1σ mostrado en el panel Estado.
+
+  Es útil cuando la covarianza del ajuste no es fiable o cuando hay parámetros muy correlacionados. Solo está disponible en modo discreto; para P(BHF)/P(ΔEQ) se valora la estabilidad variando α.
+
+Cómo usar los presets físicos (v0.2.6):
+
+  Abre Opciones → Presets físicos de restricciones... Hay cuatro botones que actúan solo sobre los componentes activos:
+
+  • "Sextetes polvo 3:2:1 (fijar intensidades)": fija las intensidades de los sextetes activos en la relación de polvo sin textura 3:2:1 (poniendo los multiplicadores int1 = int2 = int3 = 1).
+  • "Mismas anchuras dentro de cada componente": fija Γ2 y Γ3 (anchuras relativas) en 1, es decir, las líneas 2-5 y 3-4 con la misma anchura que las externas.
+  • "Ligar δ de componentes activos a componente 1": añade restricciones para que δ de los componentes 2 y 3 sea igual al δ del componente 1.
+  • "Ligar Γ1 de componentes activos a componente 1": añade restricciones para que Γ1 de los componentes 2 y 3 sea igual al del componente 1.
+
+  Las restricciones añadidas se pueden revisar y editar después en Opciones → Restricciones entre parámetros... Los presets no sustituyen al criterio físico: aplícalos solo cuando el supuesto sea válido para la muestra.
 """),
         ]
