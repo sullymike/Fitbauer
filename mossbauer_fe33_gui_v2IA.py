@@ -424,31 +424,51 @@ class MossbauerFe33GUI(tk.Tk):
 
     def _build_ui(self) -> None:
         style = ttk.Style(self)
+        _sv = False
         try:
-            style.theme_use("clam")
-        except tk.TclError:
-            pass
-        bg = "#eaf4ff"
-        card = "#f8fbff"
+            import sv_ttk
+            sv_ttk.set_theme("light")
+            _sv = True
+        except ImportError:
+            try:
+                style.theme_use("clam")
+            except tk.TclError:
+                pass
+
         accent = "#0ea5d9"
         accent_dark = "#075985"
-        self.configure(background=bg)
-        style.configure("TFrame", background=bg)
-        style.configure("TLabelframe", background=card, borderwidth=1, relief="solid")
-        style.configure("TLabelframe.Label", background=bg)
-        style.configure("TLabel", background=bg, foreground="#17202a")
-        style.configure("Title.TLabel", font=("TkDefaultFont", 17, "bold"), foreground=accent_dark, background=bg)
+
+        if _sv:
+            bg = style.lookup("TFrame", "background") or "#f0f0f0"
+            card = "#ffffff"
+            self.configure(background=bg)
+            style.configure("Section.TLabelframe", padding=10)
+            style.configure("Section.TLabelframe.Label", font=("TkDefaultFont", 10, "bold"), foreground=accent_dark)
+            style.configure("Title.TLabel", font=("TkDefaultFont", 17, "bold"), foreground=accent_dark)
+            style.configure("Subtitle.TLabel", font=("TkDefaultFont", 9), foreground="#4b6478")
+        else:
+            bg = "#eaf4ff"
+            card = "#f8fbff"
+            self.configure(background=bg)
+            style.configure("TFrame", background=bg)
+            style.configure("TLabelframe", background=card, borderwidth=1, relief="solid")
+            style.configure("TLabelframe.Label", background=bg)
+            style.configure("TLabel", background=bg, foreground="#17202a")
+            style.configure("Title.TLabel", font=("TkDefaultFont", 17, "bold"), foreground=accent_dark, background=bg)
+            style.configure("Subtitle.TLabel", font=("TkDefaultFont", 9), foreground="#4b6478", background=bg)
+            style.configure("Section.TLabelframe", padding=10, background=card, relief="solid")
+            style.configure("Section.TLabelframe.Label", font=("TkDefaultFont", 10, "bold"), foreground=accent_dark, background=bg)
+            style.configure("TNotebook", background=bg, borderwidth=0)
+            style.configure("TNotebook.Tab", padding=(12, 6), background="#cfefff", foreground="#0f3d5c")
+            style.map("TNotebook.Tab", background=[("selected", "#38bdf8")], foreground=[("selected", "white")])
+
         style.configure("Header.TLabel", font=("TkDefaultFont", 18, "bold"), foreground="white", background=accent_dark)
         style.configure("HeaderSub.TLabel", font=("TkDefaultFont", 9), foreground="#dff6ff", background=accent_dark)
-        style.configure("Subtitle.TLabel", font=("TkDefaultFont", 9), foreground="#4b6478", background=bg)
-        style.configure("Section.TLabelframe", padding=10, background=card, relief="solid")
-        style.configure("Section.TLabelframe.Label", font=("TkDefaultFont", 10, "bold"), foreground=accent_dark, background=bg)
         style.configure("Accent.TButton", padding=7, font=("TkDefaultFont", 9, "bold"), background=accent, foreground="white")
-        style.map("Accent.TButton", background=[("active", "#0284c7")])
-        style.configure("Small.TButton", padding=5, background="#d7efff")
-        style.configure("TNotebook", background=bg, borderwidth=0)
-        style.configure("TNotebook.Tab", padding=(12, 6), background="#cfefff", foreground="#0f3d5c")
-        style.map("TNotebook.Tab", background=[("selected", "#38bdf8")], foreground=[("selected", "white")])
+        style.map("Accent.TButton", background=[("active", "#0284c7"), ("pressed", "#0369a1")])
+        style.configure("Small.TButton", padding=(5, 4))
+        if not _sv:
+            style.configure("TNotebook", borderwidth=0)
 
         menubar = tk.Menu(self)
         file_menu = tk.Menu(menubar, tearoff=0)
@@ -539,17 +559,21 @@ class MossbauerFe33GUI(tk.Tk):
         header.pack(fill=tk.X, pady=(0, 10))
         title_block = tk.Frame(header, bg="#075985", bd=0, highlightthickness=0)
         title_block.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=12, pady=8)
-        ttk.Label(title_block, text=APP_NAME, style="Header.TLabel").pack(anchor=tk.W)
-        ttk.Label(title_block, text="Doblado, simulación y ajuste interactivo", style="HeaderSub.TLabel").pack(anchor=tk.W, pady=(0, 5))
-        ttk.Label(title_block, text=APP_AUTHOR, style="HeaderSub.TLabel").pack(anchor=tk.W)
-        ttk.Label(title_block, text=APP_DEPARTMENT, style="HeaderSub.TLabel").pack(anchor=tk.W)
+        tk.Label(title_block, text=APP_NAME, bg=accent_dark, fg="white",
+                 font=("TkDefaultFont", 18, "bold")).pack(anchor=tk.W)
+        tk.Label(title_block, text="Doblado, simulación y ajuste interactivo", bg=accent_dark, fg="#dff6ff",
+                 font=("TkDefaultFont", 9)).pack(anchor=tk.W, pady=(0, 5))
+        tk.Label(title_block, text=APP_AUTHOR, bg=accent_dark, fg="#dff6ff",
+                 font=("TkDefaultFont", 9)).pack(anchor=tk.W)
+        tk.Label(title_block, text=APP_DEPARTMENT, bg=accent_dark, fg="#dff6ff",
+                 font=("TkDefaultFont", 9)).pack(anchor=tk.W)
 
         file_box = ttk.LabelFrame(controls, text="Fichero actual", style="Section.TLabelframe")
         file_box.pack(fill=tk.X, pady=(0, 8))
         self.file_label = tk.Label(
             file_box,
             textvariable=self.current_file_var,
-            bg="#dff6ff",
+            bg=card,
             fg="#083344",
             font=("TkDefaultFont", 12, "bold"),
             anchor="w",
@@ -568,7 +592,7 @@ class MossbauerFe33GUI(tk.Tk):
             height=12,
             wrap=tk.WORD,
             relief=tk.FLAT,
-            background="#f8fbff",
+            background=card,
             foreground="#102a43",
             font=("TkDefaultFont", 9),
         )
