@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.7
+
+- Tema visual moderno basado en `sv_ttk` (Sun Valley); aspecto limpio con sliders y checkboxes estilo Windows 11.
+- Selector de tema en `Opciones → Tema visual`: alterna entre "Moderno (sv_ttk)" y "Clásico (clam)"; la elección se guarda en ajustes.
+- Workflow de GitHub Actions que genera automáticamente el ZIP del programa y `sha256sums.txt` al publicar una release.
+
 ## v0.1.6
 
 - Ayuda, actualizador y cliente API extraídos a módulos independientes (`mossbauer_help.py`, `mossbauer_updater_ui.py`).
