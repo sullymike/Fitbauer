@@ -919,7 +919,7 @@ Menú Archivo:
     Abre ficheros locales. Si existe .RES de Normos en el mismo directorio, se cargan el folding point, Vmax y parámetros iniciales automáticamente.
 
   Medidas web...
-    Lista y descarga medidas usando la API REST del laboratorio (no scraping). Pide usuario y contraseña una sola vez: con ellos obtiene un token que se guarda en el fichero local de credenciales y se reutiliza. Si la medida tiene una calibración asociada, opcionalmente descarga también su fichero y aplica el Vmax calibrado.
+    Lista y descarga medidas usando la API REST del laboratorio (no scraping). Pide usuario y contraseña una sola vez: con ellos obtiene un token que se guarda en el fichero local de credenciales y se reutiliza (solo el token; la contraseña nunca se guarda en disco). Si la medida tiene una calibración asociada, opcionalmente descarga también su fichero y aplica el Vmax calibrado.
 
   Calibraciones web...
     Igual que el anterior, pero lista y descarga las calibraciones α-Fe del laboratorio.
@@ -928,13 +928,13 @@ Menú Archivo:
     Exporta un fichero .dat con columnas: velocidad, datos normalizados, modelo, residuo, cuentas dobladas. En modo P(BHF) añade una tabla con BHF y P(BHF) normalizada.
 
   Guardar sesión...
-    Guarda en JSON todo el estado de trabajo: cuentas, parámetros, fijos, componentes, covarianza, errores, restricciones, texto de estado. Permite retomar el trabajo exactamente donde se dejó.
+    Guarda en JSON todo el estado de trabajo: cuentas, parámetros, fijos, componentes, covarianza, errores, restricciones, texto de estado. Si se descargó la medida con calibración asociada desde la web, incluye además un bloque "calibration" con la trazabilidad (id, nombre de fichero y Vmax calibrado). Permite retomar el trabajo exactamente donde se dejó.
 
   Subir sesión JSON a web...
     Sube el JSON de la sesión como nueva versión de análisis de una medida vía API. El botón "Buscar por nombre de fichero" localiza la medida cuyo .ws5 coincide con el fichero cargado (una sola llamada a la API). La API conserva todas las versiones sin sobrescribir. Permite añadir una nota, que se envía a la API y además queda incluida dentro del JSON.
 
   Cargar sesión...
-    Recupera una sesión guardada. Si el fichero de datos original está accesible se recarga; si no, se usan las cuentas guardadas en el JSON.
+    Recupera una sesión guardada. Si el fichero de datos original está accesible se recarga; si no, se usan las cuentas guardadas en el JSON. Si el JSON contiene un bloque "calibration" y el Vmax actual difiere del Vmax calibrado guardado, el programa muestra un aviso para que puedas verificar si la calibración sigue siendo válida.
 
 Ficheros sidecar Normos:
 
