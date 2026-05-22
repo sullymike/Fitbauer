@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.2
+
+- Diagnóstico de selección de modelo reforzado con mensaje explícito para comparar AIC/BIC.
+- Matriz de correlación resumida: avisa de parámetros muy correlacionados (|r| ≥ 0.95).
+- L-curve de P(BHF)/P(ΔEQ) ampliada: muestra χ² reducido, sugerencia por compromiso y permite guardar la tabla de α.
+
 ## v0.2.1
 
 - Ajuste discreto ponderado por incertidumbre Poisson de las cuentas dobladas.

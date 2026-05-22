@@ -46,7 +46,7 @@ C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
 APP_NAME = "Mössbauer Fe-57 v2IA"
-APP_VERSION = "0.2.1"
+APP_VERSION = "0.2.2"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -398,6 +398,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.last_fit_cov: np.ndarray | None = None
         self.last_fit_param_errors: dict[str, float] = {}
         self.last_fit_stats: dict[str, float] = {}
+        self.last_fit_correlations: dict[str, object] = {}
         # Restricciones lineales: target = factor * source + offset.
         self.constraints: list[dict[str, object]] = []
         # Calibración asociada al espectro actual (de la web o de un fichero).
@@ -2568,6 +2569,30 @@ class MossbauerFe33GUI(tk.Tk):
         sigma = sigma_counts / max(float(self.norm_factor), 1e-12)
         return np.maximum(sigma, 1e-9)
 
+    def fit_correlation_summary(self, cov: np.ndarray | None, names: list[str], threshold: float = 0.95) -> dict[str, object]:
+        """Resume correlaciones de la matriz de covarianza para diagnosticar degeneraciones."""
+        if cov is None or cov.size == 0 or len(names) < 2:
+            return {}
+        diag = np.sqrt(np.maximum(np.diag(cov), 0.0))
+        denom = np.outer(diag, diag)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            corr = np.divide(cov, denom, out=np.zeros_like(cov, dtype=float), where=denom > 0)
+        pairs: list[dict[str, object]] = []
+        max_abs = 0.0
+        max_pair: tuple[str, str] | None = None
+        for i in range(len(names)):
+            for j in range(i + 1, len(names)):
+                c = float(corr[i, j])
+                if not np.isfinite(c):
+                    continue
+                ac = abs(c)
+                if ac > max_abs:
+                    max_abs = ac
+                    max_pair = (names[i], names[j])
+                if ac >= threshold:
+                    pairs.append({"param1": names[i], "param2": names[j], "corr": c})
+        return {"max_abs_corr": float(max_abs), "max_pair": list(max_pair) if max_pair else [], "high_pairs": pairs, "threshold": float(threshold)}
+
     def fit_statistics(self, residual: np.ndarray, sigma: np.ndarray | None, n_params: int) -> dict[str, float]:
         n = int(residual.size)
         k = int(max(n_params, 0))
@@ -2695,6 +2720,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.last_fit_cov = None
         self.last_fit_param_errors = {}
         self.last_fit_stats = {}
+        self.last_fit_correlations = {}
         try:
             n_obs = y.size
             n_par = len(result.x)
@@ -2708,9 +2734,11 @@ class MossbauerFe33GUI(tk.Tk):
                 self.last_fit_cov = cov_all[:len(free_keys), :len(free_keys)]
                 for key, err in zip(free_keys, np.sqrt(np.maximum(np.diag(self.last_fit_cov), 0.0))):
                     self.last_fit_param_errors[key] = float(err)
+                self.last_fit_correlations = self.fit_correlation_summary(self.last_fit_cov, free_keys)
         except Exception:
             self.last_fit_cov = None
             self.last_fit_param_errors = {}
+            self.last_fit_correlations = {}
 
         values_final, vmax_final = unpack(result.x)
         final_residual = self.model_from_values(values_final, vmax_final) - y
@@ -2766,6 +2794,22 @@ class MossbauerFe33GUI(tk.Tk):
             return None
         return float(a[int(np.nanargmax(curv))])
 
+    def suggest_alpha_compromise_from_lcurve_rows(self, rows: np.ndarray) -> float | None:
+        """Sugiere α por distancia al punto ideal: bajo residuo y baja rugosidad."""
+        if rows.shape[0] < 3:
+            return None
+        alpha, misfit, rough = rows[:, 0], rows[:, 2], rows[:, 3]
+        mask = (alpha > 0) & (misfit > 0) & (rough > 0) & np.isfinite(misfit) & np.isfinite(rough)
+        if int(np.sum(mask)) < 3:
+            return None
+        a = alpha[mask]
+        x = np.log10(rough[mask])
+        y = np.log10(misfit[mask])
+        xr = (x - np.nanmin(x)) / max(float(np.nanmax(x) - np.nanmin(x)), 1e-12)
+        yr = (y - np.nanmin(y)) / max(float(np.nanmax(y) - np.nanmin(y)), 1e-12)
+        score = xr * xr + yr * yr
+        return float(a[int(np.nanargmin(score))])
+
     def scan_bhf_alpha_gui(self) -> None:
         if self.velocity is None or self.y_data is None:
             return
@@ -2803,8 +2847,22 @@ class MossbauerFe33GUI(tk.Tk):
             messagebox.showerror("L-curve α", str(exc))
             return
         L = second_difference_matrix(nbins)
-        rows = np.array([(r.alpha, r.rms, float(np.linalg.norm(r.residuals)), float(np.linalg.norm(L @ r.weights))) for r in scans], dtype=float)
+        sigma = self.data_sigma()
+        n_params = nbins + int(not self.fixed_vars["baseline"].get()) + int(not self.fixed_vars["slope"].get()) + (len(sharp_components or []) if self.dist_use_sharp_var.get() else 0)
+        rows_list = []
+        for r in scans:
+            misfit = float(np.linalg.norm(r.residuals))
+            rough = float(np.linalg.norm(L @ r.weights))
+            if sigma is not None and sigma.size == r.residuals.size:
+                chi2 = float(np.sum((r.residuals / sigma) ** 2))
+            else:
+                chi2 = float(np.sum(r.residuals ** 2))
+            red_chi2 = chi2 / max(1, int(r.residuals.size) - int(n_params))
+            peak = float(r.bhf_centers[int(np.argmax(r.weights))]) if r.weights.size else float("nan")
+            rows_list.append((r.alpha, r.rms, misfit, rough, chi2, red_chi2, peak))
+        rows = np.array(rows_list, dtype=float)
         suggested = self.suggest_alpha_from_lcurve_rows(rows)
+        suggested_compromise = self.suggest_alpha_compromise_from_lcurve_rows(rows)
 
         dialog = tk.Toplevel(self)
         dialog.title(f"L-curve α para {'P(ΔEQ)' if self.dist_variable_var.get() == 'ΔEQ' else 'P(BHF)'}")
@@ -2819,11 +2877,17 @@ class MossbauerFe33GUI(tk.Tk):
         ax0.set_xlabel("||L·P||"); ax0.set_ylabel("||residuo||"); ax0.set_title("L-curve")
         ax0.grid(True, alpha=0.3)
         fig.colorbar(sc, ax=ax0, label="log10 α")
-        ax1.loglog(rows[:, 0], rows[:, 1], "-o", ms=3.2)
+        ax1.loglog(rows[:, 0], rows[:, 1], "-o", ms=3.2, label="RMS")
+        ax1b = ax1.twinx()
+        ax1b.semilogx(rows[:, 0], rows[:, 5], "--", color="#7c3aed", lw=1.0, label="χ² red.")
+        ax1b.set_ylabel("χ² reducido", color="#7c3aed")
+        ax1b.tick_params(axis="y", colors="#7c3aed")
         if suggested is not None:
-            ax1.axvline(suggested, color="#dc2626", ls="--", lw=1.2, label=f"sugerido {suggested:.3g}")
-            ax1.legend()
-        ax1.set_xlabel("α"); ax1.set_ylabel("RMS"); ax1.set_title("RMS vs α")
+            ax1.axvline(suggested, color="#dc2626", ls="--", lw=1.2, label=f"L-curve {suggested:.3g}")
+        if suggested_compromise is not None:
+            ax1.axvline(suggested_compromise, color="#16a34a", ls=":", lw=1.4, label=f"compromiso {suggested_compromise:.3g}")
+        ax1.legend(loc="best", fontsize=8)
+        ax1.set_xlabel("α"); ax1.set_ylabel("RMS"); ax1.set_title("RMS / χ² reducido vs α")
         ax1.grid(True, which="both", alpha=0.3)
         fig.tight_layout()
         canvas = FigureCanvasTkAgg(fig, master=dialog)
@@ -2831,8 +2895,20 @@ class MossbauerFe33GUI(tk.Tk):
         canvas.draw_idle()
         buttons = ttk.Frame(dialog, padding=8)
         buttons.pack(fill=tk.X)
+        def save_alpha_table() -> None:
+            filename = filedialog.asksaveasfilename(
+                title="Guardar tabla L-curve α",
+                initialfile=(self.file_path.stem if self.file_path else "mossbauer") + "_alpha_scan.dat",
+                defaultextension=".dat",
+                filetypes=[("Datos", "*.dat"), ("Texto", "*.txt"), ("Todos", "*")],
+            )
+            if filename:
+                np.savetxt(filename, rows, header="alpha rms norm_residual norm_LP chi2 red_chi2 peak_parameter", fmt="%.10g")
+        if suggested_compromise is not None:
+            ttk.Button(buttons, text=f"Usar compromiso ({suggested_compromise:.3g})", command=lambda a=suggested_compromise, d=dialog: (self.set_bhf_alpha_preset(np.log10(a)), d.destroy()), style="Accent.TButton").pack(side=tk.RIGHT, padx=(4, 0))
         if suggested is not None:
-            ttk.Button(buttons, text=f"Usar α sugerido ({suggested:.3g})", command=lambda a=suggested, d=dialog: (self.set_bhf_alpha_preset(np.log10(a)), d.destroy()), style="Accent.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+            ttk.Button(buttons, text=f"Usar L-curve ({suggested:.3g})", command=lambda a=suggested, d=dialog: (self.set_bhf_alpha_preset(np.log10(a)), d.destroy()), style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+        ttk.Button(buttons, text="Guardar tabla", command=save_alpha_table, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
         ttk.Button(buttons, text="Cerrar", command=dialog.destroy, style="Small.TButton").pack(side=tk.RIGHT)
 
     def active_sharp_component_indices_for_bhf(self) -> list[int]:
@@ -2970,6 +3046,7 @@ class MossbauerFe33GUI(tk.Tk):
             return
         self.last_bhf_fit = result
         self.last_bhf_sharp_indices = sharp_indices
+        self.last_fit_correlations = {}
         n_params = int(nbins + int(fit_baseline) + int(fit_slope) + (len(sharp_indices) if self.dist_use_sharp_var.get() else 0))
         if self.dist_shape_var.get() in ("Gaussiana", "Binomial"):
             n_params = int(4 + int(fit_baseline) + int(fit_slope) + (len(sharp_indices) if self.dist_use_sharp_var.get() else 0))
@@ -3137,6 +3214,7 @@ class MossbauerFe33GUI(tk.Tk):
             text.extend([
                 f"χ² reducido: {stats.get('red_chi2', float('nan')):.6g}  (χ²={stats.get('chi2', float('nan')):.6g}, gl={stats.get('dof', float('nan')):.0f})",
                 f"AIC = {stats.get('aic', float('nan')):.6g}    BIC = {stats.get('bic', float('nan')):.6g}    parámetros = {stats.get('n_params', float('nan')):.0f}",
+                "Comparación de modelos: menor AIC/BIC es mejor si se ajustan los mismos datos.",
             ])
         if self.last_bhf_fit is not None:
             peak = float(self.last_bhf_fit.bhf_centers[int(np.argmax(self.last_bhf_fit.weights))])
@@ -3275,7 +3353,20 @@ class MossbauerFe33GUI(tk.Tk):
             text.extend([
                 f"χ² reducido: {stats.get('red_chi2', float('nan')):.6g}  (χ²={stats.get('chi2', float('nan')):.6g}, gl={stats.get('dof', float('nan')):.0f})",
                 f"AIC = {stats.get('aic', float('nan')):.6g}    BIC = {stats.get('bic', float('nan')):.6g}    parámetros = {stats.get('n_params', float('nan')):.0f}",
+                "Comparación de modelos: menor AIC/BIC es mejor si se ajustan los mismos datos.",
             ])
+        corr = self.last_fit_correlations
+        if corr:
+            max_pair = corr.get("max_pair") or []
+            if max_pair:
+                text.append(f"Correlación máxima: |r|={float(corr.get('max_abs_corr', 0.0)):.3f} entre {max_pair[0]} y {max_pair[1]}")
+            high_pairs = corr.get("high_pairs") or []
+            if high_pairs:
+                text.append("Aviso: parámetros muy correlacionados (|r| ≥ 0.95):")
+                for pair in high_pairs[:6]:
+                    text.append(f"  {pair['param1']} ↔ {pair['param2']}: r={float(pair['corr']):.3f}")
+                if len(high_pairs) > 6:
+                    text.append(f"  ... {len(high_pairs) - 6} correlaciones más")
         text.append("")
         if len(pct_active) > 1:
             text.append("Porcentaje de área por componente:")
@@ -3336,6 +3427,7 @@ class MossbauerFe33GUI(tk.Tk):
             "covariance": self.last_fit_cov.tolist() if self.last_fit_cov is not None else None,
             "parameter_errors": self.last_fit_param_errors,
             "fit_statistics": self.last_fit_stats,
+            "correlations": self.last_fit_correlations,
             "info_text": info_text,
         }
         return {
@@ -3416,6 +3508,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.last_fit_cov = np.array(cov, dtype=float) if cov is not None else None
         self.last_fit_param_errors = {k: float(v) for k, v in last_fit.get("parameter_errors", {}).items()}
         self.last_fit_stats = {k: float(v) for k, v in last_fit.get("fit_statistics", {}).items()}
+        self.last_fit_correlations = last_fit.get("correlations", {}) if isinstance(last_fit.get("correlations", {}), dict) else {}
 
         self._refresh_distribution_tab_visibility(update=False)
         self.refold_data()
