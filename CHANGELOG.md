@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.6
+
+- Distribuciones Hesse-Rübartsch ponderadas por incertidumbre Poisson (`sigma`) en P(BHF)/P(ΔEQ) y L-curve.
+- Bootstrap Monte Carlo para errores de parámetros en ajustes discretos.
+- Presets físicos rápidos: intensidades 3:2:1, anchuras iguales y ligaduras de δ/Γ entre componentes.
+- Ajuste opcional del folding point dentro del ajuste.
+- Aviso/trazabilidad de incertidumbre de calibración Vmax cuando está disponible.
+
 ## v0.2.5
 
 - Ventana de progreso durante ajustes discretos con autoarranques.

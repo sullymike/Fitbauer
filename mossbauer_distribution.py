@@ -329,6 +329,7 @@ def fit_hyperfine_distribution(
     baseline_bounds: tuple[float, float] = (0.0, np.inf),
     slope_bounds: tuple[float, float] = (-np.inf, np.inf),
     sharp_components: list[dict[str, float]] | None = None,
+    sigma: np.ndarray | None = None,
 ) -> BhfDistributionFit:
     """Ajusta una distribución Hesse-Rübartsch de BHF o ΔEQ.
 
@@ -339,6 +340,12 @@ def fit_hyperfine_distribution(
     y = _finite_1d("y", y)
     if v.size != y.size:
         raise ValueError("v e y deben tener la misma longitud")
+    sigma_arr = None
+    if sigma is not None:
+        sigma_arr = _finite_1d("sigma", sigma)
+        if sigma_arr.size != y.size:
+            raise ValueError("sigma debe tener la misma longitud que y")
+        sigma_arr = np.maximum(sigma_arr, 1e-12)
     if alpha < 0 or not np.isfinite(alpha):
         raise ValueError("alpha debe ser finito y >= 0")
 
@@ -417,10 +424,16 @@ def fit_hyperfine_distribution(
     sharp_end = len(labels)
 
     X = np.column_stack(columns)
+    if sigma_arr is not None:
+        X_fit = X / sigma_arr[:, None]
+        y_fit = y_work / sigma_arr
+    else:
+        X_fit = X
+        y_fit = y_work
     reg = np.zeros((L.shape[0], X.shape[1]), dtype=float)
     reg[:, dist_start:dist_end] = np.sqrt(float(alpha)) * L
-    X_aug = np.vstack([X, reg])
-    y_aug = np.concatenate([y_work, np.zeros(L.shape[0], dtype=float)])
+    X_aug = np.vstack([X_fit, reg])
+    y_aug = np.concatenate([y_fit, np.zeros(L.shape[0], dtype=float)])
 
     result = lsq_linear(X_aug, y_aug, bounds=(np.array(lower), np.array(upper)), lsmr_tol="auto", max_iter=2000)
     params = result.x
@@ -708,6 +721,7 @@ def fit_bhf_distribution(
     baseline_bounds: tuple[float, float] = (0.0, np.inf),
     slope_bounds: tuple[float, float] = (-np.inf, np.inf),
     sharp_components: list[dict[str, float]] | None = None,
+    sigma: np.ndarray | None = None,
 ) -> BhfDistributionFit:
     """Compatibilidad: distribución Hesse-Rübartsch de BHF."""
     return fit_hyperfine_distribution(
@@ -717,7 +731,7 @@ def fit_bhf_distribution(
         nbins=nbins, alpha=alpha, fit_baseline=fit_baseline,
         fit_slope=fit_slope, baseline=baseline, slope=slope,
         baseline_bounds=baseline_bounds, slope_bounds=slope_bounds,
-        sharp_components=sharp_components,
+        sharp_components=sharp_components, sigma=sigma,
     )
 
 

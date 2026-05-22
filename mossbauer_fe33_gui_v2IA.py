@@ -46,7 +46,7 @@ C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
 APP_NAME = "Mössbauer Fe-57 v2IA"
-APP_VERSION = "0.2.5"
+APP_VERSION = "0.2.6"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -378,6 +378,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.norm_factor = 1.0
         self.updating_sliders = False
         self.fit_velocity_var = tk.BooleanVar(value=False)
+        self.fit_center_var = tk.BooleanVar(value=False)
         self.show_residual_var = tk.BooleanVar(value=True)
         self.show_legend_var = tk.BooleanVar(value=False)
         self.fit_mode_var = tk.StringVar(value="discrete")
@@ -543,6 +544,7 @@ class MossbauerFe33GUI(tk.Tk):
         fit_menu.add_command(label="Autoajustar desde mínimos", command=self.auto_fit_from_minima)
         fit_menu.add_command(label="IA local Ollama: sugerir inicio...", command=self.open_ollama_ai_dialog)
         fit_menu.add_command(label="Ajustar", command=self.fit_current_data)
+        fit_menu.add_command(label="Bootstrap errores (MC)...", command=self.bootstrap_errors_current)
         fit_menu.add_separator()
         fit_menu.add_command(label="Fijar todos", command=self.fix_all_parameters)
         fit_menu.add_command(label="Liberar todos", command=self.free_all_parameters)
@@ -582,6 +584,7 @@ class MossbauerFe33GUI(tk.Tk):
         )
         options_menu.add_separator()
         options_menu.add_command(label="Restricciones entre parámetros...", command=self.open_constraints_dialog)
+        options_menu.add_command(label="Presets físicos de restricciones...", command=self.open_physical_presets_dialog)
         options_menu.add_separator()
         theme_menu = tk.Menu(options_menu, tearoff=0)
         theme_menu.add_radiobutton(label="Moderno (sv_ttk)", variable=self._theme_var,
@@ -667,6 +670,11 @@ class MossbauerFe33GUI(tk.Tk):
             command=self.on_fit_velocity_toggle,
         ).pack(anchor=tk.W, pady=(0, 4))
         self._add_slider(calib_box, "center", "Folding point (centro)", 256.5, 250.0, 263.0, 0.0001, fit_param=False)
+        ttk.Checkbutton(
+            calib_box,
+            text="Ajustar folding point dentro del ajuste",
+            variable=self.fit_center_var,
+        ).pack(anchor=tk.W, pady=(0, 4))
         self._add_slider(calib_box, "baseline", "Base", 1.0, 0.70, 1.30, 0.0005)
         self._add_slider(calib_box, "slope", "Pendiente", 0.0, -0.0001, 0.0001, 0.000001)
         self._add_slider(calib_box, "voigt_sigma", "σ gauss Voigt", 0.05, 0.0, 1.0, 0.001, fit_param=False)
@@ -798,6 +806,7 @@ class MossbauerFe33GUI(tk.Tk):
             "sextet_enabled": {str(k): bool(v.get()) for k, v in self.sextet_enabled.items()},
             "component_kind": {str(k): v.get() for k, v in self.component_kind.items()},
             "fit_velocity": bool(self.fit_velocity_var.get()),
+            "fit_center": bool(self.fit_center_var.get()),
             "show_residual": bool(self.show_residual_var.get()),
             "show_legend": bool(self.show_legend_var.get()),
             "fit_mode": self.fit_mode_var.get(),
@@ -839,6 +848,7 @@ class MossbauerFe33GUI(tk.Tk):
                 if i in self.component_kind and value in ("Sextete", "Doblete", "Singlete"):
                     self.component_kind[i].set(value)
             self.fit_velocity_var.set(bool(data.get("fit_velocity", self.fit_velocity_var.get())))
+            self.fit_center_var.set(bool(data.get("fit_center", self.fit_center_var.get())))
             self.show_residual_var.set(bool(data.get("show_residual", self.show_residual_var.get())))
             self.show_legend_var.set(bool(data.get("show_legend", self.show_legend_var.get())))
             self.fit_mode_var.set(data.get("fit_mode", self.fit_mode_var.get()))
@@ -2334,6 +2344,68 @@ class MossbauerFe33GUI(tk.Tk):
                 self.entry_vars[key].set(self._format_value(key, values[key]))
         self.updating_sliders = False
 
+    def open_physical_presets_dialog(self) -> None:
+        dialog = tk.Toplevel(self)
+        dialog.title("Presets físicos")
+        dialog.transient(self)
+        dialog.resizable(False, False)
+        frm = ttk.Frame(dialog, padding=14)
+        frm.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(frm, text="Presets rápidos para imponer relaciones físicas habituales", style="Title.TLabel").pack(anchor=tk.W, pady=(0, 8))
+        ttk.Label(frm, text="Se aplican a los componentes activos. Puedes revisarlos después en restricciones/fijos.", style="Subtitle.TLabel", wraplength=520).pack(anchor=tk.W, pady=(0, 10))
+
+        def powder_intensities() -> None:
+            for idx in (1, 2, 3):
+                if self.sextet_enabled[idx].get() and self.component_kind[idx].get() == "Sextete":
+                    for name, value in (("int1", 1.0), ("int2", 1.0), ("int3", 1.0)):
+                        key = f"s{idx}_{name}"
+                        self.vars[key].set(value)
+                        self.entry_vars[key].set(self._format_value(key, value))
+                        self.fixed_vars[key].set(True)
+            self.update_plot()
+            messagebox.showinfo("Preset", "Intensidades 3:2:1 aplicadas y fijadas en sextetes activos.")
+
+        def equal_widths_within_components() -> None:
+            for idx in (1, 2, 3):
+                if self.sextet_enabled[idx].get():
+                    for name in ("gamma2", "gamma3"):
+                        key = f"s{idx}_{name}"
+                        self.vars[key].set(1.0)
+                        self.entry_vars[key].set(self._format_value(key, 1.0))
+                        self.fixed_vars[key].set(True)
+            self.update_plot()
+            messagebox.showinfo("Preset", "Anchuras relativas Γ2=Γ3=1 aplicadas y fijadas.")
+
+        def tie_delta_to_component1() -> None:
+            added = 0
+            for idx in (2, 3):
+                if self.sextet_enabled[idx].get():
+                    target = f"s{idx}_delta"
+                    if not any(c.get("target") == target for c in self.constraints):
+                        self.constraints.append({"enabled": True, "target": target, "source": "s1_delta", "factor": 1.0, "offset": 0.0})
+                        added += 1
+            self.apply_constraints_to_vars()
+            self.update_plot()
+            messagebox.showinfo("Preset", f"δ de componentes 2/3 ligado a δ1. Restricciones añadidas: {added}.")
+
+        def tie_width_to_component1() -> None:
+            added = 0
+            for idx in (2, 3):
+                if self.sextet_enabled[idx].get():
+                    target = f"s{idx}_gamma1"
+                    if not any(c.get("target") == target for c in self.constraints):
+                        self.constraints.append({"enabled": True, "target": target, "source": "s1_gamma1", "factor": 1.0, "offset": 0.0})
+                        added += 1
+            self.apply_constraints_to_vars()
+            self.update_plot()
+            messagebox.showinfo("Preset", f"Γ1 de componentes 2/3 ligado a Γ1 del componente 1. Restricciones añadidas: {added}.")
+
+        ttk.Button(frm, text="Sextetes polvo 3:2:1 (fijar intensidades)", command=powder_intensities, style="Accent.TButton").pack(fill=tk.X, pady=3)
+        ttk.Button(frm, text="Mismas anchuras dentro de cada componente", command=equal_widths_within_components).pack(fill=tk.X, pady=3)
+        ttk.Button(frm, text="Ligar δ de componentes activos a componente 1", command=tie_delta_to_component1).pack(fill=tk.X, pady=3)
+        ttk.Button(frm, text="Ligar Γ1 de componentes activos a componente 1", command=tie_width_to_component1).pack(fill=tk.X, pady=3)
+        ttk.Button(frm, text="Cerrar", command=dialog.destroy).pack(anchor=tk.E, pady=(10, 0))
+
     def open_constraints_dialog(self) -> None:
         dialog = tk.Toplevel(self)
         dialog.title("Restricciones entre parámetros")
@@ -2558,6 +2630,18 @@ class MossbauerFe33GUI(tk.Tk):
         self.apply_constraints_to_vars()
         self.update_plot()
 
+    def calibration_uncertainty_text(self) -> str | None:
+        if not self.calibration_info:
+            return None
+        for key in ("velocity_uncertainty", "vmax_uncertainty", "velocity_error", "vmax_error", "sigma_vmax"):
+            val = self.calibration_info.get(key)
+            if val not in (None, ""):
+                try:
+                    return f"Incertidumbre calibración Vmax ({key}) = {float(val):.4g} mm/s"
+                except (TypeError, ValueError):
+                    return f"Incertidumbre calibración Vmax ({key}) = {val}"
+        return "Calibración asociada sin incertidumbre explícita de Vmax. Considera error sistemático adicional."
+
     def data_sigma(self) -> np.ndarray | None:
         """Incertidumbre 1σ de los datos normalizados por estadística Poisson.
 
@@ -2732,6 +2816,7 @@ class MossbauerFe33GUI(tk.Tk):
         values0 = {key: self.vars[key].get() for key in keys}
 
         fit_velocity = self.fit_velocity_var.get()
+        fit_center = self.fit_center_var.get()
         if fit_velocity and not all(self.fixed_vars[k].get() for k in self.active_bhf_keys()):
             messagebox.showwarning(
                 "Ajuste de velocidad",
@@ -2740,7 +2825,7 @@ class MossbauerFe33GUI(tk.Tk):
             return
 
         free_keys = [key for key in keys if key not in constrained_targets and not self.fixed_vars.get(key, tk.BooleanVar(value=False)).get()]
-        if not free_keys and not fit_velocity:
+        if not free_keys and not fit_velocity and not fit_center:
             messagebox.showinfo("Ajuste", "Todos los parámetros están fijados. Libera alguno para ajustar.")
             return
 
@@ -2754,23 +2839,42 @@ class MossbauerFe33GUI(tk.Tk):
             x0.append(abs(self.vars["vmax"].get()))
             lo.append(self.slider_specs["vmax"][0])
             hi.append(self.slider_specs["vmax"][1])
+        if fit_center:
+            x0.append(self.vars["center"].get())
+            lo.append(self.slider_specs["center"][0])
+            hi.append(self.slider_specs["center"][1])
         x0_arr = np.array(x0, dtype=float)
         lo_arr = np.array(lo, dtype=float)
         hi_arr = np.array(hi, dtype=float)
         x0_arr = np.clip(x0_arr, lo_arr, hi_arr)
 
-        def unpack(x: np.ndarray) -> tuple[dict[str, float], float]:
+        def unpack(x: np.ndarray) -> tuple[dict[str, float], float, float]:
             values = values0.copy()
             for key, value in zip(free_keys, x[:len(free_keys)]):
                 values[key] = float(value)
             values = self.apply_constraints_to_values(values)
-            vmax = float(x[len(free_keys)]) if fit_velocity else abs(self.vars["vmax"].get())
-            return values, vmax
+            pos = len(free_keys)
+            vmax = float(x[pos]) if fit_velocity else abs(self.vars["vmax"].get())
+            pos += 1 if fit_velocity else 0
+            center_fit = float(x[pos]) if fit_center else self.vars["center"].get()
+            return values, vmax, center_fit
+
+        def data_for_center(center_value: float) -> tuple[np.ndarray, np.ndarray | None]:
+            if not fit_center or self.counts is None:
+                return y, sigma
+            folded, _pairs = fold_integer_or_half(self.counts, center_value)
+            norm = float(np.percentile(folded, 90)) if folded.size else self.norm_factor
+            if norm == 0:
+                norm = 1.0
+            yy = folded / norm
+            sig = np.sqrt(np.maximum(folded / 2.0, 1.0)) / max(norm, 1e-12)
+            return yy, np.maximum(sig, 1e-9)
 
         def residual(x: np.ndarray) -> np.ndarray:
-            values, vmax = unpack(x)
-            res = self.model_from_values(values, vmax) - y
-            return res / sigma if sigma is not None else res
+            values, vmax, center_fit = unpack(x)
+            yy, sig = data_for_center(center_fit)
+            res = self.model_from_values(values, vmax) - yy
+            return res / sig if sig is not None else res
 
         def multistart_candidates() -> list[np.ndarray]:
             candidates = [x0_arr]
@@ -2778,7 +2882,7 @@ class MossbauerFe33GUI(tk.Tk):
             span = hi_arr - lo_arr
             for _ in range(8):
                 trial = x0_arr.copy()
-                for i, key in enumerate(free_keys + (["vmax"] if fit_velocity else [])):
+                for i, key in enumerate(free_keys + (["vmax"] if fit_velocity else []) + (["center"] if fit_center else [])):
                     width = span[i]
                     if not np.isfinite(width) or width <= 0:
                         continue
@@ -2836,17 +2940,83 @@ class MossbauerFe33GUI(tk.Tk):
             self.last_fit_correlations = {}
 
         update_progress("Aplicando mejor ajuste y actualizando gráficos...")
-        values_final, vmax_final = unpack(result.x)
-        final_residual = self.model_from_values(values_final, vmax_final) - y
-        self.last_fit_stats = self.fit_statistics(final_residual, sigma, len(result.x))
+        values_final, vmax_final, center_final = unpack(result.x)
+        y_final, sigma_final = data_for_center(center_final)
+        final_residual = self.model_from_values(values_final, vmax_final) - y_final
+        self.last_fit_stats = self.fit_statistics(final_residual, sigma_final, len(result.x))
         self.last_fit_stats["n_starts"] = float(n_starts)
         self.set_params(values_final)
         if fit_velocity:
             self.vars["vmax"].set(vmax_final)
             self.entry_vars["vmax"].set(self._format_value("vmax", vmax_final))
+        if fit_center:
+            self.vars["center"].set(center_final)
+            self.entry_vars["center"].set(self._format_value("center", center_final))
+        if fit_velocity or fit_center:
             self.refold_data()
         self.update_plot()
         close_progress()
+
+    def bootstrap_errors_current(self) -> None:
+        """Estimación Monte Carlo rápida de errores para el modelo discreto actual."""
+        if self.fit_mode_var.get() == "bhf_distribution":
+            messagebox.showinfo("Bootstrap", "Bootstrap MC implementado para ajustes discretos. Para P(BHF), usa estabilidad frente a α.")
+            return
+        if self.velocity is None or self.y_data is None:
+            return
+        model0 = self.current_model()
+        sigma = self.data_sigma()
+        if model0 is None or sigma is None:
+            messagebox.showwarning("Bootstrap", "No hay modelo o incertidumbres disponibles.")
+            return
+        keys = self.active_param_keys()
+        constrained_targets = self.constrained_target_keys()
+        free_keys = [key for key in keys if key not in constrained_targets and not self.fixed_vars.get(key, tk.BooleanVar(value=False)).get()]
+        if not free_keys:
+            messagebox.showinfo("Bootstrap", "No hay parámetros libres para estimar errores.")
+            return
+        nrep = simpledialog.askinteger("Bootstrap", "Número de réplicas Monte Carlo:", initialvalue=30, minvalue=5, maxvalue=300, parent=self)
+        if not nrep:
+            return
+        base_values = {key: self.vars[key].get() for key in keys}
+        lo = np.array([self.bounds_for_key(k)[0] for k in free_keys], dtype=float)
+        hi = np.array([self.bounds_for_key(k)[1] for k in free_keys], dtype=float)
+        x0 = np.clip(np.array([base_values[k] for k in free_keys], dtype=float), lo, hi)
+
+        def model_values(values: dict[str, float]) -> np.ndarray:
+            return self.model_from_values(values, abs(self.vars["vmax"].get()))
+
+        progress = self.open_progress_dialog("Bootstrap MC", "Preparando réplicas...")
+        _dlg, update_progress, close_progress = progress
+        rng = np.random.default_rng(24680)
+        samples: list[np.ndarray] = []
+        try:
+            for i in range(int(nrep)):
+                y_sim = model0 + rng.normal(0.0, sigma)
+                def resid(x: np.ndarray) -> np.ndarray:
+                    vals = base_values.copy()
+                    for key, value in zip(free_keys, x):
+                        vals[key] = float(value)
+                    vals = self.apply_constraints_to_values(vals)
+                    return (model_values(vals) - y_sim) / sigma
+                update_progress(f"Bootstrap réplica {i + 1}/{nrep}...")
+                res = least_squares(resid, x0, bounds=(lo, hi), max_nfev=2500)
+                if res.success and np.all(np.isfinite(res.x)):
+                    samples.append(res.x.copy())
+            close_progress()
+        except Exception as exc:
+            close_progress()
+            messagebox.showerror("Bootstrap", str(exc))
+            return
+        if len(samples) < 3:
+            messagebox.showwarning("Bootstrap", "Muy pocas réplicas convergieron.")
+            return
+        arr = np.vstack(samples)
+        errs = np.std(arr, axis=0, ddof=1)
+        self.last_fit_param_errors.update({k: float(e) for k, e in zip(free_keys, errs)})
+        self.last_fit_stats["bootstrap_replicates"] = float(len(samples))
+        self.update_info(self.last_fit_stats.get("rms", float("nan")))
+        messagebox.showinfo("Bootstrap", f"Errores MC actualizados con {len(samples)}/{nrep} réplicas convergidas.")
 
     def load_fixed_distribution_file(self) -> None:
         filename = filedialog.askopenfilename(
@@ -2945,6 +3115,7 @@ class MossbauerFe33GUI(tk.Tk):
                     baseline=self.vars["baseline"].get(),
                     slope=self.vars["slope"].get(),
                     sharp_components=sharp_components,
+                    sigma=self.data_sigma(),
                 ))
             update_progress("Preparando gráfica L-curve...")
         except Exception as exc:
@@ -3128,6 +3299,7 @@ class MossbauerFe33GUI(tk.Tk):
                 baseline=self.vars["baseline"].get(),
                 slope=self.vars["slope"].get(),
                 sharp_components=sharp_components,
+                sigma=self.data_sigma(),
             )
 
         progress = self.open_progress_dialog("Distribución hiperfina", "Preparando ajuste de distribución...")
@@ -3337,6 +3509,9 @@ class MossbauerFe33GUI(tk.Tk):
                     "Aviso residuo: parece tener estructura no aleatoria.",
                     "  Revisa modelo, folding point, calibración Vmax o componentes faltantes.",
                 ])
+        cal_unc = self.calibration_uncertainty_text()
+        if cal_unc:
+            text.append(cal_unc)
         if self.last_bhf_fit is not None:
             peak = float(self.last_bhf_fit.bhf_centers[int(np.argmax(self.last_bhf_fit.weights))])
             area = float(np.trapezoid(self.last_bhf_fit.weights, self.last_bhf_fit.bhf_centers))
@@ -3483,6 +3658,9 @@ class MossbauerFe33GUI(tk.Tk):
                     "Aviso residuo: parece tener estructura no aleatoria.",
                     "  Revisa modelo, folding point, calibración Vmax o componentes faltantes.",
                 ])
+        cal_unc = self.calibration_uncertainty_text()
+        if cal_unc:
+            text.append(cal_unc)
         corr = self.last_fit_correlations
         if corr:
             max_pair = corr.get("max_pair") or []
@@ -3538,6 +3716,7 @@ class MossbauerFe33GUI(tk.Tk):
             "sextet_enabled": {str(k): bool(v.get()) for k, v in self.sextet_enabled.items()},
             "component_kind": {str(k): v.get() for k, v in self.component_kind.items()},
             "fit_velocity": bool(self.fit_velocity_var.get()),
+            "fit_center": bool(self.fit_center_var.get()),
             "show_residual": bool(self.show_residual_var.get()),
             "show_legend": bool(self.show_legend_var.get()),
             "fit_mode": self.fit_mode_var.get(),
@@ -3602,6 +3781,7 @@ class MossbauerFe33GUI(tk.Tk):
             if i in self.component_kind and value in ("Sextete", "Doblete", "Singlete"):
                 self.component_kind[i].set(value)
         self.fit_velocity_var.set(bool(state.get("fit_velocity", self.fit_velocity_var.get())))
+        self.fit_center_var.set(bool(state.get("fit_center", self.fit_center_var.get())))
         self.show_residual_var.set(bool(state.get("show_residual", self.show_residual_var.get())))
         self.show_legend_var.set(bool(state.get("show_legend", self.show_legend_var.get())))
         self.fit_mode_var.set(state.get("fit_mode", self.fit_mode_var.get()))
@@ -3704,6 +3884,10 @@ class MossbauerFe33GUI(tk.Tk):
         if self.calibration_info:
             lines.append("## Calibración asociada")
             lines.append("")
+            cal_unc = self.calibration_uncertainty_text()
+            if cal_unc:
+                lines.append(f"- {cal_unc}")
+                lines.append("")
             lines.append("```json")
             lines.append(json.dumps(self.calibration_info, ensure_ascii=False, indent=2))
             lines.append("```")
