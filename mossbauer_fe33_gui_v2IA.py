@@ -46,7 +46,7 @@ C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
 APP_NAME = "Mössbauer Fe-57 v2IA"
-APP_VERSION = "0.2.7"
+APP_VERSION = "0.2.8"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -937,18 +937,25 @@ class MossbauerFe33GUI(tk.Tk):
 
     def show_help(self) -> None:
         from mossbauer_help import get_help_sections
-        sections = get_help_sections(VOIGT_SIGMA, SETTINGS_PATH)
+        help_lang_var = tk.StringVar(value="es")
+        sections = get_help_sections(VOIGT_SIGMA, SETTINGS_PATH, lang=help_lang_var.get())
 
         win = tk.Toplevel(self)
-        win.title("Ayuda Mössbauer Fe-57 v2IA")
+        win.title("Ayuda / Help Mössbauer Fe-57 v2IA")
         win.geometry("1050x720")
         win.transient(self)
         win.configure(background="#eaf4ff")
 
         header = tk.Frame(win, bg="#075985", padx=14, pady=10)
         header.pack(fill=tk.X)
-        tk.Label(header, text="Ayuda Mössbauer Fe-57 v2IA", bg="#075985", fg="white", font=("TkDefaultFont", 18, "bold")).pack(anchor=tk.W)
-        tk.Label(header, text="Selecciona un capítulo para verlo por separado", bg="#075985", fg="#dff6ff").pack(anchor=tk.W)
+        header_top = tk.Frame(header, bg="#075985")
+        header_top.pack(fill=tk.X)
+        tk.Label(header_top, text="Ayuda / Help Mössbauer Fe-57 v2IA", bg="#075985", fg="white", font=("TkDefaultFont", 18, "bold")).pack(side=tk.LEFT, anchor=tk.W)
+        lang_frame = tk.Frame(header_top, bg="#075985")
+        lang_frame.pack(side=tk.RIGHT)
+        tk.Label(lang_frame, text="Idioma / Language:", bg="#075985", fg="#dff6ff").pack(side=tk.LEFT, padx=(0, 6))
+        tk.OptionMenu(lang_frame, help_lang_var, "es", "en", command=lambda _value: refresh_language()).pack(side=tk.LEFT)
+        tk.Label(header, text="Selecciona un capítulo / Select a chapter", bg="#075985", fg="#dff6ff").pack(anchor=tk.W)
 
         body = ttk.Frame(win, padding=10)
         body.pack(fill=tk.BOTH, expand=True)
@@ -957,8 +964,6 @@ class MossbauerFe33GUI(tk.Tk):
 
         chapters = tk.Listbox(body, width=28, bg="#f8fbff", fg="#083344", selectbackground="#38bdf8", selectforeground="white", relief=tk.FLAT, highlightthickness=1, highlightbackground="#bae6fd", font=("TkDefaultFont", 10))
         chapters.grid(row=0, column=0, sticky="ns", padx=(0, 10))
-        for title, _heading, _content in sections:
-            chapters.insert(tk.END, title)
 
         frame = ttk.Frame(body)
         frame.grid(row=0, column=1, sticky="nsew")
@@ -979,8 +984,9 @@ class MossbauerFe33GUI(tk.Tk):
         parameter_labels = {
             # Folding y fondo
             "Vmax", "Ajustar Vmax", "Folding point", "Ajustar folding point", "Base", "Pendiente",
+            "Fit Vmax", "Fit folding point", "Baseline and slope", "Baseline", "Slope",
             # Tipos de componente
-            "Singlete", "Doblete", "Sextete",
+            "Singlete", "Doblete", "Sextete", "Singlet", "Doublet", "Sextet",
             # Parámetros de componente
             "δ isomérico", "ΔEQ", "BHF", "Γ", "Profundidad", "Intensidades",
             "Γ (gamma1)", "Γ relativa líneas 2 y 5 (gamma2)", "Γ relativa líneas 3 y 4 (gamma3)",
@@ -997,7 +1003,8 @@ class MossbauerFe33GUI(tk.Tk):
             "log10 α", "L-curve α", "Distribución fija",
             # Guardar
             "Guardar ajuste (.dat)", "Guardar sesión (.json)", "Guardar ajuste", "Guardar sesión",
-            "Cargar sesión", "Opciones automáticas",
+            "Cargar sesión", "Opciones automáticas", "Save fit (.dat)", "Save session (.json)",
+            "Export Markdown/PDF report", "Automatic settings",
             # Restricciones
             "Activa", "Destino", "Origen", "Factor", "Suma",
             "Cómo actúan durante el ajuste", "Usos típicos", "Precauciones",
@@ -1067,9 +1074,18 @@ class MossbauerFe33GUI(tk.Tk):
             if sel:
                 show_section(sel[0])
 
+        def refresh_language() -> None:
+            nonlocal sections
+            sections = get_help_sections(VOIGT_SIGMA, SETTINGS_PATH, lang=help_lang_var.get())
+            chapters.delete(0, tk.END)
+            for title, _heading, _content in sections:
+                chapters.insert(tk.END, title)
+            chapters.selection_clear(0, tk.END)
+            chapters.selection_set(0)
+            show_section(0)
+
         chapters.bind("<<ListboxSelect>>", on_select)
-        chapters.selection_set(0)
-        show_section(0)
+        refresh_language()
 
         buttons = ttk.Frame(win, padding=(10, 0, 10, 10))
         buttons.pack(fill=tk.X)

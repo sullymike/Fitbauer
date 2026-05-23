@@ -7,6 +7,8 @@ Aplicación principal: `mossbauer_fe33_gui_v2IA.py`.
 Autor: Jorge Sánchez Marcos  
 Departamento de Química Física · UAM
 
+English version: [`README_EN.md`](README_EN.md) · Installation in English: [`INSTALL_EN.md`](INSTALL_EN.md)
+
 ## 1. Objetivo
 
 La aplicación permite trabajar con espectros Mössbauer de Fe-57 desde la carga del fichero hasta el ajuste final. Soporta ficheros WS5 modernos y ADT antiguos sin cabecera.

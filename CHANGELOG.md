@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.8
+
+- Añadida documentación inicial en inglés para GitHub: `README_EN.md` e `INSTALL_EN.md`.
+- Añadido selector de idioma Español/English en la ventana de ayuda integrada.
+- Añadida versión inglesa resumida de la ayuda interna con flujo de trabajo, modelos, distribuciones, estadística, diagnóstico e informes.
+
 ## v0.2.7
 
 - Ayuda integrada actualizada con todas las modificaciones desde la v0.2 y nuevo capítulo "Novedades desde v0.2" con cómo se usa cada función (informe Markdown/PDF, bootstrap MC, presets físicos, diagnóstico de residuos, L-curve ampliada, etc.).
