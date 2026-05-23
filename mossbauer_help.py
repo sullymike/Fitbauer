@@ -105,6 +105,9 @@ Menú Archivo:
   Guardar ajuste...
     Exporta un fichero .dat con columnas: velocidad, datos normalizados, modelo, residuo, cuentas dobladas. En modo P(BHF) añade una tabla con BHF y P(BHF) normalizada.
 
+  Exportar informe Markdown/PDF...
+    Crea un informe humano del ajuste. Siempre guarda un fichero Markdown (.md) con trazabilidad, calibración, parámetros, errores, áreas, métricas estadísticas, correlaciones y diagnóstico de residuos. Opcionalmente crea también PDF; aunque se pida PDF, el .md se conserva siempre. El PDF incluye además la figura actual del ajuste.
+
   Guardar sesión...
     Guarda en JSON todo el estado de trabajo: cuentas, parámetros, fijos, componentes, covarianza, errores, restricciones, texto de estado. Si se descargó la medida con calibración asociada desde la web, incluye además un bloque "calibration" con la trazabilidad (id, nombre de fichero y Vmax calibrado). Permite retomar el trabajo exactamente donde se dejó.
 
@@ -141,7 +144,7 @@ Parámetros:
     Centro interno de simetría en unidades de canales. Acepta valores fraccionarios como Normos. El "Valor Normos aprox." mostrado en pantalla equivale aproximadamente al doble.
 
   Ajustar folding point
-    Casilla "Ajustar folding point dentro del ajuste". Si se activa, el folding point se incluye como parámetro libre del ajuste discreto: en cada iteración el espectro se vuelve a doblar con el centro propuesto y se renormaliza. Útil cuando el residuo muestra estructura antisimétrica (ver más abajo) y no se conoce el centro exacto. Conviene partir de un valor razonable (Ajuste → Buscar centro) y comprobar que el resultado sea físicamente plausible.
+    Casilla "Ajustar folding point dentro del ajuste". Si se activa, el folding point se incluye como parámetro libre del ajuste discreto: en cada iteración el espectro se vuelve a doblar con el centro propuesto, se renormaliza y se recalculan los pesos estadísticos. Útil cuando el residuo muestra estructura antisimétrica (ver más abajo) y no se conoce el centro exacto. Conviene partir de un valor razonable (Ajuste → Buscar centro), mantener pocos parámetros libres y comprobar que el resultado sea físicamente plausible; si se libera junto con demasiados parámetros puede absorber problemas de modelo.
 
   Base
     Nivel de transmisión normalizado fuera de las líneas de absorción. Idealmente 1.0. Desviaciones indican mala normalización o saturación.
@@ -347,7 +350,7 @@ Control de regularización:
     Logaritmo del parámetro de regularización. Un valor de −2 a 0 es habitual. Variar en pasos de 0.5 y observar la estabilidad de P(BHF) y del RMS.
 
   L-curve α
-    El botón "L-curve α" escanea automáticamente un rango amplio de α (con ventana de progreso) y abre una ventana con dos gráficas: la curva L (log residuo vs. log rugosidad) y el RMS junto con el χ² reducido frente a α. Propone dos valores: el del codo de la L-curve (máxima curvatura) y un valor "de compromiso" (el más cercano a residuo y rugosidad mínimos a la vez). Los botones "Usar L-curve" y "Usar compromiso" aplican ese α directamente; "Guardar tabla" exporta a fichero la tabla completa del escaneo (α, RMS, residuo, rugosidad, χ², χ² reducido y campo del pico). Es un punto de partida, no una respuesta definitiva: conviene comprobar la estabilidad de P(BHF) alrededor del valor elegido.
+    El botón "L-curve α" escanea automáticamente un rango amplio de α (con ventana de progreso) y abre una ventana con dos gráficas: la curva L (log residuo vs. log rugosidad) y el RMS junto con el χ² reducido frente a α. Propone dos valores: el del codo de la L-curve (máxima curvatura) y un valor "de compromiso" (el más cercano a residuo y rugosidad mínimos a la vez). Los botones "Usar L-curve" y "Usar compromiso" aplican ese α directamente; "Guardar tabla" exporta a fichero la tabla completa del escaneo (α, RMS, norma del residuo, rugosidad, χ², χ² reducido y campo/posición del pico). Es un punto de partida, no una respuesta definitiva: conviene comprobar la estabilidad de P(BHF) alrededor del valor elegido.
 
   Distribución fija
     Carga una P(BHF) externa (dos columnas: BHF, peso) y la aplica sin ajustar los pesos. Útil para comparar con resultados de otras referencias o para refinar solo δ, Γ con una distribución conocida.
@@ -508,6 +511,15 @@ Columnas de la tabla:
   Suma
     Término constante añadido al final.
 
+Presets físicos de restricciones:
+
+  En Opciones → Presets físicos de restricciones... hay atajos para aplicar relaciones comunes sin tener que escribirlas a mano:
+
+  • Sextetes polvo 3:2:1: fija int1=1, int2=1, int3=1 en sextetes activos, que equivale a intensidades reales 3:2:1.
+  • Mismas anchuras dentro de cada componente: fija gamma2=gamma3=1 para que todas las líneas compartan Γ.
+  • Ligar δ de componentes activos al componente 1: añade restricciones s2_delta=s1_delta y/o s3_delta=s1_delta.
+  • Ligar Γ1 de componentes activos al componente 1: añade restricciones s2_gamma1=s1_gamma1 y/o s3_gamma1=s1_gamma1.
+
 Cómo actúan durante el ajuste:
 
   • El parámetro destino no es libre: no tiene entrada en el vector de parámetros del optimizador.
@@ -539,6 +551,21 @@ Guardar ajuste (.dat):
   En modo P(BHF) añade una sección con la tabla BHF-P(BHF) (amplitud y probabilidad normalizada).
 
   La cabecera del fichero incluye todos los parámetros relevantes (modo, Vmax, folding, factores de área, etc.) en formato legible por humanos y parseables por scripts.
+
+Exportar informe Markdown/PDF:
+
+  Genera un informe pensado para documentación o publicación interna. No sustituye a la sesión JSON ni al .dat, sino que los complementa. Incluye:
+
+    • Fecha, versión del programa y fichero usado.
+    • Modo de ajuste, perfil de línea, folding point, Vmax y normalización.
+    • Calibración asociada, si existe, incluida su incertidumbre de Vmax si la API la proporciona.
+    • Métricas: RMS, χ², χ² reducido, AIC, BIC y número de parámetros.
+    • Diagnóstico de residuo: autocorrelación lag-1, test de rachas y correlación antisimétrica.
+    • Áreas y porcentajes por integración numérica del perfil real.
+    • Parámetros, errores 1σ, fijos/libres y correlaciones altas.
+    • Texto completo del panel Estado.
+
+  Si se solicita PDF, primero se guarda el Markdown y después se genera el PDF. El PDF añade una página con la figura actual.
 
 Guardar sesión (.json):
 
@@ -580,6 +607,66 @@ Recomendaciones:
   • Guardar la sesión antes de probar cambios arriesgados (liberar muchos parámetros, cambiar α).
   • El ajuste exportado (.dat) es el adecuado para adjuntar a publicaciones o enviar a colaboradores.
   • Si se publican resultados, anotar siempre el folding point, Vmax, modo de ajuste y α (en P(BHF)).
+"""),
+            ("Estadística y ajuste", "Pesos, selección de modelo, errores y robustez", """
+Esta versión incorpora varios diagnósticos estadísticos para que el ajuste sea más comparable con flujos de trabajo avanzados tipo NORMOS/SyncMoss.
+
+1. Pesos Poisson
+
+  Los datos doblados proceden de cuentas. Para el ajuste discreto y la distribución Hesse-Rübartsch P(BHF)/P(ΔEQ), el programa estima una incertidumbre:
+
+    σ ≈ sqrt(cuentas_dobladas / 2) / factor_normalización
+
+  El ajuste minimiza (modelo − datos)/σ. Así los canales con más ruido pesan menos y χ² tiene una interpretación estadística más razonable.
+
+2. χ² reducido, AIC y BIC
+
+  Además del RMS se muestran:
+
+    χ² reducido = Σ((datos−modelo)/σ)² / grados_libertad
+    AIC y BIC = criterios de información penalizados por número de parámetros
+
+  Para comparar modelos ajustados sobre los mismos datos, menor AIC/BIC suele indicar mejor compromiso entre calidad de ajuste y complejidad. No debe compararse AIC/BIC entre datos distintos o normalizaciones distintas.
+
+3. Áreas por integración numérica
+
+  Los porcentajes de área se calculan integrando la absorción real del componente sobre el eje de velocidades. Esto es válido para Lorentziana y Voigt y evita usar fórmulas de área que solo serían exactas para Lorentzianas puras.
+
+4. Correlaciones de parámetros
+
+  Cuando la covarianza es estimable, se calcula la matriz de correlación. El panel avisa si hay pares con |r| ≥ 0.95. Una correlación alta significa que los parámetros no están bien determinados por separado; conviene fijar uno, imponer una restricción física o simplificar el modelo.
+
+5. Bootstrap Monte Carlo
+
+  Menú Ajuste → Bootstrap errores (MC)...
+
+  Genera réplicas sintéticas sumando ruido gaussiano con σ Poisson al modelo actual, reajusta cada réplica y estima errores como desviación típica de los resultados. Es más costoso que la covarianza local, pero da una idea más robusta de la incertidumbre en modelos no lineales. En esta versión se aplica a modelos discretos; para P(BHF) se recomienda estudiar estabilidad frente a α.
+
+6. Diagnóstico de residuos
+
+  El panel muestra:
+
+    lag1      autocorrelación entre canales consecutivos
+    runs z    test de rachas de signos
+    antisim   correlación antisimétrica respecto al centro
+
+  Valores grandes sugieren estructura no aleatoria: componentes faltantes, folding incorrecto, Vmax/calibración mal ajustado o modelo físico insuficiente.
+
+7. Autoarranques múltiples
+
+  El ajuste discreto prueba varios puntos iniciales deterministas alrededor de los valores actuales y conserva el de menor coste. Esto reduce la dependencia del mínimo local, aunque no sustituye la revisión física del resultado.
+
+8. Progreso durante cálculos largos
+
+  Durante ajustes discretos, escaneos L-curve y ajustes de distribución aparece una ventana de progreso. Indica qué autoarranque o qué α se está evaluando para distinguir un cálculo largo de un bloqueo real.
+
+9. Incertidumbre de calibración
+
+  Si la medida trae calibración asociada desde la API y esta contiene campos de incertidumbre de Vmax, se muestran en Estado e informe. Si no existe incertidumbre explícita, el programa avisa de que debe considerarse error sistemático adicional.
+
+10. Ajuste del folding point
+
+  La casilla "Ajustar folding point dentro del ajuste" libera el centro de folding. Es útil para corregir pequeños errores de centrado, especialmente cuando el residuo presenta estructura antisimétrica. Úsala junto con pocos parámetros libres y revisa que el valor final sea físicamente razonable.
 """),
             ("Diagnóstico", "Residuos, errores frecuentes y buenas prácticas", """
 El residuo (datos − modelo) debe parecerse al ruido estadístico. Cualquier estructura sistemática indica que el modelo no es adecuado o que hay un problema instrumental.

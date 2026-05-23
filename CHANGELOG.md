@@ -3,6 +3,7 @@
 ## v0.2.7
 
 - Ayuda integrada actualizada con todas las modificaciones desde la v0.2 y nuevo capítulo "Novedades desde v0.2" con cómo se usa cada función (informe Markdown/PDF, bootstrap MC, presets físicos, diagnóstico de residuos, L-curve ampliada, etc.).
+- Se documentan los 10 puntos de ajuste/diagnóstico y los 5 puntos adicionales: pesos en distribuciones, bootstrap, presets físicos, folding ajustable e incertidumbre de calibración.
 - Capítulos de ayuda Folding, Modelo discreto, P(BHF): parámetros, Diagnóstico, Guardar y exportar y Atajos puestos al día.
 - Barra de matplotlib (guardar figura, zoom, coordenadas del cursor) anclada al borde inferior del lienzo: deja de quedar recortada en ventanas bajas o pantallas con escalado HiDPI.
 
