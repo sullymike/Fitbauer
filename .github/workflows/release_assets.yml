@@ -20,6 +20,7 @@ jobs:
         run: |
           TAG="${{ github.ref_name }}"
           ZIP="Mossbauer-${TAG}.zip"
+          NOTES="RELEASE_NOTES_${TAG}.md"
           zip "$ZIP" \
             mossbauer_fe33_gui_v2IA.py \
             mossbauer_api_client.py \
@@ -45,6 +46,7 @@ jobs:
             PROPUESTAS_SYNCMOSS.md \
             PROPUESTAS_NORMOS.md \
             NORMOS_comparison_improvements.md \
+            RELEASE_NOTES_v0.3.0.md \
             captura-pantalla-principal.png \
             captura-ajuste-discreto.png \
             captura-distribucion-bhf.png \
@@ -52,6 +54,7 @@ jobs:
             captura-informe-markdown-pdf.png \
             LICENSE
           echo "ZIP=$ZIP" >> "$GITHUB_ENV"
+          echo "NOTES=$NOTES" >> "$GITHUB_ENV"
 
       - name: Generar checksums SHA-256
         run: |
@@ -59,18 +62,30 @@ jobs:
           echo "Checksums generados:"
           cat sha256sums.txt
 
-      - name: Crear release desde tag
+      - name: Crear o actualizar release desde tag
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" "$ZIP" sha256sums.txt \
-            --title "Mossbauer ${{ github.ref_name }}" \
-            --notes "Release ${{ github.ref_name }}. ZIP installable del programa, documentación y checksums SHA-256."
+          NOTES_ARG="--notes Release ${{ github.ref_name }}. ZIP installable del programa, documentación y checksums SHA-256."
+          if [ -f "$NOTES" ]; then
+            NOTES_ARG="--notes-file $NOTES"
+          fi
+          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            gh release edit "${{ github.ref_name }}" --title "Mossbauer ${{ github.ref_name }}" $NOTES_ARG
+            gh release upload "${{ github.ref_name }}" "$ZIP" sha256sums.txt --clobber
+          else
+            gh release create "${{ github.ref_name }}" "$ZIP" sha256sums.txt \
+              --title "Mossbauer ${{ github.ref_name }}" \
+              $NOTES_ARG
+          fi
 
       - name: Subir assets a release publicada manualmente
         if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if [ -f "$NOTES" ]; then
+            gh release edit "${{ github.ref_name }}" --notes-file "$NOTES"
+          fi
           gh release upload "${{ github.ref_name }}" "$ZIP" sha256sums.txt --clobber
