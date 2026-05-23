@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.9
+
+- Añadida capa inicial de internacionalización en `mossbauer_i18n.py`, de momento con catálogo español completo para menús principales y ventana de ayuda.
+- La GUI empieza a usar claves estables `tr("...")`, preparada para añadir nuevos idiomas sin reescribir la interfaz.
+- Añadido menú `Idioma` con Español como idioma disponible inicial.
+
 ## v0.2.8
 
 - Añadida documentación inicial en inglés para GitHub: `README_EN.md` e `INSTALL_EN.md`.

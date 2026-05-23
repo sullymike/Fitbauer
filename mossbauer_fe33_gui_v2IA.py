@@ -22,6 +22,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.special import wofz
 
+from mossbauer_i18n import available_languages, get_language, set_language, tr
 from mossbauer_distribution import (
     fit_hyperfine_distribution as fit_hyperfine_distribution_engine,
     fit_gaussian_hyperfine_distribution as fit_gaussian_hyperfine_distribution_engine,
@@ -46,7 +47,7 @@ C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
 APP_NAME = "Mössbauer Fe-57 v2IA"
-APP_VERSION = "0.2.8"
+APP_VERSION = "0.2.9"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -524,84 +525,95 @@ class MossbauerFe33GUI(tk.Tk):
 
         menubar = tk.Menu(self)
         file_menu = tk.Menu(menubar, tearoff=0)
-        file_menu.add_command(label="Cargar...", command=self.open_file)
-        file_menu.add_command(label="Medidas web...", command=lambda: self.open_web_download_dialog(kind="mossbauer"))
-        file_menu.add_command(label="Calibraciones web...", command=self.open_calibration_download_dialog)
+        file_menu.add_command(label=tr("file.open"), command=self.open_file)
+        file_menu.add_command(label=tr("file.web_measurements"), command=lambda: self.open_web_download_dialog(kind="mossbauer"))
+        file_menu.add_command(label=tr("file.web_calibrations"), command=self.open_calibration_download_dialog)
         file_menu.add_separator()
-        file_menu.add_command(label="Guardar ajuste...", command=self.save_fit)
-        file_menu.add_command(label="Exportar informe Markdown/PDF...", command=self.export_report_dialog)
+        file_menu.add_command(label=tr("file.save_fit"), command=self.save_fit)
+        file_menu.add_command(label=tr("file.export_report"), command=self.export_report_dialog)
         file_menu.add_separator()
-        file_menu.add_command(label="Guardar sesión...", command=self.save_session_dialog)
-        file_menu.add_command(label="Subir sesión JSON a web...", command=self.open_web_upload_analysis_dialog)
-        file_menu.add_command(label="Cargar sesión...", command=self.load_session_dialog)
+        file_menu.add_command(label=tr("file.save_session"), command=self.save_session_dialog)
+        file_menu.add_command(label=tr("file.upload_session"), command=self.open_web_upload_analysis_dialog)
+        file_menu.add_command(label=tr("file.load_session"), command=self.load_session_dialog)
         file_menu.add_separator()
-        file_menu.add_command(label="Salir", command=self.on_close)
-        menubar.add_cascade(label="Archivo", menu=file_menu)
+        file_menu.add_command(label=tr("file.exit"), command=self.on_close)
+        menubar.add_cascade(label=tr("menu.file"), menu=file_menu)
 
         fit_menu = tk.Menu(menubar, tearoff=0)
-        fit_menu.add_command(label="Buscar centro", command=self.auto_center)
-        fit_menu.add_command(label="Inicializar desde mínimos", command=self.auto_guess_from_minima)
-        fit_menu.add_command(label="Autoajustar desde mínimos", command=self.auto_fit_from_minima)
-        fit_menu.add_command(label="IA local Ollama: sugerir inicio...", command=self.open_ollama_ai_dialog)
-        fit_menu.add_command(label="Ajustar", command=self.fit_current_data)
-        fit_menu.add_command(label="Bootstrap errores (MC)...", command=self.bootstrap_errors_current)
+        fit_menu.add_command(label=tr("fit.find_center"), command=self.auto_center)
+        fit_menu.add_command(label=tr("fit.init_from_minima"), command=self.auto_guess_from_minima)
+        fit_menu.add_command(label=tr("fit.auto_from_minima"), command=self.auto_fit_from_minima)
+        fit_menu.add_command(label=tr("fit.ollama_start"), command=self.open_ollama_ai_dialog)
+        fit_menu.add_command(label=tr("fit.run"), command=self.fit_current_data)
+        fit_menu.add_command(label=tr("fit.bootstrap"), command=self.bootstrap_errors_current)
         fit_menu.add_separator()
-        fit_menu.add_command(label="Fijar todos", command=self.fix_all_parameters)
-        fit_menu.add_command(label="Liberar todos", command=self.free_all_parameters)
-        menubar.add_cascade(label="Ajuste", menu=fit_menu)
+        fit_menu.add_command(label=tr("fit.fix_all"), command=self.fix_all_parameters)
+        fit_menu.add_command(label=tr("fit.free_all"), command=self.free_all_parameters)
+        menubar.add_cascade(label=tr("menu.fit"), menu=fit_menu)
 
         options_menu = tk.Menu(menubar, tearoff=0)
         options_menu.add_radiobutton(
-            label="Ajuste con sextetes",
+            label=tr("options.discrete_sextets"),
             variable=self.fit_mode_var,
             value="discrete",
             command=self.set_fit_mode_from_menu,
         )
         options_menu.add_radiobutton(
-            label="Distribución P(BHF)",
+            label=tr("options.distribution_bhf"),
             variable=self.fit_mode_var,
             value="bhf_distribution",
             command=self.set_fit_mode_from_menu,
         )
         options_menu.add_separator()
-        options_menu.add_checkbutton(label="Mostrar diferencia", variable=self.show_residual_var, command=self.update_plot)
-        options_menu.add_checkbutton(label="Mostrar leyenda", variable=self.show_legend_var, command=self.update_plot)
+        options_menu.add_checkbutton(label=tr("options.show_residual"), variable=self.show_residual_var, command=self.update_plot)
+        options_menu.add_checkbutton(label=tr("options.show_legend"), variable=self.show_legend_var, command=self.update_plot)
         options_menu.add_separator()
         profile_menu = tk.Menu(options_menu, tearoff=0)
-        profile_menu.add_radiobutton(label="Lorentziana", variable=self.line_profile_var, value="Lorentziana", command=self.on_line_profile_change)
-        profile_menu.add_radiobutton(label="Voigt", variable=self.line_profile_var, value="Voigt", command=self.on_line_profile_change)
-        options_menu.add_cascade(label="Perfil de línea", menu=profile_menu)
+        profile_menu.add_radiobutton(label=tr("options.profile_lorentzian"), variable=self.line_profile_var, value="Lorentziana", command=self.on_line_profile_change)
+        profile_menu.add_radiobutton(label=tr("options.profile_voigt"), variable=self.line_profile_var, value="Voigt", command=self.on_line_profile_change)
+        options_menu.add_cascade(label=tr("options.line_profile"), menu=profile_menu)
         options_menu.add_separator()
         options_menu.add_checkbutton(
-            label="P(BHF): sumar componentes activos nítidos",
+            label=tr("options.add_sharp"),
             variable=self.dist_use_sharp_var,
             command=self.on_bhf_distribution_option_change,
         )
         options_menu.add_checkbutton(
-            label="P(BHF): refinar δ y Γ globales",
+            label=tr("options.refine_global"),
             variable=self.dist_refine_global_var,
             command=self.on_bhf_distribution_option_change,
         )
         options_menu.add_separator()
-        options_menu.add_command(label="Restricciones entre parámetros...", command=self.open_constraints_dialog)
-        options_menu.add_command(label="Presets físicos de restricciones...", command=self.open_physical_presets_dialog)
+        options_menu.add_command(label=tr("options.constraints"), command=self.open_constraints_dialog)
+        options_menu.add_command(label=tr("options.physical_presets"), command=self.open_physical_presets_dialog)
         options_menu.add_separator()
         theme_menu = tk.Menu(options_menu, tearoff=0)
-        theme_menu.add_radiobutton(label="Moderno (sv_ttk)", variable=self._theme_var,
+        theme_menu.add_radiobutton(label=tr("options.theme_modern"), variable=self._theme_var,
                                    value="sv_ttk", command=lambda: self._switch_theme("sv_ttk"))
-        theme_menu.add_radiobutton(label="Clásico (clam)", variable=self._theme_var,
+        theme_menu.add_radiobutton(label=tr("options.theme_classic"), variable=self._theme_var,
                                    value="clam", command=lambda: self._switch_theme("clam"))
-        options_menu.add_cascade(label="Tema visual", menu=theme_menu)
-        menubar.add_cascade(label="Opciones", menu=options_menu)
+        options_menu.add_cascade(label=tr("options.theme"), menu=theme_menu)
+        menubar.add_cascade(label=tr("menu.options"), menu=options_menu)
+
+        language_menu = tk.Menu(menubar, tearoff=0)
+        self._ui_language_var = tk.StringVar(value=get_language())
+        for lang_code, lang_name in available_languages().items():
+            language_menu.add_radiobutton(
+                label=lang_name,
+                variable=self._ui_language_var,
+                value=lang_code,
+                command=lambda code=lang_code: set_language(code),
+            )
+        menubar.add_cascade(label=tr("menu.language"), menu=language_menu)
 
         help_menu = tk.Menu(menubar, tearoff=0)
-        help_menu.add_command(label="Ayuda", command=self.show_help)
-        help_menu.add_command(label="Acerca de", command=self.show_about)
+        help_menu.add_command(label=tr("help.open"), command=self.show_help)
+        help_menu.add_command(label=tr("help.about"), command=self.show_about)
         help_menu.add_separator()
-        help_menu.add_command(label="Changelog", command=self.show_changelog)
-        help_menu.add_command(label="Buscar actualizaciones...", command=lambda: self.check_for_updates(silent=False))
-        help_menu.add_command(label="Configurar actualizaciones...", command=self.open_update_settings_dialog)
-        menubar.add_cascade(label="Ayuda", menu=help_menu)
+        help_menu.add_command(label=tr("help.changelog"), command=self.show_changelog)
+        help_menu.add_command(label=tr("help.check_updates"), command=lambda: self.check_for_updates(silent=False))
+        help_menu.add_command(label=tr("help.configure_updates"), command=self.open_update_settings_dialog)
+        menubar.add_cascade(label=tr("menu.help"), menu=help_menu)
         self.config(menu=menubar)
 
         main = ttk.Frame(self)
@@ -623,7 +635,7 @@ class MossbauerFe33GUI(tk.Tk):
         title_block.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=12, pady=8)
         tk.Label(title_block, text=APP_NAME, bg=accent_dark, fg="white",
                  font=("TkDefaultFont", 18, "bold")).pack(anchor=tk.W)
-        tk.Label(title_block, text="Doblado, simulación y ajuste interactivo", bg=accent_dark, fg="#dff6ff",
+        tk.Label(title_block, text=tr("main.subtitle"), bg=accent_dark, fg="#dff6ff",
                  font=("TkDefaultFont", 9)).pack(anchor=tk.W, pady=(0, 5))
         tk.Label(title_block, text=APP_AUTHOR, bg=accent_dark, fg="#dff6ff",
                  font=("TkDefaultFont", 9)).pack(anchor=tk.W)
@@ -941,7 +953,7 @@ class MossbauerFe33GUI(tk.Tk):
         sections = get_help_sections(VOIGT_SIGMA, SETTINGS_PATH, lang=help_lang_var.get())
 
         win = tk.Toplevel(self)
-        win.title("Ayuda / Help Mössbauer Fe-57 v2IA")
+        win.title(tr("help.window_title"))
         win.geometry("1050x720")
         win.transient(self)
         win.configure(background="#eaf4ff")
@@ -950,12 +962,12 @@ class MossbauerFe33GUI(tk.Tk):
         header.pack(fill=tk.X)
         header_top = tk.Frame(header, bg="#075985")
         header_top.pack(fill=tk.X)
-        tk.Label(header_top, text="Ayuda / Help Mössbauer Fe-57 v2IA", bg="#075985", fg="white", font=("TkDefaultFont", 18, "bold")).pack(side=tk.LEFT, anchor=tk.W)
+        tk.Label(header_top, text=tr("help.header_title"), bg="#075985", fg="white", font=("TkDefaultFont", 18, "bold")).pack(side=tk.LEFT, anchor=tk.W)
         lang_frame = tk.Frame(header_top, bg="#075985")
         lang_frame.pack(side=tk.RIGHT)
-        tk.Label(lang_frame, text="Idioma / Language:", bg="#075985", fg="#dff6ff").pack(side=tk.LEFT, padx=(0, 6))
+        tk.Label(lang_frame, text=tr("help.language_label"), bg="#075985", fg="#dff6ff").pack(side=tk.LEFT, padx=(0, 6))
         tk.OptionMenu(lang_frame, help_lang_var, "es", "en", command=lambda _value: refresh_language()).pack(side=tk.LEFT)
-        tk.Label(header, text="Selecciona un capítulo / Select a chapter", bg="#075985", fg="#dff6ff").pack(anchor=tk.W)
+        tk.Label(header, text=tr("help.select_chapter"), bg="#075985", fg="#dff6ff").pack(anchor=tk.W)
 
         body = ttk.Frame(win, padding=10)
         body.pack(fill=tk.BOTH, expand=True)
@@ -1089,8 +1101,8 @@ class MossbauerFe33GUI(tk.Tk):
 
         buttons = ttk.Frame(win, padding=(10, 0, 10, 10))
         buttons.pack(fill=tk.X)
-        ttk.Button(buttons, text="Acerca de", command=self.show_about, style="Small.TButton").pack(side=tk.RIGHT, padx=(0, 8))
-        ttk.Button(buttons, text="Cerrar", command=win.destroy, style="Accent.TButton").pack(side=tk.RIGHT)
+        ttk.Button(buttons, text=tr("help.about"), command=self.show_about, style="Small.TButton").pack(side=tk.RIGHT, padx=(0, 8))
+        ttk.Button(buttons, text=tr("help.close"), command=win.destroy, style="Accent.TButton").pack(side=tk.RIGHT)
 
     def show_about(self) -> None:
         self.show_logo_popup(title=f"Acerca de Mössbauer Fe-57 v2IA v{APP_VERSION}", scale=2.6, click_to_close=False)
