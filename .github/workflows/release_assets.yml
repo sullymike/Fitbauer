@@ -21,7 +21,7 @@ jobs:
           TAG="${{ github.ref_name }}"
           ZIP="Mossbauer-${TAG}.zip"
           NOTES="RELEASE_NOTES_${TAG}.md"
-          zip "$ZIP" \
+          zip -r "$ZIP" \
             mossbauer_fe33_gui_v2IA.py \
             mossbauer_api_client.py \
             mossbauer_help.py \
@@ -46,7 +46,7 @@ jobs:
             PROPUESTAS_SYNCMOSS.md \
             PROPUESTAS_NORMOS.md \
             NORMOS_comparison_improvements.md \
-            RELEASE_NOTES_v0.3.0.md \
+            locales \
             captura-pantalla-principal.png \
             captura-ajuste-discreto.png \
             captura-distribucion-bhf.png \

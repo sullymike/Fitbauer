@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.4.0
+
+- Cobertura completa de traducciones: paneles de control, sextetes, panel de estado y parámetros, ajustes, gráficas, diálogos, mensajes e informe Markdown pasan por `tr()`.
+- Reorganización en `locales/<code>/`: cada idioma vive en su propia carpeta con `strings.json` (catálogo GUI) y `help.json` (capítulos de ayuda).
+- Auto-descubrimiento de idiomas: añadir una traducción es dejar caer `locales/<code>/` — el menú Idioma lo detecta al arrancar sin tocar código.
+- Cambio de idioma en caliente: el menú aplica el idioma sobre la marcha reconstruyendo la UI y conservando el estado (sliders, fijos, sextetes activos, ajuste actual, panel de estado). Ya no hay mensaje de "reinicia para aplicar".
+- `mossbauer_help.py` pasa de 1399 líneas a ~50: ahora es un cargador delgado que interpola `voigt_sigma` y la ruta de configuración en los capítulos cargados desde JSON.
+- Workflow de release incluye el directorio `locales/` en el ZIP empaquetado.
+
 ## v0.3.0
 
 - Release mayor 0.3: consolida documentación bilingüe/trilingüe, capturas en README, propuestas SyncMoss/NORMOS, ayuda ampliada y sistema inicial de internacionalización.
