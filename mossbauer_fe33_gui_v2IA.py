@@ -849,9 +849,22 @@ class MossbauerFe33GUI(tk.Tk):
             return
         try:
             data = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-            geom = data.get("geometry")
-            if isinstance(geom, str):
-                self.geometry(geom)
+        except Exception as exc:
+            _log_warning("No se pudieron cargar los ajustes guardados", exc)
+            return
+        self._apply_state_payload(data)
+
+    def _apply_state_payload(self, data: dict, restore_geometry: bool = True) -> None:
+        """Apply an in-memory settings dict (matching ``settings_payload()``).
+
+        Used by ``load_settings`` after reading from disk and by
+        ``change_ui_language`` to restore state after rebuilding the UI.
+        """
+        try:
+            if restore_geometry:
+                geom = data.get("geometry")
+                if isinstance(geom, str):
+                    self.geometry(geom)
             self.updating_sliders = True
             for key, value in data.get("vars", {}).items():
                 if key in self.vars:
@@ -893,7 +906,7 @@ class MossbauerFe33GUI(tk.Tk):
                 self.info.delete("1.0", tk.END)
                 self.info.insert(tk.END, info_text)
         except Exception as exc:
-            _log_warning("No se pudieron cargar los ajustes guardados", exc)
+            _log_warning("No se pudieron aplicar los ajustes", exc)
         finally:
             self.updating_sliders = False
             self._refresh_distribution_tab_visibility(update=False)
@@ -906,11 +919,45 @@ class MossbauerFe33GUI(tk.Tk):
             _log_warning("No se pudieron guardar los ajustes", exc)
 
     def change_ui_language(self, lang: str) -> None:
+        if lang not in available_languages():
+            return
+        if lang == get_language():
+            if hasattr(self, "_ui_language_var"):
+                self._ui_language_var.set(get_language())
+            return
+        snapshot = self.settings_payload()
+        snapshot["ui_language"] = lang
         set_language(lang)
-        if hasattr(self, "_ui_language_var"):
-            self._ui_language_var.set(get_language())
+        self._rebuild_ui()
+        self._apply_state_payload(snapshot, restore_geometry=False)
+        self.update_plot()
         self.save_settings()
-        messagebox.showinfo(tr("language.restart_title"), tr("language.restart_message"), parent=self)
+
+    def _rebuild_ui(self) -> None:
+        """Tear down all child widgets and run ``_build_ui`` again.
+
+        Used by ``change_ui_language`` so the UI picks up the new language
+        without restarting the program. Plain-Python state (data arrays,
+        fit results, calibration info, etc.) lives on ``self`` and survives
+        the rebuild because the Tk root itself is not destroyed.
+        """
+        self.config(menu=tk.Menu(self))
+        for child in list(self.winfo_children()):
+            try:
+                child.destroy()
+            except tk.TclError:
+                pass
+        # Drop references to widgets that no longer exist so helpers like
+        # _reconfigure_styles don't poke destroyed handles during rebuild.
+        for attr in ("file_label", "info", "fig", "ax", "ax_res",
+                     "canvas", "notebook", "dist_tab", "_ui_language_var"):
+            if hasattr(self, attr):
+                delattr(self, attr)
+        self.vars = {}
+        self.entry_vars = {}
+        self.fixed_vars = {}
+        self.slider_specs = {}
+        self._build_ui()
 
     def on_close(self) -> None:
         self.save_settings()
