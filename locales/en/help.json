@@ -1,0 +1,72 @@
+[
+  {
+    "title": "Start",
+    "heading": "Start and workflow",
+    "content": "\nThis program loads, folds, simulates and fits 57Fe Mössbauer spectra.\n\nRecommended workflow:\n\n  1. Load a local file (.ws5, .adt) or download a measurement from the laboratory web database.\n  2. Check the folding point and Vmax. If a NORMOS .RES/.PLT sidecar exists, initial values are imported automatically.\n  3. Adjust the baseline and verify the normalization.\n  4. Choose a model: discrete singlet/doublet/sextet or a distribution P(BHF)/P(ΔEQ).\n  5. Fix known parameters and release only the parameters justified by the data.\n  6. Run the fit and inspect residuals, areas and correlations.\n  7. Save the fit, the full JSON session and/or a Markdown/PDF report.\n\nNotation:\n\n  δ     isomer shift, in mm/s, relative to room-temperature α-Fe.\n  ΔEQ   quadrupole splitting, in mm/s.\n  BHF   magnetic hyperfine field, in T.\n  Γ     line half-width at half maximum, HWHM, in mm/s.\n"
+  },
+  {
+    "title": "Mössbauer basics",
+    "heading": "Physical background",
+    "content": "\n57Fe Mössbauer spectroscopy measures recoil-free resonant absorption of the 14.4 keV gamma ray. The Doppler velocity of the source scans the resonance energy.\n\nMain hyperfine interactions:\n\n  • Electric monopole interaction: isomer shift δ. It reflects electron density at the nucleus and is sensitive to oxidation state and bonding.\n  • Electric quadrupole interaction: quadrupole splitting ΔEQ. It reflects the electric field gradient at the nucleus.\n  • Magnetic dipole interaction: hyperfine field BHF. It produces the six-line magnetic sextet.\n\nFor a randomly oriented powder without texture, ideal sextet intensities follow the ratio:\n\n  lines 1,6 : lines 2,5 : lines 3,4 = 3 : 2 : 1\n\nThe relative intensity parameters can be adjusted for textured samples or external-field measurements.\n"
+  },
+  {
+    "title": "Files and web",
+    "heading": "Data loading and web access",
+    "content": "\nSupported input files:\n\n  • Modern WS5 files, XML files with a <data> block.\n  • Older ADT files, plain count lists without XML header.\n  • NORMOS sidecar files (.RES, .PLT, .JOB) are partially read when present.\n\nMain file actions:\n\n  Load...\n    Opens local spectra. If a NORMOS .RES file is found next to the spectrum, the final folding point and starting parameters are imported when possible.\n\n  Web measurements...\n    Lists and downloads measurements through the laboratory REST API. Credentials are used to obtain a token; the password is not stored.\n\n  Web calibrations...\n    Lists and downloads α-Fe calibrations. If a measurement has an associated calibration, the calibrated Vmax can be applied.\n\n  Save fit...\n    Exports a text table with velocity, normalized data, model, residual and folded counts. In distribution mode it also exports P(BHF) or P(ΔEQ).\n\n  Save session...\n    Stores the complete state in JSON: data, parameters, fixed/free flags, components, covariance, errors, constraints and calibration traceability.\n\n  Export Markdown/PDF report...\n    Creates a human-readable report with parameters, statistics, residual diagnostics, areas, correlations and calibration information. The Markdown file is always kept, even if a PDF is also generated.\n"
+  },
+  {
+    "title": "Folding",
+    "heading": "Folding, velocity axis and background",
+    "content": "\nThe folding point is the internal symmetry center used to fold the two halves of the spectrum. Fractional values are supported, as in NORMOS.\n\nImportant parameters:\n\n  Vmax\n    Maximum velocity of the transducer, used to build the -Vmax ... +Vmax velocity axis. It should normally come from an α-Fe calibration.\n\n  Fit Vmax\n    Includes Vmax as a free parameter. This can compensate small calibration errors, but BHF and Vmax are strongly correlated, so BHF should normally be fixed when Vmax is fitted.\n\n  Folding point\n    Internal channel center. The GUI also displays an approximate NORMOS folding value.\n\n  Fit folding point\n    Includes the folding center as a free parameter in discrete fits. At each iteration the counts are refolded and statistical weights are recomputed. Use it only near a reasonable starting value and with a limited number of free parameters.\n\n  Baseline and slope\n    Model the normalized transmission background. Do not use a large slope to hide a wrong folding point.\n\nA wrong folding point often produces antisymmetric positive-negative residual pairs around the absorption lines.\n"
+  },
+  {
+    "title": "Discrete model",
+    "heading": "Singlets, doublets and sextets",
+    "content": "\nEach component tab can be configured as a singlet, doublet or sextet.\n\n  Singlet\n    One absorption line. Main parameters: δ, Γ, depth and intensity.\n\n  Doublet\n    Two lines separated by ΔEQ. Useful for paramagnetic Fe sites with quadrupole interaction.\n\n  Sextet\n    Six magnetic lines. Main parameters: δ, ΔEQ, BHF, Γ, depth and relative intensities.\n\nLine profile:\n\n  Lorentzian\n    Default profile. Appropriate for natural or homogeneous broadening.\n\n  Voigt\n    Convolution of a Lorentzian with a Gaussian of σ = {voigt_sigma:.3g} mm/s. Useful for additional instrumental or static broadening. Areas are computed by numerical integration, so Lorentzian and Voigt profiles are treated consistently.\n\nThe Fit button optimizes all non-fixed parameters. The status panel reports RMS, χ²red, AIC, BIC, areas, errors and high correlations when available.\n"
+  },
+  {
+    "title": "P(BHF)",
+    "heading": "Hyperfine field distribution P(BHF)",
+    "content": "\nDistribution mode represents the spectrum as a sum of many sextets with different hyperfine fields. The result P(BHF) is the spectral weight associated with each BHF value.\n\nMethod:\n\n  • Define a BHF grid between B min and B max.\n  • Each grid point contributes a sextet.\n  • Weights are constrained to be non-negative.\n  • The second difference of P(BHF) is penalized to avoid non-physical oscillations.\n\nThe minimized expression is schematically:\n\n  weighted spectral residual² + α · roughness(P)²\n\nThe residual is weighted using Poisson uncertainties estimated from the folded counts. Therefore channels with higher statistical noise contribute less to the cost.\n"
+  },
+  {
+    "title": "P(ΔEQ)",
+    "heading": "Quadrupole-splitting distribution P(ΔEQ)",
+    "content": "\nThe distribution variable can be switched from BHF to ΔEQ in the Distribution tab. In that case the grid limits are expressed in mm/s and the model represents a distribution of quadrupole splittings.\n\nTypical uses:\n\n  • Disordered paramagnetic Fe environments.\n  • Ferritin-like or amorphous phases.\n  • Samples where a single doublet is too simple but a magnetic distribution is not appropriate.\n\nThe controls for α, bins, Γ, δ and line shape work in the same way as for P(BHF).\n"
+  },
+  {
+    "title": "L-curve",
+    "heading": "Choosing the regularization parameter α",
+    "content": "\nThe L-curve button scans a range of α values and opens a window with:\n\n  • log residual norm versus log roughness.\n  • RMS and reduced χ² versus α.\n  • the maximum-curvature L-curve suggestion.\n  • an additional compromise suggestion.\n  • a button to save the complete scan table.\n\nSmall α values may overfit noise and create spurious peaks. Large α values oversmooth the distribution and may hide real structure. The L-curve is a guide, not an automatic proof.\n"
+  },
+  {
+    "title": "Constraints",
+    "heading": "Linear constraints and physical presets",
+    "content": "\nLinear constraints impose:\n\n  target = factor · source + offset\n\nThe target parameter is removed from the optimizer and updated from the source at each model evaluation.\n\nTypical uses:\n\n  • Equal line widths between components.\n  • Equal isomer shifts.\n  • Fixed intensity ratios.\n  • Reduced number of free parameters when correlations are high.\n\nPhysical presets:\n\n  Options → Physical constraint presets...\n\nThey can quickly impose powder sextet intensities 3:2:1, equal widths within components, equal δ between active components, or equal Γ1 between active components.\n"
+  },
+  {
+    "title": "Statistics",
+    "heading": "Weights, model selection and robust errors",
+    "content": "\nPoisson weights:\n\n  The fit uses uncertainties estimated from folded counts. The minimized residual is (model - data) / σ.\n\nReduced χ², AIC and BIC:\n\n  Reduced χ² measures weighted residuals per degree of freedom. AIC and BIC penalize the number of free parameters and help compare models fitted to the same data.\n\nNumerical areas:\n\n  Areas are obtained by integrating the actual component profile on the velocity axis. This is valid for both Lorentzian and Voigt profiles.\n\nCorrelations:\n\n  High |r| values in the covariance matrix mean that two parameters are not independently determined. Fixing one parameter, adding a physically justified constraint or simplifying the model may be better than adding more freedom.\n\nBootstrap Monte Carlo:\n\n  Fit → Bootstrap errors (MC)... generates synthetic spectra by adding noise to the fitted model and refits each replica. The standard deviation of fitted parameters gives a more robust uncertainty estimate for discrete models.\n"
+  },
+  {
+    "title": "Diagnostics",
+    "heading": "Residuals and common problems",
+    "content": "\nThe residual, data minus model, should look like random statistical noise.\n\nCommon patterns:\n\n  • Antisymmetric positive-negative pairs around lines: wrong folding point.\n  • Curved or sloped background: wrong Vmax, normalization problem or real detector trend.\n  • Model lines broader than data: Γ too large.\n  • Residual peaks in the line wings: consider Voigt profile or a distribution.\n  • Structure in distribution mode: α may be too large or the model may be incomplete.\n  • High-frequency oscillations in P(BHF): α is probably too small.\n\nThe status panel reports lag-1 autocorrelation, a runs-test z value and an antisymmetric residual indicator.\n"
+  },
+  {
+    "title": "Saving and reports",
+    "heading": "Saving results, sessions and reports",
+    "content": "\nSave fit (.dat):\n\n  Exports velocity, normalized data, model, residual and folded counts. Distribution fits include the distribution table.\n\nSave session (.json):\n\n  Saves the full working state, including parameters, fixed/free flags, components, covariance, errors, constraints and status text. If calibration metadata are available, they are stored too.\n\nExport Markdown/PDF report:\n\n  Creates a documented report with version, file, folding point, Vmax, calibration, metrics, areas, parameters, errors, correlations and residual diagnostics. If PDF export is selected, the Markdown file is still preserved.\n\nAutomatic settings are stored in:\n\n  {settings_path_str}\n"
+  },
+  {
+    "title": "Reference values",
+    "heading": "Typical 57Fe reference parameters",
+    "content": "\nRoom-temperature values relative to α-Fe, approximate only:\n\n  α-Fe:          δ ≈ 0.00 mm/s, ΔEQ ≈ 0.00 mm/s, BHF ≈ 33.0 T.\n  Fe3+ oct.:     δ ≈ 0.30-0.45 mm/s, ΔEQ ≈ 0.4-1.0 mm/s.\n  Fe2+ oct.:     δ ≈ 1.0-1.3 mm/s, ΔEQ ≈ 2.0-3.5 mm/s.\n  Magnetite A:   δ ≈ 0.28 mm/s, BHF ≈ 49 T.\n  Magnetite B:   δ ≈ 0.65 mm/s, BHF ≈ 46 T.\n  Hematite:      δ ≈ 0.37 mm/s, ΔEQ ≈ -0.2 mm/s, BHF ≈ 52 T.\n  Goethite:      δ ≈ 0.37 mm/s, ΔEQ ≈ -0.25 mm/s, BHF ≈ 38 T.\n  Ferritin:      δ ≈ 0.45-0.50 mm/s, ΔEQ ≈ 0.7-1.0 mm/s.\n\nTemperature, substitutions, particle size and disorder may shift these values.\n"
+  },
+  {
+    "title": "What is new",
+    "heading": "New functions since version 0.2",
+    "content": "\nRecent improvements include:\n\n  • Poisson-weighted fitting for discrete models and distributions.\n  • Reduced χ², AIC and BIC.\n  • Numerical areas for Lorentzian and Voigt profiles.\n  • Parameter correlation summaries.\n  • Extended L-curve with reduced χ² and exportable table.\n  • Residual diagnostics.\n  • Deterministic multi-start fitting.\n  • Progress windows for long calculations.\n  • Markdown/PDF report export.\n  • Bootstrap Monte Carlo errors for discrete fits.\n  • Physical constraint presets.\n  • Optional folding-point fitting.\n  • Calibration uncertainty traceability when available.\n"
+  }
+]
