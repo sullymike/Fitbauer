@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.1
+
+- El cambio de idioma en caliente es ahora perceptiblemente más rápido: la ventana se oculta durante el destroy/rebuild para que Tk no repinte cada widget intermedio, y se elimina el redraw duplicado de matplotlib que ocurría a mitad de la restauración del estado.
+
 ## v0.4.0
 
 - Cobertura completa de traducciones: paneles de control, sextetes, panel de estado y parámetros, ajustes, gráficas, diálogos, mensajes e informe Markdown pasan por `tr()`.
