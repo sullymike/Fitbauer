@@ -29,7 +29,32 @@ Documentos de propuestas y comparación futura:
 - [`PROPUESTAS_SYNCMOSS.md`](PROPUESTAS_SYNCMOSS.md): mejoras pendientes tras la comparación con SyncMoss.
 - [`PROPUESTAS_NORMOS.md`](PROPUESTAS_NORMOS.md): mejoras pendientes para compatibilidad, validación y reproducibilidad frente a NORMOS.
 
-## 2. Datos, folding y velocidad
+
+## 2. Capturas del programa
+
+Las imágenes siguientes muestran el aspecto general de la aplicación y de algunas ventanas de análisis. Son capturas ilustrativas generadas para la documentación del repositorio.
+
+### Pantalla principal
+
+<img src="captura-pantalla-principal.png" alt="Pantalla principal de Mössbauer Fe-57 GUI" width="900">
+
+### Ajuste discreto
+
+<img src="captura-ajuste-discreto.png" alt="Ajuste discreto con componentes, áreas y residuos" width="900">
+
+### Distribución P(BHF)
+
+<img src="captura-distribucion-bhf.png" alt="Distribución de campo hiperfino P(BHF)" width="900">
+
+### L-curve de regularización
+
+<img src="captura-lcurve.png" alt="L-curve para elegir el parámetro de regularización alpha" width="900">
+
+### Informe Markdown/PDF
+
+<img src="captura-informe-markdown-pdf.png" alt="Informe Markdown y PDF exportado" width="900">
+
+## 3. Datos, folding y velocidad
 
 El panel **Velocidad, folding y fondo** contiene:
 
@@ -40,7 +65,7 @@ El panel **Velocidad, folding y fondo** contiene:
 
 El programa muestra también un **folding point Normos aproximado**, que suele ser aproximadamente el doble del centro interno de la GUI.
 
-## 3. Modelo discreto
+## 4. Modelo discreto
 
 Cada una de las tres pestañas de componente puede ser:
 
@@ -66,7 +91,7 @@ Seis líneas magnéticas. Parámetros principales:
 
 El botón **Ajuste** optimiza todos los parámetros no fijados. Si hay varios componentes activos, el panel de estado muestra el porcentaje de área integrada de cada uno y, si se puede calcular la covarianza, su error 1σ.
 
-## 4. Distribución P(BHF)
+## 5. Distribución P(BHF)
 
 El modo **Distribución P(BHF)** modela el espectro como una suma de muchos sextetes con distintos campos hiperfinos. El resultado es una distribución `P(BHF)`, que representa el peso espectral asociado a cada campo.
 
@@ -123,7 +148,7 @@ La opción **refinar δ y Γ globales** intenta optimizar también el desplazami
 - No interpretes detalles muy estrechos si `α` es demasiado pequeño.
 - Si una fase es claramente discreta, añádela como componente nítido.
 
-## 5. Actualizaciones
+## 6. Actualizaciones
 
 El programa comprueba nuevas versiones publicadas en GitHub Releases al arrancar y también manualmente desde:
 
@@ -135,7 +160,7 @@ La versión local está definida en `APP_VERSION`. Si existe una release con un 
 
 Las instrucciones para publicar versiones están en `RELEASES.md`.
 
-## 6. Instalación desde código
+## 7. Instalación desde código
 
 Se puede instalar sin `.exe` con Python:
 
@@ -153,7 +178,7 @@ mossbauer.bat
 
 Más detalles en `INSTALL.md`.
 
-## 7. Guardado
+## 8. Guardado
 
 ### Guardar ajuste
 
@@ -180,6 +205,6 @@ Al cerrar, el programa guarda opciones persistentes en:
 ~/.config/mossbauer_fe33_gui/settings.json
 ```
 
-## 8. Panel Estado y parámetros
+## 9. Panel Estado y parámetros
 
 Este panel resume el estado del ajuste: fichero, folding, normalización, Vmax, fondo, RMS, parámetros, porcentajes de área, errores y parámetros fijados. En modo distribución muestra además el rango BHF, número de bins, α, pico de P(BHF) y porcentajes de distribución/componentes nítidos.
