@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.0
+
+- Release mayor 0.3: consolida documentación bilingüe/trilingüe, capturas en README, propuestas SyncMoss/NORMOS, ayuda ampliada y sistema inicial de internacionalización.
+- Versión preparada para distribución pública con interfaz traducible y catálogos actuales en español, inglés y francés.
+
 ## v0.2.10
 
 - Añadidos catálogos de interfaz en inglés y francés en `mossbauer_i18n.py`.
