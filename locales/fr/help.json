@@ -1,0 +1,72 @@
+[
+  {
+    "title": "Début",
+    "heading": "Démarrage et flux de travail",
+    "content": "\nCe programme permet de charger, plier, simuler et ajuster des spectres Mössbauer de 57Fe.\n\nFlux recommandé :\n\n  1. Charger un fichier local (.ws5, .adt) ou télécharger une mesure depuis la base web du laboratoire.\n  2. Vérifier le point de folding et Vmax. Si un fichier NORMOS .RES/.PLT existe, les valeurs initiales sont importées si possible.\n  3. Ajuster le fond et vérifier la normalisation.\n  4. Choisir un modèle : singulet/doublet/sextet discret ou distribution P(BHF)/P(ΔEQ).\n  5. Fixer les paramètres connus et ne libérer que ceux justifiés par les données.\n  6. Lancer l'ajustement et examiner les résidus, les aires et les corrélations.\n  7. Enregistrer l'ajustement, la session JSON complète et/ou un rapport Markdown/PDF.\n\nNotation :\n\n  δ     déplacement isomérique, en mm/s, référencé à α-Fe à température ambiante.\n  ΔEQ   éclatement quadrupolaire, en mm/s.\n  BHF   champ hyperfin magnétique, en T.\n  Γ     demi-largeur à mi-hauteur, HWHM, en mm/s.\n"
+  },
+  {
+    "title": "Bases Mössbauer",
+    "heading": "Fondements physiques",
+    "content": "\nLa spectroscopie Mössbauer de 57Fe mesure l'absorption résonante sans recul du photon gamma de 14,4 keV. La vitesse Doppler de la source balaie l'énergie de résonance.\n\nInteractions hyperfines principales :\n\n  • Interaction monopolaire électrique : déplacement isomérique δ, lié à la densité électronique au noyau.\n  • Interaction quadrupolaire électrique : éclatement ΔEQ, lié au gradient de champ électrique.\n  • Interaction dipolaire magnétique : champ hyperfin BHF, responsable du sextet magnétique.\n\nPour une poudre non texturée, les intensités idéales du sextet suivent :\n\n  lignes 1,6 : lignes 2,5 : lignes 3,4 = 3 : 2 : 1\n"
+  },
+  {
+    "title": "Fichiers et web",
+    "heading": "Chargement des données",
+    "content": "\nFormats acceptés :\n\n  • WS5 moderne avec bloc XML <data>.\n  • ADT ancien, liste de comptages sans en-tête XML.\n  • Fichiers auxiliaires NORMOS (.RES, .PLT, .JOB) partiellement lus lorsqu'ils sont présents.\n\nActions principales :\n\n  Ouvrir...\n    Charge des spectres locaux et importe les valeurs NORMOS disponibles.\n\n  Mesures web...\n    Liste et télécharge les mesures via l'API REST du laboratoire.\n\n  Enregistrer l'ajustement...\n    Exporte vitesse, données normalisées, modèle, résidu et comptages pliés.\n\n  Enregistrer la session...\n    Sauve l'état complet en JSON : données, paramètres, indicateurs fixé/libre, composantes, covariance, erreurs, contraintes et traçabilité d'étalonnage.\n\n  Exporter le rapport Markdown/PDF...\n    Crée un rapport lisible avec paramètres, statistiques, diagnostics de résidus, aires, corrélations et informations d'étalonnage.\n"
+  },
+  {
+    "title": "Folding",
+    "heading": "Folding, vitesse et fond",
+    "content": "\nLe point de folding est le centre interne de symétrie utilisé pour plier les deux moitiés du spectre. Les valeurs fractionnaires sont acceptées, comme dans NORMOS.\n\nParamètres importants :\n\n  Vmax\n    Vitesse maximale utilisée pour construire l'axe -Vmax ... +Vmax. Elle doit normalement provenir d'un étalonnage α-Fe.\n\n  Ajuster Vmax\n    Inclut Vmax comme paramètre libre. BHF et Vmax sont fortement corrélés ; il est donc préférable de fixer BHF si Vmax est ajusté.\n\n  Point de folding\n    Centre interne en canaux. La GUI affiche aussi une valeur NORMOS approximative.\n\n  Ajuster le point de folding\n    Inclut le centre de folding comme paramètre libre. À chaque itération les comptages sont repliés et les poids statistiques recalculés.\n\nUn mauvais folding produit souvent des paires de résidus antisymétriques autour des raies.\n"
+  },
+  {
+    "title": "Modèle discret",
+    "heading": "Singulets, doublets et sextets",
+    "content": "\nChaque onglet de composante peut être configuré comme singulet, doublet ou sextet.\n\n  Singulet\n    Une seule raie d'absorption.\n\n  Doublet\n    Deux raies séparées par ΔEQ.\n\n  Sextet\n    Six raies magnétiques avec δ, ΔEQ, BHF, Γ, profondeur et intensités relatives.\n\nProfil de raie :\n\n  Lorentzien\n    Profil par défaut.\n\n  Voigt\n    Convolution d'une Lorentzienne avec une Gaussienne de σ = {voigt_sigma:.3g} mm/s.\n\nLe bouton Ajuster optimise tous les paramètres non fixés. Le panneau d'état indique RMS, χ² réduit, AIC, BIC, aires, erreurs et corrélations élevées lorsque disponibles.\n"
+  },
+  {
+    "title": "P(BHF)",
+    "heading": "Distribution de champ hyperfin P(BHF)",
+    "content": "\nLe mode distribution représente le spectre comme une somme de nombreux sextets avec des champs hyperfins différents.\n\nMéthode :\n\n  • Définir une grille BHF entre B min et B max.\n  • Chaque point de la grille apporte un sextet.\n  • Les poids sont contraints à être non négatifs.\n  • La seconde différence de P(BHF) est pénalisée pour éviter les oscillations non physiques.\n\nSchématiquement, on minimise :\n\n  résidu spectral pondéré² + α · rugosité(P)²\n\nLes résidus sont pondérés avec les incertitudes de Poisson estimées à partir des comptages pliés.\n"
+  },
+  {
+    "title": "P(ΔEQ)",
+    "heading": "Distribution d'éclatement quadrupolaire P(ΔEQ)",
+    "content": "\nLa variable de distribution peut être changée de BHF à ΔEQ. Les limites de grille sont alors exprimées en mm/s.\n\nUtilisations typiques :\n\n  • Environnements paramagnétiques désordonnés.\n  • Phases amorphes ou analogues à la ferritine.\n  • Cas où un seul doublet est insuffisant.\n"
+  },
+  {
+    "title": "L-curve",
+    "heading": "Choix du paramètre de régularisation α",
+    "content": "\nLe bouton L-curve α balaie une plage de valeurs de α et affiche :\n\n  • norme du résidu en log-log contre rugosité.\n  • RMS et χ² réduit en fonction de α.\n  • suggestion par courbure maximale.\n  • suggestion de compromis.\n  • export de la table complète.\n\nUn α trop petit ajuste le bruit ; un α trop grand lisse excessivement la distribution.\n"
+  },
+  {
+    "title": "Contraintes",
+    "heading": "Contraintes linéaires et préréglages physiques",
+    "content": "\nLes contraintes linéaires imposent :\n\n  cible = facteur · source + offset\n\nLa cible est retirée de l'optimiseur et recalculée à chaque évaluation du modèle.\n\nUsages typiques : largeurs communes, déplacements isomériques égaux, rapports d'intensité fixés et réduction du nombre de paramètres libres.\n\nLes préréglages physiques appliquent rapidement des relations comme 3:2:1 pour les sextets de poudre ou Γ commun entre composantes.\n"
+  },
+  {
+    "title": "Statistiques",
+    "heading": "Poids, sélection de modèle et erreurs",
+    "content": "\nPoids de Poisson :\n\n  L'ajustement utilise des incertitudes estimées à partir des comptages pliés. Le résidu minimisé est (modèle - données) / σ.\n\nχ² réduit, AIC et BIC :\n\n  Le χ² réduit mesure les résidus pondérés par degré de liberté. AIC et BIC pénalisent le nombre de paramètres libres.\n\nAires numériques :\n\n  Les aires sont obtenues en intégrant le profil réel de chaque composante sur l'axe des vitesses.\n\nBootstrap Monte Carlo :\n\n  Ajustement → Erreurs bootstrap (MC)... génère des spectres synthétiques et réajuste chaque réplique pour estimer des incertitudes plus robustes.\n"
+  },
+  {
+    "title": "Diagnostic",
+    "heading": "Résidus et problèmes fréquents",
+    "content": "\nLe résidu, données moins modèle, doit ressembler à du bruit statistique.\n\nMotifs fréquents :\n\n  • Paires positif-négatif antisymétriques : point de folding incorrect.\n  • Fond courbe ou incliné : Vmax, normalisation ou tendance instrumentale.\n  • Raies du modèle trop larges : Γ trop grand.\n  • Résidus dans les ailes : envisager Voigt ou une distribution.\n  • Oscillations de P(BHF) : α probablement trop petit.\n\nLe panneau d'état indique l'autocorrélation lag-1, le test de runs et un indicateur antisymétrique.\n"
+  },
+  {
+    "title": "Enregistrement",
+    "heading": "Résultats, sessions et rapports",
+    "content": "\nEnregistrer l'ajustement (.dat) :\n\n  Exporte vitesse, données normalisées, modèle, résidu et comptages pliés.\n\nEnregistrer la session (.json) :\n\n  Sauve l'état complet de travail, y compris paramètres, composantes, covariance, erreurs, contraintes et texte d'état.\n\nExporter le rapport Markdown/PDF :\n\n  Crée un rapport avec version, fichier, folding, Vmax, étalonnage, métriques, aires, paramètres, erreurs, corrélations et diagnostic des résidus.\n\nLes préférences automatiques sont stockées dans :\n\n  {settings_path_str}\n"
+  },
+  {
+    "title": "Valeurs de référence",
+    "heading": "Paramètres typiques de 57Fe",
+    "content": "\nValeurs approximatives à température ambiante, référencées à α-Fe :\n\n  α-Fe :        δ ≈ 0,00 mm/s, ΔEQ ≈ 0,00 mm/s, BHF ≈ 33 T.\n  Fe3+ oct. :   δ ≈ 0,30-0,45 mm/s, ΔEQ ≈ 0,4-1,0 mm/s.\n  Fe2+ oct. :   δ ≈ 1,0-1,3 mm/s, ΔEQ ≈ 2,0-3,5 mm/s.\n  Hématite :    δ ≈ 0,37 mm/s, ΔEQ ≈ -0,2 mm/s, BHF ≈ 52 T.\n  Goethite :    δ ≈ 0,37 mm/s, ΔEQ ≈ -0,25 mm/s, BHF ≈ 38 T.\n  Ferritine :   δ ≈ 0,45-0,50 mm/s, ΔEQ ≈ 0,7-1,0 mm/s.\n"
+  },
+  {
+    "title": "Nouveautés",
+    "heading": "Fonctions nouvelles depuis la version 0.2",
+    "content": "\nAméliorations récentes :\n\n  • Ajustement pondéré Poisson.\n  • χ² réduit, AIC et BIC.\n  • Aires numériques pour profils Lorentzien et Voigt.\n  • Résumé des corrélations.\n  • L-curve étendue avec χ² réduit et table exportable.\n  • Diagnostics de résidus.\n  • Ajustement multi-départ déterministe.\n  • Export Markdown/PDF.\n  • Bootstrap Monte Carlo.\n  • Préréglages physiques de contraintes.\n  • Ajustement optionnel du point de folding.\n  • Traçabilité de l'incertitude d'étalonnage.\n"
+  }
+]

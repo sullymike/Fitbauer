@@ -1,18 +1,17 @@
 """Minimal internationalization layer for the Mössbauer GUI.
 
-Catalogs live as JSON files inside the ``locales/`` directory next to this
-module. Each ``<code>.json`` file holds the translation pairs for one language
-and an optional ``_meta`` block with the display name shown in the language
-menu::
+Each language lives in its own ``locales/<code>/`` directory next to this
+module:
 
-    {
-      "_meta": {"name": "Español"},
-      "menu.file": "Archivo",
-      ...
-    }
+    locales/
+      es/
+        strings.json   -- {"_meta": {"name": "Español"}, "menu.file": "...", ...}
+        help.json      -- [{"title": "...", "heading": "...", "content": "..."}]
+      en/
+        ...
 
-To add a new language drop a new ``locales/<code>.json`` file with the same
-keys as the others; the program will pick it up automatically on next launch.
+To add a new language drop a new ``locales/<code>/`` folder with the same
+files; the program will pick it up automatically on next launch.
 """
 from __future__ import annotations
 
@@ -42,19 +41,22 @@ LANGUAGES: dict[str, str] = {}
 
 
 def _load_catalogs() -> None:
-    """Discover and load every locale file under ``LOCALES_DIR``."""
+    """Discover and load ``strings.json`` for every locale under ``LOCALES_DIR``."""
     CATALOGS.clear()
     LANGUAGES.clear()
     if not LOCALES_DIR.is_dir():
         return
-    for path in sorted(LOCALES_DIR.glob("*.json")):
-        code = path.stem
+    for sub in sorted(p for p in LOCALES_DIR.iterdir() if p.is_dir()):
+        strings_path = sub / "strings.json"
+        if not strings_path.is_file():
+            continue
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
+            data = json.loads(strings_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
         if not isinstance(data, dict):
             continue
+        code = sub.name
         meta = data.get("_meta") if isinstance(data.get("_meta"), dict) else {}
         CATALOGS[code] = {k: v for k, v in data.items() if k != "_meta" and isinstance(v, str)}
         LANGUAGES[code] = str(meta.get("name") or code)
@@ -99,3 +101,36 @@ def tr(key: str, default: str | None = None, **kwargs: object) -> str:
         except Exception:
             pass
     return text
+
+
+def load_help_chapters(lang: str) -> list[tuple[str, str, str]]:
+    """Load ``help.json`` for ``lang`` (falling back to default) as raw tuples.
+
+    Returns ``[(title, heading, content), ...]``. Placeholders inside
+    ``content`` (e.g. ``{voigt_sigma}``) are left untouched so callers can
+    apply ``str.format`` with their own runtime values.
+    """
+    for code in (lang, DEFAULT_LANGUAGE):
+        if not code:
+            continue
+        path = LOCALES_DIR / code / "help.json"
+        if not path.is_file():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(data, list):
+            continue
+        chapters: list[tuple[str, str, str]] = []
+        for entry in data:
+            if not isinstance(entry, dict):
+                continue
+            chapters.append((
+                str(entry.get("title", "")),
+                str(entry.get("heading", "")),
+                str(entry.get("content", "")),
+            ))
+        return chapters
+    return []
+
