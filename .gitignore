@@ -6,6 +6,7 @@
 */
 !.github/
 !.github/workflows/
+!locales/
 
 # Cachés/temporales habituales si aparecen en la raíz
 __pycache__/

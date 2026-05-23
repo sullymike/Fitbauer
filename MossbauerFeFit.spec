@@ -5,7 +5,7 @@ a = Analysis(
     ['mossbauer_fe33_gui_v2IA.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('locales', 'locales')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
