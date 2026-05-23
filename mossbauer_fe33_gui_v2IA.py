@@ -481,7 +481,7 @@ class MossbauerFe33GUI(tk.Tk):
         _sv = False
         if theme == "sv_ttk":
             if not self._sv_available:
-                messagebox.showwarning("Tema", "sv_ttk no está instalado.\nEjecuta: pip install sv_ttk")
+                messagebox.showwarning(tr("msg.theme_title"), tr("msg.theme_not_installed"))
                 self._theme_var.set("clam")
                 return
             try:
@@ -489,7 +489,7 @@ class MossbauerFe33GUI(tk.Tk):
                 sv_ttk.set_theme("light")
                 _sv = True
             except Exception as exc:
-                messagebox.showerror("Tema", f"No se pudo aplicar el tema:\n{exc}")
+                messagebox.showerror(tr("msg.theme_title"), tr("msg.theme_apply_error", error=str(exc)))
                 self._theme_var.set("clam")
                 return
         else:
@@ -649,7 +649,7 @@ class MossbauerFe33GUI(tk.Tk):
         tk.Label(title_block, text=APP_DEPARTMENT, bg=accent_dark, fg="#dff6ff",
                  font=("TkDefaultFont", 9)).pack(anchor=tk.W)
 
-        file_box = ttk.LabelFrame(controls, text="Fichero actual", style="Section.TLabelframe")
+        file_box = ttk.LabelFrame(controls, text=tr("controls.file_box"), style="Section.TLabelframe")
         file_box.pack(fill=tk.X, pady=(0, 8))
         self.file_label = tk.Label(
             file_box,
@@ -665,7 +665,7 @@ class MossbauerFe33GUI(tk.Tk):
         )
         self.file_label.pack(anchor=tk.W, fill=tk.X)
 
-        info_box = ttk.LabelFrame(controls, text="Estado y parámetros", style="Section.TLabelframe")
+        info_box = ttk.LabelFrame(controls, text=tr("controls.info_box"), style="Section.TLabelframe")
         info_box.pack(fill=tk.X, pady=8)
         self.info = tk.Text(
             info_box,
@@ -679,60 +679,60 @@ class MossbauerFe33GUI(tk.Tk):
         )
         self.info.pack(fill=tk.X, pady=2)
 
-        calib_box = ttk.LabelFrame(controls, text="Velocidad, folding y fondo", style="Section.TLabelframe")
+        calib_box = ttk.LabelFrame(controls, text=tr("controls.calibration_box"), style="Section.TLabelframe")
         calib_box.pack(fill=tk.X, pady=8)
-        self._add_slider(calib_box, "vmax", "Vmax (mm/s)", 11.8788, 1.0, 15.0, 0.0001, fit_param=False)
+        self._add_slider(calib_box, "vmax", tr("slider.vmax"), 11.8788, 1.0, 15.0, 0.0001, fit_param=False)
         ttk.Checkbutton(
             calib_box,
-            text="Ajustar Vmax con el patrón de líneas (requiere BHF fijo)",
+            text=tr("checkbox.fit_vmax"),
             variable=self.fit_velocity_var,
             command=self.on_fit_velocity_toggle,
         ).pack(anchor=tk.W, pady=(0, 4))
-        self._add_slider(calib_box, "center", "Folding point (centro)", 256.5, 250.0, 263.0, 0.0001, fit_param=False)
+        self._add_slider(calib_box, "center", tr("slider.center"), 256.5, 250.0, 263.0, 0.0001, fit_param=False)
         ttk.Checkbutton(
             calib_box,
-            text="Ajustar folding point dentro del ajuste",
+            text=tr("checkbox.fit_center"),
             variable=self.fit_center_var,
         ).pack(anchor=tk.W, pady=(0, 4))
-        self._add_slider(calib_box, "baseline", "Base", 1.0, 0.70, 1.30, 0.0005)
-        self._add_slider(calib_box, "slope", "Pendiente", 0.0, -0.0001, 0.0001, 0.000001)
-        self._add_slider(calib_box, "voigt_sigma", "σ gauss Voigt", 0.05, 0.0, 1.0, 0.001, fit_param=False)
+        self._add_slider(calib_box, "baseline", tr("slider.baseline"), 1.0, 0.70, 1.30, 0.0005)
+        self._add_slider(calib_box, "slope", tr("slider.slope"), 0.0, -0.0001, 0.0001, 0.000001)
+        self._add_slider(calib_box, "voigt_sigma", tr("slider.voigt_sigma"), 0.05, 0.0, 1.0, 0.001, fit_param=False)
 
-        line_box = ttk.LabelFrame(controls, text="Referencia", style="Section.TLabelframe")
+        line_box = ttk.LabelFrame(controls, text=tr("controls.reference_box"), style="Section.TLabelframe")
         line_box.pack(fill=tk.X, pady=8)
         ttk.Label(
             line_box,
-            text="Líneas Fe-57 para BHF=33 T y ΔEQ=0:\n" + ", ".join(f"{x:.3f}" for x in LINE_POS_33T) + " mm/s",
+            text=tr("controls.reference_lines", positions=", ".join(f"{x:.3f}" for x in LINE_POS_33T)),
             justify=tk.LEFT,
             wraplength=350,
         ).pack(anchor=tk.W, pady=2)
 
-        sim_box = ttk.LabelFrame(plot_frame, text="Simulación / ajuste", style="Section.TLabelframe")
+        sim_box = ttk.LabelFrame(plot_frame, text=tr("controls.simulation_box"), style="Section.TLabelframe")
         sim_box.pack(side=tk.BOTTOM, fill=tk.X, pady=(6, 0))
         sim_header = ttk.Frame(sim_box)
         sim_header.pack(fill=tk.X, pady=(0, 4))
         ttk.Label(
             sim_header,
-            text="Tipo de ajuste y distribución: menú Opciones",
+            text=tr("controls.fit_mode_hint"),
             style="Subtitle.TLabel",
         ).pack(side=tk.LEFT, anchor=tk.W)
-        ttk.Button(sim_header, text="Ajuste", command=self.fit_current_data, style="Accent.TButton").pack(side=tk.RIGHT, padx=(4, 0))
-        ttk.Button(sim_header, text="IA inicio", command=self.open_ollama_ai_dialog, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
-        ttk.Button(sim_header, text="Auto mínimos", command=self.auto_fit_from_minima, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
-        ttk.Button(sim_header, text="Fijar todos", command=self.fix_all_parameters, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
-        ttk.Button(sim_header, text="Liberar todos", command=self.free_all_parameters, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+        ttk.Button(sim_header, text=tr("sim.fit"), command=self.fit_current_data, style="Accent.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+        ttk.Button(sim_header, text=tr("sim.ai_start"), command=self.open_ollama_ai_dialog, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+        ttk.Button(sim_header, text=tr("sim.auto_minima"), command=self.auto_fit_from_minima, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+        ttk.Button(sim_header, text=tr("sim.fix_all"), command=self.fix_all_parameters, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+        ttk.Button(sim_header, text=tr("sim.free_all"), command=self.free_all_parameters, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
 
         notebook = ttk.Notebook(sim_box)
         notebook.pack(fill=tk.X, expand=False)
         self.notebook = notebook
         dist_tab = ttk.Frame(notebook, padding=6)
         self.dist_tab = dist_tab
-        notebook.add(dist_tab, text="Distribución BHF")
+        notebook.add(dist_tab, text=tr("tab.distribution_bhf"))
         dist_top = ttk.Frame(dist_tab)
         dist_top.pack(fill=tk.X, pady=(0, 4))
         ttk.Label(
             dist_top,
-            text="Distribución regularizada 1D: P(BHF) o P(ΔEQ). Puede sumar componentes activos nítidos.",
+            text=tr("bhf.description"),
             style="Subtitle.TLabel",
         ).pack(side=tk.LEFT, anchor=tk.W)
         dist_cols = ttk.Frame(dist_tab)
@@ -741,42 +741,42 @@ class MossbauerFe33GUI(tk.Tk):
         d1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 8))
         d2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4)
         d3.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(8, 0))
-        ttk.Label(d1, text="Variable distribuida").pack(anchor=tk.W)
+        ttk.Label(d1, text=tr("bhf.variable_label")).pack(anchor=tk.W)
         dist_var_box = ttk.Combobox(d1, textvariable=self.dist_variable_var, values=("BHF", "ΔEQ"), width=10, state="readonly")
         dist_var_box.pack(anchor=tk.W, fill=tk.X, pady=(0, 4))
         dist_var_box.bind("<<ComboboxSelected>>", lambda _event: self.on_bhf_distribution_option_change())
-        ttk.Label(d1, text="Forma").pack(anchor=tk.W)
+        ttk.Label(d1, text=tr("bhf.shape_label")).pack(anchor=tk.W)
         dist_shape_box = ttk.Combobox(d1, textvariable=self.dist_shape_var, values=("Histograma", "Gaussiana", "Binomial", "Fija"), width=12, state="readonly")
         dist_shape_box.pack(anchor=tk.W, fill=tk.X, pady=(0, 4))
         dist_shape_box.bind("<<ComboboxSelected>>", lambda _event: self.on_bhf_distribution_option_change())
-        ttk.Button(d1, text="Cargar P fija...", command=self.load_fixed_distribution_file, style="Small.TButton").pack(anchor=tk.W, fill=tk.X, pady=(0, 4))
-        self._add_slider(d1, "dist_delta", "δ global", 0.0, -2.5, 2.5, 0.001, fit_param=False)
-        self._add_slider(d1, "dist_quad", "ΔEQ fijo/global", 0.0, 0.0, 4.0, 0.001, fit_param=False)
-        self._add_slider(d1, "dist_fixed_bhf", "BHF fijo p/ P(ΔEQ)", BHF_DEFAULT_T, 0.0, 50.0, 0.01, fit_param=False)
-        self._add_slider(d1, "dist_gamma", "Γ HWHM", 0.18, 0.03, 1.0, 0.001, fit_param=False)
-        self._add_slider(d2, "dist_bmin", "Mín distribución", 0.0, 0.0, 50.0, 0.1, fit_param=False)
-        self._add_slider(d2, "dist_bmax", "Máx distribución", 50.0, 1.0, 60.0, 0.1, fit_param=False)
-        self._add_slider(d2, "dist_nbins", "Bins distribución", 50.0, 10.0, 100.0, 1.0, fit_param=False)
-        self._add_slider(d3, "dist_log_alpha", "log10 α", -2.0, -8.0, 4.0, 0.1, fit_param=False)
+        ttk.Button(d1, text=tr("bhf.load_fixed"), command=self.load_fixed_distribution_file, style="Small.TButton").pack(anchor=tk.W, fill=tk.X, pady=(0, 4))
+        self._add_slider(d1, "dist_delta", tr("slider.dist_delta"), 0.0, -2.5, 2.5, 0.001, fit_param=False)
+        self._add_slider(d1, "dist_quad", tr("slider.dist_quad"), 0.0, 0.0, 4.0, 0.001, fit_param=False)
+        self._add_slider(d1, "dist_fixed_bhf", tr("slider.dist_fixed_bhf"), BHF_DEFAULT_T, 0.0, 50.0, 0.01, fit_param=False)
+        self._add_slider(d1, "dist_gamma", tr("slider.dist_gamma"), 0.18, 0.03, 1.0, 0.001, fit_param=False)
+        self._add_slider(d2, "dist_bmin", tr("slider.dist_bmin"), 0.0, 0.0, 50.0, 0.1, fit_param=False)
+        self._add_slider(d2, "dist_bmax", tr("slider.dist_bmax"), 50.0, 1.0, 60.0, 0.1, fit_param=False)
+        self._add_slider(d2, "dist_nbins", tr("slider.dist_nbins"), 50.0, 10.0, 100.0, 1.0, fit_param=False)
+        self._add_slider(d3, "dist_log_alpha", tr("slider.dist_log_alpha"), -2.0, -8.0, 4.0, 0.1, fit_param=False)
         alpha_buttons = ttk.Frame(d3)
         alpha_buttons.pack(fill=tk.X, pady=(0, 2))
-        ttk.Button(alpha_buttons, text="fino", command=lambda: self.set_bhf_alpha_preset(-5.0), style="Small.TButton").pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 2))
-        ttk.Button(alpha_buttons, text="medio", command=lambda: self.set_bhf_alpha_preset(-2.0), style="Small.TButton").pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
-        ttk.Button(alpha_buttons, text="suave", command=lambda: self.set_bhf_alpha_preset(1.0), style="Small.TButton").pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(2, 0))
-        ttk.Checkbutton(d3, text="sumar componentes activos nítidos", variable=self.dist_use_sharp_var, command=self.on_bhf_distribution_option_change).pack(anchor=tk.W, pady=(2, 0))
-        ttk.Checkbutton(d3, text="refinar δ y Γ globales", variable=self.dist_refine_global_var, command=self.on_bhf_distribution_option_change).pack(anchor=tk.W, pady=(0, 2))
-        ttk.Button(d3, text="L-curve α", command=self.scan_bhf_alpha_gui, style="Small.TButton").pack(anchor=tk.E, fill=tk.X, pady=(2, 0))
+        ttk.Button(alpha_buttons, text=tr("bhf.alpha_fine"), command=lambda: self.set_bhf_alpha_preset(-5.0), style="Small.TButton").pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 2))
+        ttk.Button(alpha_buttons, text=tr("bhf.alpha_medium"), command=lambda: self.set_bhf_alpha_preset(-2.0), style="Small.TButton").pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        ttk.Button(alpha_buttons, text=tr("bhf.alpha_smooth"), command=lambda: self.set_bhf_alpha_preset(1.0), style="Small.TButton").pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(2, 0))
+        ttk.Checkbutton(d3, text=tr("bhf.use_sharp"), variable=self.dist_use_sharp_var, command=self.on_bhf_distribution_option_change).pack(anchor=tk.W, pady=(2, 0))
+        ttk.Checkbutton(d3, text=tr("bhf.refine_global"), variable=self.dist_refine_global_var, command=self.on_bhf_distribution_option_change).pack(anchor=tk.W, pady=(0, 2))
+        ttk.Button(d3, text=tr("bhf.lcurve_alpha"), command=self.scan_bhf_alpha_gui, style="Small.TButton").pack(anchor=tk.E, fill=tk.X, pady=(2, 0))
 
         for idx in (1, 2, 3):
             tab = ttk.Frame(notebook, padding=6)
-            notebook.add(tab, text=f"Componente {idx}")
+            notebook.add(tab, text=tr("tab.component", idx=idx))
             top_row = ttk.Frame(tab)
             top_row.pack(fill=tk.X, pady=(0, 4))
             if idx > 1:
-                ttk.Checkbutton(top_row, text=f"Usar componente {idx}", variable=self.sextet_enabled[idx], command=self.on_component_activation_change).pack(side=tk.LEFT)
+                ttk.Checkbutton(top_row, text=tr("component.enable", idx=idx), variable=self.sextet_enabled[idx], command=self.on_component_activation_change).pack(side=tk.LEFT)
             else:
-                ttk.Label(top_row, text="Componente principal activo", style="Subtitle.TLabel").pack(side=tk.LEFT)
-            ttk.Label(top_row, text="Forma:").pack(side=tk.LEFT, padx=(18, 4))
+                ttk.Label(top_row, text=tr("component.main_active"), style="Subtitle.TLabel").pack(side=tk.LEFT)
+            ttk.Label(top_row, text=tr("component.shape_label")).pack(side=tk.LEFT, padx=(18, 4))
             kind_box = ttk.Combobox(top_row, textvariable=self.component_kind[idx], values=("Sextete", "Doblete", "Singlete"), width=10, state="readonly")
             kind_box.pack(side=tk.LEFT)
             kind_box.bind("<<ComboboxSelected>>", lambda _event, i=idx: self.on_component_kind_change(i))
@@ -787,16 +787,16 @@ class MossbauerFe33GUI(tk.Tk):
             c2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4)
             c3.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(8, 0))
             p = f"s{idx}_"
-            self._add_slider(c1, p + "delta", "δ isomérico", 0.0, -2.0, 3.0, 0.001)
-            self._add_slider(c1, p + "quad", "ΔEQ", 0.0, 0.0, 4.0, 0.001)
-            self._add_slider(c1, p + "bhf", "BHF (T)", BHF_DEFAULT_T, 0.0, 50.0, 0.01)
-            self._add_slider(c2, p + "gamma1", "Γ 1,6", 0.30, 0.03, 2.0, 0.001)
-            self._add_slider(c2, p + "gamma2", "Γ 2,5 rel", 1.0, 0.2, 3.0, 0.001)
-            self._add_slider(c2, p + "gamma3", "Γ 3,4 rel", 1.0, 0.2, 3.0, 0.001)
-            self._add_slider(c3, p + "depth", "Profundidad", 0.030 if idx == 1 else 0.005, 0.0, 0.30, 0.0005)
-            self._add_slider(c3, p + "int1", "I1", 1.0, 0.0, 2.0, 0.001)
-            self._add_slider(c3, p + "int2", "I2 rel", 1.0, 0.0, 3.0, 0.001)
-            self._add_slider(c3, p + "int3", "I3 rel", 1.0, 0.0, 3.0, 0.001)
+            self._add_slider(c1, p + "delta", tr("slider.s_delta"), 0.0, -2.0, 3.0, 0.001)
+            self._add_slider(c1, p + "quad", tr("slider.s_quad"), 0.0, 0.0, 4.0, 0.001)
+            self._add_slider(c1, p + "bhf", tr("slider.s_bhf"), BHF_DEFAULT_T, 0.0, 50.0, 0.01)
+            self._add_slider(c2, p + "gamma1", tr("slider.s_gamma1"), 0.30, 0.03, 2.0, 0.001)
+            self._add_slider(c2, p + "gamma2", tr("slider.s_gamma2"), 1.0, 0.2, 3.0, 0.001)
+            self._add_slider(c2, p + "gamma3", tr("slider.s_gamma3"), 1.0, 0.2, 3.0, 0.001)
+            self._add_slider(c3, p + "depth", tr("slider.s_depth"), 0.030 if idx == 1 else 0.005, 0.0, 0.30, 0.0005)
+            self._add_slider(c3, p + "int1", tr("slider.s_int1"), 1.0, 0.0, 2.0, 0.001)
+            self._add_slider(c3, p + "int2", tr("slider.s_int2"), 1.0, 0.0, 3.0, 0.001)
+            self._add_slider(c3, p + "int3", tr("slider.s_int3"), 1.0, 0.0, 3.0, 0.001)
 
         plot_area = ttk.Frame(plot_frame)
         plot_area.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
@@ -807,9 +807,9 @@ class MossbauerFe33GUI(tk.Tk):
         gs = self.fig.add_gridspec(2, 1, height_ratios=[4.6, 1.0], hspace=0.08)
         self.ax = self.fig.add_subplot(gs[0])
         self.ax_res = self.fig.add_subplot(gs[1], sharex=self.ax)
-        self.ax.set_ylabel("Transmisión normalizada")
-        self.ax_res.set_ylabel("Datos-ajuste")
-        self.ax_res.set_xlabel("Velocidad (mm/s)")
+        self.ax.set_ylabel(tr("plot.transmission_ylabel"))
+        self.ax_res.set_ylabel(tr("plot.residual_ylabel"))
+        self.ax_res.set_xlabel(tr("plot.velocity_xlabel"))
         self.fig.tight_layout()
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=plot_area)
@@ -930,12 +930,12 @@ class MossbauerFe33GUI(tk.Tk):
         logo = self._create_logo(body, scale=scale)
         logo.pack(pady=(0, 10))
         tk.Label(body, text=APP_NAME, bg="#075985", fg="white", font=("TkDefaultFont", int(18 * scale), "bold")).pack()
-        tk.Label(body, text=f"Versión {APP_VERSION}", bg="#075985", fg="#fef08a", font=("TkDefaultFont", int(9 * scale), "bold")).pack(pady=(2, 0))
-        tk.Label(body, text="Doblado, simulación y ajuste interactivo", bg="#075985", fg="#dff6ff", font=("TkDefaultFont", int(10 * scale))).pack(pady=(2, 8))
+        tk.Label(body, text=tr("splash.version", version=APP_VERSION), bg="#075985", fg="#fef08a", font=("TkDefaultFont", int(9 * scale), "bold")).pack(pady=(2, 0))
+        tk.Label(body, text=tr("main.subtitle"), bg="#075985", fg="#dff6ff", font=("TkDefaultFont", int(10 * scale))).pack(pady=(2, 8))
         tk.Label(body, text=APP_AUTHOR, bg="#075985", fg="#dff6ff", font=("TkDefaultFont", int(9 * scale))).pack()
         tk.Label(body, text=APP_DEPARTMENT, bg="#075985", fg="#dff6ff", font=("TkDefaultFont", int(9 * scale))).pack()
         if click_to_close:
-            tk.Label(body, text="Pulsa en esta ventana para continuar", bg="#075985", fg="#fef08a", font=("TkDefaultFont", int(9 * scale), "bold")).pack(pady=(12, 0))
+            tk.Label(body, text=tr("splash.click_to_continue"), bg="#075985", fg="#fef08a", font=("TkDefaultFont", int(9 * scale), "bold")).pack(pady=(12, 0))
             def close_popup(_event=None) -> None:
                 if popup.winfo_exists():
                     popup.destroy()
@@ -1124,7 +1124,7 @@ class MossbauerFe33GUI(tk.Tk):
         ttk.Button(buttons, text=tr("help.close"), command=win.destroy, style="Accent.TButton").pack(side=tk.RIGHT)
 
     def show_about(self) -> None:
-        self.show_logo_popup(title=f"Acerca de Mössbauer Fe-57 v2IA v{APP_VERSION}", scale=2.6, click_to_close=False)
+        self.show_logo_popup(title=tr("help.about_title", version=APP_VERSION), scale=2.6, click_to_close=False)
 
     def update_settings_payload(self) -> dict:
         from mossbauer_updater_ui import load_update_settings
@@ -1149,8 +1149,8 @@ class MossbauerFe33GUI(tk.Tk):
         elif README_PATH.exists():
             text = README_PATH.read_text(encoding="utf-8", errors="replace")
         else:
-            text = "Changelog no disponible."
-        self.show_text_window("Changelog", text)
+            text = tr("help.changelog_unavailable")
+        self.show_text_window(tr("help.changelog"), text)
 
     def _create_logo(self, parent: tk.Widget, scale: float = 1.0) -> tk.Canvas:
         """Logo vectorial: sextete Mössbauer sobre átomo/campo magnético."""
@@ -1167,7 +1167,7 @@ class MossbauerFe33GUI(tk.Tk):
             canvas.create_oval(*xy(x - 3, 59 - h - 3, x + 3, 59 - h + 3), fill="#fef08a", outline="")
         canvas.create_oval(*xy(49, 27, 69, 47), fill="#38bdf8", outline="#e0f2fe", width=max(1, int(2 * s)))
         canvas.create_text(*xy(59, 37), text="Fe", fill="#083344", font=("TkDefaultFont", max(8, int(8 * s)), "bold"))
-        canvas.create_text(*xy(59, 75), text="sextete", fill="#dff6ff", font=("TkDefaultFont", max(8, int(8 * s))))
+        canvas.create_text(*xy(59, 75), text=tr("logo.text_sextete"), fill="#dff6ff", font=("TkDefaultFont", max(8, int(8 * s))))
         return canvas
 
     def _refresh_distribution_tab_visibility(self, update: bool = True) -> None:
@@ -1175,7 +1175,7 @@ class MossbauerFe33GUI(tk.Tk):
             return
         if self.fit_mode_var.get() == "bhf_distribution":
             try:
-                self.notebook.add(self.dist_tab, text="Distribución BHF")
+                self.notebook.add(self.dist_tab, text=tr("tab.distribution_bhf"))
             except tk.TclError:
                 pass
             self.notebook.select(self.dist_tab)
@@ -1215,7 +1215,7 @@ class MossbauerFe33GUI(tk.Tk):
         entry_var = tk.StringVar(value=self._format_value(key, value))
         if fit_param:
             fixed_var = tk.BooleanVar(value=False)
-            fixed = ttk.Checkbutton(top, text="fijo", variable=fixed_var)
+            fixed = ttk.Checkbutton(top, text=tr("checkbox.fixed"), variable=fixed_var)
             fixed.pack(side=tk.RIGHT, padx=(6, 0))
             self.fixed_vars[key] = fixed_var
 
@@ -1307,8 +1307,8 @@ class MossbauerFe33GUI(tk.Tk):
             for key in self.active_bhf_keys():
                 self.fixed_vars[key].set(True)
             messagebox.showinfo(
-                "Ajuste de velocidad",
-                "Se ha fijado BHF. La velocidad Vmax se ajustará usando el patrón de líneas del sextete.",
+                tr("msg.fit_velocity_title"),
+                tr("msg.fit_velocity_info"),
             )
 
     def on_bhf_distribution_option_change(self) -> None:
@@ -1329,9 +1329,8 @@ class MossbauerFe33GUI(tk.Tk):
             from mossbauer_api_client import MatelecLabClient, DEFAULT_BASE_URL
         except Exception as exc:
             messagebox.showerror(
-                "Web",
-                f"No se pudo cargar el cliente de la API: {exc}\n\n"
-                f"Asegúrate de tener instalado 'requests' (pip install requests).",
+                tr("msg.web_title"),
+                tr("msg.web_api_error", error=str(exc)),
             )
             return
 
@@ -1343,8 +1342,8 @@ class MossbauerFe33GUI(tk.Tk):
         base_url = creds.get("api_base") or DEFAULT_BASE_URL
 
         dialog = tk.Toplevel(self)
-        dialog.title("Descargar calibraciones desde web" if is_calibraciones
-                     else "Descargar medidas desde web")
+        dialog.title(tr("dialog.web_download_calib") if is_calibraciones
+                     else tr("dialog.web_download_meas"))
         dialog.geometry("820x600")
         dialog.transient(self)
         dialog.configure(background="#edf4fb")
@@ -1356,32 +1355,32 @@ class MossbauerFe33GUI(tk.Tk):
         frm.pack(fill=tk.BOTH, expand=True)
         frm.columnconfigure(1, weight=1)
 
-        ttk.Label(frm, text="Servidor:").grid(row=0, column=0, sticky="w", pady=3)
+        ttk.Label(frm, text=tr("label.server")).grid(row=0, column=0, sticky="w", pady=3)
         base_var = tk.StringVar(value=base_url)
         ttk.Entry(frm, textvariable=base_var).grid(row=0, column=1, columnspan=2, sticky="ew", pady=3)
 
-        ttk.Label(frm, text="Usuario:").grid(row=1, column=0, sticky="w", pady=3)
+        ttk.Label(frm, text=tr("label.username")).grid(row=1, column=0, sticky="w", pady=3)
         user_var = tk.StringVar(value=creds.get("username", ""))
         ttk.Entry(frm, textvariable=user_var).grid(row=1, column=1, sticky="ew", pady=3)
 
-        ttk.Label(frm, text="Contraseña:").grid(row=2, column=0, sticky="w", pady=3)
+        ttk.Label(frm, text=tr("label.password")).grid(row=2, column=0, sticky="w", pady=3)
         pass_var = tk.StringVar(value=creds.get("password", ""))
         ttk.Entry(frm, textvariable=pass_var, show="•").grid(row=2, column=1, sticky="ew", pady=3)
         remember_var = tk.BooleanVar(value=bool(creds.get("username") or creds.get("token")))
         ttk.Checkbutton(
             frm,
-            text="Recordar credenciales y token en este ordenador (fichero local, no cifrado)",
+            text=tr("checkbox.remember_credentials"),
             variable=remember_var,
         ).grid(row=2, column=2, sticky="w", padx=(8, 0), pady=3)
 
-        ttk.Label(frm, text="Carpeta destino:").grid(row=3, column=0, sticky="w", pady=3)
+        ttk.Label(frm, text=tr("label.dest_folder")).grid(row=3, column=0, sticky="w", pady=3)
         dest_dir_var = tk.StringVar(value=effective_dir)
         ttk.Entry(frm, textvariable=dest_dir_var).grid(row=3, column=1, sticky="ew", pady=3)
 
         def choose_dest_dir() -> None:
             current = dest_dir_var.get().strip() or str(Path.home())
             selected = filedialog.askdirectory(
-                title="Selecciona o crea carpeta destino",
+                title=tr("dialog.select_folder"),
                 initialdir=current if Path(current).exists() else str(Path.home()),
                 mustexist=False,
             )
@@ -1390,7 +1389,7 @@ class MossbauerFe33GUI(tk.Tk):
 
         def create_subfolder() -> None:
             base = dest_dir_var.get().strip() or str(Path.home() / "Mossbauer")
-            name = simpledialog.askstring("Crear carpeta", "Nombre de la nueva carpeta:", parent=dialog)
+            name = simpledialog.askstring(tr("dialog.create_folder_title"), tr("dialog.create_folder_prompt"), parent=dialog)
             if not name:
                 return
             safe = re.sub(r"[^\w.()+\- ]+", "_", name, flags=re.UNICODE).strip()
@@ -1400,33 +1399,33 @@ class MossbauerFe33GUI(tk.Tk):
             try:
                 path.mkdir(parents=True, exist_ok=True)
             except Exception as exc:
-                messagebox.showerror("Carpeta", f"No se pudo crear la carpeta:\n{exc}")
+                messagebox.showerror(tr("msg.folder_title"), tr("msg.folder_create_error", error=str(exc)))
                 return
             dest_dir_var.set(str(path))
-            status_var.set(f"Carpeta destino: {path}")
+            status_var.set(tr("status.dest_folder_set", path=str(path)))
 
         dir_buttons = ttk.Frame(frm)
         dir_buttons.grid(row=3, column=2, sticky="ew", padx=(8, 0), pady=3)
-        ttk.Button(dir_buttons, text="Elegir", command=choose_dest_dir, style="Small.TButton").pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Button(dir_buttons, text="Crear", command=create_subfolder, style="Small.TButton").pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
+        ttk.Button(dir_buttons, text=tr("button.choose"), command=choose_dest_dir, style="Small.TButton").pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Button(dir_buttons, text=tr("button.create"), command=create_subfolder, style="Small.TButton").pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
 
         with_calib_var = tk.BooleanVar(value=not is_calibraciones)
         if not is_calibraciones:
             ttk.Checkbutton(
                 frm,
-                text="Descargar también la calibración asociada y aplicar su Vmax",
+                text=tr("checkbox.download_calibration_too"),
                 variable=with_calib_var,
             ).grid(row=4, column=1, columnspan=2, sticky="w", pady=(0, 3))
 
-        status_var = tk.StringVar(value="Pulsa 'Listar' para cargar la lista desde la API.")
+        status_var = tk.StringVar(value=tr("status.web_initial"))
         ttk.Label(frm, textvariable=status_var, style="Subtitle.TLabel", wraplength=760).grid(
             row=5, column=0, columnspan=3, sticky="w", pady=(4, 8))
 
         search_var = tk.StringVar()
-        ttk.Label(frm, text="Buscar:").grid(row=6, column=0, sticky="w", pady=(0, 4))
+        ttk.Label(frm, text=tr("label.search")).grid(row=6, column=0, sticky="w", pady=(0, 4))
         search_entry = ttk.Entry(frm, textvariable=search_var)
         search_entry.grid(row=6, column=1, sticky="ew", pady=(0, 4))
-        ttk.Button(frm, text="Limpiar", command=lambda: search_var.set(""),
+        ttk.Button(frm, text=tr("button.clear"), command=lambda: search_var.set(""),
                    style="Small.TButton").grid(row=6, column=2, sticky="ew", padx=(8, 0), pady=(0, 4))
 
         listbox = tk.Listbox(frm, height=12, activestyle="dotbox")
@@ -1444,8 +1443,8 @@ class MossbauerFe33GUI(tk.Tk):
             dialog.update_idletasks()
 
         def describe(item: dict) -> str:
-            sample = item.get("sample") or "(sin muestra)"
-            date = item.get("date") or "sin fecha"
+            sample = item.get("sample") or tr("text.no_sample")
+            date = item.get("date") or tr("text.no_date")
             env = item.get("environment") or item.get("temperature") or "-"
             vcal = item.get("velocity_calibrated")
             vcal_txt = f" · v={vcal}" if vcal not in (None, "") else ""
@@ -1462,7 +1461,7 @@ class MossbauerFe33GUI(tk.Tk):
                     displayed.append(item)
                     listbox.insert(tk.END, describe(item))
             if items:
-                status_var.set(f"Mostrando {len(displayed)} de {len(items)} resultados.")
+                status_var.set(tr("status.search_results", n=len(displayed), total=len(items)))
 
         search_var.trace_add("write", apply_search_filter)
 
@@ -1502,11 +1501,11 @@ class MossbauerFe33GUI(tk.Tk):
             try:
                 client = build_client()
             except Exception as exc:
-                status_var.set(f"No se pudo autenticar: {exc}")
+                status_var.set(tr("status.web_auth_error", error=str(exc)))
                 debug(f"ERROR autenticación: {type(exc).__name__}: {exc}")
                 return
             persist_credentials()
-            status_var.set("Cargando lista desde la API...")
+            status_var.set(tr("status.web_loading"))
             dialog.update_idletasks()
             try:
                 if is_calibraciones:
@@ -1514,26 +1513,26 @@ class MossbauerFe33GUI(tk.Tk):
                 else:
                     items = list(client.iter_medidas())
             except Exception as exc:
-                status_var.set(f"Error cargando la lista: {type(exc).__name__}: {exc}")
+                status_var.set(tr("status.web_list_error", error=f"{type(exc).__name__}: {exc}"))
                 debug(f"ERROR: {type(exc).__name__}: {exc}")
                 return
             debug(f"Recibidos {len(items)} elementos de la API.")
             apply_search_filter()
             if items:
-                status_var.set(f"{len(items)} elementos. Selecciona uno y pulsa Descargar.")
+                status_var.set(tr("status.web_items_count", n=len(items)))
             else:
-                status_var.set("La API no devolvió elementos.")
+                status_var.set(tr("status.web_no_items"))
 
         def do_download() -> None:
             if not (displayed and listbox.curselection()):
-                status_var.set("Selecciona un elemento de la lista.")
+                status_var.set(tr("status.web_select_item"))
                 return
             item = displayed[listbox.curselection()[0]]
             dest_dir = dest_dir_var.get().strip() or str(Path.home() / "Mossbauer")
             try:
                 client = build_client()
             except Exception as exc:
-                status_var.set(f"No se pudo autenticar: {exc}")
+                status_var.set(tr("status.web_auth_error", error=str(exc)))
                 debug(f"ERROR autenticación: {type(exc).__name__}: {exc}")
                 return
             persist_credentials()
@@ -1545,7 +1544,7 @@ class MossbauerFe33GUI(tk.Tk):
                     path = client.download_datafile(item["id"], dest_dir)
                     debug(f"Medida descargada: {path}")
             except Exception as exc:
-                status_var.set(f"Error descargando: {type(exc).__name__}: {exc}")
+                status_var.set(tr("status.web_download_error", error=f"{type(exc).__name__}: {exc}"))
                 debug(f"ERROR: {type(exc).__name__}: {exc}")
                 return
             self.load_ws5(Path(path))
@@ -1555,15 +1554,15 @@ class MossbauerFe33GUI(tk.Tk):
                                                 with_calib_var.get(), debug)
                 except Exception as exc:
                     debug(f"Aviso: no se pudo asociar la calibración: {exc}")
-            status_var.set(f"Descargado: {path}")
+            status_var.set(tr("status.web_downloaded", path=str(path)))
             dialog.destroy()
 
         buttons = ttk.Frame(frm)
         buttons.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(8, 0))
         buttons.columnconfigure(0, weight=1)
         buttons.columnconfigure(1, weight=1)
-        ttk.Button(buttons, text="Listar", command=do_list).grid(row=0, column=0, sticky="ew", padx=(0, 5))
-        ttk.Button(buttons, text="Descargar", command=do_download, style="Accent.TButton").grid(
+        ttk.Button(buttons, text=tr("button.list"), command=do_list).grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        ttk.Button(buttons, text=tr("button.download"), command=do_download, style="Accent.TButton").grid(
             row=0, column=1, sticky="ew", padx=(5, 0))
 
     def _apply_web_calibration(self, client, medida: dict, dest_dir: str,
@@ -1621,9 +1620,8 @@ class MossbauerFe33GUI(tk.Tk):
             from mossbauer_api_client import MatelecLabClient, DEFAULT_BASE_URL
         except Exception as exc:
             messagebox.showerror(
-                "Web",
-                f"No se pudo cargar el cliente de la API: {exc}\n\n"
-                f"Asegúrate de tener instalado 'requests' (pip install requests).",
+                tr("msg.web_title"),
+                tr("msg.web_api_error", error=str(exc)),
             )
             return
 
@@ -1631,7 +1629,7 @@ class MossbauerFe33GUI(tk.Tk):
         base_url = creds.get("api_base") or DEFAULT_BASE_URL
 
         dialog = tk.Toplevel(self)
-        dialog.title("Subir análisis JSON a la web")
+        dialog.title(tr("dialog.upload_session"))
         dialog.geometry("780x540")
         dialog.transient(self)
         dialog.configure(background="#edf4fb")
@@ -1640,37 +1638,36 @@ class MossbauerFe33GUI(tk.Tk):
         frm.pack(fill=tk.BOTH, expand=True)
         frm.columnconfigure(1, weight=1)
 
-        ttk.Label(frm, text="Servidor:").grid(row=0, column=0, sticky="w", pady=3)
+        ttk.Label(frm, text=tr("label.server")).grid(row=0, column=0, sticky="w", pady=3)
         base_var = tk.StringVar(value=base_url)
         ttk.Entry(frm, textvariable=base_var).grid(row=0, column=1, columnspan=2, sticky="ew", pady=3)
 
-        ttk.Label(frm, text="Usuario:").grid(row=1, column=0, sticky="w", pady=3)
+        ttk.Label(frm, text=tr("label.username")).grid(row=1, column=0, sticky="w", pady=3)
         user_var = tk.StringVar(value=creds.get("username", ""))
         ttk.Entry(frm, textvariable=user_var).grid(row=1, column=1, sticky="ew", pady=3)
 
-        ttk.Label(frm, text="Contraseña:").grid(row=2, column=0, sticky="w", pady=3)
+        ttk.Label(frm, text=tr("label.password")).grid(row=2, column=0, sticky="w", pady=3)
         pass_var = tk.StringVar(value=creds.get("password", ""))
         ttk.Entry(frm, textvariable=pass_var, show="•").grid(row=2, column=1, sticky="ew", pady=3)
         remember_var = tk.BooleanVar(value=bool(creds.get("username") or creds.get("token")))
-        ttk.Checkbutton(frm, text="Recordar credenciales y token", variable=remember_var).grid(
+        ttk.Checkbutton(frm, text=tr("checkbox.remember_credentials_short"), variable=remember_var).grid(
             row=2, column=2, sticky="w", padx=(8, 0), pady=3)
 
         default_name = (self.file_path.stem if self.file_path else "mossbauer") + "_session.json"
-        ttk.Label(frm, text="Nombre JSON:").grid(row=3, column=0, sticky="w", pady=3)
+        ttk.Label(frm, text=tr("label.json_name")).grid(row=3, column=0, sticky="w", pady=3)
         name_var = tk.StringVar(value=default_name)
         ttk.Entry(frm, textvariable=name_var).grid(row=3, column=1, columnspan=2, sticky="ew", pady=3)
 
-        ttk.Label(frm, text="Medida (id):").grid(row=4, column=0, sticky="w", pady=3)
+        ttk.Label(frm, text=tr("label.measurement_id")).grid(row=4, column=0, sticky="w", pady=3)
         medida_id_var = tk.StringVar(value="")
         ttk.Entry(frm, textvariable=medida_id_var).grid(row=4, column=1, sticky="ew", pady=3)
 
-        ttk.Label(frm, text="Nota:").grid(row=5, column=0, sticky="nw", pady=3)
+        ttk.Label(frm, text=tr("label.note")).grid(row=5, column=0, sticky="nw", pady=3)
         note_text = tk.Text(frm, height=3, wrap=tk.WORD, background="#ffffff",
                             foreground="#17202a", font=("TkDefaultFont", 9))
         note_text.grid(row=5, column=1, columnspan=2, sticky="ew", pady=3)
 
-        status_var = tk.StringVar(
-            value="Busca la medida por el nombre del fichero cargado y pulsa Subir.")
+        status_var = tk.StringVar(value=tr("status.upload_initial"))
         ttk.Label(frm, textvariable=status_var, style="Subtitle.TLabel", wraplength=740).grid(
             row=6, column=0, columnspan=3, sticky="w", pady=(4, 8))
 
@@ -1713,37 +1710,34 @@ class MossbauerFe33GUI(tk.Tk):
 
         def find_medida() -> None:
             if not self.file_path:
-                status_var.set("No hay fichero de datos cargado; no se puede buscar.")
+                status_var.set(tr("status.no_file_loaded"))
                 return
             try:
                 client = build_client()
             except Exception as exc:
-                status_var.set(f"No se pudo autenticar: {exc}")
+                status_var.set(tr("status.web_auth_error", error=str(exc)))
                 debug(f"ERROR autenticación: {type(exc).__name__}: {exc}")
                 return
             persist_credentials()
-            status_var.set(f"Buscando la medida del fichero {self.file_path.name}...")
+            status_var.set(tr("status.searching_measurement", name=self.file_path.name))
             dialog.update_idletasks()
             try:
                 medida = client.find_medida_by_filename(self.file_path.name)
             except Exception as exc:
-                status_var.set(f"Error buscando: {type(exc).__name__}: {exc}")
+                status_var.set(tr("status.measurement_search_error", error=f"{type(exc).__name__}: {exc}"))
                 debug(f"ERROR: {type(exc).__name__}: {exc}")
                 return
             if not medida:
-                status_var.set(
-                    f"La API no encontró ninguna medida con el fichero {self.file_path.name}.")
+                status_var.set(tr("status.measurement_not_found", name=self.file_path.name))
                 return
             medida_id_var.set(str(medida["id"]))
-            status_var.set(
-                f"Medida encontrada: id {medida['id']} · {medida.get('sample', '')}. "
-                f"Ya puedes pulsar Subir.")
+            status_var.set(tr("status.measurement_found", id=medida['id'], sample=medida.get('sample', '')))
             debug(f"Medida {medida['id']}: {medida.get('sample')} ({medida.get('date')})")
 
         def upload() -> None:
             medida_id = medida_id_var.get().strip()
             if not medida_id:
-                status_var.set("Indica el id de la medida o búscalo por nombre de fichero.")
+                status_var.set(tr("status.upload_no_id"))
                 return
             upload_name = name_var.get().strip() or default_name
             if not upload_name.lower().endswith(".json"):
@@ -1751,7 +1745,7 @@ class MossbauerFe33GUI(tk.Tk):
             try:
                 client = build_client()
             except Exception as exc:
-                status_var.set(f"No se pudo autenticar: {exc}")
+                status_var.set(tr("status.web_auth_error", error=str(exc)))
                 debug(f"ERROR autenticación: {type(exc).__name__}: {exc}")
                 return
             persist_credentials()
@@ -1764,36 +1758,36 @@ class MossbauerFe33GUI(tk.Tk):
                 result = client.upload_analysis(medida_id, data=payload,
                                                 filename=upload_name, note=note)
             except ValueError as exc:
-                status_var.set(f"Subida rechazada: {exc}")
+                status_var.set(tr("status.upload_rejected", error=str(exc)))
                 debug(str(exc))
                 return
             except Exception as exc:
-                status_var.set(f"Error subiendo: {type(exc).__name__}: {exc}")
+                status_var.set(tr("status.upload_error", error=f"{type(exc).__name__}: {exc}"))
                 debug(f"ERROR: {type(exc).__name__}: {exc}")
                 return
             version = result.get("version", "?")
-            status_var.set(f"Análisis subido como {upload_name} (versión {version}).")
+            status_var.set(tr("status.upload_done", name=upload_name, version=version))
             debug(f"OK: {result}")
             messagebox.showinfo(
-                "Web",
-                f"Análisis JSON subido a la medida {medida_id}.\nVersión: {version}")
+                tr("msg.web_title"),
+                tr("msg.upload_success", id=medida_id, version=version))
 
-        ttk.Button(frm, text="Buscar por nombre de fichero", command=find_medida,
+        ttk.Button(frm, text=tr("button.find_by_filename"), command=find_medida,
                    style="Small.TButton").grid(row=4, column=2, sticky="ew", padx=(8, 0), pady=3)
 
         buttons = ttk.Frame(frm)
         buttons.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(8, 0))
         buttons.columnconfigure(0, weight=1)
         buttons.columnconfigure(1, weight=1)
-        ttk.Button(buttons, text="Subir", command=upload, style="Accent.TButton").grid(
+        ttk.Button(buttons, text=tr("button.upload"), command=upload, style="Accent.TButton").grid(
             row=0, column=0, sticky="ew", padx=(0, 5))
-        ttk.Button(buttons, text="Cerrar", command=dialog.destroy).grid(
+        ttk.Button(buttons, text=tr("button.close"), command=dialog.destroy).grid(
             row=0, column=1, sticky="ew", padx=(5, 0))
 
     def open_file(self) -> None:
         filename = filedialog.askopenfilename(
-            title="Selecciona fichero .ws5 o .adt",
-            filetypes=[("Mössbauer WS5/ADT", "*.ws5 *.adt"), ("Wissoft WS5", "*.ws5"), ("ADT antiguo", "*.adt"), ("Todos", "*")],
+            title=tr("dialog.open_file"),
+            filetypes=[(tr("filetype.ws5_adt"), "*.ws5 *.adt"), (tr("filetype.ws5"), "*.ws5"), (tr("filetype.adt"), "*.adt"), (tr("filetype.all"), "*")],
         )
         if filename:
             self.load_ws5(Path(filename))
@@ -1802,7 +1796,7 @@ class MossbauerFe33GUI(tk.Tk):
         try:
             counts = read_ws5_counts(path)
         except Exception as exc:
-            messagebox.showerror("Error al cargar", str(exc))
+            messagebox.showerror(tr("msg.load_error"), str(exc))
             return
         self.file_path = path
         self.current_file_var.set(path.name)
@@ -1981,7 +1975,7 @@ class MossbauerFe33GUI(tk.Tk):
             return
         peaks, baseline, slope = self.detect_absorption_minima()
         if not peaks:
-            messagebox.showinfo("Auto mínimos", "No se detectaron mínimos claros en el espectro.")
+            messagebox.showinfo(tr("msg.auto_minima_title"), tr("msg.auto_minima_none"))
             return
 
         self.fit_mode_var.set("discrete")
@@ -2065,11 +2059,11 @@ class MossbauerFe33GUI(tk.Tk):
             if key in self.fixed_vars:
                 self.fixed_vars[key].set(False)
         self.update_plot()
-        resumen = ", ".join(f"Comp. {idx}: {kind}" for idx, kind, _g in components)
+        resumen = ", ".join(tr("text.component_kind_label", idx=idx, kind=tr(f"kind.{kind}", default=kind)) for idx, kind, _g in components)
         if fit_after:
             self.fit_current_data()
         else:
-            messagebox.showinfo("Auto mínimos", f"Detectados {len(peaks)} mínimos. Propuesta inicial:\n{resumen}\n\nRevisa los parámetros y pulsa Ajuste, o usa Autoajustar desde mínimos.")
+            messagebox.showinfo(tr("msg.auto_minima_title"), tr("msg.auto_minima_detected", n=len(peaks), summary=resumen))
 
     def auto_fit_from_minima(self) -> None:
         self.auto_guess_from_minima(fit_after=True)
@@ -2239,43 +2233,43 @@ class MossbauerFe33GUI(tk.Tk):
 
     def show_ai_suggestion_dialog(self, suggestion: dict[str, object], prompt: str) -> None:
         dialog = tk.Toplevel(self)
-        dialog.title("Sugerencia IA local Ollama")
+        dialog.title(tr("dialog.ai_suggestion_title"))
         dialog.geometry("820x650")
         dialog.transient(self)
         frm = ttk.Frame(dialog, padding=10)
         frm.pack(fill=tk.BOTH, expand=True)
         rationale = str(suggestion.get("rationale", ""))
         conf = suggestion.get("confidence", "?")
-        ttk.Label(frm, text=f"Confianza: {conf}    {rationale}", style="Subtitle.TLabel", wraplength=780).pack(anchor=tk.W, pady=(0, 6))
+        ttk.Label(frm, text=tr("label.confidence_rationale", conf=conf, rationale=rationale), style="Subtitle.TLabel", wraplength=780).pack(anchor=tk.W, pady=(0, 6))
         txt = tk.Text(frm, wrap=tk.WORD, background="#ffffff", foreground="#17202a", font=("TkFixedFont", 9))
         txt.pack(fill=tk.BOTH, expand=True)
         txt.insert("1.0", json.dumps(suggestion, ensure_ascii=False, indent=2))
         buttons = ttk.Frame(frm)
         buttons.pack(fill=tk.X, pady=(8, 0))
-        ttk.Button(buttons, text="Ver prompt enviado", command=lambda: self.show_text_window("Prompt enviado a Ollama", prompt), style="Small.TButton").pack(side=tk.LEFT)
-        ttk.Button(buttons, text="Cerrar", command=dialog.destroy, style="Small.TButton").pack(side=tk.RIGHT)
-        ttk.Button(buttons, text="Aplicar propuesta", command=lambda: (self.apply_ai_suggestion(suggestion), dialog.destroy()), style="Accent.TButton").pack(side=tk.RIGHT, padx=(0, 6))
+        ttk.Button(buttons, text=tr("button.view_prompt"), command=lambda: self.show_text_window(tr("dialog.prompt_window"), prompt), style="Small.TButton").pack(side=tk.LEFT)
+        ttk.Button(buttons, text=tr("button.close"), command=dialog.destroy, style="Small.TButton").pack(side=tk.RIGHT)
+        ttk.Button(buttons, text=tr("button.apply_suggestion"), command=lambda: (self.apply_ai_suggestion(suggestion), dialog.destroy()), style="Accent.TButton").pack(side=tk.RIGHT, padx=(0, 6))
 
     def open_ollama_ai_dialog(self) -> None:
         if self.velocity is None or self.y_data is None:
-            messagebox.showinfo("IA local Ollama", "Carga primero un espectro.")
+            messagebox.showinfo(tr("msg.ollama_title"), tr("msg.ollama_no_spectrum"))
             return
         dialog = tk.Toplevel(self)
-        dialog.title("IA local Ollama: sugerir inicio")
+        dialog.title(tr("dialog.ollama_start"))
         dialog.geometry("760x520")
         dialog.transient(self)
         frm = ttk.Frame(dialog, padding=12)
         frm.pack(fill=tk.BOTH, expand=True)
         frm.columnconfigure(1, weight=1)
-        ttk.Label(frm, text="URL Ollama:").grid(row=0, column=0, sticky="w", pady=3)
+        ttk.Label(frm, text=tr("label.ollama_url")).grid(row=0, column=0, sticky="w", pady=3)
         ttk.Entry(frm, textvariable=self.ai_ollama_url_var).grid(row=0, column=1, sticky="ew", pady=3)
-        ttk.Label(frm, text="Modelo:").grid(row=1, column=0, sticky="w", pady=3)
+        ttk.Label(frm, text=tr("label.ollama_model")).grid(row=1, column=0, sticky="w", pady=3)
         model_entry = ttk.Entry(frm, textvariable=self.ai_ollama_model_var)
         model_entry.grid(row=1, column=1, sticky="ew", pady=3)
         models_var = tk.StringVar(value="")
         model_box = ttk.Combobox(frm, textvariable=models_var, values=(), state="readonly")
         model_box.grid(row=2, column=1, sticky="ew", pady=3)
-        status_var = tk.StringVar(value="Ollama debe estar arrancado localmente. Ejemplo: ollama serve")
+        status_var = tk.StringVar(value=tr("status.ollama_initial"))
         ttk.Label(frm, textvariable=status_var, style="Subtitle.TLabel", wraplength=700).grid(row=3, column=0, columnspan=2, sticky="w", pady=(4, 8))
         prompt = self.build_ollama_prompt()
         txt = tk.Text(frm, height=14, wrap=tk.WORD, background="#ffffff", foreground="#17202a", font=("TkFixedFont", 9))
@@ -2294,7 +2288,7 @@ class MossbauerFe33GUI(tk.Tk):
                 models_var.set(models[0])
                 if not self.ai_ollama_model_var.get().strip():
                     self.ai_ollama_model_var.set(models[0])
-            status_var.set(f"Modelos encontrados: {len(models)}")
+            status_var.set(tr("status.ollama_models_found", n=len(models)))
 
         def choose_model(*_args) -> None:
             if models_var.get():
@@ -2304,22 +2298,22 @@ class MossbauerFe33GUI(tk.Tk):
         def ask_ai() -> None:
             prompt_text = txt.get("1.0", tk.END).strip()
             self.save_settings()
-            status_var.set("Consultando Ollama...")
+            status_var.set(tr("status.ollama_querying"))
             dialog.update_idletasks()
             try:
                 suggestion = self.ollama_request_json(prompt_text, self.ai_ollama_model_var.get().strip(), self.ai_ollama_url_var.get().strip())
             except Exception as exc:
-                messagebox.showerror("IA local Ollama", str(exc))
-                status_var.set("Error consultando Ollama")
+                messagebox.showerror(tr("msg.ollama_title"), str(exc))
+                status_var.set(tr("status.ollama_error"))
                 return
             dialog.destroy()
             self.show_ai_suggestion_dialog(suggestion, prompt_text)
 
         buttons = ttk.Frame(frm)
         buttons.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(8, 0))
-        ttk.Button(buttons, text="Listar modelos", command=load_models, style="Small.TButton").pack(side=tk.LEFT)
-        ttk.Button(buttons, text="Cancelar", command=dialog.destroy, style="Small.TButton").pack(side=tk.RIGHT)
-        ttk.Button(buttons, text="Pedir sugerencia", command=ask_ai, style="Accent.TButton").pack(side=tk.RIGHT, padx=(0, 6))
+        ttk.Button(buttons, text=tr("button.list_models"), command=load_models, style="Small.TButton").pack(side=tk.LEFT)
+        ttk.Button(buttons, text=tr("button.cancel"), command=dialog.destroy, style="Small.TButton").pack(side=tk.RIGHT)
+        ttk.Button(buttons, text=tr("button.ask_suggestion"), command=ask_ai, style="Accent.TButton").pack(side=tk.RIGHT, padx=(0, 6))
 
     def auto_center(self) -> None:
         if self.counts is None:
@@ -2394,13 +2388,13 @@ class MossbauerFe33GUI(tk.Tk):
 
     def open_physical_presets_dialog(self) -> None:
         dialog = tk.Toplevel(self)
-        dialog.title("Presets físicos")
+        dialog.title(tr("dialog.presets_title"))
         dialog.transient(self)
         dialog.resizable(False, False)
         frm = ttk.Frame(dialog, padding=14)
         frm.pack(fill=tk.BOTH, expand=True)
-        ttk.Label(frm, text="Presets rápidos para imponer relaciones físicas habituales", style="Title.TLabel").pack(anchor=tk.W, pady=(0, 8))
-        ttk.Label(frm, text="Se aplican a los componentes activos. Puedes revisarlos después en restricciones/fijos.", style="Subtitle.TLabel", wraplength=520).pack(anchor=tk.W, pady=(0, 10))
+        ttk.Label(frm, text=tr("presets.title"), style="Title.TLabel").pack(anchor=tk.W, pady=(0, 8))
+        ttk.Label(frm, text=tr("presets.subtitle"), style="Subtitle.TLabel", wraplength=520).pack(anchor=tk.W, pady=(0, 10))
 
         def powder_intensities() -> None:
             for idx in (1, 2, 3):
@@ -2411,7 +2405,7 @@ class MossbauerFe33GUI(tk.Tk):
                         self.entry_vars[key].set(self._format_value(key, value))
                         self.fixed_vars[key].set(True)
             self.update_plot()
-            messagebox.showinfo("Preset", "Intensidades 3:2:1 aplicadas y fijadas en sextetes activos.")
+            messagebox.showinfo(tr("msg.preset_title"), tr("msg.preset_intensities"))
 
         def equal_widths_within_components() -> None:
             for idx in (1, 2, 3):
@@ -2422,7 +2416,7 @@ class MossbauerFe33GUI(tk.Tk):
                         self.entry_vars[key].set(self._format_value(key, 1.0))
                         self.fixed_vars[key].set(True)
             self.update_plot()
-            messagebox.showinfo("Preset", "Anchuras relativas Γ2=Γ3=1 aplicadas y fijadas.")
+            messagebox.showinfo(tr("msg.preset_title"), tr("msg.preset_widths"))
 
         def tie_delta_to_component1() -> None:
             added = 0
@@ -2434,7 +2428,7 @@ class MossbauerFe33GUI(tk.Tk):
                         added += 1
             self.apply_constraints_to_vars()
             self.update_plot()
-            messagebox.showinfo("Preset", f"δ de componentes 2/3 ligado a δ1. Restricciones añadidas: {added}.")
+            messagebox.showinfo(tr("msg.preset_title"), tr("msg.preset_delta_tied", n=added))
 
         def tie_width_to_component1() -> None:
             added = 0
@@ -2446,29 +2440,29 @@ class MossbauerFe33GUI(tk.Tk):
                         added += 1
             self.apply_constraints_to_vars()
             self.update_plot()
-            messagebox.showinfo("Preset", f"Γ1 de componentes 2/3 ligado a Γ1 del componente 1. Restricciones añadidas: {added}.")
+            messagebox.showinfo(tr("msg.preset_title"), tr("msg.preset_gamma_tied", n=added))
 
-        ttk.Button(frm, text="Sextetes polvo 3:2:1 (fijar intensidades)", command=powder_intensities, style="Accent.TButton").pack(fill=tk.X, pady=3)
-        ttk.Button(frm, text="Mismas anchuras dentro de cada componente", command=equal_widths_within_components).pack(fill=tk.X, pady=3)
-        ttk.Button(frm, text="Ligar δ de componentes activos a componente 1", command=tie_delta_to_component1).pack(fill=tk.X, pady=3)
-        ttk.Button(frm, text="Ligar Γ1 de componentes activos a componente 1", command=tie_width_to_component1).pack(fill=tk.X, pady=3)
-        ttk.Button(frm, text="Cerrar", command=dialog.destroy).pack(anchor=tk.E, pady=(10, 0))
+        ttk.Button(frm, text=tr("button.preset_powder"), command=powder_intensities, style="Accent.TButton").pack(fill=tk.X, pady=3)
+        ttk.Button(frm, text=tr("button.preset_equal_widths"), command=equal_widths_within_components).pack(fill=tk.X, pady=3)
+        ttk.Button(frm, text=tr("button.preset_tie_delta"), command=tie_delta_to_component1).pack(fill=tk.X, pady=3)
+        ttk.Button(frm, text=tr("button.preset_tie_gamma"), command=tie_width_to_component1).pack(fill=tk.X, pady=3)
+        ttk.Button(frm, text=tr("button.close"), command=dialog.destroy).pack(anchor=tk.E, pady=(10, 0))
 
     def open_constraints_dialog(self) -> None:
         dialog = tk.Toplevel(self)
-        dialog.title("Restricciones entre parámetros")
+        dialog.title(tr("dialog.constraints_title"))
         dialog.geometry("920x520")
         dialog.transient(self)
         dialog.configure(background="#eaf4ff")
 
         frm = ttk.Frame(dialog, padding=10)
         frm.pack(fill=tk.BOTH, expand=True)
-        ttk.Label(frm, text="Restricciones lineales: parámetro destino = factor × parámetro origen + suma", style="Title.TLabel").pack(anchor=tk.W)
-        ttk.Label(frm, text="El parámetro destino queda dependiente: no se ajusta directamente y se recalcula durante el ajuste.", style="Subtitle.TLabel").pack(anchor=tk.W, pady=(0, 8))
+        ttk.Label(frm, text=tr("constraints.title"), style="Title.TLabel").pack(anchor=tk.W)
+        ttk.Label(frm, text=tr("constraints.subtitle"), style="Subtitle.TLabel").pack(anchor=tk.W, pady=(0, 8))
 
         cols = ("enabled", "target", "source", "factor", "offset")
         tree = ttk.Treeview(frm, columns=cols, show="headings", height=9)
-        for col, title, width in [("enabled", "Activa", 70), ("target", "Destino", 170), ("source", "Origen", 170), ("factor", "Factor", 110), ("offset", "Suma", 110)]:
+        for col, title, width in [("enabled", tr("constraints.col_active"), 70), ("target", tr("constraints.col_target"), 170), ("source", tr("constraints.col_source"), 170), ("factor", tr("constraints.col_factor"), 110), ("offset", tr("constraints.col_offset"), 110)]:
             tree.heading(col, text=title)
             tree.column(col, width=width, anchor=tk.CENTER)
         tree.pack(fill=tk.BOTH, expand=True, pady=8)
@@ -2476,7 +2470,7 @@ class MossbauerFe33GUI(tk.Tk):
         def refresh() -> None:
             tree.delete(*tree.get_children())
             for i, c in enumerate(self.constraints):
-                tree.insert("", tk.END, iid=str(i), values=("sí" if c.get("enabled", True) else "no", c.get("target", ""), c.get("source", ""), c.get("factor", 1.0), c.get("offset", 0.0)))
+                tree.insert("", tk.END, iid=str(i), values=(tr("yes") if c.get("enabled", True) else tr("no"), c.get("target", ""), c.get("source", ""), c.get("factor", 1.0), c.get("offset", 0.0)))
 
         edit = ttk.Frame(frm)
         edit.pack(fill=tk.X, pady=(4, 0))
@@ -2486,15 +2480,15 @@ class MossbauerFe33GUI(tk.Tk):
         factor_var = tk.StringVar(value="1.0")
         offset_var = tk.StringVar(value="0.0")
         enabled_var = tk.BooleanVar(value=True)
-        ttk.Label(edit, text="Destino").grid(row=0, column=0, sticky="w")
-        ttk.Label(edit, text="Origen").grid(row=0, column=1, sticky="w")
-        ttk.Label(edit, text="Factor").grid(row=0, column=2, sticky="w")
-        ttk.Label(edit, text="Suma").grid(row=0, column=3, sticky="w")
+        ttk.Label(edit, text=tr("constraints.col_target")).grid(row=0, column=0, sticky="w")
+        ttk.Label(edit, text=tr("constraints.col_source")).grid(row=0, column=1, sticky="w")
+        ttk.Label(edit, text=tr("constraints.col_factor")).grid(row=0, column=2, sticky="w")
+        ttk.Label(edit, text=tr("constraints.col_offset")).grid(row=0, column=3, sticky="w")
         ttk.Combobox(edit, textvariable=target_var, values=keys, width=20, state="readonly").grid(row=1, column=0, padx=(0, 6), sticky="ew")
         ttk.Combobox(edit, textvariable=source_var, values=keys, width=20, state="readonly").grid(row=1, column=1, padx=6, sticky="ew")
         ttk.Entry(edit, textvariable=factor_var, width=12).grid(row=1, column=2, padx=6, sticky="ew")
         ttk.Entry(edit, textvariable=offset_var, width=12).grid(row=1, column=3, padx=6, sticky="ew")
-        ttk.Checkbutton(edit, text="activa", variable=enabled_var).grid(row=1, column=4, padx=6)
+        ttk.Checkbutton(edit, text=tr("constraints.active_check"), variable=enabled_var).grid(row=1, column=4, padx=6)
 
         def selected_index() -> int | None:
             sel = tree.selection()
@@ -2525,13 +2519,13 @@ class MossbauerFe33GUI(tk.Tk):
 
         def make_constraint(skip_index: int | None = None) -> dict[str, object] | None:
             if not target_var.get() or not source_var.get() or target_var.get() == source_var.get():
-                messagebox.showwarning("Restricción", "Elige destino y origen distintos.", parent=dialog)
+                messagebox.showwarning(tr("msg.constraint_title"), tr("msg.constraint_same"), parent=dialog)
                 return None
             if would_create_cycle(target_var.get(), source_var.get(), skip_index):
-                messagebox.showwarning("Restricción", "Esta restricción crea un ciclo. No se añadirá.", parent=dialog)
+                messagebox.showwarning(tr("msg.constraint_title"), tr("msg.constraint_cycle"), parent=dialog)
                 return None
             if source_var.get() in self.fixed_vars and self.fixed_vars[source_var.get()].get():
-                messagebox.showinfo("Restricción", "Aviso: el parámetro origen está fijado; la restricción será constante salvo cambio manual.", parent=dialog)
+                messagebox.showinfo(tr("msg.constraint_title"), tr("msg.constraint_source_fixed"), parent=dialog)
             if target_var.get() in self.fixed_vars and not self.fixed_vars[target_var.get()].get():
                 self.fixed_vars[target_var.get()].set(True)
             return {"enabled": bool(enabled_var.get()), "target": target_var.get(), "source": source_var.get(), "factor": float(factor_var.get().replace(",", ".")), "offset": float(offset_var.get().replace(",", "."))}
@@ -2540,7 +2534,7 @@ class MossbauerFe33GUI(tk.Tk):
             try:
                 c = make_constraint()
             except ValueError:
-                messagebox.showwarning("Restricción", "Factor y suma deben ser numéricos.", parent=dialog); return
+                messagebox.showwarning(tr("msg.constraint_title"), tr("msg.constraint_numeric"), parent=dialog); return
             if c is not None:
                 self.constraints.append(c); refresh(); self.apply_constraints_to_vars(); self.update_plot()
 
@@ -2551,7 +2545,7 @@ class MossbauerFe33GUI(tk.Tk):
             try:
                 c = make_constraint(i)
             except ValueError:
-                messagebox.showwarning("Restricción", "Factor y suma deben ser numéricos.", parent=dialog); return
+                messagebox.showwarning(tr("msg.constraint_title"), tr("msg.constraint_numeric"), parent=dialog); return
             if c is not None:
                 self.constraints[i] = c; refresh(); self.apply_constraints_to_vars(); self.update_plot()
 
@@ -2563,10 +2557,10 @@ class MossbauerFe33GUI(tk.Tk):
         tree.bind("<<TreeviewSelect>>", load_selected)
         buttons = ttk.Frame(frm)
         buttons.pack(fill=tk.X, pady=8)
-        ttk.Button(buttons, text="Añadir", command=add_constraint, style="Accent.TButton").pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Button(buttons, text="Actualizar seleccionada", command=update_constraint, style="Small.TButton").pack(side=tk.LEFT, padx=6)
-        ttk.Button(buttons, text="Borrar seleccionada", command=delete_constraint, style="Small.TButton").pack(side=tk.LEFT, padx=6)
-        ttk.Button(buttons, text="Cerrar", command=dialog.destroy, style="Small.TButton").pack(side=tk.RIGHT)
+        ttk.Button(buttons, text=tr("button.add"), command=add_constraint, style="Accent.TButton").pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(buttons, text=tr("button.update_selected"), command=update_constraint, style="Small.TButton").pack(side=tk.LEFT, padx=6)
+        ttk.Button(buttons, text=tr("button.delete_selected"), command=delete_constraint, style="Small.TButton").pack(side=tk.LEFT, padx=6)
+        ttk.Button(buttons, text=tr("button.close"), command=dialog.destroy, style="Small.TButton").pack(side=tk.RIGHT)
         refresh()
 
     def active_param_keys(self) -> list[str]:
@@ -2685,10 +2679,10 @@ class MossbauerFe33GUI(tk.Tk):
             val = self.calibration_info.get(key)
             if val not in (None, ""):
                 try:
-                    return f"Incertidumbre calibración Vmax ({key}) = {float(val):.4g} mm/s"
+                    return tr("info.calib_uncertainty", key=key, value=f"{float(val):.4g}")
                 except (TypeError, ValueError):
-                    return f"Incertidumbre calibración Vmax ({key}) = {val}"
-        return "Calibración asociada sin incertidumbre explícita de Vmax. Considera error sistemático adicional."
+                    return tr("info.calib_uncertainty_raw", key=key, value=val)
+        return tr("info.calib_no_uncertainty")
 
     def data_sigma(self) -> np.ndarray | None:
         """Incertidumbre 1σ de los datos normalizados por estadística Poisson.
@@ -2815,7 +2809,9 @@ class MossbauerFe33GUI(tk.Tk):
                 components.append((self.component_kind[idx].get(), params))
         return total_model(v, values["baseline"], values["slope"], components)
 
-    def open_progress_dialog(self, title: str, message: str = "Trabajando..."):
+    def open_progress_dialog(self, title: str, message: str | None = None):
+        if message is None:
+            message = tr("progress.generic_working")
         """Ventana simple de progreso para indicar que el cálculo sigue activo."""
         dialog = tk.Toplevel(self)
         dialog.title(title)
@@ -2867,14 +2863,14 @@ class MossbauerFe33GUI(tk.Tk):
         fit_center = self.fit_center_var.get()
         if fit_velocity and not all(self.fixed_vars[k].get() for k in self.active_bhf_keys()):
             messagebox.showwarning(
-                "Ajuste de velocidad",
-                "Para ajustar la velocidad con el patrón, fija el BHF de todos los sextetes activos.",
+                tr("msg.fit_velocity_title"),
+                tr("msg.fit_velocity_requires_bhf_fixed"),
             )
             return
 
         free_keys = [key for key in keys if key not in constrained_targets and not self.fixed_vars.get(key, tk.BooleanVar(value=False)).get()]
         if not free_keys and not fit_velocity and not fit_center:
-            messagebox.showinfo("Ajuste", "Todos los parámetros están fijados. Libera alguno para ajustar.")
+            messagebox.showinfo(tr("msg.fit_title"), tr("msg.fit_all_fixed"))
             return
 
         x0 = [values0[key] for key in free_keys]
@@ -2941,7 +2937,7 @@ class MossbauerFe33GUI(tk.Tk):
                 candidates.append(np.clip(trial, lo_arr, hi_arr))
             return candidates
 
-        progress = self.open_progress_dialog("Ajustando", "Preparando autoarranques...")
+        progress = self.open_progress_dialog(tr("progress.fitting_title"), tr("progress.fit_prepare"))
         _progress_dialog, update_progress, close_progress = progress
         try:
             result = None
@@ -2949,17 +2945,17 @@ class MossbauerFe33GUI(tk.Tk):
             candidates = multistart_candidates()
             for candidate in candidates:
                 n_starts += 1
-                update_progress(f"Ajuste discreto: autoarranque {n_starts}/{len(candidates)}...")
+                update_progress(tr("progress.fit_step", i=n_starts, total=len(candidates)))
                 res_i = least_squares(residual, candidate, bounds=(lo_arr, hi_arr), max_nfev=7000)
                 if result is None or res_i.cost < result.cost:
                     result = res_i
-                    update_progress(f"Autoarranque {n_starts}/{len(candidates)} completado. Nuevo mejor coste: {res_i.cost:.6g}")
+                    update_progress(tr("progress.fit_step_new_best", i=n_starts, total=len(candidates), cost=res_i.cost))
                 else:
-                    update_progress(f"Autoarranque {n_starts}/{len(candidates)} completado. Mejor coste: {result.cost:.6g}")
+                    update_progress(tr("progress.fit_step_done", i=n_starts, total=len(candidates), cost=result.cost))
             assert result is not None
         except Exception as exc:
             close_progress()
-            messagebox.showerror("Error en el ajuste", str(exc))
+            messagebox.showerror(tr("msg.fit_error_title"), str(exc))
             return
 
         # Covarianza aproximada de los parámetros libres para errores 1σ.
@@ -2987,7 +2983,7 @@ class MossbauerFe33GUI(tk.Tk):
             self.last_fit_param_errors = {}
             self.last_fit_correlations = {}
 
-        update_progress("Aplicando mejor ajuste y actualizando gráficos...")
+        update_progress(tr("progress.fit_finalize"))
         values_final, vmax_final, center_final = unpack(result.x)
         y_final, sigma_final = data_for_center(center_final)
         final_residual = self.model_from_values(values_final, vmax_final) - y_final
@@ -3008,22 +3004,22 @@ class MossbauerFe33GUI(tk.Tk):
     def bootstrap_errors_current(self) -> None:
         """Estimación Monte Carlo rápida de errores para el modelo discreto actual."""
         if self.fit_mode_var.get() == "bhf_distribution":
-            messagebox.showinfo("Bootstrap", "Bootstrap MC implementado para ajustes discretos. Para P(BHF), usa estabilidad frente a α.")
+            messagebox.showinfo(tr("msg.bootstrap_title"), tr("msg.bootstrap_discrete_only"))
             return
         if self.velocity is None or self.y_data is None:
             return
         model0 = self.current_model()
         sigma = self.data_sigma()
         if model0 is None or sigma is None:
-            messagebox.showwarning("Bootstrap", "No hay modelo o incertidumbres disponibles.")
+            messagebox.showwarning(tr("msg.bootstrap_title"), tr("msg.bootstrap_no_model"))
             return
         keys = self.active_param_keys()
         constrained_targets = self.constrained_target_keys()
         free_keys = [key for key in keys if key not in constrained_targets and not self.fixed_vars.get(key, tk.BooleanVar(value=False)).get()]
         if not free_keys:
-            messagebox.showinfo("Bootstrap", "No hay parámetros libres para estimar errores.")
+            messagebox.showinfo(tr("msg.bootstrap_title"), tr("msg.bootstrap_no_free"))
             return
-        nrep = simpledialog.askinteger("Bootstrap", "Número de réplicas Monte Carlo:", initialvalue=30, minvalue=5, maxvalue=300, parent=self)
+        nrep = simpledialog.askinteger(tr("msg.bootstrap_title"), tr("dialog.bootstrap_prompt"), initialvalue=30, minvalue=5, maxvalue=300, parent=self)
         if not nrep:
             return
         base_values = {key: self.vars[key].get() for key in keys}
@@ -3034,7 +3030,7 @@ class MossbauerFe33GUI(tk.Tk):
         def model_values(values: dict[str, float]) -> np.ndarray:
             return self.model_from_values(values, abs(self.vars["vmax"].get()))
 
-        progress = self.open_progress_dialog("Bootstrap MC", "Preparando réplicas...")
+        progress = self.open_progress_dialog(tr("progress.bootstrap_title"), tr("progress.bootstrap_prepare"))
         _dlg, update_progress, close_progress = progress
         rng = np.random.default_rng(24680)
         samples: list[np.ndarray] = []
@@ -3047,35 +3043,35 @@ class MossbauerFe33GUI(tk.Tk):
                         vals[key] = float(value)
                     vals = self.apply_constraints_to_values(vals)
                     return (model_values(vals) - y_sim) / sigma
-                update_progress(f"Bootstrap réplica {i + 1}/{nrep}...")
+                update_progress(tr("progress.bootstrap_step", i=i + 1, n=nrep))
                 res = least_squares(resid, x0, bounds=(lo, hi), max_nfev=2500)
                 if res.success and np.all(np.isfinite(res.x)):
                     samples.append(res.x.copy())
             close_progress()
         except Exception as exc:
             close_progress()
-            messagebox.showerror("Bootstrap", str(exc))
+            messagebox.showerror(tr("msg.bootstrap_title"), str(exc))
             return
         if len(samples) < 3:
-            messagebox.showwarning("Bootstrap", "Muy pocas réplicas convergieron.")
+            messagebox.showwarning(tr("msg.bootstrap_title"), tr("msg.bootstrap_few_replicas"))
             return
         arr = np.vstack(samples)
         errs = np.std(arr, axis=0, ddof=1)
         self.last_fit_param_errors.update({k: float(e) for k, e in zip(free_keys, errs)})
         self.last_fit_stats["bootstrap_replicates"] = float(len(samples))
         self.update_info(self.last_fit_stats.get("rms", float("nan")))
-        messagebox.showinfo("Bootstrap", f"Errores MC actualizados con {len(samples)}/{nrep} réplicas convergidas.")
+        messagebox.showinfo(tr("msg.bootstrap_title"), tr("msg.bootstrap_done", ok=len(samples), total=nrep))
 
     def load_fixed_distribution_file(self) -> None:
         filename = filedialog.askopenfilename(
-            title="Cargar distribución fija",
-            filetypes=[("Datos", "*.dat *.txt *.csv"), ("Todos", "*")],
+            title=tr("dialog.load_fixed_dist"),
+            filetypes=[(tr("filetype.data"), "*.dat *.txt *.csv"), (tr("filetype.all"), "*")],
         )
         if filename:
             self.fixed_distribution_path = Path(filename)
             self.dist_shape_var.set("Fija")
             self.last_bhf_fit = None
-            messagebox.showinfo("Distribución fija", f"Cargada:\n{self.fixed_distribution_path}\n\nFormato esperado: dos columnas: parámetro, peso")
+            messagebox.showinfo(tr("msg.fixed_dist_title"), tr("msg.fixed_dist_loaded", path=str(self.fixed_distribution_path)))
             self.update_plot()
 
     def read_fixed_distribution_file(self) -> tuple[np.ndarray, np.ndarray]:
@@ -3133,19 +3129,19 @@ class MossbauerFe33GUI(tk.Tk):
         bmax = self.vars["dist_bmax"].get()
         nbins = int(round(self.vars["dist_nbins"].get()))
         if bmax <= bmin or nbins < 3:
-            messagebox.showwarning("L-curve α", "Revisa B mín/B máx y número de bins.")
+            messagebox.showwarning(tr("msg.lcurve_title"), tr("msg.lcurve_invalid_bins"))
             return
         sharp_components = None
         if self.dist_use_sharp_var.get():
             sharp_components, _indices = self.build_bhf_sharp_components_from_active_components()
-        progress = self.open_progress_dialog("L-curve α", "Preparando escaneo de α...")
+        progress = self.open_progress_dialog(tr("msg.lcurve_title"), tr("progress.lcurve_prepare"))
         _progress_dialog, update_progress, close_progress = progress
         try:
             alphas = np.logspace(-8, 4, 31)
             variable = "quad" if self.dist_variable_var.get() == "ΔEQ" else "bhf"
             scans = []
             for i, a in enumerate(alphas, start=1):
-                update_progress(f"Calculando α {i}/{len(alphas)}: {float(a):.3g}")
+                update_progress(tr("progress.lcurve_step", i=i, total=len(alphas), alpha=float(a)))
                 scans.append(fit_hyperfine_distribution_engine(
                     self.velocity,
                     self.y_data,
@@ -3165,10 +3161,10 @@ class MossbauerFe33GUI(tk.Tk):
                     sharp_components=sharp_components,
                     sigma=self.data_sigma(),
                 ))
-            update_progress("Preparando gráfica L-curve...")
+            update_progress(tr("progress.lcurve_finalize"))
         except Exception as exc:
             close_progress()
-            messagebox.showerror("L-curve α", str(exc))
+            messagebox.showerror(tr("msg.lcurve_title"), str(exc))
             return
         L = second_difference_matrix(nbins)
         sigma = self.data_sigma()
@@ -3189,7 +3185,8 @@ class MossbauerFe33GUI(tk.Tk):
         suggested_compromise = self.suggest_alpha_compromise_from_lcurve_rows(rows)
 
         dialog = tk.Toplevel(self)
-        dialog.title(f"L-curve α para {'P(ΔEQ)' if self.dist_variable_var.get() == 'ΔEQ' else 'P(BHF)'}")
+        dist_label_lc = 'P(ΔEQ)' if self.dist_variable_var.get() == 'ΔEQ' else 'P(BHF)'
+        dialog.title(tr("dialog.lcurve_title", label=dist_label_lc))
         dialog.geometry("850x420")
         dialog.transient(self)
         fig = Figure(figsize=(8.2, 3.6), dpi=100, facecolor="#f8fbff")
@@ -3198,20 +3195,20 @@ class MossbauerFe33GUI(tk.Tk):
         sc = ax0.scatter(rows[:, 3], rows[:, 2], c=np.log10(rows[:, 0]), cmap="viridis", s=34)
         ax0.plot(rows[:, 3], rows[:, 2], "-", color="#94a3b8", lw=0.8)
         ax0.set_xscale("log"); ax0.set_yscale("log")
-        ax0.set_xlabel("||L·P||"); ax0.set_ylabel("||residuo||"); ax0.set_title("L-curve")
+        ax0.set_xlabel(tr("plot.lcurve_xlabel")); ax0.set_ylabel(tr("plot.lcurve_ylabel")); ax0.set_title(tr("plot.lcurve_title"))
         ax0.grid(True, alpha=0.3)
-        fig.colorbar(sc, ax=ax0, label="log10 α")
-        ax1.loglog(rows[:, 0], rows[:, 1], "-o", ms=3.2, label="RMS")
+        fig.colorbar(sc, ax=ax0, label=tr("plot.lcurve_colorbar"))
+        ax1.loglog(rows[:, 0], rows[:, 1], "-o", ms=3.2, label=tr("plot.label_rms"))
         ax1b = ax1.twinx()
-        ax1b.semilogx(rows[:, 0], rows[:, 5], "--", color="#7c3aed", lw=1.0, label="χ² red.")
-        ax1b.set_ylabel("χ² reducido", color="#7c3aed")
+        ax1b.semilogx(rows[:, 0], rows[:, 5], "--", color="#7c3aed", lw=1.0, label=tr("plot.label_chi2_red"))
+        ax1b.set_ylabel(tr("plot.chi2_reduced_ylabel"), color="#7c3aed")
         ax1b.tick_params(axis="y", colors="#7c3aed")
         if suggested is not None:
-            ax1.axvline(suggested, color="#dc2626", ls="--", lw=1.2, label=f"L-curve {suggested:.3g}")
+            ax1.axvline(suggested, color="#dc2626", ls="--", lw=1.2, label=tr("plot.label_lcurve_suggest", value=suggested))
         if suggested_compromise is not None:
-            ax1.axvline(suggested_compromise, color="#16a34a", ls=":", lw=1.4, label=f"compromiso {suggested_compromise:.3g}")
+            ax1.axvline(suggested_compromise, color="#16a34a", ls=":", lw=1.4, label=tr("plot.label_compromise_suggest", value=suggested_compromise))
         ax1.legend(loc="best", fontsize=8)
-        ax1.set_xlabel("α"); ax1.set_ylabel("RMS"); ax1.set_title("RMS / χ² reducido vs α")
+        ax1.set_xlabel("α"); ax1.set_ylabel(tr("plot.label_rms")); ax1.set_title(tr("plot.alpha_scan_title"))
         ax1.grid(True, which="both", alpha=0.3)
         fig.tight_layout()
         canvas = FigureCanvasTkAgg(fig, master=dialog)
@@ -3222,19 +3219,19 @@ class MossbauerFe33GUI(tk.Tk):
         buttons.pack(fill=tk.X)
         def save_alpha_table() -> None:
             filename = filedialog.asksaveasfilename(
-                title="Guardar tabla L-curve α",
+                title=tr("dialog.save_alpha_table"),
                 initialfile=(self.file_path.stem if self.file_path else "mossbauer") + "_alpha_scan.dat",
                 defaultextension=".dat",
-                filetypes=[("Datos", "*.dat"), ("Texto", "*.txt"), ("Todos", "*")],
+                filetypes=[(tr("filetype.data"), "*.dat"), (tr("filetype.text"), "*.txt"), (tr("filetype.all"), "*")],
             )
             if filename:
                 np.savetxt(filename, rows, header="alpha rms norm_residual norm_LP chi2 red_chi2 peak_parameter", fmt="%.10g")
         if suggested_compromise is not None:
-            ttk.Button(buttons, text=f"Usar compromiso ({suggested_compromise:.3g})", command=lambda a=suggested_compromise, d=dialog: (self.set_bhf_alpha_preset(np.log10(a)), d.destroy()), style="Accent.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+            ttk.Button(buttons, text=tr("button.use_compromise", value=suggested_compromise), command=lambda a=suggested_compromise, d=dialog: (self.set_bhf_alpha_preset(np.log10(a)), d.destroy()), style="Accent.TButton").pack(side=tk.RIGHT, padx=(4, 0))
         if suggested is not None:
-            ttk.Button(buttons, text=f"Usar L-curve ({suggested:.3g})", command=lambda a=suggested, d=dialog: (self.set_bhf_alpha_preset(np.log10(a)), d.destroy()), style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
-        ttk.Button(buttons, text="Guardar tabla", command=save_alpha_table, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
-        ttk.Button(buttons, text="Cerrar", command=dialog.destroy, style="Small.TButton").pack(side=tk.RIGHT)
+            ttk.Button(buttons, text=tr("button.use_lcurve", value=suggested), command=lambda a=suggested, d=dialog: (self.set_bhf_alpha_preset(np.log10(a)), d.destroy()), style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+        ttk.Button(buttons, text=tr("button.save_table"), command=save_alpha_table, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+        ttk.Button(buttons, text=tr("button.close"), command=dialog.destroy, style="Small.TButton").pack(side=tk.RIGHT)
 
     def active_sharp_component_indices_for_bhf(self) -> list[int]:
         if not self.dist_use_sharp_var.get():
@@ -3267,10 +3264,10 @@ class MossbauerFe33GUI(tk.Tk):
         bmax = self.vars["dist_bmax"].get()
         nbins = int(round(self.vars["dist_nbins"].get()))
         if bmax <= bmin:
-            messagebox.showwarning("P(BHF)", "B máx debe ser mayor que B mín.")
+            messagebox.showwarning(tr("msg.pbhf_title"), tr("msg.pbhf_bmax_lt_bmin"))
             return
         if nbins < 3:
-            messagebox.showwarning("P(BHF)", "El número de bins debe ser al menos 3.")
+            messagebox.showwarning(tr("msg.pbhf_title"), tr("msg.pbhf_too_few_bins"))
             return
         sharp_components = None
         sharp_indices: list[int] = []
@@ -3350,11 +3347,11 @@ class MossbauerFe33GUI(tk.Tk):
                 sigma=self.data_sigma(),
             )
 
-        progress = self.open_progress_dialog("Distribución hiperfina", "Preparando ajuste de distribución...")
+        progress = self.open_progress_dialog(tr("progress.distribution_title"), tr("progress.distribution_prepare"))
         _progress_dialog, update_progress, close_progress = progress
         try:
             if self.dist_refine_global_var.get():
-                update_progress("Refinando δ y Γ globales...")
+                update_progress(tr("progress.distribution_refine"))
                 x0 = np.array([self.vars["dist_delta"].get(), np.log(max(self.vars["dist_gamma"].get(), 0.03))], dtype=float)
                 lo = np.array([-2.5, np.log(0.03)], dtype=float)
                 hi = np.array([2.5, np.log(1.0)], dtype=float)
@@ -3366,15 +3363,16 @@ class MossbauerFe33GUI(tk.Tk):
                 outer = least_squares(residual_outer, np.clip(x0, lo, hi), bounds=(lo, hi), max_nfev=35)
                 delta_final = float(outer.x[0])
                 gamma_final = float(np.exp(outer.x[1]))
-                update_progress("Calculando distribución final...")
+                update_progress(tr("progress.distribution_compute_final"))
                 result = run_fit(delta_final, gamma_final)
                 self.set_params({"dist_delta": delta_final, "dist_gamma": gamma_final})
             else:
-                update_progress(f"Calculando distribución {self.dist_shape_var.get()}...")
+                shape_disp = tr(f"shape.{self.dist_shape_var.get()}", default=self.dist_shape_var.get())
+                update_progress(tr("progress.distribution_compute", shape=shape_disp))
                 result = run_fit(self.vars["dist_delta"].get(), self.vars["dist_gamma"].get())
         except Exception as exc:
             close_progress()
-            messagebox.showerror("Error en P(BHF)", str(exc))
+            messagebox.showerror(tr("msg.pbhf_error_title"), str(exc))
             return
         self.last_bhf_fit = result
         self.last_bhf_sharp_indices = sharp_indices
@@ -3391,7 +3389,7 @@ class MossbauerFe33GUI(tk.Tk):
         if self.dist_use_sharp_var.get() and result.sharp_weights is not None:
             for idx, weight in zip(sharp_indices, result.sharp_weights):
                 params_to_update[f"s{idx}_depth"] = float(weight)
-        update_progress("Actualizando parámetros y gráficos...")
+        update_progress(tr("progress.distribution_update"))
         self.set_params(params_to_update)
         self.update_plot()
         close_progress()
@@ -3418,17 +3416,17 @@ class MossbauerFe33GUI(tk.Tk):
         self.fig.set_facecolor("#f8fbff")
         ax.set_facecolor("#fbfdff")
         dist_label = "P(ΔEQ)" if self.dist_variable_var.get() == "ΔEQ" else "P(BHF)"
-        ax.set_title(f"Espectro Mössbauer: modo distribución {dist_label}", color="#083344", pad=10, fontweight="bold")
-        ax.set_ylabel("Transmisión normalizada")
+        ax.set_title(tr("plot.title_distribution", label=dist_label), color="#083344", pad=10, fontweight="bold")
+        ax.set_ylabel(tr("plot.transmission_ylabel"))
         ax.grid(True, color="#c8e4f7", alpha=0.85, linewidth=0.8)
         ax.tick_params(colors="#243b53")
         for spine in ax.spines.values():
             spine.set_color("#8ecae6")
 
         if self.velocity is not None and self.y_data is not None:
-            ax.plot(self.velocity, self.y_data, ".", color="#0f172a", ms=4, alpha=0.88, label="Datos doblados")
+            ax.plot(self.velocity, self.y_data, ".", color="#0f172a", ms=4, alpha=0.88, label=tr("plot.legend_data"))
             baseline_line = self.vars["baseline"].get() + self.vars["slope"].get() * self.velocity
-            ax.plot(self.velocity, baseline_line, ":", color="#64748b", lw=1.25, label="Fondo")
+            ax.plot(self.velocity, baseline_line, ":", color="#64748b", lw=1.25, label=tr("plot.legend_baseline"))
             if self.last_bhf_fit is not None:
                 fit = self.last_bhf_fit.fitted_curve
                 sharp_abs_sum = np.zeros_like(self.velocity, dtype=float)
@@ -3442,18 +3440,18 @@ class MossbauerFe33GUI(tk.Tk):
                         sharp_abs = component_absorption(self.velocity, kind, params)
                         sharp_abs_sum += sharp_abs
                         sharp_curve = baseline_line - sharp_abs
-                        ax.plot(self.velocity, sharp_curve, "--", color=colors.get(idx, "#16a34a"), lw=1.45, alpha=0.9, label=f"Comp. {idx} nítido ({kind})")
+                        ax.plot(self.velocity, sharp_curve, "--", color=colors.get(idx, "#16a34a"), lw=1.45, alpha=0.9, label=tr("plot.legend_sharp_component", idx=idx, kind=tr(f"kind.{kind}", default=kind)))
                 if np.any(sharp_abs_sum > 0):
                     distribution_curve = fit + sharp_abs_sum
-                    ax.plot(self.velocity, distribution_curve, "--", color="#2563eb", lw=1.7, alpha=0.95, label="Componente distribución P(BHF)")
-                ax.plot(self.velocity, fit, "-", color="#dc2626", lw=2.4, label="Ajuste total")
+                    ax.plot(self.velocity, distribution_curve, "--", color="#2563eb", lw=1.7, alpha=0.95, label=tr("plot.legend_distribution_component"))
+                ax.plot(self.velocity, fit, "-", color="#dc2626", lw=2.4, label=tr("plot.legend_total_fit"))
                 residual = self.y_data - fit
                 if ax_res is not None:
                     ax_res.set_facecolor("#fff7ed")
                     ax_res.axhline(0, color="#9a3412", lw=0.9, alpha=0.9)
                     ax_res.fill_between(self.velocity, residual, 0, color="#fb923c", alpha=0.22)
                     ax_res.plot(self.velocity, residual, "-", color="#ea580c", lw=1.15)
-                    ax_res.set_ylabel("Datos-ajuste")
+                    ax_res.set_ylabel(tr("plot.residual_ylabel"))
                     ax_res.grid(True, color="#fed7aa", alpha=0.8, linewidth=0.75)
                     lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
                     ax_res.set_ylim(-lim, lim)
@@ -3466,14 +3464,14 @@ class MossbauerFe33GUI(tk.Tk):
                         for b, w in zip(self.last_bhf_fit.sharp_bhf_centers, self.last_bhf_fit.sharp_weights):
                             if np.isfinite(float(b)):
                                 ax_dist.axvline(float(b), color="#dc2626", lw=1.4, ls="--", alpha=0.85)
-                                ax_dist.text(float(b), ymax * 0.92, f"nítido {float(w):.3g}", rotation=90, va="top", ha="right", color="#991b1b", fontsize=8)
-                    ax_dist.set_xlabel("ΔEQ (mm/s)" if self.dist_variable_var.get() == "ΔEQ" else "BHF (T)")
+                                ax_dist.text(float(b), ymax * 0.92, tr("plot.sharp_annotation", weight=float(w)), rotation=90, va="top", ha="right", color="#991b1b", fontsize=8)
+                    ax_dist.set_xlabel(tr("plot.distribution_xlabel_deq") if self.dist_variable_var.get() == "ΔEQ" else tr("plot.distribution_xlabel_bhf"))
                     ax_dist.set_ylabel(dist_label)
                     ax_dist.grid(True, color="#bfdbfe", alpha=0.8, linewidth=0.75)
                 rms = self.last_bhf_fit.rms
             else:
-                ax.text(0.5, 0.12, "Pulsa 'Ajuste' para calcular P(BHF)", transform=ax.transAxes, ha="center", color="#075985", fontsize=12, fontweight="bold")
-                ax.set_xlabel("Velocidad (mm/s)")
+                ax.text(0.5, 0.12, tr("plot.click_fit_pbhf"), transform=ax.transAxes, ha="center", color="#075985", fontsize=12, fontweight="bold")
+                ax.set_xlabel(tr("plot.velocity_xlabel"))
                 rms = float("nan")
             if self.show_legend_var.get():
                 leg = ax.legend(loc="best", frameon=True, facecolor="#ffffff", edgecolor="#bae6fd", framealpha=0.85)
@@ -3482,7 +3480,7 @@ class MossbauerFe33GUI(tk.Tk):
                     text.set_color("#102a43")
             self.update_info_bhf_distribution(rms)
         else:
-            ax.text(0.5, 0.5, "Carga un fichero .ws5", transform=ax.transAxes, ha="center", va="center", color="#075985", fontsize=14, fontweight="bold")
+            ax.text(0.5, 0.5, tr("plot.no_file"), transform=ax.transAxes, ha="center", va="center", color="#075985", fontsize=14, fontweight="bold")
         self.fig.tight_layout()
         self.canvas.draw_idle()
 
@@ -3528,34 +3526,38 @@ class MossbauerFe33GUI(tk.Tk):
     def update_info_bhf_distribution(self, rms: float) -> None:
         if self.counts is None or self.folded_raw is None:
             return
+        dist_label = "P(ΔEQ)" if self.dist_variable_var.get() == "ΔEQ" else "P(BHF)"
+        dist_unit = "mm/s" if self.dist_variable_var.get() == "ΔEQ" else "T"
+        shape_disp = tr(f"shape.{self.dist_shape_var.get()}", default=self.dist_shape_var.get())
         text = [
-            f"Fichero: {self.file_path.name if self.file_path else '-'}",
-            f"Modo: distribución {'P(ΔEQ)' if self.dist_variable_var.get() == 'ΔEQ' else 'P(BHF)'} ({self.dist_shape_var.get()})",
-            f"Folding point centro: {self.vars['center'].get():.5f}",
-            f"Vmax = {self.vars['vmax'].get():.6g} mm/s",
-            f"Base = {self.vars['baseline'].get():.6g}",
-            f"Pendiente = {self.vars['slope'].get():.6g}",
-            f"δ = {self.vars['dist_delta'].get():.6g}, ΔEQ fijo/global = {self.vars['dist_quad'].get():.6g}",
-            f"BHF fijo p/ P(ΔEQ) = {self.vars['dist_fixed_bhf'].get():.6g} T, Γ = {self.vars['dist_gamma'].get():.6g}",
-            f"Rango distribución = {self.vars['dist_bmin'].get():.4g}–{self.vars['dist_bmax'].get():.4g} {'mm/s' if self.dist_variable_var.get() == 'ΔEQ' else 'T'}",
-            f"Bins = {int(round(self.vars['dist_nbins'].get()))}",
-            f"α = {self.dist_alpha():.3g}  (log10 α = {self.vars['dist_log_alpha'].get():.3g})",
-            f"Subespectros nítidos: {', '.join(map(str, self.last_bhf_sharp_indices or self.active_sharp_component_indices_for_bhf())) if self.dist_use_sharp_var.get() else 'no'}",
-            f"RMS ajuste: {rms:.6g}",
+            tr("info.file", name=self.file_path.name if self.file_path else "-"),
+            tr("info.dist_mode", label=dist_label, shape=shape_disp),
+            tr("info.folding_center", center=f"{self.vars['center'].get():.5f}"),
+            tr("info.vmax", value=f"{self.vars['vmax'].get():.6g}"),
+            tr("info.baseline", value=f"{self.vars['baseline'].get():.6g}"),
+            tr("info.slope", value=f"{self.vars['slope'].get():.6g}"),
+            tr("info.dist_delta_quad", delta=self.vars['dist_delta'].get(), quad=self.vars['dist_quad'].get()),
+            tr("info.dist_bhf_gamma", bhf=self.vars['dist_fixed_bhf'].get(), gamma=self.vars['dist_gamma'].get()),
+            tr("info.dist_range", bmin=self.vars['dist_bmin'].get(), bmax=self.vars['dist_bmax'].get(), unit=dist_unit),
+            tr("info.dist_bins", n=int(round(self.vars['dist_nbins'].get()))),
+            tr("info.dist_alpha", alpha=self.dist_alpha(), log_alpha=self.vars['dist_log_alpha'].get()),
+            (tr("info.dist_sharp_yes", indices=", ".join(map(str, self.last_bhf_sharp_indices or self.active_sharp_component_indices_for_bhf())))
+             if self.dist_use_sharp_var.get() else tr("info.dist_sharp_no")),
+            tr("info.rms", value=f"{rms:.6g}"),
         ]
         stats = self.last_fit_stats
         if stats:
             text.extend([
-                f"χ² reducido: {stats.get('red_chi2', float('nan')):.6g}  (χ²={stats.get('chi2', float('nan')):.6g}, gl={stats.get('dof', float('nan')):.0f})",
-                f"AIC = {stats.get('aic', float('nan')):.6g}    BIC = {stats.get('bic', float('nan')):.6g}    parámetros = {stats.get('n_params', float('nan')):.0f}",
-                f"Diagnóstico residuo: lag1={stats.get('resid_lag1', float('nan')):.3f}, runs z={stats.get('resid_runs_z', float('nan')):.3f}, antisim={stats.get('resid_antisym_corr', float('nan')):.3f}",
-                "Comparación de modelos: menor AIC/BIC es mejor si se ajustan los mismos datos.",
-                f"Autoarranques probados: {stats.get('n_starts', 1.0):.0f}",
+                tr("info.chi2_line", red_chi2=f"{stats.get('red_chi2', float('nan')):.6g}", chi2=f"{stats.get('chi2', float('nan')):.6g}", dof=f"{stats.get('dof', float('nan')):.0f}"),
+                tr("info.aic_bic_line", aic=f"{stats.get('aic', float('nan')):.6g}", bic=f"{stats.get('bic', float('nan')):.6g}", n_params=f"{stats.get('n_params', float('nan')):.0f}"),
+                tr("info.residual_diag", lag1=f"{stats.get('resid_lag1', float('nan')):.3f}", z=f"{stats.get('resid_runs_z', float('nan')):.3f}", antisym=f"{stats.get('resid_antisym_corr', float('nan')):.3f}"),
+                tr("info.model_comparison"),
+                tr("info.multistart_count", n=f"{stats.get('n_starts', 1.0):.0f}"),
             ])
             if abs(stats.get('resid_lag1', 0.0)) > 0.35 or abs(stats.get('resid_runs_z', 0.0)) > 2.0 or stats.get('resid_antisym_corr', 0.0) > 0.45:
                 text.extend([
-                    "Aviso residuo: parece tener estructura no aleatoria.",
-                    "  Revisa modelo, folding point, calibración Vmax o componentes faltantes.",
+                    tr("info.residual_warning_1"),
+                    tr("info.residual_warning_2"),
                 ])
         cal_unc = self.calibration_uncertainty_text()
         if cal_unc:
@@ -3565,25 +3567,24 @@ class MossbauerFe33GUI(tk.Tk):
             area = float(np.trapezoid(self.last_bhf_fit.weights, self.last_bhf_fit.bhf_centers))
             dist_area, sharp_areas, dist_pct, sharp_pct = self.bhf_component_area_percentages()
             text.extend([
-                f"Pico {'P(ΔEQ)' if self.dist_variable_var.get() == 'ΔEQ' else 'P(BHF)'}: {peak:.4g} {'mm/s' if self.dist_variable_var.get() == 'ΔEQ' else 'T'}",
-                f"Área P amplitud: {area:.6g}",
+                tr("info.dist_peak", label=dist_label, peak=peak, unit=dist_unit),
+                tr("info.dist_p_area", area=area),
                 "",
-                "Porcentaje de área espectral:",
-                f"  Distribución {'P(ΔEQ)' if self.dist_variable_var.get() == 'ΔEQ' else 'P(BHF)'}: {dist_pct:.3f}%  área={dist_area:.6g}",
+                tr("info.dist_area_header"),
+                tr("info.dist_area_line", label=dist_label, pct=dist_pct, area=dist_area),
             ])
             for idx, kind, pct in sharp_pct:
                 sharp_area = next((a for i, _k, a in sharp_areas if i == idx), 0.0)
-                text.append(f"  Comp. {idx} nítido ({kind}): {pct:.3f}%  área={sharp_area:.6g}")
+                text.append(tr("info.dist_sharp_line", idx=idx, kind=tr(f"kind.{kind}", default=kind), pct=pct, area=sharp_area))
             if self.last_bhf_fit.sharp_bhf_centers is not None and self.last_bhf_fit.sharp_weights is not None:
                 for idx, b, w in zip(self.last_bhf_sharp_indices, self.last_bhf_fit.sharp_bhf_centers, self.last_bhf_fit.sharp_weights):
                     kind = self.component_kind[idx].get()
+                    kind_disp = tr(f"kind.{kind}", default=kind)
                     if np.isfinite(float(b)):
-                        text.append(f"Comp. {idx} nítido ({kind}) BHF={float(b):.4g} T, amp/prof={float(w):.6g}")
+                        text.append(tr("info.dist_sharp_bhf", idx=idx, kind=kind_disp, bhf=float(b), weight=float(w)))
                     else:
-                        text.append(f"Comp. {idx} nítido ({kind}), amp/prof={float(w):.6g}")
-                    text.append(
-                        f"  δ{idx}={self.vars[f's{idx}_delta'].get():.5g}, ΔEQ{idx}={self.vars[f's{idx}_quad'].get():.5g}, Γ{idx}={self.vars[f's{idx}_gamma1'].get():.5g}"
-                    )
+                        text.append(tr("info.dist_sharp_no_bhf", idx=idx, kind=kind_disp, weight=float(w)))
+                    text.append(tr("info.dist_sharp_params", idx=idx, delta=self.vars[f's{idx}_delta'].get(), quad=self.vars[f's{idx}_quad'].get(), gamma=self.vars[f's{idx}_gamma1'].get()))
         self.info.delete("1.0", tk.END)
         self.info.insert(tk.END, "\n".join(text))
 
@@ -3603,8 +3604,8 @@ class MossbauerFe33GUI(tk.Tk):
 
         self.fig.set_facecolor("#f8fbff")
         self.ax.set_facecolor("#fbfdff")
-        self.ax.set_title("Espectro Mössbauer: datos doblados y modelo", color="#083344", pad=10, fontweight="bold")
-        self.ax.set_ylabel("Transmisión normalizada")
+        self.ax.set_title(tr("plot.title_discrete"), color="#083344", pad=10, fontweight="bold")
+        self.ax.set_ylabel(tr("plot.transmission_ylabel"))
         self.ax.grid(True, color="#c8e4f7", alpha=0.85, linewidth=0.8)
         self.ax.tick_params(colors="#243b53")
         for spine in self.ax.spines.values():
@@ -3612,21 +3613,21 @@ class MossbauerFe33GUI(tk.Tk):
 
         if self.ax_res is not None:
             self.ax_res.set_facecolor("#fff7ed")
-            self.ax_res.set_ylabel("Datos-ajuste")
-            self.ax_res.set_xlabel("Velocidad (mm/s)")
+            self.ax_res.set_ylabel(tr("plot.residual_ylabel"))
+            self.ax_res.set_xlabel(tr("plot.velocity_xlabel"))
             self.ax_res.grid(True, color="#fed7aa", alpha=0.8, linewidth=0.75)
             self.ax_res.tick_params(colors="#7c2d12")
             for spine in self.ax_res.spines.values():
                 spine.set_color("#fdba74")
         else:
-            self.ax.set_xlabel("Velocidad (mm/s)")
+            self.ax.set_xlabel(tr("plot.velocity_xlabel"))
 
         if self.velocity is not None and self.y_data is not None:
             model = self.current_model()
-            self.ax.plot(self.velocity, self.y_data, ".", color="#0f172a", ms=4, alpha=0.88, label="Datos doblados")
+            self.ax.plot(self.velocity, self.y_data, ".", color="#0f172a", ms=4, alpha=0.88, label=tr("plot.legend_data"))
             if model is not None:
                 baseline_line = self.vars["baseline"].get() + self.vars["slope"].get() * self.velocity
-                self.ax.plot(self.velocity, baseline_line, ":", color="#64748b", lw=1.35, label="Fondo")
+                self.ax.plot(self.velocity, baseline_line, ":", color="#64748b", lw=1.35, label=tr("plot.legend_baseline"))
 
                 component_colors = {1: "#16a34a", 2: "#f97316", 3: "#8b5cf6"}
                 for idx in (1, 2, 3):
@@ -3643,10 +3644,10 @@ class MossbauerFe33GUI(tk.Tk):
                         color=component_colors[idx],
                         lw=1.65,
                         alpha=0.95,
-                        label=f"{kind} {idx}",
+                        label=f"{tr(f'kind.{kind}', default=kind)} {idx}",
                     )
 
-                self.ax.plot(self.velocity, model, "-", color="#dc2626", lw=2.6, label="Modelo global")
+                self.ax.plot(self.velocity, model, "-", color="#dc2626", lw=2.6, label=tr("plot.legend_model"))
                 residual = self.y_data - model
                 rms = float(np.sqrt(np.mean(residual ** 2)))
                 if self.ax_res is not None:
@@ -3665,7 +3666,7 @@ class MossbauerFe33GUI(tk.Tk):
                     text.set_color("#102a43")
             self.update_info(rms)
         else:
-            self.ax.text(0.5, 0.5, "Carga un fichero .ws5", transform=self.ax.transAxes,
+            self.ax.text(0.5, 0.5, tr("plot.no_file"), transform=self.ax.transAxes,
                          ha="center", va="center", color="#075985", fontsize=14, fontweight="bold")
         self.fig.tight_layout()
         self.canvas.draw_idle()
@@ -3679,32 +3680,32 @@ class MossbauerFe33GUI(tk.Tk):
         pct_active, areas, percentages = self.component_area_percentages()
         pct_errors = self.component_percentage_errors()
         text = [
-            f"Fichero: {self.file_path.name if self.file_path else '-'}",
-            f"Canales leídos: {self.counts.size}",
-            f"Folding point centro: {center:.5f}",
-            f"Folding point Normos aprox.: {2.0 * center:.5f}",
-            f"Pares doblados: {len(self.pairs)}",
-            f"Normalización: / {self.norm_factor:.6g}",
-            f"Vmax = {self.vars['vmax'].get():.6g} mm/s",
-            f"Base = {self.vars['baseline'].get():.6g}",
-            f"Pendiente = {self.vars['slope'].get():.6g}",
-            f"Sextetes activos: {', '.join(map(str, active))}",
-            f"Ajuste velocidad: {'sí, con patrón' if self.fit_velocity_var.get() else 'no'}",
-            f"RMS ajuste: {rms:.6g}",
+            tr("info.file", name=self.file_path.name if self.file_path else "-"),
+            tr("info.channels_read", n=self.counts.size),
+            tr("info.folding_center", center=f"{center:.5f}"),
+            tr("info.folding_normos", value=f"{2.0 * center:.5f}"),
+            tr("info.folded_pairs", n=len(self.pairs)),
+            tr("info.normalization", factor=f"{self.norm_factor:.6g}"),
+            tr("info.vmax", value=f"{self.vars['vmax'].get():.6g}"),
+            tr("info.baseline", value=f"{self.vars['baseline'].get():.6g}"),
+            tr("info.slope", value=f"{self.vars['slope'].get():.6g}"),
+            tr("info.active_sextets", list=", ".join(map(str, active))),
+            tr("info.fit_velocity_yes") if self.fit_velocity_var.get() else tr("info.fit_velocity_no"),
+            tr("info.rms", value=f"{rms:.6g}"),
         ]
         stats = self.last_fit_stats
         if stats:
             text.extend([
-                f"χ² reducido: {stats.get('red_chi2', float('nan')):.6g}  (χ²={stats.get('chi2', float('nan')):.6g}, gl={stats.get('dof', float('nan')):.0f})",
-                f"AIC = {stats.get('aic', float('nan')):.6g}    BIC = {stats.get('bic', float('nan')):.6g}    parámetros = {stats.get('n_params', float('nan')):.0f}",
-                f"Diagnóstico residuo: lag1={stats.get('resid_lag1', float('nan')):.3f}, runs z={stats.get('resid_runs_z', float('nan')):.3f}, antisim={stats.get('resid_antisym_corr', float('nan')):.3f}",
-                "Comparación de modelos: menor AIC/BIC es mejor si se ajustan los mismos datos.",
-                f"Autoarranques probados: {stats.get('n_starts', 1.0):.0f}",
+                tr("info.chi2_line", red_chi2=f"{stats.get('red_chi2', float('nan')):.6g}", chi2=f"{stats.get('chi2', float('nan')):.6g}", dof=f"{stats.get('dof', float('nan')):.0f}"),
+                tr("info.aic_bic_line", aic=f"{stats.get('aic', float('nan')):.6g}", bic=f"{stats.get('bic', float('nan')):.6g}", n_params=f"{stats.get('n_params', float('nan')):.0f}"),
+                tr("info.residual_diag", lag1=f"{stats.get('resid_lag1', float('nan')):.3f}", z=f"{stats.get('resid_runs_z', float('nan')):.3f}", antisym=f"{stats.get('resid_antisym_corr', float('nan')):.3f}"),
+                tr("info.model_comparison"),
+                tr("info.multistart_count", n=f"{stats.get('n_starts', 1.0):.0f}"),
             ])
             if abs(stats.get('resid_lag1', 0.0)) > 0.35 or abs(stats.get('resid_runs_z', 0.0)) > 2.0 or stats.get('resid_antisym_corr', 0.0) > 0.45:
                 text.extend([
-                    "Aviso residuo: parece tener estructura no aleatoria.",
-                    "  Revisa modelo, folding point, calibración Vmax o componentes faltantes.",
+                    tr("info.residual_warning_1"),
+                    tr("info.residual_warning_2"),
                 ])
         cal_unc = self.calibration_uncertainty_text()
         if cal_unc:
@@ -3713,21 +3714,22 @@ class MossbauerFe33GUI(tk.Tk):
         if corr:
             max_pair = corr.get("max_pair") or []
             if max_pair:
-                text.append(f"Correlación máxima: |r|={float(corr.get('max_abs_corr', 0.0)):.3f} entre {max_pair[0]} y {max_pair[1]}")
+                text.append(tr("info.max_correlation", value=f"{float(corr.get('max_abs_corr', 0.0)):.3f}", p1=max_pair[0], p2=max_pair[1]))
             high_pairs = corr.get("high_pairs") or []
             if high_pairs:
-                text.append("Aviso: parámetros muy correlacionados (|r| ≥ 0.95):")
+                text.append(tr("info.correlation_warning"))
                 for pair in high_pairs[:6]:
                     text.append(f"  {pair['param1']} ↔ {pair['param2']}: r={float(pair['corr']):.3f}")
                 if len(high_pairs) > 6:
-                    text.append(f"  ... {len(high_pairs) - 6} correlaciones más")
+                    text.append(tr("info.correlation_more", n=len(high_pairs) - 6))
         text.append("")
         if len(pct_active) > 1:
-            text.append("Porcentaje de área por componente:")
+            text.append(tr("info.area_percent_header"))
             for idx, area, pct in zip(pct_active, areas, percentages):
                 err = pct_errors.get(idx)
                 err_txt = f" ± {err:.3g}%" if err is not None else ""
-                text.append(f"  Comp. {idx} ({self.component_kind[idx].get()}): {pct:.3f}%{err_txt}  área={area:.6g}")
+                kind_disp = tr(f"kind.{self.component_kind[idx].get()}", default=self.component_kind[idx].get())
+                text.append(tr("info.component_percent_line", idx=idx, kind=kind_disp, pct=pct, err_txt=err_txt, area=area))
             text.append("")
         for idx in active:
             p = f"s{idx}_"
@@ -3738,20 +3740,21 @@ class MossbauerFe33GUI(tk.Tk):
             g2 = g1 * self.vars[p + 'gamma2'].get()
             g3 = g1 * self.vars[p + 'gamma3'].get()
             f1, f2, f3 = 2.0 * g1, 2.0 * g2, 2.0 * g3
+            kind_disp = tr(f"kind.{self.component_kind[idx].get()}", default=self.component_kind[idx].get())
             text.extend([
-                f"{self.component_kind[idx].get()} {idx}: BHF={self.vars[p+'bhf'].get():.6g} T, δ={self.vars[p+'delta'].get():.6g}, ΔEQ={self.vars[p+'quad'].get():.6g}",
-                f"  Γ HWHM reales 1/2/3 = {g1:.4g} / {g2:.4g} / {g3:.4g}",
-                f"  FWHM equiv. 1/2/3 = {f1:.4g} / {f2:.4g} / {f3:.4g}",
-                f"  Γ rel 2/3 = {self.vars[p+'gamma2'].get():.4g} / {self.vars[p+'gamma3'].get():.4g}",
-                f"  prof={self.vars[p+'depth'].get():.6g}, I reales={i1:.4g}, {i2_real:.4g}, {i3_real:.4g}",
+                tr("info.component_params_line", kind=kind_disp, idx=idx, bhf=self.vars[p+'bhf'].get(), delta=self.vars[p+'delta'].get(), quad=self.vars[p+'quad'].get()),
+                tr("info.gamma_hwhm", g1=g1, g2=g2, g3=g3),
+                tr("info.fwhm_equiv", f1=f1, f2=f2, f3=f3),
+                tr("info.gamma_rel", gamma2=self.vars[p+'gamma2'].get(), gamma3=self.vars[p+'gamma3'].get()),
+                tr("info.depth_intensities", depth=self.vars[p+'depth'].get(), i1=i1, i2=i2_real, i3=i3_real),
             ])
-        text.extend(["", "Fijados: " + (", ".join(fixed) if fixed else "ninguno")])
+        text.extend(["", tr("info.fixed_line", fixed=(", ".join(fixed) if fixed else tr("info.none")))])
         cons = self.enabled_constraints()
         if cons:
             text.append("")
-            text.append("Restricciones activas:")
+            text.append(tr("info.constraints_header"))
             for c in cons:
-                text.append(f"  {c['target']} = {float(c.get('factor', 1.0)):.6g} · {c['source']} + {float(c.get('offset', 0.0)):.6g}")
+                text.append(tr("info.constraint_line", target=c['target'], factor=float(c.get('factor', 1.0)), source=c['source'], offset=float(c.get('offset', 0.0))))
         self.info.delete("1.0", tk.END)
         self.info.insert(tk.END, "\n".join(text))
 
@@ -3805,10 +3808,10 @@ class MossbauerFe33GUI(tk.Tk):
             loaded_file = True
         elif data.get("counts") is not None:
             self.file_path = file_path
-            self.current_file_var.set(data.get("file_name") or (file_path.name if file_path else "Sesión sin fichero"))
+            self.current_file_var.set(data.get("file_name") or (file_path.name if file_path else tr("text.session_no_file")))
             self.counts = np.array(data["counts"], dtype=float)
         else:
-            raise ValueError("La sesión no contiene fichero accesible ni cuentas guardadas")
+            raise ValueError(tr("msg.session_no_file"))
 
         state = data.get("model_state", {})
         self.updating_sliders = True
@@ -3850,10 +3853,8 @@ class MossbauerFe33GUI(tk.Tk):
                 try:
                     if abs(float(cal_v) - float(self.vars["vmax"].get())) > 1e-3:
                         messagebox.showwarning(
-                            "Calibración",
-                            f"El Vmax de la sesión ({self.vars['vmax'].get():.4f}) difiere "
-                            f"del Vmax de la calibración asociada ({float(cal_v):.4f} mm/s, "
-                            f"calibración id {self.calibration_info.get('calibration_id')}).",
+                            tr("msg.calibration_title"),
+                            tr("msg.calibration_mismatch", session=self.vars['vmax'].get(), calib=float(cal_v), id=self.calibration_info.get('calibration_id')),
                         )
                 except (TypeError, ValueError):
                     pass
@@ -3874,26 +3875,26 @@ class MossbauerFe33GUI(tk.Tk):
             self.info.delete("1.0", tk.END)
             self.info.insert(tk.END, info_text)
         if not loaded_file and self.file_path:
-            self.current_file_var.set(f"{self.file_path.name} (desde sesión)")
+            self.current_file_var.set(tr("text.from_session", name=self.file_path.name))
 
     def save_session_dialog(self) -> None:
         default_name = (self.file_path.stem if self.file_path else "mossbauer") + "_session.json"
         filename = filedialog.asksaveasfilename(
-            title="Guardar sesión",
+            title=tr("dialog.save_session_title"),
             initialfile=default_name,
             defaultextension=".json",
-            filetypes=[("Sesión JSON", "*.json"), ("Todos", "*")],
+            filetypes=[(tr("filetype.json_session"), "*.json"), (tr("filetype.all"), "*")],
         )
         if not filename:
             return
         path = Path(filename)
         path.write_text(json.dumps(self.session_payload(), ensure_ascii=False, indent=2), encoding="utf-8")
-        messagebox.showinfo("Sesión guardada", f"Sesión guardada en:\n{path}")
+        messagebox.showinfo(tr("msg.session_saved_title"), tr("msg.session_saved", path=str(path)))
 
     def load_session_dialog(self) -> None:
         filename = filedialog.askopenfilename(
-            title="Cargar sesión",
-            filetypes=[("Sesión JSON", "*.json"), ("Todos", "*")],
+            title=tr("dialog.load_session_title"),
+            filetypes=[(tr("filetype.json_session"), "*.json"), (tr("filetype.all"), "*")],
         )
         if not filename:
             return
@@ -3901,9 +3902,9 @@ class MossbauerFe33GUI(tk.Tk):
             data = json.loads(Path(filename).read_text(encoding="utf-8"))
             self.apply_session_payload(data)
         except Exception as exc:
-            messagebox.showerror("Error cargando sesión", str(exc))
+            messagebox.showerror(tr("msg.session_load_error"), str(exc))
             return
-        messagebox.showinfo("Sesión cargada", f"Sesión cargada desde:\n{filename}")
+        messagebox.showinfo(tr("msg.session_loaded_title"), tr("msg.session_loaded", path=str(filename)))
 
     def build_markdown_report(self) -> str:
         """Informe humano del ajuste actual en Markdown.
@@ -3917,20 +3918,21 @@ class MossbauerFe33GUI(tk.Tk):
         residual = self.y_data - model if self.y_data is not None and model is not None else None
         stats = self.last_fit_stats or (self.fit_statistics(model - self.y_data, self.data_sigma(), 0) if self.y_data is not None and model is not None else {})
         lines: list[str] = []
-        lines.append("# Informe de ajuste Mössbauer Fe-57")
+        lines.append("# " + tr("report.title"))
         lines.append("")
-        lines.append(f"- **Fecha:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        lines.append(f"- **Programa:** {APP_NAME} v{APP_VERSION}")
-        lines.append(f"- **Fichero:** {self.file_path.name if self.file_path else '-'}")
-        lines.append(f"- **Modo:** {self.fit_mode_var.get()} / {self.dist_shape_var.get() if self.fit_mode_var.get() == 'bhf_distribution' else 'componentes discretos'}")
-        lines.append(f"- **Perfil:** {self.line_profile_var.get()}")
-        lines.append(f"- **Vmax:** {self.vars['vmax'].get():.8g} mm/s")
-        lines.append(f"- **Folding point interno:** {self.vars['center'].get():.8g}")
-        lines.append(f"- **Normalización:** {self.norm_factor:.8g}")
+        lines.append("- " + tr("report.date", date=datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        lines.append("- " + tr("report.program", program=f"{APP_NAME} v{APP_VERSION}"))
+        lines.append("- " + tr("report.file", name=self.file_path.name if self.file_path else '-'))
+        mode_detail = tr(f"shape.{self.dist_shape_var.get()}", default=self.dist_shape_var.get()) if self.fit_mode_var.get() == 'bhf_distribution' else tr("report.mode_discrete")
+        lines.append("- " + tr("report.mode", mode=self.fit_mode_var.get(), detail=mode_detail))
+        lines.append("- " + tr("report.profile", profile=self.line_profile_var.get()))
+        lines.append("- " + tr("report.vmax", value=self.vars['vmax'].get()))
+        lines.append("- " + tr("report.folding", value=self.vars['center'].get()))
+        lines.append("- " + tr("report.normalization", value=self.norm_factor))
         lines.append("")
 
         if self.calibration_info:
-            lines.append("## Calibración asociada")
+            lines.append(tr("report.calibration_header"))
             lines.append("")
             cal_unc = self.calibration_uncertainty_text()
             if cal_unc:
@@ -3941,69 +3943,71 @@ class MossbauerFe33GUI(tk.Tk):
             lines.append("```")
             lines.append("")
 
-        lines.append("## Métricas del ajuste")
+        lines.append(tr("report.metrics_header"))
         lines.append("")
         if stats:
-            lines.append("| Métrica | Valor |")
+            lines.append(f"| {tr('report.metric_col')} | {tr('report.value_col')} |")
             lines.append("|---|---:|")
-            for key, label in (("rms", "RMS"), ("chi2", "χ²"), ("red_chi2", "χ² reducido"), ("dof", "Grados de libertad"), ("aic", "AIC"), ("bic", "BIC"), ("n_params", "Parámetros")):
+            for key, label in (("rms", tr("report.metric_rms")), ("chi2", tr("report.metric_chi2")), ("red_chi2", tr("report.metric_red_chi2")), ("dof", tr("report.metric_dof")), ("aic", tr("report.metric_aic")), ("bic", tr("report.metric_bic")), ("n_params", tr("report.metric_params"))):
                 if key in stats:
                     lines.append(f"| {label} | {stats[key]:.8g} |")
             lines.append("")
-            lines.append("**Diagnóstico de residuo**")
+            lines.append(tr("report.residual_diag_header"))
             lines.append("")
-            lines.append("| Indicador | Valor |")
+            lines.append(f"| {tr('report.indicator_col')} | {tr('report.value_col')} |")
             lines.append("|---|---:|")
-            for key, label in (("resid_lag1", "Autocorrelación lag-1"), ("resid_runs_z", "Test de rachas z"), ("resid_antisym_corr", "Correlación antisimétrica")):
+            for key, label in (("resid_lag1", tr("report.diag_lag1")), ("resid_runs_z", tr("report.diag_runs")), ("resid_antisym_corr", tr("report.diag_antisym"))):
                 if key in stats:
                     lines.append(f"| {label} | {stats[key]:.6g} |")
             lines.append("")
         else:
-            lines.append("No hay métricas disponibles.")
+            lines.append(tr("report.no_metrics"))
             lines.append("")
 
         if self.last_fit_correlations:
-            lines.append("## Correlaciones de parámetros")
+            lines.append(tr("report.correlations_header"))
             lines.append("")
             corr = self.last_fit_correlations
             max_pair = corr.get("max_pair") or []
             if max_pair:
-                lines.append(f"- Máxima |r| = {float(corr.get('max_abs_corr', 0.0)):.4g} entre `{max_pair[0]}` y `{max_pair[1]}`.")
+                lines.append(tr("report.max_correlation", value=float(corr.get('max_abs_corr', 0.0)), p1=max_pair[0], p2=max_pair[1]))
             high_pairs = corr.get("high_pairs") or []
             if high_pairs:
                 lines.append("")
-                lines.append("| Parámetro 1 | Parámetro 2 | r |")
+                lines.append(f"| {tr('report.corr_p1')} | {tr('report.corr_p2')} | {tr('report.corr_r')} |")
                 lines.append("|---|---|---:|")
                 for pair in high_pairs:
                     lines.append(f"| `{pair['param1']}` | `{pair['param2']}` | {float(pair['corr']):.5g} |")
             lines.append("")
 
-        lines.append("## Componentes y áreas")
+        lines.append(tr("report.components_header"))
         lines.append("")
         if self.fit_mode_var.get() == "bhf_distribution" and self.last_bhf_fit is not None:
             dist_area, sharp_areas, dist_pct, sharp_pct = self.bhf_component_area_percentages()
-            lines.append("| Componente | Área | Porcentaje |")
+            lines.append(f"| {tr('report.component_col')} | {tr('report.area_col')} | {tr('report.percent_col')} |")
             lines.append("|---|---:|---:|")
-            lines.append(f"| Distribución {self.dist_variable_var.get()} | {dist_area:.8g} | {dist_pct:.5g}% |")
+            lines.append(f"| {tr('report.distribution_row', var=self.dist_variable_var.get())} | {dist_area:.8g} | {dist_pct:.5g}% |")
             for idx, kind, pct in sharp_pct:
                 area = next((a for i, _k, a in sharp_areas if i == idx), 0.0)
-                lines.append(f"| Nítido {idx} ({kind}) | {area:.8g} | {pct:.5g}% |")
+                kind_disp = tr(f"kind.{kind}", default=kind)
+                lines.append(f"| {tr('report.sharp_row', idx=idx, kind=kind_disp)} | {area:.8g} | {pct:.5g}% |")
         else:
             active, areas, percentages = self.component_area_percentages()
-            lines.append("| Componente | Tipo | Área integrada | Porcentaje |")
+            lines.append(f"| {tr('report.component_col')} | {tr('report.type_col')} | {tr('report.area_integrated_col')} | {tr('report.percent_col')} |")
             lines.append("|---:|---|---:|---:|")
             for idx, area, pct in zip(active, areas, percentages):
-                lines.append(f"| {idx} | {self.component_kind[idx].get()} | {area:.8g} | {pct:.5g}% |")
+                kind_disp = tr(f"kind.{self.component_kind[idx].get()}", default=self.component_kind[idx].get())
+                lines.append(f"| {idx} | {kind_disp} | {area:.8g} | {pct:.5g}% |")
         lines.append("")
 
-        lines.append("## Parámetros")
+        lines.append(tr("report.params_header"))
         lines.append("")
-        lines.append("| Parámetro | Valor | Error 1σ | Fijo |")
+        lines.append(f"| {tr('report.param_col')} | {tr('report.value_col')} | {tr('report.error_col')} | {tr('report.fixed_col')} |")
         lines.append("|---|---:|---:|:---:|")
         for key in self.active_param_keys():
             err = self.last_fit_param_errors.get(key)
             err_txt = f"{err:.6g}" if err is not None else ""
-            fixed = "sí" if self.fixed_vars.get(key, tk.BooleanVar(value=False)).get() else "no"
+            fixed = tr("yes") if self.fixed_vars.get(key, tk.BooleanVar(value=False)).get() else tr("no")
             lines.append(f"| `{key}` | {self.vars[key].get():.8g} | {err_txt} | {fixed} |")
         if self.fit_mode_var.get() == "bhf_distribution":
             for key in ("dist_delta", "dist_quad", "dist_fixed_bhf", "dist_gamma", "dist_bmin", "dist_bmax", "dist_nbins", "dist_log_alpha"):
@@ -4012,21 +4016,21 @@ class MossbauerFe33GUI(tk.Tk):
         lines.append("")
 
         if residual is not None:
-            lines.append("## Resumen numérico residual")
+            lines.append(tr("report.residual_summary_header"))
             lines.append("")
-            lines.append(f"- Media residuo: {float(np.mean(residual)):.8g}")
-            lines.append(f"- Desv. típica residuo: {float(np.std(residual)):.8g}")
-            lines.append(f"- Máximo |residuo|: {float(np.max(np.abs(residual))):.8g}")
+            lines.append(tr("report.residual_mean", value=float(np.mean(residual))))
+            lines.append(tr("report.residual_std", value=float(np.std(residual))))
+            lines.append(tr("report.residual_max", value=float(np.max(np.abs(residual)))))
             lines.append("")
 
-        lines.append("## Texto del panel Estado")
+        lines.append(tr("report.info_panel_header"))
         lines.append("")
         lines.append("```text")
         lines.append(self.info.get("1.0", tk.END).strip() if hasattr(self, "info") else "")
         lines.append("```")
         lines.append("")
         lines.append("---")
-        lines.append("Informe generado automáticamente. Revisar siempre residuos, calibración y sentido físico de los parámetros.")
+        lines.append(tr("report.disclaimer"))
         return "\n".join(lines) + "\n"
 
     def export_report_pdf(self, pdf_path: Path, markdown_text: str) -> None:
@@ -4059,10 +4063,10 @@ class MossbauerFe33GUI(tk.Tk):
     def export_report_dialog(self) -> None:
         default_name = (self.file_path.stem if self.file_path else "mossbauer") + "_informe.md"
         filename = filedialog.asksaveasfilename(
-            title="Exportar informe Markdown",
+            title=tr("dialog.export_report"),
             initialfile=default_name,
             defaultextension=".md",
-            filetypes=[("Markdown", "*.md"), ("Texto", "*.txt"), ("Todos", "*")],
+            filetypes=[(tr("filetype.markdown"), "*.md"), (tr("filetype.text"), "*.txt"), (tr("filetype.all"), "*")],
         )
         if not filename:
             return
@@ -4073,18 +4077,18 @@ class MossbauerFe33GUI(tk.Tk):
             report = self.build_markdown_report()
             md_path.write_text(report, encoding="utf-8")
         except Exception as exc:
-            messagebox.showerror("Informe", f"No se pudo escribir el informe Markdown:\n{exc}")
+            messagebox.showerror(tr("msg.report_title"), tr("msg.report_write_error", error=str(exc)))
             return
         pdf_msg = ""
-        if messagebox.askyesno("Informe", "Informe Markdown guardado.\n\n¿Crear también PDF?"):
+        if messagebox.askyesno(tr("msg.report_title"), tr("msg.report_ask_pdf")):
             pdf_path = md_path.with_suffix(".pdf")
             try:
                 self.export_report_pdf(pdf_path, report)
                 pdf_msg = f"\nPDF: {pdf_path}"
             except Exception as exc:
-                messagebox.showerror("Informe PDF", f"El Markdown se guardó, pero no se pudo crear el PDF:\n{exc}")
+                messagebox.showerror(tr("msg.report_pdf_title"), tr("msg.report_pdf_error", error=str(exc)))
                 return
-        messagebox.showinfo("Informe exportado", f"Markdown: {md_path}{pdf_msg}")
+        messagebox.showinfo(tr("msg.report_done_title"), tr("msg.report_done", md=str(md_path), pdf_msg=pdf_msg))
 
     def save_fit(self) -> None:
         if self.velocity is None or self.y_data is None or self.folded_raw is None:
@@ -4095,10 +4099,10 @@ class MossbauerFe33GUI(tk.Tk):
         suffix = "_bhf_fit.dat" if self.fit_mode_var.get() == "bhf_distribution" else "_fe33_fit.dat"
         default_name = (self.file_path.stem if self.file_path else "espectro") + suffix
         filename = filedialog.asksaveasfilename(
-            title="Guardar ajuste",
+            title=tr("dialog.save_fit_title"),
             initialfile=default_name,
             defaultextension=".dat",
-            filetypes=[("Datos", "*.dat"), ("Todos", "*")],
+            filetypes=[(tr("filetype.data"), "*.dat"), (tr("filetype.all"), "*")],
         )
         if not filename:
             return
@@ -4156,7 +4160,7 @@ class MossbauerFe33GUI(tk.Tk):
                     for idx, b, w in zip(self.last_bhf_sharp_indices, self.last_bhf_fit.sharp_bhf_centers, self.last_bhf_fit.sharp_weights):
                         b_txt = f"{float(b):.8f}" if np.isfinite(float(b)) else "nan"
                         f.write(f"{idx}\t{self.component_kind[idx].get()}\t{b_txt}\t{float(w):.10g}\n")
-        messagebox.showinfo("Guardado", f"Ajuste guardado en:\n{filename}")
+        messagebox.showinfo(tr("msg.saved_title"), tr("msg.fit_saved", path=str(filename)))
 
 
 if __name__ == "__main__":
