@@ -25,6 +25,7 @@ Funciones principales:
 - Porcentajes de área de componentes y errores aproximados.
 - Guardado de ajuste y guardado/carga de sesión completa.
 - Comprobación de nuevas versiones desde GitHub Releases y descarga de actualizaciones.
+- Interfaz preparada para varios idiomas, actualmente con menús en español, inglés y francés; ayuda integrada en español, inglés y francés.
 
 Documentos de propuestas y comparación futura:
 

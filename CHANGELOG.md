@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.10
+
+- Añadidos catálogos de interfaz en inglés y francés en `mossbauer_i18n.py`.
+- El menú `Idioma` permite seleccionar Español, English o Français; la preferencia se guarda en la configuración y se aplica al reiniciar.
+- Añadida ayuda interna en francés y el selector de ayuda ahora permite `es`, `en` y `fr`.
+
 ## v0.2.9
 
 - Añadida capa inicial de internacionalización en `mossbauer_i18n.py`, de momento con catálogo español completo para menús principales y ventana de ayuda.

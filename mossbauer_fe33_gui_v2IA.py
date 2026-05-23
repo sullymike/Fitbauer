@@ -47,7 +47,7 @@ C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
 APP_NAME = "Mössbauer Fe-57 v2IA"
-APP_VERSION = "0.2.9"
+APP_VERSION = "0.2.10"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -411,6 +411,13 @@ class MossbauerFe33GUI(tk.Tk):
         self.fixed_vars: dict[str, tk.BooleanVar] = {}
         self.slider_specs: dict[str, tuple[float, float, float]] = {}
 
+        try:
+            if SETTINGS_PATH.exists():
+                _settings_lang = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("ui_language", get_language())
+                set_language(_settings_lang)
+        except Exception:
+            pass
+
         self._theme_var = tk.StringVar(value="sv_ttk")
         self._sv_available = False
         self._sv_active = False
@@ -602,7 +609,7 @@ class MossbauerFe33GUI(tk.Tk):
                 label=lang_name,
                 variable=self._ui_language_var,
                 value=lang_code,
-                command=lambda code=lang_code: set_language(code),
+                command=lambda code=lang_code: self.change_ui_language(code),
             )
         menubar.add_cascade(label=tr("menu.language"), menu=language_menu)
 
@@ -830,6 +837,7 @@ class MossbauerFe33GUI(tk.Tk):
             "dist_use_sharp": bool(self.dist_use_sharp_var.get()),
             "dist_refine_global": bool(self.dist_refine_global_var.get()),
             "theme": self._theme_var.get(),
+            "ui_language": get_language(),
             "info_text": self.info.get("1.0", tk.END).strip() if hasattr(self, "info") else "",
             "constraints": self.constraints,
             "ai_ollama_url": self.ai_ollama_url_var.get(),
@@ -873,6 +881,10 @@ class MossbauerFe33GUI(tk.Tk):
             self.dist_use_sharp_var.set(bool(data.get("dist_use_sharp", self.dist_use_sharp_var.get())))
             self.dist_refine_global_var.set(bool(data.get("dist_refine_global", self.dist_refine_global_var.get())))
             self._theme_var.set(data.get("theme", "sv_ttk" if self._sv_active else "clam"))
+            if data.get("ui_language"):
+                set_language(data.get("ui_language"))
+                if hasattr(self, "_ui_language_var"):
+                    self._ui_language_var.set(get_language())
             self.constraints = list(data.get("constraints", self.constraints))
             self.ai_ollama_url_var.set(data.get("ai_ollama_url", self.ai_ollama_url_var.get()))
             self.ai_ollama_model_var.set(data.get("ai_ollama_model", self.ai_ollama_model_var.get()))
@@ -892,6 +904,13 @@ class MossbauerFe33GUI(tk.Tk):
             SETTINGS_PATH.write_text(json.dumps(self.settings_payload(), ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception as exc:
             _log_warning("No se pudieron guardar los ajustes", exc)
+
+    def change_ui_language(self, lang: str) -> None:
+        set_language(lang)
+        if hasattr(self, "_ui_language_var"):
+            self._ui_language_var.set(get_language())
+        self.save_settings()
+        messagebox.showinfo(tr("language.restart_title"), tr("language.restart_message"), parent=self)
 
     def on_close(self) -> None:
         self.save_settings()
@@ -949,7 +968,7 @@ class MossbauerFe33GUI(tk.Tk):
 
     def show_help(self) -> None:
         from mossbauer_help import get_help_sections
-        help_lang_var = tk.StringVar(value="es")
+        help_lang_var = tk.StringVar(value=get_language() if get_language() in {"es", "en", "fr"} else "es")
         sections = get_help_sections(VOIGT_SIGMA, SETTINGS_PATH, lang=help_lang_var.get())
 
         win = tk.Toplevel(self)
@@ -966,7 +985,7 @@ class MossbauerFe33GUI(tk.Tk):
         lang_frame = tk.Frame(header_top, bg="#075985")
         lang_frame.pack(side=tk.RIGHT)
         tk.Label(lang_frame, text=tr("help.language_label"), bg="#075985", fg="#dff6ff").pack(side=tk.LEFT, padx=(0, 6))
-        tk.OptionMenu(lang_frame, help_lang_var, "es", "en", command=lambda _value: refresh_language()).pack(side=tk.LEFT)
+        tk.OptionMenu(lang_frame, help_lang_var, "es", "en", "fr", command=lambda _value: refresh_language()).pack(side=tk.LEFT)
         tk.Label(header, text=tr("help.select_chapter"), bg="#075985", fg="#dff6ff").pack(anchor=tk.W)
 
         body = ttk.Frame(win, padding=10)

@@ -31,6 +31,7 @@ Main features:
 - Markdown/PDF report export.
 - Complete JSON session save/load.
 - Update checking through GitHub Releases.
+- Multilingual interface foundation with current menu catalogs in Spanish, English and French; built-in help in Spanish, English and French.
 
 Future-comparison documents:
 
