@@ -928,9 +928,19 @@ class MossbauerFe33GUI(tk.Tk):
         snapshot = self.settings_payload()
         snapshot["ui_language"] = lang
         set_language(lang)
-        self._rebuild_ui()
-        self._apply_state_payload(snapshot, restore_geometry=False)
-        self.update_plot()
+        # Ocultar la ventana evita que Tk repinte cada widget intermedio
+        # durante el destroy/rebuild — la mayor parte del tiempo de cambio
+        # de idioma se va en esos repaints, no en CPU.
+        was_viewable = bool(self.winfo_viewable())
+        if was_viewable:
+            self.withdraw()
+        try:
+            self._rebuild_ui()
+            self._apply_state_payload(snapshot, restore_geometry=False)
+            self.update_plot()
+        finally:
+            if was_viewable:
+                self.deiconify()
         self.save_settings()
 
     def _rebuild_ui(self) -> None:
@@ -1246,6 +1256,8 @@ class MossbauerFe33GUI(tk.Tk):
         global LINE_PROFILE_KIND, VOIGT_SIGMA
         LINE_PROFILE_KIND = self.line_profile_var.get()
         VOIGT_SIGMA = self.vars.get("voigt_sigma", tk.DoubleVar(value=0.05)).get()
+        if self.updating_sliders:
+            return
         self.update_plot()
 
     def _add_slider(self, parent: ttk.Frame, key: str, label: str, value: float,
