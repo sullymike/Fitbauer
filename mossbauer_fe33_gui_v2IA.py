@@ -535,6 +535,7 @@ class MossbauerFe33GUI(tk.Tk):
         file_menu.add_command(label=tr("file.open"), command=self.open_file)
         file_menu.add_command(label=tr("file.web_measurements"), command=lambda: self.open_web_download_dialog(kind="mossbauer"))
         file_menu.add_command(label=tr("file.web_calibrations"), command=self.open_calibration_download_dialog)
+        file_menu.add_command(label=tr("file.use_as_calibration"), command=self.use_loaded_file_as_calibration)
         file_menu.add_separator()
         file_menu.add_command(label=tr("file.save_fit"), command=self.save_fit)
         file_menu.add_command(label=tr("file.export_report"), command=self.export_report_dialog)
@@ -1381,6 +1382,103 @@ class MossbauerFe33GUI(tk.Tk):
 
     def open_calibration_download_dialog(self) -> None:
         self.open_web_download_dialog(kind="calibraciones")
+
+    def use_loaded_file_as_calibration(self) -> None:
+        """Marca el fichero actualmente cargado como espectro de calibración local."""
+        if self.file_path is None:
+            messagebox.showinfo(tr("msg.calibration_title"), tr("msg.no_file_loaded"))
+            return
+
+        fname = self.file_path.name
+        dialog = tk.Toplevel(self)
+        dialog.title(tr("dialog.use_as_calibration"))
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        frm = ttk.Frame(dialog, padding=14)
+        frm.pack(fill=tk.BOTH, expand=True)
+        frm.columnconfigure(1, weight=1)
+
+        ttk.Label(frm, text=tr("label.use_as_calib_info", name=fname),
+                  wraplength=400, justify=tk.LEFT).grid(
+            row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
+
+        ttk.Label(frm, text=tr("label.calib_sample_name")).grid(
+            row=1, column=0, sticky="e", padx=(0, 6), pady=3)
+        sample_var = tk.StringVar(value=self.file_path.stem)
+        ttk.Entry(frm, textvariable=sample_var, width=28).grid(
+            row=1, column=1, sticky="ew", pady=3)
+
+        ttk.Label(frm, text=tr("label.calib_vmax")).grid(
+            row=2, column=0, sticky="e", padx=(0, 6), pady=3)
+        vmax_var = tk.StringVar(value="")
+        ttk.Entry(frm, textvariable=vmax_var, width=14).grid(
+            row=2, column=1, sticky="w", pady=3)
+        ttk.Label(frm, text=tr("label.calib_vmax_hint"),
+                  font=("TkSmallCaptionFont",)).grid(
+            row=3, column=1, sticky="w", pady=(0, 4))
+
+        ttk.Label(frm, text=tr("label.calib_is")).grid(
+            row=4, column=0, sticky="e", padx=(0, 6), pady=3)
+        is_var = tk.StringVar(value="")
+        ttk.Entry(frm, textvariable=is_var, width=14).grid(
+            row=4, column=1, sticky="w", pady=3)
+
+        def confirm() -> None:
+            vmax_text = vmax_var.get().strip().replace(",", ".")
+            is_text = is_var.get().strip().replace(",", ".")
+
+            vmax_val: float | None = None
+            if vmax_text:
+                try:
+                    vmax_val = abs(float(vmax_text))
+                except ValueError:
+                    messagebox.showerror(tr("msg.calibration_title"),
+                                         tr("msg.use_as_calib_invalid_vmax"))
+                    return
+
+            is_val: float | None = None
+            if is_text:
+                try:
+                    is_val = float(is_text)
+                except ValueError:
+                    messagebox.showerror(tr("msg.calibration_title"),
+                                         tr("msg.use_as_calib_invalid_is"))
+                    return
+
+            self.calibration_info = {
+                "source": "local",
+                "calibration_file_name": fname,
+                "calibration_file_path": str(self.file_path),
+                "calibration_sample": sample_var.get().strip() or self.file_path.stem,
+                "calibration_date": None,
+                "velocity_calibrated": vmax_val,
+                "isomer_shift": is_val,
+            }
+
+            if vmax_val is not None:
+                self.updating_sliders = True
+                self.vars["vmax"].set(vmax_val)
+                self.entry_vars["vmax"].set(self._format_value("vmax", vmax_val))
+                self.updating_sliders = False
+                self.refold_data()
+                self.update_plot()
+
+            dialog.destroy()
+            messagebox.showinfo(tr("msg.calibration_title"),
+                                tr("msg.use_as_calib_ok", name=fname))
+
+        buttons = ttk.Frame(frm)
+        buttons.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        buttons.columnconfigure(0, weight=1)
+        buttons.columnconfigure(1, weight=1)
+        ttk.Button(buttons, text=tr("button.cancel"),
+                   command=dialog.destroy).grid(row=0, column=0, sticky="ew", padx=(0, 4))
+        ttk.Button(buttons, text=tr("button.ok"), style="Accent.TButton",
+                   command=confirm).grid(row=0, column=1, sticky="ew", padx=(4, 0))
+
+        dialog.wait_window()
 
     def open_web_download_dialog(self, kind: str = "mossbauer") -> None:
         """Lista y descarga medidas o calibraciones usando la API REST del laboratorio."""
