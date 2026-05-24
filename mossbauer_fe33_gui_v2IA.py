@@ -436,6 +436,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.after(150, self.show_startup_splash)
         self.after(2500, lambda: self.check_for_updates(silent=True))
+        self.after(4000, self._check_requirements_background)
 
     def _reconfigure_styles(self, style: ttk.Style, sv_active: bool) -> None:
         accent = "#0ea5d9"
@@ -1214,6 +1215,10 @@ class MossbauerFe33GUI(tk.Tk):
         from mossbauer_updater_ui import check_for_updates as _check
         _check(self, APP_VERSION, Path(__file__).resolve().parent, CONFIG_DIR,
                silent=silent, with_checksum=True)
+
+    def _check_requirements_background(self) -> None:
+        from mossbauer_updater_ui import check_requirements_if_needed
+        check_requirements_if_needed(Path(__file__).resolve().parent, CONFIG_DIR)
 
     def show_changelog(self) -> None:
         if CHANGELOG_PATH.exists():

@@ -3,12 +3,77 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 import threading
-import webbrowser
 from pathlib import Path
 
 import tkinter as tk
 from tkinter import messagebox, ttk
+
+
+def _pip_install_requirements(install_dir: Path) -> str:
+    """Ejecuta pip install -r requirements.txt del directorio dado.
+
+    Devuelve una cadena con el resultado (vacía si no hay requirements.txt).
+    Nunca lanza excepción.
+    """
+    req_file = install_dir / "requirements.txt"
+    if not req_file.exists():
+        return ""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-r", str(req_file),
+             "--quiet", "--disable-pip-version-check"],
+            capture_output=True, text=True, timeout=120,
+        )
+        if result.returncode == 0:
+            return "Dependencias actualizadas correctamente (pip)."
+        err = (result.stderr or result.stdout or "").strip()
+        return f"Aviso de pip:\n{err[:300]}"
+    except subprocess.TimeoutExpired:
+        return "pip tardó demasiado y se canceló."
+    except Exception as exc:
+        return f"No se pudo ejecutar pip: {exc}"
+
+
+def _update_pip_stamp(install_dir: Path, config_dir: Path) -> None:
+    req_file = install_dir / "requirements.txt"
+    if not req_file.exists():
+        return
+    try:
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "last_pip_check").write_text(
+            str(req_file.stat().st_mtime), encoding="utf-8"
+        )
+    except Exception:
+        pass
+
+
+def check_requirements_if_needed(install_dir: Path, config_dir: Path) -> None:
+    """Lanza pip en background si requirements.txt es más nuevo que el último chequeo."""
+    req_file = install_dir / "requirements.txt"
+    if not req_file.exists():
+        return
+    stamp_file = config_dir / "last_pip_check"
+    req_mtime = req_file.stat().st_mtime
+    if stamp_file.exists():
+        try:
+            last = float(stamp_file.read_text(encoding="utf-8").strip())
+            if req_mtime <= last:
+                return
+        except Exception:
+            pass
+
+    def _worker() -> None:
+        _pip_install_requirements(install_dir)
+        try:
+            config_dir.mkdir(parents=True, exist_ok=True)
+            stamp_file.write_text(str(req_mtime), encoding="utf-8")
+        except Exception:
+            pass
+
+    threading.Thread(target=_worker, daemon=True).start()
 
 
 def load_update_settings(config_dir: Path) -> dict:
@@ -140,9 +205,14 @@ def check_for_updates(
                         except Exception as exc:
                             messagebox.showerror("Actualizaciones", f"No se pudo instalar la actualización:\n{exc}", parent=parent)
                             return
+                        pip_msg = _pip_install_requirements(install_dir)
+                        pip_suffix = f"\n\n{pip_msg}" if pip_msg else ""
+                        # Actualizar sello para no repetir pip al arrancar
+                        _update_pip_stamp(install_dir, config_dir)
                         messagebox.showinfo(
                             "Actualización instalada",
-                            "La nueva versión se ha descomprimido en la carpeta del programa.\n\n"
+                            "La nueva versión se ha descomprimido en la carpeta del programa."
+                            f"{pip_suffix}\n\n"
                             "Cierra y vuelve a abrir el programa para usarla.",
                             parent=parent,
                         )
