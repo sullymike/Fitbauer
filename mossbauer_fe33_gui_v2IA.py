@@ -1775,6 +1775,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.calib_label_var.set(text)
         self.calib_label.pack(anchor=tk.W, fill=tk.X, pady=(0, 6))
 
+
     def open_web_download_dialog(self, kind: str = "mossbauer") -> None:
         """Lista y descarga medidas o calibraciones usando la API REST del laboratorio."""
         try:
