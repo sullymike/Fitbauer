@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.3
+
+- Label de calibración activa en el panel de fichero (bajo el nombre del espectro): muestra origen [local/web], nombre de muestra, Vmax e IS. Se oculta automáticamente cuando no hay calibración asociada y se actualiza al cargar fichero, aplicar calibración web, confirmar calibración local o restaurar sesión.
+- El diálogo `Archivo → Usar fichero actual como calibración...` pre-rellena ahora el campo Vmax con el valor actual del slider y el campo IS con el δ del primer sextete activo en la sesión.
+
 ## v0.4.2
 
 - Nuevo ítem `Archivo → Usar fichero actual como calibración...`: permite marcar el espectro cargado localmente como calibración sin pasar por la web. El diálogo pide nombre de muestra, Vmax (mm/s) e IS (mm/s). Si se indica Vmax, se aplica inmediatamente al espectro activo. La calibración queda registrada con `source="local"` en la sesión JSON y aparece en el panel de información y en el informe exportado.
