@@ -33,6 +33,15 @@ Main features:
 - Update checking through GitHub Releases.
 - Multilingual interface foundation with current menu catalogs in Spanish, English and French; built-in help in Spanish, English and French.
 
+Included sample data:
+
+- `data_sample/calibration.adt`: calibration example.
+- `data_sample/calibration_session.json`: session associated with the calibration.
+- `data_sample/Fe3O4.adt`: Fe₃O₄ sample example.
+- `data_sample/Fe3O4_session.json`: session associated with the Fe₃O₄ sample.
+
+To try them, first open the `.adt` file from **File → Open...** and then load the corresponding session from **File → Load session...**.
+
 Future-comparison documents:
 
 - [`PROPUESTAS_SYNCMOSS.md`](PROPUESTAS_SYNCMOSS.md): proposed future improvements after comparison with SyncMoss.

@@ -27,6 +27,15 @@ Funciones principales:
 - Comprobación de nuevas versiones desde GitHub Releases y descarga de actualizaciones.
 - Interfaz preparada para varios idiomas, actualmente con menús en español, inglés y francés; ayuda integrada en español, inglés y francés.
 
+Datos de ejemplo incluidos:
+
+- `data_sample/calibration.adt`: ejemplo de calibración.
+- `data_sample/calibration_session.json`: sesión asociada a la calibración.
+- `data_sample/Fe3O4.adt`: ejemplo de muestra Fe₃O₄.
+- `data_sample/Fe3O4_session.json`: sesión asociada a la muestra Fe₃O₄.
+
+Para probarlos, abre primero el `.adt` desde **Archivo → Cargar...** y después carga la sesión correspondiente desde **Archivo → Cargar sesión...**.
+
 Documentos de propuestas y comparación futura:
 
 - [`PROPUESTAS_SYNCMOSS.md`](PROPUESTAS_SYNCMOSS.md): mejoras pendientes tras la comparación con SyncMoss.

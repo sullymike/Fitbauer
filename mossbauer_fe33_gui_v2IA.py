@@ -2001,7 +2001,12 @@ class MossbauerFe33GUI(tk.Tk):
     def open_file(self) -> None:
         filename = filedialog.askopenfilename(
             title=tr("dialog.open_file"),
-            filetypes=[(tr("filetype.ws5_adt"), "*.ws5 *.adt"), (tr("filetype.ws5"), "*.ws5"), (tr("filetype.adt"), "*.adt"), (tr("filetype.all"), "*")],
+            filetypes=[
+                (tr("filetype.ws5_adt"), "*.ws5 *.WS5 *.adt *.ADT"),
+                (tr("filetype.ws5"), "*.ws5 *.WS5"),
+                (tr("filetype.adt"), "*.adt *.ADT"),
+                (tr("filetype.all"), "*"),
+            ],
         )
         if filename:
             self.load_ws5(Path(filename))

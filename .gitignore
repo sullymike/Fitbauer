@@ -8,6 +8,8 @@
 !.github/workflows/
 !locales/
 !locales/**
+!data_sample/
+!data_sample/**
 
 # Cachés/temporales habituales si aparecen en la raíz
 __pycache__/
