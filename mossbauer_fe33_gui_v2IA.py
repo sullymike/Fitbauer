@@ -2015,10 +2015,8 @@ class MossbauerFe33GUI(tk.Tk):
         self.file_path = path
         self.current_file_var.set(path.name)
         self.counts = counts
-        # Un fichero nuevo invalida cualquier calibración asociada previa;
-        # el diálogo de descarga web la repuebla después si procede.
-        self.calibration_info = None
-        self.update_calibration_label()
+        # La calibración es independiente del fichero de datos: persiste hasta
+        # que el usuario indique explícitamente otra (diálogo local o descarga web).
         center = read_normos_folding_point(path)
         if center is None:
             center = find_best_integer_or_half_center(counts)
