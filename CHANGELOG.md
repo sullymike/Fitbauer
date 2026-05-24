@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.4
+
+- La calibración activa persiste al cargar nuevos ficheros de datos. Antes se borraba al abrir un `.ws5`/`.adt` local; ahora se mantiene visible hasta que el usuario indique explícitamente otra calibración (mediante el diálogo local o la descarga web).
+
 ## v0.4.3
 
 - Label de calibración activa en el panel de fichero (bajo el nombre del espectro): muestra origen [local/web], nombre de muestra, Vmax e IS. Se oculta automáticamente cuando no hay calibración asociada y se actualiza al cargar fichero, aplicar calibración web, confirmar calibración local o restaurar sesión.
