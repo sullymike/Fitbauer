@@ -52,7 +52,8 @@ jobs:
             captura-distribucion-bhf.png \
             captura-lcurve.png \
             captura-informe-markdown-pdf.png \
-            LICENSE
+            LICENSE \
+            data_sample
           echo "ZIP=$ZIP" >> "$GITHUB_ENV"
           echo "NOTES=$NOTES" >> "$GITHUB_ENV"
 

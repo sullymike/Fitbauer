@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.6
+
+- Datos de ejemplo incluidos en el ZIP de release: `data_sample/calibration.adt` + sesión asociada y `data_sample/Fe3O4.adt` + sesión asociada.
+- El diálogo `Archivo → Cargar...` acepta ahora también extensiones en mayúsculas (`*.WS5`, `*.ADT`).
+- `data_sample/` añadido al workflow de release para que quede incluido en el ZIP.
+
 ## v0.4.5
 
 - Rango de BHF ampliado hasta **60 T**: sliders `BHF` (sextetes discretos), `BHF fijo` (distribución) y `B mín` (rango de distribución) pasan de 50 T a 60 T.
