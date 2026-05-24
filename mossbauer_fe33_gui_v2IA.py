@@ -396,6 +396,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.sextet_enabled: dict[int, tk.BooleanVar] = {1: tk.BooleanVar(value=True), 2: tk.BooleanVar(value=False), 3: tk.BooleanVar(value=False)}
         self.component_kind: dict[int, tk.StringVar] = {1: tk.StringVar(value="Sextete"), 2: tk.StringVar(value="Sextete"), 3: tk.StringVar(value="Sextete")}
         self.current_file_var = tk.StringVar(value="Sin fichero cargado")
+        self.calib_label_var = tk.StringVar(value="")
         self.last_fit_free_keys: list[str] = []
         self.last_fit_cov: np.ndarray | None = None
         self.last_fit_param_errors: dict[str, float] = {}
@@ -665,6 +666,19 @@ class MossbauerFe33GUI(tk.Tk):
             wraplength=405,
         )
         self.file_label.pack(anchor=tk.W, fill=tk.X)
+        self.calib_label = tk.Label(
+            file_box,
+            textvariable=self.calib_label_var,
+            bg=card,
+            fg="#0e7490",
+            font=("TkDefaultFont", 9),
+            anchor="w",
+            justify="left",
+            padx=10,
+            pady=0,
+            wraplength=405,
+        )
+        # Se muestra solo cuando hay calibración activa (update_calibration_label lo gestiona)
 
         info_box = ttk.LabelFrame(controls, text=tr("controls.info_box"), style="Section.TLabelframe")
         info_box.pack(fill=tk.X, pady=8)
@@ -1410,18 +1424,31 @@ class MossbauerFe33GUI(tk.Tk):
         ttk.Entry(frm, textvariable=sample_var, width=28).grid(
             row=1, column=1, sticky="ew", pady=3)
 
+        # Vmax: pre-rellena desde el valor actual del slider
+        current_vmax_str = ""
+        if "vmax" in self.vars:
+            current_vmax_str = f"{self.vars['vmax'].get():.6g}"
+
         ttk.Label(frm, text=tr("label.calib_vmax")).grid(
             row=2, column=0, sticky="e", padx=(0, 6), pady=3)
-        vmax_var = tk.StringVar(value="")
+        vmax_var = tk.StringVar(value=current_vmax_str)
         ttk.Entry(frm, textvariable=vmax_var, width=14).grid(
             row=2, column=1, sticky="w", pady=3)
         ttk.Label(frm, text=tr("label.calib_vmax_hint"),
                   font=("TkSmallCaptionFont",)).grid(
             row=3, column=1, sticky="w", pady=(0, 4))
 
+        # IS (delta): pre-rellena desde el primer sextete activo de la sesión
+        active_idx = next((i for i in (1, 2, 3) if self.sextet_enabled[i].get()), None)
+        current_is_str = ""
+        if active_idx is not None:
+            delta_key = f"s{active_idx}_delta"
+            if delta_key in self.vars:
+                current_is_str = f"{self.vars[delta_key].get():.6g}"
+
         ttk.Label(frm, text=tr("label.calib_is")).grid(
             row=4, column=0, sticky="e", padx=(0, 6), pady=3)
-        is_var = tk.StringVar(value="")
+        is_var = tk.StringVar(value=current_is_str)
         ttk.Entry(frm, textvariable=is_var, width=14).grid(
             row=4, column=1, sticky="w", pady=3)
 
@@ -1465,6 +1492,7 @@ class MossbauerFe33GUI(tk.Tk):
                 self.refold_data()
                 self.update_plot()
 
+            self.update_calibration_label()
             dialog.destroy()
             messagebox.showinfo(tr("msg.calibration_title"),
                                 tr("msg.use_as_calib_ok", name=fname))
@@ -1479,6 +1507,34 @@ class MossbauerFe33GUI(tk.Tk):
                    command=confirm).grid(row=0, column=1, sticky="ew", padx=(4, 0))
 
         dialog.wait_window()
+
+    def update_calibration_label(self) -> None:
+        """Actualiza el widget de calibración activa en el panel de fichero."""
+        info = self.calibration_info
+        if not info:
+            self.calib_label_var.set("")
+            self.calib_label.pack_forget()
+            return
+        source = info.get("source", "?")
+        sample = info.get("calibration_sample") or info.get("calibration_file_name") or "?"
+        title = tr("msg.calibration_title")
+        line1 = f"{title} [{source}]:  {sample}"
+        parts2: list[str] = []
+        vmax = info.get("velocity_calibrated")
+        if vmax not in (None, ""):
+            try:
+                parts2.append(f"Vmax: {float(vmax):.6g} mm/s")
+            except (TypeError, ValueError):
+                pass
+        is_val = info.get("isomer_shift")
+        if is_val not in (None, ""):
+            try:
+                parts2.append(f"IS: {float(is_val):.6g} mm/s")
+            except (TypeError, ValueError):
+                pass
+        text = line1 + ("\n" + "   ".join(parts2) if parts2 else "")
+        self.calib_label_var.set(text)
+        self.calib_label.pack(anchor=tk.W, fill=tk.X, pady=(0, 6))
 
     def open_web_download_dialog(self, kind: str = "mossbauer") -> None:
         """Lista y descarga medidas o calibraciones usando la API REST del laboratorio."""
@@ -1754,6 +1810,7 @@ class MossbauerFe33GUI(tk.Tk):
             except Exception as exc:
                 debug(f"No se pudo descargar el fichero de calibración: {exc}")
         self.calibration_info = info
+        self.update_calibration_label()
         vmax = info.get("velocity_calibrated")
         if vmax in (None, ""):
             debug("La calibración no trae velocity_calibrated; no se aplica Vmax.")
@@ -1961,6 +2018,7 @@ class MossbauerFe33GUI(tk.Tk):
         # Un fichero nuevo invalida cualquier calibración asociada previa;
         # el diálogo de descarga web la repuebla después si procede.
         self.calibration_info = None
+        self.update_calibration_label()
         center = read_normos_folding_point(path)
         if center is None:
             center = find_best_integer_or_half_center(counts)
@@ -4004,6 +4062,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.updating_sliders = False
 
         self.calibration_info = data.get("calibration")
+        self.update_calibration_label()
         if self.calibration_info:
             cal_v = self.calibration_info.get("velocity_calibrated")
             if cal_v not in (None, "") and "vmax" in self.vars:
