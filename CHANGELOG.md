@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.4.2
+
+- Nuevo ítem `Archivo → Usar fichero actual como calibración...`: permite marcar el espectro cargado localmente como calibración sin pasar por la web. El diálogo pide nombre de muestra, Vmax (mm/s) e IS (mm/s). Si se indica Vmax, se aplica inmediatamente al espectro activo. La calibración queda registrada con `source="local"` en la sesión JSON y aparece en el panel de información y en el informe exportado.
+- Traducciones del nuevo diálogo y sus mensajes añadidas en español, inglés y francés.
+- Nueva clave `button.ok` en los tres catálogos de idioma.
+- Documentación del nuevo flujo en la sección "Archivo y web" de la ayuda integrada (es/en/fr).
+
 ## v0.4.1
 
 - El cambio de idioma en caliente es ahora perceptiblemente más rápido: la ventana se oculta durante el destroy/rebuild para que Tk no repinte cada widget intermedio, y se elimina el redraw duplicado de matplotlib que ocurría a mitad de la restauración del estado.
