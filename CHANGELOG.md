@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.7
+
+- Tras instalar una actualización, el programa ejecuta automáticamente `pip install -r requirements.txt` y muestra el resultado en el mensaje de "reinicia el programa".
+- Al arrancar, si `requirements.txt` es más nuevo que el último chequeo registrado, pip se lanza en background sin interrumpir al usuario. El sello de última comprobación se guarda en el directorio de configuración.
+
 ## v0.4.6
 
 - Datos de ejemplo incluidos en el ZIP de release: `data_sample/calibration.adt` + sesión asociada y `data_sample/Fe3O4.adt` + sesión asociada.
