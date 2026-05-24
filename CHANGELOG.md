@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.5
+
+- Rango de BHF ampliado hasta **60 T**: sliders `BHF` (sextetes discretos), `BHF fijo` (distribución) y `B mín` (rango de distribución) pasan de 50 T a 60 T.
+- Rango de **AEQ permitido hasta valores negativos**: sliders `AEQ` (sextetes discretos) y `ΔEQ fijo` (distribución) pasan de [0, 4] a [−4, 4] mm/s.
+
 ## v0.4.4
 
 - La calibración activa persiste al cargar nuevos ficheros de datos. Antes se borraba al abrir un `.ws5`/`.adt` local; ahora se mantiene visible hasta que el usuario indique explícitamente otra calibración (mediante el diálogo local o la descarga web).
