@@ -3,6 +3,7 @@
 Layout adaptativo basado en la altura de la ventana:
   - Si hay espacio suficiente: componentes apilados verticalmente.
   - Si no caben (la ventana es demasiado baja): pestañas de notebook.
+  - Si el panel está en la columna central (_force_tabs=True): siempre pestañas.
 Los sliders de cada componente se distribuyen en 2 columnas que se adaptan
 al ancho del panel.
 """
@@ -40,6 +41,8 @@ class SimPanel(BasePanel):
         self._comp_area: ttk.Frame | None = None
         self._using_tabs: bool = False
         self._layout_timer: str | None = None
+        # Cuando True (columna central), los componentes usan pestañas siempre
+        self._force_tabs: bool = False
 
     # ── build ─────────────────────────────────────────────────────────────────
 
@@ -50,22 +53,26 @@ class SimPanel(BasePanel):
             parent, text=tr("controls.simulation_box"), style="Section.TLabelframe"
         )
 
-        # ── Cabecera: botones de acción ───────────────────────────────────────
-        hdr = ttk.Frame(sim_box)
-        hdr.pack(fill=tk.X, pady=(0, 4))
-        ttk.Label(hdr, text=tr("controls.fit_mode_hint"), style="Subtitle.TLabel").pack(
-            side=tk.LEFT, anchor=tk.W
-        )
-        ttk.Button(hdr, text=tr("sim.fit"), command=app.fit_current_data,
-                   style="Accent.TButton").pack(side=tk.RIGHT, padx=(4, 0))
-        ttk.Button(hdr, text=tr("sim.ai_start"), command=app.open_ollama_ai_dialog,
-                   style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
-        ttk.Button(hdr, text=tr("sim.auto_minima"), command=app.auto_fit_from_minima,
-                   style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
-        ttk.Button(hdr, text=tr("sim.fix_all"), command=app.fix_all_parameters,
-                   style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
-        ttk.Button(hdr, text=tr("sim.free_all"), command=app.free_all_parameters,
-                   style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+        # ── Fila 1: hint de modo + botón principal ────────────────────────────
+        hdr1 = ttk.Frame(sim_box)
+        hdr1.pack(fill=tk.X, pady=(0, 2))
+        ttk.Label(hdr1, text=tr("controls.fit_mode_hint"),
+                  style="Subtitle.TLabel").pack(side=tk.LEFT, anchor=tk.W)
+        ttk.Button(hdr1, text=tr("sim.fit"), command=app.fit_current_data,
+                   style="Accent.TButton").pack(side=tk.RIGHT)
+
+        # ── Fila 2: botones secundarios (siempre visibles, expanden al ancho) ─
+        hdr2 = ttk.Frame(sim_box)
+        hdr2.pack(fill=tk.X, pady=(0, 4))
+        for text, cmd in [
+            (tr("sim.free_all"),    app.free_all_parameters),
+            (tr("sim.fix_all"),     app.fix_all_parameters),
+            (tr("sim.auto_minima"), app.auto_fit_from_minima),
+            (tr("sim.ai_start"),    app.open_ollama_ai_dialog),
+        ]:
+            ttk.Button(hdr2, text=text, command=cmd,
+                       style="Small.TButton").pack(side=tk.LEFT, expand=True,
+                                                   fill=tk.X, padx=(0, 2))
 
         # ── Selector de número de componentes ─────────────────────────────────
         ncomp_row = ttk.Frame(sim_box)
@@ -104,12 +111,13 @@ class SimPanel(BasePanel):
         comp_area.pack(fill=tk.X)
         self._comp_area = comp_area
 
-        self._build_stacked(comp_area)
+        if self._force_tabs:
+            self._build_tabbed(comp_area)
+        else:
+            self._build_stacked(comp_area)
+            sim_box.after(400, self._check_layout)
 
         app._refresh_distribution_tab_visibility(update=False)
-
-        # Comprobar modo inicial una vez que la ventana esté renderizada
-        sim_box.after(400, self._check_layout)
 
         self._root = sim_box
         return sim_box
@@ -123,15 +131,20 @@ class SimPanel(BasePanel):
         ttk.Label(dist_top, text=tr("bhf.description"), style="Subtitle.TLabel").pack(
             side=tk.LEFT, anchor=tk.W
         )
-        dist_cols = ttk.Frame(dist_tab)
-        dist_cols.pack(fill=tk.X)
-        d1 = ttk.Frame(dist_cols)
-        d2 = ttk.Frame(dist_cols)
-        d3 = ttk.Frame(dist_cols)
-        d1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 8))
-        d2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4)
-        d3.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(8, 0))
 
+        # ── Fila superior: d1 (parámetros principales) | d2 (rango/bins) ──────
+        row1 = ttk.Frame(dist_tab)
+        row1.pack(fill=tk.X)
+        d1 = ttk.Frame(row1)
+        d2 = ttk.Frame(row1)
+        d1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 6))
+        d2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # ── Fila inferior: d3 (regularización) — ancho completo ──────────────
+        d3 = ttk.Frame(dist_tab)
+        d3.pack(fill=tk.X, pady=(6, 0))
+
+        # d1 — parámetros y opciones de distribución
         self._add_slider(d1, "dist_delta",     tr("slider.dist_delta"),     0.0,          -2.5, 2.5,  0.001, fit_param=False)
         self._add_slider(d1, "dist_quad",      tr("slider.dist_quad"),      0.0,          -4.0, 4.0,  0.001, fit_param=False)
         self._add_slider(d1, "dist_fixed_bhf", tr("slider.dist_fixed_bhf"), BHF_DEFAULT_T, 0.0, 60.0, 0.01,  fit_param=False)
@@ -150,10 +163,12 @@ class SimPanel(BasePanel):
         ttk.Button(d1, text=tr("bhf.load_fixed"), command=app.load_fixed_distribution_file,
                    style="Small.TButton").pack(anchor=tk.W, fill=tk.X, pady=(0, 4))
 
+        # d2 — rango y número de bins
         self._add_slider(d2, "dist_bmin",  tr("slider.dist_bmin"),  0.0,  0.0,  60.0, 0.1,  fit_param=False)
         self._add_slider(d2, "dist_bmax",  tr("slider.dist_bmax"),  50.0, 1.0,  60.0, 0.1,  fit_param=False)
         self._add_slider(d2, "dist_nbins", tr("slider.dist_nbins"), 50.0, 10.0, 100.0, 1.0, fit_param=False)
 
+        # d3 — regularización: slider + 3 botones (ancho completo) + checkboxes + L-curve
         self._add_slider(d3, "dist_log_alpha", tr("slider.dist_log_alpha"), -2.0, -8.0, 4.0, 0.1, fit_param=False)
         ab = ttk.Frame(d3)
         ab.pack(fill=tk.X, pady=(0, 2))
@@ -265,6 +280,11 @@ class SimPanel(BasePanel):
         root = self._root
         if root is None or not root.winfo_exists():
             return
+        # Columna central: siempre pestañas, sin comprobación de altura
+        if self._force_tabs:
+            if not self._using_tabs:
+                self._switch_layout(use_tabs=True)
+            return
         n = self.app.n_components_var.get()
         h_win = self.app.winfo_height()
         if h_win < 100:
@@ -355,9 +375,10 @@ class SimPanel(BasePanel):
         app.on_component_activation_change()
 
         # Comprobar si el nuevo número de componentes requiere cambiar de modo
-        if self._layout_timer:
-            try:
-                app.after_cancel(self._layout_timer)
-            except Exception:
-                pass
-        self._layout_timer = app.after(300, self._check_layout)
+        if not self._force_tabs:
+            if self._layout_timer:
+                try:
+                    app.after_cancel(self._layout_timer)
+                except Exception:
+                    pass
+            self._layout_timer = app.after(300, self._check_layout)

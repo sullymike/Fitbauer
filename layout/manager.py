@@ -109,16 +109,21 @@ class LayoutManager:
         center.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Paneles del centro se apilan encima del gráfico
+        # sim_controls en el centro → forzar pestañas para no tapar el gráfico
         if center_ids:
             for pid in center_ids:
                 panel = self._panels.get(pid)
                 if panel:
+                    if pid == "sim_controls":
+                        panel._force_tabs = True
                     widget = panel.build(center)
                     widget.pack(side=tk.TOP, fill=tk.X, pady=(0, 6))
 
-        # sim_controls debajo del gráfico (modo "ancho 0")
+        # sim_controls debajo del gráfico (modo "ancho 0") → también pestañas
         if sim_below:
-            sim_widget = self._panels["sim_controls"].build(center)
+            sim_panel = self._panels["sim_controls"]
+            sim_panel._force_tabs = True
+            sim_widget = sim_panel.build(center)
             sim_widget.pack(side=tk.BOTTOM, fill=tk.X, pady=(4, 0))
 
         plot_widget = self._panels["plot"].build(center)
