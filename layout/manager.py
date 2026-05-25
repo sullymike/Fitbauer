@@ -1,9 +1,8 @@
-"""LayoutManager: lee la configuración, crea paneles y construye la ventana."""
+"""LayoutManager: 3 columnas (izquierda | centro=gráfica | derecha)."""
 from __future__ import annotations
 
 import json
 import tkinter as tk
-from pathlib import Path
 from tkinter import ttk
 from typing import TYPE_CHECKING
 
@@ -15,11 +14,11 @@ if TYPE_CHECKING:
 
 LAYOUT_PATH = CONFIG_DIR / "layout.json"
 
-# IDs de paneles que siempre van a la derecha y no son reconfigurables.
-_FIXED_RIGHT = ("plot", "sim_controls")
-
-# Orden de registro de todos los paneles reconfigurables.
-ALL_PANEL_IDS = ["header", "file_info", "info_display", "calibration", "reference"]
+# Paneles reconfigurables (pueden ir en izquierda o derecha)
+ALL_PANEL_IDS = [
+    "header", "file_info", "info_display",
+    "calibration", "reference", "sim_controls",
+]
 
 
 class LayoutManager:
@@ -42,13 +41,13 @@ class LayoutManager:
 
         app = self.app
         self._panels = {
-            "header": HeaderPanel(app),
-            "file_info": FileInfoPanel(app),
+            "header":       HeaderPanel(app),
+            "file_info":    FileInfoPanel(app),
             "info_display": InfoDisplayPanel(app),
-            "calibration": CalibrationPanel(app),
-            "reference": ReferenceLinesPanel(app),
-            "plot": PlotPanel(app),
+            "calibration":  CalibrationPanel(app),
+            "reference":    ReferenceLinesPanel(app),
             "sim_controls": SimPanel(app),
+            "plot":         PlotPanel(app),
         }
 
     # ── Config I/O ────────────────────────────────────────────────────────────
@@ -72,60 +71,59 @@ class LayoutManager:
     # ── Construcción de la UI ─────────────────────────────────────────────────
 
     def build(self, window: tk.Tk) -> None:
-        """Construye el layout completo de la ventana."""
         config = self.load_config()
         self._build_from_config(window, config)
 
     def _build_from_config(self, window: tk.Tk, config: dict) -> None:
-        left_ids: list[str] = config.get("left", [])
+        left_ids: list[str]  = config.get("left", [])
         right_ids: list[str] = config.get("right", [])
-        left_width: int = int(config.get("left_width", 455))
+        left_width: int      = int(config.get("left_width", 455))
+        right_width: int     = int(config.get("right_width", 0))
+
+        # sim_controls van "debajo del gráfico" cuando right_width == 0
+        # y sim_controls está en la columna derecha del config
+        sim_below = ("sim_controls" in right_ids and right_width == 0)
 
         main = ttk.Frame(window)
         main.pack(fill=tk.BOTH, expand=True)
         self._main_frame = main
 
         # ── Columna izquierda ─────────────────────────────────────────────────
-        left_outer = ttk.Frame(main, width=left_width, padding=10)
-        left_outer.pack(side=tk.LEFT, fill=tk.Y)
-        left_outer.pack_propagate(False)
-        controls = ttk.Frame(left_outer)
-        controls.pack(fill=tk.BOTH, expand=True)
+        if left_ids:
+            left_outer = ttk.Frame(main, width=left_width, padding=(8, 8, 4, 8))
+            left_outer.pack(side=tk.LEFT, fill=tk.Y)
+            left_outer.pack_propagate(False)
+            self._fill_column(left_outer, left_ids)
 
-        for panel_id in left_ids:
-            panel = self._panels.get(panel_id)
+        # ── Columna derecha (solo si tiene ancho y paneles) ───────────────────
+        right_ids_visible = [p for p in right_ids if not (p == "sim_controls" and sim_below)]
+        if right_ids_visible and right_width > 0:
+            right_outer = ttk.Frame(main, width=right_width, padding=(4, 8, 8, 8))
+            right_outer.pack(side=tk.RIGHT, fill=tk.Y)
+            right_outer.pack_propagate(False)
+            self._fill_column(right_outer, right_ids_visible)
+
+        # ── Centro: gráfica + sim_controls opcional debajo ────────────────────
+        center = ttk.Frame(main, padding=(4, 6, 4, 6))
+        center.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        if sim_below:
+            sim_widget = self._panels["sim_controls"].build(center)
+            sim_widget.pack(side=tk.BOTTOM, fill=tk.X, pady=(4, 0))
+
+        plot_widget = self._panels["plot"].build(center)
+        plot_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+    def _fill_column(self, parent: tk.Widget, panel_ids: list[str]) -> None:
+        for pid in panel_ids:
+            panel = self._panels.get(pid)
             if panel:
-                widget = panel.build(controls)
-                widget.pack(fill=tk.X, pady=(0, 8))
-
-        # ── Columna derecha ───────────────────────────────────────────────────
-        plot_frame = ttk.Frame(main, padding=(6, 6, 8, 8))
-        plot_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-
-        # Paneles adicionales opcionales en la derecha (encima del plot)
-        if right_ids:
-            right_controls = ttk.Frame(plot_frame)
-            right_controls.pack(side=tk.TOP, fill=tk.X)
-            for panel_id in right_ids:
-                panel = self._panels.get(panel_id)
-                if panel:
-                    widget = panel.build(right_controls)
-                    widget.pack(fill=tk.X, pady=(0, 8))
-
-        # SimPanel siempre va anclado al fondo de la columna derecha
-        sim_widget = self._panels["sim_controls"].build(plot_frame)
-        sim_widget.pack(side=tk.BOTTOM, fill=tk.X, pady=(6, 0))
-
-        # PlotPanel ocupa el espacio restante
-        plot_area = ttk.Frame(plot_frame)
-        plot_area.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        plot_widget = self._panels["plot"].build(plot_area)
-        plot_widget.pack(fill=tk.BOTH, expand=True)
+                widget = panel.build(parent)
+                widget.pack(fill=tk.X, pady=(0, 6))
 
     # ── Reconstrucción dinámica ───────────────────────────────────────────────
 
     def rebuild(self, config: dict) -> None:
-        """Destruye el layout actual y lo reconstruye con la nueva configuración."""
         app = self.app
         snapshot = app.settings_payload()
 
@@ -133,10 +131,13 @@ class LayoutManager:
             self._main_frame.destroy()
             self._main_frame = None
 
-        # Reiniciar referencias a widgets que ya no existen
-        for attr in ("file_label", "info", "fig", "ax", "ax_res", "canvas", "notebook", "dist_tab"):
+        for attr in (
+            "file_label", "info", "fig", "ax", "ax_res",
+            "canvas", "notebook", "dist_tab",
+        ):
             if hasattr(app, attr):
                 delattr(app, attr)
+
         app.vars = {}
         app.entry_vars = {}
         app.fixed_vars = {}
@@ -146,18 +147,17 @@ class LayoutManager:
         self._build_from_config(app, config)
         self.save_config(config)
 
-        # Restaurar valores de parámetros y estado
         app._apply_state_payload(snapshot, restore_geometry=False)
         app._refresh_distribution_tab_visibility(update=False)
         if app.counts is not None:
             app.refold_data()
             app.update_plot()
 
-    # ── Acceso desde el configurador ─────────────────────────────────────────
+    # ── Configurador ─────────────────────────────────────────────────────────
 
     def open_configurator(self) -> None:
         from .configurator import LayoutConfigDialog
         LayoutConfigDialog(self.app, self)
 
     def get_panel_names(self) -> dict[str, str]:
-        return {pid: p.PANEL_NAME for pid, p in self._panels.items() if pid not in _FIXED_RIGHT}
+        return {pid: p.PANEL_NAME for pid, p in self._panels.items() if pid != "plot"}

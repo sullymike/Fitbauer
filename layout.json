@@ -1,6 +1,7 @@
 {
   "version": 1,
   "left": ["header", "file_info", "info_display", "calibration", "reference"],
-  "right": [],
-  "left_width": 455
+  "right": ["sim_controls"],
+  "left_width": 455,
+  "right_width": 0
 }

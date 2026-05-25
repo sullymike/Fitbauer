@@ -1,8 +1,8 @@
-"""Diálogo GUI para que el usuario configure la disposición de paneles."""
+"""Diálogo GUI para configurar la disposición de 3 columnas."""
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk
 from typing import TYPE_CHECKING
 
 from .presets import PRESETS
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class LayoutConfigDialog(tk.Toplevel):
-    """Ventana modal para reordenar paneles entre columna izquierda y derecha."""
+    """Ventana modal con 3 zonas: izquierda | centro (fijo) | derecha."""
 
     def __init__(self, app: "MossbauerApp", manager: "LayoutManager") -> None:
         super().__init__(app)
@@ -24,88 +24,107 @@ class LayoutConfigDialog(tk.Toplevel):
         self.grab_set()
 
         current = manager.load_config()
-        panel_names = manager.get_panel_names()
+        self._panel_names = manager.get_panel_names()
 
-        # Estado interno: listas mutables de IDs
-        self._left: list[str] = list(current.get("left", []))
+        self._left: list[str]  = list(current.get("left", []))
         self._right: list[str] = list(current.get("right", []))
-        self._left_width = tk.IntVar(value=int(current.get("left_width", 455)))
+        self._left_width  = tk.IntVar(value=int(current.get("left_width", 455)))
+        self._right_width = tk.IntVar(value=int(current.get("right_width", 480)))
 
-        # Paneles que aún no están en ninguna columna
+        # Paneles no asignados a ninguna columna
         assigned = set(self._left) | set(self._right)
-        self._unassigned = [pid for pid in panel_names if pid not in assigned]
-        self._panel_names = panel_names
+        self._unassigned = [
+            pid for pid in self._panel_names if pid not in assigned
+        ]
 
         self._build_ui()
         self._refresh_lists()
 
-    def _build_ui(self) -> None:
-        pad = dict(padx=8, pady=6)
+    # ── UI principal ──────────────────────────────────────────────────────────
 
-        # ── Presets ───────────────────────────────────────────────────────────
-        preset_frame = ttk.LabelFrame(self, text="Presets", padding=6)
-        preset_frame.grid(row=0, column=0, columnspan=3, sticky="ew", **pad)
+    def _build_ui(self) -> None:
+        pad = dict(padx=8, pady=5)
+
+        # ── Presets ────────────────────────────────────────────────────────────
+        pf = ttk.LabelFrame(self, text="Presets", padding=6)
+        pf.grid(row=0, column=0, columnspan=5, sticky="ew", **pad)
         for name, data in PRESETS.items():
             ttk.Button(
-                preset_frame,
-                text=name,
-                command=lambda d=data, n=name: self._apply_preset(d),
-            ).pack(side=tk.LEFT, padx=4)
+                pf, text=name, command=lambda d=data: self._apply_preset(d)
+            ).pack(side=tk.LEFT, padx=3)
 
-        # ── Columnas ──────────────────────────────────────────────────────────
-        left_frame = ttk.LabelFrame(self, text="Columna izquierda", padding=6)
-        left_frame.grid(row=1, column=0, sticky="nsew", **pad)
-        self._left_lb = self._make_listbox(left_frame)
+        # ── Tres listas ────────────────────────────────────────────────────────
+        lf = ttk.LabelFrame(self, text="◀ Columna izquierda", padding=6)
+        lf.grid(row=1, column=0, sticky="nsew", **pad)
+        self._left_lb = self._make_listbox(lf)
 
-        mid_frame = ttk.Frame(self, padding=6)
-        mid_frame.grid(row=1, column=1, sticky="ns", pady=6)
-        ttk.Button(mid_frame, text="← Izquierda", command=self._move_to_left).pack(fill=tk.X, pady=2)
-        ttk.Button(mid_frame, text="Derecha →", command=self._move_to_right).pack(fill=tk.X, pady=2)
-        ttk.Separator(mid_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=8)
-        ttk.Button(mid_frame, text="▲ Subir", command=lambda: self._move_up(self._focused_list())).pack(fill=tk.X, pady=2)
-        ttk.Button(mid_frame, text="▼ Bajar", command=lambda: self._move_down(self._focused_list())).pack(fill=tk.X, pady=2)
+        # Botones izq↔der
+        bf = ttk.Frame(self, padding=4)
+        bf.grid(row=1, column=1, sticky="ns", pady=5)
+        ttk.Button(bf, text="◀ Izda",   command=self._move_to_left ).pack(fill=tk.X, pady=2)
+        ttk.Button(bf, text="Dcha ▶",   command=self._move_to_right).pack(fill=tk.X, pady=2)
+        ttk.Separator(bf, orient="horizontal").pack(fill=tk.X, pady=6)
+        ttk.Button(bf, text="▲ Subir",  command=lambda: self._move_item(-1)).pack(fill=tk.X, pady=2)
+        ttk.Button(bf, text="▼ Bajar",  command=lambda: self._move_item(+1)).pack(fill=tk.X, pady=2)
+        ttk.Separator(bf, orient="horizontal").pack(fill=tk.X, pady=6)
+        ttk.Button(bf, text="✕ Quitar", command=self._remove_item,
+                   style="Small.TButton").pack(fill=tk.X, pady=2)
 
-        right_frame = ttk.LabelFrame(self, text="Columna derecha", padding=6)
-        right_frame.grid(row=1, column=2, sticky="nsew", **pad)
-        self._right_lb = self._make_listbox(right_frame)
+        # Centro fijo
+        cf = ttk.LabelFrame(self, text="● Centro (fijo)", padding=6)
+        cf.grid(row=1, column=2, sticky="nsew", **pad)
+        center_lb = tk.Listbox(cf, width=14, height=6, state="disabled")
+        center_lb.pack(fill=tk.BOTH, expand=True)
+        center_lb.insert(tk.END, "Gráfica")
+        ttk.Label(cf, text="(no modificable)", foreground="#94a3b8",
+                  font=("TkDefaultFont", 8)).pack()
 
-        # ── Ancho columna izquierda ───────────────────────────────────────────
-        width_frame = ttk.Frame(self, padding=6)
-        width_frame.grid(row=2, column=0, columnspan=3, sticky="ew", padx=8)
-        ttk.Label(width_frame, text="Ancho columna izquierda (px):").pack(side=tk.LEFT)
-        ttk.Spinbox(
-            width_frame, from_=260, to=600, increment=10,
-            textvariable=self._left_width, width=6,
-        ).pack(side=tk.LEFT, padx=6)
+        # Botones der↔izq (mismo objeto bf reutilizado conceptualmente)
+        bf2 = ttk.Frame(self, padding=4)
+        bf2.grid(row=1, column=3, sticky="ns", pady=5)
+        ttk.Button(bf2, text="◀ Izda",  command=self._move_to_left ).pack(fill=tk.X, pady=2)
+        ttk.Button(bf2, text="Dcha ▶",  command=self._move_to_right).pack(fill=tk.X, pady=2)
+        ttk.Separator(bf2, orient="horizontal").pack(fill=tk.X, pady=6)
+        ttk.Button(bf2, text="▲ Subir", command=lambda: self._move_item(-1)).pack(fill=tk.X, pady=2)
+        ttk.Button(bf2, text="▼ Bajar", command=lambda: self._move_item(+1)).pack(fill=tk.X, pady=2)
 
-        # ── Nota paneles fijos ────────────────────────────────────────────────
-        ttk.Label(
-            self,
-            text="Nota: la gráfica y los controles de ajuste siempre van a la derecha.",
-            foreground="#64748b",
-            font=("TkDefaultFont", 8),
-        ).grid(row=3, column=0, columnspan=3, padx=8, pady=(0, 4))
+        rf = ttk.LabelFrame(self, text="Columna derecha ▶", padding=6)
+        rf.grid(row=1, column=4, sticky="nsew", **pad)
+        self._right_lb = self._make_listbox(rf)
 
-        # ── Botones OK / Cancelar ─────────────────────────────────────────────
-        btn_frame = ttk.Frame(self, padding=(8, 4, 8, 8))
-        btn_frame.grid(row=4, column=0, columnspan=3, sticky="e")
-        ttk.Button(btn_frame, text="Cancelar", command=self.destroy).pack(side=tk.RIGHT, padx=(4, 0))
-        ttk.Button(
-            btn_frame, text="Aplicar", style="Accent.TButton", command=self._apply
-        ).pack(side=tk.RIGHT)
+        # ── Anchos ────────────────────────────────────────────────────────────
+        wf = ttk.Frame(self, padding=(8, 2, 8, 4))
+        wf.grid(row=2, column=0, columnspan=5, sticky="ew")
+        ttk.Label(wf, text="Ancho columna izquierda:").grid(row=0, column=0, sticky="w")
+        ttk.Spinbox(wf, from_=220, to=600, increment=10,
+                    textvariable=self._left_width, width=6).grid(row=0, column=1, padx=(4, 20))
+        ttk.Label(wf, text="Ancho columna derecha:").grid(row=0, column=2, sticky="w")
+        ttk.Spinbox(wf, from_=220, to=700, increment=10,
+                    textvariable=self._right_width, width=6).grid(row=0, column=3, padx=4)
+        ttk.Label(wf, text="(0 = sim debajo del gráfico)",
+                  foreground="#64748b", font=("TkDefaultFont", 8)
+                  ).grid(row=0, column=4, padx=(6, 0))
 
-        self.columnconfigure(0, weight=1)
-        self.columnconfigure(2, weight=1)
+        # ── OK / Cancelar ─────────────────────────────────────────────────────
+        okf = ttk.Frame(self, padding=(8, 4, 8, 8))
+        okf.grid(row=3, column=0, columnspan=5, sticky="e")
+        ttk.Button(okf, text="Cancelar", command=self.destroy).pack(side=tk.RIGHT, padx=(4, 0))
+        ttk.Button(okf, text="Aplicar", style="Accent.TButton",
+                   command=self._apply).pack(side=tk.RIGHT)
+
+        for c in (0, 2, 4):
+            self.columnconfigure(c, weight=1)
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _make_listbox(self, parent: tk.Widget) -> tk.Listbox:
-        frame = ttk.Frame(parent)
-        frame.pack(fill=tk.BOTH, expand=True)
-        sb = ttk.Scrollbar(frame, orient=tk.VERTICAL)
-        lb = tk.Listbox(frame, width=26, height=10, yscrollcommand=sb.set, selectmode=tk.SINGLE)
+        f = ttk.Frame(parent)
+        f.pack(fill=tk.BOTH, expand=True)
+        sb = ttk.Scrollbar(f, orient=tk.VERTICAL)
+        lb = tk.Listbox(f, width=22, height=8, yscrollcommand=sb.set, selectmode=tk.SINGLE)
         sb.config(command=lb.yview)
         lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         sb.pack(side=tk.RIGHT, fill=tk.Y)
-        lb.bind("<<ListboxSelect>>", lambda _e: None)
         return lb
 
     def _refresh_lists(self) -> None:
@@ -114,67 +133,69 @@ class LayoutConfigDialog(tk.Toplevel):
             for pid in ids:
                 lb.insert(tk.END, self._panel_names.get(pid, pid))
 
-    def _focused_list(self) -> list[str]:
-        """Devuelve la lista (izquierda o derecha) con selección activa."""
-        if self._left_lb.curselection():
-            return self._left
-        return self._right
-
-    def _focused_lb(self) -> tk.Listbox:
-        if self._left_lb.curselection():
-            return self._left_lb
-        return self._right_lb
+    def _active(self) -> tuple[tk.Listbox, list[str]] | tuple[None, None]:
+        """Devuelve la listbox y lista activa (la que tiene selección)."""
+        for lb, lst in ((self._left_lb, self._left), (self._right_lb, self._right)):
+            if lb.curselection():
+                return lb, lst
+        return None, None
 
     def _move_to_left(self) -> None:
         sel = self._right_lb.curselection()
         if not sel:
             return
         idx = sel[0]
-        pid = self._right.pop(idx)
-        self._left.append(pid)
+        self._left.append(self._right.pop(idx))
         self._refresh_lists()
+        self._left_lb.selection_set(len(self._left) - 1)
 
     def _move_to_right(self) -> None:
         sel = self._left_lb.curselection()
         if not sel:
             return
         idx = sel[0]
-        pid = self._left.pop(idx)
-        self._right.append(pid)
+        self._right.append(self._left.pop(idx))
         self._refresh_lists()
+        self._right_lb.selection_set(len(self._right) - 1)
 
-    def _move_up(self, lst: list[str]) -> None:
-        lb = self._focused_lb()
+    def _move_item(self, direction: int) -> None:
+        lb, lst = self._active()
+        if lb is None:
+            return
         sel = lb.curselection()
-        if not sel or sel[0] == 0:
+        if not sel:
             return
         i = sel[0]
-        lst[i - 1], lst[i] = lst[i], lst[i - 1]
-        self._refresh_lists()
-        lb.selection_set(i - 1)
+        j = i + direction
+        if 0 <= j < len(lst):
+            lst[i], lst[j] = lst[j], lst[i]
+            self._refresh_lists()
+            lb.selection_set(j)
 
-    def _move_down(self, lst: list[str]) -> None:
-        lb = self._focused_lb()
-        sel = lb.curselection()
-        if not sel or sel[0] >= len(lst) - 1:
+    def _remove_item(self) -> None:
+        lb, lst = self._active()
+        if lb is None:
             return
-        i = sel[0]
-        lst[i], lst[i + 1] = lst[i + 1], lst[i]
+        sel = lb.curselection()
+        if not sel:
+            return
+        lst.pop(sel[0])
         self._refresh_lists()
-        lb.selection_set(i + 1)
 
     def _apply_preset(self, data: dict) -> None:
-        self._left = list(data.get("left", []))
+        self._left  = list(data.get("left", []))
         self._right = list(data.get("right", []))
         self._left_width.set(int(data.get("left_width", 455)))
+        self._right_width.set(int(data.get("right_width", 480)))
         self._refresh_lists()
 
     def _apply(self) -> None:
         config = {
             "version": 1,
-            "left": self._left,
-            "right": self._right,
-            "left_width": self._left_width.get(),
+            "left":        self._left,
+            "right":       self._right,
+            "left_width":  self._left_width.get(),
+            "right_width": self._right_width.get(),
         }
         self.destroy()
         self.manager.rebuild(config)

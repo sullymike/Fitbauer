@@ -1,34 +1,43 @@
-"""Presets de layout predefinidos para la aplicación Mössbauer."""
+"""Presets de layout para la aplicación Mössbauer (3 columnas)."""
 from __future__ import annotations
 
-# Cada preset define qué paneles van en la columna izquierda y cuáles en la
-# derecha. Los paneles 'plot' y 'sim_controls' siempre van en la derecha
-# (plot ocupa el espacio disponible, sim_controls se ancla abajo) y no son
-# reconfigurables por el usuario.
+# Estructura de cada preset:
+#   left   → paneles en columna izquierda (orden top→bottom)
+#   right  → paneles en columna derecha   (orden top→bottom)
+#   center → siempre contiene la gráfica (no configurable)
+#   left_width / right_width → anchos en píxeles (0 = columna oculta)
+#
+# Paneles disponibles: header, file_info, info_display, calibration,
+#                      reference, sim_controls
+
 PRESETS: dict[str, dict] = {
     "Estándar": {
-        "description": "Controles a la izquierda, gráfica a la derecha.",
+        "description": "Controles a la izquierda, gráfica en el centro.",
         "left": ["header", "file_info", "info_display", "calibration", "reference"],
-        "right": [],
+        "right": ["sim_controls"],
         "left_width": 455,
+        "right_width": 0,  # 0 = sim_controls debajo del gráfico
+    },
+    "Tres columnas": {
+        "description": "Controles izquierda, gráfica centro, simulación derecha.",
+        "left": ["header", "file_info", "info_display", "calibration", "reference"],
+        "right": ["sim_controls"],
+        "left_width": 380,
+        "right_width": 480,
     },
     "Análisis": {
         "description": "Info y referencia a la derecha para más espacio de gráfica.",
         "left": ["header", "file_info", "calibration"],
-        "right": ["info_display", "reference"],
-        "left_width": 380,
+        "right": ["info_display", "reference", "sim_controls"],
+        "left_width": 360,
+        "right_width": 420,
     },
     "Compacto": {
         "description": "Solo calibración a la izquierda, máximo espacio de gráfica.",
         "left": ["header", "calibration"],
-        "right": ["file_info", "info_display"],
-        "left_width": 340,
-    },
-    "Gráfica primero": {
-        "description": "Gráfica amplia con controles mínimos a la izquierda.",
-        "left": ["calibration", "reference"],
-        "right": ["header", "file_info", "info_display"],
-        "left_width": 310,
+        "right": ["sim_controls"],
+        "left_width": 320,
+        "right_width": 0,
     },
 }
 

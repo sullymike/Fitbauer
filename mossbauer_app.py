@@ -1,8 +1,10 @@
-"""MossbauerApp: versión modular de la GUI con layout configurable por el usuario.
+"""MossbauerApp: versión modular con layout de 3 columnas configurable.
 
-Hereda toda la lógica de cálculo y ajuste de MossbauerFe33GUI y sobreescribe
-únicamente la construcción de la interfaz para usar el sistema de paneles.
-Los datos, el ajuste y las sesiones son 100% compatibles con la versión original.
+Hereda toda la lógica de MossbauerFe33GUI y sobreescribe únicamente:
+  - La construcción de la UI (_build_ui) para usar el sistema de paneles.
+  - Los métodos que iteran sobre componentes (1,2,3) para soportar hasta
+    MAX_COMPONENTS componentes configurables por el usuario.
+El fichero original queda intacto; datos, ajuste y sesiones son compatibles.
 """
 from __future__ import annotations
 
@@ -11,19 +13,48 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import ttk
 
+import numpy as np
+
 from mossbauer_i18n import available_languages, get_language, set_language, tr
-
-# Importamos la clase base con toda la lógica de análisis y ajuste.
-from mossbauer_fe33_gui_v2IA import MossbauerFe33GUI, SETTINGS_PATH, APP_NAME
-
+from mossbauer_fe33_gui_v2IA import (
+    MossbauerFe33GUI,
+    SETTINGS_PATH,
+    APP_NAME,
+)
+from core.constants import SEXTET_PARAM_NAMES, GLOBAL_PARAM_NAMES
+from core.physics import component_absorption
 from layout.manager import LayoutManager
+from panels.sim_panel import MAX_COMPONENTS
+
+# Colores para hasta MAX_COMPONENTS componentes en la gráfica
+_COMPONENT_COLORS = {
+    1: "#16a34a",
+    2: "#f97316",
+    3: "#8b5cf6",
+    4: "#e11d48",
+    5: "#0891b2",
+    6: "#ca8a04",
+}
 
 
 class MossbauerApp(MossbauerFe33GUI):
-    """GUI modular con paneles reubicables y layout configurable por el usuario."""
+    """GUI modular con paneles reubicables y layout de 3 columnas."""
+
+    # ── Construcción de la UI ─────────────────────────────────────────────────
 
     def _build_ui(self) -> None:
-        # ── 1. Tema y estilos ─────────────────────────────────────────────────
+        # n_components_var persiste entre rebuilds; se inicializa solo una vez
+        if not hasattr(self, "n_components_var"):
+            self.n_components_var = tk.IntVar(value=1)
+
+        # Extender sextet_enabled y component_kind al máximo de componentes
+        for idx in range(4, MAX_COMPONENTS + 1):
+            if idx not in self.sextet_enabled:
+                self.sextet_enabled[idx] = tk.BooleanVar(value=False)
+            if idx not in self.component_kind:
+                self.component_kind[idx] = tk.StringVar(value="Sextete")
+
+        # ── Tema ──────────────────────────────────────────────────────────────
         style = ttk.Style(self)
         _saved_theme = "sv_ttk"
         try:
@@ -51,194 +82,122 @@ class MossbauerApp(MossbauerFe33GUI):
         self._theme_var.set("sv_ttk" if _sv else "clam")
         self._reconfigure_styles(style, _sv)
 
-        # ── 2. Barra de menús ─────────────────────────────────────────────────
+        # ── Menú ──────────────────────────────────────────────────────────────
         self._build_menubar()
 
-        # ── 3. Layout de paneles ──────────────────────────────────────────────
+        # ── Layout de paneles ─────────────────────────────────────────────────
         self._layout_manager = LayoutManager(self)
         self._layout_manager.build(self)
-
-    # ── Barra de menús (igual que el original + opción Layout) ────────────────
 
     def _build_menubar(self) -> None:
         menubar = tk.Menu(self)
 
-        # Archivo
         file_menu = tk.Menu(menubar, tearoff=0)
         file_menu.add_command(label=tr("file.open"), command=self.open_file)
-        file_menu.add_command(
-            label=tr("file.web_measurements"),
-            command=lambda: self.open_web_download_dialog(kind="mossbauer"),
-        )
-        file_menu.add_command(
-            label=tr("file.web_calibrations"), command=self.open_calibration_download_dialog
-        )
-        file_menu.add_command(
-            label=tr("file.use_as_calibration"), command=self.use_loaded_file_as_calibration
-        )
+        file_menu.add_command(label=tr("file.web_measurements"),
+                              command=lambda: self.open_web_download_dialog(kind="mossbauer"))
+        file_menu.add_command(label=tr("file.web_calibrations"),
+                              command=self.open_calibration_download_dialog)
+        file_menu.add_command(label=tr("file.use_as_calibration"),
+                              command=self.use_loaded_file_as_calibration)
         file_menu.add_separator()
-        file_menu.add_command(label=tr("file.save_fit"), command=self.save_fit)
+        file_menu.add_command(label=tr("file.save_fit"),      command=self.save_fit)
         file_menu.add_command(label=tr("file.export_report"), command=self.export_report_dialog)
         file_menu.add_separator()
-        file_menu.add_command(label=tr("file.save_session"), command=self.save_session_dialog)
-        file_menu.add_command(
-            label=tr("file.upload_session"), command=self.open_web_upload_analysis_dialog
-        )
-        file_menu.add_command(label=tr("file.load_session"), command=self.load_session_dialog)
+        file_menu.add_command(label=tr("file.save_session"),  command=self.save_session_dialog)
+        file_menu.add_command(label=tr("file.upload_session"),command=self.open_web_upload_analysis_dialog)
+        file_menu.add_command(label=tr("file.load_session"),  command=self.load_session_dialog)
         file_menu.add_separator()
-        file_menu.add_command(label=tr("file.exit"), command=self.on_close)
+        file_menu.add_command(label=tr("file.exit"),          command=self.on_close)
         menubar.add_cascade(label=tr("menu.file"), menu=file_menu)
 
-        # Ajuste
         fit_menu = tk.Menu(menubar, tearoff=0)
-        fit_menu.add_command(label=tr("fit.find_center"), command=self.auto_center)
-        fit_menu.add_command(label=tr("fit.init_from_minima"), command=self.auto_guess_from_minima)
-        fit_menu.add_command(label=tr("fit.auto_from_minima"), command=self.auto_fit_from_minima)
-        fit_menu.add_command(label=tr("fit.ollama_start"), command=self.open_ollama_ai_dialog)
-        fit_menu.add_command(label=tr("fit.run"), command=self.fit_current_data)
-        fit_menu.add_command(label=tr("fit.bootstrap"), command=self.bootstrap_errors_current)
+        fit_menu.add_command(label=tr("fit.find_center"),     command=self.auto_center)
+        fit_menu.add_command(label=tr("fit.init_from_minima"),command=self.auto_guess_from_minima)
+        fit_menu.add_command(label=tr("fit.auto_from_minima"),command=self.auto_fit_from_minima)
+        fit_menu.add_command(label=tr("fit.ollama_start"),    command=self.open_ollama_ai_dialog)
+        fit_menu.add_command(label=tr("fit.run"),             command=self.fit_current_data)
+        fit_menu.add_command(label=tr("fit.bootstrap"),       command=self.bootstrap_errors_current)
         fit_menu.add_separator()
-        fit_menu.add_command(label=tr("fit.fix_all"), command=self.fix_all_parameters)
+        fit_menu.add_command(label=tr("fit.fix_all"),  command=self.fix_all_parameters)
         fit_menu.add_command(label=tr("fit.free_all"), command=self.free_all_parameters)
         menubar.add_cascade(label=tr("menu.fit"), menu=fit_menu)
 
-        # Opciones
         options_menu = tk.Menu(menubar, tearoff=0)
-        options_menu.add_radiobutton(
-            label=tr("options.discrete_sextets"),
-            variable=self.fit_mode_var,
-            value="discrete",
-            command=self.set_fit_mode_from_menu,
-        )
-        options_menu.add_radiobutton(
-            label=tr("options.distribution_bhf"),
-            variable=self.fit_mode_var,
-            value="bhf_distribution",
-            command=self.set_fit_mode_from_menu,
-        )
+        options_menu.add_radiobutton(label=tr("options.discrete_sextets"),
+                                     variable=self.fit_mode_var, value="discrete",
+                                     command=self.set_fit_mode_from_menu)
+        options_menu.add_radiobutton(label=tr("options.distribution_bhf"),
+                                     variable=self.fit_mode_var, value="bhf_distribution",
+                                     command=self.set_fit_mode_from_menu)
         options_menu.add_separator()
-        options_menu.add_checkbutton(
-            label=tr("options.show_residual"),
-            variable=self.show_residual_var,
-            command=self.update_plot,
-        )
-        options_menu.add_checkbutton(
-            label=tr("options.show_legend"),
-            variable=self.show_legend_var,
-            command=self.update_plot,
-        )
+        options_menu.add_checkbutton(label=tr("options.show_residual"),
+                                     variable=self.show_residual_var, command=self.update_plot)
+        options_menu.add_checkbutton(label=tr("options.show_legend"),
+                                     variable=self.show_legend_var,   command=self.update_plot)
         options_menu.add_separator()
         profile_menu = tk.Menu(options_menu, tearoff=0)
-        profile_menu.add_radiobutton(
-            label=tr("options.profile_lorentzian"),
-            variable=self.line_profile_var,
-            value="Lorentziana",
-            command=self.on_line_profile_change,
-        )
-        profile_menu.add_radiobutton(
-            label=tr("options.profile_voigt"),
-            variable=self.line_profile_var,
-            value="Voigt",
-            command=self.on_line_profile_change,
-        )
+        profile_menu.add_radiobutton(label=tr("options.profile_lorentzian"),
+                                     variable=self.line_profile_var, value="Lorentziana",
+                                     command=self.on_line_profile_change)
+        profile_menu.add_radiobutton(label=tr("options.profile_voigt"),
+                                     variable=self.line_profile_var, value="Voigt",
+                                     command=self.on_line_profile_change)
         options_menu.add_cascade(label=tr("options.line_profile"), menu=profile_menu)
         options_menu.add_separator()
-        options_menu.add_checkbutton(
-            label=tr("options.add_sharp"),
-            variable=self.dist_use_sharp_var,
-            command=self.on_bhf_distribution_option_change,
-        )
-        options_menu.add_checkbutton(
-            label=tr("options.refine_global"),
-            variable=self.dist_refine_global_var,
-            command=self.on_bhf_distribution_option_change,
-        )
+        options_menu.add_checkbutton(label=tr("options.add_sharp"),
+                                     variable=self.dist_use_sharp_var,
+                                     command=self.on_bhf_distribution_option_change)
+        options_menu.add_checkbutton(label=tr("options.refine_global"),
+                                     variable=self.dist_refine_global_var,
+                                     command=self.on_bhf_distribution_option_change)
         options_menu.add_separator()
-        options_menu.add_command(
-            label=tr("options.constraints"), command=self.open_constraints_dialog
-        )
-        options_menu.add_command(
-            label=tr("options.physical_presets"), command=self.open_physical_presets_dialog
-        )
+        options_menu.add_command(label=tr("options.constraints"),    command=self.open_constraints_dialog)
+        options_menu.add_command(label=tr("options.physical_presets"),command=self.open_physical_presets_dialog)
         options_menu.add_separator()
-
-        # Tema
         theme_menu = tk.Menu(options_menu, tearoff=0)
-        theme_menu.add_radiobutton(
-            label=tr("options.theme_modern"),
-            variable=self._theme_var,
-            value="sv_ttk",
-            command=lambda: self._switch_theme("sv_ttk"),
-        )
-        theme_menu.add_radiobutton(
-            label=tr("options.theme_classic"),
-            variable=self._theme_var,
-            value="clam",
-            command=lambda: self._switch_theme("clam"),
-        )
+        theme_menu.add_radiobutton(label=tr("options.theme_modern"),
+                                   variable=self._theme_var, value="sv_ttk",
+                                   command=lambda: self._switch_theme("sv_ttk"))
+        theme_menu.add_radiobutton(label=tr("options.theme_classic"),
+                                   variable=self._theme_var, value="clam",
+                                   command=lambda: self._switch_theme("clam"))
         options_menu.add_cascade(label=tr("options.theme"), menu=theme_menu)
-
-        # Layout (nueva opción)
         options_menu.add_separator()
-        options_menu.add_command(
-            label="Configurar layout de paneles…",
-            command=self._open_layout_configurator,
-        )
-
+        options_menu.add_command(label="Configurar layout de paneles…",
+                                 command=self._open_layout_configurator)
         menubar.add_cascade(label=tr("menu.options"), menu=options_menu)
 
-        # Idioma
         language_menu = tk.Menu(menubar, tearoff=0)
         self._ui_language_var = tk.StringVar(value=get_language())
         for lang_code, lang_name in available_languages().items():
             language_menu.add_radiobutton(
-                label=lang_name,
-                variable=self._ui_language_var,
-                value=lang_code,
+                label=lang_name, variable=self._ui_language_var, value=lang_code,
                 command=lambda code=lang_code: self.change_ui_language(code),
             )
         menubar.add_cascade(label=tr("menu.language"), menu=language_menu)
 
-        # Ayuda
         help_menu = tk.Menu(menubar, tearoff=0)
-        help_menu.add_command(label=tr("help.open"), command=self.show_help)
-        help_menu.add_command(label=tr("help.about"), command=self.show_about)
+        help_menu.add_command(label=tr("help.open"),             command=self.show_help)
+        help_menu.add_command(label=tr("help.about"),            command=self.show_about)
         help_menu.add_separator()
-        help_menu.add_command(label=tr("help.changelog"), command=self.show_changelog)
-        help_menu.add_command(
-            label=tr("help.check_updates"),
-            command=lambda: self.check_for_updates(silent=False),
-        )
-        help_menu.add_command(
-            label=tr("help.configure_updates"), command=self.open_update_settings_dialog
-        )
+        help_menu.add_command(label=tr("help.changelog"),        command=self.show_changelog)
+        help_menu.add_command(label=tr("help.check_updates"),
+                              command=lambda: self.check_for_updates(silent=False))
+        help_menu.add_command(label=tr("help.configure_updates"),command=self.open_update_settings_dialog)
         menubar.add_cascade(label=tr("menu.help"), menu=help_menu)
 
         self.config(menu=menubar)
 
-    # ── Helpers para el layout ────────────────────────────────────────────────
-
-    def _open_layout_configurator(self) -> None:
-        if hasattr(self, "_layout_manager"):
-            self._layout_manager.open_configurator()
-
     def _rebuild_ui(self) -> None:
-        """Destruye todos los widgets hijos y reconstruye la UI.
-
-        Sobreescribe el método original para limpiar también la referencia
-        al LayoutManager antes de reconstruir.
-        """
         self.config(menu=tk.Menu(self))
         for child in list(self.winfo_children()):
             try:
                 child.destroy()
             except tk.TclError:
                 pass
-        for attr in (
-            "file_label", "info", "fig", "ax", "ax_res",
-            "canvas", "notebook", "dist_tab", "_ui_language_var",
-            "_layout_manager",
-        ):
+        for attr in ("file_label", "info", "fig", "ax", "ax_res",
+                     "canvas", "notebook", "dist_tab", "_ui_language_var", "_layout_manager"):
             if hasattr(self, attr):
                 delattr(self, attr)
         self.vars = {}
@@ -246,6 +205,283 @@ class MossbauerApp(MossbauerFe33GUI):
         self.fixed_vars = {}
         self.slider_specs = {}
         self._build_ui()
+
+    def _open_layout_configurator(self) -> None:
+        if hasattr(self, "_layout_manager"):
+            self._layout_manager.open_configurator()
+
+    # ── Helper: rango activo de componentes ──────────────────────────────────
+
+    def _component_range(self) -> range:
+        n = self.n_components_var.get() if hasattr(self, "n_components_var") else 3
+        return range(1, n + 1)
+
+    # ── Overrides para N componentes ─────────────────────────────────────────
+
+    def active_param_keys(self) -> list[str]:
+        keys = GLOBAL_PARAM_NAMES.copy()
+        for idx in self._component_range():
+            if self.sextet_enabled[idx].get():
+                keys.extend(f"s{idx}_{name}" for name in self.component_param_names(idx))
+        return keys
+
+    def active_bhf_keys(self) -> list[str]:
+        return [
+            f"s{idx}_bhf"
+            for idx in self._component_range()
+            if self.sextet_enabled[idx].get()
+            and self.component_kind[idx].get() == "Sextete"
+        ]
+
+    def build_components_from_vars(self) -> list[tuple[str, np.ndarray]]:
+        if self.constraints and not self.updating_sliders:
+            self.apply_constraints_to_vars()
+        components: list[tuple[str, np.ndarray]] = []
+        for idx in self._component_range():
+            if not self.sextet_enabled[idx].get():
+                continue
+            p = f"s{idx}_"
+            params = np.array(
+                [self.vars[p + name].get() for name in SEXTET_PARAM_NAMES], dtype=float
+            )
+            components.append((self.component_kind[idx].get(), params))
+        return components
+
+    def component_area_percentages(
+        self, values: dict[str, float] | None = None
+    ) -> tuple[list[int], np.ndarray, np.ndarray]:
+        active: list[int] = []
+        areas: list[float] = []
+        for idx in self._component_range():
+            if not self.sextet_enabled[idx].get():
+                continue
+            pfx = f"s{idx}_"
+            p = np.array(
+                [
+                    values.get(pfx + name, self.vars[pfx + name].get())
+                    if values
+                    else self.vars[pfx + name].get()
+                    for name in SEXTET_PARAM_NAMES
+                ],
+                dtype=float,
+            )
+            area = max(0.0, self.component_area_from_params(self.component_kind[idx].get(), p))
+            active.append(idx)
+            areas.append(area)
+        area_arr = np.array(areas, dtype=float)
+        total = float(np.sum(area_arr))
+        pct = 100.0 * area_arr / total if total > 0 else np.zeros_like(area_arr)
+        return active, area_arr, pct
+
+    def update_plot(self) -> None:
+        if self.fit_mode_var.get() == "bhf_distribution":
+            self.update_plot_bhf_distribution()
+            return
+        self.fig.clear()
+        show_residual = self.show_residual_var.get()
+        if show_residual:
+            gs = self.fig.add_gridspec(2, 1, height_ratios=[4.8, 1.05], hspace=0.08)
+            self.ax = self.fig.add_subplot(gs[0])
+            self.ax_res = self.fig.add_subplot(gs[1], sharex=self.ax)
+        else:
+            self.ax = self.fig.add_subplot(111)
+            self.ax_res = None
+
+        self.fig.set_facecolor("#f8fbff")
+        self.ax.set_facecolor("#fbfdff")
+        self.ax.set_title(tr("plot.title_discrete"), color="#083344", pad=10, fontweight="bold")
+        self.ax.set_ylabel(tr("plot.transmission_ylabel"))
+        self.ax.grid(True, color="#c8e4f7", alpha=0.85, linewidth=0.8)
+        self.ax.tick_params(colors="#243b53")
+        for spine in self.ax.spines.values():
+            spine.set_color("#8ecae6")
+
+        if self.ax_res is not None:
+            self.ax_res.set_facecolor("#fff7ed")
+            self.ax_res.set_ylabel(tr("plot.residual_ylabel"))
+            self.ax_res.set_xlabel(tr("plot.velocity_xlabel"))
+            self.ax_res.grid(True, color="#fed7aa", alpha=0.8, linewidth=0.75)
+            self.ax_res.tick_params(colors="#7c2d12")
+            for spine in self.ax_res.spines.values():
+                spine.set_color("#fdba74")
+        else:
+            self.ax.set_xlabel(tr("plot.velocity_xlabel"))
+
+        if self.velocity is not None and self.y_data is not None:
+            model = self.current_model()
+            self.ax.plot(self.velocity, self.y_data, ".", color="#0f172a",
+                         ms=4, alpha=0.88, label=tr("plot.legend_data"))
+            if model is not None:
+                baseline_line = (
+                    self.vars["baseline"].get() + self.vars["slope"].get() * self.velocity
+                )
+                self.ax.plot(self.velocity, baseline_line, ":", color="#64748b",
+                             lw=1.35, label=tr("plot.legend_baseline"))
+
+                for idx in self._component_range():
+                    if not self.sextet_enabled[idx].get():
+                        continue
+                    p = f"s{idx}_"
+                    params = np.array(
+                        [self.vars[p + name].get() for name in SEXTET_PARAM_NAMES], dtype=float
+                    )
+                    kind = self.component_kind[idx].get()
+                    comp_line = baseline_line - component_absorption(self.velocity, kind, params)
+                    color = _COMPONENT_COLORS.get(idx, "#888888")
+                    self.ax.plot(
+                        self.velocity, comp_line, "--",
+                        color=color, lw=1.65, alpha=0.95,
+                        label=f"{tr(f'kind.{kind}', default=kind)} {idx}",
+                    )
+
+                self.ax.plot(self.velocity, model, "-", color="#dc2626",
+                             lw=2.6, label=tr("plot.legend_model"))
+                residual = self.y_data - model
+                rms = float(np.sqrt(np.mean(residual ** 2)))
+                if self.ax_res is not None:
+                    self.ax_res.axhline(0, color="#9a3412", lw=0.9, alpha=0.9)
+                    self.ax_res.fill_between(self.velocity, residual, 0,
+                                             color="#fb923c", alpha=0.22)
+                    self.ax_res.plot(self.velocity, residual, "-",
+                                     color="#ea580c", lw=1.25)
+                    lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
+                    self.ax_res.set_ylim(-lim, lim)
+                    self.ax.tick_params(labelbottom=False)
+            else:
+                rms = float("nan")
+            if self.show_legend_var.get():
+                leg = self.ax.legend(loc="best", frameon=True, facecolor="#ffffff",
+                                     edgecolor="#bae6fd", framealpha=0.85)
+                leg.set_draggable(True)
+                for text in leg.get_texts():
+                    text.set_color("#102a43")
+            self.update_info(rms)
+        else:
+            self.ax.text(0.5, 0.5, tr("plot.no_file"), transform=self.ax.transAxes,
+                         ha="center", va="center", color="#075985",
+                         fontsize=14, fontweight="bold")
+        self.fig.tight_layout()
+        self.canvas.draw_idle()
+
+    def update_info(self, rms: float) -> None:
+        if self.counts is None or self.folded_raw is None:
+            return
+        center = self.vars["center"].get()
+        active = [idx for idx in self._component_range() if self.sextet_enabled[idx].get()]
+        fixed  = [k for k in self.active_param_keys() if self.fixed_vars[k].get()]
+        pct_active, areas, percentages = self.component_area_percentages()
+        pct_errors = self.component_percentage_errors()
+        text = [
+            tr("info.file", name=self.file_path.name if self.file_path else "-"),
+            tr("info.channels_read", n=self.counts.size),
+            tr("info.folding_center", center=f"{center:.5f}"),
+            tr("info.folding_normos", value=f"{2.0 * center:.5f}"),
+            tr("info.folded_pairs", n=len(self.pairs)),
+            tr("info.normalization", factor=f"{self.norm_factor:.6g}"),
+            tr("info.vmax",      value=f"{self.vars['vmax'].get():.6g}"),
+            tr("info.baseline",  value=f"{self.vars['baseline'].get():.6g}"),
+            tr("info.slope",     value=f"{self.vars['slope'].get():.6g}"),
+            tr("info.active_sextets", list=", ".join(map(str, active))),
+            tr("info.fit_velocity_yes") if self.fit_velocity_var.get() else tr("info.fit_velocity_no"),
+            tr("info.rms", value=f"{rms:.6g}"),
+        ]
+        stats = self.last_fit_stats
+        if stats:
+            text.extend([
+                tr("info.chi2_line",
+                   red_chi2=f"{stats.get('red_chi2', float('nan')):.6g}",
+                   chi2=f"{stats.get('chi2', float('nan')):.6g}",
+                   dof=f"{stats.get('dof', float('nan')):.0f}"),
+                tr("info.aic_bic_line",
+                   aic=f"{stats.get('aic', float('nan')):.6g}",
+                   bic=f"{stats.get('bic', float('nan')):.6g}",
+                   n_params=f"{stats.get('n_params', float('nan')):.0f}"),
+                tr("info.residual_diag",
+                   lag1=f"{stats.get('resid_lag1', float('nan')):.3f}",
+                   z=f"{stats.get('resid_runs_z', float('nan')):.3f}",
+                   antisym=f"{stats.get('resid_antisym_corr', float('nan')):.3f}"),
+                tr("info.model_comparison"),
+                tr("info.multistart_count", n=f"{stats.get('n_starts', 1.0):.0f}"),
+            ])
+            if (abs(stats.get("resid_lag1", 0.0)) > 0.35
+                    or abs(stats.get("resid_runs_z", 0.0)) > 2.0
+                    or stats.get("resid_antisym_corr", 0.0) > 0.45):
+                text.extend([tr("info.residual_warning_1"), tr("info.residual_warning_2")])
+        cal_unc = self.calibration_uncertainty_text()
+        if cal_unc:
+            text.append(cal_unc)
+        corr = self.last_fit_correlations
+        if corr:
+            max_pair = corr.get("max_pair") or []
+            if max_pair:
+                text.append(tr("info.max_correlation",
+                               value=f"{float(corr.get('max_abs_corr', 0.0)):.3f}",
+                               p1=max_pair[0], p2=max_pair[1]))
+            high_pairs = corr.get("high_pairs") or []
+            if high_pairs:
+                text.append(tr("info.correlation_warning"))
+                for pair in high_pairs[:6]:
+                    text.append(f"  {pair['param1']} ↔ {pair['param2']}: r={float(pair['corr']):.3f}")
+                if len(high_pairs) > 6:
+                    text.append(tr("info.correlation_more", n=len(high_pairs) - 6))
+        text.append("")
+        if len(pct_active) > 1:
+            text.append(tr("info.area_percent_header"))
+            for idx, area, pct in zip(pct_active, areas, percentages):
+                err = pct_errors.get(idx)
+                err_txt = f" ± {err:.3g}%" if err is not None else ""
+                kind_disp = tr(f"kind.{self.component_kind[idx].get()}",
+                               default=self.component_kind[idx].get())
+                text.append(tr("info.component_percent_line",
+                               idx=idx, kind=kind_disp, pct=pct, err_txt=err_txt, area=area))
+            text.append("")
+        for idx in active:
+            p = f"s{idx}_"
+            i1       = self.vars[p + "int1"].get()
+            i2_real  = i1 * (2 / 3) * self.vars[p + "int2"].get()
+            i3_real  = i1 * (1 / 3) * self.vars[p + "int3"].get()
+            g1 = self.vars[p + "gamma1"].get()
+            g2 = g1 * self.vars[p + "gamma2"].get()
+            g3 = g1 * self.vars[p + "gamma3"].get()
+            f1, f2, f3 = 2.0 * g1, 2.0 * g2, 2.0 * g3
+            kind_disp = tr(f"kind.{self.component_kind[idx].get()}",
+                           default=self.component_kind[idx].get())
+            text.extend([
+                tr("info.component_params_line", kind=kind_disp, idx=idx,
+                   bhf=self.vars[p + "bhf"].get(),
+                   delta=self.vars[p + "delta"].get(),
+                   quad=self.vars[p + "quad"].get()),
+                tr("info.gamma_hwhm",       g1=g1, g2=g2, g3=g3),
+                tr("info.fwhm_equiv",       f1=f1, f2=f2, f3=f3),
+                tr("info.gamma_rel",        gamma2=self.vars[p + "gamma2"].get(),
+                                            gamma3=self.vars[p + "gamma3"].get()),
+                tr("info.depth_intensities",depth=self.vars[p + "depth"].get(),
+                                            i1=i1, i2=i2_real, i3=i3_real),
+            ])
+        text.extend(["", tr("info.fixed_line",
+                             fixed=", ".join(fixed) if fixed else tr("info.none"))])
+        cons = self.enabled_constraints()
+        if cons:
+            text.append("")
+            text.append(tr("info.constraints_header"))
+            for c in cons:
+                text.append(tr("info.constraint_line",
+                               target=c["target"], factor=float(c.get("factor", 1.0)),
+                               source=c["source"],  offset=float(c.get("offset", 0.0))))
+        self.info.delete("1.0", tk.END)
+        self.info.insert(tk.END, "\n".join(text))
+
+    # ── Persistencia (incluye n_components) ──────────────────────────────────
+
+    def settings_payload(self) -> dict:
+        data = super().settings_payload()
+        data["n_components"] = self.n_components_var.get() if hasattr(self, "n_components_var") else 1
+        return data
+
+    def _apply_state_payload(self, data: dict, restore_geometry: bool = True) -> None:
+        super()._apply_state_payload(data, restore_geometry)
+        if hasattr(self, "n_components_var") and "n_components" in data:
+            self.n_components_var.set(int(data["n_components"]))
 
 
 def main() -> None:
