@@ -16,6 +16,8 @@
 !panels/**
 !layout/
 !layout/**
+!docs/
+!docs/**
 
 # Cachés/temporales habituales si aparecen en la raíz
 __pycache__/

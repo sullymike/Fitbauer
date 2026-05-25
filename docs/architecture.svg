@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="380" viewBox="0 0 820 380">
+<defs><marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#94a3b8"/></marker></defs>
+<rect x="0" y="0" width="820" height="380" fill="#f8fafc" stroke="none" stroke-width="0" rx="12"/>
+<text x="410" y="34" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" font-weight="700" fill="#0f172a">Arquitectura modular</text>
+<line x1="24" y1="50" x2="796" y2="50" stroke="#e2e8f0" stroke-width="1.5"/>
+<rect x="20" y="66" width="780" height="72" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5" rx="8"/>
+<text x="410" y="80" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="#166534">core/   —   sin tkinter, puro Python + NumPy</text>
+<rect x="50" y="86" width="200" height="44" fill="#dcfce7" stroke="#4ade80" stroke-width="1" rx="4"/>
+<text x="150" y="99" text-anchor="middle" font-family="system-ui,sans-serif" font-size="9" font-weight="700" fill="#14532d">constants.py</text>
+<text x="150" y="112" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="normal" fill="#166534">BHF_DEFAULT_T,</text>
+<text x="150" y="124" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="normal" fill="#166534">metadatos</text>
+<rect x="270" y="86" width="200" height="44" fill="#dcfce7" stroke="#4ade80" stroke-width="1" rx="4"/>
+<text x="370" y="99" text-anchor="middle" font-family="system-ui,sans-serif" font-size="9" font-weight="700" fill="#14532d">physics.py</text>
+<text x="370" y="112" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="normal" fill="#166534">lorentzian, sextet_</text>
+<text x="370" y="124" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="normal" fill="#166534">absorption, total_model</text>
+<rect x="490" y="86" width="200" height="44" fill="#dcfce7" stroke="#4ade80" stroke-width="1" rx="4"/>
+<text x="590" y="99" text-anchor="middle" font-family="system-ui,sans-serif" font-size="9" font-weight="700" fill="#14532d">data_io.py</text>
+<text x="590" y="112" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="normal" fill="#166534">read_ws5, fold,</text>
+<text x="590" y="124" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="normal" fill="#166534">chi², settings I/O</text>
+<rect x="20" y="158" width="780" height="96" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5" rx="8"/>
+<text x="410" y="172" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="#1e3a5f">panels/   —   cada panel hereda BasePanel · build() → widget</text>
+<rect x="32" y="180" width="104" height="64" fill="#bfdbfe" stroke="#94a3b8" stroke-width="0.8" rx="4"/>
+<text x="84" y="216" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="600" fill="#1d4ed8">header</text>
+<rect x="140" y="180" width="104" height="64" fill="#dbeafe" stroke="#94a3b8" stroke-width="0.8" rx="4"/>
+<text x="192" y="216" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="600" fill="#1d4ed8">file_info</text>
+<rect x="248" y="180" width="104" height="64" fill="#ede9fe" stroke="#94a3b8" stroke-width="0.8" rx="4"/>
+<text x="300" y="216" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="600" fill="#5b21b6">info_display</text>
+<rect x="356" y="180" width="104" height="64" fill="#fef9c3" stroke="#94a3b8" stroke-width="0.8" rx="4"/>
+<text x="408" y="216" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="600" fill="#713f12">calibration</text>
+<rect x="464" y="180" width="104" height="64" fill="#fce7f3" stroke="#94a3b8" stroke-width="0.8" rx="4"/>
+<text x="516" y="216" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="600" fill="#9d174d">reference</text>
+<rect x="572" y="180" width="104" height="64" fill="#d1fae5" stroke="#94a3b8" stroke-width="0.8" rx="4"/>
+<text x="624" y="216" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="600" fill="#064e3b">plot_panel</text>
+<rect x="680" y="180" width="104" height="64" fill="#ddd6fe" stroke="#94a3b8" stroke-width="0.8" rx="4"/>
+<text x="732" y="216" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="600" fill="#3730a3">sim_panel</text>
+<rect x="20" y="274" width="780" height="64" fill="#fef3c7" stroke="#fcd34d" stroke-width="1.5" rx="8"/>
+<text x="410" y="288" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="#713f12">layout/   —   disposición de paneles, presets, configurador</text>
+<rect x="50" y="296" width="200" height="36" fill="#fef9c3" stroke="#f59e0b" stroke-width="1" rx="4"/>
+<text x="150" y="307" text-anchor="middle" font-family="system-ui,sans-serif" font-size="9" font-weight="700" fill="#713f12">manager.py</text>
+<text x="150" y="318" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="normal" fill="#92400e">construye 3 columnas</text>
+<text x="150" y="329" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="normal" fill="#92400e">_force_tabs en centro</text>
+<rect x="270" y="296" width="200" height="36" fill="#fef9c3" stroke="#f59e0b" stroke-width="1" rx="4"/>
+<text x="370" y="307" text-anchor="middle" font-family="system-ui,sans-serif" font-size="9" font-weight="700" fill="#713f12">presets.py</text>
+<text x="370" y="318" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="normal" fill="#92400e">Estándar · Tres col.</text>
+<text x="370" y="329" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="normal" fill="#92400e">Análisis · Compacto</text>
+<rect x="490" y="296" width="200" height="36" fill="#fef9c3" stroke="#f59e0b" stroke-width="1" rx="4"/>
+<text x="590" y="307" text-anchor="middle" font-family="system-ui,sans-serif" font-size="9" font-weight="700" fill="#713f12">configurator.py</text>
+<text x="590" y="318" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="normal" fill="#92400e">diálogo GUI para</text>
+<text x="590" y="329" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="normal" fill="#92400e">mover paneles</text>
+<rect x="590" y="292" width="200" height="40" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" rx="6"/>
+<text x="690" y="305" text-anchor="middle" font-family="system-ui,sans-serif" font-size="9" font-weight="700" fill="#1c1917">mossbauer_app.py</text>
+<text x="690" y="318" text-anchor="middle" font-family="system-ui,sans-serif" font-size="7.5" font-weight="normal" fill="#292524">MossbauerApp(MossbauerFe33GUI)</text>
+<line x1="410" y1="138" x2="410" y2="156" stroke="#86efac" stroke-width="1.5" marker-end="url(#arr)"/>
+<line x1="410" y1="254" x2="410" y2="272" stroke="#93c5fd" stroke-width="1.5" marker-end="url(#arr)"/>
+</svg>
