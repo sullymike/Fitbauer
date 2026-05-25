@@ -491,13 +491,21 @@ class MossbauerApp(MossbauerFe33GUI):
     # ── Visibilidad del panel de distribución BHF ───────────────────────────
 
     def _refresh_distribution_tab_visibility(self, update: bool = True) -> None:
-        nb = getattr(self, "notebook", None)
-        dist_tab = getattr(self, "dist_tab", None)
+        nb       = getattr(self, "notebook",        None)
+        dist_tab = getattr(self, "dist_tab",        None)
+        wrapper  = getattr(self, "_sim_dist_wrapper", None)
+        comp_area = getattr(self, "_sim_comp_area", None)
         if nb is None or dist_tab is None:
             if update:
                 self.update_plot()
             return
         if self.fit_mode_var.get() == "bhf_distribution":
+            # Restaurar wrapper antes de comp_area si fue ocultado
+            if wrapper and wrapper.winfo_exists() and not wrapper.winfo_ismapped():
+                if comp_area and comp_area.winfo_exists():
+                    wrapper.pack(fill=tk.X, before=comp_area)
+                else:
+                    wrapper.pack(fill=tk.X)
             try:
                 nb.add(dist_tab, text=tr("tab.distribution_bhf"))
                 nb.select(dist_tab)
@@ -510,6 +518,9 @@ class MossbauerApp(MossbauerFe33GUI):
             except tk.TclError:
                 pass
             nb.pack_forget()
+            # Ocultar el wrapper completo para que los componentes recuperen ese espacio
+            if wrapper and wrapper.winfo_exists() and wrapper.winfo_ismapped():
+                wrapper.pack_forget()
         if update:
             self.update_plot()
 

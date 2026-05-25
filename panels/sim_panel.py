@@ -112,6 +112,7 @@ class SimPanel(BasePanel):
         comp_area = ttk.Frame(sim_box)
         comp_area.pack(fill=tk.X)
         self._comp_area = comp_area
+        app._sim_comp_area = comp_area      # referencia para reposicionar dist_wrapper
 
         if self._force_tabs:
             self._build_tabbed(comp_area)
@@ -320,8 +321,19 @@ class SimPanel(BasePanel):
             if h_panel > h_win * 0.88:
                 self._switch_layout(use_tabs=True)
         else:
-            # Estimar qué altura tendría el panel en modo apilado
-            h_stacked = _OVERHEAD_H + (_DIST_H if dist_on else 0) + n * _COMP_H
+            # Modo pestañas: medir alturas reales para decidir si volver a apilado
+            root.update_idletasks()
+            comp_tab = self._comp_tabs.get(1)
+            h_one_comp = (
+                comp_tab.winfo_reqheight()
+                if comp_tab and comp_tab.winfo_exists()
+                else _COMP_H
+            )
+            wrapper = getattr(self.app, "_sim_dist_wrapper", None)
+            h_dist = 0
+            if dist_on and wrapper and wrapper.winfo_exists():
+                h_dist = wrapper.winfo_reqheight()
+            h_stacked = _OVERHEAD_H + h_dist + n * h_one_comp
             if h_stacked < h_win * 0.78:
                 self._switch_layout(use_tabs=False)
 
