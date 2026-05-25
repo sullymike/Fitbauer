@@ -488,6 +488,31 @@ class MossbauerApp(MossbauerFe33GUI):
         self.info.delete("1.0", tk.END)
         self.info.insert(tk.END, "\n".join(text))
 
+    # ── Visibilidad del panel de distribución BHF ───────────────────────────
+
+    def _refresh_distribution_tab_visibility(self, update: bool = True) -> None:
+        nb = getattr(self, "notebook", None)
+        dist_tab = getattr(self, "dist_tab", None)
+        if nb is None or dist_tab is None:
+            if update:
+                self.update_plot()
+            return
+        if self.fit_mode_var.get() == "bhf_distribution":
+            try:
+                nb.add(dist_tab, text=tr("tab.distribution_bhf"))
+                nb.select(dist_tab)
+            except tk.TclError:
+                pass
+            nb.pack(fill=tk.X, pady=(0, 4))
+        else:
+            try:
+                nb.hide(dist_tab)
+            except tk.TclError:
+                pass
+            nb.pack_forget()
+        if update:
+            self.update_plot()
+
     # ── Pendiente: límites ampliados ─────────────────────────────────────────
 
     def bounds_for_key(self, key: str) -> tuple[float, float]:
