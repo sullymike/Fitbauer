@@ -32,7 +32,7 @@ class CalibrationPanel(BasePanel):
             variable=app.fit_center_var,
         ).pack(anchor=tk.W, pady=(0, 4))
         self._add_slider(box, "baseline", tr("slider.baseline"), 1.0, 0.70, 1.30, 0.0005)
-        self._add_slider(box, "slope", tr("slider.slope"), 0.0, -0.0001, 0.0001, 0.000001)
+        self._add_slider(box, "slope", tr("slider.slope"), 0.0, -0.002, 0.002, 0.00001)
         self._add_slider(
             box, "voigt_sigma", tr("slider.voigt_sigma"), 0.05, 0.0, 1.0, 0.001, fit_param=False
         )

@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import tkinter as tk
 from pathlib import Path
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
 import numpy as np
 
@@ -21,7 +21,7 @@ from mossbauer_fe33_gui_v2IA import (
     SETTINGS_PATH,
     APP_NAME,
 )
-from core.constants import SEXTET_PARAM_NAMES, GLOBAL_PARAM_NAMES
+from core.constants import BHF_DEFAULT_T, SEXTET_PARAM_NAMES, GLOBAL_PARAM_NAMES
 from core.physics import component_absorption
 from layout.manager import LayoutManager
 from panels.sim_panel import MAX_COMPONENTS
@@ -470,6 +470,128 @@ class MossbauerApp(MossbauerFe33GUI):
                                source=c["source"],  offset=float(c.get("offset", 0.0))))
         self.info.delete("1.0", tk.END)
         self.info.insert(tk.END, "\n".join(text))
+
+    # ── Pendiente: límites ampliados ─────────────────────────────────────────
+
+    def bounds_for_key(self, key: str) -> tuple[float, float]:
+        if key == "slope":
+            return (-0.005, 0.005)
+        return super().bounds_for_key(key)
+
+    def auto_guess_from_minima(self, fit_after: bool = False) -> None:
+        """Como el original, pero con límite de pendiente ±0.005 y hasta MAX_COMPONENTS."""
+        if self.velocity is None or self.y_data is None:
+            return
+        peaks, baseline, slope = self.detect_absorption_minima()
+        if not peaks:
+            messagebox.showinfo(tr("msg.auto_minima_title"), tr("msg.auto_minima_none"))
+            return
+
+        self.fit_mode_var.set("discrete")
+        self.set_fit_mode_from_menu()
+        params: dict[str, float] = {
+            "baseline": baseline,
+            "slope": float(np.clip(slope, -0.005, 0.005)),
+        }
+        for idx in range(1, MAX_COMPONENTS + 1):
+            if idx > 1:
+                self.sextet_enabled[idx].set(False)
+            pfx = f"s{idx}_"
+            params.update({
+                pfx + "delta": 0.0, pfx + "quad": 0.0, pfx + "bhf": BHF_DEFAULT_T,
+                pfx + "gamma1": 0.20, pfx + "gamma2": 1.0, pfx + "gamma3": 1.0,
+                pfx + "depth": 0.005, pfx + "int1": 1.0, pfx + "int2": 1.0, pfx + "int3": 1.0,
+            })
+
+        components: list[tuple[int, str, list[dict[str, float]]]] = []
+        used_ids: set[int] = set()
+        sext = self._best_sextet_from_peaks(peaks)
+        if sext is not None:
+            sub, delta, bhf, width, depth = sext
+            if len(sub) >= 5 and abs(sub[-1]["pos"] - sub[0]["pos"]) > 3.0:
+                components.append((1, "Sextete", sub))
+                params["s1_delta"]  = float(np.clip(delta, -2.5, 2.5))
+                params["s1_bhf"]    = float(np.clip(bhf, 20.0, 50.0))
+                params["s1_quad"]   = 0.0
+                params["s1_gamma1"] = float(np.clip(width / 2.0, 0.04, 1.0))
+                params["s1_depth"]  = float(np.clip(depth, 0.002, 0.25))
+                used_ids.update(int(pk["i"]) for pk in sub)
+
+        remaining = [
+            pk for pk in sorted(peaks, key=lambda q: q["smooth_depth"], reverse=True)
+            if int(pk["i"]) not in used_ids
+        ]
+        next_idx = 2 if components else 1
+        while next_idx <= MAX_COMPONENTS and remaining:
+            if len(remaining) >= 2:
+                pair = sorted(remaining[:2], key=lambda pk: pk["pos"])
+                sep = abs(pair[1]["pos"] - pair[0]["pos"])
+                if 0.18 <= sep <= 4.0:
+                    kind = "Doblete"
+                    group = pair
+                    remaining = [pk for pk in remaining if pk not in pair]
+                else:
+                    kind = "Singlete"
+                    group = [remaining.pop(0)]
+            else:
+                kind = "Singlete"
+                group = [remaining.pop(0)]
+            components.append((next_idx, kind, group))
+            pfx = f"s{next_idx}_"
+            if next_idx > 1:
+                self.sextet_enabled[next_idx].set(True)
+            if kind == "Doblete":
+                g = sorted(group, key=lambda pk: pk["pos"])
+                params[pfx + "delta"]  = float(np.mean([g[0]["pos"], g[1]["pos"]]))
+                params[pfx + "quad"]   = float(abs(g[1]["pos"] - g[0]["pos"]))
+                params[pfx + "gamma1"] = float(np.clip(np.mean([x["width"] for x in g]) / 2.0, 0.04, 1.0))
+                params[pfx + "gamma2"] = 1.0
+                params[pfx + "depth"]  = float(np.clip(np.mean([x["depth"] for x in g]), 0.002, 0.25))
+                params[pfx + "int1"]   = 1.0
+                params[pfx + "int2"]   = 1.0
+            else:
+                pk = group[0]
+                params[pfx + "delta"]  = float(pk["pos"])
+                params[pfx + "gamma1"] = float(np.clip(pk["width"] / 2.0, 0.04, 1.0))
+                params[pfx + "depth"]  = float(np.clip(pk["depth"], 0.002, 0.25))
+                params[pfx + "int1"]   = 1.0
+            next_idx += 1
+
+        if not components:
+            pk = max(peaks, key=lambda p: p["depth"])
+            components.append((1, "Singlete", [pk]))
+            params["s1_delta"]  = float(pk["pos"])
+            params["s1_gamma1"] = float(np.clip(pk["width"] / 2.0, 0.04, 1.0))
+            params["s1_depth"]  = float(np.clip(pk["depth"], 0.002, 0.25))
+
+        # Adjust n_components_var to match detected components
+        if hasattr(self, "n_components_var") and components:
+            n_detected = max(i for i, _k, _g in components)
+            self.n_components_var.set(min(n_detected, MAX_COMPONENTS))
+
+        for idx in range(1, MAX_COMPONENTS + 1):
+            found = next((k for i, k, _g in components if i == idx), "Sextete")
+            self.component_kind[idx].set(found)
+            if idx > 1 and not any(i == idx for i, _k, _g in components):
+                self.sextet_enabled[idx].set(False)
+        self.set_params(params)
+        for idx, kind, _group in components:
+            self.on_component_kind_change(idx)
+        for key in self.active_param_keys():
+            if key in self.fixed_vars:
+                self.fixed_vars[key].set(False)
+        self.update_plot()
+        resumen = ", ".join(
+            tr("text.component_kind_label", idx=idx, kind=tr(f"kind.{kind}", default=kind))
+            for idx, kind, _g in components
+        )
+        if fit_after:
+            self.fit_current_data()
+        else:
+            messagebox.showinfo(
+                tr("msg.auto_minima_title"),
+                tr("msg.auto_minima_detected", n=len(peaks), summary=resumen),
+            )
 
     # ── Persistencia (incluye n_components) ──────────────────────────────────
 
