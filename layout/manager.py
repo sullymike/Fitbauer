@@ -75,13 +75,14 @@ class LayoutManager:
         self._build_from_config(window, config)
 
     def _build_from_config(self, window: tk.Tk, config: dict) -> None:
-        left_ids: list[str]  = config.get("left", [])
-        right_ids: list[str] = config.get("right", [])
-        left_width: int      = int(config.get("left_width", 455))
-        right_width: int     = int(config.get("right_width", 0))
+        left_ids:   list[str] = config.get("left",   [])
+        center_ids: list[str] = config.get("center", [])
+        right_ids:  list[str] = config.get("right",  [])
+        left_width:  int = int(config.get("left_width",  455))
+        right_width: int = int(config.get("right_width",   0))
 
-        # sim_controls van "debajo del gráfico" cuando right_width == 0
-        # y sim_controls está en la columna derecha del config
+        # sim_controls se ancla debajo del gráfico cuando right_width == 0
+        # y está asignado a la columna derecha (preset Estándar/Compacto)
         sim_below = ("sim_controls" in right_ids and right_width == 0)
 
         main = ttk.Frame(window)
@@ -95,7 +96,7 @@ class LayoutManager:
             left_outer.pack_propagate(False)
             self._fill_column(left_outer, left_ids)
 
-        # ── Columna derecha (solo si tiene ancho y paneles) ───────────────────
+        # ── Columna derecha (solo si tiene ancho) ─────────────────────────────
         right_ids_visible = [p for p in right_ids if not (p == "sim_controls" and sim_below)]
         if right_ids_visible and right_width > 0:
             right_outer = ttk.Frame(main, width=right_width, padding=(4, 8, 8, 8))
@@ -103,10 +104,19 @@ class LayoutManager:
             right_outer.pack_propagate(False)
             self._fill_column(right_outer, right_ids_visible)
 
-        # ── Centro: gráfica + sim_controls opcional debajo ────────────────────
+        # ── Centro: paneles opcionales + gráfica (rellena) + sim opcional ─────
         center = ttk.Frame(main, padding=(4, 6, 4, 6))
         center.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
+        # Paneles del centro se apilan encima del gráfico
+        if center_ids:
+            for pid in center_ids:
+                panel = self._panels.get(pid)
+                if panel:
+                    widget = panel.build(center)
+                    widget.pack(side=tk.TOP, fill=tk.X, pady=(0, 6))
+
+        # sim_controls debajo del gráfico (modo "ancho 0")
         if sim_below:
             sim_widget = self._panels["sim_controls"].build(center)
             sim_widget.pack(side=tk.BOTTOM, fill=tk.X, pady=(4, 0))
