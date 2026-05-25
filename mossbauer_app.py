@@ -40,7 +40,24 @@ _COMPONENT_COLORS = {
 class MossbauerApp(MossbauerFe33GUI):
     """GUI modular con paneles reubicables y layout de 3 columnas."""
 
-    # ── Construcción de la UI ─────────────────────────────────────────────────
+    # Puntos a recortar en cada extremo tras el plegado.
+    # El canal extremo del array ADT suele estar semilleno (~50 % de cuentas)
+    # y el canal opuesto requiere extrapolación, ambos sesgan la pendiente.
+    _N_EDGE_TRIM: int = 1
+
+    # ── Recorte de bordes tras el plegado ────────────────────────────────────
+
+    def refold_data(self) -> None:
+        super().refold_data()
+        n = self._N_EDGE_TRIM
+        if self.y_data is not None and self.y_data.size > 2 * n + 2:
+            self.folded_raw = self.folded_raw[n:-n]
+            self.pairs      = self.pairs[n:-n]
+            self.y_data     = self.y_data[n:-n]
+            vmax            = float(self.velocity[-1])
+            self.velocity   = np.linspace(-vmax, vmax, self.y_data.size)
+
+
 
     def _build_ui(self) -> None:
         # n_components_var persiste entre rebuilds; se inicializa solo una vez
