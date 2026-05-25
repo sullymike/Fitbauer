@@ -26,6 +26,8 @@ MAX_COMPONENTS = 6
 _COMP_H = 315
 # Coste fijo: botones + spinbox + wrapper distribución + márgenes de LabelFrame
 _OVERHEAD_H = 110
+# Altura del notebook de distribución BHF cuando está visible
+_DIST_H = 490
 
 
 class SimPanel(BasePanel):
@@ -116,6 +118,14 @@ class SimPanel(BasePanel):
         else:
             self._build_stacked(comp_area)
             sim_box.after(400, self._check_layout)
+
+        # Reaccionar a cambios de modo distribución (añade ~490 px de altura)
+        def _on_fit_mode_change(*_: object) -> None:
+            if self._root is None or not self._root.winfo_exists():
+                return
+            self._schedule_layout_check()
+
+        app.fit_mode_var.trace_add("write", _on_fit_mode_change)
 
         app._refresh_distribution_tab_visibility(update=False)
 
@@ -275,6 +285,17 @@ class SimPanel(BasePanel):
 
     # ── Cambio dinámico de modo ───────────────────────────────────────────────
 
+    def _schedule_layout_check(self) -> None:
+        if self._force_tabs:
+            return
+        app = self.app
+        if self._layout_timer:
+            try:
+                app.after_cancel(self._layout_timer)
+            except Exception:
+                pass
+        self._layout_timer = app.after(300, self._check_layout)
+
     def _check_layout(self) -> None:
         """Compara el espacio necesario con la altura de ventana y cambia de modo si hace falta."""
         root = self._root
@@ -285,17 +306,27 @@ class SimPanel(BasePanel):
             if not self._using_tabs:
                 self._switch_layout(use_tabs=True)
             return
-        n = self.app.n_components_var.get()
         h_win = self.app.winfo_height()
         if h_win < 100:
             return
-        h_needed = _OVERHEAD_H + n * _COMP_H
-        # Cambiar a pestañas cuando el contenido supera el 88 % de la ventana.
-        # Volver a apilado cuando baja del 78 % (histéresis para evitar rebotes).
-        if not self._using_tabs and h_needed > h_win * 0.88:
-            self._switch_layout(use_tabs=True)
-        elif self._using_tabs and h_needed < h_win * 0.78:
-            self._switch_layout(use_tabs=False)
+        n = self.app.n_components_var.get()
+        dist_on = (
+            hasattr(self.app, "fit_mode_var")
+            and self.app.fit_mode_var.get() == "bhf_distribution"
+        )
+
+        if not self._using_tabs:
+            # Altura real del panel (incluye distribución si está visible) —
+            # más precisa que cualquier estimación.
+            root.update_idletasks()
+            h_panel = root.winfo_reqheight()
+            if h_panel > h_win * 0.88:
+                self._switch_layout(use_tabs=True)
+        else:
+            # Estimar qué altura tendría el panel en modo apilado
+            h_stacked = _OVERHEAD_H + (_DIST_H if dist_on else 0) + n * _COMP_H
+            if h_stacked < h_win * 0.78:
+                self._switch_layout(use_tabs=False)
 
     def _switch_layout(self, use_tabs: bool) -> None:
         if use_tabs == self._using_tabs:
@@ -375,10 +406,4 @@ class SimPanel(BasePanel):
         app.on_component_activation_change()
 
         # Comprobar si el nuevo número de componentes requiere cambiar de modo
-        if not self._force_tabs:
-            if self._layout_timer:
-                try:
-                    app.after_cancel(self._layout_timer)
-                except Exception:
-                    pass
-            self._layout_timer = app.after(300, self._check_layout)
+        self._schedule_layout_check()
