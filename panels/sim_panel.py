@@ -27,7 +27,7 @@ _COMP_H = 315
 # Coste fijo: botones + spinbox + wrapper distribución + márgenes de LabelFrame
 _OVERHEAD_H = 110
 # Altura del notebook de distribución BHF cuando está visible
-_DIST_H = 490
+_DIST_H = 270
 
 
 class SimPanel(BasePanel):
@@ -135,51 +135,47 @@ class SimPanel(BasePanel):
     # ── Distribución BHF ─────────────────────────────────────────────────────
 
     def _build_distribution_tab(self, dist_tab: ttk.Frame) -> None:
+        """3 columnas equilibradas (~260 px total) para que quepa junto a un componente."""
         app = self.app
-        dist_top = ttk.Frame(dist_tab)
-        dist_top.pack(fill=tk.X, pady=(0, 4))
-        ttk.Label(dist_top, text=tr("bhf.description"), style="Subtitle.TLabel").pack(
-            side=tk.LEFT, anchor=tk.W
-        )
 
-        # ── Fila superior: d1 (parámetros principales) | d2 (rango/bins) ──────
-        row1 = ttk.Frame(dist_tab)
-        row1.pack(fill=tk.X)
-        d1 = ttk.Frame(row1)
-        d2 = ttk.Frame(row1)
+        dist_cols = ttk.Frame(dist_tab)
+        dist_cols.pack(fill=tk.X)
+        d1 = ttk.Frame(dist_cols)
+        d2 = ttk.Frame(dist_cols)
+        d3 = ttk.Frame(dist_cols)
         d1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 6))
-        d2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        d2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=3)
+        d3.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(6, 0))
 
-        # ── Fila inferior: d3 (regularización) — ancho completo ──────────────
-        d3 = ttk.Frame(dist_tab)
-        d3.pack(fill=tk.X, pady=(6, 0))
-
-        # d1 — parámetros y opciones de distribución
+        # d1 — parámetros de distribución (4 sliders)
         self._add_slider(d1, "dist_delta",     tr("slider.dist_delta"),     0.0,          -2.5, 2.5,  0.001, fit_param=False)
         self._add_slider(d1, "dist_quad",      tr("slider.dist_quad"),      0.0,          -4.0, 4.0,  0.001, fit_param=False)
         self._add_slider(d1, "dist_fixed_bhf", tr("slider.dist_fixed_bhf"), BHF_DEFAULT_T, 0.0, 60.0, 0.01,  fit_param=False)
         self._add_slider(d1, "dist_gamma",     tr("slider.dist_gamma"),     0.18,         0.03, 1.0,  0.001, fit_param=False)
-        ttk.Label(d1, text=tr("bhf.variable_label")).pack(anchor=tk.W)
-        dv = ttk.Combobox(d1, textvariable=app.dist_variable_var,
+
+        # d2 — rango, bins y alfa (4 sliders)
+        self._add_slider(d2, "dist_bmin",      tr("slider.dist_bmin"),      0.0,   0.0,  60.0,  0.1,  fit_param=False)
+        self._add_slider(d2, "dist_bmax",      tr("slider.dist_bmax"),      50.0,  1.0,  60.0,  0.1,  fit_param=False)
+        self._add_slider(d2, "dist_nbins",     tr("slider.dist_nbins"),     50.0, 10.0, 100.0,  1.0,  fit_param=False)
+        self._add_slider(d2, "dist_log_alpha", tr("slider.dist_log_alpha"), -2.0, -8.0,   4.0,  0.1,  fit_param=False)
+
+        # d3 — opciones y botones (se expanden al ancho de la columna)
+        ttk.Label(d3, text=tr("bhf.variable_label")).pack(anchor=tk.W)
+        dv = ttk.Combobox(d3, textvariable=app.dist_variable_var,
                           values=("BHF", "ΔEQ"), width=10, state="readonly")
-        dv.pack(anchor=tk.W, fill=tk.X, pady=(0, 4))
+        dv.pack(anchor=tk.W, fill=tk.X, pady=(0, 3))
         dv.bind("<<ComboboxSelected>>", lambda _e: app.on_bhf_distribution_option_change())
-        ttk.Label(d1, text=tr("bhf.shape_label")).pack(anchor=tk.W)
-        ds = ttk.Combobox(d1, textvariable=app.dist_shape_var,
+
+        ttk.Label(d3, text=tr("bhf.shape_label")).pack(anchor=tk.W)
+        ds = ttk.Combobox(d3, textvariable=app.dist_shape_var,
                           values=("Histograma", "Gaussiana", "Binomial", "Fija"),
                           width=12, state="readonly")
-        ds.pack(anchor=tk.W, fill=tk.X, pady=(0, 4))
+        ds.pack(anchor=tk.W, fill=tk.X, pady=(0, 3))
         ds.bind("<<ComboboxSelected>>", lambda _e: app.on_bhf_distribution_option_change())
-        ttk.Button(d1, text=tr("bhf.load_fixed"), command=app.load_fixed_distribution_file,
-                   style="Small.TButton").pack(anchor=tk.W, fill=tk.X, pady=(0, 4))
 
-        # d2 — rango y número de bins
-        self._add_slider(d2, "dist_bmin",  tr("slider.dist_bmin"),  0.0,  0.0,  60.0, 0.1,  fit_param=False)
-        self._add_slider(d2, "dist_bmax",  tr("slider.dist_bmax"),  50.0, 1.0,  60.0, 0.1,  fit_param=False)
-        self._add_slider(d2, "dist_nbins", tr("slider.dist_nbins"), 50.0, 10.0, 100.0, 1.0, fit_param=False)
+        ttk.Button(d3, text=tr("bhf.load_fixed"), command=app.load_fixed_distribution_file,
+                   style="Small.TButton").pack(fill=tk.X, pady=(0, 4))
 
-        # d3 — regularización: slider + 3 botones (ancho completo) + checkboxes + L-curve
-        self._add_slider(d3, "dist_log_alpha", tr("slider.dist_log_alpha"), -2.0, -8.0, 4.0, 0.1, fit_param=False)
         ab = ttk.Frame(d3)
         ab.pack(fill=tk.X, pady=(0, 2))
         ttk.Button(ab, text=tr("bhf.alpha_fine"),
@@ -191,12 +187,13 @@ class SimPanel(BasePanel):
         ttk.Button(ab, text=tr("bhf.alpha_smooth"),
                    command=lambda: app.set_bhf_alpha_preset(1.0), style="Small.TButton"
                    ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(2, 0))
+
         ttk.Checkbutton(d3, text=tr("bhf.use_sharp"), variable=app.dist_use_sharp_var,
                         command=app.on_bhf_distribution_option_change).pack(anchor=tk.W, pady=(2, 0))
         ttk.Checkbutton(d3, text=tr("bhf.refine_global"), variable=app.dist_refine_global_var,
                         command=app.on_bhf_distribution_option_change).pack(anchor=tk.W, pady=(0, 2))
         ttk.Button(d3, text=tr("bhf.lcurve_alpha"), command=app.scan_bhf_alpha_gui,
-                   style="Small.TButton").pack(anchor=tk.E, fill=tk.X, pady=(2, 0))
+                   style="Small.TButton").pack(fill=tk.X, pady=(2, 0))
 
     # ── Construcción de componentes en modo APILADO ───────────────────────────
 
