@@ -47,8 +47,17 @@ class PlotPanel(BasePanel):
         app.canvas = FigureCanvasTkAgg(app.fig, master=frame)
         toolbar = NavigationToolbar2Tk(app.canvas, frame, pack_toolbar=False)
         toolbar.update()
+        if _dark:
+            _tbg = "#d4d4d4"
+            toolbar.config(background=_tbg)
+            for _w in toolbar.winfo_children():
+                try:
+                    _w.config(background=_tbg)
+                except tk.TclError:
+                    pass
         toolbar.pack(side=tk.BOTTOM, fill=tk.X)
         app.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        app.toolbar = toolbar
 
         self._root = frame
         return frame

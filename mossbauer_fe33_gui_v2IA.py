@@ -550,6 +550,18 @@ class MossbauerFe33GUI(tk.Tk):
                 self.canvas.draw_idle()
             except Exception:
                 pass
+        # Toolbar matplotlib: iconos negros → fondo claro en modo oscuro
+        if hasattr(self, "toolbar"):
+            try:
+                _tbg = "#d4d4d4" if _dark else ""
+                self.toolbar.config(background=_tbg)
+                for _w in self.toolbar.winfo_children():
+                    try:
+                        _w.config(background=_tbg)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
 
     def _switch_theme(self, theme: str) -> None:
         style = ttk.Style(self)
