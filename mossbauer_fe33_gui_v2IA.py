@@ -441,76 +441,47 @@ class MossbauerFe33GUI(tk.Tk):
     def _reconfigure_styles(self, style: ttk.Style, sv_active: bool) -> None:
         _dark = (self._theme_var.get() == "sv_ttk_dark")
         if _dark:
-            # Catppuccin Mocha: paleta completa sobre base clam
-            bg      = "#1e1e2e"   # base
-            card    = "#181825"   # mantle
-            surface = "#313244"   # surface0
-            overlay = "#6c7086"   # overlay0
-            text    = "#cdd6f4"   # text
-            subtext = "#a6adc8"   # subtext0
-            accent  = "#cba6f7"   # mauve
+            # sv_ttk dark gestiona los widgets estándar; solo corregimos lo específico.
+            # Paleta: mauve (sin ningún azul) + slate para texto
+            accent  = "#cba6f7"   # Catppuccin mauve
             hdr_bg  = "#11111b"   # crust
             hdr_sub = "#b4befe"   # lavender
-            btn_act = "#7c3aed"
+            fg_main = "#e2e8f0"
+            fg_sub  = "#a6adc8"
+            bg   = style.lookup("TFrame", "background") or "#1c1c1e"
+            card = bg
             self.configure(background=bg)
-            # ── Base de todos los widgets ────────────────────────────────────
-            style.configure(".",
-                background=bg, foreground=text,
-                fieldbackground=surface, selectbackground=accent,
-                selectforeground=bg, troughcolor=surface,
-                bordercolor=overlay, darkcolor=card, lightcolor=surface)
-            # ── Contenedores ─────────────────────────────────────────────────
-            style.configure("TFrame",     background=bg)
-            style.configure("TLabelframe", background=bg, bordercolor=overlay, relief="flat")
-            style.configure("TLabelframe.Label", background=bg, foreground=subtext)
-            # ── Etiquetas ────────────────────────────────────────────────────
-            style.configure("TLabel",       background=bg, foreground=text)
-            style.configure("TCheckbutton", background=bg, foreground=text)
-            style.configure("TRadiobutton", background=bg, foreground=text)
-            # ── Entradas ─────────────────────────────────────────────────────
-            style.configure("TEntry",    fieldbackground=surface, foreground=text,
-                            insertcolor=text, bordercolor=overlay, relief="flat")
-            style.configure("TSpinbox",  fieldbackground=surface, foreground=text,
-                            insertcolor=text, bordercolor=overlay, arrowcolor=subtext)
-            style.configure("TCombobox", fieldbackground=surface, foreground=text,
-                            selectbackground=accent, selectforeground=bg)
-            # ── Controles ────────────────────────────────────────────────────
-            style.configure("TScale",     background=bg, troughcolor=surface, sliderrelief="flat")
-            style.configure("TScrollbar", background=surface, troughcolor=bg,
-                            arrowcolor=overlay, borderwidth=0, relief="flat")
-            style.map("TScrollbar", background=[("active", overlay)])
-            style.configure("TButton", background=surface, foreground=text,
-                            padding=(6, 4), relief="flat", borderwidth=0)
-            style.map("TButton",
-                      background=[("active", overlay), ("pressed", overlay)],
-                      foreground=[("active", text)])
-            # ── Pestañas ─────────────────────────────────────────────────────
-            style.configure("TNotebook", background=bg, borderwidth=0)
-            style.configure("TNotebook.Tab", background=card, foreground=subtext, padding=(12, 6))
+            # Pestañas: sv_ttk dark puede usar azul Windows → neutralizar
+            style.configure("TNotebook.Tab", foreground=fg_sub)
             style.map("TNotebook.Tab",
-                      background=[("selected", surface)],
-                      foreground=[("selected", text)])
-            # ── Estilos propios de la app ─────────────────────────────────────
-            style.configure("Section.TLabelframe", padding=10, background=bg, relief="flat")
+                      background=[("selected", "#313244")],
+                      foreground=[("selected", fg_main)])
+            # Estilos propios
+            style.configure("Section.TLabelframe", padding=10)
             style.configure("Section.TLabelframe.Label",
-                            font=("TkDefaultFont", 10, "bold"),
-                            foreground=accent, background=bg)
+                            font=("TkDefaultFont", 10, "bold"), foreground=accent)
             style.configure("Title.TLabel",
-                            font=("TkDefaultFont", 17, "bold"), foreground=text, background=bg)
+                            font=("TkDefaultFont", 17, "bold"), foreground=fg_main)
             style.configure("Subtitle.TLabel",
-                            font=("TkDefaultFont", 9), foreground=subtext, background=bg)
+                            font=("TkDefaultFont", 9), foreground=fg_sub)
             style.configure("Header.TLabel",
-                            font=("TkDefaultFont", 18, "bold"), foreground=text, background=hdr_bg)
+                            font=("TkDefaultFont", 18, "bold"), foreground=fg_main, background=hdr_bg)
             style.configure("HeaderSub.TLabel",
                             font=("TkDefaultFont", 9), foreground=hdr_sub, background=hdr_bg)
-            style.configure("Accent.TButton",
-                            padding=7, font=("TkDefaultFont", 9, "bold"),
-                            background=accent, foreground=bg)
+            style.configure("Accent.TButton", padding=7, font=("TkDefaultFont", 9, "bold"),
+                            background="#7c3aed", foreground="white")
             style.map("Accent.TButton",
-                      background=[("active", btn_act), ("pressed", "#6d28d9")],
-                      foreground=[("active", text), ("pressed", text)])
-            style.configure("Small.TButton", padding=(5, 4),
-                            background=surface, foreground=text)
+                      background=[("active", "#6d28d9"), ("pressed", "#5b21b6")])
+            style.configure("Small.TButton", padding=(5, 4))
+            # Widgets tk (no ttk): colores explícitos
+            if hasattr(self, "file_label"):
+                self.file_label.configure(bg=card, fg=fg_main)
+            if hasattr(self, "calib_label"):
+                self.calib_label.configure(bg=card, fg=fg_sub)
+            if hasattr(self, "info"):
+                self.info.configure(background=card, foreground=fg_main)
+            # Matplotlib
+            _plot_bg = bg; _axes_bg = "#2a2a2a"; _tc = fg_sub; _lc = fg_main; _sc = "#6c7086"
         elif sv_active:
             accent      = "#0ea5d9"
             accent_dark = "#075985"
@@ -526,6 +497,13 @@ class MossbauerFe33GUI(tk.Tk):
             style.configure("Accent.TButton", padding=7, font=("TkDefaultFont", 9, "bold"), background=accent, foreground="white")
             style.map("Accent.TButton", background=[("active", "#0284c7"), ("pressed", "#0369a1")])
             style.configure("Small.TButton", padding=(5, 4))
+            if hasattr(self, "file_label"):
+                self.file_label.configure(bg=card, fg="#083344")
+            if hasattr(self, "calib_label"):
+                self.calib_label.configure(bg=card, fg="#0e7490")
+            if hasattr(self, "info"):
+                self.info.configure(background=card, foreground="#102a43")
+            _plot_bg = card; _axes_bg = card; _tc = "#17202a"; _lc = "#17202a"; _sc = "#cccccc"
         else:
             accent      = "#0ea5d9"
             accent_dark = "#075985"
@@ -549,12 +527,29 @@ class MossbauerFe33GUI(tk.Tk):
             style.configure("Accent.TButton", padding=7, font=("TkDefaultFont", 9, "bold"), background=accent, foreground="white")
             style.map("Accent.TButton", background=[("active", "#0284c7"), ("pressed", "#0369a1")])
             style.configure("Small.TButton", padding=(5, 4))
+            if hasattr(self, "file_label"):
+                self.file_label.configure(bg=card, fg="#083344")
+            if hasattr(self, "calib_label"):
+                self.calib_label.configure(bg=card, fg="#0e7490")
+            if hasattr(self, "info"):
+                self.info.configure(background=card, foreground="#102a43")
+            _plot_bg = card; _axes_bg = card; _tc = "#17202a"; _lc = "#17202a"; _sc = "#cccccc"
         self._bg = bg
         self._card = card
-        if hasattr(self, "file_label"):
-            self.file_label.configure(bg=card)
-        if hasattr(self, "info"):
-            self.info.configure(background=card)
+        # Matplotlib: actualizar si la figura ya existe
+        if hasattr(self, "fig") and hasattr(self, "canvas"):
+            try:
+                self.fig.patch.set_facecolor(_plot_bg)
+                for _ax in ([self.ax, self.ax_res] if hasattr(self, "ax_res") else [self.ax]):
+                    _ax.set_facecolor(_axes_bg)
+                    _ax.tick_params(colors=_tc, which="both")
+                    _ax.xaxis.label.set_color(_lc)
+                    _ax.yaxis.label.set_color(_lc)
+                    for _spine in _ax.spines.values():
+                        _spine.set_color(_sc)
+                self.canvas.draw_idle()
+            except Exception:
+                pass
 
     def _switch_theme(self, theme: str) -> None:
         style = ttk.Style(self)
@@ -572,8 +567,20 @@ class MossbauerFe33GUI(tk.Tk):
                 messagebox.showerror(tr("msg.theme_title"), tr("msg.theme_apply_error", error=str(exc)))
                 self._theme_var.set("clam")
                 return
+        elif theme == "sv_ttk_dark":
+            if not self._sv_available:
+                messagebox.showwarning(tr("msg.theme_title"), tr("msg.theme_not_installed"))
+                self._theme_var.set("clam")
+                return
+            try:
+                import sv_ttk
+                sv_ttk.set_theme("dark")
+                _sv = True
+            except Exception as exc:
+                messagebox.showerror(tr("msg.theme_title"), tr("msg.theme_apply_error", error=str(exc)))
+                self._theme_var.set("clam")
+                return
         else:
-            # "sv_ttk_dark" y "clam" usan clam como base; los colores los pone _reconfigure_styles
             try:
                 style.theme_use("clam")
             except tk.TclError:
@@ -594,7 +601,10 @@ class MossbauerFe33GUI(tk.Tk):
         try:
             import sv_ttk
             self._sv_available = True
-            if _saved_theme == "sv_ttk":
+            if _saved_theme == "sv_ttk_dark":
+                sv_ttk.set_theme("dark")
+                _sv = True
+            elif _saved_theme != "clam":
                 sv_ttk.set_theme("light")
                 _sv = True
         except ImportError:

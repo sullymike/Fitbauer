@@ -85,7 +85,10 @@ class MossbauerApp(MossbauerFe33GUI):
         try:
             import sv_ttk
             self._sv_available = True
-            if _saved_theme == "sv_ttk":
+            if _saved_theme == "sv_ttk_dark":
+                sv_ttk.set_theme("dark")
+                _sv = True
+            elif _saved_theme != "clam":
                 sv_ttk.set_theme("light")
                 _sv = True
         except ImportError:
