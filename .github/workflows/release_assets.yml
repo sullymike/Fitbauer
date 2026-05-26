@@ -23,6 +23,7 @@ jobs:
           NOTES="RELEASE_NOTES_${TAG}.md"
           zip -r "$ZIP" \
             mossbauer_fe33_gui_v2IA.py \
+            mossbauer_app.py \
             mossbauer_api_client.py \
             mossbauer_help.py \
             mossbauer_i18n.py \
@@ -35,6 +36,8 @@ jobs:
             mossbauer_bhf_pipeline.py \
             download_and_fit_calibrations.py \
             install.py \
+            mossbauer \
+            mossbauer.bat \
             requirements.txt \
             README.md \
             README_EN.md \
@@ -46,6 +49,9 @@ jobs:
             PROPUESTAS_SYNCMOSS.md \
             PROPUESTAS_NORMOS.md \
             NORMOS_comparison_improvements.md \
+            core \
+            layout \
+            panels \
             locales \
             captura-pantalla-principal.png \
             captura-ajuste-discreto.png \
