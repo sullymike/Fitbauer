@@ -99,6 +99,7 @@ class SimPanel(BasePanel):
 
         # ── Área de componentes ────────────────────────────────────────────────
         comp_area = ttk.Frame(sim_box)
+        comp_area.pack(fill=tk.X)
         self._comp_area = comp_area
         app._sim_comp_area = comp_area
 

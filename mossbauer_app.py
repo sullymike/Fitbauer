@@ -512,9 +512,12 @@ class MossbauerApp(MossbauerFe33GUI):
             # Modo apilado: mostrar u ocultar el frame de distribución
             if dist_on:
                 if not wrapper.winfo_ismapped():
-                    if comp_area and comp_area.winfo_exists():
-                        wrapper.pack(fill=tk.X, before=comp_area)
-                    else:
+                    try:
+                        if comp_area and comp_area.winfo_exists() and comp_area.winfo_ismapped():
+                            wrapper.pack(fill=tk.X, before=comp_area)
+                        else:
+                            wrapper.pack(fill=tk.X)
+                    except tk.TclError:
                         wrapper.pack(fill=tk.X)
             else:
                 if wrapper.winfo_ismapped():
