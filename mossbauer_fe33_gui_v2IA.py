@@ -3722,7 +3722,41 @@ class MossbauerFe33GUI(tk.Tk):
         self.update_plot()
         close_progress()
 
+    def _plot_theme(self) -> dict:
+        if getattr(self, "_theme_var", None) and self._theme_var.get() == "sv_ttk_dark":
+            return dict(
+                fig_bg="#1c1c1e", ax_bg="#2a2a2a", res_bg="#252520",
+                title="#e2e8f0",
+                grid="#444444", grid_alpha=0.45,
+                tick="#a6adc8", spine="#6c7086",
+                lbl="#a6adc8",
+                res_tick="#a6adc8", res_spine="#6c7086",
+                res_zero="#6c7086", res_fill="#fb923c", res_line="#fdba74",
+                res_grid="#3a3a3a",
+                data="#e2e8f0", baseline="#94a3b8", model="#f87171",
+                leg_face="#2a2a2a", leg_edge="#6c7086", leg_text="#e2e8f0",
+                no_file="#a6adc8",
+                dist_line="#89b4fa", dist_fill="#89b4fa",
+                dist_grid="#3a3a3a", ann="#f87171",
+            )
+        return dict(
+            fig_bg="#f8fbff", ax_bg="#fbfdff", res_bg="#fff7ed",
+            title="#083344",
+            grid="#c8e4f7", grid_alpha=0.85,
+            tick="#243b53", spine="#8ecae6",
+            lbl="#243b53",
+            res_tick="#7c2d12", res_spine="#fdba74",
+            res_zero="#9a3412", res_fill="#fb923c", res_line="#ea580c",
+            res_grid="#fed7aa",
+            data="#0f172a", baseline="#64748b", model="#dc2626",
+            leg_face="#ffffff", leg_edge="#bae6fd", leg_text="#102a43",
+            no_file="#075985",
+            dist_line="#2563eb", dist_fill="#60a5fa",
+            dist_grid="#bfdbfe", ann="#991b1b",
+        )
+
     def update_plot_bhf_distribution(self) -> None:
+        c = self._plot_theme()
         self.fig.clear()
         show_residual = self.show_residual_var.get()
         if self.last_bhf_fit is not None and show_residual:
@@ -3741,25 +3775,26 @@ class MossbauerFe33GUI(tk.Tk):
             ax_res = None
             ax_dist = None
 
-        self.fig.set_facecolor("#f8fbff")
-        ax.set_facecolor("#fbfdff")
+        self.fig.set_facecolor(c["fig_bg"])
+        ax.set_facecolor(c["ax_bg"])
         dist_label = "P(ΔEQ)" if self.dist_variable_var.get() == "ΔEQ" else "P(BHF)"
-        ax.set_title(tr("plot.title_distribution", label=dist_label), color="#083344", pad=10, fontweight="bold")
+        ax.set_title(tr("plot.title_distribution", label=dist_label), color=c["title"], pad=10, fontweight="bold")
         ax.set_ylabel(tr("plot.transmission_ylabel"))
-        ax.grid(True, color="#c8e4f7", alpha=0.85, linewidth=0.8)
-        ax.tick_params(colors="#243b53")
+        ax.yaxis.label.set_color(c["lbl"])
+        ax.grid(True, color=c["grid"], alpha=c["grid_alpha"], linewidth=0.8)
+        ax.tick_params(colors=c["tick"])
         for spine in ax.spines.values():
-            spine.set_color("#8ecae6")
+            spine.set_color(c["spine"])
 
         if self.velocity is not None and self.y_data is not None:
-            ax.plot(self.velocity, self.y_data, ".", color="#0f172a", ms=4, alpha=0.88, label=tr("plot.legend_data"))
+            ax.plot(self.velocity, self.y_data, ".", color=c["data"], ms=4, alpha=0.88, label=tr("plot.legend_data"))
             baseline_line = self.vars["baseline"].get() + self.vars["slope"].get() * self.velocity
-            ax.plot(self.velocity, baseline_line, ":", color="#64748b", lw=1.25, label=tr("plot.legend_baseline"))
+            ax.plot(self.velocity, baseline_line, ":", color=c["baseline"], lw=1.25, label=tr("plot.legend_baseline"))
             if self.last_bhf_fit is not None:
                 fit = self.last_bhf_fit.fitted_curve
                 sharp_abs_sum = np.zeros_like(self.velocity, dtype=float)
                 if self.last_bhf_fit.sharp_weights is not None and self.last_bhf_fit.sharp_weights.size:
-                    colors = {1: "#16a34a", 2: "#f97316", 3: "#8b5cf6"}
+                    comp_colors = {1: "#16a34a", 2: "#f97316", 3: "#8b5cf6"}
                     for idx, weight in zip(self.last_bhf_sharp_indices, self.last_bhf_fit.sharp_weights):
                         p = f"s{idx}_"
                         params = np.array([self.vars[p + name].get() for name in SEXTET_PARAM_NAMES], dtype=float)
@@ -3768,47 +3803,58 @@ class MossbauerFe33GUI(tk.Tk):
                         sharp_abs = component_absorption(self.velocity, kind, params)
                         sharp_abs_sum += sharp_abs
                         sharp_curve = baseline_line - sharp_abs
-                        ax.plot(self.velocity, sharp_curve, "--", color=colors.get(idx, "#16a34a"), lw=1.45, alpha=0.9, label=tr("plot.legend_sharp_component", idx=idx, kind=tr(f"kind.{kind}", default=kind)))
+                        ax.plot(self.velocity, sharp_curve, "--", color=comp_colors.get(idx, "#16a34a"), lw=1.45, alpha=0.9, label=tr("plot.legend_sharp_component", idx=idx, kind=tr(f"kind.{kind}", default=kind)))
                 if np.any(sharp_abs_sum > 0):
                     distribution_curve = fit + sharp_abs_sum
-                    ax.plot(self.velocity, distribution_curve, "--", color="#2563eb", lw=1.7, alpha=0.95, label=tr("plot.legend_distribution_component"))
-                ax.plot(self.velocity, fit, "-", color="#dc2626", lw=2.4, label=tr("plot.legend_total_fit"))
+                    ax.plot(self.velocity, distribution_curve, "--", color=c["dist_line"], lw=1.7, alpha=0.95, label=tr("plot.legend_distribution_component"))
+                ax.plot(self.velocity, fit, "-", color=c["model"], lw=2.4, label=tr("plot.legend_total_fit"))
                 residual = self.y_data - fit
                 if ax_res is not None:
-                    ax_res.set_facecolor("#fff7ed")
-                    ax_res.axhline(0, color="#9a3412", lw=0.9, alpha=0.9)
-                    ax_res.fill_between(self.velocity, residual, 0, color="#fb923c", alpha=0.22)
-                    ax_res.plot(self.velocity, residual, "-", color="#ea580c", lw=1.15)
+                    ax_res.set_facecolor(c["res_bg"])
+                    ax_res.axhline(0, color=c["res_zero"], lw=0.9, alpha=0.9)
+                    ax_res.fill_between(self.velocity, residual, 0, color=c["res_fill"], alpha=0.22)
+                    ax_res.plot(self.velocity, residual, "-", color=c["res_line"], lw=1.15)
                     ax_res.set_ylabel(tr("plot.residual_ylabel"))
-                    ax_res.grid(True, color="#fed7aa", alpha=0.8, linewidth=0.75)
+                    ax_res.yaxis.label.set_color(c["lbl"])
+                    ax_res.tick_params(colors=c["res_tick"])
+                    for spine in ax_res.spines.values():
+                        spine.set_color(c["res_spine"])
+                    ax_res.grid(True, color=c["res_grid"], alpha=0.8, linewidth=0.75)
                     lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
                     ax_res.set_ylim(-lim, lim)
                     ax.tick_params(labelbottom=False)
                 if ax_dist is not None:
-                    ax_dist.plot(self.last_bhf_fit.bhf_centers, self.last_bhf_fit.probability, "-o", ms=3.0, color="#2563eb")
-                    ax_dist.fill_between(self.last_bhf_fit.bhf_centers, self.last_bhf_fit.probability, 0, color="#60a5fa", alpha=0.25)
+                    ax_dist.set_facecolor(c["ax_bg"])
+                    ax_dist.plot(self.last_bhf_fit.bhf_centers, self.last_bhf_fit.probability, "-o", ms=3.0, color=c["dist_line"])
+                    ax_dist.fill_between(self.last_bhf_fit.bhf_centers, self.last_bhf_fit.probability, 0, color=c["dist_fill"], alpha=0.25)
                     if self.last_bhf_fit.sharp_bhf_centers is not None and self.last_bhf_fit.sharp_weights is not None:
                         ymax = max(float(np.nanmax(self.last_bhf_fit.probability)), 1e-12)
                         for b, w in zip(self.last_bhf_fit.sharp_bhf_centers, self.last_bhf_fit.sharp_weights):
                             if np.isfinite(float(b)):
-                                ax_dist.axvline(float(b), color="#dc2626", lw=1.4, ls="--", alpha=0.85)
-                                ax_dist.text(float(b), ymax * 0.92, tr("plot.sharp_annotation", weight=float(w)), rotation=90, va="top", ha="right", color="#991b1b", fontsize=8)
+                                ax_dist.axvline(float(b), color=c["model"], lw=1.4, ls="--", alpha=0.85)
+                                ax_dist.text(float(b), ymax * 0.92, tr("plot.sharp_annotation", weight=float(w)), rotation=90, va="top", ha="right", color=c["ann"], fontsize=8)
                     ax_dist.set_xlabel(tr("plot.distribution_xlabel_deq") if self.dist_variable_var.get() == "ΔEQ" else tr("plot.distribution_xlabel_bhf"))
                     ax_dist.set_ylabel(dist_label)
-                    ax_dist.grid(True, color="#bfdbfe", alpha=0.8, linewidth=0.75)
+                    ax_dist.xaxis.label.set_color(c["lbl"])
+                    ax_dist.yaxis.label.set_color(c["lbl"])
+                    ax_dist.tick_params(colors=c["tick"])
+                    for spine in ax_dist.spines.values():
+                        spine.set_color(c["spine"])
+                    ax_dist.grid(True, color=c["dist_grid"], alpha=0.8, linewidth=0.75)
                 rms = self.last_bhf_fit.rms
             else:
-                ax.text(0.5, 0.12, tr("plot.click_fit_pbhf"), transform=ax.transAxes, ha="center", color="#075985", fontsize=12, fontweight="bold")
+                ax.text(0.5, 0.12, tr("plot.click_fit_pbhf"), transform=ax.transAxes, ha="center", color=c["no_file"], fontsize=12, fontweight="bold")
                 ax.set_xlabel(tr("plot.velocity_xlabel"))
+                ax.xaxis.label.set_color(c["lbl"])
                 rms = float("nan")
             if self.show_legend_var.get():
-                leg = ax.legend(loc="best", frameon=True, facecolor="#ffffff", edgecolor="#bae6fd", framealpha=0.85)
+                leg = ax.legend(loc="best", frameon=True, facecolor=c["leg_face"], edgecolor=c["leg_edge"], framealpha=0.85)
                 leg.set_draggable(True)
                 for text in leg.get_texts():
-                    text.set_color("#102a43")
+                    text.set_color(c["leg_text"])
             self.update_info_bhf_distribution(rms)
         else:
-            ax.text(0.5, 0.5, tr("plot.no_file"), transform=ax.transAxes, ha="center", va="center", color="#075985", fontsize=14, fontweight="bold")
+            ax.text(0.5, 0.5, tr("plot.no_file"), transform=ax.transAxes, ha="center", va="center", color=c["no_file"], fontsize=14, fontweight="bold")
         self.fig.tight_layout()
         self.canvas.draw_idle()
 
@@ -3920,6 +3966,7 @@ class MossbauerFe33GUI(tk.Tk):
         if self.fit_mode_var.get() == "bhf_distribution":
             self.update_plot_bhf_distribution()
             return
+        c = self._plot_theme()
         self.fig.clear()
         show_residual = self.show_residual_var.get()
         if show_residual:
@@ -3930,32 +3977,36 @@ class MossbauerFe33GUI(tk.Tk):
             self.ax = self.fig.add_subplot(111)
             self.ax_res = None
 
-        self.fig.set_facecolor("#f8fbff")
-        self.ax.set_facecolor("#fbfdff")
-        self.ax.set_title(tr("plot.title_discrete"), color="#083344", pad=10, fontweight="bold")
+        self.fig.set_facecolor(c["fig_bg"])
+        self.ax.set_facecolor(c["ax_bg"])
+        self.ax.set_title(tr("plot.title_discrete"), color=c["title"], pad=10, fontweight="bold")
         self.ax.set_ylabel(tr("plot.transmission_ylabel"))
-        self.ax.grid(True, color="#c8e4f7", alpha=0.85, linewidth=0.8)
-        self.ax.tick_params(colors="#243b53")
+        self.ax.yaxis.label.set_color(c["lbl"])
+        self.ax.grid(True, color=c["grid"], alpha=c["grid_alpha"], linewidth=0.8)
+        self.ax.tick_params(colors=c["tick"])
         for spine in self.ax.spines.values():
-            spine.set_color("#8ecae6")
+            spine.set_color(c["spine"])
 
         if self.ax_res is not None:
-            self.ax_res.set_facecolor("#fff7ed")
+            self.ax_res.set_facecolor(c["res_bg"])
             self.ax_res.set_ylabel(tr("plot.residual_ylabel"))
             self.ax_res.set_xlabel(tr("plot.velocity_xlabel"))
-            self.ax_res.grid(True, color="#fed7aa", alpha=0.8, linewidth=0.75)
-            self.ax_res.tick_params(colors="#7c2d12")
+            self.ax_res.yaxis.label.set_color(c["lbl"])
+            self.ax_res.xaxis.label.set_color(c["lbl"])
+            self.ax_res.grid(True, color=c["res_grid"], alpha=0.8, linewidth=0.75)
+            self.ax_res.tick_params(colors=c["res_tick"])
             for spine in self.ax_res.spines.values():
-                spine.set_color("#fdba74")
+                spine.set_color(c["res_spine"])
         else:
             self.ax.set_xlabel(tr("plot.velocity_xlabel"))
+            self.ax.xaxis.label.set_color(c["lbl"])
 
         if self.velocity is not None and self.y_data is not None:
             model = self.current_model()
-            self.ax.plot(self.velocity, self.y_data, ".", color="#0f172a", ms=4, alpha=0.88, label=tr("plot.legend_data"))
+            self.ax.plot(self.velocity, self.y_data, ".", color=c["data"], ms=4, alpha=0.88, label=tr("plot.legend_data"))
             if model is not None:
                 baseline_line = self.vars["baseline"].get() + self.vars["slope"].get() * self.velocity
-                self.ax.plot(self.velocity, baseline_line, ":", color="#64748b", lw=1.35, label=tr("plot.legend_baseline"))
+                self.ax.plot(self.velocity, baseline_line, ":", color=c["baseline"], lw=1.35, label=tr("plot.legend_baseline"))
 
                 component_colors = {1: "#16a34a", 2: "#f97316", 3: "#8b5cf6"}
                 for idx in (1, 2, 3):
@@ -3966,36 +4017,32 @@ class MossbauerFe33GUI(tk.Tk):
                     kind = self.component_kind[idx].get()
                     component = baseline_line - component_absorption(self.velocity, kind, params)
                     self.ax.plot(
-                        self.velocity,
-                        component,
-                        "--",
-                        color=component_colors[idx],
-                        lw=1.65,
-                        alpha=0.95,
+                        self.velocity, component, "--",
+                        color=component_colors[idx], lw=1.65, alpha=0.95,
                         label=f"{tr(f'kind.{kind}', default=kind)} {idx}",
                     )
 
-                self.ax.plot(self.velocity, model, "-", color="#dc2626", lw=2.6, label=tr("plot.legend_model"))
+                self.ax.plot(self.velocity, model, "-", color=c["model"], lw=2.6, label=tr("plot.legend_model"))
                 residual = self.y_data - model
                 rms = float(np.sqrt(np.mean(residual ** 2)))
                 if self.ax_res is not None:
-                    self.ax_res.axhline(0, color="#9a3412", lw=0.9, alpha=0.9)
-                    self.ax_res.fill_between(self.velocity, residual, 0, color="#fb923c", alpha=0.22)
-                    self.ax_res.plot(self.velocity, residual, "-", color="#ea580c", lw=1.25)
+                    self.ax_res.axhline(0, color=c["res_zero"], lw=0.9, alpha=0.9)
+                    self.ax_res.fill_between(self.velocity, residual, 0, color=c["res_fill"], alpha=0.22)
+                    self.ax_res.plot(self.velocity, residual, "-", color=c["res_line"], lw=1.25)
                     lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
                     self.ax_res.set_ylim(-lim, lim)
                     self.ax.tick_params(labelbottom=False)
             else:
                 rms = float("nan")
             if self.show_legend_var.get():
-                leg = self.ax.legend(loc="best", frameon=True, facecolor="#ffffff", edgecolor="#bae6fd", framealpha=0.85)
+                leg = self.ax.legend(loc="best", frameon=True, facecolor=c["leg_face"], edgecolor=c["leg_edge"], framealpha=0.85)
                 leg.set_draggable(True)
                 for text in leg.get_texts():
-                    text.set_color("#102a43")
+                    text.set_color(c["leg_text"])
             self.update_info(rms)
         else:
             self.ax.text(0.5, 0.5, tr("plot.no_file"), transform=self.ax.transAxes,
-                         ha="center", va="center", color="#075985", fontsize=14, fontweight="bold")
+                         ha="center", va="center", color=c["no_file"], fontsize=14, fontweight="bold")
         self.fig.tight_layout()
         self.canvas.draw_idle()
 
