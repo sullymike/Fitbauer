@@ -4542,5 +4542,6 @@ class MossbauerFe33GUI(tk.Tk):
 
 
 if __name__ == "__main__":
-    app = MossbauerFe33GUI()
+    from mossbauer_app import MossbauerApp
+    app = MossbauerApp()
     app.mainloop()
