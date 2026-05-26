@@ -598,6 +598,26 @@ class MossbauerApp(MossbauerFe33GUI):
         ]
         next_idx = 2 if components else 1
         while next_idx <= MAX_COMPONENTS and remaining:
+            # Intentar otro sexteto antes de caer en doblete/singlete.
+            if len(remaining) >= 5:
+                sext_extra = self._best_sextet_from_peaks(remaining)
+                if sext_extra is not None:
+                    sub_e, delta_e, bhf_e, width_e, depth_e = sext_extra
+                    if len(sub_e) >= 5 and abs(sub_e[-1]["pos"] - sub_e[0]["pos"]) > 3.0:
+                        pfx = f"s{next_idx}_"
+                        if next_idx > 1:
+                            self.sextet_enabled[next_idx].set(True)
+                        components.append((next_idx, "Sextete", sub_e))
+                        params[pfx + "delta"]  = float(np.clip(delta_e, -2.5, 2.5))
+                        params[pfx + "bhf"]    = float(np.clip(bhf_e, 20.0, 50.0))
+                        params[pfx + "quad"]   = 0.0
+                        params[pfx + "gamma1"] = float(np.clip(width_e / 2.0, 0.04, 1.0))
+                        params[pfx + "depth"]  = float(np.clip(depth_e, 0.002, 0.25))
+                        sub_ids = {int(pk["i"]) for pk in sub_e}
+                        remaining = [pk for pk in remaining if int(pk["i"]) not in sub_ids]
+                        next_idx += 1
+                        continue
+
             if len(remaining) >= 2:
                 pair = sorted(remaining[:2], key=lambda pk: pk["pos"])
                 sep = abs(pair[1]["pos"] - pair[0]["pos"])
