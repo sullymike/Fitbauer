@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2
+
+- ZIP de release incluye ahora `mossbauer_app.py`, los subpaquetes `core/`, `layout/` y `panels/`, y los lanzadores `mossbauer` y `mossbauer.bat`. Sin esto, una actualización vía ZIP sobre una instalación v0.4.x fallaba con `ImportError` al arrancar.
+- Lanzadores portables incluidos directamente en el repo (no se regeneran con `install.py`, así que se sustituyen al actualizar).
+- `install_zip_update()` restaura el bit ejecutable (`+x`) del lanzador Linux tras la descompresión, ya que `zipfile.extractall` no preserva permisos Unix.
+
 ## v1.1
 
 - Lanzadores (`mossbauer`, `mossbauer.bat`, ejecutable PyInstaller) arrancan ahora `MossbauerApp` (UI modular con paneles, layout y temas). Antes seguían arrancando la clase base sin paneles.
