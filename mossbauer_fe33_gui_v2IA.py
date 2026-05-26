@@ -104,9 +104,9 @@ MODEL_PARAM_LABELS = {
     "gamma2": "Γ relativa líneas 2 y 5",
     "gamma3": "Γ relativa líneas 3 y 4",
     "depth": "Profundidad",
-    "int1": "I1 líneas 1 y 6",
-    "int2": "I2 relativa (1 = 2/3·I1)",
-    "int3": "I3 relativa (1 = 1/3·I1)",
+    "int3": "I (líneas 3 y 4)",
+    "int2": "I23 (2 = líneas 2,5 / líneas 3,4)",
+    "int1": "I13 (3 = líneas 1,6 / líneas 3,4)",
 }
 
 
@@ -187,7 +187,7 @@ def read_normos_sidecar_params(path: Path) -> dict[str, float]:
             params["s1_gamma2"] = 1.0
             params["s1_gamma3"] = 1.0
         if "ARE" in final and "s1_gamma1" in params:
-            weight_sum = 2.0 * (1.0 + 2.0 / 3.0 + 1.0 / 3.0)
+            weight_sum = 2.0 * (3.0 + 2.0 + 1.0)
             params["s1_depth"] = max(0.0, min(0.30, final["ARE"] / (np.pi * params["s1_gamma1"] * weight_sum)))
     job = path.with_suffix(".JOB")
     if not job.exists():
@@ -306,14 +306,14 @@ def sextet_absorption(v: np.ndarray, delta: float, quad: float, bhf: float,
                       int1: float, int2: float, int3: float) -> np.ndarray:
     """Absorción de un sextete Fe-57.
 
-    int1 es la intensidad de las líneas 1 y 6. int2 e int3 son relativas:
-    int2=1 -> I2=(2/3)*I1; int3=1 -> I3=(1/3)*I1.
+    Convención NORMOS: int3=I (intensidad base, líneas 3 y 4),
+    int2=I23 (ratio líneas 2,5 / 3,4; estándar=2), int1=I13 (ratio líneas 1,6 / 3,4; estándar=3).
     gamma1 es la anchura de las líneas 1 y 6. gamma2 y gamma3 son relativas:
     gamma2=1 -> Γ2,5=Γ1,6; gamma3=1 -> Γ3,4=Γ1,6.
     """
-    i1 = int1
-    i2 = int1 * (2.0 / 3.0) * int2
-    i3 = int1 * (1.0 / 3.0) * int3
+    i3 = int3
+    i2 = int3 * int2
+    i1 = int3 * int1
     weights = np.array([i1, i2, i3, i3, i2, i1], dtype=float)
     g1 = gamma1
     g2 = gamma1 * gamma2
@@ -439,44 +439,131 @@ class MossbauerFe33GUI(tk.Tk):
         self.after(4000, self._check_requirements_background)
 
     def _reconfigure_styles(self, style: ttk.Style, sv_active: bool) -> None:
-        accent = "#0ea5d9"
-        accent_dark = "#075985"
-        if sv_active:
-            bg = style.lookup("TFrame", "background") or "#f0f0f0"
+        _dark = (self._theme_var.get() == "sv_ttk_dark")
+        if _dark:
+            # sv_ttk dark gestiona los widgets estándar; solo corregimos lo específico.
+            # Paleta: mauve (sin ningún azul) + slate para texto
+            accent  = "#cba6f7"   # Catppuccin mauve
+            hdr_bg  = "#11111b"   # crust
+            hdr_sub = "#b4befe"   # lavender
+            fg_main = "#e2e8f0"
+            fg_sub  = "#a6adc8"
+            bg   = style.lookup("TFrame", "background") or "#1c1c1e"
+            card = bg
+            self.configure(background=bg)
+            # Pestañas: sv_ttk dark puede usar azul Windows → neutralizar
+            style.configure("TNotebook.Tab", foreground=fg_sub)
+            style.map("TNotebook.Tab",
+                      background=[("selected", "#313244")],
+                      foreground=[("selected", fg_main)])
+            # Etiquetas de LabelFrame: sv_ttk dark las pinta de azul → mauve
+            style.configure("TLabelframe.Label", foreground=accent)
+            # Estilos propios
+            style.configure("Section.TLabelframe", padding=10)
+            style.configure("Section.TLabelframe.Label",
+                            font=("TkDefaultFont", 10, "bold"), foreground=accent)
+            style.configure("Title.TLabel",
+                            font=("TkDefaultFont", 17, "bold"), foreground=fg_main)
+            style.configure("Subtitle.TLabel",
+                            font=("TkDefaultFont", 9), foreground=fg_sub)
+            style.configure("Header.TLabel",
+                            font=("TkDefaultFont", 18, "bold"), foreground=fg_main, background=hdr_bg)
+            style.configure("HeaderSub.TLabel",
+                            font=("TkDefaultFont", 9), foreground=hdr_sub, background=hdr_bg)
+            style.configure("Accent.TButton", padding=7, font=("TkDefaultFont", 9, "bold"),
+                            background="#7c3aed", foreground="white")
+            style.map("Accent.TButton",
+                      background=[("active", "#6d28d9"), ("pressed", "#5b21b6")])
+            style.configure("Small.TButton", padding=(5, 4))
+            # Widgets tk (no ttk): colores explícitos
+            if hasattr(self, "file_label"):
+                self.file_label.configure(bg=card, fg=fg_main)
+            if hasattr(self, "calib_label"):
+                self.calib_label.configure(bg=card, fg=fg_sub)
+            if hasattr(self, "info"):
+                self.info.configure(background=card, foreground=fg_main)
+            # Matplotlib
+            _plot_bg = bg; _axes_bg = "#2a2a2a"; _tc = fg_sub; _lc = fg_main; _sc = "#6c7086"
+        elif sv_active:
+            accent      = "#0ea5d9"
+            accent_dark = "#075985"
+            bg   = style.lookup("TFrame", "background") or "#f0f0f0"
             card = "#ffffff"
             self.configure(background=bg)
             style.configure("Section.TLabelframe", padding=10)
             style.configure("Section.TLabelframe.Label", font=("TkDefaultFont", 10, "bold"), foreground=accent_dark)
-            style.configure("Title.TLabel", font=("TkDefaultFont", 17, "bold"), foreground=accent_dark)
+            style.configure("Title.TLabel",    font=("TkDefaultFont", 17, "bold"), foreground=accent_dark)
             style.configure("Subtitle.TLabel", font=("TkDefaultFont", 9), foreground="#4b6478")
+            style.configure("Header.TLabel",    font=("TkDefaultFont", 18, "bold"), foreground="white",    background=accent_dark)
+            style.configure("HeaderSub.TLabel", font=("TkDefaultFont", 9), foreground="#dff6ff", background=accent_dark)
+            style.configure("Accent.TButton", padding=7, font=("TkDefaultFont", 9, "bold"), background=accent, foreground="white")
+            style.map("Accent.TButton", background=[("active", "#0284c7"), ("pressed", "#0369a1")])
+            style.configure("Small.TButton", padding=(5, 4))
+            if hasattr(self, "file_label"):
+                self.file_label.configure(bg=card, fg="#083344")
+            if hasattr(self, "calib_label"):
+                self.calib_label.configure(bg=card, fg="#0e7490")
+            if hasattr(self, "info"):
+                self.info.configure(background=card, foreground="#102a43")
+            _plot_bg = card; _axes_bg = card; _tc = "#17202a"; _lc = "#17202a"; _sc = "#cccccc"
         else:
-            bg = "#eaf4ff"
+            accent      = "#0ea5d9"
+            accent_dark = "#075985"
+            bg   = "#eaf4ff"
             card = "#f8fbff"
             self.configure(background=bg)
             style.configure("TFrame", background=bg)
             style.configure("TLabelframe", background=card, borderwidth=1, relief="solid")
             style.configure("TLabelframe.Label", background=bg)
             style.configure("TLabel", background=bg, foreground="#17202a")
-            style.configure("Title.TLabel", font=("TkDefaultFont", 17, "bold"), foreground=accent_dark, background=bg)
+            style.configure("Title.TLabel",    font=("TkDefaultFont", 17, "bold"), foreground=accent_dark, background=bg)
             style.configure("Subtitle.TLabel", font=("TkDefaultFont", 9), foreground="#4b6478", background=bg)
             style.configure("Section.TLabelframe", padding=10, background=card, relief="solid")
             style.configure("Section.TLabelframe.Label", font=("TkDefaultFont", 10, "bold"), foreground=accent_dark, background=bg)
             style.configure("TNotebook", background=bg, borderwidth=0)
             style.configure("TNotebook.Tab", padding=(12, 6), background="#cfefff", foreground="#0f3d5c")
             style.map("TNotebook.Tab", background=[("selected", "#38bdf8")], foreground=[("selected", "white")])
-        style.configure("Header.TLabel", font=("TkDefaultFont", 18, "bold"), foreground="white", background=accent_dark)
-        style.configure("HeaderSub.TLabel", font=("TkDefaultFont", 9), foreground="#dff6ff", background=accent_dark)
-        style.configure("Accent.TButton", padding=7, font=("TkDefaultFont", 9, "bold"), background=accent, foreground="white")
-        style.map("Accent.TButton", background=[("active", "#0284c7"), ("pressed", "#0369a1")])
-        style.configure("Small.TButton", padding=(5, 4))
-        if not sv_active:
+            style.configure("Header.TLabel",    font=("TkDefaultFont", 18, "bold"), foreground="white",    background=accent_dark)
+            style.configure("HeaderSub.TLabel", font=("TkDefaultFont", 9), foreground="#dff6ff", background=accent_dark)
             style.configure("TNotebook", borderwidth=0)
+            style.configure("Accent.TButton", padding=7, font=("TkDefaultFont", 9, "bold"), background=accent, foreground="white")
+            style.map("Accent.TButton", background=[("active", "#0284c7"), ("pressed", "#0369a1")])
+            style.configure("Small.TButton", padding=(5, 4))
+            if hasattr(self, "file_label"):
+                self.file_label.configure(bg=card, fg="#083344")
+            if hasattr(self, "calib_label"):
+                self.calib_label.configure(bg=card, fg="#0e7490")
+            if hasattr(self, "info"):
+                self.info.configure(background=card, foreground="#102a43")
+            _plot_bg = card; _axes_bg = card; _tc = "#17202a"; _lc = "#17202a"; _sc = "#cccccc"
         self._bg = bg
         self._card = card
-        if hasattr(self, "file_label"):
-            self.file_label.configure(bg=card)
-        if hasattr(self, "info"):
-            self.info.configure(background=card)
+        # Matplotlib: actualizar si la figura ya existe
+        if hasattr(self, "fig") and hasattr(self, "canvas"):
+            try:
+                self.fig.patch.set_facecolor(_plot_bg)
+                for _ax in ([self.ax, self.ax_res] if hasattr(self, "ax_res") else [self.ax]):
+                    _ax.set_facecolor(_axes_bg)
+                    _ax.tick_params(colors=_tc, which="both")
+                    _ax.xaxis.label.set_color(_lc)
+                    _ax.yaxis.label.set_color(_lc)
+                    for _spine in _ax.spines.values():
+                        _spine.set_color(_sc)
+                self.canvas.draw_idle()
+            except Exception:
+                pass
+        # Toolbar matplotlib: iconos negros → fondo claro en modo oscuro
+        if hasattr(self, "toolbar"):
+            try:
+                _tbg = "#d4d4d4" if _dark else ""
+                self.toolbar.config(background=_tbg)
+                for _w in self.toolbar.winfo_children():
+                    try:
+                        _w.config(background=_tbg)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
 
     def _switch_theme(self, theme: str) -> None:
         style = ttk.Style(self)
@@ -489,6 +576,19 @@ class MossbauerFe33GUI(tk.Tk):
             try:
                 import sv_ttk
                 sv_ttk.set_theme("light")
+                _sv = True
+            except Exception as exc:
+                messagebox.showerror(tr("msg.theme_title"), tr("msg.theme_apply_error", error=str(exc)))
+                self._theme_var.set("clam")
+                return
+        elif theme == "sv_ttk_dark":
+            if not self._sv_available:
+                messagebox.showwarning(tr("msg.theme_title"), tr("msg.theme_not_installed"))
+                self._theme_var.set("clam")
+                return
+            try:
+                import sv_ttk
+                sv_ttk.set_theme("dark")
                 _sv = True
             except Exception as exc:
                 messagebox.showerror(tr("msg.theme_title"), tr("msg.theme_apply_error", error=str(exc)))
@@ -515,7 +615,10 @@ class MossbauerFe33GUI(tk.Tk):
         try:
             import sv_ttk
             self._sv_available = True
-            if _saved_theme != "clam":
+            if _saved_theme == "sv_ttk_dark":
+                sv_ttk.set_theme("dark")
+                _sv = True
+            elif _saved_theme != "clam":
                 sv_ttk.set_theme("light")
                 _sv = True
         except ImportError:
@@ -526,7 +629,7 @@ class MossbauerFe33GUI(tk.Tk):
             except tk.TclError:
                 pass
         self._sv_active = _sv
-        self._theme_var.set("sv_ttk" if _sv else "clam")
+        self._theme_var.set(_saved_theme if _saved_theme in ("sv_ttk", "sv_ttk_dark", "clam") else ("sv_ttk" if _sv else "clam"))
         self._reconfigure_styles(style, _sv)
         accent_dark = "#075985"
         bg = self._bg
@@ -1025,13 +1128,17 @@ class MossbauerFe33GUI(tk.Tk):
             popup.after(auto_close_ms, popup.destroy)
 
     def show_text_window(self, title: str, text: str) -> None:
+        _dark = (self._theme_var.get() == "sv_ttk_dark")
+        txt_bg = "#1e1e2e" if _dark else "#ffffff"
+        txt_fg = "#e0e7ff" if _dark else "#17202a"
         win = tk.Toplevel(self)
         win.title(title)
-        win.geometry("760x620")
+        win.geometry("940x660")
         win.transient(self)
         frame = ttk.Frame(win, padding=10)
         frame.pack(fill=tk.BOTH, expand=True)
-        txt = tk.Text(frame, wrap=tk.WORD, background="#ffffff", foreground="#17202a", font=("TkDefaultFont", 10))
+        txt = tk.Text(frame, wrap=tk.WORD, background=txt_bg, foreground=txt_fg,
+                      font=("TkDefaultFont", 9), relief="flat", padx=6, pady=6)
         txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scroll = ttk.Scrollbar(frame, command=txt.yview)
         scroll.pack(side=tk.RIGHT, fill=tk.Y)
@@ -2077,8 +2184,8 @@ class MossbauerFe33GUI(tk.Tk):
                 p + "delta": -0.11 if idx == 1 else 0.0,
                 p + "quad": 0.0,
                 p + "bhf": BHF_DEFAULT_T,
-                p + "int1": 1.0,
-                p + "int2": 1.0,
+                p + "int1": 3.0,
+                p + "int2": 2.0,
                 p + "int3": 1.0,
             })
         self.set_params(params)
@@ -2182,7 +2289,7 @@ class MossbauerFe33GUI(tk.Tk):
                 continue
             score = rms
             if best is None or score < best[0]:
-                weights = np.array([1.0, 2/3, 1/3, 1/3, 2/3, 1.0], dtype=float)
+                weights = np.array([3.0, 2.0, 1.0, 1.0, 2.0, 3.0], dtype=float)
                 depths = np.array([p["depth"] for p in sub], dtype=float)
                 depth_est = float(np.median(depths / weights))
                 best = (score, list(sub), float(delta), float(bhf), float(np.median([p["width"] for p in sub])), depth_est)
@@ -2208,7 +2315,7 @@ class MossbauerFe33GUI(tk.Tk):
             if idx > 1:
                 self.sextet_enabled[idx].set(False)
             p = f"s{idx}_"
-            params.update({p + "delta": 0.0, p + "quad": 0.0, p + "bhf": BHF_DEFAULT_T, p + "gamma1": 0.20, p + "gamma2": 1.0, p + "gamma3": 1.0, p + "depth": 0.005, p + "int1": 1.0, p + "int2": 1.0, p + "int3": 1.0})
+            params.update({p + "delta": 0.0, p + "quad": 0.0, p + "bhf": BHF_DEFAULT_T, p + "gamma1": 0.20, p + "gamma2": 1.0, p + "gamma3": 1.0, p + "depth": 0.005, p + "int1": 3.0, p + "int2": 2.0, p + "int3": 1.0})
 
         components: list[tuple[int, str, list[dict[str, float]]]] = []
         used_ids: set[int] = set()
@@ -2622,7 +2729,7 @@ class MossbauerFe33GUI(tk.Tk):
         def powder_intensities() -> None:
             for idx in (1, 2, 3):
                 if self.sextet_enabled[idx].get() and self.component_kind[idx].get() == "Sextete":
-                    for name, value in (("int1", 1.0), ("int2", 1.0), ("int3", 1.0)):
+                    for name, value in (("int1", 3.0), ("int2", 2.0), ("int3", 1.0)):
                         key = f"s{idx}_{name}"
                         self.vars[key].set(value)
                         self.entry_vars[key].set(self._format_value(key, value))
@@ -3014,8 +3121,8 @@ class MossbauerFe33GUI(tk.Tk):
             "gamma2": (0.2, 3.0),
             "gamma3": (0.2, 3.0),
             "depth": (0.0, 0.30),
-            "int1": (0.0, 2.0),
-            "int2": (0.0, 3.0),
+            "int1": (0.0, 9.0),
+            "int2": (0.0, 6.0),
             "int3": (0.0, 3.0),
         }
         return bounds[base]
@@ -3617,7 +3724,41 @@ class MossbauerFe33GUI(tk.Tk):
         self.update_plot()
         close_progress()
 
+    def _plot_theme(self) -> dict:
+        if getattr(self, "_theme_var", None) and self._theme_var.get() == "sv_ttk_dark":
+            return dict(
+                fig_bg="#1c1c1e", ax_bg="#2a2a2a", res_bg="#252520",
+                title="#e2e8f0",
+                grid="#444444", grid_alpha=0.45,
+                tick="#a6adc8", spine="#6c7086",
+                lbl="#a6adc8",
+                res_tick="#a6adc8", res_spine="#6c7086",
+                res_zero="#6c7086", res_fill="#fb923c", res_line="#fdba74",
+                res_grid="#3a3a3a",
+                data="#e2e8f0", baseline="#94a3b8", model="#f87171",
+                leg_face="#2a2a2a", leg_edge="#6c7086", leg_text="#e2e8f0",
+                no_file="#a6adc8",
+                dist_line="#89b4fa", dist_fill="#89b4fa",
+                dist_grid="#3a3a3a", ann="#f87171",
+            )
+        return dict(
+            fig_bg="#f8fbff", ax_bg="#fbfdff", res_bg="#fff7ed",
+            title="#083344",
+            grid="#c8e4f7", grid_alpha=0.85,
+            tick="#243b53", spine="#8ecae6",
+            lbl="#243b53",
+            res_tick="#7c2d12", res_spine="#fdba74",
+            res_zero="#9a3412", res_fill="#fb923c", res_line="#ea580c",
+            res_grid="#fed7aa",
+            data="#0f172a", baseline="#64748b", model="#dc2626",
+            leg_face="#ffffff", leg_edge="#bae6fd", leg_text="#102a43",
+            no_file="#075985",
+            dist_line="#2563eb", dist_fill="#60a5fa",
+            dist_grid="#bfdbfe", ann="#991b1b",
+        )
+
     def update_plot_bhf_distribution(self) -> None:
+        c = self._plot_theme()
         self.fig.clear()
         show_residual = self.show_residual_var.get()
         if self.last_bhf_fit is not None and show_residual:
@@ -3636,25 +3777,26 @@ class MossbauerFe33GUI(tk.Tk):
             ax_res = None
             ax_dist = None
 
-        self.fig.set_facecolor("#f8fbff")
-        ax.set_facecolor("#fbfdff")
+        self.fig.set_facecolor(c["fig_bg"])
+        ax.set_facecolor(c["ax_bg"])
         dist_label = "P(ΔEQ)" if self.dist_variable_var.get() == "ΔEQ" else "P(BHF)"
-        ax.set_title(tr("plot.title_distribution", label=dist_label), color="#083344", pad=10, fontweight="bold")
+        ax.set_title(tr("plot.title_distribution", label=dist_label), color=c["title"], pad=10, fontweight="bold")
         ax.set_ylabel(tr("plot.transmission_ylabel"))
-        ax.grid(True, color="#c8e4f7", alpha=0.85, linewidth=0.8)
-        ax.tick_params(colors="#243b53")
+        ax.yaxis.label.set_color(c["lbl"])
+        ax.grid(True, color=c["grid"], alpha=c["grid_alpha"], linewidth=0.8)
+        ax.tick_params(colors=c["tick"])
         for spine in ax.spines.values():
-            spine.set_color("#8ecae6")
+            spine.set_color(c["spine"])
 
         if self.velocity is not None and self.y_data is not None:
-            ax.plot(self.velocity, self.y_data, ".", color="#0f172a", ms=4, alpha=0.88, label=tr("plot.legend_data"))
+            ax.plot(self.velocity, self.y_data, ".", color=c["data"], ms=4, alpha=0.88, label=tr("plot.legend_data"))
             baseline_line = self.vars["baseline"].get() + self.vars["slope"].get() * self.velocity
-            ax.plot(self.velocity, baseline_line, ":", color="#64748b", lw=1.25, label=tr("plot.legend_baseline"))
+            ax.plot(self.velocity, baseline_line, ":", color=c["baseline"], lw=1.25, label=tr("plot.legend_baseline"))
             if self.last_bhf_fit is not None:
                 fit = self.last_bhf_fit.fitted_curve
                 sharp_abs_sum = np.zeros_like(self.velocity, dtype=float)
                 if self.last_bhf_fit.sharp_weights is not None and self.last_bhf_fit.sharp_weights.size:
-                    colors = {1: "#16a34a", 2: "#f97316", 3: "#8b5cf6"}
+                    comp_colors = {1: "#16a34a", 2: "#f97316", 3: "#8b5cf6"}
                     for idx, weight in zip(self.last_bhf_sharp_indices, self.last_bhf_fit.sharp_weights):
                         p = f"s{idx}_"
                         params = np.array([self.vars[p + name].get() for name in SEXTET_PARAM_NAMES], dtype=float)
@@ -3663,47 +3805,58 @@ class MossbauerFe33GUI(tk.Tk):
                         sharp_abs = component_absorption(self.velocity, kind, params)
                         sharp_abs_sum += sharp_abs
                         sharp_curve = baseline_line - sharp_abs
-                        ax.plot(self.velocity, sharp_curve, "--", color=colors.get(idx, "#16a34a"), lw=1.45, alpha=0.9, label=tr("plot.legend_sharp_component", idx=idx, kind=tr(f"kind.{kind}", default=kind)))
+                        ax.plot(self.velocity, sharp_curve, "--", color=comp_colors.get(idx, "#16a34a"), lw=1.45, alpha=0.9, label=tr("plot.legend_sharp_component", idx=idx, kind=tr(f"kind.{kind}", default=kind)))
                 if np.any(sharp_abs_sum > 0):
                     distribution_curve = fit + sharp_abs_sum
-                    ax.plot(self.velocity, distribution_curve, "--", color="#2563eb", lw=1.7, alpha=0.95, label=tr("plot.legend_distribution_component"))
-                ax.plot(self.velocity, fit, "-", color="#dc2626", lw=2.4, label=tr("plot.legend_total_fit"))
+                    ax.plot(self.velocity, distribution_curve, "--", color=c["dist_line"], lw=1.7, alpha=0.95, label=tr("plot.legend_distribution_component"))
+                ax.plot(self.velocity, fit, "-", color=c["model"], lw=2.4, label=tr("plot.legend_total_fit"))
                 residual = self.y_data - fit
                 if ax_res is not None:
-                    ax_res.set_facecolor("#fff7ed")
-                    ax_res.axhline(0, color="#9a3412", lw=0.9, alpha=0.9)
-                    ax_res.fill_between(self.velocity, residual, 0, color="#fb923c", alpha=0.22)
-                    ax_res.plot(self.velocity, residual, "-", color="#ea580c", lw=1.15)
+                    ax_res.set_facecolor(c["res_bg"])
+                    ax_res.axhline(0, color=c["res_zero"], lw=0.9, alpha=0.9)
+                    ax_res.fill_between(self.velocity, residual, 0, color=c["res_fill"], alpha=0.22)
+                    ax_res.plot(self.velocity, residual, "-", color=c["res_line"], lw=1.15)
                     ax_res.set_ylabel(tr("plot.residual_ylabel"))
-                    ax_res.grid(True, color="#fed7aa", alpha=0.8, linewidth=0.75)
+                    ax_res.yaxis.label.set_color(c["lbl"])
+                    ax_res.tick_params(colors=c["res_tick"])
+                    for spine in ax_res.spines.values():
+                        spine.set_color(c["res_spine"])
+                    ax_res.grid(True, color=c["res_grid"], alpha=0.8, linewidth=0.75)
                     lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
                     ax_res.set_ylim(-lim, lim)
                     ax.tick_params(labelbottom=False)
                 if ax_dist is not None:
-                    ax_dist.plot(self.last_bhf_fit.bhf_centers, self.last_bhf_fit.probability, "-o", ms=3.0, color="#2563eb")
-                    ax_dist.fill_between(self.last_bhf_fit.bhf_centers, self.last_bhf_fit.probability, 0, color="#60a5fa", alpha=0.25)
+                    ax_dist.set_facecolor(c["ax_bg"])
+                    ax_dist.plot(self.last_bhf_fit.bhf_centers, self.last_bhf_fit.probability, "-o", ms=3.0, color=c["dist_line"])
+                    ax_dist.fill_between(self.last_bhf_fit.bhf_centers, self.last_bhf_fit.probability, 0, color=c["dist_fill"], alpha=0.25)
                     if self.last_bhf_fit.sharp_bhf_centers is not None and self.last_bhf_fit.sharp_weights is not None:
                         ymax = max(float(np.nanmax(self.last_bhf_fit.probability)), 1e-12)
                         for b, w in zip(self.last_bhf_fit.sharp_bhf_centers, self.last_bhf_fit.sharp_weights):
                             if np.isfinite(float(b)):
-                                ax_dist.axvline(float(b), color="#dc2626", lw=1.4, ls="--", alpha=0.85)
-                                ax_dist.text(float(b), ymax * 0.92, tr("plot.sharp_annotation", weight=float(w)), rotation=90, va="top", ha="right", color="#991b1b", fontsize=8)
+                                ax_dist.axvline(float(b), color=c["model"], lw=1.4, ls="--", alpha=0.85)
+                                ax_dist.text(float(b), ymax * 0.92, tr("plot.sharp_annotation", weight=float(w)), rotation=90, va="top", ha="right", color=c["ann"], fontsize=8)
                     ax_dist.set_xlabel(tr("plot.distribution_xlabel_deq") if self.dist_variable_var.get() == "ΔEQ" else tr("plot.distribution_xlabel_bhf"))
                     ax_dist.set_ylabel(dist_label)
-                    ax_dist.grid(True, color="#bfdbfe", alpha=0.8, linewidth=0.75)
+                    ax_dist.xaxis.label.set_color(c["lbl"])
+                    ax_dist.yaxis.label.set_color(c["lbl"])
+                    ax_dist.tick_params(colors=c["tick"])
+                    for spine in ax_dist.spines.values():
+                        spine.set_color(c["spine"])
+                    ax_dist.grid(True, color=c["dist_grid"], alpha=0.8, linewidth=0.75)
                 rms = self.last_bhf_fit.rms
             else:
-                ax.text(0.5, 0.12, tr("plot.click_fit_pbhf"), transform=ax.transAxes, ha="center", color="#075985", fontsize=12, fontweight="bold")
+                ax.text(0.5, 0.12, tr("plot.click_fit_pbhf"), transform=ax.transAxes, ha="center", color=c["no_file"], fontsize=12, fontweight="bold")
                 ax.set_xlabel(tr("plot.velocity_xlabel"))
+                ax.xaxis.label.set_color(c["lbl"])
                 rms = float("nan")
             if self.show_legend_var.get():
-                leg = ax.legend(loc="best", frameon=True, facecolor="#ffffff", edgecolor="#bae6fd", framealpha=0.85)
+                leg = ax.legend(loc="best", frameon=True, facecolor=c["leg_face"], edgecolor=c["leg_edge"], framealpha=0.85)
                 leg.set_draggable(True)
                 for text in leg.get_texts():
-                    text.set_color("#102a43")
+                    text.set_color(c["leg_text"])
             self.update_info_bhf_distribution(rms)
         else:
-            ax.text(0.5, 0.5, tr("plot.no_file"), transform=ax.transAxes, ha="center", va="center", color="#075985", fontsize=14, fontweight="bold")
+            ax.text(0.5, 0.5, tr("plot.no_file"), transform=ax.transAxes, ha="center", va="center", color=c["no_file"], fontsize=14, fontweight="bold")
         self.fig.tight_layout()
         self.canvas.draw_idle()
 
@@ -3815,6 +3968,7 @@ class MossbauerFe33GUI(tk.Tk):
         if self.fit_mode_var.get() == "bhf_distribution":
             self.update_plot_bhf_distribution()
             return
+        c = self._plot_theme()
         self.fig.clear()
         show_residual = self.show_residual_var.get()
         if show_residual:
@@ -3825,32 +3979,36 @@ class MossbauerFe33GUI(tk.Tk):
             self.ax = self.fig.add_subplot(111)
             self.ax_res = None
 
-        self.fig.set_facecolor("#f8fbff")
-        self.ax.set_facecolor("#fbfdff")
-        self.ax.set_title(tr("plot.title_discrete"), color="#083344", pad=10, fontweight="bold")
+        self.fig.set_facecolor(c["fig_bg"])
+        self.ax.set_facecolor(c["ax_bg"])
+        self.ax.set_title(tr("plot.title_discrete"), color=c["title"], pad=10, fontweight="bold")
         self.ax.set_ylabel(tr("plot.transmission_ylabel"))
-        self.ax.grid(True, color="#c8e4f7", alpha=0.85, linewidth=0.8)
-        self.ax.tick_params(colors="#243b53")
+        self.ax.yaxis.label.set_color(c["lbl"])
+        self.ax.grid(True, color=c["grid"], alpha=c["grid_alpha"], linewidth=0.8)
+        self.ax.tick_params(colors=c["tick"])
         for spine in self.ax.spines.values():
-            spine.set_color("#8ecae6")
+            spine.set_color(c["spine"])
 
         if self.ax_res is not None:
-            self.ax_res.set_facecolor("#fff7ed")
+            self.ax_res.set_facecolor(c["res_bg"])
             self.ax_res.set_ylabel(tr("plot.residual_ylabel"))
             self.ax_res.set_xlabel(tr("plot.velocity_xlabel"))
-            self.ax_res.grid(True, color="#fed7aa", alpha=0.8, linewidth=0.75)
-            self.ax_res.tick_params(colors="#7c2d12")
+            self.ax_res.yaxis.label.set_color(c["lbl"])
+            self.ax_res.xaxis.label.set_color(c["lbl"])
+            self.ax_res.grid(True, color=c["res_grid"], alpha=0.8, linewidth=0.75)
+            self.ax_res.tick_params(colors=c["res_tick"])
             for spine in self.ax_res.spines.values():
-                spine.set_color("#fdba74")
+                spine.set_color(c["res_spine"])
         else:
             self.ax.set_xlabel(tr("plot.velocity_xlabel"))
+            self.ax.xaxis.label.set_color(c["lbl"])
 
         if self.velocity is not None and self.y_data is not None:
             model = self.current_model()
-            self.ax.plot(self.velocity, self.y_data, ".", color="#0f172a", ms=4, alpha=0.88, label=tr("plot.legend_data"))
+            self.ax.plot(self.velocity, self.y_data, ".", color=c["data"], ms=4, alpha=0.88, label=tr("plot.legend_data"))
             if model is not None:
                 baseline_line = self.vars["baseline"].get() + self.vars["slope"].get() * self.velocity
-                self.ax.plot(self.velocity, baseline_line, ":", color="#64748b", lw=1.35, label=tr("plot.legend_baseline"))
+                self.ax.plot(self.velocity, baseline_line, ":", color=c["baseline"], lw=1.35, label=tr("plot.legend_baseline"))
 
                 component_colors = {1: "#16a34a", 2: "#f97316", 3: "#8b5cf6"}
                 for idx in (1, 2, 3):
@@ -3861,36 +4019,32 @@ class MossbauerFe33GUI(tk.Tk):
                     kind = self.component_kind[idx].get()
                     component = baseline_line - component_absorption(self.velocity, kind, params)
                     self.ax.plot(
-                        self.velocity,
-                        component,
-                        "--",
-                        color=component_colors[idx],
-                        lw=1.65,
-                        alpha=0.95,
+                        self.velocity, component, "--",
+                        color=component_colors[idx], lw=1.65, alpha=0.95,
                         label=f"{tr(f'kind.{kind}', default=kind)} {idx}",
                     )
 
-                self.ax.plot(self.velocity, model, "-", color="#dc2626", lw=2.6, label=tr("plot.legend_model"))
+                self.ax.plot(self.velocity, model, "-", color=c["model"], lw=2.6, label=tr("plot.legend_model"))
                 residual = self.y_data - model
                 rms = float(np.sqrt(np.mean(residual ** 2)))
                 if self.ax_res is not None:
-                    self.ax_res.axhline(0, color="#9a3412", lw=0.9, alpha=0.9)
-                    self.ax_res.fill_between(self.velocity, residual, 0, color="#fb923c", alpha=0.22)
-                    self.ax_res.plot(self.velocity, residual, "-", color="#ea580c", lw=1.25)
+                    self.ax_res.axhline(0, color=c["res_zero"], lw=0.9, alpha=0.9)
+                    self.ax_res.fill_between(self.velocity, residual, 0, color=c["res_fill"], alpha=0.22)
+                    self.ax_res.plot(self.velocity, residual, "-", color=c["res_line"], lw=1.25)
                     lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
                     self.ax_res.set_ylim(-lim, lim)
                     self.ax.tick_params(labelbottom=False)
             else:
                 rms = float("nan")
             if self.show_legend_var.get():
-                leg = self.ax.legend(loc="best", frameon=True, facecolor="#ffffff", edgecolor="#bae6fd", framealpha=0.85)
+                leg = self.ax.legend(loc="best", frameon=True, facecolor=c["leg_face"], edgecolor=c["leg_edge"], framealpha=0.85)
                 leg.set_draggable(True)
                 for text in leg.get_texts():
-                    text.set_color("#102a43")
+                    text.set_color(c["leg_text"])
             self.update_info(rms)
         else:
             self.ax.text(0.5, 0.5, tr("plot.no_file"), transform=self.ax.transAxes,
-                         ha="center", va="center", color="#075985", fontsize=14, fontweight="bold")
+                         ha="center", va="center", color=c["no_file"], fontsize=14, fontweight="bold")
         self.fig.tight_layout()
         self.canvas.draw_idle()
 
