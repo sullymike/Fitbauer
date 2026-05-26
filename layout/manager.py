@@ -137,7 +137,7 @@ class LayoutManager:
         all_placed = (
             set(left_ids) | set(center_ids) | set(right_ids)
         )
-        _essential = {"calibration", "sim_controls"}
+        _essential = {"calibration", "sim_controls", "info_display"}
         _unplaced  = _essential - all_placed
         if _unplaced:
             _hidden = ttk.Frame(window)   # no se empaqueta → invisible

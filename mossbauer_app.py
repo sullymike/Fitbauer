@@ -383,7 +383,7 @@ class MossbauerApp(MossbauerFe33GUI):
         self.canvas.draw_idle()
 
     def update_info(self, rms: float) -> None:
-        if self.counts is None or self.folded_raw is None:
+        if not hasattr(self, "info") or self.counts is None or self.folded_raw is None:
             return
         center = self.vars["center"].get()
         active = [idx for idx in self._component_range() if self.sextet_enabled[idx].get()]
