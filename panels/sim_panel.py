@@ -265,16 +265,18 @@ class SimPanel(BasePanel):
 
         p = f"s{idx}_"
         depth_default = 0.030 if idx == 1 else 0.005
-        self._add_slider(c1, p + "delta",  tr("slider.s_delta"),  0.0,           -2.0, 3.0,  0.001)
-        self._add_slider(c1, p + "quad",   tr("slider.s_quad"),   0.0,           -4.0, 4.0,  0.001)
-        self._add_slider(c1, p + "bhf",    tr("slider.s_bhf"),    BHF_DEFAULT_T,  0.0, 60.0, 0.01)
-        self._add_slider(c1, p + "gamma1", tr("slider.s_gamma1"), 0.30,          0.03, 2.0,  0.001)
-        self._add_slider(c1, p + "depth",  tr("slider.s_depth"),  depth_default,  0.0, 0.30, 0.0005)
-        self._add_slider(c2, p + "gamma2", tr("slider.s_gamma2"), 1.0,           0.2,  3.0,  0.001)
-        self._add_slider(c2, p + "gamma3", tr("slider.s_gamma3"), 1.0,           0.2,  3.0,  0.001)
-        self._add_slider(c2, p + "int1",   tr("slider.s_int1"),   1.0,           0.0,  2.0,  0.001)
-        self._add_slider(c2, p + "int2",   tr("slider.s_int2"),   1.0,           0.0,  3.0,  0.001)
-        self._add_slider(c2, p + "int3",   tr("slider.s_int3"),   1.0,           0.0,  3.0,  0.001)
+        # c1: profundidad · intensidades · isomershift
+        self._add_slider(c1, p + "depth",  tr("slider.s_depth"),  depth_default,  0.0,  0.30, 0.0005)
+        self._add_slider(c1, p + "int1",   tr("slider.s_int1"),   1.0,            0.0,  2.0,  0.001)
+        self._add_slider(c1, p + "int2",   tr("slider.s_int2"),   1.0,            0.0,  3.0,  0.001)
+        self._add_slider(c1, p + "int3",   tr("slider.s_int3"),   1.0,            0.0,  3.0,  0.001)
+        self._add_slider(c1, p + "delta",  tr("slider.s_delta"),  0.0,           -2.0,  3.0,  0.001)
+        # c2: cuadrupolo · campo hiperfino · anchuras
+        self._add_slider(c2, p + "quad",   tr("slider.s_quad"),   0.0,           -4.0,  4.0,  0.001)
+        self._add_slider(c2, p + "bhf",    tr("slider.s_bhf"),    BHF_DEFAULT_T,  0.0, 60.0,  0.01)
+        self._add_slider(c2, p + "gamma1", tr("slider.s_gamma1"), 0.30,           0.03,  2.0,  0.001)
+        self._add_slider(c2, p + "gamma2", tr("slider.s_gamma2"), 1.0,            0.2,   3.0,  0.001)
+        self._add_slider(c2, p + "gamma3", tr("slider.s_gamma3"), 1.0,            0.2,   3.0,  0.001)
 
     # ── Cambio dinámico de modo ───────────────────────────────────────────────
 
