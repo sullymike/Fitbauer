@@ -475,7 +475,7 @@ class MossbauerApp(MossbauerFe33GUI):
                 tr("info.gamma_rel",        gamma2=self.vars[p + "gamma2"].get(),
                                             gamma3=self.vars[p + "gamma3"].get()),
                 tr("info.depth_intensities",depth=self.vars[p + "depth"].get(),
-                                            i1=i1, i2=i2_real, i3=i3_real),
+                                            i1=i1_real, i2=i2_real, i3=i3_real),
             ])
         text.extend(["", tr("info.fixed_line",
                              fixed=", ".join(fixed) if fixed else tr("info.none"))])
@@ -557,7 +557,7 @@ class MossbauerApp(MossbauerFe33GUI):
             params.update({
                 pfx + "delta": 0.0, pfx + "quad": 0.0, pfx + "bhf": BHF_DEFAULT_T,
                 pfx + "gamma1": 0.20, pfx + "gamma2": 1.0, pfx + "gamma3": 1.0,
-                pfx + "depth": 0.005, pfx + "int1": 1.0, pfx + "int2": 1.0, pfx + "int3": 1.0,
+                pfx + "depth": 0.005, pfx + "int1": 3.0, pfx + "int2": 2.0, pfx + "int3": 1.0,
             })
 
         components: list[tuple[int, str, list[dict[str, float]]]] = []
