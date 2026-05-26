@@ -214,7 +214,9 @@ class MossbauerApp(MossbauerFe33GUI):
             except tk.TclError:
                 pass
         for attr in ("file_label", "info", "fig", "ax", "ax_res",
-                     "canvas", "notebook", "dist_tab", "_ui_language_var", "_layout_manager"):
+                     "canvas", "notebook", "dist_tab",
+                     "_sim_dist_wrapper", "_sim_comp_area",
+                     "_ui_language_var", "_layout_manager"):
             if hasattr(self, attr):
                 delattr(self, attr)
         self.vars = {}
@@ -491,36 +493,19 @@ class MossbauerApp(MossbauerFe33GUI):
     # ── Visibilidad del panel de distribución BHF ───────────────────────────
 
     def _refresh_distribution_tab_visibility(self, update: bool = True) -> None:
-        nb       = getattr(self, "notebook",        None)
-        dist_tab = getattr(self, "dist_tab",        None)
-        wrapper  = getattr(self, "_sim_dist_wrapper", None)
-        comp_area = getattr(self, "_sim_comp_area", None)
+        nb       = getattr(self, "notebook",  None)
+        dist_tab = getattr(self, "dist_tab",  None)
         if nb is None or dist_tab is None:
             if update:
                 self.update_plot()
             return
         if self.fit_mode_var.get() == "bhf_distribution":
-            # Restaurar wrapper antes de comp_area si fue ocultado
-            if wrapper and wrapper.winfo_exists() and not wrapper.winfo_ismapped():
-                if comp_area and comp_area.winfo_exists():
-                    wrapper.pack(fill=tk.X, before=comp_area)
-                else:
-                    wrapper.pack(fill=tk.X)
-            try:
-                nb.add(dist_tab, text=tr("tab.distribution_bhf"))
-                nb.select(dist_tab)
-            except tk.TclError:
-                pass
-            nb.pack(fill=tk.X, pady=(0, 4))
+            if str(dist_tab) not in nb.tabs():
+                nb.insert(0, dist_tab, text=tr("tab.distribution_bhf"))
+            nb.select(dist_tab)
         else:
-            try:
-                nb.hide(dist_tab)
-            except tk.TclError:
-                pass
-            nb.pack_forget()
-            # Ocultar el wrapper completo para que los componentes recuperen ese espacio
-            if wrapper and wrapper.winfo_exists() and wrapper.winfo_ismapped():
-                wrapper.pack_forget()
+            if str(dist_tab) in nb.tabs():
+                nb.forget(dist_tab)
         if update:
             self.update_plot()
 

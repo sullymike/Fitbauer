@@ -4,6 +4,7 @@ Layout adaptativo basado en la altura de la ventana:
   - Si hay espacio suficiente: componentes apilados verticalmente.
   - Si no caben (la ventana es demasiado baja): pestañas de notebook.
   - Si el panel está en la columna central (_force_tabs=True): siempre pestañas.
+  - Si la distribución BHF está activa: siempre pestañas (dist + comp comparten espacio).
 Los sliders de cada componente se distribuyen en 2 columnas que se adaptan
 al ancho del panel.
 """
@@ -24,10 +25,8 @@ MAX_COMPONENTS = 6
 
 # Altura estimada por componente en modo apilado (2 col × 5 sliders × ~52 px + cabecera)
 _COMP_H = 315
-# Coste fijo: botones + spinbox + wrapper distribución + márgenes de LabelFrame
+# Coste fijo: botones + spinbox + márgenes de LabelFrame
 _OVERHEAD_H = 110
-# Altura del notebook de distribución BHF cuando está visible
-_DIST_H = 270
 
 
 class SimPanel(BasePanel):
@@ -92,27 +91,12 @@ class SimPanel(BasePanel):
         ttk.Label(ncomp_row, text=f"(máx. {MAX_COMPONENTS})",
                   foreground="#64748b", font=("TkDefaultFont", 8)).pack(side=tk.LEFT)
 
-        # ── Distribución BHF ──────────────────────────────────────────────────
-        # Wrapper siempre empaquetado; el notebook interior aparece/desaparece
-        # según el modo (discreto vs. distribución) sin alterar el orden del layout.
-        dist_wrapper = ttk.Frame(sim_box)
-        dist_wrapper.pack(fill=tk.X)
-        app._sim_dist_wrapper = dist_wrapper
-
-        notebook = ttk.Notebook(dist_wrapper)
-        self._notebook = notebook
-        app.notebook = notebook
-
-        dist_tab = ttk.Frame(notebook, padding=6)
-        app.dist_tab = dist_tab
-        notebook.add(dist_tab, text=tr("tab.distribution_bhf"))
-        self._build_distribution_tab(dist_tab)
-
-        # ── Área de componentes (modo determinado tras el primer render) ───────
+        # ── Área de componentes + distribución BHF (notebook compartido) ──────
+        # Distribución BHF y componentes comparten el mismo notebook de pestañas.
+        # En modo apilado la distribución fuerza el cambio automático a pestañas.
         comp_area = ttk.Frame(sim_box)
         comp_area.pack(fill=tk.X)
         self._comp_area = comp_area
-        app._sim_comp_area = comp_area      # referencia para reposicionar dist_wrapper
 
         if self._force_tabs:
             self._build_tabbed(comp_area)
@@ -120,11 +104,18 @@ class SimPanel(BasePanel):
             self._build_stacked(comp_area)
             sim_box.after(400, self._check_layout)
 
-        # Reaccionar a cambios de modo distribución (añade ~490 px de altura)
+        # Reaccionar a cambios de modo distribución
         def _on_fit_mode_change(*_: object) -> None:
             if self._root is None or not self._root.winfo_exists():
                 return
-            self._schedule_layout_check()
+            dist_on = app.fit_mode_var.get() == "bhf_distribution"
+            if dist_on and not self._using_tabs:
+                # Distribución BHF requiere pestañas; cambiar inmediatamente
+                self._switch_layout(use_tabs=True)
+            else:
+                app._refresh_distribution_tab_visibility(update=False)
+                if not self._force_tabs:
+                    self._schedule_layout_check()
 
         app.fit_mode_var.trace_add("write", _on_fit_mode_change)
 
@@ -136,49 +127,46 @@ class SimPanel(BasePanel):
     # ── Distribución BHF ─────────────────────────────────────────────────────
 
     def _build_distribution_tab(self, dist_tab: ttk.Frame) -> None:
-        """3 columnas equilibradas (~260 px total) para que quepa junto a un componente."""
+        """2 columnas — entra sin truncarse en paneles de 470 px o más anchos."""
         app = self.app
 
         dist_cols = ttk.Frame(dist_tab)
         dist_cols.pack(fill=tk.X)
         d1 = ttk.Frame(dist_cols)
         d2 = ttk.Frame(dist_cols)
-        d3 = ttk.Frame(dist_cols)
         d1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 6))
-        d2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=3)
-        d3.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(6, 0))
+        d2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(6, 0))
 
-        # d1 — parámetros de distribución (4 sliders)
+        # Columna 1 — sliders principales + selección de variable/forma
         self._add_slider(d1, "dist_delta",     tr("slider.dist_delta"),     0.0,          -2.5, 2.5,  0.001, fit_param=False)
         self._add_slider(d1, "dist_quad",      tr("slider.dist_quad"),      0.0,          -4.0, 4.0,  0.001, fit_param=False)
         self._add_slider(d1, "dist_fixed_bhf", tr("slider.dist_fixed_bhf"), BHF_DEFAULT_T, 0.0, 60.0, 0.01,  fit_param=False)
         self._add_slider(d1, "dist_gamma",     tr("slider.dist_gamma"),     0.18,         0.03, 1.0,  0.001, fit_param=False)
 
-        # d2 — rango, bins y alfa (4 sliders)
+        ttk.Label(d1, text=tr("bhf.variable_label")).pack(anchor=tk.W, pady=(4, 0))
+        dv = ttk.Combobox(d1, textvariable=app.dist_variable_var,
+                          values=("BHF", "ΔEQ"), width=10, state="readonly")
+        dv.pack(fill=tk.X, pady=(0, 3))
+        dv.bind("<<ComboboxSelected>>", lambda _e: app.on_bhf_distribution_option_change())
+
+        ttk.Label(d1, text=tr("bhf.shape_label")).pack(anchor=tk.W)
+        ds = ttk.Combobox(d1, textvariable=app.dist_shape_var,
+                          values=("Histograma", "Gaussiana", "Binomial", "Fija"),
+                          width=12, state="readonly")
+        ds.pack(fill=tk.X, pady=(0, 3))
+        ds.bind("<<ComboboxSelected>>", lambda _e: app.on_bhf_distribution_option_change())
+
+        ttk.Button(d1, text=tr("bhf.load_fixed"), command=app.load_fixed_distribution_file,
+                   style="Small.TButton").pack(fill=tk.X, pady=(0, 2))
+
+        # Columna 2 — sliders de rango/bins/alfa + presets y opciones avanzadas
         self._add_slider(d2, "dist_bmin",      tr("slider.dist_bmin"),      0.0,   0.0,  60.0,  0.1,  fit_param=False)
         self._add_slider(d2, "dist_bmax",      tr("slider.dist_bmax"),      50.0,  1.0,  60.0,  0.1,  fit_param=False)
         self._add_slider(d2, "dist_nbins",     tr("slider.dist_nbins"),     50.0, 10.0, 100.0,  1.0,  fit_param=False)
         self._add_slider(d2, "dist_log_alpha", tr("slider.dist_log_alpha"), -2.0, -8.0,   4.0,  0.1,  fit_param=False)
 
-        # d3 — opciones y botones (se expanden al ancho de la columna)
-        ttk.Label(d3, text=tr("bhf.variable_label")).pack(anchor=tk.W)
-        dv = ttk.Combobox(d3, textvariable=app.dist_variable_var,
-                          values=("BHF", "ΔEQ"), width=10, state="readonly")
-        dv.pack(anchor=tk.W, fill=tk.X, pady=(0, 3))
-        dv.bind("<<ComboboxSelected>>", lambda _e: app.on_bhf_distribution_option_change())
-
-        ttk.Label(d3, text=tr("bhf.shape_label")).pack(anchor=tk.W)
-        ds = ttk.Combobox(d3, textvariable=app.dist_shape_var,
-                          values=("Histograma", "Gaussiana", "Binomial", "Fija"),
-                          width=12, state="readonly")
-        ds.pack(anchor=tk.W, fill=tk.X, pady=(0, 3))
-        ds.bind("<<ComboboxSelected>>", lambda _e: app.on_bhf_distribution_option_change())
-
-        ttk.Button(d3, text=tr("bhf.load_fixed"), command=app.load_fixed_distribution_file,
-                   style="Small.TButton").pack(fill=tk.X, pady=(0, 4))
-
-        ab = ttk.Frame(d3)
-        ab.pack(fill=tk.X, pady=(0, 2))
+        ab = ttk.Frame(d2)
+        ab.pack(fill=tk.X, pady=(4, 2))
         ttk.Button(ab, text=tr("bhf.alpha_fine"),
                    command=lambda: app.set_bhf_alpha_preset(-5.0), style="Small.TButton"
                    ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 2))
@@ -189,11 +177,11 @@ class SimPanel(BasePanel):
                    command=lambda: app.set_bhf_alpha_preset(1.0), style="Small.TButton"
                    ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(2, 0))
 
-        ttk.Checkbutton(d3, text=tr("bhf.use_sharp"), variable=app.dist_use_sharp_var,
+        ttk.Checkbutton(d2, text=tr("bhf.use_sharp"), variable=app.dist_use_sharp_var,
                         command=app.on_bhf_distribution_option_change).pack(anchor=tk.W, pady=(2, 0))
-        ttk.Checkbutton(d3, text=tr("bhf.refine_global"), variable=app.dist_refine_global_var,
+        ttk.Checkbutton(d2, text=tr("bhf.refine_global"), variable=app.dist_refine_global_var,
                         command=app.on_bhf_distribution_option_change).pack(anchor=tk.W, pady=(0, 2))
-        ttk.Button(d3, text=tr("bhf.lcurve_alpha"), command=app.scan_bhf_alpha_gui,
+        ttk.Button(d2, text=tr("bhf.lcurve_alpha"), command=app.scan_bhf_alpha_gui,
                    style="Small.TButton").pack(fill=tk.X, pady=(2, 0))
 
     # ── Construcción de componentes en modo APILADO ───────────────────────────
@@ -204,6 +192,8 @@ class SimPanel(BasePanel):
         self._comp_tabs.clear()
         self._comp_notebook = None
         self._using_tabs = False
+        app.notebook = None
+        app.dist_tab = None
 
         for idx in range(1, MAX_COMPONENTS + 1):
             lf = ttk.LabelFrame(area, text=tr("tab.component", idx=idx), padding=4)
@@ -225,6 +215,12 @@ class SimPanel(BasePanel):
         nb = ttk.Notebook(area)
         nb.pack(fill=tk.X)
         self._comp_notebook = nb
+        app.notebook = nb
+
+        # Pestaña de distribución BHF — se inserta/elimina dinámicamente
+        dist_tab = ttk.Frame(nb, padding=6)
+        app.dist_tab = dist_tab
+        self._build_distribution_tab(dist_tab)
 
         for idx in range(1, MAX_COMPONENTS + 1):
             tab = ttk.Frame(nb, padding=4)
@@ -314,14 +310,18 @@ class SimPanel(BasePanel):
         )
 
         if not self._using_tabs:
-            # Altura real del panel (incluye distribución si está visible) —
-            # más precisa que cualquier estimación.
+            # Distribución activa requiere pestañas siempre
+            if dist_on:
+                self._switch_layout(use_tabs=True)
+                return
             root.update_idletasks()
             h_panel = root.winfo_reqheight()
             if h_panel > h_win * 0.88:
                 self._switch_layout(use_tabs=True)
         else:
-            # Modo pestañas: medir alturas reales para decidir si volver a apilado
+            # No volver a apilado mientras la distribución esté activa
+            if dist_on:
+                return
             root.update_idletasks()
             comp_tab = self._comp_tabs.get(1)
             h_one_comp = (
@@ -329,11 +329,7 @@ class SimPanel(BasePanel):
                 if comp_tab and comp_tab.winfo_exists()
                 else _COMP_H
             )
-            wrapper = getattr(self.app, "_sim_dist_wrapper", None)
-            h_dist = 0
-            if dist_on and wrapper and wrapper.winfo_exists():
-                h_dist = wrapper.winfo_reqheight()
-            h_stacked = _OVERHEAD_H + h_dist + n * h_one_comp
+            h_stacked = _OVERHEAD_H + n * h_one_comp
             if h_stacked < h_win * 0.78:
                 self._switch_layout(use_tabs=False)
 
@@ -343,22 +339,22 @@ class SimPanel(BasePanel):
         app = self.app
         n = app.n_components_var.get()
 
-        # 1. Instantánea de valores y estado fijado de todos los sliders de componente
-        prefixes = tuple(f"s{i}_" for i in range(1, MAX_COMPONENTS + 1))
+        # Instantánea de valores y estado fijado — componentes y distribución
+        prefixes = tuple(f"s{i}_" for i in range(1, MAX_COMPONENTS + 1)) + ("dist_",)
         var_snap   = {k: v.get() for k, v in app.vars.items()       if k.startswith(prefixes)}
         fixed_snap = {k: v.get() for k, v in app.fixed_vars.items() if k.startswith(prefixes)}
 
-        # 2. Vaciar el área de componentes
+        # Vaciar el área (destruye el notebook anterior y su dist_tab)
         for child in list(self._comp_area.winfo_children()):
             child.destroy()
 
-        # 3. Reconstruir en el nuevo modo
+        # Reconstruir en el nuevo modo
         if use_tabs:
             self._build_tabbed(self._comp_area)
         else:
             self._build_stacked(self._comp_area)
 
-        # 4. Restaurar valores
+        # Restaurar valores
         for k, v in var_snap.items():
             if k in app.vars:
                 app.vars[k].set(v)
@@ -368,10 +364,13 @@ class SimPanel(BasePanel):
             if k in app.fixed_vars:
                 app.fixed_vars[k].set(v)
 
-        # 5. Actualizar UI de tipo de componente (p.ej. ocultar BHF en doblete)
+        # Actualizar UI de tipo de componente (p.ej. ocultar BHF en doblete)
         for idx in range(1, n + 1):
             if app.sextet_enabled[idx].get():
                 app.on_component_kind_change(idx)
+
+        # Mostrar u ocultar la pestaña de distribución según el modo activo
+        app._refresh_distribution_tab_visibility(update=False)
 
     # ── Callback del spinbox ──────────────────────────────────────────────────
 
