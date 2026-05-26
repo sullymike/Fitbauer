@@ -500,7 +500,9 @@ class MossbauerApp(MossbauerFe33GUI):
         dist_on   = self.fit_mode_var.get() == "bhf_distribution"
 
         if nb is not None and dist_tab is not None:
-            # Modo pestañas: insertar o eliminar la pestaña de distribución
+            # Modo pestañas: el frame apilado siempre oculto (distribución va en pestaña)
+            if wrapper is not None and wrapper.winfo_exists() and wrapper.winfo_ismapped():
+                wrapper.pack_forget()
             if dist_on:
                 if str(dist_tab) not in nb.tabs():
                     nb.insert(0, dist_tab, text=tr("tab.distribution_bhf"))
