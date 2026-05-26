@@ -1,10 +1,9 @@
 """Panel de simulación/ajuste: cabecera, N componentes dinámicos y distribución BHF.
 
 Layout adaptativo basado en la altura de la ventana:
-  - Si hay espacio suficiente: componentes apilados verticalmente.
-  - Si no caben (la ventana es demasiado baja): pestañas de notebook.
+  - Si hay espacio suficiente: distribución + componentes apilados verticalmente.
+  - Si no caben: pestañas de notebook (distribución y componentes como pestañas).
   - Si el panel está en la columna central (_force_tabs=True): siempre pestañas.
-  - Si la distribución BHF está activa: siempre pestañas (dist + comp comparten espacio).
 Los sliders de cada componente se distribuyen en 2 columnas que se adaptan
 al ancho del panel.
 """
@@ -27,6 +26,8 @@ MAX_COMPONENTS = 6
 _COMP_H = 315
 # Coste fijo: botones + spinbox + márgenes de LabelFrame
 _OVERHEAD_H = 110
+# Altura estimada del bloque de distribución BHF (fallback para check inverso)
+_DIST_H = 340
 
 
 class SimPanel(BasePanel):
@@ -91,12 +92,15 @@ class SimPanel(BasePanel):
         ttk.Label(ncomp_row, text=f"(máx. {MAX_COMPONENTS})",
                   foreground="#64748b", font=("TkDefaultFont", 8)).pack(side=tk.LEFT)
 
-        # ── Área de componentes + distribución BHF (notebook compartido) ──────
-        # Distribución BHF y componentes comparten el mismo notebook de pestañas.
-        # En modo apilado la distribución fuerza el cambio automático a pestañas.
+        # ── Distribución BHF (frame apilado, se oculta cuando no está activa) ─
+        dist_frame = ttk.Frame(sim_box)
+        app._sim_dist_wrapper = dist_frame
+        self._build_distribution_tab(dist_frame)
+
+        # ── Área de componentes ────────────────────────────────────────────────
         comp_area = ttk.Frame(sim_box)
-        comp_area.pack(fill=tk.X)
         self._comp_area = comp_area
+        app._sim_comp_area = comp_area
 
         if self._force_tabs:
             self._build_tabbed(comp_area)
@@ -108,14 +112,9 @@ class SimPanel(BasePanel):
         def _on_fit_mode_change(*_: object) -> None:
             if self._root is None or not self._root.winfo_exists():
                 return
-            dist_on = app.fit_mode_var.get() == "bhf_distribution"
-            if dist_on and not self._using_tabs:
-                # Distribución BHF requiere pestañas; cambiar inmediatamente
-                self._switch_layout(use_tabs=True)
-            else:
-                app._refresh_distribution_tab_visibility(update=False)
-                if not self._force_tabs:
-                    self._schedule_layout_check()
+            app._refresh_distribution_tab_visibility(update=False)
+            if not self._force_tabs:
+                self._schedule_layout_check()
 
         app.fit_mode_var.trace_add("write", _on_fit_mode_change)
 
@@ -193,7 +192,6 @@ class SimPanel(BasePanel):
         self._comp_notebook = None
         self._using_tabs = False
         app.notebook = None
-        app.dist_tab = None
 
         for idx in range(1, MAX_COMPONENTS + 1):
             lf = ttk.LabelFrame(area, text=tr("tab.component", idx=idx), padding=4)
@@ -217,7 +215,7 @@ class SimPanel(BasePanel):
         self._comp_notebook = nb
         app.notebook = nb
 
-        # Pestaña de distribución BHF — se inserta/elimina dinámicamente
+        # Pestaña de distribución BHF (se inserta/elimina según el modo activo)
         dist_tab = ttk.Frame(nb, padding=6)
         app.dist_tab = dist_tab
         self._build_distribution_tab(dist_tab)
@@ -295,7 +293,6 @@ class SimPanel(BasePanel):
         root = self._root
         if root is None or not root.winfo_exists():
             return
-        # Columna central: siempre pestañas, sin comprobación de altura
         if self._force_tabs:
             if not self._using_tabs:
                 self._switch_layout(use_tabs=True)
@@ -310,18 +307,12 @@ class SimPanel(BasePanel):
         )
 
         if not self._using_tabs:
-            # Distribución activa requiere pestañas siempre
-            if dist_on:
-                self._switch_layout(use_tabs=True)
-                return
+            # Altura real del panel (dist_frame incluida si está visible)
             root.update_idletasks()
             h_panel = root.winfo_reqheight()
             if h_panel > h_win * 0.88:
                 self._switch_layout(use_tabs=True)
         else:
-            # No volver a apilado mientras la distribución esté activa
-            if dist_on:
-                return
             root.update_idletasks()
             comp_tab = self._comp_tabs.get(1)
             h_one_comp = (
@@ -329,7 +320,12 @@ class SimPanel(BasePanel):
                 if comp_tab and comp_tab.winfo_exists()
                 else _COMP_H
             )
-            h_stacked = _OVERHEAD_H + n * h_one_comp
+            # Estimar altura en modo apilado incluyendo distribución si está activa
+            wrapper = getattr(self.app, "_sim_dist_wrapper", None)
+            h_dist = 0
+            if dist_on and wrapper and wrapper.winfo_exists():
+                h_dist = wrapper.winfo_reqheight() or _DIST_H
+            h_stacked = _OVERHEAD_H + h_dist + n * h_one_comp
             if h_stacked < h_win * 0.78:
                 self._switch_layout(use_tabs=False)
 
@@ -339,12 +335,12 @@ class SimPanel(BasePanel):
         app = self.app
         n = app.n_components_var.get()
 
-        # Instantánea de valores y estado fijado — componentes y distribución
-        prefixes = tuple(f"s{i}_" for i in range(1, MAX_COMPONENTS + 1)) + ("dist_",)
+        # Instantánea de valores y estado fijado de todos los sliders de componente
+        prefixes = tuple(f"s{i}_" for i in range(1, MAX_COMPONENTS + 1))
         var_snap   = {k: v.get() for k, v in app.vars.items()       if k.startswith(prefixes)}
         fixed_snap = {k: v.get() for k, v in app.fixed_vars.items() if k.startswith(prefixes)}
 
-        # Vaciar el área (destruye el notebook anterior y su dist_tab)
+        # Vaciar el área de componentes
         for child in list(self._comp_area.winfo_children()):
             child.destroy()
 
@@ -369,7 +365,7 @@ class SimPanel(BasePanel):
             if app.sextet_enabled[idx].get():
                 app.on_component_kind_change(idx)
 
-        # Mostrar u ocultar la pestaña de distribución según el modo activo
+        # Sincronizar la pestaña de distribución en el nuevo notebook (si tabbed)
         app._refresh_distribution_tab_visibility(update=False)
 
     # ── Callback del spinbox ──────────────────────────────────────────────────
