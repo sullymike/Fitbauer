@@ -5,7 +5,7 @@ import numpy as np
 
 # ── Metadatos de la aplicación ────────────────────────────────────────────────
 APP_NAME = "Mössbauer Fe-57 v2IA"
-APP_VERSION = "0.4.7"
+APP_VERSION = "1.1"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 
