@@ -439,38 +439,55 @@ class MossbauerFe33GUI(tk.Tk):
         self.after(4000, self._check_requirements_background)
 
     def _reconfigure_styles(self, style: ttk.Style, sv_active: bool) -> None:
-        accent = "#0ea5d9"
-        accent_dark = "#075985"
-        if sv_active:
-            bg = style.lookup("TFrame", "background") or "#f0f0f0"
+        _dark = (self._theme_var.get() == "sv_ttk_dark")
+        if _dark:
+            accent      = "#38bdf8"
+            accent_dark = "#0ea5d9"
+            hdr_bg      = "#0c4a6e"
+            bg   = style.lookup("TFrame", "background") or "#1e1e2e"
+            card = bg
+            self.configure(background=bg)
+            style.configure("Section.TLabelframe", padding=10)
+            style.configure("Section.TLabelframe.Label", font=("TkDefaultFont", 10, "bold"), foreground=accent)
+            style.configure("Title.TLabel",    font=("TkDefaultFont", 17, "bold"), foreground=accent)
+            style.configure("Subtitle.TLabel", font=("TkDefaultFont", 9), foreground="#94a3b8")
+            style.configure("Header.TLabel",    font=("TkDefaultFont", 18, "bold"), foreground="#e0f2fe", background=hdr_bg)
+            style.configure("HeaderSub.TLabel", font=("TkDefaultFont", 9), foreground="#bae6fd", background=hdr_bg)
+        elif sv_active:
+            accent      = "#0ea5d9"
+            accent_dark = "#075985"
+            bg   = style.lookup("TFrame", "background") or "#f0f0f0"
             card = "#ffffff"
             self.configure(background=bg)
             style.configure("Section.TLabelframe", padding=10)
             style.configure("Section.TLabelframe.Label", font=("TkDefaultFont", 10, "bold"), foreground=accent_dark)
-            style.configure("Title.TLabel", font=("TkDefaultFont", 17, "bold"), foreground=accent_dark)
+            style.configure("Title.TLabel",    font=("TkDefaultFont", 17, "bold"), foreground=accent_dark)
             style.configure("Subtitle.TLabel", font=("TkDefaultFont", 9), foreground="#4b6478")
+            style.configure("Header.TLabel",    font=("TkDefaultFont", 18, "bold"), foreground="white",    background=accent_dark)
+            style.configure("HeaderSub.TLabel", font=("TkDefaultFont", 9), foreground="#dff6ff", background=accent_dark)
         else:
-            bg = "#eaf4ff"
+            accent      = "#0ea5d9"
+            accent_dark = "#075985"
+            bg   = "#eaf4ff"
             card = "#f8fbff"
             self.configure(background=bg)
             style.configure("TFrame", background=bg)
             style.configure("TLabelframe", background=card, borderwidth=1, relief="solid")
             style.configure("TLabelframe.Label", background=bg)
             style.configure("TLabel", background=bg, foreground="#17202a")
-            style.configure("Title.TLabel", font=("TkDefaultFont", 17, "bold"), foreground=accent_dark, background=bg)
+            style.configure("Title.TLabel",    font=("TkDefaultFont", 17, "bold"), foreground=accent_dark, background=bg)
             style.configure("Subtitle.TLabel", font=("TkDefaultFont", 9), foreground="#4b6478", background=bg)
             style.configure("Section.TLabelframe", padding=10, background=card, relief="solid")
             style.configure("Section.TLabelframe.Label", font=("TkDefaultFont", 10, "bold"), foreground=accent_dark, background=bg)
             style.configure("TNotebook", background=bg, borderwidth=0)
             style.configure("TNotebook.Tab", padding=(12, 6), background="#cfefff", foreground="#0f3d5c")
             style.map("TNotebook.Tab", background=[("selected", "#38bdf8")], foreground=[("selected", "white")])
-        style.configure("Header.TLabel", font=("TkDefaultFont", 18, "bold"), foreground="white", background=accent_dark)
-        style.configure("HeaderSub.TLabel", font=("TkDefaultFont", 9), foreground="#dff6ff", background=accent_dark)
+            style.configure("Header.TLabel",    font=("TkDefaultFont", 18, "bold"), foreground="white",    background=accent_dark)
+            style.configure("HeaderSub.TLabel", font=("TkDefaultFont", 9), foreground="#dff6ff", background=accent_dark)
+            style.configure("TNotebook", borderwidth=0)
         style.configure("Accent.TButton", padding=7, font=("TkDefaultFont", 9, "bold"), background=accent, foreground="white")
         style.map("Accent.TButton", background=[("active", "#0284c7"), ("pressed", "#0369a1")])
         style.configure("Small.TButton", padding=(5, 4))
-        if not sv_active:
-            style.configure("TNotebook", borderwidth=0)
         self._bg = bg
         self._card = card
         if hasattr(self, "file_label"):
@@ -481,14 +498,14 @@ class MossbauerFe33GUI(tk.Tk):
     def _switch_theme(self, theme: str) -> None:
         style = ttk.Style(self)
         _sv = False
-        if theme == "sv_ttk":
+        if theme in ("sv_ttk", "sv_ttk_dark"):
             if not self._sv_available:
                 messagebox.showwarning(tr("msg.theme_title"), tr("msg.theme_not_installed"))
                 self._theme_var.set("clam")
                 return
             try:
                 import sv_ttk
-                sv_ttk.set_theme("light")
+                sv_ttk.set_theme("dark" if theme == "sv_ttk_dark" else "light")
                 _sv = True
             except Exception as exc:
                 messagebox.showerror(tr("msg.theme_title"), tr("msg.theme_apply_error", error=str(exc)))
@@ -515,7 +532,10 @@ class MossbauerFe33GUI(tk.Tk):
         try:
             import sv_ttk
             self._sv_available = True
-            if _saved_theme != "clam":
+            if _saved_theme == "sv_ttk_dark":
+                sv_ttk.set_theme("dark")
+                _sv = True
+            elif _saved_theme != "clam":
                 sv_ttk.set_theme("light")
                 _sv = True
         except ImportError:
@@ -526,7 +546,7 @@ class MossbauerFe33GUI(tk.Tk):
             except tk.TclError:
                 pass
         self._sv_active = _sv
-        self._theme_var.set("sv_ttk" if _sv else "clam")
+        self._theme_var.set(_saved_theme if _sv else "clam")
         self._reconfigure_styles(style, _sv)
         accent_dark = "#075985"
         bg = self._bg

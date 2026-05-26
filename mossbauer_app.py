@@ -85,7 +85,10 @@ class MossbauerApp(MossbauerFe33GUI):
         try:
             import sv_ttk
             self._sv_available = True
-            if _saved_theme != "clam":
+            if _saved_theme == "sv_ttk_dark":
+                sv_ttk.set_theme("dark")
+                _sv = True
+            elif _saved_theme != "clam":
                 sv_ttk.set_theme("light")
                 _sv = True
         except ImportError:
@@ -96,7 +99,7 @@ class MossbauerApp(MossbauerFe33GUI):
             except tk.TclError:
                 pass
         self._sv_active = _sv
-        self._theme_var.set("sv_ttk" if _sv else "clam")
+        self._theme_var.set(_saved_theme if _sv else "clam")
         self._reconfigure_styles(style, _sv)
 
         # ── Menú ──────────────────────────────────────────────────────────────
@@ -183,6 +186,9 @@ class MossbauerApp(MossbauerFe33GUI):
         theme_menu.add_radiobutton(label=tr("options.theme_modern"),
                                    variable=self._theme_var, value="sv_ttk",
                                    command=lambda: self._switch_theme("sv_ttk"))
+        theme_menu.add_radiobutton(label=tr("options.theme_dark"),
+                                   variable=self._theme_var, value="sv_ttk_dark",
+                                   command=lambda: self._switch_theme("sv_ttk_dark"))
         theme_menu.add_radiobutton(label=tr("options.theme_classic"),
                                    variable=self._theme_var, value="clam",
                                    command=lambda: self._switch_theme("clam"))

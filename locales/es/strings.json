@@ -41,6 +41,7 @@
   "options.physical_presets": "Presets físicos de restricciones...",
   "options.theme": "Tema visual",
   "options.theme_modern": "Moderno (sv_ttk)",
+  "options.theme_dark": "Oscuro (sv_ttk dark)",
   "options.theme_classic": "Clásico (clam)",
   "help.open": "Ayuda",
   "help.about": "Acerca de",

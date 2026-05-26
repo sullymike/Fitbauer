@@ -41,6 +41,7 @@
   "options.physical_presets": "Préréglages physiques de contraintes...",
   "options.theme": "Thème visuel",
   "options.theme_modern": "Moderne (sv_ttk)",
+  "options.theme_dark": "Sombre (sv_ttk dark)",
   "options.theme_classic": "Classique (clam)",
   "help.open": "Aide",
   "help.about": "À propos",
