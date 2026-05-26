@@ -456,6 +456,8 @@ class MossbauerFe33GUI(tk.Tk):
             style.map("TNotebook.Tab",
                       background=[("selected", "#313244")],
                       foreground=[("selected", fg_main)])
+            # Etiquetas de LabelFrame: sv_ttk dark las pinta de azul → mauve
+            style.configure("TLabelframe.Label", foreground=accent)
             # Estilos propios
             style.configure("Section.TLabelframe", padding=10)
             style.configure("Section.TLabelframe.Label",
