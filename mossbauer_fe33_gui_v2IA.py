@@ -104,9 +104,9 @@ MODEL_PARAM_LABELS = {
     "gamma2": "Γ relativa líneas 2 y 5",
     "gamma3": "Γ relativa líneas 3 y 4",
     "depth": "Profundidad",
-    "int1": "I1 líneas 1 y 6",
-    "int2": "I2 relativa (1 = 2/3·I1)",
-    "int3": "I3 relativa (1 = 1/3·I1)",
+    "int3": "I (líneas 3 y 4)",
+    "int2": "I23 (2 = líneas 2,5 / líneas 3,4)",
+    "int1": "I13 (3 = líneas 1,6 / líneas 3,4)",
 }
 
 
@@ -187,7 +187,7 @@ def read_normos_sidecar_params(path: Path) -> dict[str, float]:
             params["s1_gamma2"] = 1.0
             params["s1_gamma3"] = 1.0
         if "ARE" in final and "s1_gamma1" in params:
-            weight_sum = 2.0 * (1.0 + 2.0 / 3.0 + 1.0 / 3.0)
+            weight_sum = 2.0 * (3.0 + 2.0 + 1.0)
             params["s1_depth"] = max(0.0, min(0.30, final["ARE"] / (np.pi * params["s1_gamma1"] * weight_sum)))
     job = path.with_suffix(".JOB")
     if not job.exists():
@@ -306,14 +306,14 @@ def sextet_absorption(v: np.ndarray, delta: float, quad: float, bhf: float,
                       int1: float, int2: float, int3: float) -> np.ndarray:
     """Absorción de un sextete Fe-57.
 
-    int1 es la intensidad de las líneas 1 y 6. int2 e int3 son relativas:
-    int2=1 -> I2=(2/3)*I1; int3=1 -> I3=(1/3)*I1.
+    Convención NORMOS: int3=I (intensidad base, líneas 3 y 4),
+    int2=I23 (ratio líneas 2,5 / 3,4; estándar=2), int1=I13 (ratio líneas 1,6 / 3,4; estándar=3).
     gamma1 es la anchura de las líneas 1 y 6. gamma2 y gamma3 son relativas:
     gamma2=1 -> Γ2,5=Γ1,6; gamma3=1 -> Γ3,4=Γ1,6.
     """
-    i1 = int1
-    i2 = int1 * (2.0 / 3.0) * int2
-    i3 = int1 * (1.0 / 3.0) * int3
+    i3 = int3
+    i2 = int3 * int2
+    i1 = int3 * int1
     weights = np.array([i1, i2, i3, i3, i2, i1], dtype=float)
     g1 = gamma1
     g2 = gamma1 * gamma2
@@ -2077,8 +2077,8 @@ class MossbauerFe33GUI(tk.Tk):
                 p + "delta": -0.11 if idx == 1 else 0.0,
                 p + "quad": 0.0,
                 p + "bhf": BHF_DEFAULT_T,
-                p + "int1": 1.0,
-                p + "int2": 1.0,
+                p + "int1": 3.0,
+                p + "int2": 2.0,
                 p + "int3": 1.0,
             })
         self.set_params(params)
@@ -2182,7 +2182,7 @@ class MossbauerFe33GUI(tk.Tk):
                 continue
             score = rms
             if best is None or score < best[0]:
-                weights = np.array([1.0, 2/3, 1/3, 1/3, 2/3, 1.0], dtype=float)
+                weights = np.array([3.0, 2.0, 1.0, 1.0, 2.0, 3.0], dtype=float)
                 depths = np.array([p["depth"] for p in sub], dtype=float)
                 depth_est = float(np.median(depths / weights))
                 best = (score, list(sub), float(delta), float(bhf), float(np.median([p["width"] for p in sub])), depth_est)
@@ -2208,7 +2208,7 @@ class MossbauerFe33GUI(tk.Tk):
             if idx > 1:
                 self.sextet_enabled[idx].set(False)
             p = f"s{idx}_"
-            params.update({p + "delta": 0.0, p + "quad": 0.0, p + "bhf": BHF_DEFAULT_T, p + "gamma1": 0.20, p + "gamma2": 1.0, p + "gamma3": 1.0, p + "depth": 0.005, p + "int1": 1.0, p + "int2": 1.0, p + "int3": 1.0})
+            params.update({p + "delta": 0.0, p + "quad": 0.0, p + "bhf": BHF_DEFAULT_T, p + "gamma1": 0.20, p + "gamma2": 1.0, p + "gamma3": 1.0, p + "depth": 0.005, p + "int1": 3.0, p + "int2": 2.0, p + "int3": 1.0})
 
         components: list[tuple[int, str, list[dict[str, float]]]] = []
         used_ids: set[int] = set()
@@ -2622,7 +2622,7 @@ class MossbauerFe33GUI(tk.Tk):
         def powder_intensities() -> None:
             for idx in (1, 2, 3):
                 if self.sextet_enabled[idx].get() and self.component_kind[idx].get() == "Sextete":
-                    for name, value in (("int1", 1.0), ("int2", 1.0), ("int3", 1.0)):
+                    for name, value in (("int1", 3.0), ("int2", 2.0), ("int3", 1.0)):
                         key = f"s{idx}_{name}"
                         self.vars[key].set(value)
                         self.entry_vars[key].set(self._format_value(key, value))
@@ -3014,8 +3014,8 @@ class MossbauerFe33GUI(tk.Tk):
             "gamma2": (0.2, 3.0),
             "gamma3": (0.2, 3.0),
             "depth": (0.0, 0.30),
-            "int1": (0.0, 2.0),
-            "int2": (0.0, 3.0),
+            "int1": (0.0, 9.0),
+            "int2": (0.0, 6.0),
             "int3": (0.0, 3.0),
         }
         return bounds[base]

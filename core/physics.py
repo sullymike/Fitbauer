@@ -27,9 +27,9 @@ def sextet_absorption(
     gamma1: float, gamma2: float, gamma3: float,
     depth: float, int1: float, int2: float, int3: float,
 ) -> np.ndarray:
-    i1 = int1
-    i2 = int1 * (2.0 / 3.0) * int2
-    i3 = int1 * (1.0 / 3.0) * int3
+    i3 = int3
+    i2 = int3 * int2
+    i1 = int3 * int1
     weights = np.array([i1, i2, i3, i3, i2, i1], dtype=float)
     g1 = gamma1
     g2 = gamma1 * gamma2

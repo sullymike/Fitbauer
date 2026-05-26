@@ -44,7 +44,7 @@ MODEL_PARAM_LABELS = {
     "gamma2": "Γ relativa líneas 2 y 5",
     "gamma3": "Γ relativa líneas 3 y 4",
     "depth": "Profundidad",
-    "int1": "I1 líneas 1 y 6",
-    "int2": "I2 relativa (1 = 2/3·I1)",
-    "int3": "I3 relativa (1 = 1/3·I1)",
+    "int3": "I (líneas 3 y 4)",
+    "int2": "I23 (2 = líneas 2,5 / líneas 3,4)",
+    "int1": "I13 (3 = líneas 1,6 / líneas 3,4)",
 }

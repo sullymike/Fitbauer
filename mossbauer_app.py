@@ -456,9 +456,9 @@ class MossbauerApp(MossbauerFe33GUI):
             text.append("")
         for idx in active:
             p = f"s{idx}_"
-            i1       = self.vars[p + "int1"].get()
-            i2_real  = i1 * (2 / 3) * self.vars[p + "int2"].get()
-            i3_real  = i1 * (1 / 3) * self.vars[p + "int3"].get()
+            i3_real  = self.vars[p + "int3"].get()
+            i2_real  = i3_real * self.vars[p + "int2"].get()
+            i1_real  = i3_real * self.vars[p + "int1"].get()
             g1 = self.vars[p + "gamma1"].get()
             g2 = g1 * self.vars[p + "gamma2"].get()
             g3 = g1 * self.vars[p + "gamma3"].get()

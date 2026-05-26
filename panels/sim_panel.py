@@ -267,9 +267,9 @@ class SimPanel(BasePanel):
         depth_default = 0.030 if idx == 1 else 0.005
         # c1: profundidad · intensidades · isomershift
         self._add_slider(c1, p + "depth",  tr("slider.s_depth"),  depth_default,  0.0,  0.30, 0.0005)
-        self._add_slider(c1, p + "int1",   tr("slider.s_int1"),   1.0,            0.0,  2.0,  0.001)
-        self._add_slider(c1, p + "int2",   tr("slider.s_int2"),   1.0,            0.0,  3.0,  0.001)
-        self._add_slider(c1, p + "int3",   tr("slider.s_int3"),   1.0,            0.0,  3.0,  0.001)
+        self._add_slider(c1, p + "int3",   tr("slider.s_int3"),   1.0,            0.0,  3.0,  0.01)
+        self._add_slider(c1, p + "int2",   tr("slider.s_int2"),   2.0,            0.0,  4.0,  0.01)
+        self._add_slider(c1, p + "int1",   tr("slider.s_int1"),   3.0,            0.0,  6.0,  0.01)
         self._add_slider(c1, p + "delta",  tr("slider.s_delta"),  0.0,           -2.0,  3.0,  0.001)
         # c2: cuadrupolo · campo hiperfino · anchuras
         self._add_slider(c2, p + "quad",   tr("slider.s_quad"),   0.0,           -4.0,  4.0,  0.001)
