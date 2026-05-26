@@ -85,10 +85,7 @@ class MossbauerApp(MossbauerFe33GUI):
         try:
             import sv_ttk
             self._sv_available = True
-            if _saved_theme == "sv_ttk_dark":
-                sv_ttk.set_theme("dark")
-                _sv = True
-            elif _saved_theme != "clam":
+            if _saved_theme == "sv_ttk":
                 sv_ttk.set_theme("light")
                 _sv = True
         except ImportError:
@@ -99,7 +96,7 @@ class MossbauerApp(MossbauerFe33GUI):
             except tk.TclError:
                 pass
         self._sv_active = _sv
-        self._theme_var.set(_saved_theme if _sv else "clam")
+        self._theme_var.set(_saved_theme if _saved_theme in ("sv_ttk", "sv_ttk_dark", "clam") else ("sv_ttk" if _sv else "clam"))
         self._reconfigure_styles(style, _sv)
 
         # ── Menú ──────────────────────────────────────────────────────────────
