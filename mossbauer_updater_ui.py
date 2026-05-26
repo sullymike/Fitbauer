@@ -20,7 +20,15 @@ def _update_dialog(parent, title: str, msg: str) -> bool:
     win.geometry("860x480")
     win.resizable(True, True)
     win.transient(parent)
-    win.grab_set()
+
+    def _set_grab() -> None:
+        try:
+            win.wait_visibility()
+            win.grab_set()
+        except tk.TclError:
+            pass
+
+    win.after(50, _set_grab)
 
     frame = ttk.Frame(win, padding=(12, 10, 12, 6))
     frame.pack(fill=tk.BOTH, expand=True)
