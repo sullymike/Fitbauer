@@ -132,6 +132,20 @@ class LayoutManager:
         plot_widget = self._panels["plot"].build(center)
         plot_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
+        # Paneles esenciales no asignados: construirlos en un frame invisible
+        # para que sus vars (baseline, vmax, s1_delta…) siempre existan.
+        all_placed = (
+            set(left_ids) | set(center_ids) | set(right_ids)
+        )
+        _essential = {"calibration", "sim_controls"}
+        _unplaced  = _essential - all_placed
+        if _unplaced:
+            _hidden = ttk.Frame(window)   # no se empaqueta → invisible
+            for pid in _unplaced:
+                panel = self._panels.get(pid)
+                if panel:
+                    panel.build(_hidden)
+
     def _fill_column(self, parent: tk.Widget, panel_ids: list[str]) -> None:
         for pid in panel_ids:
             panel = self._panels.get(pid)
