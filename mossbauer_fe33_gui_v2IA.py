@@ -441,18 +441,32 @@ class MossbauerFe33GUI(tk.Tk):
     def _reconfigure_styles(self, style: ttk.Style, sv_active: bool) -> None:
         _dark = (self._theme_var.get() == "sv_ttk_dark")
         if _dark:
-            accent      = "#38bdf8"
-            accent_dark = "#0ea5d9"
-            hdr_bg      = "#0c4a6e"
+            # Paleta "Profundo": slate oscuro + violeta Claude
+            accent   = "#c4b5fd"   # violet-300 — se lee sobre cualquier gris oscuro
+            hdr_bg   = "#1e1b4b"   # indigo-950 — cabecera muy oscura
+            hdr_fg   = "#e0e7ff"   # indigo-100
+            hdr_sub  = "#a5b4fc"   # indigo-300
+            btn_bg   = "#6d28d9"   # violet-700
             bg   = style.lookup("TFrame", "background") or "#1e1e2e"
             card = bg
             self.configure(background=bg)
             style.configure("Section.TLabelframe", padding=10)
-            style.configure("Section.TLabelframe.Label", font=("TkDefaultFont", 10, "bold"), foreground=accent)
-            style.configure("Title.TLabel",    font=("TkDefaultFont", 17, "bold"), foreground=accent)
-            style.configure("Subtitle.TLabel", font=("TkDefaultFont", 9), foreground="#94a3b8")
-            style.configure("Header.TLabel",    font=("TkDefaultFont", 18, "bold"), foreground="#e0f2fe", background=hdr_bg)
-            style.configure("HeaderSub.TLabel", font=("TkDefaultFont", 9), foreground="#bae6fd", background=hdr_bg)
+            style.configure("Section.TLabelframe.Label",
+                            font=("TkDefaultFont", 10, "bold"), foreground=accent)
+            style.configure("Title.TLabel",
+                            font=("TkDefaultFont", 17, "bold"), foreground=hdr_fg)
+            style.configure("Subtitle.TLabel",
+                            font=("TkDefaultFont", 9), foreground="#94a3b8")
+            style.configure("Header.TLabel",
+                            font=("TkDefaultFont", 18, "bold"), foreground=hdr_fg, background=hdr_bg)
+            style.configure("HeaderSub.TLabel",
+                            font=("TkDefaultFont", 9), foreground=hdr_sub, background=hdr_bg)
+            style.configure("Accent.TButton",
+                            padding=7, font=("TkDefaultFont", 9, "bold"),
+                            background=btn_bg, foreground="white")
+            style.map("Accent.TButton",
+                      background=[("active", "#5b21b6"), ("pressed", "#4c1d95")])
+            style.configure("Small.TButton", padding=(5, 4))
         elif sv_active:
             accent      = "#0ea5d9"
             accent_dark = "#075985"
@@ -465,6 +479,9 @@ class MossbauerFe33GUI(tk.Tk):
             style.configure("Subtitle.TLabel", font=("TkDefaultFont", 9), foreground="#4b6478")
             style.configure("Header.TLabel",    font=("TkDefaultFont", 18, "bold"), foreground="white",    background=accent_dark)
             style.configure("HeaderSub.TLabel", font=("TkDefaultFont", 9), foreground="#dff6ff", background=accent_dark)
+            style.configure("Accent.TButton", padding=7, font=("TkDefaultFont", 9, "bold"), background=accent, foreground="white")
+            style.map("Accent.TButton", background=[("active", "#0284c7"), ("pressed", "#0369a1")])
+            style.configure("Small.TButton", padding=(5, 4))
         else:
             accent      = "#0ea5d9"
             accent_dark = "#075985"
@@ -485,9 +502,9 @@ class MossbauerFe33GUI(tk.Tk):
             style.configure("Header.TLabel",    font=("TkDefaultFont", 18, "bold"), foreground="white",    background=accent_dark)
             style.configure("HeaderSub.TLabel", font=("TkDefaultFont", 9), foreground="#dff6ff", background=accent_dark)
             style.configure("TNotebook", borderwidth=0)
-        style.configure("Accent.TButton", padding=7, font=("TkDefaultFont", 9, "bold"), background=accent, foreground="white")
-        style.map("Accent.TButton", background=[("active", "#0284c7"), ("pressed", "#0369a1")])
-        style.configure("Small.TButton", padding=(5, 4))
+            style.configure("Accent.TButton", padding=7, font=("TkDefaultFont", 9, "bold"), background=accent, foreground="white")
+            style.map("Accent.TButton", background=[("active", "#0284c7"), ("pressed", "#0369a1")])
+            style.configure("Small.TButton", padding=(5, 4))
         self._bg = bg
         self._card = card
         if hasattr(self, "file_label"):
@@ -1045,13 +1062,17 @@ class MossbauerFe33GUI(tk.Tk):
             popup.after(auto_close_ms, popup.destroy)
 
     def show_text_window(self, title: str, text: str) -> None:
+        _dark = (self._theme_var.get() == "sv_ttk_dark")
+        txt_bg = "#1e1e2e" if _dark else "#ffffff"
+        txt_fg = "#e0e7ff" if _dark else "#17202a"
         win = tk.Toplevel(self)
         win.title(title)
-        win.geometry("760x620")
+        win.geometry("940x660")
         win.transient(self)
         frame = ttk.Frame(win, padding=10)
         frame.pack(fill=tk.BOTH, expand=True)
-        txt = tk.Text(frame, wrap=tk.WORD, background="#ffffff", foreground="#17202a", font=("TkDefaultFont", 10))
+        txt = tk.Text(frame, wrap=tk.WORD, background=txt_bg, foreground=txt_fg,
+                      font=("TkDefaultFont", 9), relief="flat", padx=6, pady=6)
         txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scroll = ttk.Scrollbar(frame, command=txt.yview)
         scroll.pack(side=tk.RIGHT, fill=tk.Y)
