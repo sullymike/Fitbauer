@@ -109,12 +109,17 @@ class MossbauerApp(MossbauerFe33GUI):
     def _build_menubar(self) -> None:
         menubar = tk.Menu(self)
 
+        # ── Archivo ───────────────────────────────────────────────────────────
         file_menu = tk.Menu(menubar, tearoff=0)
         file_menu.add_command(label=tr("file.open"), command=self.open_file)
-        file_menu.add_command(label=tr("file.web_measurements"),
-                              command=lambda: self.open_web_download_dialog(kind="mossbauer"))
-        file_menu.add_command(label=tr("file.web_calibrations"),
-                              command=self.open_calibration_download_dialog)
+        web_menu = tk.Menu(file_menu, tearoff=0)
+        web_menu.add_command(label=tr("file.web_measurements"),
+                             command=lambda: self.open_web_download_dialog(kind="mossbauer"))
+        web_menu.add_command(label=tr("file.web_calibrations"),
+                             command=self.open_calibration_download_dialog)
+        web_menu.add_command(label=tr("file.upload_session"),
+                             command=self.open_web_upload_analysis_dialog)
+        file_menu.add_cascade(label=tr("file.web"), menu=web_menu)
         file_menu.add_command(label=tr("file.use_as_calibration"),
                               command=self.use_loaded_file_as_calibration)
         file_menu.add_separator()
@@ -122,78 +127,80 @@ class MossbauerApp(MossbauerFe33GUI):
         file_menu.add_command(label=tr("file.export_report"), command=self.export_report_dialog)
         file_menu.add_separator()
         file_menu.add_command(label=tr("file.save_session"),  command=self.save_session_dialog)
-        file_menu.add_command(label=tr("file.upload_session"),command=self.open_web_upload_analysis_dialog)
         file_menu.add_command(label=tr("file.load_session"),  command=self.load_session_dialog)
         file_menu.add_separator()
         file_menu.add_command(label=tr("file.exit"),          command=self.on_close)
         menubar.add_cascade(label=tr("menu.file"), menu=file_menu)
 
+        # ── Ajuste ────────────────────────────────────────────────────────────
         fit_menu = tk.Menu(menubar, tearoff=0)
+        fit_menu.add_command(label=tr("fit.run"),             command=self.fit_current_data)
+        fit_menu.add_separator()
         fit_menu.add_command(label=tr("fit.find_center"),     command=self.auto_center)
         fit_menu.add_command(label=tr("fit.init_from_minima"),command=self.auto_guess_from_minima)
         fit_menu.add_command(label=tr("fit.auto_from_minima"),command=self.auto_fit_from_minima)
         fit_menu.add_command(label=tr("fit.ollama_start"),    command=self.open_ollama_ai_dialog)
-        fit_menu.add_command(label=tr("fit.run"),             command=self.fit_current_data)
         fit_menu.add_command(label=tr("fit.bootstrap"),       command=self.bootstrap_errors_current)
         fit_menu.add_separator()
-        fit_menu.add_command(label=tr("fit.fix_all"),  command=self.fix_all_parameters)
-        fit_menu.add_command(label=tr("fit.free_all"), command=self.free_all_parameters)
-        menubar.add_cascade(label=tr("menu.fit"), menu=fit_menu)
-
-        options_menu = tk.Menu(menubar, tearoff=0)
-        options_menu.add_radiobutton(label=tr("options.discrete_sextets"),
-                                     variable=self.fit_mode_var, value="discrete",
-                                     command=self.set_fit_mode_from_menu)
-        options_menu.add_radiobutton(label=tr("options.distribution_bhf"),
-                                     variable=self.fit_mode_var, value="bhf_distribution",
-                                     command=self.set_fit_mode_from_menu)
-        options_menu.add_separator()
-        options_menu.add_checkbutton(label=tr("options.show_residual"),
-                                     variable=self.show_residual_var, command=self.update_plot)
-        options_menu.add_checkbutton(label=tr("options.show_legend"),
-                                     variable=self.show_legend_var,   command=self.update_plot)
-        options_menu.add_separator()
-        profile_menu = tk.Menu(options_menu, tearoff=0)
+        fit_menu.add_radiobutton(label=tr("options.discrete_sextets"),
+                                 variable=self.fit_mode_var, value="discrete",
+                                 command=self.set_fit_mode_from_menu)
+        fit_menu.add_radiobutton(label=tr("options.distribution_bhf"),
+                                 variable=self.fit_mode_var, value="bhf_distribution",
+                                 command=self.set_fit_mode_from_menu)
+        fit_menu.add_separator()
+        profile_menu = tk.Menu(fit_menu, tearoff=0)
         profile_menu.add_radiobutton(label=tr("options.profile_lorentzian"),
                                      variable=self.line_profile_var, value="Lorentziana",
                                      command=self.on_line_profile_change)
         profile_menu.add_radiobutton(label=tr("options.profile_voigt"),
                                      variable=self.line_profile_var, value="Voigt",
                                      command=self.on_line_profile_change)
-        options_menu.add_cascade(label=tr("options.line_profile"), menu=profile_menu)
-        options_menu.add_separator()
-        options_menu.add_checkbutton(label=tr("options.add_sharp"),
-                                     variable=self.dist_use_sharp_var,
-                                     command=self.on_bhf_distribution_option_change)
-        options_menu.add_checkbutton(label=tr("options.refine_global"),
-                                     variable=self.dist_refine_global_var,
-                                     command=self.on_bhf_distribution_option_change)
-        options_menu.add_separator()
-        options_menu.add_command(label=tr("options.constraints"),    command=self.open_constraints_dialog)
-        options_menu.add_command(label=tr("options.physical_presets"),command=self.open_physical_presets_dialog)
-        options_menu.add_separator()
-        theme_menu = tk.Menu(options_menu, tearoff=0)
+        fit_menu.add_cascade(label=tr("options.line_profile"), menu=profile_menu)
+        fit_menu.add_separator()
+        fit_menu.add_checkbutton(label=tr("options.add_sharp"),
+                                 variable=self.dist_use_sharp_var,
+                                 command=self.on_bhf_distribution_option_change)
+        fit_menu.add_checkbutton(label=tr("options.refine_global"),
+                                 variable=self.dist_refine_global_var,
+                                 command=self.on_bhf_distribution_option_change)
+        fit_menu.add_separator()
+        fit_menu.add_command(label=tr("fit.free_all"), command=self.free_all_parameters)
+        fit_menu.add_command(label=tr("fit.fix_all"),  command=self.fix_all_parameters)
+        fit_menu.add_separator()
+        fit_menu.add_command(label=tr("options.constraints"),     command=self.open_constraints_dialog)
+        fit_menu.add_command(label=tr("options.physical_presets"), command=self.open_physical_presets_dialog)
+        menubar.add_cascade(label=tr("menu.fit"), menu=fit_menu)
+
+        # ── Vista ─────────────────────────────────────────────────────────────
+        view_menu = tk.Menu(menubar, tearoff=0)
+        view_menu.add_checkbutton(label=tr("options.show_residual"),
+                                  variable=self.show_residual_var, command=self.update_plot)
+        view_menu.add_checkbutton(label=tr("options.show_legend"),
+                                  variable=self.show_legend_var,   command=self.update_plot)
+        view_menu.add_separator()
+        theme_menu = tk.Menu(view_menu, tearoff=0)
         theme_menu.add_radiobutton(label=tr("options.theme_modern"),
                                    variable=self._theme_var, value="sv_ttk",
                                    command=lambda: self._switch_theme("sv_ttk"))
         theme_menu.add_radiobutton(label=tr("options.theme_classic"),
                                    variable=self._theme_var, value="clam",
                                    command=lambda: self._switch_theme("clam"))
-        options_menu.add_cascade(label=tr("options.theme"), menu=theme_menu)
-        options_menu.add_separator()
-        options_menu.add_command(label="Configurar layout de paneles…",
-                                 command=self._open_layout_configurator)
-        menubar.add_cascade(label=tr("menu.options"), menu=options_menu)
-
-        language_menu = tk.Menu(menubar, tearoff=0)
+        view_menu.add_cascade(label=tr("options.theme"), menu=theme_menu)
+        language_menu = tk.Menu(view_menu, tearoff=0)
         self._ui_language_var = tk.StringVar(value=get_language())
         for lang_code, lang_name in available_languages().items():
             language_menu.add_radiobutton(
                 label=lang_name, variable=self._ui_language_var, value=lang_code,
                 command=lambda code=lang_code: self.change_ui_language(code),
             )
-        menubar.add_cascade(label=tr("menu.language"), menu=language_menu)
+        view_menu.add_cascade(label=tr("menu.language"), menu=language_menu)
+        view_menu.add_separator()
+        view_menu.add_command(label=tr("view.configure_layout"),
+                              command=self._open_layout_configurator)
+        menubar.add_cascade(label=tr("menu.view"), menu=view_menu)
 
+        # ── Ayuda ─────────────────────────────────────────────────────────────
         help_menu = tk.Menu(menubar, tearoff=0)
         help_menu.add_command(label=tr("help.open"),             command=self.show_help)
         help_menu.add_command(label=tr("help.about"),            command=self.show_about)
