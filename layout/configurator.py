@@ -6,6 +6,7 @@ from tkinter import ttk
 from typing import TYPE_CHECKING
 
 from .presets import PRESETS
+from .manager import USER_PRESET_NAMES
 
 if TYPE_CHECKING:
     from mossbauer_app import MossbauerApp
@@ -29,6 +30,8 @@ class LayoutConfigDialog(tk.Toplevel):
 
         current = manager.load_config()
         self._panel_names = manager.get_panel_names()   # {id: nombre}
+        self._user_presets: dict[str, dict] = manager.load_user_presets()
+        self._user_apply_btns: dict[str, ttk.Button] = {}
 
         self._left:   list[str] = list(current.get("left",   []))
         self._center: list[str] = list(current.get("center", []))
@@ -53,10 +56,38 @@ class LayoutConfigDialog(tk.Toplevel):
         # ── Presets ────────────────────────────────────────────────────────────
         pf = ttk.LabelFrame(self, text="Presets", padding=5)
         pf.grid(row=0, column=0, columnspan=8, sticky="ew", **p)
+
+        # Fila 1: presets predefinidos
+        row_builtin = ttk.Frame(pf)
+        row_builtin.pack(fill=tk.X, pady=(0, 4))
         for name, data in PRESETS.items():
-            ttk.Button(pf, text=name,
+            ttk.Button(row_builtin, text=name,
                        command=lambda d=data: self._apply_preset(d)
-                       ).pack(side=tk.LEFT, padx=3)
+                       ).pack(side=tk.LEFT, padx=(0, 3))
+
+        ttk.Separator(pf, orient="horizontal").pack(fill=tk.X, pady=2)
+
+        # Fila 2: presets de usuario (guardar + aplicar)
+        row_user = ttk.Frame(pf)
+        row_user.pack(fill=tk.X, pady=(4, 0))
+        ttk.Label(row_user, text="Mis presets:",
+                  foreground="#64748b").pack(side=tk.LEFT, padx=(0, 6))
+        for slot in USER_PRESET_NAMES:
+            slot_frame = ttk.Frame(row_user)
+            slot_frame.pack(side=tk.LEFT, padx=(0, 10))
+            has = slot in self._user_presets
+            apply_btn = ttk.Button(
+                slot_frame,
+                text=slot if has else f"{slot} (vacío)",
+                state="normal" if has else "disabled",
+                command=lambda s=slot: self._apply_user_preset(s),
+            )
+            apply_btn.pack(side=tk.LEFT, padx=(0, 2))
+            self._user_apply_btns[slot] = apply_btn
+            ttk.Button(
+                slot_frame, text="Guardar aquí", style="Small.TButton",
+                command=lambda s=slot: self._save_user_preset_slot(s),
+            ).pack(side=tk.LEFT)
 
         # ── Pool de disponibles ───────────────────────────────────────────────
         df = ttk.LabelFrame(self, text="Disponibles", padding=5)
@@ -215,6 +246,28 @@ class LayoutConfigDialog(tk.Toplevel):
         self._refresh_all()
 
     # ── Presets y aplicar ─────────────────────────────────────────────────────
+
+    def _apply_user_preset(self, slot: str) -> None:
+        data = self._user_presets.get(slot)
+        if data:
+            self._apply_preset(data)
+
+    def _save_user_preset_slot(self, slot: str) -> None:
+        from tkinter import messagebox
+        config = {
+            "left":        list(self._left),
+            "center":      list(self._center),
+            "right":       list(self._right),
+            "left_width":  self._left_width.get(),
+            "right_width": self._right_width.get(),
+        }
+        self.manager.save_user_preset(slot, config)
+        self._user_presets[slot] = config
+        btn = self._user_apply_btns.get(slot)
+        if btn:
+            btn.configure(text=slot, state="normal")
+        messagebox.showinfo("Preset guardado",
+                            f"Layout actual guardado en '{slot}'.", parent=self)
 
     def _apply_preset(self, data: dict) -> None:
         self._left   = list(data.get("left",   []))

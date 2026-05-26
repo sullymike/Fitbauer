@@ -12,7 +12,10 @@ from .presets import PRESETS, DEFAULT_PRESET
 if TYPE_CHECKING:
     from mossbauer_app import MossbauerApp
 
-LAYOUT_PATH = CONFIG_DIR / "layout.json"
+LAYOUT_PATH       = CONFIG_DIR / "layout.json"
+USER_PRESETS_PATH = CONFIG_DIR / "user_presets.json"
+
+USER_PRESET_NAMES = ["Usuario 1", "Usuario 2"]
 
 # Paneles reconfigurables (pueden ir en izquierda o derecha)
 ALL_PANEL_IDS = [
@@ -167,6 +170,26 @@ class LayoutManager:
         if app.counts is not None:
             app.refold_data()
             app.update_plot()
+
+    # ── Presets de usuario ────────────────────────────────────────────────────
+
+    def load_user_presets(self) -> dict[str, dict]:
+        if USER_PRESETS_PATH.exists():
+            try:
+                data = json.loads(USER_PRESETS_PATH.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    return data
+            except Exception:
+                pass
+        return {}
+
+    def save_user_preset(self, slot: str, config: dict) -> None:
+        presets = self.load_user_presets()
+        presets[slot] = config
+        USER_PRESETS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        USER_PRESETS_PATH.write_text(
+            json.dumps(presets, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
     # ── Configurador ─────────────────────────────────────────────────────────
 
