@@ -57,19 +57,9 @@ class LayoutConfigDialog(tk.Toplevel):
         pf = ttk.LabelFrame(self, text="Presets", padding=5)
         pf.grid(row=0, column=0, columnspan=8, sticky="ew", **p)
 
-        # Fila 1: presets predefinidos
-        row_builtin = ttk.Frame(pf)
-        row_builtin.pack(fill=tk.X, pady=(0, 4))
-        for name, data in PRESETS.items():
-            ttk.Button(row_builtin, text=name,
-                       command=lambda d=data: self._apply_preset(d)
-                       ).pack(side=tk.LEFT, padx=(0, 3))
-
-        ttk.Separator(pf, orient="horizontal").pack(fill=tk.X, pady=2)
-
-        # Fila 2: presets de usuario (guardar + aplicar)
+        # Fila 1: presets de usuario (guardar + aplicar)
         row_user = ttk.Frame(pf)
-        row_user.pack(fill=tk.X, pady=(4, 0))
+        row_user.pack(fill=tk.X, pady=(0, 4))
         ttk.Label(row_user, text="Mis presets:",
                   foreground="#64748b").pack(side=tk.LEFT, padx=(0, 6))
         for slot in USER_PRESET_NAMES:
@@ -88,6 +78,16 @@ class LayoutConfigDialog(tk.Toplevel):
                 slot_frame, text="Guardar aquí", style="Small.TButton",
                 command=lambda s=slot: self._save_user_preset_slot(s),
             ).pack(side=tk.LEFT)
+
+        ttk.Separator(pf, orient="horizontal").pack(fill=tk.X, pady=2)
+
+        # Fila 2: presets predefinidos
+        row_builtin = ttk.Frame(pf)
+        row_builtin.pack(fill=tk.X, pady=(4, 0))
+        for name, data in PRESETS.items():
+            ttk.Button(row_builtin, text=name,
+                       command=lambda d=data: self._apply_preset(d)
+                       ).pack(side=tk.LEFT, padx=(0, 3))
 
         # ── Pool de disponibles ───────────────────────────────────────────────
         df = ttk.LabelFrame(self, text="Disponibles", padding=5)
