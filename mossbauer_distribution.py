@@ -46,6 +46,7 @@ class BhfDistributionFit:
     fitted_dist_center: float | None = None
     fitted_dist_sigma: float | None = None
     fitted_dist_p: float | None = None
+    effective_dof: float | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Devuelve un dict serializable en JSON tras convertir arrays a listas."""
@@ -66,6 +67,7 @@ class BhfDistributionFit:
             "fitted_dist_center": self.fitted_dist_center,
             "fitted_dist_sigma": self.fitted_dist_sigma,
             "fitted_dist_p": self.fitted_dist_p,
+            "effective_dof": self.effective_dof,
         }
 
 
@@ -222,6 +224,41 @@ def second_difference_matrix(n: int) -> np.ndarray:
     L[rows, rows + 1] = -2.0
     L[rows, rows + 2] = 1.0
     return L
+
+
+def tikhonov_effective_dof(
+    X: np.ndarray,
+    L_dist: np.ndarray,
+    alpha: float,
+    dist_start: int,
+    dist_end: int,
+    sigma: np.ndarray | None = None,
+) -> float:
+    """Grados de libertad efectivos del problema Tikhonov bajo restricciones lineales.
+
+    Devuelve  tr A(α)  con  A(α) = X (XᵀWX + α LᵀL)⁻¹ XᵀW,  W = diag(1/σ²).
+    El penalizador LᵀL actúa sólo sobre las columnas [dist_start:dist_end].
+
+    La cota de no-negatividad sobre P se ignora aquí: la traza es una buena
+    estimación incluso con bordes activos (sólo sobreestima ligeramente).
+    """
+    X = np.asarray(X, dtype=float)
+    L_dist = np.asarray(L_dist, dtype=float)
+    if X.size == 0:
+        return 0.0
+    if sigma is not None:
+        sigma = np.maximum(np.asarray(sigma, dtype=float), 1e-12)
+        Xw = X / sigma[:, None]
+    else:
+        Xw = X
+    XtWX = Xw.T @ Xw
+    LtL = L_dist.T @ L_dist
+    H = XtWX.copy()
+    H[dist_start:dist_end, dist_start:dist_end] += float(alpha) * LtL
+    try:
+        return float(np.trace(np.linalg.solve(H, XtWX)))
+    except np.linalg.LinAlgError:
+        return float(X.shape[1])
 
 
 def normalize_probability(weights: np.ndarray, bhf_centers: np.ndarray) -> np.ndarray:
@@ -454,6 +491,13 @@ def fit_hyperfine_distribution(
     residuals = y - fitted
     rms = float(np.sqrt(np.mean(residuals**2)))
 
+    try:
+        eff_dof = tikhonov_effective_dof(
+            X, L, float(alpha), dist_start, dist_end, sigma=sigma_arr
+        )
+    except Exception:
+        eff_dof = float(X.shape[1])
+
     return BhfDistributionFit(
         bhf_centers=centers,
         weights=weights,
@@ -468,6 +512,7 @@ def fit_hyperfine_distribution(
         message=str(result.message),
         sharp_bhf_centers=sharp_bhf_centers,
         sharp_weights=sharp_weights,
+        effective_dof=eff_dof,
     )
 
 

@@ -160,6 +160,12 @@ class MossbauerApp(MossbauerFe33GUI):
                                      variable=self.line_profile_var, value="Voigt",
                                      command=self.on_line_profile_change)
         fit_menu.add_cascade(label=tr("options.line_profile"), menu=profile_menu)
+        likelihood_menu = tk.Menu(fit_menu, tearoff=0)
+        likelihood_menu.add_radiobutton(label=tr("options.likelihood_gauss"),
+                                        variable=self.likelihood_var, value="gauss")
+        likelihood_menu.add_radiobutton(label=tr("options.likelihood_poisson"),
+                                        variable=self.likelihood_var, value="poisson")
+        fit_menu.add_cascade(label=tr("options.likelihood"), menu=likelihood_menu)
         fit_menu.add_separator()
         fit_menu.add_checkbutton(label=tr("options.add_sharp"),
                                  variable=self.dist_use_sharp_var,

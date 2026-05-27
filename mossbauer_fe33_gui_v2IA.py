@@ -380,6 +380,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.updating_sliders = False
         self.fit_velocity_var = tk.BooleanVar(value=False)
         self.fit_center_var = tk.BooleanVar(value=False)
+        self.likelihood_var = tk.StringVar(value="gauss")
         self.show_residual_var = tk.BooleanVar(value=True)
         self.show_legend_var = tk.BooleanVar(value=False)
         self.fit_mode_var = tk.StringVar(value="discrete")
@@ -951,6 +952,7 @@ class MossbauerFe33GUI(tk.Tk):
             "show_legend": bool(self.show_legend_var.get()),
             "fit_mode": self.fit_mode_var.get(),
             "line_profile": self.line_profile_var.get(),
+            "likelihood": self.likelihood_var.get(),
             "dist_variable": self.dist_variable_var.get(),
             "dist_shape": self.dist_shape_var.get(),
             "fixed_distribution_path": str(self.fixed_distribution_path) if self.fixed_distribution_path else None,
@@ -1008,6 +1010,7 @@ class MossbauerFe33GUI(tk.Tk):
             self.fit_mode_var.set(data.get("fit_mode", self.fit_mode_var.get()))
             self.line_profile_var.set(data.get("line_profile", self.line_profile_var.get()))
             self.on_line_profile_change()
+            self.likelihood_var.set(data.get("likelihood", self.likelihood_var.get()))
             self.dist_variable_var.set(data.get("dist_variable", self.dist_variable_var.get()))
             self.dist_shape_var.set(data.get("dist_shape", self.dist_shape_var.get()))
             self.fixed_distribution_path = Path(data["fixed_distribution_path"]) if data.get("fixed_distribution_path") else None
@@ -3180,6 +3183,27 @@ class MossbauerFe33GUI(tk.Tk):
         sigma = sigma_counts / max(float(self.norm_factor), 1e-12)
         return np.maximum(sigma, 1e-9)
 
+    def predicted_sigma(self, model_y: np.ndarray) -> np.ndarray | None:
+        """σ basada en el modelo (verosimilitud Poisson). Usada para IRLS."""
+        if self.norm_factor is None:
+            return None
+        norm = max(float(self.norm_factor), 1e-12)
+        predicted_counts = np.maximum(np.asarray(model_y, dtype=float) * norm, 1.0)
+        sigma_counts = np.sqrt(predicted_counts / 2.0)
+        return np.maximum(sigma_counts / norm, 1e-9)
+
+    def residual_sigma(self, model_y: np.ndarray | None) -> np.ndarray | None:
+        """Devuelve la σ apropiada al modo de verosimilitud activo.
+
+        ``gauss``  → σ del dato observado (estimación clásica Gaussiana).
+        ``poisson``→ σ predicha por el modelo (Newton/IRLS sobre log-L Poisson).
+        """
+        if self.likelihood_var.get() == "poisson" and model_y is not None:
+            sig = self.predicted_sigma(model_y)
+            if sig is not None:
+                return sig
+        return self.data_sigma()
+
     def fit_correlation_summary(self, cov: np.ndarray | None, names: list[str], threshold: float = 0.95) -> dict[str, object]:
         """Resume correlaciones de la matriz de covarianza para diagnosticar degeneraciones."""
         if cov is None or cov.size == 0 or len(names) < 2:
@@ -3398,11 +3422,20 @@ class MossbauerFe33GUI(tk.Tk):
             sig = np.sqrt(np.maximum(folded / 2.0, 1.0)) / max(norm, 1e-12)
             return yy, np.maximum(sig, 1e-9)
 
+        use_poisson = self.likelihood_var.get() == "poisson"
+
         def residual(x: np.ndarray) -> np.ndarray:
             values, vmax, center_fit = unpack(x)
             yy, sig = data_for_center(center_fit)
-            res = self.model_from_values(values, vmax) - yy
-            return res / sig if sig is not None else res
+            model_y = self.model_from_values(values, vmax)
+            if use_poisson:
+                sig_use = self.predicted_sigma(model_y)
+                if sig_use is None:
+                    sig_use = sig
+            else:
+                sig_use = sig
+            res = model_y - yy
+            return res / sig_use if sig_use is not None else res
 
         def multistart_candidates() -> list[np.ndarray]:
             candidates = [x0_arr]
@@ -3470,8 +3503,11 @@ class MossbauerFe33GUI(tk.Tk):
         update_progress(tr("progress.fit_finalize"))
         values_final, vmax_final, center_final = unpack(result.x)
         y_final, sigma_final = data_for_center(center_final)
-        final_residual = self.model_from_values(values_final, vmax_final) - y_final
-        self.last_fit_stats = self.fit_statistics(final_residual, sigma_final, len(result.x))
+        model_final = self.model_from_values(values_final, vmax_final)
+        final_residual = model_final - y_final
+        sigma_for_stats = self.predicted_sigma(model_final) if use_poisson else sigma_final
+        self.last_fit_stats = self.fit_statistics(final_residual, sigma_for_stats, len(result.x))
+        self.last_fit_stats["likelihood"] = self.likelihood_var.get()
         self.last_fit_stats["n_starts"] = float(n_starts)
         self.set_params(values_final)
         if fit_velocity:
@@ -3517,16 +3553,29 @@ class MossbauerFe33GUI(tk.Tk):
         progress = self.open_progress_dialog(tr("progress.bootstrap_title"), tr("progress.bootstrap_prepare"))
         _dlg, update_progress, close_progress = progress
         rng = np.random.default_rng(24680)
+        use_poisson_boot = self.likelihood_var.get() == "poisson"
+        norm_factor = max(float(self.norm_factor or 1.0), 1e-12)
         samples: list[np.ndarray] = []
         try:
             for i in range(int(nrep)):
-                y_sim = model0 + rng.normal(0.0, sigma)
-                def resid(x: np.ndarray) -> np.ndarray:
+                if use_poisson_boot:
+                    # Simulación Poisson real: c_sim ~ Poisson(λ_pred=model0·f_norm·2)/2
+                    lam = np.maximum(model0 * norm_factor * 2.0, 0.0)
+                    c_sim = rng.poisson(lam).astype(float) / 2.0
+                    y_sim = c_sim / norm_factor
+                else:
+                    y_sim = model0 + rng.normal(0.0, sigma)
+
+                def resid(x: np.ndarray, _y_sim=y_sim) -> np.ndarray:
                     vals = base_values.copy()
                     for key, value in zip(free_keys, x):
                         vals[key] = float(value)
                     vals = self.apply_constraints_to_values(vals)
-                    return (model_values(vals) - y_sim) / sigma
+                    model_v = model_values(vals)
+                    sig_use = self.predicted_sigma(model_v) if use_poisson_boot else sigma
+                    if sig_use is None:
+                        sig_use = sigma
+                    return (model_v - _y_sim) / sig_use
                 update_progress(tr("progress.bootstrap_step", i=i + 1, n=nrep))
                 res = least_squares(resid, x0, bounds=(lo, hi), max_nfev=2500)
                 if res.success and np.all(np.isfinite(res.x)):
@@ -3652,21 +3701,35 @@ class MossbauerFe33GUI(tk.Tk):
             return
         L = second_difference_matrix(nbins)
         sigma = self.data_sigma()
-        n_params = nbins + int(not self.fixed_vars["baseline"].get()) + int(not self.fixed_vars["slope"].get()) + (len(sharp_components or []) if self.dist_use_sharp_var.get() else 0)
+        n_raw = nbins + int(not self.fixed_vars["baseline"].get()) + int(not self.fixed_vars["slope"].get()) + (len(sharp_components or []) if self.dist_use_sharp_var.get() else 0)
         rows_list = []
+        gcv_list = []
         for r in scans:
             misfit = float(np.linalg.norm(r.residuals))
             rough = float(np.linalg.norm(L @ r.weights))
             if sigma is not None and sigma.size == r.residuals.size:
                 chi2 = float(np.sum((r.residuals / sigma) ** 2))
+                misfit_w = float(np.linalg.norm(r.residuals / sigma))
             else:
                 chi2 = float(np.sum(r.residuals ** 2))
-            red_chi2 = chi2 / max(1, int(r.residuals.size) - int(n_params))
+                misfit_w = misfit
+            # dof efectivo (Mejora 2). Si no está disponible, cae al recuento ingenuo.
+            dof_eff = float(getattr(r, "effective_dof", None) or n_raw)
+            red_chi2 = chi2 / max(1.0, float(r.residuals.size) - dof_eff)
+            # GCV(α) = ‖W^{1/2}(y − ŷ)‖² / (N − tr A(α))²   (Mejora 3)
+            denom = max(float(r.residuals.size) - dof_eff, 1e-6)
+            gcv = (misfit_w ** 2) / (denom ** 2)
+            gcv_list.append(gcv)
             peak = float(r.bhf_centers[int(np.argmax(r.weights))]) if r.weights.size else float("nan")
-            rows_list.append((r.alpha, r.rms, misfit, rough, chi2, red_chi2, peak))
+            rows_list.append((r.alpha, r.rms, misfit, rough, chi2, red_chi2, peak, dof_eff, gcv))
         rows = np.array(rows_list, dtype=float)
         suggested = self.suggest_alpha_from_lcurve_rows(rows)
         suggested_compromise = self.suggest_alpha_compromise_from_lcurve_rows(rows)
+        gcv_arr = np.array(gcv_list, dtype=float)
+        suggested_gcv = None
+        if gcv_arr.size and np.any(np.isfinite(gcv_arr)):
+            idx = int(np.nanargmin(np.where(np.isfinite(gcv_arr), gcv_arr, np.inf)))
+            suggested_gcv = float(rows[idx, 0])
 
         dialog = tk.Toplevel(self)
         dist_label_lc = 'P(ΔEQ)' if self.dist_variable_var.get() == 'ΔEQ' else 'P(BHF)'
@@ -3685,12 +3748,17 @@ class MossbauerFe33GUI(tk.Tk):
         ax1.loglog(rows[:, 0], rows[:, 1], "-o", ms=3.2, label=tr("plot.label_rms"))
         ax1b = ax1.twinx()
         ax1b.semilogx(rows[:, 0], rows[:, 5], "--", color="#7c3aed", lw=1.0, label=tr("plot.label_chi2_red"))
+        if np.any(np.isfinite(gcv_arr)):
+            gcv_norm = gcv_arr / max(float(np.nanmin(gcv_arr[np.isfinite(gcv_arr)])), 1e-30)
+            ax1b.semilogx(rows[:, 0], gcv_norm, ":", color="#0891b2", lw=1.1, label="GCV/min")
         ax1b.set_ylabel(tr("plot.chi2_reduced_ylabel"), color="#7c3aed")
         ax1b.tick_params(axis="y", colors="#7c3aed")
         if suggested is not None:
             ax1.axvline(suggested, color="#dc2626", ls="--", lw=1.2, label=tr("plot.label_lcurve_suggest", value=suggested))
         if suggested_compromise is not None:
             ax1.axvline(suggested_compromise, color="#16a34a", ls=":", lw=1.4, label=tr("plot.label_compromise_suggest", value=suggested_compromise))
+        if suggested_gcv is not None:
+            ax1.axvline(suggested_gcv, color="#0891b2", ls="-.", lw=1.4, label=tr("plot.label_gcv_suggest", value=suggested_gcv))
         ax1.legend(loc="best", fontsize=8)
         ax1.set_xlabel("α"); ax1.set_ylabel(tr("plot.label_rms")); ax1.set_title(tr("plot.alpha_scan_title"))
         ax1.grid(True, which="both", alpha=0.3)
@@ -3709,9 +3777,11 @@ class MossbauerFe33GUI(tk.Tk):
                 filetypes=[(tr("filetype.data"), "*.dat"), (tr("filetype.text"), "*.txt"), (tr("filetype.all"), "*")],
             )
             if filename:
-                np.savetxt(filename, rows, header="alpha rms norm_residual norm_LP chi2 red_chi2 peak_parameter", fmt="%.10g")
+                np.savetxt(filename, rows, header="alpha rms norm_residual norm_LP chi2 red_chi2 peak_parameter dof_eff gcv", fmt="%.10g")
         if suggested_compromise is not None:
             ttk.Button(buttons, text=tr("button.use_compromise", value=suggested_compromise), command=lambda a=suggested_compromise, d=dialog: (self.set_bhf_alpha_preset(np.log10(a)), d.destroy()), style="Accent.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+        if suggested_gcv is not None:
+            ttk.Button(buttons, text=tr("button.use_gcv", value=suggested_gcv), command=lambda a=suggested_gcv, d=dialog: (self.set_bhf_alpha_preset(np.log10(a)), d.destroy()), style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
         if suggested is not None:
             ttk.Button(buttons, text=tr("button.use_lcurve", value=suggested), command=lambda a=suggested, d=dialog: (self.set_bhf_alpha_preset(np.log10(a)), d.destroy()), style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
         ttk.Button(buttons, text=tr("button.save_table"), command=save_alpha_table, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
@@ -3761,7 +3831,7 @@ class MossbauerFe33GUI(tk.Tk):
         fit_baseline = not self.fixed_vars["baseline"].get()
         fit_slope = not self.fixed_vars["slope"].get()
 
-        def run_fit(delta_value: float, gamma_value: float, sharp_for_fit: list[dict[str, float]] | None):
+        def run_fit(delta_value: float, gamma_value: float, sharp_for_fit: list[dict[str, float]] | None, sigma_override: np.ndarray | None = None):
             variable = "quad" if self.dist_variable_var.get() == "ΔEQ" else "bhf"
             if self.dist_shape_var.get() == "Gaussiana":
                 return fit_gaussian_hyperfine_distribution_engine(
@@ -3811,6 +3881,7 @@ class MossbauerFe33GUI(tk.Tk):
                     slope=self.vars["slope"].get(),
                     sharp_components=sharp_for_fit,
                 )
+            sigma_use = sigma_override if sigma_override is not None else self.data_sigma()
             return fit_hyperfine_distribution_engine(
                 self.velocity,
                 self.y_data,
@@ -3828,7 +3899,7 @@ class MossbauerFe33GUI(tk.Tk):
                 baseline=self.vars["baseline"].get(),
                 slope=self.vars["slope"].get(),
                 sharp_components=sharp_for_fit,
-                sigma=self.data_sigma(),
+                sigma=sigma_use,
             )
 
         # Build outer parameter vector: dist_delta/dist_gamma (when refining globals)
@@ -3904,25 +3975,43 @@ class MossbauerFe33GUI(tk.Tk):
         progress = self.open_progress_dialog(tr("progress.distribution_title"), tr("progress.distribution_prepare"))
         _progress_dialog, update_progress, close_progress = progress
         fitted_x: np.ndarray | None = None
+        # IRLS Poisson sólo para la distribución de histograma (única ruta que
+        # acepta sigma); para Gaussiana/Binomial/Fija se mantiene Gauss.
+        irls_active = (
+            self.likelihood_var.get() == "poisson"
+            and self.dist_shape_var.get() not in ("Gaussiana", "Binomial", "Fija")
+        )
+        irls_max_iter = 3 if irls_active else 1
         try:
             if outer_specs:
                 update_progress(tr("progress.distribution_refine"))
                 x0, lo, hi = x0_from_specs()
                 x0c = np.clip(x0, lo, hi)
+                sigma_state = {"sigma": None}
 
                 def residual_outer(x: np.ndarray) -> np.ndarray:
                     d, g, s = x_to_state(x)
-                    return run_fit(d, g, s).residuals
+                    return run_fit(d, g, s, sigma_override=sigma_state["sigma"]).residuals
 
                 outer = least_squares(residual_outer, x0c, bounds=(lo, hi), max_nfev=60)
                 fitted_x = outer.x
                 update_progress(tr("progress.distribution_compute_final"))
                 delta_final, gamma_final, sharp_final = x_to_state(fitted_x)
-                result = run_fit(delta_final, gamma_final, sharp_final)
+                result = run_fit(delta_final, gamma_final, sharp_final, sigma_override=sigma_state["sigma"])
+                # IRLS Poisson: reajustar refinando σ a partir del modelo.
+                for _ in range(irls_max_iter - 1):
+                    sigma_state["sigma"] = self.predicted_sigma(result.fitted_curve)
+                    outer = least_squares(residual_outer, fitted_x, bounds=(lo, hi), max_nfev=60)
+                    fitted_x = outer.x
+                    delta_final, gamma_final, sharp_final = x_to_state(fitted_x)
+                    result = run_fit(delta_final, gamma_final, sharp_final, sigma_override=sigma_state["sigma"])
             else:
                 shape_disp = tr(f"shape.{self.dist_shape_var.get()}", default=self.dist_shape_var.get())
                 update_progress(tr("progress.distribution_compute", shape=shape_disp))
                 result = run_fit(self.vars["dist_delta"].get(), self.vars["dist_gamma"].get(), sharp_components)
+                for _ in range(irls_max_iter - 1):
+                    sigma_irls = self.predicted_sigma(result.fitted_curve)
+                    result = run_fit(self.vars["dist_delta"].get(), self.vars["dist_gamma"].get(), sharp_components, sigma_override=sigma_irls)
         except Exception as exc:
             close_progress()
             messagebox.showerror(tr("msg.pbhf_error_title"), str(exc))
@@ -3931,13 +4020,21 @@ class MossbauerFe33GUI(tk.Tk):
         self.last_bhf_sharp_indices = sharp_indices
         self.last_fit_correlations = {}
         n_outer = len(outer_specs)
-        n_params = int(nbins + int(fit_baseline) + int(fit_slope) + (len(sharp_indices) if self.dist_use_sharp_var.get() else 0))
-        if self.dist_shape_var.get() in ("Gaussiana", "Binomial"):
-            n_params = int(4 + int(fit_baseline) + int(fit_slope) + (len(sharp_indices) if self.dist_use_sharp_var.get() else 0))
-        if self.dist_shape_var.get() == "Fija":
-            n_params = int(3 + int(fit_baseline) + int(fit_slope) + (len(sharp_indices) if self.dist_use_sharp_var.get() else 0))
-        n_params += n_outer
-        self.last_fit_stats = self.fit_statistics(result.fitted_curve - self.y_data, self.data_sigma(), n_params)
+        n_sharp = len(sharp_indices) if self.dist_use_sharp_var.get() else 0
+        if self.dist_shape_var.get() == "Histograma" and getattr(result, "effective_dof", None) is not None:
+            # Tikhonov: grados de libertad efectivos tr(A(α)) ya incluye baseline,
+            # slope y sharps (todo lo que estaba en X). Sólo sumar los exteriores NL.
+            n_params = float(result.effective_dof) + n_outer
+        elif self.dist_shape_var.get() in ("Gaussiana", "Binomial"):
+            n_params = 4 + int(fit_baseline) + int(fit_slope) + n_sharp + n_outer
+        elif self.dist_shape_var.get() == "Fija":
+            n_params = 3 + int(fit_baseline) + int(fit_slope) + n_sharp + n_outer
+        else:
+            n_params = nbins + int(fit_baseline) + int(fit_slope) + n_sharp + n_outer
+        sigma_stats = self.predicted_sigma(result.fitted_curve) if irls_active else self.data_sigma()
+        self.last_fit_stats = self.fit_statistics(result.fitted_curve - self.y_data, sigma_stats, int(round(n_params)))
+        self.last_fit_stats["effective_dof"] = float(n_params)
+        self.last_fit_stats["likelihood"] = self.likelihood_var.get()
         params_to_update: dict[str, float] = {"baseline": result.baseline, "slope": result.slope}
         if fitted_x is not None:
             for i, (key, kind, _lo, _hi) in enumerate(outer_specs):
@@ -4389,6 +4486,7 @@ class MossbauerFe33GUI(tk.Tk):
             "show_legend": bool(self.show_legend_var.get()),
             "fit_mode": self.fit_mode_var.get(),
             "line_profile": self.line_profile_var.get(),
+            "likelihood": self.likelihood_var.get(),
             "dist_variable": self.dist_variable_var.get(),
             "dist_shape": self.dist_shape_var.get(),
             "fixed_distribution_path": str(self.fixed_distribution_path) if self.fixed_distribution_path else None,
@@ -4455,6 +4553,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.fit_mode_var.set(state.get("fit_mode", self.fit_mode_var.get()))
         self.line_profile_var.set(state.get("line_profile", self.line_profile_var.get()))
         self.on_line_profile_change()
+        self.likelihood_var.set(state.get("likelihood", self.likelihood_var.get()))
         self.dist_variable_var.set(state.get("dist_variable", self.dist_variable_var.get()))
         self.dist_shape_var.set(state.get("dist_shape", self.dist_shape_var.get()))
         self.fixed_distribution_path = Path(state["fixed_distribution_path"]) if state.get("fixed_distribution_path") else None
