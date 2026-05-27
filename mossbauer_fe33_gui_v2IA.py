@@ -2300,6 +2300,117 @@ class MossbauerFe33GUI(tk.Tk):
             return None
         return sub, delta, bhf, width, depth
 
+    def _try_split_peaks_for_sextet(self, peaks: list[dict[str, float]]) -> tuple | None:
+        """Para 4-5 picos detectados, detecta fusiones (pico más ancho/profundo que
+        oculta dos líneas del sexteto) e inserta picos virtuales en las posiciones
+        predichas por la plantilla.
+
+        Flujo:
+        1. Clasifica picos como «normales» (estrechos/normales) o «fusionados»
+           (anchos o profundos respecto a la mediana).
+        2. Usa pares de picos normales para estimar BHF (de su separación relativa).
+        3. Predice las 6 posiciones del sexteto con ese BHF.
+        4. Por cada posición no cubierta por un pico normal: si un pico fusionado
+           la cubre con su anchura, inserta un pico virtual ahí.
+        5. Llama a _best_sextet_from_peaks con el conjunto aumentado.
+        6. Entre todos los resultados válidos elige el que mejor explica los picos
+           fusionados (≥2 líneas predichas dentro de su span).
+        """
+        n = len(peaks)
+        if n < 4 or n >= 6:
+            return None
+
+        from itertools import combinations as _comb
+
+        median_width = float(np.median([p["width"] for p in peaks]))
+        median_depth = float(np.median([p["depth"] for p in peaks]))
+
+        def is_normal(pk: dict) -> bool:
+            return pk["width"] <= median_width * 1.25 and pk["depth"] <= median_depth * 1.40
+
+        normal_peaks = [p for p in peaks if is_normal(p)]
+        if len(normal_peaks) < 2:
+            normal_peaks = sorted(peaks, key=lambda p: p["width"])[:2]
+
+        narrow_tol = max(median_width * 0.5, 0.20)
+        next_vid = max(p["i"] for p in peaks) + 1.0
+
+        best_result = None
+        best_score = -1
+
+        seen: set[tuple] = set()
+        for pk_a, pk_b in _comb(sorted(normal_peaks, key=lambda p: p["pos"]), 2):
+            span_obs = abs(pk_b["pos"] - pk_a["pos"])
+            if span_obs < 0.5:
+                continue
+            # Probar todas las asignaciones (línea_a, línea_b) de la plantilla
+            for la in range(6):
+                for lb in range(la + 1, 6):
+                    span_ref = LINE_POS_33T[lb] - LINE_POS_33T[la]
+                    if abs(span_ref) < 0.3:
+                        continue
+                    scale = span_obs / span_ref
+                    bhf_est = scale * BHF_DEFAULT_T
+                    if not (10.0 <= bhf_est <= 60.0):
+                        continue
+                    delta = pk_a["pos"] - scale * LINE_POS_33T[la]
+                    pred_all = delta + scale * LINE_POS_33T
+
+                    # Verificar que las semillas cuadran con la predicción
+                    if max(abs(pk_a["pos"] - pred_all[la]),
+                           abs(pk_b["pos"] - pred_all[lb])) > 0.18:
+                        continue
+
+                    key = (round(bhf_est, 1), round(delta, 2))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+
+                    # Añadir virtuales en posiciones no cubiertas por picos normales
+                    augmented = list(peaks)
+                    vid = next_vid
+                    virtual_added = 0
+                    for pred_pos in pred_all:
+                        if any(abs(p["pos"] - pred_pos) < narrow_tol and is_normal(p)
+                               for p in peaks):
+                            continue  # Cubierto por pico normal
+                        for pk in sorted(peaks, key=lambda p: abs(p["pos"] - pred_pos)):
+                            if abs(pk["pos"] - pred_pos) > pk["width"] * 0.7:
+                                break
+                            if not is_normal(pk):
+                                augmented.append({
+                                    "i": vid,
+                                    "pos": float(pred_pos),
+                                    "depth": pk["depth"] * 0.45,
+                                    "smooth_depth": pk["smooth_depth"] * 0.45,
+                                    "width": pk["width"] * 0.65,
+                                })
+                                vid += 1.0
+                                virtual_added += 1
+                                break
+
+                    if virtual_added == 0:
+                        continue
+
+                    result = self._best_sextet_from_peaks(augmented)
+                    if result is None:
+                        continue
+
+                    # Puntuar: nº de picos fusionados explicados por ≥2 líneas predichas
+                    _, delta_r, bhf_r, _, _ = result
+                    scale_r = bhf_r / BHF_DEFAULT_T
+                    pred_r = delta_r + scale_r * LINE_POS_33T
+                    score = sum(
+                        1 for pk in peaks if not is_normal(pk)
+                        and sum(1 for pp in pred_r
+                                if abs(pk["pos"] - pp) < pk["width"] * 0.65) >= 2
+                    )
+                    if score > best_score:
+                        best_score = score
+                        best_result = result
+
+        return best_result
+
     def auto_guess_from_minima(self, fit_after: bool = False) -> None:
         if self.velocity is None or self.y_data is None:
             return

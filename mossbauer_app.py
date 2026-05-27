@@ -599,8 +599,12 @@ class MossbauerApp(MossbauerFe33GUI):
         next_idx = 2 if components else 1
         while next_idx <= MAX_COMPONENTS and remaining:
             # Intentar otro sexteto antes de caer en doblete/singlete.
-            if len(remaining) >= 5:
+            # Con ≥4 picos también se intenta dividir picos anchos/profundos que
+            # puedan ser dos líneas solapadas (6+5→6+6, 6+4→6+6).
+            if len(remaining) >= 4:
                 sext_extra = self._best_sextet_from_peaks(remaining)
+                if sext_extra is None:
+                    sext_extra = self._try_split_peaks_for_sextet(remaining)
                 if sext_extra is not None:
                     sub_e, delta_e, bhf_e, width_e, depth_e = sext_extra
                     if len(sub_e) >= 5 and abs(sub_e[-1]["pos"] - sub_e[0]["pos"]) > 3.0:
