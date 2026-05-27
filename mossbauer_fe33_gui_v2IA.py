@@ -3727,17 +3727,41 @@ class MossbauerFe33GUI(tk.Tk):
         indices = self.active_sharp_component_indices_for_bhf()
         for idx in indices:
             p = f"s{idx}_"
+            kind = self.component_kind[idx].get()
+            int1_gui = float(self.vars[p + "int1"].get())
+            int2_gui = float(self.vars[p + "int2"].get())
+            int3_gui = float(self.vars[p + "int3"].get())
+            # El motor de distribución usa para sextetes la convención interna
+            # int1, (2/3)*int1*int2_rel, (1/3)*int1*int3_rel, mientras que
+            # la GUI discreta usa la convención NORMOS I13/I23/I: int3*int1,
+            # int3*int2, int3. Convertimos aquí para que el kernel nítido que
+            # se ajusta sea exactamente el mismo que luego se dibuja y se resta
+            # de la curva total para mostrar solo la distribución.
+            if kind == "Sextete":
+                i1 = int3_gui * int1_gui
+                if abs(i1) > 1e-12:
+                    engine_int1 = i1
+                    engine_int2_rel = (1.5 * int2_gui / int1_gui) if abs(int1_gui) > 1e-12 else 0.0
+                    engine_int3_rel = 3.0 / int1_gui if abs(int1_gui) > 1e-12 else 0.0
+                else:
+                    engine_int1 = 0.0
+                    engine_int2_rel = 0.0
+                    engine_int3_rel = 0.0
+            else:
+                engine_int1 = int1_gui
+                engine_int2_rel = int2_gui
+                engine_int3_rel = int3_gui
             components.append({
-                "kind": self.component_kind[idx].get(),
+                "kind": kind,
                 "bhf": self.vars[p + "bhf"].get(),
                 "delta": self.vars[p + "delta"].get(),
                 "quad": self.vars[p + "quad"].get(),
                 "gamma": self.vars[p + "gamma1"].get(),
                 "gamma2_rel": self.vars[p + "gamma2"].get(),
                 "gamma3_rel": self.vars[p + "gamma3"].get(),
-                "int1": self.vars[p + "int1"].get(),
-                "int2_rel": self.vars[p + "int2"].get(),
-                "int3_rel": self.vars[p + "int3"].get(),
+                "int1": engine_int1,
+                "int2_rel": engine_int2_rel,
+                "int3_rel": engine_int3_rel,
             })
         return components, indices
 
