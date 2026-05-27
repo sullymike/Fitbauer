@@ -43,6 +43,9 @@ class BhfDistributionFit:
     message: str
     sharp_bhf_centers: np.ndarray | None = None
     sharp_weights: np.ndarray | None = None
+    fitted_dist_center: float | None = None
+    fitted_dist_sigma: float | None = None
+    fitted_dist_p: float | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Devuelve un dict serializable en JSON tras convertir arrays a listas."""
@@ -60,6 +63,9 @@ class BhfDistributionFit:
             "message": self.message,
             "sharp_BHF_centers": [] if self.sharp_bhf_centers is None else self.sharp_bhf_centers.tolist(),
             "sharp_weights": [] if self.sharp_weights is None else self.sharp_weights.tolist(),
+            "fitted_dist_center": self.fitted_dist_center,
+            "fitted_dist_sigma": self.fitted_dist_sigma,
+            "fitted_dist_p": self.fitted_dist_p,
         }
 
 
@@ -541,6 +547,8 @@ def fit_gaussian_hyperfine_distribution(
         message=f"Gaussian {variable}: center={cen:.6g}, sigma={np.exp(log_sig):.6g}; {res.message}",
         sharp_bhf_centers=sharp_bhf_centers,
         sharp_weights=sharp_weights_arr,
+        fitted_dist_center=float(cen),
+        fitted_dist_sigma=float(np.exp(log_sig)),
     )
 
 
@@ -623,6 +631,7 @@ def fit_binomial_hyperfine_distribution(
         message=f"Binomial {variable}: p={pval:.6g}; {res.message}",
         sharp_bhf_centers=sharp_bhf_centers,
         sharp_weights=sharp_weights_arr,
+        fitted_dist_p=float(pval),
     )
 
 
