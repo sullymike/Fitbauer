@@ -580,17 +580,39 @@ class MossbauerApp(MossbauerFe33GUI):
 
         components: list[tuple[int, str, list[dict[str, float]]]] = []
         used_ids: set[int] = set()
-        sext = self._best_sextet_from_peaks(peaks)
-        if sext is not None:
-            sub, delta, bhf, width, depth = sext
-            if len(sub) >= 5 and abs(sub[-1]["pos"] - sub[0]["pos"]) > 3.0:
-                components.append((1, "Sextete", sub))
-                params["s1_delta"]  = float(np.clip(delta, -2.5, 2.5))
-                params["s1_bhf"]    = float(np.clip(bhf, 20.0, 50.0))
-                params["s1_quad"]   = 0.0
-                params["s1_gamma1"] = float(np.clip(width / 2.0, 0.04, 1.0))
-                params["s1_depth"]  = float(np.clip(depth, 0.002, 0.25))
-                used_ids.update(int(pk["i"]) for pk in sub)
+
+        # Clasificación previa por perfil de profundidades.
+        hint = self._depth_profile_hint(peaks)
+        if hint is not None:
+            kind_h, group_h = hint
+            components.append((1, kind_h, group_h))
+            if kind_h == "Doblete":
+                g = group_h
+                params["s1_delta"]  = float(np.mean([g[0]["pos"], g[1]["pos"]]))
+                params["s1_quad"]   = float(abs(g[1]["pos"] - g[0]["pos"]))
+                params["s1_gamma1"] = float(np.clip(np.mean([x["width"] for x in g]) / 2.0, 0.04, 1.0))
+                params["s1_gamma2"] = 1.0
+                params["s1_depth"]  = float(np.clip(np.mean([x["depth"] for x in g]), 0.002, 0.25))
+                params["s1_int1"]   = 1.0; params["s1_int2"] = 1.0
+            else:
+                pk = group_h[0]
+                params["s1_delta"]  = float(pk["pos"])
+                params["s1_gamma1"] = float(np.clip(pk["width"] / 2.0, 0.04, 1.0))
+                params["s1_depth"]  = float(np.clip(pk["depth"], 0.002, 0.25))
+                params["s1_int1"]   = 1.0
+            used_ids.update(int(pk["i"]) for pk in group_h)
+        else:
+            sext = self._best_sextet_from_peaks(peaks)
+            if sext is not None:
+                sub, delta, bhf, width, depth = sext
+                if len(sub) >= 5 and abs(sub[-1]["pos"] - sub[0]["pos"]) > 3.0:
+                    components.append((1, "Sextete", sub))
+                    params["s1_delta"]  = float(np.clip(delta, -2.5, 2.5))
+                    params["s1_bhf"]    = float(np.clip(bhf, 20.0, 50.0))
+                    params["s1_quad"]   = 0.0
+                    params["s1_gamma1"] = float(np.clip(width / 2.0, 0.04, 1.0))
+                    params["s1_depth"]  = float(np.clip(depth, 0.002, 0.25))
+                    used_ids.update(int(pk["i"]) for pk in sub)
 
         remaining = [
             pk for pk in sorted(peaks, key=lambda q: q["smooth_depth"], reverse=True)
