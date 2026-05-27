@@ -64,7 +64,7 @@ class MossbauerApp(MossbauerFe33GUI):
         if not hasattr(self, "n_components_var"):
             self.n_components_var = tk.IntVar(value=1)
 
-        # Extender sextet_enabled, component_kind, intensity_mode al máximo de componentes
+        # Extender sextet_enabled, component_kind, intensity_mode, quad_treatment al máximo de componentes
         for idx in range(4, MAX_COMPONENTS + 1):
             if idx not in self.sextet_enabled:
                 self.sextet_enabled[idx] = tk.BooleanVar(value=False)
@@ -72,6 +72,8 @@ class MossbauerApp(MossbauerFe33GUI):
                 self.component_kind[idx] = tk.StringVar(value="Sextete")
             if idx not in self.intensity_mode:
                 self.intensity_mode[idx] = tk.StringVar(value="free")
+            if idx not in self.quad_treatment:
+                self.quad_treatment[idx] = tk.StringVar(value="1st_order")
 
         # ── Tema ──────────────────────────────────────────────────────────────
         style = ttk.Style(self)
@@ -275,11 +277,11 @@ class MossbauerApp(MossbauerFe33GUI):
             and self.component_kind[idx].get() == "Sextete"
         ]
 
-    def build_components_from_vars(self) -> list[tuple[str, np.ndarray]]:
+    def build_components_from_vars(self):
         if not self.updating_sliders:
             # Cubre constraints lineales + derivación de textura.
             self.apply_constraints_to_vars()
-        components: list[tuple[str, np.ndarray]] = []
+        components = []
         for idx in self._component_range():
             if not self.sextet_enabled[idx].get():
                 continue
@@ -287,7 +289,12 @@ class MossbauerApp(MossbauerFe33GUI):
             params = np.array(
                 [self.vars[p + name].get() for name in SEXTET_PARAM_NAMES], dtype=float
             )
-            components.append((self.component_kind[idx].get(), params))
+            kind = self.component_kind[idx].get()
+            extras = self.sextet_extras(idx) if kind == "Sextete" else None
+            if extras is not None:
+                components.append((kind, params, extras))
+            else:
+                components.append((kind, params))
         return components
 
     def component_area_percentages(
@@ -374,7 +381,8 @@ class MossbauerApp(MossbauerFe33GUI):
                         [self.vars[p + name].get() for name in SEXTET_PARAM_NAMES], dtype=float
                     )
                     kind = self.component_kind[idx].get()
-                    comp_line = baseline_line - component_absorption(self.velocity, kind, params)
+                    extras = self.sextet_extras(idx) if kind == "Sextete" else None
+                    comp_line = baseline_line - component_absorption(self.velocity, kind, params, extras=extras)
                     color = _COMPONENT_COLORS.get(idx, "#888888")
                     self.ax.plot(
                         self.velocity, comp_line, "--",

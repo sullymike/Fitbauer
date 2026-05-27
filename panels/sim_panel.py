@@ -269,6 +269,17 @@ class SimPanel(BasePanel):
         mode_box.pack(side=tk.LEFT)
         mode_box.bind("<<ComboboxSelected>>", lambda _e, i=idx: app.on_intensity_mode_change(i))
 
+        # Tratamiento del cuadrupolo (mejora 8b)
+        if idx not in app.quad_treatment:
+            app.quad_treatment[idx] = tk.StringVar(value="1st_order")
+        ttk.Label(top, text=tr("component.quad_treatment_label")).pack(side=tk.LEFT, padx=(12, 4))
+        treat_box = ttk.Combobox(
+            top, textvariable=app.quad_treatment[idx],
+            values=("1st_order", "kundig_fixed", "kundig_powder"), width=14, state="readonly",
+        )
+        treat_box.pack(side=tk.LEFT)
+        treat_box.bind("<<ComboboxSelected>>", lambda _e, i=idx: app.on_quad_treatment_change(i))
+
         # Sliders en 2 columnas — funcionan a cualquier ancho ≥ ~350 px
         cols = ttk.Frame(parent)
         cols.pack(fill=tk.X)
@@ -293,10 +304,13 @@ class SimPanel(BasePanel):
         self._add_slider(c2, p + "gamma1", tr("slider.s_gamma1"), 0.30,           0.03,  2.0,  0.001)
         self._add_slider(c2, p + "gamma2", tr("slider.s_gamma2"), 1.0,            0.2,   3.0,  0.001)
         self._add_slider(c2, p + "gamma3", tr("slider.s_gamma3"), 1.0,            0.2,   3.0,  0.001)
+        # Ángulo β entre B y V_zz, en grados (mejora 8b)
+        self._add_slider(c2, p + "beta",   tr("slider.s_beta"),   0.0,            0.0,  90.0, 0.1)
 
         # Estado inicial: el slider t empieza deshabilitado salvo que el modo
-        # cargado sea "texture".
+        # cargado sea "texture"; y β según quad_treatment.
         app._refresh_intensity_mode_widgets(idx)
+        app._refresh_quad_treatment_widgets(idx)
 
     # ── Cambio dinámico de modo ───────────────────────────────────────────────
 

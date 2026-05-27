@@ -303,14 +303,23 @@ def lorentzian(v: np.ndarray, center: float, gamma: float) -> np.ndarray:
 
 def sextet_absorption(v: np.ndarray, delta: float, quad: float, bhf: float,
                       gamma1: float, gamma2: float, gamma3: float, depth: float,
-                      int1: float, int2: float, int3: float) -> np.ndarray:
+                      int1: float, int2: float, int3: float,
+                      *, treatment: str = "1st_order", beta: float = 0.0,
+                      n_quad: int = 20) -> np.ndarray:
     """Absorción de un sextete Fe-57.
 
     Convención NORMOS: int3=I (intensidad base, líneas 3 y 4),
     int2=I23 (ratio líneas 2,5 / 3,4; estándar=2), int1=I13 (ratio líneas 1,6 / 3,4; estándar=3).
     gamma1 es la anchura de las líneas 1 y 6. gamma2 y gamma3 son relativas:
     gamma2=1 -> Γ2,5=Γ1,6; gamma3=1 -> Γ3,4=Γ1,6.
+
+    ``treatment``: "1st_order" (histórico), "kundig_fixed" (β fijo, mejora 8b),
+    "kundig_powder" (promedio policristal por Gauss-Legendre).
     """
+    from core.hamiltonian import (
+        kundig_sextet_positions, polycrystal_kundig_positions,
+    )
+
     i3 = int3
     i2 = int3 * int2
     i1 = int3 * int1
@@ -319,6 +328,22 @@ def sextet_absorption(v: np.ndarray, delta: float, quad: float, bhf: float,
     g2 = gamma1 * gamma2
     g3 = gamma1 * gamma3
     gammas = np.array([g1, g2, g3, g3, g2, g1], dtype=float)
+
+    if treatment == "kundig_fixed":
+        positions = kundig_sextet_positions(bhf, delta, quad, beta)
+        absorption = np.zeros_like(v, dtype=float)
+        for pos, weight, gamma in zip(positions, weights, gammas):
+            absorption += weight * lorentzian(v, pos, gamma)
+        return depth * absorption
+
+    if treatment == "kundig_powder":
+        pos_grid, w_grid = polycrystal_kundig_positions(bhf, delta, quad, n_quad)
+        absorption = np.zeros_like(v, dtype=float)
+        for k in range(pos_grid.shape[0]):
+            for j in range(6):
+                absorption += w_grid[k] * weights[j] * lorentzian(v, pos_grid[k, j], gammas[j])
+        return depth * absorption
+
     positions = LINE_POS_33T * (bhf / BHF_DEFAULT_T) + delta + quad * LINE_QUAD_PATTERN
     absorption = np.zeros_like(v, dtype=float)
     for pos, weight, gamma in zip(positions, weights, gammas):
@@ -337,22 +362,34 @@ def doublet_absorption(v: np.ndarray, delta: float, quad: float, gamma1: float,
     return depth * (int1 * lorentzian(v, delta - quad / 2.0, g1) + int1 * int2 * lorentzian(v, delta + quad / 2.0, g2))
 
 
-def component_absorption(v: np.ndarray, kind: str, p: np.ndarray) -> np.ndarray:
+def component_absorption(v: np.ndarray, kind: str, p: np.ndarray, *, extras: dict | None = None) -> np.ndarray:
     if kind == "Singlete":
         delta, _quad, _bhf, gamma1, _gamma2, _gamma3, depth, int1, _int2, _int3 = p
         return singlet_absorption(v, delta, gamma1, depth, int1)
     if kind == "Doblete":
         delta, quad, _bhf, gamma1, gamma2, _gamma3, depth, int1, int2, _int3 = p
         return doublet_absorption(v, delta, quad, gamma1, gamma2, depth, int1, int2)
+    if extras:
+        return sextet_absorption(
+            v, *p,
+            treatment=str(extras.get("treatment", "1st_order")),
+            beta=float(extras.get("beta", 0.0)),
+            n_quad=int(extras.get("n_quad", 20)),
+        )
     return sextet_absorption(v, *p)
 
 
-def total_model(v: np.ndarray, baseline: float, slope: float, components: list[tuple[str, np.ndarray] | np.ndarray]) -> np.ndarray:
+def total_model(v: np.ndarray, baseline: float, slope: float, components) -> np.ndarray:
+    """``components`` es lista de ``(kind, params)`` o ``(kind, params, extras)``."""
     y = baseline + slope * v
     for comp in components:
         if isinstance(comp, tuple):
-            kind, p = comp
-            y -= component_absorption(v, kind, p)
+            if len(comp) == 3:
+                kind, p, extras = comp
+                y -= component_absorption(v, kind, p, extras=extras)
+            else:
+                kind, p = comp
+                y -= component_absorption(v, kind, p)
         else:
             y -= sextet_absorption(v, *comp)
     return y
@@ -400,6 +437,11 @@ class MossbauerFe33GUI(tk.Tk):
         # constraint física); "texture" = parámetro de textura t ∈ [0,1] con
         # i1=3, i3=1, i2=4t/(2−t). Sólo aplica a kind=Sextete.
         self.intensity_mode: dict[int, tk.StringVar] = {1: tk.StringVar(value="free"), 2: tk.StringVar(value="free"), 3: tk.StringVar(value="free")}
+        # Tratamiento del cuadrupolo por sextete (mejora 8b):
+        #   "1st_order"      : patrón rígido aditivo (histórico).
+        #   "kundig_fixed"   : diagonalización completa con β fijo (slider).
+        #   "kundig_powder"  : promedio policristal Gauss-Legendre.
+        self.quad_treatment: dict[int, tk.StringVar] = {1: tk.StringVar(value="1st_order"), 2: tk.StringVar(value="1st_order"), 3: tk.StringVar(value="1st_order")}
         self.current_file_var = tk.StringVar(value="Sin fichero cargado")
         self.calib_label_var = tk.StringVar(value="")
         self.last_fit_free_keys: list[str] = []
@@ -909,6 +951,10 @@ class MossbauerFe33GUI(tk.Tk):
             mode_box = ttk.Combobox(top_row, textvariable=self.intensity_mode[idx], values=("free", "texture"), width=8, state="readonly")
             mode_box.pack(side=tk.LEFT)
             mode_box.bind("<<ComboboxSelected>>", lambda _event, i=idx: self.on_intensity_mode_change(i))
+            ttk.Label(top_row, text=tr("component.quad_treatment_label")).pack(side=tk.LEFT, padx=(12, 4))
+            treat_box = ttk.Combobox(top_row, textvariable=self.quad_treatment[idx], values=("1st_order", "kundig_fixed", "kundig_powder"), width=14, state="readonly")
+            treat_box.pack(side=tk.LEFT)
+            treat_box.bind("<<ComboboxSelected>>", lambda _event, i=idx: self.on_quad_treatment_change(i))
             cols = ttk.Frame(tab)
             cols.pack(fill=tk.X)
             c1 = ttk.Frame(cols); c2 = ttk.Frame(cols); c3 = ttk.Frame(cols)
@@ -927,7 +973,9 @@ class MossbauerFe33GUI(tk.Tk):
             self._add_slider(c3, p + "int2", tr("slider.s_int2"), 1.0, 0.0, 3.0, 0.001)
             self._add_slider(c3, p + "int3", tr("slider.s_int3"), 1.0, 0.0, 3.0, 0.001)
             self._add_slider(c3, p + "texture", tr("slider.s_texture"), 2.0/3.0, 0.0, 1.0, 0.001)
+            self._add_slider(c3, p + "beta", tr("slider.s_beta"), 0.0, 0.0, 90.0, 0.1)
             self._refresh_intensity_mode_widgets(idx)
+            self._refresh_quad_treatment_widgets(idx)
 
         plot_area = ttk.Frame(plot_frame)
         plot_area.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
@@ -957,6 +1005,7 @@ class MossbauerFe33GUI(tk.Tk):
             "sextet_enabled": {str(k): bool(v.get()) for k, v in self.sextet_enabled.items()},
             "component_kind": {str(k): v.get() for k, v in self.component_kind.items()},
             "intensity_mode": {str(k): v.get() for k, v in getattr(self, "intensity_mode", {}).items()},
+            "quad_treatment": {str(k): v.get() for k, v in getattr(self, "quad_treatment", {}).items()},
             "fit_velocity": bool(self.fit_velocity_var.get()),
             "fit_center": bool(self.fit_center_var.get()),
             "show_residual": bool(self.show_residual_var.get()),
@@ -1018,6 +1067,10 @@ class MossbauerFe33GUI(tk.Tk):
                 i = int(idx)
                 if i in self.intensity_mode and value in ("free", "texture"):
                     self.intensity_mode[i].set(value)
+            for idx, value in data.get("quad_treatment", {}).items():
+                i = int(idx)
+                if i in self.quad_treatment and value in ("1st_order", "kundig_fixed", "kundig_powder"):
+                    self.quad_treatment[i].set(value)
             self.fit_velocity_var.set(bool(data.get("fit_velocity", self.fit_velocity_var.get())))
             self.fit_center_var.set(bool(data.get("fit_center", self.fit_center_var.get())))
             self.show_residual_var.set(bool(data.get("show_residual", self.show_residual_var.get())))
@@ -1049,6 +1102,7 @@ class MossbauerFe33GUI(tk.Tk):
             self.updating_sliders = False
             self._refresh_distribution_tab_visibility(update=False)
             self._refresh_intensity_mode_widgets()
+            self._refresh_quad_treatment_widgets()
 
     def save_settings(self) -> None:
         try:
@@ -1471,7 +1525,7 @@ class MossbauerFe33GUI(tk.Tk):
             return f"{value:.5f}"
         if base == "slope":
             return f"{value:.6f}"
-        if key == "vmax" or base in {"delta", "quad", "gamma1", "gamma2", "gamma3", "depth", "baseline", "int1", "int2", "int3", "texture"}:
+        if key == "vmax" or base in {"delta", "quad", "gamma1", "gamma2", "gamma3", "depth", "baseline", "int1", "int2", "int3", "texture", "beta"}:
             return f"{value:.6g}"
         return f"{value:.5g}"
 
@@ -2847,8 +2901,32 @@ class MossbauerFe33GUI(tk.Tk):
         if mode_var is not None and mode_var.get() == "texture" and f"s{idx}_texture" in self.vars:
             names = [n for n in SEXTET_PARAM_NAMES if n not in ("int1", "int2", "int3")]
             names.append("texture")
-            return names
-        return SEXTET_PARAM_NAMES.copy()
+        else:
+            names = SEXTET_PARAM_NAMES.copy()
+        # Tratamiento de Kündig con β fijo: β es libre del optimizador.
+        # En modo policristal, β no aplica (se integra). En 1er orden, β no se usa.
+        treat = getattr(self, "quad_treatment", {}).get(idx)
+        if treat is not None and treat.get() == "kundig_fixed" and f"s{idx}_beta" in self.vars:
+            names.append("beta")
+        return names
+
+    def sextet_extras(self, idx: int) -> dict | None:
+        """Devuelve dict de extras para pasar a sextet_absorption / component_absorption.
+
+        None si el modo es 1er orden (comportamiento histórico).
+        """
+        treat_var = getattr(self, "quad_treatment", {}).get(idx)
+        if treat_var is None:
+            return None
+        treat = treat_var.get()
+        if treat == "1st_order":
+            return None
+        beta_deg = float(self.vars[f"s{idx}_beta"].get()) if f"s{idx}_beta" in self.vars else 0.0
+        return {
+            "treatment": treat,
+            "beta": float(np.deg2rad(beta_deg)),
+            "n_quad": 20,
+        }
 
     def on_component_kind_change(self, idx: int) -> None:
         if self.fit_mode_var.get() == "bhf_distribution" and self.dist_use_sharp_var.get() and idx in self.active_sharp_component_indices_for_bhf():
@@ -2859,6 +2937,9 @@ class MossbauerFe33GUI(tk.Tk):
         # vuelve a "free" para evitar derivaciones inaplicables.
         if kind != "Sextete" and idx in getattr(self, "intensity_mode", {}):
             self.intensity_mode[idx].set("free")
+        # Lo mismo para el tratamiento Kündig: sólo tiene sentido en sextete.
+        if kind != "Sextete" and idx in getattr(self, "quad_treatment", {}):
+            self.quad_treatment[idx].set("1st_order")
         relevant = set(self.component_param_names(idx))
         # Marcar como fijos los parámetros que no se usan en la forma elegida.
         for name in SEXTET_PARAM_NAMES:
@@ -2866,6 +2947,7 @@ class MossbauerFe33GUI(tk.Tk):
             if key in self.fixed_vars and name not in relevant:
                 self.fixed_vars[key].set(True)
         self._refresh_intensity_mode_widgets(idx)
+        self._refresh_quad_treatment_widgets(idx)
         self.update_plot()
 
     def _set_slider_enabled(self, key: str, enabled: bool) -> None:
@@ -2899,6 +2981,26 @@ class MossbauerFe33GUI(tk.Tk):
             self._set_slider_enabled(f"s{i}_int3", not texture_active)
             # El slider t sólo es libre en modo textura y sextete.
             self._set_slider_enabled(f"s{i}_texture", texture_active)
+
+    def _refresh_quad_treatment_widgets(self, idx: int | None = None) -> None:
+        """Habilita/deshabilita el slider β según el tratamiento del cuadrupolo."""
+        if not hasattr(self, "quad_treatment"):
+            return
+        indices = [idx] if idx is not None else list(self.quad_treatment.keys())
+        for i in indices:
+            if i not in self.quad_treatment:
+                continue
+            treat = self.quad_treatment[i].get()
+            is_sextete = self.component_kind.get(i) is not None and self.component_kind[i].get() == "Sextete"
+            # β sólo es libre con tratamiento kundig_fixed sobre un sextete.
+            self._set_slider_enabled(f"s{i}_beta", treat == "kundig_fixed" and is_sextete)
+
+    def on_quad_treatment_change(self, idx: int) -> None:
+        """Reacciona al cambio del tratamiento del cuadrupolo en un sextete."""
+        self._refresh_quad_treatment_widgets(idx)
+        if self.fit_mode_var.get() == "bhf_distribution":
+            self.last_bhf_fit = None
+        self.update_plot()
 
     def on_intensity_mode_change(self, idx: int) -> None:
         """Reacciona al cambio de modo Libre/Textura en un sextete."""
@@ -3168,17 +3270,22 @@ class MossbauerFe33GUI(tk.Tk):
     def active_bhf_keys(self) -> list[str]:
         return [f"s{idx}_bhf" for idx in (1, 2, 3) if self.sextet_enabled[idx].get() and self.component_kind[idx].get() == "Sextete"]
 
-    def build_components_from_vars(self) -> list[tuple[str, np.ndarray]]:
+    def build_components_from_vars(self):
         if not self.updating_sliders:
             # apply_constraints_to_vars también re-deriva i1,i2,i3 de textura.
             self.apply_constraints_to_vars()
-        components: list[tuple[str, np.ndarray]] = []
+        components = []
         for idx in (1, 2, 3):
             if not self.sextet_enabled[idx].get():
                 continue
             p = f"s{idx}_"
             params = np.array([self.vars[p + name].get() for name in SEXTET_PARAM_NAMES], dtype=float)
-            components.append((self.component_kind[idx].get(), params))
+            kind = self.component_kind[idx].get()
+            extras = self.sextet_extras(idx) if kind == "Sextete" else None
+            if extras is not None:
+                components.append((kind, params, extras))
+            else:
+                components.append((kind, params))
         return components
 
     def component_area_from_params(self, kind: str, p: np.ndarray) -> float:
@@ -3412,6 +3519,7 @@ class MossbauerFe33GUI(tk.Tk):
             "int2": (0.0, 6.0),
             "int3": (0.0, 3.0),
             "texture": (0.0, 1.0),
+            "beta": (0.0, 90.0),   # ángulo β entre B y V_zz, en grados
         }
         return bounds[base]
 
@@ -3456,12 +3564,24 @@ class MossbauerFe33GUI(tk.Tk):
         assert self.y_data is not None
         values = self.apply_constraints_to_values(values)
         v = np.linspace(-vmax, vmax, self.y_data.size)
-        components: list[tuple[str, np.ndarray]] = []
+        components: list = []
         for idx in (1, 2, 3):
             if self.sextet_enabled[idx].get():
                 p = f"s{idx}_"
                 params = np.array([values.get(p + name, self.vars[p + name].get()) for name in SEXTET_PARAM_NAMES], dtype=float)
-                components.append((self.component_kind[idx].get(), params))
+                kind = self.component_kind[idx].get()
+                if kind == "Sextete":
+                    treat_var = getattr(self, "quad_treatment", {}).get(idx)
+                    if treat_var is not None and treat_var.get() != "1st_order":
+                        beta_deg = float(values.get(f"s{idx}_beta", self.vars[f"s{idx}_beta"].get())) if f"s{idx}_beta" in self.vars else 0.0
+                        extras = {
+                            "treatment": treat_var.get(),
+                            "beta": float(np.deg2rad(beta_deg)),
+                            "n_quad": 20,
+                        }
+                        components.append((kind, params, extras))
+                        continue
+                components.append((kind, params))
         return total_model(v, values["baseline"], values["slope"], components)
 
     def open_progress_dialog(self, title: str, message: str | None = None):
@@ -4628,6 +4748,7 @@ class MossbauerFe33GUI(tk.Tk):
             "sextet_enabled": {str(k): bool(v.get()) for k, v in self.sextet_enabled.items()},
             "component_kind": {str(k): v.get() for k, v in self.component_kind.items()},
             "intensity_mode": {str(k): v.get() for k, v in getattr(self, "intensity_mode", {}).items()},
+            "quad_treatment": {str(k): v.get() for k, v in getattr(self, "quad_treatment", {}).items()},
             "fit_velocity": bool(self.fit_velocity_var.get()),
             "fit_center": bool(self.fit_center_var.get()),
             "show_residual": bool(self.show_residual_var.get()),
@@ -4698,6 +4819,10 @@ class MossbauerFe33GUI(tk.Tk):
             i = int(idx)
             if i in self.intensity_mode and value in ("free", "texture"):
                 self.intensity_mode[i].set(value)
+        for idx, value in state.get("quad_treatment", {}).items():
+            i = int(idx)
+            if i in self.quad_treatment and value in ("1st_order", "kundig_fixed", "kundig_powder"):
+                self.quad_treatment[i].set(value)
         self.fit_velocity_var.set(bool(state.get("fit_velocity", self.fit_velocity_var.get())))
         self.fit_center_var.set(bool(state.get("fit_center", self.fit_center_var.get())))
         self.show_residual_var.set(bool(state.get("show_residual", self.show_residual_var.get())))
@@ -4739,6 +4864,7 @@ class MossbauerFe33GUI(tk.Tk):
         self._refresh_distribution_tab_visibility(update=False)
         self.refold_data()
         self._refresh_intensity_mode_widgets()
+        self._refresh_quad_treatment_widgets()
         self.update_plot()
         info_text = data.get("state_and_parameters_text") or state.get("info_text") or last_fit.get("info_text")
         if info_text:
