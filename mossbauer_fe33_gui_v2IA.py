@@ -2592,6 +2592,42 @@ class MossbauerFe33GUI(tk.Tk):
         depth = float(np.mean([p[0]["depth"], p[1]["depth"]]))
         return list(p), delta_est, bhf_est, width, depth
 
+    def _depth_profile_hint(
+        self, peaks: list[dict[str, float]]
+    ) -> tuple[str, list[dict[str, float]]] | None:
+        """Clasifica el espectro en singlete/doblete cuando el perfil es obvio.
+
+        Reglas (se evalúan en orden):
+        - **Singlete**: el pico más profundo es ≥2.5× el segundo Y está dentro
+          de ±2.5 mm/s del cero (rango habitual de δ en compuestos de Fe).
+        - **Doblete**: los dos picos más profundos tienen profundidades similares
+          (d₁ ≥ 40% d₀), el tercero es mucho menor (d₂ < 30% d₀), no hay más
+          de 4 picos detectados y la separación está entre 0.18 y 5.0 mm/s.
+        - **None**: patrón no concluyente → intentar sexteto.
+
+        Retorna ("Singlete", [pk]) o ("Doblete", [pk1, pk2]) o None.
+        """
+        if not peaks:
+            return None
+        by_d = sorted(peaks, key=lambda p: p["smooth_depth"], reverse=True)
+        d0 = by_d[0]["smooth_depth"]
+        d1 = by_d[1]["smooth_depth"] if len(by_d) > 1 else 0.0
+        d2 = by_d[2]["smooth_depth"] if len(by_d) > 2 else 0.0
+
+        # Singlete: un pico domina ≥2.5× sobre el siguiente y está cerca de v=0.
+        if d0 > 2.5 * max(d1, 1e-10) and abs(by_d[0]["pos"]) < 2.5:
+            return ("Singlete", [by_d[0]])
+
+        # Doblete: dos picos similares, el resto mucho más débil.
+        if (len(by_d) >= 2 and d1 >= 0.40 * d0 and d2 < 0.30 * d0
+                and len(peaks) <= 4):
+            pair = sorted([by_d[0], by_d[1]], key=lambda p: p["pos"])
+            sep = abs(pair[1]["pos"] - pair[0]["pos"])
+            if 0.18 <= sep <= 5.0:
+                return ("Doblete", pair)
+
+        return None
+
     def auto_guess_from_minima(self, fit_after: bool = False) -> None:
         if self.velocity is None or self.y_data is None:
             return
@@ -2611,18 +2647,42 @@ class MossbauerFe33GUI(tk.Tk):
 
         components: list[tuple[int, str, list[dict[str, float]]]] = []
         used_ids: set[int] = set()
-        sext = self._best_sextet_from_peaks(peaks)
-        if sext is not None:
-            sub, delta, bhf, width, depth = sext
-            if len(sub) >= 5 and abs(sub[-1]["pos"] - sub[0]["pos"]) > 3.0:
-                components.append((1, "Sextete", sub))
-                p = "s1_"
-                params[p + "delta"] = float(np.clip(delta, -2.5, 2.5))
-                params[p + "bhf"] = float(np.clip(bhf, 20.0, 50.0))
-                params[p + "quad"] = 0.0
-                params[p + "gamma1"] = float(np.clip(width / 2.0, 0.04, 1.0))
-                params[p + "depth"] = float(np.clip(depth, 0.002, 0.25))
-                used_ids.update(int(p["i"]) for p in sub)
+
+        # Clasificación previa por perfil de profundidades: si hay un singlete
+        # o doblete obvio, se coloca antes de intentar el sexteto.
+        hint = self._depth_profile_hint(peaks)
+        if hint is not None:
+            kind_h, group_h = hint
+            components.append((1, kind_h, group_h))
+            pfx = "s1_"
+            if kind_h == "Doblete":
+                g = group_h
+                params[pfx + "delta"]  = float(np.mean([g[0]["pos"], g[1]["pos"]]))
+                params[pfx + "quad"]   = float(abs(g[1]["pos"] - g[0]["pos"]))
+                params[pfx + "gamma1"] = float(np.clip(np.mean([x["width"] for x in g]) / 2.0, 0.04, 1.0))
+                params[pfx + "gamma2"] = 1.0
+                params[pfx + "depth"]  = float(np.clip(np.mean([x["depth"] for x in g]), 0.002, 0.25))
+                params[pfx + "int1"]   = 1.0; params[pfx + "int2"] = 1.0
+            else:
+                pk = group_h[0]
+                params[pfx + "delta"]  = float(pk["pos"])
+                params[pfx + "gamma1"] = float(np.clip(pk["width"] / 2.0, 0.04, 1.0))
+                params[pfx + "depth"]  = float(np.clip(pk["depth"], 0.002, 0.25))
+                params[pfx + "int1"]   = 1.0
+            used_ids.update(int(pk["i"]) for pk in group_h)
+        else:
+            sext = self._best_sextet_from_peaks(peaks)
+            if sext is not None:
+                sub, delta, bhf, width, depth = sext
+                if len(sub) >= 5 and abs(sub[-1]["pos"] - sub[0]["pos"]) > 3.0:
+                    components.append((1, "Sextete", sub))
+                    p = "s1_"
+                    params[p + "delta"] = float(np.clip(delta, -2.5, 2.5))
+                    params[p + "bhf"] = float(np.clip(bhf, 20.0, 50.0))
+                    params[p + "quad"] = 0.0
+                    params[p + "gamma1"] = float(np.clip(width / 2.0, 0.04, 1.0))
+                    params[p + "depth"] = float(np.clip(depth, 0.002, 0.25))
+                    used_ids.update(int(p["i"]) for p in sub)
 
         remaining = [p for p in sorted(peaks, key=lambda q: q["smooth_depth"], reverse=True) if int(p["i"]) not in used_ids]
         next_idx = 2 if components else 1
