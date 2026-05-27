@@ -3695,7 +3695,7 @@ class MossbauerFe33GUI(tk.Tk):
     def active_sharp_component_indices_for_bhf(self) -> list[int]:
         if not self.dist_use_sharp_var.get():
             return []
-        return [idx for idx in (1, 2, 3) if idx == 1 or self.sextet_enabled[idx].get()]
+        return [idx for idx in (1, 2, 3) if self.sextet_enabled[idx].get()]
 
     def build_bhf_sharp_components_from_active_components(self) -> tuple[list[dict[str, float]], list[int]]:
         components: list[dict[str, float]] = []
@@ -3728,7 +3728,7 @@ class MossbauerFe33GUI(tk.Tk):
         if nbins < 3:
             messagebox.showwarning(tr("msg.pbhf_title"), tr("msg.pbhf_too_few_bins"))
             return
-        sharp_components = None
+        sharp_components: list[dict[str, float]] | None = None
         sharp_indices: list[int] = []
         if self.dist_use_sharp_var.get():
             sharp_components, sharp_indices = self.build_bhf_sharp_components_from_active_components()
@@ -3736,7 +3736,7 @@ class MossbauerFe33GUI(tk.Tk):
         fit_baseline = not self.fixed_vars["baseline"].get()
         fit_slope = not self.fixed_vars["slope"].get()
 
-        def run_fit(delta_value: float, gamma_value: float):
+        def run_fit(delta_value: float, gamma_value: float, sharp_for_fit: list[dict[str, float]] | None):
             variable = "quad" if self.dist_variable_var.get() == "ΔEQ" else "bhf"
             if self.dist_shape_var.get() == "Gaussiana":
                 return fit_gaussian_hyperfine_distribution_engine(
@@ -3752,7 +3752,7 @@ class MossbauerFe33GUI(tk.Tk):
                     nbins=nbins,
                     baseline=self.vars["baseline"].get(),
                     slope=self.vars["slope"].get(),
-                    sharp_components=sharp_components,
+                    sharp_components=sharp_for_fit,
                 )
             if self.dist_shape_var.get() == "Binomial":
                 return fit_binomial_hyperfine_distribution_engine(
@@ -3768,7 +3768,7 @@ class MossbauerFe33GUI(tk.Tk):
                     nbins=nbins,
                     baseline=self.vars["baseline"].get(),
                     slope=self.vars["slope"].get(),
-                    sharp_components=sharp_components,
+                    sharp_components=sharp_for_fit,
                 )
             if self.dist_shape_var.get() == "Fija":
                 centers, weights = self.read_fixed_distribution_file()
@@ -3784,7 +3784,7 @@ class MossbauerFe33GUI(tk.Tk):
                     gamma=gamma_value,
                     baseline=self.vars["baseline"].get(),
                     slope=self.vars["slope"].get(),
-                    sharp_components=sharp_components,
+                    sharp_components=sharp_for_fit,
                 )
             return fit_hyperfine_distribution_engine(
                 self.velocity,
@@ -3802,33 +3802,102 @@ class MossbauerFe33GUI(tk.Tk):
                 fit_slope=fit_slope,
                 baseline=self.vars["baseline"].get(),
                 slope=self.vars["slope"].get(),
-                sharp_components=sharp_components,
+                sharp_components=sharp_for_fit,
                 sigma=self.data_sigma(),
             )
 
+        # Build outer parameter vector: dist_delta/dist_gamma (when refining globals)
+        # plus per-sharp-component shape params (delta, quad, bhf, log gamma) when sharp
+        # components are active and not individually fixed.
+        refine_global = self.dist_refine_global_var.get()
+        have_sharp = bool(sharp_indices)
+
+        outer_specs: list[tuple[str, str, float, float]] = []
+        if refine_global:
+            if not self.fixed_vars.get("dist_delta", tk.BooleanVar(value=False)).get():
+                outer_specs.append(("dist_delta", "lin", -2.5, 2.5))
+            if not self.fixed_vars.get("dist_gamma", tk.BooleanVar(value=False)).get():
+                outer_specs.append(("dist_gamma", "loggamma", 0.03, 1.0))
+
+        if have_sharp:
+            for idx in sharp_indices:
+                kind = self.component_kind[idx].get()
+                for pname in ("delta", "quad", "bhf", "gamma1"):
+                    if pname == "quad" and kind == "Singlete":
+                        continue
+                    if pname == "bhf" and kind != "Sextete":
+                        continue
+                    key = f"s{idx}_{pname}"
+                    if self.fixed_vars.get(key, tk.BooleanVar(value=False)).get():
+                        continue
+                    lo, hi, _res = self.slider_specs[key]
+                    if pname == "gamma1":
+                        outer_specs.append((key, "loggamma", max(float(lo), 1e-3), float(hi)))
+                    else:
+                        outer_specs.append((key, "lin", float(lo), float(hi)))
+
+        def x0_from_specs() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+            x0_list, lo_list, hi_list = [], [], []
+            for key, kind, lo, hi in outer_specs:
+                cur = float(self.vars[key].get())
+                if kind == "loggamma":
+                    x0_list.append(np.log(max(cur, lo)))
+                    lo_list.append(np.log(lo))
+                    hi_list.append(np.log(hi))
+                else:
+                    x0_list.append(cur)
+                    lo_list.append(lo)
+                    hi_list.append(hi)
+            return (
+                np.array(x0_list, dtype=float),
+                np.array(lo_list, dtype=float),
+                np.array(hi_list, dtype=float),
+            )
+
+        def x_to_state(x: np.ndarray) -> tuple[float, float, list[dict[str, float]] | None]:
+            delta_value = float(self.vars["dist_delta"].get())
+            gamma_value = float(self.vars["dist_gamma"].get())
+            local_sharp = [dict(c) for c in sharp_components] if sharp_components else None
+            for i, (key, kind, _lo, _hi) in enumerate(outer_specs):
+                v = float(np.exp(x[i])) if kind == "loggamma" else float(x[i])
+                if key == "dist_delta":
+                    delta_value = v
+                elif key == "dist_gamma":
+                    gamma_value = v
+                elif local_sharp is not None:
+                    m = re.match(r"s(\d+)_(.+)", key)
+                    if m:
+                        idx_ = int(m.group(1))
+                        pname = m.group(2)
+                        pos = sharp_indices.index(idx_) if idx_ in sharp_indices else -1
+                        if pos >= 0:
+                            mapping = {"delta": "delta", "quad": "quad", "bhf": "bhf", "gamma1": "gamma"}
+                            if pname in mapping:
+                                local_sharp[pos][mapping[pname]] = v
+            return delta_value, gamma_value, local_sharp
+
         progress = self.open_progress_dialog(tr("progress.distribution_title"), tr("progress.distribution_prepare"))
         _progress_dialog, update_progress, close_progress = progress
+        fitted_x: np.ndarray | None = None
         try:
-            if self.dist_refine_global_var.get():
+            if outer_specs:
                 update_progress(tr("progress.distribution_refine"))
-                x0 = np.array([self.vars["dist_delta"].get(), np.log(max(self.vars["dist_gamma"].get(), 0.03))], dtype=float)
-                lo = np.array([-2.5, np.log(0.03)], dtype=float)
-                hi = np.array([2.5, np.log(1.0)], dtype=float)
+                x0, lo, hi = x0_from_specs()
+                x0c = np.clip(x0, lo, hi)
 
                 def residual_outer(x: np.ndarray) -> np.ndarray:
-                    r = run_fit(float(x[0]), float(np.exp(x[1])))
-                    return r.residuals
+                    d, g, s = x_to_state(x)
+                    return run_fit(d, g, s).residuals
 
-                outer = least_squares(residual_outer, np.clip(x0, lo, hi), bounds=(lo, hi), max_nfev=35)
-                delta_final = float(outer.x[0])
-                gamma_final = float(np.exp(outer.x[1]))
+                outer = least_squares(residual_outer, x0c, bounds=(lo, hi), max_nfev=60)
+                fitted_x = outer.x
                 update_progress(tr("progress.distribution_compute_final"))
-                result = run_fit(delta_final, gamma_final)
-                self.set_params({"dist_delta": delta_final, "dist_gamma": gamma_final})
+                delta_final, gamma_final, sharp_final = x_to_state(fitted_x)
+                result = run_fit(delta_final, gamma_final, sharp_final)
             else:
                 shape_disp = tr(f"shape.{self.dist_shape_var.get()}", default=self.dist_shape_var.get())
                 update_progress(tr("progress.distribution_compute", shape=shape_disp))
-                result = run_fit(self.vars["dist_delta"].get(), self.vars["dist_gamma"].get())
+                result = run_fit(self.vars["dist_delta"].get(), self.vars["dist_gamma"].get(), sharp_components)
         except Exception as exc:
             close_progress()
             messagebox.showerror(tr("msg.pbhf_error_title"), str(exc))
@@ -3836,15 +3905,19 @@ class MossbauerFe33GUI(tk.Tk):
         self.last_bhf_fit = result
         self.last_bhf_sharp_indices = sharp_indices
         self.last_fit_correlations = {}
+        n_outer = len(outer_specs)
         n_params = int(nbins + int(fit_baseline) + int(fit_slope) + (len(sharp_indices) if self.dist_use_sharp_var.get() else 0))
         if self.dist_shape_var.get() in ("Gaussiana", "Binomial"):
             n_params = int(4 + int(fit_baseline) + int(fit_slope) + (len(sharp_indices) if self.dist_use_sharp_var.get() else 0))
         if self.dist_shape_var.get() == "Fija":
             n_params = int(3 + int(fit_baseline) + int(fit_slope) + (len(sharp_indices) if self.dist_use_sharp_var.get() else 0))
-        if self.dist_refine_global_var.get():
-            n_params += 2
+        n_params += n_outer
         self.last_fit_stats = self.fit_statistics(result.fitted_curve - self.y_data, self.data_sigma(), n_params)
-        params_to_update = {"baseline": result.baseline, "slope": result.slope}
+        params_to_update: dict[str, float] = {"baseline": result.baseline, "slope": result.slope}
+        if fitted_x is not None:
+            for i, (key, kind, _lo, _hi) in enumerate(outer_specs):
+                v = float(np.exp(fitted_x[i])) if kind == "loggamma" else float(fitted_x[i])
+                params_to_update[key] = v
         if self.dist_use_sharp_var.get() and result.sharp_weights is not None:
             for idx, weight in zip(sharp_indices, result.sharp_weights):
                 params_to_update[f"s{idx}_depth"] = float(weight)
@@ -4068,6 +4141,19 @@ class MossbauerFe33GUI(tk.Tk):
         if cal_unc:
             text.append(cal_unc)
         if self.last_bhf_fit is not None:
+            fitted_center = getattr(self.last_bhf_fit, "fitted_dist_center", None)
+            fitted_sigma = getattr(self.last_bhf_fit, "fitted_dist_sigma", None)
+            fitted_p = getattr(self.last_bhf_fit, "fitted_dist_p", None)
+            if fitted_center is not None or fitted_sigma is not None or fitted_p is not None:
+                parts = []
+                if fitted_center is not None:
+                    parts.append(f"center={fitted_center:.4g} {dist_unit}")
+                if fitted_sigma is not None:
+                    parts.append(f"sigma={fitted_sigma:.4g} {dist_unit}")
+                if fitted_p is not None:
+                    parts.append(f"p={fitted_p:.4g}")
+                if parts:
+                    text.append(f"{shape_disp}: " + ", ".join(parts))
             peak = float(self.last_bhf_fit.bhf_centers[int(np.argmax(self.last_bhf_fit.weights))])
             area = float(np.trapezoid(self.last_bhf_fit.weights, self.last_bhf_fit.bhf_centers))
             dist_area, sharp_areas, dist_pct, sharp_pct = self.bhf_component_area_percentages()
