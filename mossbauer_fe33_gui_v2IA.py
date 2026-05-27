@@ -380,6 +380,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.updating_sliders = False
         self.fit_velocity_var = tk.BooleanVar(value=False)
         self.fit_center_var = tk.BooleanVar(value=False)
+        self.likelihood_var = tk.StringVar(value="gauss")
         self.show_residual_var = tk.BooleanVar(value=True)
         self.show_legend_var = tk.BooleanVar(value=False)
         self.fit_mode_var = tk.StringVar(value="discrete")
@@ -395,6 +396,10 @@ class MossbauerFe33GUI(tk.Tk):
         self.last_bhf_sharp_indices: list[int] = []
         self.sextet_enabled: dict[int, tk.BooleanVar] = {1: tk.BooleanVar(value=True), 2: tk.BooleanVar(value=False), 3: tk.BooleanVar(value=False)}
         self.component_kind: dict[int, tk.StringVar] = {1: tk.StringVar(value="Sextete"), 2: tk.StringVar(value="Sextete"), 3: tk.StringVar(value="Sextete")}
+        # Modo de intensidades por sextete: "free" = i1,i2,i3 libres (sin
+        # constraint física); "texture" = parámetro de textura t ∈ [0,1] con
+        # i1=3, i3=1, i2=4t/(2−t). Sólo aplica a kind=Sextete.
+        self.intensity_mode: dict[int, tk.StringVar] = {1: tk.StringVar(value="free"), 2: tk.StringVar(value="free"), 3: tk.StringVar(value="free")}
         self.current_file_var = tk.StringVar(value="Sin fichero cargado")
         self.calib_label_var = tk.StringVar(value="")
         self.last_fit_free_keys: list[str] = []
@@ -900,6 +905,10 @@ class MossbauerFe33GUI(tk.Tk):
             kind_box = ttk.Combobox(top_row, textvariable=self.component_kind[idx], values=("Sextete", "Doblete", "Singlete"), width=10, state="readonly")
             kind_box.pack(side=tk.LEFT)
             kind_box.bind("<<ComboboxSelected>>", lambda _event, i=idx: self.on_component_kind_change(i))
+            ttk.Label(top_row, text=tr("component.intensity_label")).pack(side=tk.LEFT, padx=(12, 4))
+            mode_box = ttk.Combobox(top_row, textvariable=self.intensity_mode[idx], values=("free", "texture"), width=8, state="readonly")
+            mode_box.pack(side=tk.LEFT)
+            mode_box.bind("<<ComboboxSelected>>", lambda _event, i=idx: self.on_intensity_mode_change(i))
             cols = ttk.Frame(tab)
             cols.pack(fill=tk.X)
             c1 = ttk.Frame(cols); c2 = ttk.Frame(cols); c3 = ttk.Frame(cols)
@@ -917,6 +926,8 @@ class MossbauerFe33GUI(tk.Tk):
             self._add_slider(c3, p + "int1", tr("slider.s_int1"), 1.0, 0.0, 2.0, 0.001)
             self._add_slider(c3, p + "int2", tr("slider.s_int2"), 1.0, 0.0, 3.0, 0.001)
             self._add_slider(c3, p + "int3", tr("slider.s_int3"), 1.0, 0.0, 3.0, 0.001)
+            self._add_slider(c3, p + "texture", tr("slider.s_texture"), 2.0/3.0, 0.0, 1.0, 0.001)
+            self._refresh_intensity_mode_widgets(idx)
 
         plot_area = ttk.Frame(plot_frame)
         plot_area.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
@@ -945,12 +956,14 @@ class MossbauerFe33GUI(tk.Tk):
             "fixed": {k: bool(v.get()) for k, v in self.fixed_vars.items()},
             "sextet_enabled": {str(k): bool(v.get()) for k, v in self.sextet_enabled.items()},
             "component_kind": {str(k): v.get() for k, v in self.component_kind.items()},
+            "intensity_mode": {str(k): v.get() for k, v in getattr(self, "intensity_mode", {}).items()},
             "fit_velocity": bool(self.fit_velocity_var.get()),
             "fit_center": bool(self.fit_center_var.get()),
             "show_residual": bool(self.show_residual_var.get()),
             "show_legend": bool(self.show_legend_var.get()),
             "fit_mode": self.fit_mode_var.get(),
             "line_profile": self.line_profile_var.get(),
+            "likelihood": self.likelihood_var.get(),
             "dist_variable": self.dist_variable_var.get(),
             "dist_shape": self.dist_shape_var.get(),
             "fixed_distribution_path": str(self.fixed_distribution_path) if self.fixed_distribution_path else None,
@@ -1001,6 +1014,10 @@ class MossbauerFe33GUI(tk.Tk):
                 i = int(idx)
                 if i in self.component_kind and value in ("Sextete", "Doblete", "Singlete"):
                     self.component_kind[i].set(value)
+            for idx, value in data.get("intensity_mode", {}).items():
+                i = int(idx)
+                if i in self.intensity_mode and value in ("free", "texture"):
+                    self.intensity_mode[i].set(value)
             self.fit_velocity_var.set(bool(data.get("fit_velocity", self.fit_velocity_var.get())))
             self.fit_center_var.set(bool(data.get("fit_center", self.fit_center_var.get())))
             self.show_residual_var.set(bool(data.get("show_residual", self.show_residual_var.get())))
@@ -1008,6 +1025,7 @@ class MossbauerFe33GUI(tk.Tk):
             self.fit_mode_var.set(data.get("fit_mode", self.fit_mode_var.get()))
             self.line_profile_var.set(data.get("line_profile", self.line_profile_var.get()))
             self.on_line_profile_change()
+            self.likelihood_var.set(data.get("likelihood", self.likelihood_var.get()))
             self.dist_variable_var.set(data.get("dist_variable", self.dist_variable_var.get()))
             self.dist_shape_var.set(data.get("dist_shape", self.dist_shape_var.get()))
             self.fixed_distribution_path = Path(data["fixed_distribution_path"]) if data.get("fixed_distribution_path") else None
@@ -1030,6 +1048,7 @@ class MossbauerFe33GUI(tk.Tk):
         finally:
             self.updating_sliders = False
             self._refresh_distribution_tab_visibility(update=False)
+            self._refresh_intensity_mode_widgets()
 
     def save_settings(self) -> None:
         try:
@@ -1088,6 +1107,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.fixed_vars = {}
         self.slider_specs = {}
         self.slider_label_widgets = {}
+        self.slider_widget_refs = {}
         self._build_ui()
 
     def on_close(self) -> None:
@@ -1437,6 +1457,13 @@ class MossbauerFe33GUI(tk.Tk):
         self.vars[key] = var
         self.entry_vars[key] = entry_var
         self.slider_specs[key] = (min_value, max_value, resolution)
+        # Guardar refs para habilitar/deshabilitar (modo textura, etc.)
+        widget_refs = {"slider": slider, "entry": entry, "label": label_widget}
+        if fit_param:
+            widget_refs["fixed"] = fixed
+        if not hasattr(self, "slider_widget_refs"):
+            self.slider_widget_refs = {}
+        self.slider_widget_refs[key] = widget_refs
 
     def _format_value(self, key: str, value: float) -> str:
         base = key.split("_", 1)[-1]
@@ -1444,7 +1471,7 @@ class MossbauerFe33GUI(tk.Tk):
             return f"{value:.5f}"
         if base == "slope":
             return f"{value:.6f}"
-        if key == "vmax" or base in {"delta", "quad", "gamma1", "gamma2", "gamma3", "depth", "baseline", "int1", "int2", "int3"}:
+        if key == "vmax" or base in {"delta", "quad", "gamma1", "gamma2", "gamma3", "depth", "baseline", "int1", "int2", "int3", "texture"}:
             return f"{value:.6g}"
         return f"{value:.5g}"
 
@@ -2814,6 +2841,13 @@ class MossbauerFe33GUI(tk.Tk):
             return ["delta", "gamma1", "depth", "int1"]
         if kind == "Doblete":
             return ["delta", "quad", "gamma1", "gamma2", "depth", "int1", "int2"]
+        # Sextete: en modo "texture" el parámetro libre es s{i}_texture (t)
+        # en lugar de int1,int2,int3; el optimizador no toca i_k.
+        mode_var = getattr(self, "intensity_mode", {}).get(idx)
+        if mode_var is not None and mode_var.get() == "texture" and f"s{idx}_texture" in self.vars:
+            names = [n for n in SEXTET_PARAM_NAMES if n not in ("int1", "int2", "int3")]
+            names.append("texture")
+            return names
         return SEXTET_PARAM_NAMES.copy()
 
     def on_component_kind_change(self, idx: int) -> None:
@@ -2821,12 +2855,68 @@ class MossbauerFe33GUI(tk.Tk):
             self.last_bhf_fit = None
         kind = self.component_kind[idx].get()
         p = f"s{idx}_"
+        # Modo textura sólo aplica a sextete: si cambias a Doblete/Singlete,
+        # vuelve a "free" para evitar derivaciones inaplicables.
+        if kind != "Sextete" and idx in getattr(self, "intensity_mode", {}):
+            self.intensity_mode[idx].set("free")
         relevant = set(self.component_param_names(idx))
         # Marcar como fijos los parámetros que no se usan en la forma elegida.
         for name in SEXTET_PARAM_NAMES:
             key = p + name
             if key in self.fixed_vars and name not in relevant:
                 self.fixed_vars[key].set(True)
+        self._refresh_intensity_mode_widgets(idx)
+        self.update_plot()
+
+    def _set_slider_enabled(self, key: str, enabled: bool) -> None:
+        refs = getattr(self, "slider_widget_refs", {}).get(key)
+        if not refs:
+            return
+        state = "normal" if enabled else "disabled"
+        for name in ("slider", "entry", "fixed"):
+            w = refs.get(name)
+            if w is None:
+                continue
+            try:
+                w.configure(state=state)
+            except tk.TclError:
+                pass
+
+    def _refresh_intensity_mode_widgets(self, idx: int | None = None) -> None:
+        """Habilita/deshabilita los sliders i1,i2,i3 y texture según el modo."""
+        if not hasattr(self, "intensity_mode"):
+            return
+        indices = [idx] if idx is not None else list(self.intensity_mode.keys())
+        for i in indices:
+            if i not in self.intensity_mode:
+                continue
+            mode = self.intensity_mode[i].get()
+            is_sextete = self.component_kind.get(i) is not None and self.component_kind[i].get() == "Sextete"
+            texture_active = (mode == "texture") and is_sextete
+            # En modo textura los i_k son derivados (sólo lectura).
+            self._set_slider_enabled(f"s{i}_int1", not texture_active)
+            self._set_slider_enabled(f"s{i}_int2", not texture_active)
+            self._set_slider_enabled(f"s{i}_int3", not texture_active)
+            # El slider t sólo es libre en modo textura y sextete.
+            self._set_slider_enabled(f"s{i}_texture", texture_active)
+
+    def on_intensity_mode_change(self, idx: int) -> None:
+        """Reacciona al cambio de modo Libre/Textura en un sextete."""
+        # Sincroniza i1,i2,i3 con el t actual al cambiar a modo textura.
+        if self.intensity_mode[idx].get() == "texture" and f"s{idx}_texture" in self.vars:
+            t = float(self.vars[f"s{idx}_texture"].get())
+            i1, i2, i3 = self.texture_to_intensities(t)
+            self.updating_sliders = True
+            self.vars[f"s{idx}_int1"].set(i1)
+            self.vars[f"s{idx}_int2"].set(i2)
+            self.vars[f"s{idx}_int3"].set(i3)
+            self.entry_vars[f"s{idx}_int1"].set(self._format_value(f"s{idx}_int1", i1))
+            self.entry_vars[f"s{idx}_int2"].set(self._format_value(f"s{idx}_int2", i2))
+            self.entry_vars[f"s{idx}_int3"].set(self._format_value(f"s{idx}_int3", i3))
+            self.updating_sliders = False
+        self._refresh_intensity_mode_widgets(idx)
+        if self.fit_mode_var.get() == "bhf_distribution":
+            self.last_bhf_fit = None
         self.update_plot()
 
     def constraint_param_keys(self) -> list[str]:
@@ -2839,8 +2929,13 @@ class MossbauerFe33GUI(tk.Tk):
         return {str(c["target"]) for c in self.enabled_constraints()}
 
     def apply_constraints_to_values(self, values: dict[str, float]) -> dict[str, float]:
-        """Aplica target = factor*source + offset sobre un diccionario de parámetros."""
-        out = values.copy()
+        """Aplica target = factor*source + offset sobre un diccionario de parámetros.
+
+        Si algún sextete está en modo "texture", deriva i1,i2,i3 a partir de
+        ``s{i}_texture`` antes de las restricciones lineales: así una
+        restricción puede usar i1/i2/i3 como fuente o destino.
+        """
+        out = self.apply_texture_mode_to_values(values)
         for _ in range(6):  # permite cadenas cortas de dependencias
             changed = False
             for c in self.enabled_constraints():
@@ -2856,15 +2951,31 @@ class MossbauerFe33GUI(tk.Tk):
                 changed = changed or abs(new - old) > 1e-12
             if not changed:
                 break
+        # Re-aplicar textura por si una restricción tocó t (improbable pero
+        # cubre el caso de "t = f(otro)"): así i1,i2,i3 reflejan el t final.
+        out = self.apply_texture_mode_to_values(out)
         return out
 
     def apply_constraints_to_vars(self) -> None:
-        if not self.constraints:
+        # Trabajamos también si hay sólo modo textura, no sólo constraints.
+        has_texture = any(
+            v.get() == "texture" and self.component_kind.get(idx) is not None
+            and self.component_kind[idx].get() == "Sextete"
+            for idx, v in getattr(self, "intensity_mode", {}).items()
+        )
+        if not self.constraints and not has_texture:
             return
         values = {k: v.get() for k, v in self.vars.items()}
         values = self.apply_constraints_to_values(values)
+        # Targets que el optimizador no escribe: los del constraint lineal y los
+        # i1,i2,i3 derivados por textura.
+        targets = list(self.constrained_target_keys())
+        if has_texture:
+            for idx, mode_var in self.intensity_mode.items():
+                if mode_var.get() == "texture" and self.component_kind[idx].get() == "Sextete":
+                    targets += [f"s{idx}_int1", f"s{idx}_int2", f"s{idx}_int3"]
         self.updating_sliders = True
-        for key in self.constrained_target_keys():
+        for key in targets:
             if key in values and key in self.vars:
                 self.vars[key].set(values[key])
                 self.entry_vars[key].set(self._format_value(key, values[key]))
@@ -3058,7 +3169,8 @@ class MossbauerFe33GUI(tk.Tk):
         return [f"s{idx}_bhf" for idx in (1, 2, 3) if self.sextet_enabled[idx].get() and self.component_kind[idx].get() == "Sextete"]
 
     def build_components_from_vars(self) -> list[tuple[str, np.ndarray]]:
-        if self.constraints and not self.updating_sliders:
+        if not self.updating_sliders:
+            # apply_constraints_to_vars también re-deriva i1,i2,i3 de textura.
             self.apply_constraints_to_vars()
         components: list[tuple[str, np.ndarray]] = []
         for idx in (1, 2, 3):
@@ -3180,6 +3292,27 @@ class MossbauerFe33GUI(tk.Tk):
         sigma = sigma_counts / max(float(self.norm_factor), 1e-12)
         return np.maximum(sigma, 1e-9)
 
+    def predicted_sigma(self, model_y: np.ndarray) -> np.ndarray | None:
+        """σ basada en el modelo (verosimilitud Poisson). Usada para IRLS."""
+        if self.norm_factor is None:
+            return None
+        norm = max(float(self.norm_factor), 1e-12)
+        predicted_counts = np.maximum(np.asarray(model_y, dtype=float) * norm, 1.0)
+        sigma_counts = np.sqrt(predicted_counts / 2.0)
+        return np.maximum(sigma_counts / norm, 1e-9)
+
+    def residual_sigma(self, model_y: np.ndarray | None) -> np.ndarray | None:
+        """Devuelve la σ apropiada al modo de verosimilitud activo.
+
+        ``gauss``  → σ del dato observado (estimación clásica Gaussiana).
+        ``poisson``→ σ predicha por el modelo (Newton/IRLS sobre log-L Poisson).
+        """
+        if self.likelihood_var.get() == "poisson" and model_y is not None:
+            sig = self.predicted_sigma(model_y)
+            if sig is not None:
+                return sig
+        return self.data_sigma()
+
     def fit_correlation_summary(self, cov: np.ndarray | None, names: list[str], threshold: float = 0.95) -> dict[str, object]:
         """Resume correlaciones de la matriz de covarianza para diagnosticar degeneraciones."""
         if cov is None or cov.size == 0 or len(names) < 2:
@@ -3278,8 +3411,46 @@ class MossbauerFe33GUI(tk.Tk):
             "int1": (0.0, 9.0),
             "int2": (0.0, 6.0),
             "int3": (0.0, 3.0),
+            "texture": (0.0, 1.0),
         }
         return bounds[base]
+
+    @staticmethod
+    def texture_to_intensities(t: float) -> tuple[float, float, float]:
+        """Conversión textura → (i1, i2, i3) para el sextete con eje aleatorio.
+
+        Para ángulo θ entre B y k_γ, las amplitudes de las seis líneas son
+            W₁,₆ = 3(1+cos²θ), W₂,₅ = 4 sin²θ, W₃,₄ = 1+cos²θ.
+        Con t = sin²θ se obtiene 1+cos²θ = 2−t, así que normalizando por (2−t)
+        queda W₁,₆ : W₂,₅ : W₃,₄ = 3 : 4t/(2−t) : 1.
+        t=2/3 ⇒ 3:2:1 (polvo aleatorio).  t=1 ⇒ 3:4:1 (texturado plano).
+        t=0 ⇒ 3:0:1 (eje fácil paralelo al haz).
+        """
+        t = max(0.0, min(1.0, float(t)))
+        denom = max(2.0 - t, 1e-9)
+        return 3.0, 4.0 * t / denom, 1.0
+
+    def apply_texture_mode_to_values(self, values: dict[str, float]) -> dict[str, float]:
+        """Si un sextete está en modo "texture", deriva i1,i2,i3 desde s{i}_texture."""
+        if not hasattr(self, "intensity_mode"):
+            return values
+        out = values
+        for idx, mode_var in self.intensity_mode.items():
+            if mode_var.get() != "texture":
+                continue
+            if self.component_kind.get(idx) is None or self.component_kind[idx].get() != "Sextete":
+                continue
+            t_key = f"s{idx}_texture"
+            t = out.get(t_key, self.vars[t_key].get()) if t_key in self.vars else None
+            if t is None:
+                continue
+            i1, i2, i3 = self.texture_to_intensities(float(t))
+            if out is values:
+                out = values.copy()
+            out[f"s{idx}_int1"] = i1
+            out[f"s{idx}_int2"] = i2
+            out[f"s{idx}_int3"] = i3
+        return out
 
     def model_from_values(self, values: dict[str, float], vmax: float) -> np.ndarray:
         assert self.y_data is not None
@@ -3398,11 +3569,20 @@ class MossbauerFe33GUI(tk.Tk):
             sig = np.sqrt(np.maximum(folded / 2.0, 1.0)) / max(norm, 1e-12)
             return yy, np.maximum(sig, 1e-9)
 
+        use_poisson = self.likelihood_var.get() == "poisson"
+
         def residual(x: np.ndarray) -> np.ndarray:
             values, vmax, center_fit = unpack(x)
             yy, sig = data_for_center(center_fit)
-            res = self.model_from_values(values, vmax) - yy
-            return res / sig if sig is not None else res
+            model_y = self.model_from_values(values, vmax)
+            if use_poisson:
+                sig_use = self.predicted_sigma(model_y)
+                if sig_use is None:
+                    sig_use = sig
+            else:
+                sig_use = sig
+            res = model_y - yy
+            return res / sig_use if sig_use is not None else res
 
         def multistart_candidates() -> list[np.ndarray]:
             candidates = [x0_arr]
@@ -3470,8 +3650,11 @@ class MossbauerFe33GUI(tk.Tk):
         update_progress(tr("progress.fit_finalize"))
         values_final, vmax_final, center_final = unpack(result.x)
         y_final, sigma_final = data_for_center(center_final)
-        final_residual = self.model_from_values(values_final, vmax_final) - y_final
-        self.last_fit_stats = self.fit_statistics(final_residual, sigma_final, len(result.x))
+        model_final = self.model_from_values(values_final, vmax_final)
+        final_residual = model_final - y_final
+        sigma_for_stats = self.predicted_sigma(model_final) if use_poisson else sigma_final
+        self.last_fit_stats = self.fit_statistics(final_residual, sigma_for_stats, len(result.x))
+        self.last_fit_stats["likelihood"] = self.likelihood_var.get()
         self.last_fit_stats["n_starts"] = float(n_starts)
         self.set_params(values_final)
         if fit_velocity:
@@ -3517,16 +3700,29 @@ class MossbauerFe33GUI(tk.Tk):
         progress = self.open_progress_dialog(tr("progress.bootstrap_title"), tr("progress.bootstrap_prepare"))
         _dlg, update_progress, close_progress = progress
         rng = np.random.default_rng(24680)
+        use_poisson_boot = self.likelihood_var.get() == "poisson"
+        norm_factor = max(float(self.norm_factor or 1.0), 1e-12)
         samples: list[np.ndarray] = []
         try:
             for i in range(int(nrep)):
-                y_sim = model0 + rng.normal(0.0, sigma)
-                def resid(x: np.ndarray) -> np.ndarray:
+                if use_poisson_boot:
+                    # Simulación Poisson real: c_sim ~ Poisson(λ_pred=model0·f_norm·2)/2
+                    lam = np.maximum(model0 * norm_factor * 2.0, 0.0)
+                    c_sim = rng.poisson(lam).astype(float) / 2.0
+                    y_sim = c_sim / norm_factor
+                else:
+                    y_sim = model0 + rng.normal(0.0, sigma)
+
+                def resid(x: np.ndarray, _y_sim=y_sim) -> np.ndarray:
                     vals = base_values.copy()
                     for key, value in zip(free_keys, x):
                         vals[key] = float(value)
                     vals = self.apply_constraints_to_values(vals)
-                    return (model_values(vals) - y_sim) / sigma
+                    model_v = model_values(vals)
+                    sig_use = self.predicted_sigma(model_v) if use_poisson_boot else sigma
+                    if sig_use is None:
+                        sig_use = sigma
+                    return (model_v - _y_sim) / sig_use
                 update_progress(tr("progress.bootstrap_step", i=i + 1, n=nrep))
                 res = least_squares(resid, x0, bounds=(lo, hi), max_nfev=2500)
                 if res.success and np.all(np.isfinite(res.x)):
@@ -3652,21 +3848,35 @@ class MossbauerFe33GUI(tk.Tk):
             return
         L = second_difference_matrix(nbins)
         sigma = self.data_sigma()
-        n_params = nbins + int(not self.fixed_vars["baseline"].get()) + int(not self.fixed_vars["slope"].get()) + (len(sharp_components or []) if self.dist_use_sharp_var.get() else 0)
+        n_raw = nbins + int(not self.fixed_vars["baseline"].get()) + int(not self.fixed_vars["slope"].get()) + (len(sharp_components or []) if self.dist_use_sharp_var.get() else 0)
         rows_list = []
+        gcv_list = []
         for r in scans:
             misfit = float(np.linalg.norm(r.residuals))
             rough = float(np.linalg.norm(L @ r.weights))
             if sigma is not None and sigma.size == r.residuals.size:
                 chi2 = float(np.sum((r.residuals / sigma) ** 2))
+                misfit_w = float(np.linalg.norm(r.residuals / sigma))
             else:
                 chi2 = float(np.sum(r.residuals ** 2))
-            red_chi2 = chi2 / max(1, int(r.residuals.size) - int(n_params))
+                misfit_w = misfit
+            # dof efectivo (Mejora 2). Si no está disponible, cae al recuento ingenuo.
+            dof_eff = float(getattr(r, "effective_dof", None) or n_raw)
+            red_chi2 = chi2 / max(1.0, float(r.residuals.size) - dof_eff)
+            # GCV(α) = ‖W^{1/2}(y − ŷ)‖² / (N − tr A(α))²   (Mejora 3)
+            denom = max(float(r.residuals.size) - dof_eff, 1e-6)
+            gcv = (misfit_w ** 2) / (denom ** 2)
+            gcv_list.append(gcv)
             peak = float(r.bhf_centers[int(np.argmax(r.weights))]) if r.weights.size else float("nan")
-            rows_list.append((r.alpha, r.rms, misfit, rough, chi2, red_chi2, peak))
+            rows_list.append((r.alpha, r.rms, misfit, rough, chi2, red_chi2, peak, dof_eff, gcv))
         rows = np.array(rows_list, dtype=float)
         suggested = self.suggest_alpha_from_lcurve_rows(rows)
         suggested_compromise = self.suggest_alpha_compromise_from_lcurve_rows(rows)
+        gcv_arr = np.array(gcv_list, dtype=float)
+        suggested_gcv = None
+        if gcv_arr.size and np.any(np.isfinite(gcv_arr)):
+            idx = int(np.nanargmin(np.where(np.isfinite(gcv_arr), gcv_arr, np.inf)))
+            suggested_gcv = float(rows[idx, 0])
 
         dialog = tk.Toplevel(self)
         dist_label_lc = 'P(ΔEQ)' if self.dist_variable_var.get() == 'ΔEQ' else 'P(BHF)'
@@ -3685,12 +3895,17 @@ class MossbauerFe33GUI(tk.Tk):
         ax1.loglog(rows[:, 0], rows[:, 1], "-o", ms=3.2, label=tr("plot.label_rms"))
         ax1b = ax1.twinx()
         ax1b.semilogx(rows[:, 0], rows[:, 5], "--", color="#7c3aed", lw=1.0, label=tr("plot.label_chi2_red"))
+        if np.any(np.isfinite(gcv_arr)):
+            gcv_norm = gcv_arr / max(float(np.nanmin(gcv_arr[np.isfinite(gcv_arr)])), 1e-30)
+            ax1b.semilogx(rows[:, 0], gcv_norm, ":", color="#0891b2", lw=1.1, label="GCV/min")
         ax1b.set_ylabel(tr("plot.chi2_reduced_ylabel"), color="#7c3aed")
         ax1b.tick_params(axis="y", colors="#7c3aed")
         if suggested is not None:
             ax1.axvline(suggested, color="#dc2626", ls="--", lw=1.2, label=tr("plot.label_lcurve_suggest", value=suggested))
         if suggested_compromise is not None:
             ax1.axvline(suggested_compromise, color="#16a34a", ls=":", lw=1.4, label=tr("plot.label_compromise_suggest", value=suggested_compromise))
+        if suggested_gcv is not None:
+            ax1.axvline(suggested_gcv, color="#0891b2", ls="-.", lw=1.4, label=tr("plot.label_gcv_suggest", value=suggested_gcv))
         ax1.legend(loc="best", fontsize=8)
         ax1.set_xlabel("α"); ax1.set_ylabel(tr("plot.label_rms")); ax1.set_title(tr("plot.alpha_scan_title"))
         ax1.grid(True, which="both", alpha=0.3)
@@ -3709,9 +3924,11 @@ class MossbauerFe33GUI(tk.Tk):
                 filetypes=[(tr("filetype.data"), "*.dat"), (tr("filetype.text"), "*.txt"), (tr("filetype.all"), "*")],
             )
             if filename:
-                np.savetxt(filename, rows, header="alpha rms norm_residual norm_LP chi2 red_chi2 peak_parameter", fmt="%.10g")
+                np.savetxt(filename, rows, header="alpha rms norm_residual norm_LP chi2 red_chi2 peak_parameter dof_eff gcv", fmt="%.10g")
         if suggested_compromise is not None:
             ttk.Button(buttons, text=tr("button.use_compromise", value=suggested_compromise), command=lambda a=suggested_compromise, d=dialog: (self.set_bhf_alpha_preset(np.log10(a)), d.destroy()), style="Accent.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+        if suggested_gcv is not None:
+            ttk.Button(buttons, text=tr("button.use_gcv", value=suggested_gcv), command=lambda a=suggested_gcv, d=dialog: (self.set_bhf_alpha_preset(np.log10(a)), d.destroy()), style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
         if suggested is not None:
             ttk.Button(buttons, text=tr("button.use_lcurve", value=suggested), command=lambda a=suggested, d=dialog: (self.set_bhf_alpha_preset(np.log10(a)), d.destroy()), style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
         ttk.Button(buttons, text=tr("button.save_table"), command=save_alpha_table, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
@@ -3785,7 +4002,7 @@ class MossbauerFe33GUI(tk.Tk):
         fit_baseline = not self.fixed_vars["baseline"].get()
         fit_slope = not self.fixed_vars["slope"].get()
 
-        def run_fit(delta_value: float, gamma_value: float, sharp_for_fit: list[dict[str, float]] | None):
+        def run_fit(delta_value: float, gamma_value: float, sharp_for_fit: list[dict[str, float]] | None, sigma_override: np.ndarray | None = None):
             variable = "quad" if self.dist_variable_var.get() == "ΔEQ" else "bhf"
             if self.dist_shape_var.get() == "Gaussiana":
                 return fit_gaussian_hyperfine_distribution_engine(
@@ -3835,6 +4052,7 @@ class MossbauerFe33GUI(tk.Tk):
                     slope=self.vars["slope"].get(),
                     sharp_components=sharp_for_fit,
                 )
+            sigma_use = sigma_override if sigma_override is not None else self.data_sigma()
             return fit_hyperfine_distribution_engine(
                 self.velocity,
                 self.y_data,
@@ -3852,7 +4070,7 @@ class MossbauerFe33GUI(tk.Tk):
                 baseline=self.vars["baseline"].get(),
                 slope=self.vars["slope"].get(),
                 sharp_components=sharp_for_fit,
-                sigma=self.data_sigma(),
+                sigma=sigma_use,
             )
 
         # Build outer parameter vector: dist_delta/dist_gamma (when refining globals)
@@ -3928,25 +4146,43 @@ class MossbauerFe33GUI(tk.Tk):
         progress = self.open_progress_dialog(tr("progress.distribution_title"), tr("progress.distribution_prepare"))
         _progress_dialog, update_progress, close_progress = progress
         fitted_x: np.ndarray | None = None
+        # IRLS Poisson sólo para la distribución de histograma (única ruta que
+        # acepta sigma); para Gaussiana/Binomial/Fija se mantiene Gauss.
+        irls_active = (
+            self.likelihood_var.get() == "poisson"
+            and self.dist_shape_var.get() not in ("Gaussiana", "Binomial", "Fija")
+        )
+        irls_max_iter = 3 if irls_active else 1
         try:
             if outer_specs:
                 update_progress(tr("progress.distribution_refine"))
                 x0, lo, hi = x0_from_specs()
                 x0c = np.clip(x0, lo, hi)
+                sigma_state = {"sigma": None}
 
                 def residual_outer(x: np.ndarray) -> np.ndarray:
                     d, g, s = x_to_state(x)
-                    return run_fit(d, g, s).residuals
+                    return run_fit(d, g, s, sigma_override=sigma_state["sigma"]).residuals
 
                 outer = least_squares(residual_outer, x0c, bounds=(lo, hi), max_nfev=60)
                 fitted_x = outer.x
                 update_progress(tr("progress.distribution_compute_final"))
                 delta_final, gamma_final, sharp_final = x_to_state(fitted_x)
-                result = run_fit(delta_final, gamma_final, sharp_final)
+                result = run_fit(delta_final, gamma_final, sharp_final, sigma_override=sigma_state["sigma"])
+                # IRLS Poisson: reajustar refinando σ a partir del modelo.
+                for _ in range(irls_max_iter - 1):
+                    sigma_state["sigma"] = self.predicted_sigma(result.fitted_curve)
+                    outer = least_squares(residual_outer, fitted_x, bounds=(lo, hi), max_nfev=60)
+                    fitted_x = outer.x
+                    delta_final, gamma_final, sharp_final = x_to_state(fitted_x)
+                    result = run_fit(delta_final, gamma_final, sharp_final, sigma_override=sigma_state["sigma"])
             else:
                 shape_disp = tr(f"shape.{self.dist_shape_var.get()}", default=self.dist_shape_var.get())
                 update_progress(tr("progress.distribution_compute", shape=shape_disp))
                 result = run_fit(self.vars["dist_delta"].get(), self.vars["dist_gamma"].get(), sharp_components)
+                for _ in range(irls_max_iter - 1):
+                    sigma_irls = self.predicted_sigma(result.fitted_curve)
+                    result = run_fit(self.vars["dist_delta"].get(), self.vars["dist_gamma"].get(), sharp_components, sigma_override=sigma_irls)
         except Exception as exc:
             close_progress()
             messagebox.showerror(tr("msg.pbhf_error_title"), str(exc))
@@ -3955,13 +4191,21 @@ class MossbauerFe33GUI(tk.Tk):
         self.last_bhf_sharp_indices = sharp_indices
         self.last_fit_correlations = {}
         n_outer = len(outer_specs)
-        n_params = int(nbins + int(fit_baseline) + int(fit_slope) + (len(sharp_indices) if self.dist_use_sharp_var.get() else 0))
-        if self.dist_shape_var.get() in ("Gaussiana", "Binomial"):
-            n_params = int(4 + int(fit_baseline) + int(fit_slope) + (len(sharp_indices) if self.dist_use_sharp_var.get() else 0))
-        if self.dist_shape_var.get() == "Fija":
-            n_params = int(3 + int(fit_baseline) + int(fit_slope) + (len(sharp_indices) if self.dist_use_sharp_var.get() else 0))
-        n_params += n_outer
-        self.last_fit_stats = self.fit_statistics(result.fitted_curve - self.y_data, self.data_sigma(), n_params)
+        n_sharp = len(sharp_indices) if self.dist_use_sharp_var.get() else 0
+        if self.dist_shape_var.get() == "Histograma" and getattr(result, "effective_dof", None) is not None:
+            # Tikhonov: grados de libertad efectivos tr(A(α)) ya incluye baseline,
+            # slope y sharps (todo lo que estaba en X). Sólo sumar los exteriores NL.
+            n_params = float(result.effective_dof) + n_outer
+        elif self.dist_shape_var.get() in ("Gaussiana", "Binomial"):
+            n_params = 4 + int(fit_baseline) + int(fit_slope) + n_sharp + n_outer
+        elif self.dist_shape_var.get() == "Fija":
+            n_params = 3 + int(fit_baseline) + int(fit_slope) + n_sharp + n_outer
+        else:
+            n_params = nbins + int(fit_baseline) + int(fit_slope) + n_sharp + n_outer
+        sigma_stats = self.predicted_sigma(result.fitted_curve) if irls_active else self.data_sigma()
+        self.last_fit_stats = self.fit_statistics(result.fitted_curve - self.y_data, sigma_stats, int(round(n_params)))
+        self.last_fit_stats["effective_dof"] = float(n_params)
+        self.last_fit_stats["likelihood"] = self.likelihood_var.get()
         params_to_update: dict[str, float] = {"baseline": result.baseline, "slope": result.slope}
         if fitted_x is not None:
             for i, (key, kind, _lo, _hi) in enumerate(outer_specs):
@@ -4407,12 +4651,14 @@ class MossbauerFe33GUI(tk.Tk):
             "fixed": {k: bool(v.get()) for k, v in self.fixed_vars.items()},
             "sextet_enabled": {str(k): bool(v.get()) for k, v in self.sextet_enabled.items()},
             "component_kind": {str(k): v.get() for k, v in self.component_kind.items()},
+            "intensity_mode": {str(k): v.get() for k, v in getattr(self, "intensity_mode", {}).items()},
             "fit_velocity": bool(self.fit_velocity_var.get()),
             "fit_center": bool(self.fit_center_var.get()),
             "show_residual": bool(self.show_residual_var.get()),
             "show_legend": bool(self.show_legend_var.get()),
             "fit_mode": self.fit_mode_var.get(),
             "line_profile": self.line_profile_var.get(),
+            "likelihood": self.likelihood_var.get(),
             "dist_variable": self.dist_variable_var.get(),
             "dist_shape": self.dist_shape_var.get(),
             "fixed_distribution_path": str(self.fixed_distribution_path) if self.fixed_distribution_path else None,
@@ -4472,6 +4718,10 @@ class MossbauerFe33GUI(tk.Tk):
             i = int(idx)
             if i in self.component_kind and value in ("Sextete", "Doblete", "Singlete"):
                 self.component_kind[i].set(value)
+        for idx, value in state.get("intensity_mode", {}).items():
+            i = int(idx)
+            if i in self.intensity_mode and value in ("free", "texture"):
+                self.intensity_mode[i].set(value)
         self.fit_velocity_var.set(bool(state.get("fit_velocity", self.fit_velocity_var.get())))
         self.fit_center_var.set(bool(state.get("fit_center", self.fit_center_var.get())))
         self.show_residual_var.set(bool(state.get("show_residual", self.show_residual_var.get())))
@@ -4479,6 +4729,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.fit_mode_var.set(state.get("fit_mode", self.fit_mode_var.get()))
         self.line_profile_var.set(state.get("line_profile", self.line_profile_var.get()))
         self.on_line_profile_change()
+        self.likelihood_var.set(state.get("likelihood", self.likelihood_var.get()))
         self.dist_variable_var.set(state.get("dist_variable", self.dist_variable_var.get()))
         self.dist_shape_var.set(state.get("dist_shape", self.dist_shape_var.get()))
         self.fixed_distribution_path = Path(state["fixed_distribution_path"]) if state.get("fixed_distribution_path") else None
@@ -4511,6 +4762,7 @@ class MossbauerFe33GUI(tk.Tk):
 
         self._refresh_distribution_tab_visibility(update=False)
         self.refold_data()
+        self._refresh_intensity_mode_widgets()
         self.update_plot()
         info_text = data.get("state_and_parameters_text") or state.get("info_text") or last_fit.get("info_text")
         if info_text:

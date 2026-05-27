@@ -258,6 +258,17 @@ class SimPanel(BasePanel):
         kind_box.pack(side=tk.LEFT)
         kind_box.bind("<<ComboboxSelected>>", lambda _e, i=idx: app.on_component_kind_change(i))
 
+        # Modo de intensidades del sextete: Libre / Textura
+        if idx not in app.intensity_mode:
+            app.intensity_mode[idx] = tk.StringVar(value="free")
+        ttk.Label(top, text=tr("component.intensity_label")).pack(side=tk.LEFT, padx=(12, 4))
+        mode_box = ttk.Combobox(
+            top, textvariable=app.intensity_mode[idx],
+            values=("free", "texture"), width=8, state="readonly",
+        )
+        mode_box.pack(side=tk.LEFT)
+        mode_box.bind("<<ComboboxSelected>>", lambda _e, i=idx: app.on_intensity_mode_change(i))
+
         # Sliders en 2 columnas — funcionan a cualquier ancho ≥ ~350 px
         cols = ttk.Frame(parent)
         cols.pack(fill=tk.X)
@@ -273,6 +284,8 @@ class SimPanel(BasePanel):
         self._add_slider(c1, p + "int3",   tr("slider.s_int3"),   1.0,            0.0,  3.0,  0.01)
         self._add_slider(c1, p + "int2",   tr("slider.s_int2"),   2.0,            0.0,  4.0,  0.01)
         self._add_slider(c1, p + "int1",   tr("slider.s_int1"),   3.0,            0.0,  6.0,  0.01)
+        # Parámetro de textura: t ∈ [0,1]. t=2/3 ⇒ 3:2:1 (polvo aleatorio).
+        self._add_slider(c1, p + "texture", tr("slider.s_texture"), 2.0/3.0,      0.0,  1.0,  0.001)
         self._add_slider(c1, p + "delta",  tr("slider.s_delta"),  0.0,           -2.0,  3.0,  0.001)
         # c2: cuadrupolo · campo hiperfino · anchuras
         self._add_slider(c2, p + "quad",   tr("slider.s_quad"),   0.0,           -4.0,  4.0,  0.001)
@@ -280,6 +293,10 @@ class SimPanel(BasePanel):
         self._add_slider(c2, p + "gamma1", tr("slider.s_gamma1"), 0.30,           0.03,  2.0,  0.001)
         self._add_slider(c2, p + "gamma2", tr("slider.s_gamma2"), 1.0,            0.2,   3.0,  0.001)
         self._add_slider(c2, p + "gamma3", tr("slider.s_gamma3"), 1.0,            0.2,   3.0,  0.001)
+
+        # Estado inicial: el slider t empieza deshabilitado salvo que el modo
+        # cargado sea "texture".
+        app._refresh_intensity_mode_widgets(idx)
 
     # ── Cambio dinámico de modo ───────────────────────────────────────────────
 
