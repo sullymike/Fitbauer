@@ -236,6 +236,7 @@ class MossbauerApp(MossbauerFe33GUI):
         self.entry_vars = {}
         self.fixed_vars = {}
         self.slider_specs = {}
+        self.slider_label_widgets = {}
         self._build_ui()
 
     def _open_layout_configurator(self) -> None:
@@ -511,6 +512,8 @@ class MossbauerApp(MossbauerFe33GUI):
     # ── Visibilidad del panel de distribución BHF ───────────────────────────
 
     def _refresh_distribution_tab_visibility(self, update: bool = True) -> None:
+        if hasattr(self, "refresh_dist_slider_labels"):
+            self.refresh_dist_slider_labels()
         nb        = getattr(self, "notebook",          None)
         dist_tab  = getattr(self, "dist_tab",          None)
         wrapper   = getattr(self, "_sim_dist_wrapper", None)

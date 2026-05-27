@@ -184,6 +184,9 @@ class SimPanel(BasePanel):
         ttk.Button(d2, text=tr("bhf.lcurve_alpha"), command=app.scan_bhf_alpha_gui,
                    style="Small.TButton").pack(fill=tk.X, pady=(2, 0))
 
+        if hasattr(app, "refresh_dist_slider_labels"):
+            app.refresh_dist_slider_labels()
+
     # ── Construcción de componentes en modo APILADO ───────────────────────────
 
     def _build_stacked(self, area: ttk.Frame) -> None:

@@ -411,6 +411,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.entry_vars: dict[str, tk.StringVar] = {}
         self.fixed_vars: dict[str, tk.BooleanVar] = {}
         self.slider_specs: dict[str, tuple[float, float, float]] = {}
+        self.slider_label_widgets: dict[str, ttk.Label] = {}
 
         try:
             if SETTINGS_PATH.exists():
@@ -1086,6 +1087,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.entry_vars = {}
         self.fixed_vars = {}
         self.slider_specs = {}
+        self.slider_label_widgets = {}
         self._build_ui()
 
     def on_close(self) -> None:
@@ -1355,6 +1357,8 @@ class MossbauerFe33GUI(tk.Tk):
         return canvas
 
     def _refresh_distribution_tab_visibility(self, update: bool = True) -> None:
+        if hasattr(self, "refresh_dist_slider_labels"):
+            self.refresh_dist_slider_labels()
         if not hasattr(self, "notebook") or not hasattr(self, "dist_tab"):
             return
         if self.fit_mode_var.get() == "bhf_distribution":
@@ -1395,7 +1399,9 @@ class MossbauerFe33GUI(tk.Tk):
 
         top = ttk.Frame(frame)
         top.pack(fill=tk.X)
-        ttk.Label(top, text=label).pack(side=tk.LEFT, anchor=tk.W)
+        label_widget = ttk.Label(top, text=label)
+        label_widget.pack(side=tk.LEFT, anchor=tk.W)
+        self.slider_label_widgets[key] = label_widget
 
         var = tk.DoubleVar(value=value)
         entry_var = tk.StringVar(value=self._format_value(key, value))
@@ -1499,7 +1505,26 @@ class MossbauerFe33GUI(tk.Tk):
 
     def on_bhf_distribution_option_change(self) -> None:
         self.last_bhf_fit = None
+        self.refresh_dist_slider_labels()
         self.update_plot()
+
+    def refresh_dist_slider_labels(self) -> None:
+        is_quad = self.dist_variable_var.get() == "ΔEQ"
+        mapping = {
+            "dist_bmin": ("slider.dist_bmin_quad", "slider.dist_bmin_bhf"),
+            "dist_bmax": ("slider.dist_bmax_quad", "slider.dist_bmax_bhf"),
+            "dist_quad": ("slider.dist_quad_inactive", "slider.dist_quad_active"),
+            "dist_fixed_bhf": ("slider.dist_fixed_bhf_active", "slider.dist_fixed_bhf_inactive"),
+        }
+        for key, (key_quad, key_bhf) in mapping.items():
+            widget = self.slider_label_widgets.get(key)
+            if widget is None:
+                continue
+            tr_key = key_quad if is_quad else key_bhf
+            try:
+                widget.configure(text=tr(tr_key))
+            except tk.TclError:
+                pass
 
     def on_component_activation_change(self) -> None:
         if self.fit_mode_var.get() == "bhf_distribution" and self.dist_use_sharp_var.get():
