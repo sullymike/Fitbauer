@@ -88,6 +88,8 @@
   "component.enable": "Usar componente {idx}",
   "component.main_active": "Componente principal activo",
   "component.shape_label": "Forma:",
+  "component.intensity_label": "Intensidades:",
+  "slider.s_texture": "t (textura)",
   "slider.s_delta": "δ isomérico",
   "slider.s_quad": "ΔEQ",
   "slider.s_bhf": "BHF (T)",

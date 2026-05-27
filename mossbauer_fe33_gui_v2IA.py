@@ -396,6 +396,10 @@ class MossbauerFe33GUI(tk.Tk):
         self.last_bhf_sharp_indices: list[int] = []
         self.sextet_enabled: dict[int, tk.BooleanVar] = {1: tk.BooleanVar(value=True), 2: tk.BooleanVar(value=False), 3: tk.BooleanVar(value=False)}
         self.component_kind: dict[int, tk.StringVar] = {1: tk.StringVar(value="Sextete"), 2: tk.StringVar(value="Sextete"), 3: tk.StringVar(value="Sextete")}
+        # Modo de intensidades por sextete: "free" = i1,i2,i3 libres (sin
+        # constraint física); "texture" = parámetro de textura t ∈ [0,1] con
+        # i1=3, i3=1, i2=4t/(2−t). Sólo aplica a kind=Sextete.
+        self.intensity_mode: dict[int, tk.StringVar] = {1: tk.StringVar(value="free"), 2: tk.StringVar(value="free"), 3: tk.StringVar(value="free")}
         self.current_file_var = tk.StringVar(value="Sin fichero cargado")
         self.calib_label_var = tk.StringVar(value="")
         self.last_fit_free_keys: list[str] = []
@@ -901,6 +905,10 @@ class MossbauerFe33GUI(tk.Tk):
             kind_box = ttk.Combobox(top_row, textvariable=self.component_kind[idx], values=("Sextete", "Doblete", "Singlete"), width=10, state="readonly")
             kind_box.pack(side=tk.LEFT)
             kind_box.bind("<<ComboboxSelected>>", lambda _event, i=idx: self.on_component_kind_change(i))
+            ttk.Label(top_row, text=tr("component.intensity_label")).pack(side=tk.LEFT, padx=(12, 4))
+            mode_box = ttk.Combobox(top_row, textvariable=self.intensity_mode[idx], values=("free", "texture"), width=8, state="readonly")
+            mode_box.pack(side=tk.LEFT)
+            mode_box.bind("<<ComboboxSelected>>", lambda _event, i=idx: self.on_intensity_mode_change(i))
             cols = ttk.Frame(tab)
             cols.pack(fill=tk.X)
             c1 = ttk.Frame(cols); c2 = ttk.Frame(cols); c3 = ttk.Frame(cols)
@@ -918,6 +926,8 @@ class MossbauerFe33GUI(tk.Tk):
             self._add_slider(c3, p + "int1", tr("slider.s_int1"), 1.0, 0.0, 2.0, 0.001)
             self._add_slider(c3, p + "int2", tr("slider.s_int2"), 1.0, 0.0, 3.0, 0.001)
             self._add_slider(c3, p + "int3", tr("slider.s_int3"), 1.0, 0.0, 3.0, 0.001)
+            self._add_slider(c3, p + "texture", tr("slider.s_texture"), 2.0/3.0, 0.0, 1.0, 0.001)
+            self._refresh_intensity_mode_widgets(idx)
 
         plot_area = ttk.Frame(plot_frame)
         plot_area.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
@@ -946,6 +956,7 @@ class MossbauerFe33GUI(tk.Tk):
             "fixed": {k: bool(v.get()) for k, v in self.fixed_vars.items()},
             "sextet_enabled": {str(k): bool(v.get()) for k, v in self.sextet_enabled.items()},
             "component_kind": {str(k): v.get() for k, v in self.component_kind.items()},
+            "intensity_mode": {str(k): v.get() for k, v in getattr(self, "intensity_mode", {}).items()},
             "fit_velocity": bool(self.fit_velocity_var.get()),
             "fit_center": bool(self.fit_center_var.get()),
             "show_residual": bool(self.show_residual_var.get()),
@@ -1003,6 +1014,10 @@ class MossbauerFe33GUI(tk.Tk):
                 i = int(idx)
                 if i in self.component_kind and value in ("Sextete", "Doblete", "Singlete"):
                     self.component_kind[i].set(value)
+            for idx, value in data.get("intensity_mode", {}).items():
+                i = int(idx)
+                if i in self.intensity_mode and value in ("free", "texture"):
+                    self.intensity_mode[i].set(value)
             self.fit_velocity_var.set(bool(data.get("fit_velocity", self.fit_velocity_var.get())))
             self.fit_center_var.set(bool(data.get("fit_center", self.fit_center_var.get())))
             self.show_residual_var.set(bool(data.get("show_residual", self.show_residual_var.get())))
@@ -1033,6 +1048,7 @@ class MossbauerFe33GUI(tk.Tk):
         finally:
             self.updating_sliders = False
             self._refresh_distribution_tab_visibility(update=False)
+            self._refresh_intensity_mode_widgets()
 
     def save_settings(self) -> None:
         try:
@@ -1091,6 +1107,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.fixed_vars = {}
         self.slider_specs = {}
         self.slider_label_widgets = {}
+        self.slider_widget_refs = {}
         self._build_ui()
 
     def on_close(self) -> None:
@@ -1440,6 +1457,13 @@ class MossbauerFe33GUI(tk.Tk):
         self.vars[key] = var
         self.entry_vars[key] = entry_var
         self.slider_specs[key] = (min_value, max_value, resolution)
+        # Guardar refs para habilitar/deshabilitar (modo textura, etc.)
+        widget_refs = {"slider": slider, "entry": entry, "label": label_widget}
+        if fit_param:
+            widget_refs["fixed"] = fixed
+        if not hasattr(self, "slider_widget_refs"):
+            self.slider_widget_refs = {}
+        self.slider_widget_refs[key] = widget_refs
 
     def _format_value(self, key: str, value: float) -> str:
         base = key.split("_", 1)[-1]
@@ -1447,7 +1471,7 @@ class MossbauerFe33GUI(tk.Tk):
             return f"{value:.5f}"
         if base == "slope":
             return f"{value:.6f}"
-        if key == "vmax" or base in {"delta", "quad", "gamma1", "gamma2", "gamma3", "depth", "baseline", "int1", "int2", "int3"}:
+        if key == "vmax" or base in {"delta", "quad", "gamma1", "gamma2", "gamma3", "depth", "baseline", "int1", "int2", "int3", "texture"}:
             return f"{value:.6g}"
         return f"{value:.5g}"
 
@@ -2817,6 +2841,13 @@ class MossbauerFe33GUI(tk.Tk):
             return ["delta", "gamma1", "depth", "int1"]
         if kind == "Doblete":
             return ["delta", "quad", "gamma1", "gamma2", "depth", "int1", "int2"]
+        # Sextete: en modo "texture" el parámetro libre es s{i}_texture (t)
+        # en lugar de int1,int2,int3; el optimizador no toca i_k.
+        mode_var = getattr(self, "intensity_mode", {}).get(idx)
+        if mode_var is not None and mode_var.get() == "texture" and f"s{idx}_texture" in self.vars:
+            names = [n for n in SEXTET_PARAM_NAMES if n not in ("int1", "int2", "int3")]
+            names.append("texture")
+            return names
         return SEXTET_PARAM_NAMES.copy()
 
     def on_component_kind_change(self, idx: int) -> None:
@@ -2824,12 +2855,68 @@ class MossbauerFe33GUI(tk.Tk):
             self.last_bhf_fit = None
         kind = self.component_kind[idx].get()
         p = f"s{idx}_"
+        # Modo textura sólo aplica a sextete: si cambias a Doblete/Singlete,
+        # vuelve a "free" para evitar derivaciones inaplicables.
+        if kind != "Sextete" and idx in getattr(self, "intensity_mode", {}):
+            self.intensity_mode[idx].set("free")
         relevant = set(self.component_param_names(idx))
         # Marcar como fijos los parámetros que no se usan en la forma elegida.
         for name in SEXTET_PARAM_NAMES:
             key = p + name
             if key in self.fixed_vars and name not in relevant:
                 self.fixed_vars[key].set(True)
+        self._refresh_intensity_mode_widgets(idx)
+        self.update_plot()
+
+    def _set_slider_enabled(self, key: str, enabled: bool) -> None:
+        refs = getattr(self, "slider_widget_refs", {}).get(key)
+        if not refs:
+            return
+        state = "normal" if enabled else "disabled"
+        for name in ("slider", "entry", "fixed"):
+            w = refs.get(name)
+            if w is None:
+                continue
+            try:
+                w.configure(state=state)
+            except tk.TclError:
+                pass
+
+    def _refresh_intensity_mode_widgets(self, idx: int | None = None) -> None:
+        """Habilita/deshabilita los sliders i1,i2,i3 y texture según el modo."""
+        if not hasattr(self, "intensity_mode"):
+            return
+        indices = [idx] if idx is not None else list(self.intensity_mode.keys())
+        for i in indices:
+            if i not in self.intensity_mode:
+                continue
+            mode = self.intensity_mode[i].get()
+            is_sextete = self.component_kind.get(i) is not None and self.component_kind[i].get() == "Sextete"
+            texture_active = (mode == "texture") and is_sextete
+            # En modo textura los i_k son derivados (sólo lectura).
+            self._set_slider_enabled(f"s{i}_int1", not texture_active)
+            self._set_slider_enabled(f"s{i}_int2", not texture_active)
+            self._set_slider_enabled(f"s{i}_int3", not texture_active)
+            # El slider t sólo es libre en modo textura y sextete.
+            self._set_slider_enabled(f"s{i}_texture", texture_active)
+
+    def on_intensity_mode_change(self, idx: int) -> None:
+        """Reacciona al cambio de modo Libre/Textura en un sextete."""
+        # Sincroniza i1,i2,i3 con el t actual al cambiar a modo textura.
+        if self.intensity_mode[idx].get() == "texture" and f"s{idx}_texture" in self.vars:
+            t = float(self.vars[f"s{idx}_texture"].get())
+            i1, i2, i3 = self.texture_to_intensities(t)
+            self.updating_sliders = True
+            self.vars[f"s{idx}_int1"].set(i1)
+            self.vars[f"s{idx}_int2"].set(i2)
+            self.vars[f"s{idx}_int3"].set(i3)
+            self.entry_vars[f"s{idx}_int1"].set(self._format_value(f"s{idx}_int1", i1))
+            self.entry_vars[f"s{idx}_int2"].set(self._format_value(f"s{idx}_int2", i2))
+            self.entry_vars[f"s{idx}_int3"].set(self._format_value(f"s{idx}_int3", i3))
+            self.updating_sliders = False
+        self._refresh_intensity_mode_widgets(idx)
+        if self.fit_mode_var.get() == "bhf_distribution":
+            self.last_bhf_fit = None
         self.update_plot()
 
     def constraint_param_keys(self) -> list[str]:
@@ -2842,8 +2929,13 @@ class MossbauerFe33GUI(tk.Tk):
         return {str(c["target"]) for c in self.enabled_constraints()}
 
     def apply_constraints_to_values(self, values: dict[str, float]) -> dict[str, float]:
-        """Aplica target = factor*source + offset sobre un diccionario de parámetros."""
-        out = values.copy()
+        """Aplica target = factor*source + offset sobre un diccionario de parámetros.
+
+        Si algún sextete está en modo "texture", deriva i1,i2,i3 a partir de
+        ``s{i}_texture`` antes de las restricciones lineales: así una
+        restricción puede usar i1/i2/i3 como fuente o destino.
+        """
+        out = self.apply_texture_mode_to_values(values)
         for _ in range(6):  # permite cadenas cortas de dependencias
             changed = False
             for c in self.enabled_constraints():
@@ -2859,15 +2951,31 @@ class MossbauerFe33GUI(tk.Tk):
                 changed = changed or abs(new - old) > 1e-12
             if not changed:
                 break
+        # Re-aplicar textura por si una restricción tocó t (improbable pero
+        # cubre el caso de "t = f(otro)"): así i1,i2,i3 reflejan el t final.
+        out = self.apply_texture_mode_to_values(out)
         return out
 
     def apply_constraints_to_vars(self) -> None:
-        if not self.constraints:
+        # Trabajamos también si hay sólo modo textura, no sólo constraints.
+        has_texture = any(
+            v.get() == "texture" and self.component_kind.get(idx) is not None
+            and self.component_kind[idx].get() == "Sextete"
+            for idx, v in getattr(self, "intensity_mode", {}).items()
+        )
+        if not self.constraints and not has_texture:
             return
         values = {k: v.get() for k, v in self.vars.items()}
         values = self.apply_constraints_to_values(values)
+        # Targets que el optimizador no escribe: los del constraint lineal y los
+        # i1,i2,i3 derivados por textura.
+        targets = list(self.constrained_target_keys())
+        if has_texture:
+            for idx, mode_var in self.intensity_mode.items():
+                if mode_var.get() == "texture" and self.component_kind[idx].get() == "Sextete":
+                    targets += [f"s{idx}_int1", f"s{idx}_int2", f"s{idx}_int3"]
         self.updating_sliders = True
-        for key in self.constrained_target_keys():
+        for key in targets:
             if key in values and key in self.vars:
                 self.vars[key].set(values[key])
                 self.entry_vars[key].set(self._format_value(key, values[key]))
@@ -3061,7 +3169,8 @@ class MossbauerFe33GUI(tk.Tk):
         return [f"s{idx}_bhf" for idx in (1, 2, 3) if self.sextet_enabled[idx].get() and self.component_kind[idx].get() == "Sextete"]
 
     def build_components_from_vars(self) -> list[tuple[str, np.ndarray]]:
-        if self.constraints and not self.updating_sliders:
+        if not self.updating_sliders:
+            # apply_constraints_to_vars también re-deriva i1,i2,i3 de textura.
             self.apply_constraints_to_vars()
         components: list[tuple[str, np.ndarray]] = []
         for idx in (1, 2, 3):
@@ -3302,8 +3411,46 @@ class MossbauerFe33GUI(tk.Tk):
             "int1": (0.0, 9.0),
             "int2": (0.0, 6.0),
             "int3": (0.0, 3.0),
+            "texture": (0.0, 1.0),
         }
         return bounds[base]
+
+    @staticmethod
+    def texture_to_intensities(t: float) -> tuple[float, float, float]:
+        """Conversión textura → (i1, i2, i3) para el sextete con eje aleatorio.
+
+        Para ángulo θ entre B y k_γ, las amplitudes de las seis líneas son
+            W₁,₆ = 3(1+cos²θ), W₂,₅ = 4 sin²θ, W₃,₄ = 1+cos²θ.
+        Con t = sin²θ se obtiene 1+cos²θ = 2−t, así que normalizando por (2−t)
+        queda W₁,₆ : W₂,₅ : W₃,₄ = 3 : 4t/(2−t) : 1.
+        t=2/3 ⇒ 3:2:1 (polvo aleatorio).  t=1 ⇒ 3:4:1 (texturado plano).
+        t=0 ⇒ 3:0:1 (eje fácil paralelo al haz).
+        """
+        t = max(0.0, min(1.0, float(t)))
+        denom = max(2.0 - t, 1e-9)
+        return 3.0, 4.0 * t / denom, 1.0
+
+    def apply_texture_mode_to_values(self, values: dict[str, float]) -> dict[str, float]:
+        """Si un sextete está en modo "texture", deriva i1,i2,i3 desde s{i}_texture."""
+        if not hasattr(self, "intensity_mode"):
+            return values
+        out = values
+        for idx, mode_var in self.intensity_mode.items():
+            if mode_var.get() != "texture":
+                continue
+            if self.component_kind.get(idx) is None or self.component_kind[idx].get() != "Sextete":
+                continue
+            t_key = f"s{idx}_texture"
+            t = out.get(t_key, self.vars[t_key].get()) if t_key in self.vars else None
+            if t is None:
+                continue
+            i1, i2, i3 = self.texture_to_intensities(float(t))
+            if out is values:
+                out = values.copy()
+            out[f"s{idx}_int1"] = i1
+            out[f"s{idx}_int2"] = i2
+            out[f"s{idx}_int3"] = i3
+        return out
 
     def model_from_values(self, values: dict[str, float], vmax: float) -> np.ndarray:
         assert self.y_data is not None
@@ -4480,6 +4627,7 @@ class MossbauerFe33GUI(tk.Tk):
             "fixed": {k: bool(v.get()) for k, v in self.fixed_vars.items()},
             "sextet_enabled": {str(k): bool(v.get()) for k, v in self.sextet_enabled.items()},
             "component_kind": {str(k): v.get() for k, v in self.component_kind.items()},
+            "intensity_mode": {str(k): v.get() for k, v in getattr(self, "intensity_mode", {}).items()},
             "fit_velocity": bool(self.fit_velocity_var.get()),
             "fit_center": bool(self.fit_center_var.get()),
             "show_residual": bool(self.show_residual_var.get()),
@@ -4546,6 +4694,10 @@ class MossbauerFe33GUI(tk.Tk):
             i = int(idx)
             if i in self.component_kind and value in ("Sextete", "Doblete", "Singlete"):
                 self.component_kind[i].set(value)
+        for idx, value in state.get("intensity_mode", {}).items():
+            i = int(idx)
+            if i in self.intensity_mode and value in ("free", "texture"):
+                self.intensity_mode[i].set(value)
         self.fit_velocity_var.set(bool(state.get("fit_velocity", self.fit_velocity_var.get())))
         self.fit_center_var.set(bool(state.get("fit_center", self.fit_center_var.get())))
         self.show_residual_var.set(bool(state.get("show_residual", self.show_residual_var.get())))
@@ -4586,6 +4738,7 @@ class MossbauerFe33GUI(tk.Tk):
 
         self._refresh_distribution_tab_visibility(update=False)
         self.refold_data()
+        self._refresh_intensity_mode_widgets()
         self.update_plot()
         info_text = data.get("state_and_parameters_text") or state.get("info_text") or last_fit.get("info_text")
         if info_text:

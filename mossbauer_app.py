@@ -64,12 +64,14 @@ class MossbauerApp(MossbauerFe33GUI):
         if not hasattr(self, "n_components_var"):
             self.n_components_var = tk.IntVar(value=1)
 
-        # Extender sextet_enabled y component_kind al máximo de componentes
+        # Extender sextet_enabled, component_kind, intensity_mode al máximo de componentes
         for idx in range(4, MAX_COMPONENTS + 1):
             if idx not in self.sextet_enabled:
                 self.sextet_enabled[idx] = tk.BooleanVar(value=False)
             if idx not in self.component_kind:
                 self.component_kind[idx] = tk.StringVar(value="Sextete")
+            if idx not in self.intensity_mode:
+                self.intensity_mode[idx] = tk.StringVar(value="free")
 
         # ── Tema ──────────────────────────────────────────────────────────────
         style = ttk.Style(self)
@@ -243,6 +245,7 @@ class MossbauerApp(MossbauerFe33GUI):
         self.fixed_vars = {}
         self.slider_specs = {}
         self.slider_label_widgets = {}
+        self.slider_widget_refs = {}
         self._build_ui()
 
     def _open_layout_configurator(self) -> None:
@@ -273,7 +276,8 @@ class MossbauerApp(MossbauerFe33GUI):
         ]
 
     def build_components_from_vars(self) -> list[tuple[str, np.ndarray]]:
-        if self.constraints and not self.updating_sliders:
+        if not self.updating_sliders:
+            # Cubre constraints lineales + derivación de textura.
             self.apply_constraints_to_vars()
         components: list[tuple[str, np.ndarray]] = []
         for idx in self._component_range():
