@@ -2325,34 +2325,56 @@ class MossbauerFe33GUI(tk.Tk):
             baseline0 = float(np.percentile(y, 90)); slope = 0.0
         baseline_line = baseline0 + slope * v
         absorption = np.maximum(baseline_line - y, 0.0)
-        smooth = self._smooth_1d(absorption, max(5, absorption.size // 80))
-        max_abs = float(np.nanmax(smooth)) if smooth.size else 0.0
+
+        # Suavizado grueso: estimación de ruido y máximo global.
+        coarse_smooth = self._smooth_1d(absorption, max(5, absorption.size // 80))
+        max_abs = float(np.nanmax(coarse_smooth)) if coarse_smooth.size else 0.0
         if max_abs <= 0:
             return [], float(baseline0), float(slope)
-        diff_noise = np.diff(smooth)
+        diff_noise = np.diff(coarse_smooth)
         noise = 1.4826 * float(np.median(np.abs(diff_noise - np.median(diff_noise)))) if diff_noise.size else 0.0
-        threshold = max(0.10 * max_abs, 4.0 * noise, 5e-4)
-        idxs = [i for i in range(1, smooth.size - 1) if smooth[i] >= smooth[i - 1] and smooth[i] > smooth[i + 1] and smooth[i] >= threshold]
+
+        # Suavizado fino: mejor resolución de hombros entre picos solapados.
+        fine_win = max(3, absorption.size // 120)
+        if fine_win % 2 == 0:
+            fine_win += 1
+        fine_smooth = self._smooth_1d(absorption, fine_win)
+
+        dv = abs(float(v[1] - v[0])) if v.size > 1 else 0.05
+        min_dist_ch = max(3, int(0.15 / dv))
+
+        # Umbral de altura absoluta reducido al 6% (era 10%); los hombros de
+        # sextetos solapados suelen ser 5-8% del máximo global.
+        height_thr = max(0.06 * max_abs, 4.0 * noise, 5e-4)
+        # Prominencia mínima: el pico debe sobresalir al menos un 5% del máximo
+        # sobre los valles que lo flanquean (filtra ruido sin eliminar hombros).
+        prom_thr = max(0.05 * max_abs, 2.5 * noise, 3e-4)
+
+        from scipy.signal import find_peaks as _find_peaks
+        peak_idxs, _ = _find_peaks(fine_smooth, height=height_thr,
+                                   prominence=prom_thr, distance=min_dist_ch)
 
         peaks: list[dict[str, float]] = []
-        min_distance = max(0.12, 2.0 * abs(v[1] - v[0]))
-        for i in idxs:
-            half = 0.5 * smooth[i]
-            left = i
-            while left > 0 and smooth[left] > half:
+        min_distance = max(0.12, 2.0 * dv)
+        for i in peak_idxs:
+            half = 0.5 * fine_smooth[i]
+            left = int(i)
+            while left > 0 and fine_smooth[left] > half:
                 left -= 1
-            right = i
-            while right < smooth.size - 1 and smooth[right] > half:
+            right = int(i)
+            while right < fine_smooth.size - 1 and fine_smooth[right] > half:
                 right += 1
-            width = abs(float(v[right] - v[left])) if right > left else max(0.12, 2.0 * abs(v[1] - v[0]))
-            peaks.append({"i": float(i), "pos": float(v[i]), "depth": float(absorption[i]), "smooth_depth": float(smooth[i]), "width": width})
+            width = abs(float(v[right] - v[left])) if right > left else min_distance
+            peaks.append({"i": float(i), "pos": float(v[i]),
+                          "depth": float(absorption[i]),
+                          "smooth_depth": float(fine_smooth[i]), "width": width})
 
         # Quitar duplicados muy cercanos quedándonos con el más profundo.
         selected: list[dict[str, float]] = []
         for peak in sorted(peaks, key=lambda p: p["smooth_depth"], reverse=True):
             if all(abs(peak["pos"] - q["pos"]) >= min_distance for q in selected):
                 selected.append(peak)
-        selected = sorted(selected[:12], key=lambda p: p["pos"])
+        selected = sorted(selected[:15], key=lambda p: p["pos"])
         return selected, float(baseline0), float(slope)
 
     def _best_sextet_from_peaks(self, peaks: list[dict[str, float]]) -> tuple[list[dict[str, float]], float, float, float, float] | None:
@@ -2516,6 +2538,59 @@ class MossbauerFe33GUI(tk.Tk):
                         best_result = result
 
         return best_result
+
+    def _try_2peak_sextet_estimate(
+        self, peaks: list[dict[str, float]]
+    ) -> tuple[list[dict[str, float]], float, float, float, float] | None:
+        """Estima BHF y δ cuando solo quedan 2 picos tras identificar el primer sexteto.
+
+        Prueba los pares de líneas adyacentes exteriores (0,1) y (4,5) — que
+        tienen igual separación angular — para inferir escala y desplazamiento
+        a partir de las posiciones observadas. Solo se acepta si BHF ∈ [25,60] T
+        y |δ| ≤ 1.5 mm/s, y si ambos picos quedan del mismo lado del espectro
+        (los dos negativos para el par (0,1), los dos positivos para el (4,5)).
+
+        Devuelve (sub_peaks, delta, bhf, width, depth) o None.
+        """
+        if len(peaks) != 2:
+            return None
+        from core.constants import _BASE_POSITIONS
+        p = sorted(peaks, key=lambda x: x["pos"])
+        p0_pos, p1_pos = p[0]["pos"], p[1]["pos"]
+        obs_spacing = p1_pos - p0_pos
+        if obs_spacing < 0.5:
+            return None
+
+        # Solo pares exteriores adyacentes (0,1) y (4,5); spacing_ref es idéntico
+        # para ambos por la simetría del patrón Fe-57.
+        b0, b1 = float(_BASE_POSITIONS[0]), float(_BASE_POSITIONS[1])
+        b4, b5 = float(_BASE_POSITIONS[4]), float(_BASE_POSITIONS[5])
+        spacing_ref = b1 - b0  # mismo que b5 - b4
+
+        scale = obs_spacing / spacing_ref
+        bhf = scale * 32.95
+        if not (25.0 <= bhf <= 60.0):
+            return None
+
+        best: tuple | None = None
+        # Par (0,1): ambos picos deben estar en el semiplano negativo (v < 0)
+        if p0_pos < 0 and p1_pos < 0:
+            delta_01 = p0_pos - scale * b0
+            if abs(delta_01) <= 1.5:
+                best = (delta_01, bhf)
+        # Par (4,5): ambos picos deben estar en el semiplano positivo (v > 0)
+        if p0_pos > 0 and p1_pos > 0:
+            delta_45 = p0_pos - scale * b4
+            if abs(delta_45) <= 1.5:
+                best = (delta_45, bhf)
+
+        if best is None:
+            return None
+
+        delta_est, bhf_est = best
+        width = float(np.mean([p[0]["width"], p[1]["width"]]))
+        depth = float(np.mean([p[0]["depth"], p[1]["depth"]]))
+        return list(p), delta_est, bhf_est, width, depth
 
     def auto_guess_from_minima(self, fit_after: bool = False) -> None:
         if self.velocity is None or self.y_data is None:

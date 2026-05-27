@@ -643,6 +643,25 @@ class MossbauerApp(MossbauerFe33GUI):
                         next_idx += 1
                         continue
 
+            # Con exactamente 2 picos restantes y un sexteto ya colocado, intentar
+            # identificar las líneas exteriores adyacentes de un segundo sexteto.
+            if len(remaining) == 2 and next_idx > 1:
+                sext_2pk = self._try_2peak_sextet_estimate(remaining)
+                if sext_2pk is not None:
+                    sub_2, delta_2, bhf_2, width_2, depth_2 = sext_2pk
+                    pfx = f"s{next_idx}_"
+                    if next_idx > 1:
+                        self.sextet_enabled[next_idx].set(True)
+                    components.append((next_idx, "Sextete", sub_2))
+                    params[pfx + "delta"]  = float(np.clip(delta_2, -2.5, 2.5))
+                    params[pfx + "bhf"]    = float(np.clip(bhf_2, 20.0, 60.0))
+                    params[pfx + "quad"]   = 0.0
+                    params[pfx + "gamma1"] = float(np.clip(width_2 / 2.0, 0.04, 1.0))
+                    params[pfx + "depth"]  = float(np.clip(depth_2, 0.001, 0.25))
+                    remaining = []
+                    next_idx += 1
+                    continue
+
             if len(remaining) >= 2:
                 pair = sorted(remaining[:2], key=lambda pk: pk["pos"])
                 sep = abs(pair[1]["pos"] - pair[0]["pos"])
