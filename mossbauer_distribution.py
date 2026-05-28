@@ -228,6 +228,18 @@ def second_difference_matrix(n: int) -> np.ndarray:
     return L
 
 
+def first_difference_matrix(n: int) -> np.ndarray:
+    """Operador D de primeras diferencias, dimensión (n-1) x n."""
+    n = int(n)
+    if n < 2:
+        raise ValueError("n debe ser >= 2")
+    D = np.zeros((n - 1, n), dtype=float)
+    rows = np.arange(n - 1)
+    D[rows, rows] = -1.0
+    D[rows, rows + 1] = 1.0
+    return D
+
+
 def tikhonov_effective_dof(
     X: np.ndarray,
     L_dist: np.ndarray,
@@ -417,6 +429,8 @@ def fit_hyperfine_distribution(
     sharp_components: list[dict[str, float]] | None = None,
     sigma: np.ndarray | None = None,
     rescale_columns: bool = True,
+    reg_mode: str = "tikhonov",
+    tv_iters: int = 8,
 ) -> BhfDistributionFit:
     """Ajusta una distribución Hesse-Rübartsch de BHF o ΔEQ.
 
@@ -468,7 +482,13 @@ def fit_hyperfine_distribution(
         default_int2_rel=int2_rel,
         default_int3_rel=int3_rel,
     )
-    L = second_difference_matrix(centers.size)
+    # Penalizador: Tikhonov L2 (segunda diferencia, suave) o Variación Total
+    # (primera diferencia, L1 → picos afilados con bordes). Mejora 5.
+    use_tv = str(reg_mode).lower() in ("tv", "total_variation", "variacion_total")
+    if use_tv:
+        L = first_difference_matrix(centers.size)
+    else:
+        L = second_difference_matrix(centers.size)
 
     y_work = y.astype(float).copy()
     columns: list[np.ndarray] = []
@@ -533,15 +553,37 @@ def fit_hyperfine_distribution(
     else:
         X_fit = Xs
         y_fit = y_work
-    reg = np.zeros((L.shape[0], X.shape[1]), dtype=float)
-    reg[:, dist_start:dist_end] = np.sqrt(float(alpha)) * L_scaled
-    X_aug = np.vstack([X_fit, reg])
-    y_aug = np.concatenate([y_fit, np.zeros(L.shape[0], dtype=float)])
+    lower_arr = np.array(lower)
+    upper_arr = np.array(upper)
 
-    # Las cotas de p̃ = escala·P coinciden con las de P (0 e ∞ invariantes bajo
-    # escala positiva), así que se reutilizan sin cambio.
-    result = lsq_linear(X_aug, y_aug, bounds=(np.array(lower), np.array(upper)), lsmr_tol="auto", max_iter=2000)
-    params = result.x / scale  # deshacer el escalado para recuperar P físico
+    def _solve(L_pen_scaled: np.ndarray):
+        reg = np.zeros((L_pen_scaled.shape[0], X.shape[1]), dtype=float)
+        reg[:, dist_start:dist_end] = np.sqrt(float(alpha)) * L_pen_scaled
+        X_aug = np.vstack([X_fit, reg])
+        y_aug = np.concatenate([y_fit, np.zeros(L_pen_scaled.shape[0], dtype=float)])
+        # Las cotas de p̃ = escala·P coinciden con las de P (0 e ∞ invariantes).
+        res = lsq_linear(X_aug, y_aug, bounds=(lower_arr, upper_arr), lsmr_tol="auto", max_iter=2000)
+        return res, res.x / scale  # deshace el escalado para recuperar P físico
+
+    if use_tv:
+        # IRLS para ‖α^{1/2} D P‖₁: en cada iteración se resuelve un Tikhonov
+        # ponderado con pesos w_k = 1/√((D P)_k² + ε²). Converge a la solución
+        # de variación total, que preserva bordes (picos afilados).
+        L_eff = L_scaled.copy()
+        result = None
+        params = None
+        for _ in range(max(1, int(tv_iters))):
+            result, params = _solve(L_eff)
+            p_phys = params[dist_start:dist_end]
+            dp = L @ p_phys  # primera diferencia del P físico
+            eps = max(1e-3 * float(np.max(np.abs(p_phys))) if p_phys.size else 1e-6, 1e-9)
+            w = 1.0 / np.sqrt(dp ** 2 + eps ** 2)
+            L_eff = (np.sqrt(w)[:, None]) * L_scaled
+        # Operador efectivo (sin escala) para dof y covarianza: √w · D.
+        L_stats = (np.sqrt(w)[:, None]) * L
+    else:
+        result, params = _solve(L_scaled)
+        L_stats = L
 
     baseline_fit = float(params[labels.index("baseline")]) if fit_baseline else float(baseline)
     slope_fit = float(params[labels.index("slope")]) if fit_slope else float(slope)
@@ -555,14 +597,14 @@ def fit_hyperfine_distribution(
 
     try:
         eff_dof = tikhonov_effective_dof(
-            X, L, float(alpha), dist_start, dist_end, sigma=sigma_arr
+            X, L_stats, float(alpha), dist_start, dist_end, sigma=sigma_arr
         )
     except Exception:
         eff_dof = float(X.shape[1])
 
     try:
         weight_sigma = distribution_weight_sigma(
-            X, L, float(alpha), dist_start, dist_end, residuals, eff_dof, sigma=sigma_arr
+            X, L_stats, float(alpha), dist_start, dist_end, residuals, eff_dof, sigma=sigma_arr
         )
     except Exception:
         weight_sigma = None

@@ -469,5 +469,6 @@
   "dialog.save_fit_title": "Guardar ajuste",
   "msg.saved_title": "Guardado",
   "msg.fit_saved": "Ajuste guardado en:\n{path}",
-  "logo.text_sextete": "sextete"
+  "logo.text_sextete": "sextete",
+  "bhf.reg_mode_label": "Regularización"
 }

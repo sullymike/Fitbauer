@@ -469,5 +469,6 @@
   "dialog.save_fit_title": "Enregistrer l'ajustement",
   "msg.saved_title": "Enregistré",
   "msg.fit_saved": "Ajustement enregistré dans :\n{path}",
-  "logo.text_sextete": "sextet"
+  "logo.text_sextete": "sextet",
+  "bhf.reg_mode_label": "Régularisation"
 }

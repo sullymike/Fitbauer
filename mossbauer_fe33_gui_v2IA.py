@@ -31,6 +31,7 @@ from mossbauer_distribution import (
     fit_bhf_distribution as fit_bhf_distribution_engine,
     scan_alpha as scan_bhf_alpha_engine,
     second_difference_matrix,
+    first_difference_matrix,
 )
 
 import matplotlib
@@ -433,6 +434,9 @@ class MossbauerFe33GUI(tk.Tk):
         self.dist_use_sharp_var = tk.BooleanVar(value=False)
         self.fixed_distribution_path: Path | None = None
         self.dist_refine_global_var = tk.BooleanVar(value=False)
+        # Mejora 5: regularización del histograma — "tikhonov" (L2, suave) o
+        # "tv" (variación total, picos afilados).
+        self.dist_reg_mode_var = tk.StringVar(value="tikhonov")
         self.ai_ollama_url_var = tk.StringVar(value="http://localhost:11434")
         self.ai_ollama_model_var = tk.StringVar(value="")
         self.last_bhf_fit = None
@@ -1023,6 +1027,7 @@ class MossbauerFe33GUI(tk.Tk):
             "propagate_calib": bool(self.propagate_calib_var.get()),
             "dist_variable": self.dist_variable_var.get(),
             "dist_shape": self.dist_shape_var.get(),
+            "dist_reg_mode": self.dist_reg_mode_var.get(),
             "fixed_distribution_path": str(self.fixed_distribution_path) if self.fixed_distribution_path else None,
             "dist_use_sharp": bool(self.dist_use_sharp_var.get()),
             "dist_refine_global": bool(self.dist_refine_global_var.get()),
@@ -1091,6 +1096,7 @@ class MossbauerFe33GUI(tk.Tk):
             self.propagate_calib_var.set(bool(data.get("propagate_calib", self.propagate_calib_var.get())))
             self.dist_variable_var.set(data.get("dist_variable", self.dist_variable_var.get()))
             self.dist_shape_var.set(data.get("dist_shape", self.dist_shape_var.get()))
+            self.dist_reg_mode_var.set(data.get("dist_reg_mode", self.dist_reg_mode_var.get()))
             self.fixed_distribution_path = Path(data["fixed_distribution_path"]) if data.get("fixed_distribution_path") else None
             self.dist_use_sharp_var.set(bool(data.get("dist_use_sharp", self.dist_use_sharp_var.get())))
             self.dist_refine_global_var.set(bool(data.get("dist_refine_global", self.dist_refine_global_var.get())))
@@ -4019,13 +4025,14 @@ class MossbauerFe33GUI(tk.Tk):
                     slope=self.vars["slope"].get(),
                     sharp_components=sharp_components,
                     sigma=self.data_sigma(),
+                    reg_mode=self.dist_reg_mode_var.get(),
                 ))
             update_progress(tr("progress.lcurve_finalize"))
         except Exception as exc:
             close_progress()
             messagebox.showerror(tr("msg.lcurve_title"), str(exc))
             return
-        L = second_difference_matrix(nbins)
+        L = first_difference_matrix(nbins) if self.dist_reg_mode_var.get().lower() in ("tv", "total_variation") else second_difference_matrix(nbins)
         sigma = self.data_sigma()
         n_raw = nbins + int(not self.fixed_vars["baseline"].get()) + int(not self.fixed_vars["slope"].get()) + (len(sharp_components or []) if self.dist_use_sharp_var.get() else 0)
         rows_list = []
@@ -4226,6 +4233,7 @@ class MossbauerFe33GUI(tk.Tk):
                 slope=self.vars["slope"].get(),
                 sharp_components=sharp_for_fit,
                 sigma=sigma_use,
+                reg_mode=self.dist_reg_mode_var.get(),
             )
 
         # Build outer parameter vector: dist_delta/dist_gamma (when refining globals)
@@ -4828,6 +4836,7 @@ class MossbauerFe33GUI(tk.Tk):
             "propagate_calib": bool(self.propagate_calib_var.get()),
             "dist_variable": self.dist_variable_var.get(),
             "dist_shape": self.dist_shape_var.get(),
+            "dist_reg_mode": self.dist_reg_mode_var.get(),
             "fixed_distribution_path": str(self.fixed_distribution_path) if self.fixed_distribution_path else None,
             "dist_use_sharp": bool(self.dist_use_sharp_var.get()),
             "dist_refine_global": bool(self.dist_refine_global_var.get()),
@@ -4905,6 +4914,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.propagate_calib_var.set(bool(state.get("propagate_calib", self.propagate_calib_var.get())))
         self.dist_variable_var.set(state.get("dist_variable", self.dist_variable_var.get()))
         self.dist_shape_var.set(state.get("dist_shape", self.dist_shape_var.get()))
+        self.dist_reg_mode_var.set(state.get("dist_reg_mode", self.dist_reg_mode_var.get()))
         self.fixed_distribution_path = Path(state["fixed_distribution_path"]) if state.get("fixed_distribution_path") else None
         self.dist_use_sharp_var.set(bool(state.get("dist_use_sharp", self.dist_use_sharp_var.get())))
         self.dist_refine_global_var.set(bool(state.get("dist_refine_global", self.dist_refine_global_var.get())))

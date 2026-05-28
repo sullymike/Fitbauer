@@ -469,5 +469,6 @@
   "dialog.save_fit_title": "Save fit",
   "msg.saved_title": "Saved",
   "msg.fit_saved": "Fit saved to:\n{path}",
-  "logo.text_sextete": "sextet"
+  "logo.text_sextete": "sextet",
+  "bhf.reg_mode_label": "Regularization"
 }
