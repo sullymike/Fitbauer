@@ -291,8 +291,8 @@ class SimPanel(BasePanel):
         cols.pack(fill=tk.X)
         c1 = ttk.Frame(cols)
         c2 = ttk.Frame(cols)
-        c1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        c2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        c1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 6))
+        c2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(6, 0))
 
         p = f"s{idx}_"
         depth_default = 0.030 if idx == 1 else 0.005
