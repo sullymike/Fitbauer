@@ -614,7 +614,7 @@ class MossbauerApp(MossbauerFe33GUI):
         components: list[tuple[int, str, list[dict[str, float]]]] = []
         used_ids: set[int] = set()
 
-        # Clasificación previa por perfil de profundidades.
+        # Pre-clasificación por perfil de profundidades.
         hint = self._depth_profile_hint(peaks)
         if hint is not None:
             kind_h, group_h = hint
@@ -653,9 +653,7 @@ class MossbauerApp(MossbauerFe33GUI):
         ]
         next_idx = 2 if components else 1
         while next_idx <= MAX_COMPONENTS and remaining:
-            # Intentar otro sexteto antes de caer en doblete/singlete.
-            # Con ≥4 picos también se intenta dividir picos anchos/profundos que
-            # puedan ser dos líneas solapadas (6+5→6+6, 6+4→6+6).
+            # Con ≥4 picos restantes intenta otro sexteto (incluso con picos fusionados).
             if len(remaining) >= 4:
                 sext_extra = self._best_sextet_from_peaks(remaining)
                 if sext_extra is None:
@@ -677,8 +675,8 @@ class MossbauerApp(MossbauerFe33GUI):
                         next_idx += 1
                         continue
 
-            # Con exactamente 2 picos restantes y un sexteto ya colocado, intentar
-            # identificar las líneas exteriores adyacentes de un segundo sexteto.
+            # Con exactamente 2 picos restantes y ya un sexteto asignado,
+            # intenta identificarlos como las líneas exteriores de un segundo sexteto.
             if len(remaining) == 2 and next_idx > 1:
                 sext_2pk = self._try_2peak_sextet_estimate(remaining)
                 if sext_2pk is not None:

@@ -2364,8 +2364,8 @@ class MossbauerFe33GUI(tk.Tk):
         dv = abs(float(v[1] - v[0])) if v.size > 1 else 0.05
         min_dist_ch = max(3, int(0.15 / dv))
 
-        # Umbral de altura absoluta reducido al 6% (era 10%); los hombros de
-        # sextetos solapados suelen ser 5-8% del máximo global.
+        # Umbral de altura al 6% (era 10%); los hombros de sextetos solapados
+        # suelen ser 5-8% del máximo global.
         height_thr = max(0.06 * max_abs, 4.0 * noise, 5e-4)
         # Prominencia mínima: el pico debe sobresalir al menos un 5% del máximo
         # sobre los valles que lo flanquean (filtra ruido sin eliminar hombros).
@@ -2450,20 +2450,10 @@ class MossbauerFe33GUI(tk.Tk):
         return sub, delta, bhf, width, depth
 
     def _try_split_peaks_for_sextet(self, peaks: list[dict[str, float]]) -> tuple | None:
-        """Para 4-5 picos detectados, detecta fusiones (pico más ancho/profundo que
-        oculta dos líneas del sexteto) e inserta picos virtuales en las posiciones
-        predichas por la plantilla.
+        """Para 4-5 picos detectados, detecta fusiones e inserta picos virtuales.
 
-        Flujo:
-        1. Clasifica picos como «normales» (estrechos/normales) o «fusionados»
-           (anchos o profundos respecto a la mediana).
-        2. Usa pares de picos normales para estimar BHF (de su separación relativa).
-        3. Predice las 6 posiciones del sexteto con ese BHF.
-        4. Por cada posición no cubierta por un pico normal: si un pico fusionado
-           la cubre con su anchura, inserta un pico virtual ahí.
-        5. Llama a _best_sextet_from_peaks con el conjunto aumentado.
-        6. Entre todos los resultados válidos elige el que mejor explica los picos
-           fusionados (≥2 líneas predichas dentro de su span).
+        Útil cuando dos líneas solapadas del sexteto se detectan como un único
+        pico más ancho/profundo (caso 6+4→6+6 o 6+5→6+6).
         """
         n = len(peaks)
         if n < 4 or n >= 6:
@@ -2492,7 +2482,6 @@ class MossbauerFe33GUI(tk.Tk):
             span_obs = abs(pk_b["pos"] - pk_a["pos"])
             if span_obs < 0.5:
                 continue
-            # Probar todas las asignaciones (línea_a, línea_b) de la plantilla
             for la in range(6):
                 for lb in range(la + 1, 6):
                     span_ref = LINE_POS_33T[lb] - LINE_POS_33T[la]
@@ -2505,7 +2494,6 @@ class MossbauerFe33GUI(tk.Tk):
                     delta = pk_a["pos"] - scale * LINE_POS_33T[la]
                     pred_all = delta + scale * LINE_POS_33T
 
-                    # Verificar que las semillas cuadran con la predicción
                     if max(abs(pk_a["pos"] - pred_all[la]),
                            abs(pk_b["pos"] - pred_all[lb])) > 0.18:
                         continue
@@ -2515,14 +2503,13 @@ class MossbauerFe33GUI(tk.Tk):
                         continue
                     seen.add(key)
 
-                    # Añadir virtuales en posiciones no cubiertas por picos normales
                     augmented = list(peaks)
                     vid = next_vid
                     virtual_added = 0
                     for pred_pos in pred_all:
                         if any(abs(p["pos"] - pred_pos) < narrow_tol and is_normal(p)
                                for p in peaks):
-                            continue  # Cubierto por pico normal
+                            continue
                         for pk in sorted(peaks, key=lambda p: abs(p["pos"] - pred_pos)):
                             if abs(pk["pos"] - pred_pos) > pk["width"] * 0.7:
                                 break
@@ -2545,7 +2532,6 @@ class MossbauerFe33GUI(tk.Tk):
                     if result is None:
                         continue
 
-                    # Puntuar: nº de picos fusionados explicados por ≥2 líneas predichas
                     _, delta_r, bhf_r, _, _ = result
                     scale_r = bhf_r / BHF_DEFAULT_T
                     pred_r = delta_r + scale_r * LINE_POS_33T
@@ -2565,13 +2551,9 @@ class MossbauerFe33GUI(tk.Tk):
     ) -> tuple[list[dict[str, float]], float, float, float, float] | None:
         """Estima BHF y δ cuando solo quedan 2 picos tras identificar el primer sexteto.
 
-        Prueba los pares de líneas adyacentes exteriores (0,1) y (4,5) — que
-        tienen igual separación angular — para inferir escala y desplazamiento
-        a partir de las posiciones observadas. Solo se acepta si BHF ∈ [25,60] T
-        y |δ| ≤ 1.5 mm/s, y si ambos picos quedan del mismo lado del espectro
-        (los dos negativos para el par (0,1), los dos positivos para el (4,5)).
-
-        Devuelve (sub_peaks, delta, bhf, width, depth) o None.
+        Prueba los pares exteriores adyacentes (0,1) y (4,5) del patrón Fe-57.
+        Solo acepta si BHF ∈ [25,60] T, |δ| ≤ 1.5 mm/s y ambos picos están
+        en el mismo semiplano de velocidades.
         """
         if len(peaks) != 2:
             return None
@@ -2582,11 +2564,9 @@ class MossbauerFe33GUI(tk.Tk):
         if obs_spacing < 0.5:
             return None
 
-        # Solo pares exteriores adyacentes (0,1) y (4,5); spacing_ref es idéntico
-        # para ambos por la simetría del patrón Fe-57.
         b0, b1 = float(_BASE_POSITIONS[0]), float(_BASE_POSITIONS[1])
         b4, b5 = float(_BASE_POSITIONS[4]), float(_BASE_POSITIONS[5])
-        spacing_ref = b1 - b0  # mismo que b5 - b4
+        spacing_ref = b1 - b0  # idéntico a b5 - b4 por simetría
 
         scale = obs_spacing / spacing_ref
         bhf = scale * 32.95
@@ -2594,12 +2574,10 @@ class MossbauerFe33GUI(tk.Tk):
             return None
 
         best: tuple | None = None
-        # Par (0,1): ambos picos deben estar en el semiplano negativo (v < 0)
         if p0_pos < 0 and p1_pos < 0:
             delta_01 = p0_pos - scale * b0
             if abs(delta_01) <= 1.5:
                 best = (delta_01, bhf)
-        # Par (4,5): ambos picos deben estar en el semiplano positivo (v > 0)
         if p0_pos > 0 and p1_pos > 0:
             delta_45 = p0_pos - scale * b4
             if abs(delta_45) <= 1.5:
@@ -2618,15 +2596,10 @@ class MossbauerFe33GUI(tk.Tk):
     ) -> tuple[str, list[dict[str, float]]] | None:
         """Clasifica el espectro en singlete/doblete cuando el perfil es obvio.
 
-        Reglas (se evalúan en orden):
-        - **Singlete**: el pico más profundo es ≥2.5× el segundo Y está dentro
-          de ±2.5 mm/s del cero (rango habitual de δ en compuestos de Fe).
-        - **Doblete**: los dos picos más profundos tienen profundidades similares
-          (d₁ ≥ 40% d₀), el tercero es mucho menor (d₂ < 30% d₀), no hay más
-          de 4 picos detectados y la separación está entre 0.18 y 5.0 mm/s.
-        - **None**: patrón no concluyente → intentar sexteto.
-
-        Retorna ("Singlete", [pk]) o ("Doblete", [pk1, pk2]) o None.
+        - Singlete: pico dominante ≥2.5× el siguiente y dentro de ±2.5 mm/s del cero.
+        - Doblete: dos picos similares (d₁ ≥ 40% d₀), el tercero mucho menor
+          (d₂ < 30% d₀), ≤4 picos totales y separación 0.18–5 mm/s.
+        - None: patrón no concluyente → intentar sexteto.
         """
         if not peaks:
             return None
@@ -2635,11 +2608,9 @@ class MossbauerFe33GUI(tk.Tk):
         d1 = by_d[1]["smooth_depth"] if len(by_d) > 1 else 0.0
         d2 = by_d[2]["smooth_depth"] if len(by_d) > 2 else 0.0
 
-        # Singlete: un pico domina ≥2.5× sobre el siguiente y está cerca de v=0.
         if d0 > 2.5 * max(d1, 1e-10) and abs(by_d[0]["pos"]) < 2.5:
             return ("Singlete", [by_d[0]])
 
-        # Doblete: dos picos similares, el resto mucho más débil.
         if (len(by_d) >= 2 and d1 >= 0.40 * d0 and d2 < 0.30 * d0
                 and len(peaks) <= 4):
             pair = sorted([by_d[0], by_d[1]], key=lambda p: p["pos"])
