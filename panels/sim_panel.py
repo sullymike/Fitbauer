@@ -156,6 +156,12 @@ class SimPanel(BasePanel):
         ds.pack(fill=tk.X, pady=(0, 3))
         ds.bind("<<ComboboxSelected>>", lambda _e: app.on_bhf_distribution_option_change())
 
+        ttk.Label(d1, text=tr("bhf.reg_mode_label")).pack(anchor=tk.W)
+        dr = ttk.Combobox(d1, textvariable=app.dist_reg_mode_var,
+                          values=("tikhonov", "tv"), width=12, state="readonly")
+        dr.pack(fill=tk.X, pady=(0, 3))
+        dr.bind("<<ComboboxSelected>>", lambda _e: app.on_bhf_distribution_option_change())
+
         ttk.Button(d1, text=tr("bhf.load_fixed"), command=app.load_fixed_distribution_file,
                    style="Small.TButton").pack(fill=tk.X, pady=(0, 2))
 

@@ -170,6 +170,18 @@ class MossbauerApp(MossbauerFe33GUI):
         likelihood_menu.add_radiobutton(label=tr("options.likelihood_poisson"),
                                         variable=self.likelihood_var, value="poisson")
         fit_menu.add_cascade(label=tr("options.likelihood"), menu=likelihood_menu)
+        loss_menu = tk.Menu(fit_menu, tearoff=0)
+        loss_menu.add_radiobutton(label=tr("options.loss_linear"),
+                                  variable=self.robust_loss_var, value="linear")
+        loss_menu.add_radiobutton(label=tr("options.loss_soft_l1"),
+                                  variable=self.robust_loss_var, value="soft_l1")
+        loss_menu.add_radiobutton(label=tr("options.loss_huber"),
+                                  variable=self.robust_loss_var, value="huber")
+        fit_menu.add_cascade(label=tr("options.robust_loss"), menu=loss_menu)
+        fit_menu.add_checkbutton(label=tr("options.propagate_calib"),
+                                 variable=self.propagate_calib_var)
+        fit_menu.add_checkbutton(label=tr("options.global_opt"),
+                                 variable=self.global_opt_var)
         fit_menu.add_separator()
         fit_menu.add_checkbutton(label=tr("options.add_sharp"),
                                  variable=self.dist_use_sharp_var,

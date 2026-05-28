@@ -19,7 +19,7 @@ import urllib.error
 import urllib.request
 
 import numpy as np
-from scipy.optimize import least_squares
+from scipy.optimize import least_squares, differential_evolution
 from scipy.special import wofz
 
 from mossbauer_i18n import available_languages, get_language, set_language, tr
@@ -31,6 +31,7 @@ from mossbauer_distribution import (
     fit_bhf_distribution as fit_bhf_distribution_engine,
     scan_alpha as scan_bhf_alpha_engine,
     second_difference_matrix,
+    first_difference_matrix,
 )
 
 import matplotlib
@@ -294,10 +295,12 @@ def lorentzian(v: np.ndarray, center: float, gamma: float) -> np.ndarray:
     """
     if LINE_PROFILE_KIND == "Voigt":
         sigma = max(float(VOIGT_SIGMA), 1e-9)
-        z = ((v - center) + 1j * gamma) / (sigma * np.sqrt(2.0))
-        prof = np.real(wofz(z)) / (sigma * np.sqrt(2.0 * np.pi))
-        max_prof = float(np.nanmax(prof)) if prof.size else 1.0
-        return prof / max(max_prof, 1e-12)
+        denom = sigma * np.sqrt(2.0)
+        norm = sigma * np.sqrt(2.0 * np.pi)
+        prof = np.real(wofz(((v - center) + 1j * gamma) / denom)) / norm
+        # Normalización analítica al pico (v=v0), independiente del muestreo.
+        peak = float(np.real(wofz(1j * gamma / denom))) / norm
+        return prof / max(peak, 1e-12)
     return gamma * gamma / ((v - center) ** 2 + gamma * gamma)
 
 
@@ -418,6 +421,13 @@ class MossbauerFe33GUI(tk.Tk):
         self.fit_velocity_var = tk.BooleanVar(value=False)
         self.fit_center_var = tk.BooleanVar(value=False)
         self.likelihood_var = tk.StringVar(value="gauss")
+        # Mejora 10: pérdida robusta del optimizador (linear/soft_l1/huber).
+        self.robust_loss_var = tk.StringVar(value="linear")
+        # Mejora 12: propagar la incertidumbre de calibración (σ_vmax) a los pesos.
+        self.propagate_calib_var = tk.BooleanVar(value=False)
+        # Mejora 14: pre-pasada de optimización global (differential_evolution)
+        # antes del pulido TRF. Opt-in (lenta); útil con varios sextetes.
+        self.global_opt_var = tk.BooleanVar(value=False)
         self.show_residual_var = tk.BooleanVar(value=True)
         self.show_legend_var = tk.BooleanVar(value=False)
         self.fit_mode_var = tk.StringVar(value="discrete")
@@ -427,6 +437,9 @@ class MossbauerFe33GUI(tk.Tk):
         self.dist_use_sharp_var = tk.BooleanVar(value=False)
         self.fixed_distribution_path: Path | None = None
         self.dist_refine_global_var = tk.BooleanVar(value=False)
+        # Mejora 5: regularización del histograma — "tikhonov" (L2, suave) o
+        # "tv" (variación total, picos afilados).
+        self.dist_reg_mode_var = tk.StringVar(value="tikhonov")
         self.ai_ollama_url_var = tk.StringVar(value="http://localhost:11434")
         self.ai_ollama_model_var = tk.StringVar(value="")
         self.last_bhf_fit = None
@@ -1013,8 +1026,12 @@ class MossbauerFe33GUI(tk.Tk):
             "fit_mode": self.fit_mode_var.get(),
             "line_profile": self.line_profile_var.get(),
             "likelihood": self.likelihood_var.get(),
+            "robust_loss": self.robust_loss_var.get(),
+            "propagate_calib": bool(self.propagate_calib_var.get()),
+            "global_opt": bool(self.global_opt_var.get()),
             "dist_variable": self.dist_variable_var.get(),
             "dist_shape": self.dist_shape_var.get(),
+            "dist_reg_mode": self.dist_reg_mode_var.get(),
             "fixed_distribution_path": str(self.fixed_distribution_path) if self.fixed_distribution_path else None,
             "dist_use_sharp": bool(self.dist_use_sharp_var.get()),
             "dist_refine_global": bool(self.dist_refine_global_var.get()),
@@ -1079,8 +1096,12 @@ class MossbauerFe33GUI(tk.Tk):
             self.line_profile_var.set(data.get("line_profile", self.line_profile_var.get()))
             self.on_line_profile_change()
             self.likelihood_var.set(data.get("likelihood", self.likelihood_var.get()))
+            self.robust_loss_var.set(data.get("robust_loss", self.robust_loss_var.get()))
+            self.propagate_calib_var.set(bool(data.get("propagate_calib", self.propagate_calib_var.get())))
+            self.global_opt_var.set(bool(data.get("global_opt", self.global_opt_var.get())))
             self.dist_variable_var.set(data.get("dist_variable", self.dist_variable_var.get()))
             self.dist_shape_var.set(data.get("dist_shape", self.dist_shape_var.get()))
+            self.dist_reg_mode_var.set(data.get("dist_reg_mode", self.dist_reg_mode_var.get()))
             self.fixed_distribution_path = Path(data["fixed_distribution_path"]) if data.get("fixed_distribution_path") else None
             self.dist_use_sharp_var.set(bool(data.get("dist_use_sharp", self.dist_use_sharp_var.get())))
             self.dist_refine_global_var.set(bool(data.get("dist_refine_global", self.dist_refine_global_var.get())))
@@ -3517,9 +3538,9 @@ class MossbauerFe33GUI(tk.Tk):
             val = self.calibration_info.get(key)
             if val not in (None, ""):
                 try:
-                    return tr("info.calib_uncertainty", key=key, value=f"{float(val):.4g}")
+                    return tr("info.calib_uncertainty", field=key, value=f"{float(val):.4g}")
                 except (TypeError, ValueError):
-                    return tr("info.calib_uncertainty_raw", key=key, value=val)
+                    return tr("info.calib_uncertainty_raw", field=key, value=val)
         return tr("info.calib_no_uncertainty")
 
     def data_sigma(self) -> np.ndarray | None:
@@ -3554,6 +3575,51 @@ class MossbauerFe33GUI(tk.Tk):
             if sig is not None:
                 return sig
         return self.data_sigma()
+
+    def calibration_vmax_sigma(self) -> float | None:
+        """σ de la escala de velocidad (vmax) leída de calibration_info, o None."""
+        info = getattr(self, "calibration_info", None)
+        if not info:
+            return None
+        for key in ("vmax_uncertainty", "velocity_uncertainty", "sigma_vmax", "vmax_error", "velocity_error"):
+            val = info.get(key)
+            if val not in (None, ""):
+                try:
+                    s = abs(float(val))
+                    return s if np.isfinite(s) and s > 0 else None
+                except (TypeError, ValueError):
+                    continue
+        return None
+
+    def augment_sigma_calibration(self, base_sigma: np.ndarray | None, model_y: np.ndarray, vmax: float) -> np.ndarray | None:
+        """Suma en cuadratura la contribución de σ_vmax a la incertidumbre.
+
+        La sensibilidad del modelo al cambio de escala es
+            ∂T/∂v_max |_i = (∂T/∂v)|_i · (v_i / v_max),
+        porque v_i = v_max·(2i/(N−1) − 1) ⇒ ∂v_i/∂v_max = v_i/v_max.
+        El término pesa más en los flancos de los picos (∂T/∂v grande), que es
+        justo donde un error de calibración sesga δ y BHF.
+        """
+        if base_sigma is None:
+            return None
+        if not self.propagate_calib_var.get():
+            return base_sigma
+        sv = self.calibration_vmax_sigma()
+        if not sv or vmax <= 0 or self.velocity is None or self.velocity.size != base_sigma.size:
+            return base_sigma
+        v = self.velocity
+        dT_dv = np.gradient(np.asarray(model_y, dtype=float), v)
+        dT_dvmax = dT_dv * (v / vmax)
+        return np.sqrt(base_sigma ** 2 + (dT_dvmax * sv) ** 2)
+
+    def _least_squares_kwargs(self) -> dict:
+        """kwargs comunes para least_squares incluyendo pérdida robusta (mejora 10)."""
+        loss = self.robust_loss_var.get()
+        kwargs: dict = {}
+        if loss in ("soft_l1", "huber", "cauchy"):
+            kwargs["loss"] = loss
+            kwargs["f_scale"] = 3.0  # umbral ~3σ (residuos ya normalizados por σ)
+        return kwargs
 
     def fit_correlation_summary(self, cov: np.ndarray | None, names: list[str], threshold: float = 0.95) -> dict[str, object]:
         """Resume correlaciones de la matriz de covarianza para diagnosticar degeneraciones."""
@@ -3642,7 +3708,7 @@ class MossbauerFe33GUI(tk.Tk):
         base = key.split("_", 1)[-1]
         bounds = {
             "baseline": (0.70, 1.30),
-            "slope": (-0.0001, 0.0001),
+            "slope": (-0.005, 0.005),
             "delta": (-2.0, 3.0),
             "quad": (0.0, 4.0),
             "bhf": (0.0, 50.0),
@@ -3836,6 +3902,7 @@ class MossbauerFe33GUI(tk.Tk):
                     sig_use = sig
             else:
                 sig_use = sig
+            sig_use = self.augment_sigma_calibration(sig_use, model_y, vmax)
             res = model_y - yy
             return res / sig_use if sig_use is not None else res
 
@@ -3862,10 +3929,31 @@ class MossbauerFe33GUI(tk.Tk):
             result = None
             n_starts = 0
             candidates = multistart_candidates()
+            # Mejora 14: pre-pasada global con differential_evolution (opt-in).
+            # Su mejor punto se añade como semilla extra; el TRF lo pule luego.
+            if self.global_opt_var.get():
+                update_progress(tr("progress.fit_global"))
+
+                def _scalar_cost(x: np.ndarray) -> float:
+                    r = residual(x)
+                    return 0.5 * float(np.dot(r, r))
+
+                try:
+                    de = differential_evolution(
+                        _scalar_cost,
+                        bounds=list(zip(lo_arr.tolist(), hi_arr.tolist())),
+                        seed=12345, maxiter=60, tol=1e-4,
+                        mutation=(0.5, 1.0), recombination=0.7,
+                        polish=False, init="sobol", updating="deferred",
+                    )
+                    candidates.insert(0, np.clip(de.x, lo_arr, hi_arr))
+                except Exception:
+                    pass
+            ls_kwargs = self._least_squares_kwargs()
             for candidate in candidates:
                 n_starts += 1
                 update_progress(tr("progress.fit_step", i=n_starts, total=len(candidates)))
-                res_i = least_squares(residual, candidate, bounds=(lo_arr, hi_arr), max_nfev=7000)
+                res_i = least_squares(residual, candidate, bounds=(lo_arr, hi_arr), max_nfev=7000, **ls_kwargs)
                 if result is None or res_i.cost < result.cost:
                     result = res_i
                     update_progress(tr("progress.fit_step_new_best", i=n_starts, total=len(candidates), cost=res_i.cost))
@@ -3908,8 +3996,10 @@ class MossbauerFe33GUI(tk.Tk):
         model_final = self.model_from_values(values_final, vmax_final)
         final_residual = model_final - y_final
         sigma_for_stats = self.predicted_sigma(model_final) if use_poisson else sigma_final
+        sigma_for_stats = self.augment_sigma_calibration(sigma_for_stats, model_final, vmax_final)
         self.last_fit_stats = self.fit_statistics(final_residual, sigma_for_stats, len(result.x))
         self.last_fit_stats["likelihood"] = self.likelihood_var.get()
+        self.last_fit_stats["robust_loss"] = self.robust_loss_var.get()
         self.last_fit_stats["n_starts"] = float(n_starts)
         self.set_params(values_final)
         if fit_velocity:
@@ -3979,7 +4069,7 @@ class MossbauerFe33GUI(tk.Tk):
                         sig_use = sigma
                     return (model_v - _y_sim) / sig_use
                 update_progress(tr("progress.bootstrap_step", i=i + 1, n=nrep))
-                res = least_squares(resid, x0, bounds=(lo, hi), max_nfev=2500)
+                res = least_squares(resid, x0, bounds=(lo, hi), max_nfev=2500, **self._least_squares_kwargs())
                 if res.success and np.all(np.isfinite(res.x)):
                     samples.append(res.x.copy())
             close_progress()
@@ -4095,13 +4185,14 @@ class MossbauerFe33GUI(tk.Tk):
                     slope=self.vars["slope"].get(),
                     sharp_components=sharp_components,
                     sigma=self.data_sigma(),
+                    reg_mode=self.dist_reg_mode_var.get(),
                 ))
             update_progress(tr("progress.lcurve_finalize"))
         except Exception as exc:
             close_progress()
             messagebox.showerror(tr("msg.lcurve_title"), str(exc))
             return
-        L = second_difference_matrix(nbins)
+        L = first_difference_matrix(nbins) if self.dist_reg_mode_var.get().lower() in ("tv", "total_variation") else second_difference_matrix(nbins)
         sigma = self.data_sigma()
         n_raw = nbins + int(not self.fixed_vars["baseline"].get()) + int(not self.fixed_vars["slope"].get()) + (len(sharp_components or []) if self.dist_use_sharp_var.get() else 0)
         rows_list = []
@@ -4326,6 +4417,7 @@ class MossbauerFe33GUI(tk.Tk):
                 slope=self.vars["slope"].get(),
                 sharp_components=sharp_for_fit,
                 sigma=sigma_use,
+                reg_mode=self.dist_reg_mode_var.get(),
             )
 
         # Build outer parameter vector: dist_delta/dist_gamma (when refining globals)
@@ -4579,6 +4671,15 @@ class MossbauerFe33GUI(tk.Tk):
                     ax_dist.set_facecolor(c["ax_bg"])
                     ax_dist.plot(self.last_bhf_fit.bhf_centers, self.last_bhf_fit.probability, "-o", ms=3.0, color=c["dist_line"])
                     ax_dist.fill_between(self.last_bhf_fit.bhf_centers, self.last_bhf_fit.probability, 0, color=c["dist_fill"], alpha=0.25)
+                    # Banda de error 1σ de P (mejora 11), recortada a P≥0.
+                    wsig = getattr(self.last_bhf_fit, "weight_sigma", None)
+                    if wsig is not None and np.size(wsig) == self.last_bhf_fit.weights.size:
+                        area = float(np.trapezoid(self.last_bhf_fit.weights, self.last_bhf_fit.bhf_centers))
+                        if np.isfinite(area) and area > 0:
+                            prob_sigma = np.asarray(wsig, dtype=float) / area
+                            lo_band = np.clip(self.last_bhf_fit.probability - prob_sigma, 0.0, None)
+                            hi_band = self.last_bhf_fit.probability + prob_sigma
+                            ax_dist.fill_between(self.last_bhf_fit.bhf_centers, lo_band, hi_band, color=c["dist_line"], alpha=0.18, linewidth=0)
                     if self.last_bhf_fit.sharp_bhf_centers is not None and self.last_bhf_fit.sharp_weights is not None:
                         ymax = max(float(np.nanmax(self.last_bhf_fit.probability)), 1e-12)
                         for b, w in zip(self.last_bhf_fit.sharp_bhf_centers, self.last_bhf_fit.sharp_weights):
@@ -4915,8 +5016,12 @@ class MossbauerFe33GUI(tk.Tk):
             "fit_mode": self.fit_mode_var.get(),
             "line_profile": self.line_profile_var.get(),
             "likelihood": self.likelihood_var.get(),
+            "robust_loss": self.robust_loss_var.get(),
+            "propagate_calib": bool(self.propagate_calib_var.get()),
+            "global_opt": bool(self.global_opt_var.get()),
             "dist_variable": self.dist_variable_var.get(),
             "dist_shape": self.dist_shape_var.get(),
+            "dist_reg_mode": self.dist_reg_mode_var.get(),
             "fixed_distribution_path": str(self.fixed_distribution_path) if self.fixed_distribution_path else None,
             "dist_use_sharp": bool(self.dist_use_sharp_var.get()),
             "dist_refine_global": bool(self.dist_refine_global_var.get()),
@@ -4990,8 +5095,12 @@ class MossbauerFe33GUI(tk.Tk):
         self.line_profile_var.set(state.get("line_profile", self.line_profile_var.get()))
         self.on_line_profile_change()
         self.likelihood_var.set(state.get("likelihood", self.likelihood_var.get()))
+        self.robust_loss_var.set(state.get("robust_loss", self.robust_loss_var.get()))
+        self.propagate_calib_var.set(bool(state.get("propagate_calib", self.propagate_calib_var.get())))
+        self.global_opt_var.set(bool(state.get("global_opt", self.global_opt_var.get())))
         self.dist_variable_var.set(state.get("dist_variable", self.dist_variable_var.get()))
         self.dist_shape_var.set(state.get("dist_shape", self.dist_shape_var.get()))
+        self.dist_reg_mode_var.set(state.get("dist_reg_mode", self.dist_reg_mode_var.get()))
         self.fixed_distribution_path = Path(state["fixed_distribution_path"]) if state.get("fixed_distribution_path") else None
         self.dist_use_sharp_var.set(bool(state.get("dist_use_sharp", self.dist_use_sharp_var.get())))
         self.dist_refine_global_var.set(bool(state.get("dist_refine_global", self.dist_refine_global_var.get())))

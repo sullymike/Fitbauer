@@ -38,6 +38,11 @@
   "options.likelihood": "Verosimilitud",
   "options.likelihood_gauss": "Gauss (χ², σ del dato)",
   "options.likelihood_poisson": "Poisson (IRLS, σ del modelo)",
+  "options.robust_loss": "Pérdida robusta",
+  "options.loss_linear": "Lineal (mínimos cuadrados)",
+  "options.loss_soft_l1": "Soft L1 (suave)",
+  "options.loss_huber": "Huber",
+  "options.propagate_calib": "Propagar σ de calibración (vmax)",
   "options.add_sharp": "P(BHF): sumar componentes activos nítidos",
   "options.refine_global": "P(BHF): refinar δ y Γ globales",
   "options.constraints": "Restricciones entre parámetros...",
@@ -214,8 +219,8 @@
   "info.dist_sharp_bhf": "Comp. {idx} nítido ({kind}) BHF={bhf:.4g} T, amp/prof={weight:.6g}",
   "info.dist_sharp_no_bhf": "Comp. {idx} nítido ({kind}), amp/prof={weight:.6g}",
   "info.dist_sharp_params": "  δ{idx}={delta:.5g}, ΔEQ{idx}={quad:.5g}, Γ{idx}={gamma:.5g}",
-  "info.calib_uncertainty": "Incertidumbre calibración Vmax ({key}) = {value} mm/s",
-  "info.calib_uncertainty_raw": "Incertidumbre calibración Vmax ({key}) = {value}",
+  "info.calib_uncertainty": "Incertidumbre calibración Vmax ({field}) = {value} mm/s",
+  "info.calib_uncertainty_raw": "Incertidumbre calibración Vmax ({field}) = {value}",
   "info.calib_no_uncertainty": "Calibración asociada sin incertidumbre explícita de Vmax. Considera error sistemático adicional.",
   "msg.theme_title": "Tema",
   "msg.theme_not_installed": "sv_ttk no está instalado.\nEjecuta: pip install sv_ttk",
@@ -464,5 +469,8 @@
   "dialog.save_fit_title": "Guardar ajuste",
   "msg.saved_title": "Guardado",
   "msg.fit_saved": "Ajuste guardado en:\n{path}",
-  "logo.text_sextete": "sextete"
+  "logo.text_sextete": "sextete",
+  "bhf.reg_mode_label": "Regularización",
+  "options.global_opt": "Optimización global (DE) antes de TRF",
+  "progress.fit_global": "Optimización global (DE)..."
 }
