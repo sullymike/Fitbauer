@@ -2112,34 +2112,56 @@ class MossbauerFe33GUI(tk.Tk):
             baseline0 = float(np.percentile(y, 90)); slope = 0.0
         baseline_line = baseline0 + slope * v
         absorption = np.maximum(baseline_line - y, 0.0)
-        smooth = self._smooth_1d(absorption, max(5, absorption.size // 80))
-        max_abs = float(np.nanmax(smooth)) if smooth.size else 0.0
+
+        # Suavizado grueso: estimación de ruido y máximo global.
+        coarse_smooth = self._smooth_1d(absorption, max(5, absorption.size // 80))
+        max_abs = float(np.nanmax(coarse_smooth)) if coarse_smooth.size else 0.0
         if max_abs <= 0:
             return [], float(baseline0), float(slope)
-        diff_noise = np.diff(smooth)
+        diff_noise = np.diff(coarse_smooth)
         noise = 1.4826 * float(np.median(np.abs(diff_noise - np.median(diff_noise)))) if diff_noise.size else 0.0
-        threshold = max(0.10 * max_abs, 4.0 * noise, 5e-4)
-        idxs = [i for i in range(1, smooth.size - 1) if smooth[i] >= smooth[i - 1] and smooth[i] > smooth[i + 1] and smooth[i] >= threshold]
+
+        # Suavizado fino: mejor resolución de hombros entre picos solapados.
+        fine_win = max(3, absorption.size // 120)
+        if fine_win % 2 == 0:
+            fine_win += 1
+        fine_smooth = self._smooth_1d(absorption, fine_win)
+
+        dv = abs(float(v[1] - v[0])) if v.size > 1 else 0.05
+        min_dist_ch = max(3, int(0.15 / dv))
+
+        # Umbral de altura al 6% (era 10%); los hombros de sextetos solapados
+        # suelen ser 5-8% del máximo global.
+        height_thr = max(0.06 * max_abs, 4.0 * noise, 5e-4)
+        # Prominencia mínima: el pico debe sobresalir al menos un 5% del máximo
+        # sobre los valles que lo flanquean (filtra ruido sin eliminar hombros).
+        prom_thr = max(0.05 * max_abs, 2.5 * noise, 3e-4)
+
+        from scipy.signal import find_peaks as _find_peaks
+        peak_idxs, _ = _find_peaks(fine_smooth, height=height_thr,
+                                   prominence=prom_thr, distance=min_dist_ch)
 
         peaks: list[dict[str, float]] = []
-        min_distance = max(0.12, 2.0 * abs(v[1] - v[0]))
-        for i in idxs:
-            half = 0.5 * smooth[i]
-            left = i
-            while left > 0 and smooth[left] > half:
+        min_distance = max(0.12, 2.0 * dv)
+        for i in peak_idxs:
+            half = 0.5 * fine_smooth[i]
+            left = int(i)
+            while left > 0 and fine_smooth[left] > half:
                 left -= 1
-            right = i
-            while right < smooth.size - 1 and smooth[right] > half:
+            right = int(i)
+            while right < fine_smooth.size - 1 and fine_smooth[right] > half:
                 right += 1
-            width = abs(float(v[right] - v[left])) if right > left else max(0.12, 2.0 * abs(v[1] - v[0]))
-            peaks.append({"i": float(i), "pos": float(v[i]), "depth": float(absorption[i]), "smooth_depth": float(smooth[i]), "width": width})
+            width = abs(float(v[right] - v[left])) if right > left else min_distance
+            peaks.append({"i": float(i), "pos": float(v[i]),
+                          "depth": float(absorption[i]),
+                          "smooth_depth": float(fine_smooth[i]), "width": width})
 
         # Quitar duplicados muy cercanos quedándonos con el más profundo.
         selected: list[dict[str, float]] = []
         for peak in sorted(peaks, key=lambda p: p["smooth_depth"], reverse=True):
             if all(abs(peak["pos"] - q["pos"]) >= min_distance for q in selected):
                 selected.append(peak)
-        selected = sorted(selected[:12], key=lambda p: p["pos"])
+        selected = sorted(selected[:15], key=lambda p: p["pos"])
         return selected, float(baseline0), float(slope)
 
     def _best_sextet_from_peaks(self, peaks: list[dict[str, float]]) -> tuple[list[dict[str, float]], float, float, float, float] | None:
@@ -2192,6 +2214,177 @@ class MossbauerFe33GUI(tk.Tk):
         if score > max(0.45, 0.10 * max(1.0, abs(bhf / BHF_DEFAULT_T))):
             return None
         return sub, delta, bhf, width, depth
+
+    def _try_split_peaks_for_sextet(self, peaks: list[dict[str, float]]) -> tuple | None:
+        """Para 4-5 picos detectados, detecta fusiones e inserta picos virtuales.
+
+        Útil cuando dos líneas solapadas del sexteto se detectan como un único
+        pico más ancho/profundo (caso 6+4→6+6 o 6+5→6+6).
+        """
+        n = len(peaks)
+        if n < 4 or n >= 6:
+            return None
+
+        from itertools import combinations as _comb
+
+        median_width = float(np.median([p["width"] for p in peaks]))
+        median_depth = float(np.median([p["depth"] for p in peaks]))
+
+        def is_normal(pk: dict) -> bool:
+            return pk["width"] <= median_width * 1.25 and pk["depth"] <= median_depth * 1.40
+
+        normal_peaks = [p for p in peaks if is_normal(p)]
+        if len(normal_peaks) < 2:
+            normal_peaks = sorted(peaks, key=lambda p: p["width"])[:2]
+
+        narrow_tol = max(median_width * 0.5, 0.20)
+        next_vid = max(p["i"] for p in peaks) + 1.0
+
+        best_result = None
+        best_score = -1
+
+        seen: set[tuple] = set()
+        for pk_a, pk_b in _comb(sorted(normal_peaks, key=lambda p: p["pos"]), 2):
+            span_obs = abs(pk_b["pos"] - pk_a["pos"])
+            if span_obs < 0.5:
+                continue
+            for la in range(6):
+                for lb in range(la + 1, 6):
+                    span_ref = LINE_POS_33T[lb] - LINE_POS_33T[la]
+                    if abs(span_ref) < 0.3:
+                        continue
+                    scale = span_obs / span_ref
+                    bhf_est = scale * BHF_DEFAULT_T
+                    if not (10.0 <= bhf_est <= 60.0):
+                        continue
+                    delta = pk_a["pos"] - scale * LINE_POS_33T[la]
+                    pred_all = delta + scale * LINE_POS_33T
+
+                    if max(abs(pk_a["pos"] - pred_all[la]),
+                           abs(pk_b["pos"] - pred_all[lb])) > 0.18:
+                        continue
+
+                    key = (round(bhf_est, 1), round(delta, 2))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+
+                    augmented = list(peaks)
+                    vid = next_vid
+                    virtual_added = 0
+                    for pred_pos in pred_all:
+                        if any(abs(p["pos"] - pred_pos) < narrow_tol and is_normal(p)
+                               for p in peaks):
+                            continue
+                        for pk in sorted(peaks, key=lambda p: abs(p["pos"] - pred_pos)):
+                            if abs(pk["pos"] - pred_pos) > pk["width"] * 0.7:
+                                break
+                            if not is_normal(pk):
+                                augmented.append({
+                                    "i": vid,
+                                    "pos": float(pred_pos),
+                                    "depth": pk["depth"] * 0.45,
+                                    "smooth_depth": pk["smooth_depth"] * 0.45,
+                                    "width": pk["width"] * 0.65,
+                                })
+                                vid += 1.0
+                                virtual_added += 1
+                                break
+
+                    if virtual_added == 0:
+                        continue
+
+                    result = self._best_sextet_from_peaks(augmented)
+                    if result is None:
+                        continue
+
+                    _, delta_r, bhf_r, _, _ = result
+                    scale_r = bhf_r / BHF_DEFAULT_T
+                    pred_r = delta_r + scale_r * LINE_POS_33T
+                    score = sum(
+                        1 for pk in peaks if not is_normal(pk)
+                        and sum(1 for pp in pred_r
+                                if abs(pk["pos"] - pp) < pk["width"] * 0.65) >= 2
+                    )
+                    if score > best_score:
+                        best_score = score
+                        best_result = result
+
+        return best_result
+
+    def _try_2peak_sextet_estimate(
+        self, peaks: list[dict[str, float]]
+    ) -> tuple[list[dict[str, float]], float, float, float, float] | None:
+        """Estima BHF y δ cuando solo quedan 2 picos tras identificar el primer sexteto.
+
+        Prueba los pares exteriores adyacentes (0,1) y (4,5) del patrón Fe-57.
+        Solo acepta si BHF ∈ [25,60] T, |δ| ≤ 1.5 mm/s y ambos picos están
+        en el mismo semiplano de velocidades.
+        """
+        if len(peaks) != 2:
+            return None
+        from core.constants import _BASE_POSITIONS
+        p = sorted(peaks, key=lambda x: x["pos"])
+        p0_pos, p1_pos = p[0]["pos"], p[1]["pos"]
+        obs_spacing = p1_pos - p0_pos
+        if obs_spacing < 0.5:
+            return None
+
+        b0, b1 = float(_BASE_POSITIONS[0]), float(_BASE_POSITIONS[1])
+        b4, b5 = float(_BASE_POSITIONS[4]), float(_BASE_POSITIONS[5])
+        spacing_ref = b1 - b0  # idéntico a b5 - b4 por simetría
+
+        scale = obs_spacing / spacing_ref
+        bhf = scale * 32.95
+        if not (25.0 <= bhf <= 60.0):
+            return None
+
+        best: tuple | None = None
+        if p0_pos < 0 and p1_pos < 0:
+            delta_01 = p0_pos - scale * b0
+            if abs(delta_01) <= 1.5:
+                best = (delta_01, bhf)
+        if p0_pos > 0 and p1_pos > 0:
+            delta_45 = p0_pos - scale * b4
+            if abs(delta_45) <= 1.5:
+                best = (delta_45, bhf)
+
+        if best is None:
+            return None
+
+        delta_est, bhf_est = best
+        width = float(np.mean([p[0]["width"], p[1]["width"]]))
+        depth = float(np.mean([p[0]["depth"], p[1]["depth"]]))
+        return list(p), delta_est, bhf_est, width, depth
+
+    def _depth_profile_hint(
+        self, peaks: list[dict[str, float]]
+    ) -> tuple[str, list[dict[str, float]]] | None:
+        """Clasifica el espectro en singlete/doblete cuando el perfil es obvio.
+
+        - Singlete: pico dominante ≥2.5× el siguiente y dentro de ±2.5 mm/s del cero.
+        - Doblete: dos picos similares (d₁ ≥ 40% d₀), el tercero mucho menor
+          (d₂ < 30% d₀), ≤4 picos totales y separación 0.18–5 mm/s.
+        - None: patrón no concluyente → intentar sexteto.
+        """
+        if not peaks:
+            return None
+        by_d = sorted(peaks, key=lambda p: p["smooth_depth"], reverse=True)
+        d0 = by_d[0]["smooth_depth"]
+        d1 = by_d[1]["smooth_depth"] if len(by_d) > 1 else 0.0
+        d2 = by_d[2]["smooth_depth"] if len(by_d) > 2 else 0.0
+
+        if d0 > 2.5 * max(d1, 1e-10) and abs(by_d[0]["pos"]) < 2.5:
+            return ("Singlete", [by_d[0]])
+
+        if (len(by_d) >= 2 and d1 >= 0.40 * d0 and d2 < 0.30 * d0
+                and len(peaks) <= 4):
+            pair = sorted([by_d[0], by_d[1]], key=lambda p: p["pos"])
+            sep = abs(pair[1]["pos"] - pair[0]["pos"])
+            if 0.18 <= sep <= 5.0:
+                return ("Doblete", pair)
+
+        return None
 
     def auto_guess_from_minima(self, fit_after: bool = False) -> None:
         if self.velocity is None or self.y_data is None:
