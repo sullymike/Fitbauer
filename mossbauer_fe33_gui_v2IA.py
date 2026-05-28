@@ -4225,68 +4225,98 @@ class MossbauerFe33GUI(tk.Tk):
         """Ajuste de distribución (histograma) con absorbente grueso.
 
         Modelo: y = b + s·v − C·(1 − exp(−A/C)), con A = K·P + K_sharp·q la
-        absorción lineal. Se invierte la saturación sobre los datos:
-            A_obs = −C·ln(1 − (b + s·v − y)/C),
-        que es lineal en P, y se resuelve con el motor lineal habitual fijando
-        baseline=0 y slope=0 (la base ya se ha restado). El ruido se propaga por
-        la transformada: σ_A = σ_y · dA/dy = σ_y · exp(A_obs/C). El modelo se
-        re-satura para los residuos y la curva mostrada.
+        absorción lineal. Esquema separable (VARPRO): un lazo externo no lineal
+        refina (b, s, C) y, para cada terna, un solve lineal interno recupera P
+        invirtiendo la saturación sobre los datos:
+            A_obs = −C·ln(1 − (b + s·v − y)/C)  (lineal en P).
+        El solve interno fija baseline=0/slope=0 (la base ya está restada) y
+        propaga el ruido por la transformada: σ_A = σ_y·exp(A_obs/C). El residuo
+        externo se evalúa en espacio real re-saturando el modelo. Se respetan las
+        casillas 'fijo' de baseline/slope/sat_scale.
         """
         import dataclasses
         v = self.velocity
         y = self.y_data
-        b = float(self.vars["baseline"].get())
-        s = float(self.vars["slope"].get())
-        C = float(self.vars["sat_scale"].get())
         variable = "quad" if self.dist_variable_var.get() == "ΔEQ" else "bhf"
-
-        raw_abs = b + s * v - y                       # absorción aparente (saturada)
-        raw_abs = np.clip(raw_abs, 0.0, C * (1.0 - 1e-6))
-        arg = np.clip(1.0 - raw_abs / C, 1e-9, 1.0)
-        A_obs = -C * np.log(arg)                       # absorción lineal recuperada
-
         sigma_y = self.data_sigma()
-        sigma_A = None
-        if sigma_y is not None:
-            sigma_A = np.maximum(sigma_y * np.exp(A_obs / C), 1e-9)
 
-        progress = self.open_progress_dialog(tr("progress.distribution_title"), tr("progress.distribution_prepare"))
-        _dlg, update_progress, close_progress = progress
-        try:
-            update_progress(tr("progress.distribution_compute", shape=tr("shape.Histograma", default="Histograma")))
-            result = fit_hyperfine_distribution_engine(
-                v, -A_obs,                              # y_eng = −A_obs  ⇒  K·P ≈ A_obs
-                variable=variable,
+        def linear_solve(b: float, s: float, C: float):
+            """Solve lineal interno → BhfDistributionFit con P (en términos de A)."""
+            raw = np.clip(b + s * v - y, 0.0, C * (1.0 - 1e-6))
+            A_obs = -C * np.log(np.clip(1.0 - raw / C, 1e-9, 1.0))
+            sig_A = np.maximum(sigma_y * np.exp(A_obs / C), 1e-9) if sigma_y is not None else None
+            res = fit_hyperfine_distribution_engine(
+                v, -A_obs, variable=variable,
                 delta=self.vars["dist_delta"].get(),
                 quad=self.vars["dist_quad"].get(),
                 bhf=self.vars["dist_fixed_bhf"].get(),
                 gamma=self.vars["dist_gamma"].get(),
                 pmin=bmin, pmax=bmax, nbins=nbins,
                 alpha=self.dist_alpha(),
-                fit_baseline=False, fit_slope=False,
-                baseline=0.0, slope=0.0,
-                sharp_components=sharp_components,
-                sigma=sigma_A,
+                fit_baseline=False, fit_slope=False, baseline=0.0, slope=0.0,
+                sharp_components=sharp_components, sigma=sig_A,
                 reg_mode=self.dist_reg_mode_var.get(),
             )
+            absorption_lin = res.baseline + res.slope * v - res.fitted_curve  # = K·P + K_sharp·q
+            t_fit = b + s * v - C * (1.0 - np.exp(-absorption_lin / C))
+            return res, t_fit
+
+        # Parámetros externos no lineales: (baseline, slope, sat_scale) según 'fijo'.
+        outer = [("baseline", float(self.vars["baseline"].get())),
+                 ("slope", float(self.vars["slope"].get())),
+                 ("sat_scale", float(self.vars["sat_scale"].get()))]
+        free = [(k, val) for k, val in outer if not self.fixed_vars.get(k, tk.BooleanVar(value=False)).get()]
+        base_vals = {k: val for k, val in outer}
+
+        def expand(x):
+            vals = dict(base_vals)
+            for (k, _), xi in zip(free, x):
+                vals[k] = float(xi)
+            return vals["baseline"], vals["slope"], vals["sat_scale"]
+
+        progress = self.open_progress_dialog(tr("progress.distribution_title"), tr("progress.distribution_prepare"))
+        _dlg, update_progress, close_progress = progress
+        try:
+            if free:
+                update_progress(tr("progress.distribution_refine"))
+                x0 = np.array([val for _, val in free], dtype=float)
+                lo = np.array([self.bounds_for_key(k)[0] for k, _ in free], dtype=float)
+                hi = np.array([self.bounds_for_key(k)[1] for k, _ in free], dtype=float)
+                x0 = np.clip(x0, lo, hi)
+
+                def residual_outer(x):
+                    b, s, C = expand(x)
+                    _res, t_fit = linear_solve(b, s, C)
+                    r = y - t_fit
+                    return r / sigma_y if sigma_y is not None else r
+
+                opt = least_squares(residual_outer, x0, bounds=(lo, hi), max_nfev=60)
+                b_fin, s_fin, C_fin = expand(opt.x)
+            else:
+                b_fin = base_vals["baseline"]; s_fin = base_vals["slope"]; C_fin = base_vals["sat_scale"]
+            update_progress(tr("progress.distribution_compute_final"))
+            result, t_fit = linear_solve(b_fin, s_fin, C_fin)
         except Exception as exc:
             close_progress()
             messagebox.showerror(tr("msg.pbhf_error_title"), str(exc))
             return
 
-        # Absorción lineal del modelo (= K·P + K_sharp·q) y re-saturación.
-        absorption_lin = result.baseline + result.slope * v - result.fitted_curve
-        t_fit = b + s * v - C * (1.0 - np.exp(-absorption_lin / C))
         residuals = y - t_fit
         rms = float(np.sqrt(np.mean(residuals ** 2)))
-        result = dataclasses.replace(result, baseline=b, slope=s, fitted_curve=t_fit, residuals=residuals, rms=rms)
+        result = dataclasses.replace(result, baseline=b_fin, slope=s_fin, fitted_curve=t_fit, residuals=residuals, rms=rms)
+
+        # Volcar los parámetros externos refinados a la GUI.
+        self.updating_sliders = True
+        for k, val in (("baseline", b_fin), ("slope", s_fin), ("sat_scale", C_fin)):
+            self.vars[k].set(val)
+            self.entry_vars[k].set(self._format_value(k, val))
+        self.updating_sliders = False
 
         self.last_bhf_fit = result
         self.last_bhf_sharp_indices = sharp_indices
         self.last_fit_correlations = {}
-        n_sharp = len(sharp_indices) if self.dist_use_sharp_var.get() else 0
         eff = float(result.effective_dof) if getattr(result, "effective_dof", None) is not None else float(nbins)
-        n_params = eff + 1.0  # +1 por la escala de saturación C
+        n_params = eff + len(free)  # +1 por C y/o baseline/slope refinados
         self.last_fit_stats = self.fit_statistics(residuals, self.data_sigma(), int(round(n_params)))
         self.last_fit_stats["effective_dof"] = float(n_params)
         self.last_fit_stats["likelihood"] = self.likelihood_var.get()
