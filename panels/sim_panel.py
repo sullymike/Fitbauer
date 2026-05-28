@@ -291,8 +291,8 @@ class SimPanel(BasePanel):
         cols.pack(fill=tk.X)
         c1 = ttk.Frame(cols)
         c2 = ttk.Frame(cols)
-        c1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        c2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        c1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 6))
+        c2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(6, 0))
 
         p = f"s{idx}_"
         depth_default = 0.030 if idx == 1 else 0.005
@@ -313,10 +313,59 @@ class SimPanel(BasePanel):
         # Ángulo β entre B y V_zz, en grados (mejora 8b)
         self._add_slider(c2, p + "beta",   tr("slider.s_beta"),   0.0,            0.0,  90.0, 0.1)
 
+        # Menús contextuales (clic derecho): intensidades ↔ modo, β ↔ cuadrupolo
+        for key in (p + "int1", p + "int2", p + "int3", p + "texture"):
+            for w in app.slider_widget_refs.get(key, {}).values():
+                w.bind("<Button-3>", lambda e, i=idx: self._show_intensity_mode_menu(e, i), add=True)
+        for w in app.slider_widget_refs.get(p + "beta", {}).values():
+            w.bind("<Button-3>", lambda e, i=idx: self._show_quad_treatment_menu(e, i), add=True)
+        treat_box.bind("<Button-3>", lambda e, i=idx: self._show_quad_treatment_menu(e, i), add=True)
+
         # Estado inicial: el slider t empieza deshabilitado salvo que el modo
         # cargado sea "texture"; y β según quad_treatment.
         app._refresh_intensity_mode_widgets(idx)
         app._refresh_quad_treatment_widgets(idx)
+
+    # ── Menús contextuales ────────────────────────────────────────────────────
+
+    def _show_intensity_mode_menu(self, event: tk.Event, idx: int) -> None:
+        app = self.app
+        if idx not in app.intensity_mode:
+            return
+        menu = tk.Menu(app, tearoff=0)
+        menu.add_command(label=tr("context.intensity_mode_title"), state="disabled")
+        menu.add_separator()
+        for val, label in (
+            ("free", tr("context.intensity_mode_free")),
+            ("texture", tr("context.intensity_mode_texture")),
+        ):
+            menu.add_radiobutton(
+                label=label,
+                variable=app.intensity_mode[idx],
+                value=val,
+                command=lambda i=idx: app.on_intensity_mode_change(i),
+            )
+        menu.tk_popup(event.x_root, event.y_root)
+
+    def _show_quad_treatment_menu(self, event: tk.Event, idx: int) -> None:
+        app = self.app
+        if idx not in app.quad_treatment:
+            return
+        menu = tk.Menu(app, tearoff=0)
+        menu.add_command(label=tr("context.quad_treatment_title"), state="disabled")
+        menu.add_separator()
+        for val, label in (
+            ("1st_order", tr("context.quad_treatment_1st_order")),
+            ("kundig_fixed", tr("context.quad_treatment_kundig_fixed")),
+            ("kundig_powder", tr("context.quad_treatment_kundig_powder")),
+        ):
+            menu.add_radiobutton(
+                label=label,
+                variable=app.quad_treatment[idx],
+                value=val,
+                command=lambda i=idx: app.on_quad_treatment_change(i),
+            )
+        menu.tk_popup(event.x_root, event.y_root)
 
     # ── Cambio dinámico de modo ───────────────────────────────────────────────
 
