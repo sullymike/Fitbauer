@@ -297,12 +297,13 @@ class SimPanel(BasePanel):
         # Ángulo β entre B y V_zz, en grados (mejora 8b)
         self._add_slider(c2, p + "beta",   tr("slider.s_beta"),   0.0,            0.0,  90.0, 0.1)
 
-        # Menús contextuales (clic derecho): intensidades ↔ modo, β ↔ cuadrupolo
+        # Menús contextuales (clic derecho): intensidades ↔ modo, β/ΔEQ ↔ cuadrupolo
         for key in (p + "int1", p + "int2", p + "int3", p + "texture"):
             for w in app.slider_widget_refs.get(key, {}).values():
                 w.bind("<Button-3>", lambda e, i=idx: self._show_intensity_mode_menu(e, i), add=True)
-        for w in app.slider_widget_refs.get(p + "beta", {}).values():
-            w.bind("<Button-3>", lambda e, i=idx: self._show_quad_treatment_menu(e, i), add=True)
+        for key in (p + "beta", p + "quad"):
+            for w in app.slider_widget_refs.get(key, {}).values():
+                w.bind("<Button-3>", lambda e, i=idx: self._show_quad_treatment_menu(e, i), add=True)
 
         # Estado inicial: el slider t empieza deshabilitado salvo que el modo
         # cargado sea "texture"; y β según quad_treatment.
