@@ -4221,6 +4221,83 @@ class MossbauerFe33GUI(tk.Tk):
             })
         return components, indices
 
+    def _fit_distribution_thickness(self, bmin, bmax, nbins, sharp_components, sharp_indices) -> None:
+        """Ajuste de distribución (histograma) con absorbente grueso.
+
+        Modelo: y = b + s·v − C·(1 − exp(−A/C)), con A = K·P + K_sharp·q la
+        absorción lineal. Se invierte la saturación sobre los datos:
+            A_obs = −C·ln(1 − (b + s·v − y)/C),
+        que es lineal en P, y se resuelve con el motor lineal habitual fijando
+        baseline=0 y slope=0 (la base ya se ha restado). El ruido se propaga por
+        la transformada: σ_A = σ_y · dA/dy = σ_y · exp(A_obs/C). El modelo se
+        re-satura para los residuos y la curva mostrada.
+        """
+        import dataclasses
+        v = self.velocity
+        y = self.y_data
+        b = float(self.vars["baseline"].get())
+        s = float(self.vars["slope"].get())
+        C = float(self.vars["sat_scale"].get())
+        variable = "quad" if self.dist_variable_var.get() == "ΔEQ" else "bhf"
+
+        raw_abs = b + s * v - y                       # absorción aparente (saturada)
+        raw_abs = np.clip(raw_abs, 0.0, C * (1.0 - 1e-6))
+        arg = np.clip(1.0 - raw_abs / C, 1e-9, 1.0)
+        A_obs = -C * np.log(arg)                       # absorción lineal recuperada
+
+        sigma_y = self.data_sigma()
+        sigma_A = None
+        if sigma_y is not None:
+            sigma_A = np.maximum(sigma_y * np.exp(A_obs / C), 1e-9)
+
+        progress = self.open_progress_dialog(tr("progress.distribution_title"), tr("progress.distribution_prepare"))
+        _dlg, update_progress, close_progress = progress
+        try:
+            update_progress(tr("progress.distribution_compute", shape=tr("shape.Histograma", default="Histograma")))
+            result = fit_hyperfine_distribution_engine(
+                v, -A_obs,                              # y_eng = −A_obs  ⇒  K·P ≈ A_obs
+                variable=variable,
+                delta=self.vars["dist_delta"].get(),
+                quad=self.vars["dist_quad"].get(),
+                bhf=self.vars["dist_fixed_bhf"].get(),
+                gamma=self.vars["dist_gamma"].get(),
+                pmin=bmin, pmax=bmax, nbins=nbins,
+                alpha=self.dist_alpha(),
+                fit_baseline=False, fit_slope=False,
+                baseline=0.0, slope=0.0,
+                sharp_components=sharp_components,
+                sigma=sigma_A,
+                reg_mode=self.dist_reg_mode_var.get(),
+            )
+        except Exception as exc:
+            close_progress()
+            messagebox.showerror(tr("msg.pbhf_error_title"), str(exc))
+            return
+
+        # Absorción lineal del modelo (= K·P + K_sharp·q) y re-saturación.
+        absorption_lin = result.baseline + result.slope * v - result.fitted_curve
+        t_fit = b + s * v - C * (1.0 - np.exp(-absorption_lin / C))
+        residuals = y - t_fit
+        rms = float(np.sqrt(np.mean(residuals ** 2)))
+        result = dataclasses.replace(result, baseline=b, slope=s, fitted_curve=t_fit, residuals=residuals, rms=rms)
+
+        self.last_bhf_fit = result
+        self.last_bhf_sharp_indices = sharp_indices
+        self.last_fit_correlations = {}
+        n_sharp = len(sharp_indices) if self.dist_use_sharp_var.get() else 0
+        eff = float(result.effective_dof) if getattr(result, "effective_dof", None) is not None else float(nbins)
+        n_params = eff + 1.0  # +1 por la escala de saturación C
+        self.last_fit_stats = self.fit_statistics(residuals, self.data_sigma(), int(round(n_params)))
+        self.last_fit_stats["effective_dof"] = float(n_params)
+        self.last_fit_stats["likelihood"] = self.likelihood_var.get()
+        self.last_fit_stats["absorber_model"] = "thickness"
+        if self.dist_use_sharp_var.get() and result.sharp_weights is not None:
+            for idx, weight in zip(sharp_indices, result.sharp_weights):
+                self.vars[f"s{idx}_depth"].set(float(weight))
+        update_progress(tr("progress.distribution_update"))
+        self.update_plot()
+        close_progress()
+
     def fit_bhf_distribution_current(self) -> None:
         if self.velocity is None or self.y_data is None:
             return
@@ -4237,6 +4314,12 @@ class MossbauerFe33GUI(tk.Tk):
         sharp_indices: list[int] = []
         if self.dist_use_sharp_var.get():
             sharp_components, sharp_indices = self.build_bhf_sharp_components_from_active_components()
+
+        # Mejora 9 (paso 2): distribución con absorbente grueso por transformada
+        # inversa. Sólo para histograma; preserva la linealidad del solver.
+        if self.absorber_model_var.get() == "thickness" and self.dist_shape_var.get() == "Histograma":
+            self._fit_distribution_thickness(bmin, bmax, nbins, sharp_components, sharp_indices)
+            return
 
         fit_baseline = not self.fixed_vars["baseline"].get()
         fit_slope = not self.fixed_vars["slope"].get()
