@@ -4706,7 +4706,30 @@ class MossbauerFe33GUI(tk.Tk):
                     ax_dist.grid(True, color=c["dist_grid"], alpha=0.8, linewidth=0.75)
                 rms = self.last_bhf_fit.rms
             else:
-                ax.text(0.5, 0.12, tr("plot.click_fit_pbhf"), transform=ax.transAxes, ha="center", color=c["no_file"], fontsize=12, fontweight="bold")
+                # Sin ajuste todavía (o invalidado al editar a mano): previsualizar
+                # en vivo los sextetes/componentes activos con sus parámetros
+                # actuales, para poder centrarlos antes de ajustar la distribución.
+                comp_colors = {1: "#16a34a", 2: "#f97316", 3: "#8b5cf6", 4: "#e11d48", 5: "#0891b2", 6: "#ca8a04"}
+                rng = self._component_range() if hasattr(self, "_component_range") else range(1, 4)
+                preview_sum = np.zeros_like(self.velocity, dtype=float)
+                any_preview = False
+                for idx in rng:
+                    if idx not in self.sextet_enabled or not self.sextet_enabled[idx].get():
+                        continue
+                    p = f"s{idx}_"
+                    params = np.array([self.vars[p + name].get() for name in SEXTET_PARAM_NAMES], dtype=float)
+                    kind = self.component_kind[idx].get()
+                    extras = self.sextet_extras(idx) if (kind == "Sextete" and hasattr(self, "sextet_extras")) else None
+                    abs_c = component_absorption(self.velocity, kind, params, extras=extras)
+                    preview_sum += abs_c
+                    any_preview = True
+                    ax.plot(self.velocity, baseline_line - abs_c, "--",
+                            color=comp_colors.get(idx, "#16a34a"), lw=1.4, alpha=0.9,
+                            label=tr("plot.legend_sharp_component", idx=idx, kind=tr(f"kind.{kind}", default=kind)))
+                if any_preview:
+                    ax.plot(self.velocity, baseline_line - preview_sum, "-", color=c["model"], lw=1.8, alpha=0.9,
+                            label=tr("plot.legend_preview"))
+                ax.text(0.5, 0.06, tr("plot.click_fit_pbhf"), transform=ax.transAxes, ha="center", color=c["no_file"], fontsize=11, fontweight="bold")
                 ax.set_xlabel(tr("plot.velocity_xlabel"))
                 ax.xaxis.label.set_color(c["lbl"])
                 rms = float("nan")

@@ -480,5 +480,6 @@
   "context.quad_treatment_title": "Traitement quadrupôle",
   "context.quad_treatment_1st_order": "1er ordre",
   "context.quad_treatment_kundig_fixed": "Kündig fixe",
-  "context.quad_treatment_kundig_powder": "Kündig poudre"
+  "context.quad_treatment_kundig_powder": "Kündig poudre",
+  "plot.legend_preview": "Aperçu (non ajusté)"
 }
