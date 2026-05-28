@@ -274,6 +274,9 @@ class SimPanel(BasePanel):
         )
         mode_box.pack(side=tk.LEFT)
         mode_box.bind("<<ComboboxSelected>>", lambda _e, i=idx: app.on_intensity_mode_change(i))
+        if not hasattr(app, "_intensity_combos"):
+            app._intensity_combos = {}
+        app._intensity_combos[idx] = mode_box
 
         # Tratamiento del cuadrupolo (mejora 8b)
         if idx not in app.quad_treatment:
@@ -285,6 +288,9 @@ class SimPanel(BasePanel):
         )
         treat_box.pack(side=tk.LEFT)
         treat_box.bind("<<ComboboxSelected>>", lambda _e, i=idx: app.on_quad_treatment_change(i))
+        if not hasattr(app, "_quad_combos"):
+            app._quad_combos = {}
+        app._quad_combos[idx] = treat_box
 
         # Sliders en 2 columnas — funcionan a cualquier ancho ≥ ~350 px
         cols = ttk.Frame(parent)
