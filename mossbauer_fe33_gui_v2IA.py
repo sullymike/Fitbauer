@@ -444,6 +444,9 @@ class MossbauerFe33GUI(tk.Tk):
         self.ai_ollama_model_var = tk.StringVar(value="")
         self.last_bhf_fit = None
         self.last_bhf_sharp_indices: list[int] = []
+        # No simular nada hasta que el usuario toque un parámetro del modelo
+        # (o ejecute un ajuste / auto-detección). Se reinicia al cargar datos.
+        self._simulate_enabled = False
         self.sextet_enabled: dict[int, tk.BooleanVar] = {1: tk.BooleanVar(value=True), 2: tk.BooleanVar(value=False), 3: tk.BooleanVar(value=False)}
         self.component_kind: dict[int, tk.StringVar] = {1: tk.StringVar(value="Sextete"), 2: tk.StringVar(value="Sextete"), 3: tk.StringVar(value="Sextete")}
         # Modo de intensidades por sextete: "free" = i1,i2,i3 libres (sin
@@ -1584,6 +1587,8 @@ class MossbauerFe33GUI(tk.Tk):
         self.entry_vars[key].set(self._format_value(key, value))
         self.updating_sliders = False
 
+        if key not in {"center", "vmax"}:
+            self._simulate_enabled = True
         if key.startswith("dist_") or (self.fit_mode_var.get() == "bhf_distribution" and (key in {"baseline", "slope"} or (self.dist_use_sharp_var.get() and re.match(r"s[123]_", key)))):
             self.last_bhf_fit = None
         if key in {"center", "vmax"}:
@@ -2288,6 +2293,8 @@ class MossbauerFe33GUI(tk.Tk):
         self.updating_sliders = False
         self.refold_data()
         self.guess_initial_parameters()
+        # Datos recién cargados: no simular hasta tocar un parámetro o ajustar.
+        self._simulate_enabled = False
         self.update_plot()
 
     def refold_data(self) -> None:
@@ -3531,6 +3538,9 @@ class MossbauerFe33GUI(tk.Tk):
         self.entry_vars[key].set(self._format_value(key, value))
         if self.updating_sliders:
             return
+        # Tocar un parámetro del modelo (no la calibración) activa la simulación.
+        if key not in {"center", "vmax"}:
+            self._simulate_enabled = True
         if key == "voigt_sigma":
             global VOIGT_SIGMA
             VOIGT_SIGMA = self.vars["voigt_sigma"].get()
@@ -3706,6 +3716,9 @@ class MossbauerFe33GUI(tk.Tk):
             return self.last_bhf_fit.fitted_curve
         if self.velocity is None:
             return None
+        # No simular hasta que se toque un parámetro o se ajuste (modo discreto).
+        if not getattr(self, "_simulate_enabled", True):
+            return None
         self.apply_constraints_to_vars()
         return total_model(
             self.velocity,
@@ -3832,6 +3845,7 @@ class MossbauerFe33GUI(tk.Tk):
         return dialog, update, close
 
     def fit_current_data(self) -> None:
+        self._simulate_enabled = True
         self.apply_constraints_to_vars()
         if self.fit_mode_var.get() == "bhf_distribution":
             self.fit_bhf_distribution_current()
@@ -4030,6 +4044,7 @@ class MossbauerFe33GUI(tk.Tk):
             return
         if self.velocity is None or self.y_data is None:
             return
+        self._simulate_enabled = True
         model0 = self.current_model()
         sigma = self.data_sigma()
         if model0 is None or sigma is None:
@@ -4713,7 +4728,7 @@ class MossbauerFe33GUI(tk.Tk):
                 rng = self._component_range() if hasattr(self, "_component_range") else range(1, 4)
                 preview_sum = np.zeros_like(self.velocity, dtype=float)
                 any_preview = False
-                for idx in rng:
+                for idx in (rng if getattr(self, "_simulate_enabled", True) else []):
                     if idx not in self.sextet_enabled or not self.sextet_enabled[idx].get():
                         continue
                     p = f"s{idx}_"
@@ -5166,6 +5181,8 @@ class MossbauerFe33GUI(tk.Tk):
         self.refold_data()
         self._refresh_intensity_mode_widgets()
         self._refresh_quad_treatment_widgets()
+        # Sesión cargada: mostrar el modelo restaurado (anula el reset de load_ws5).
+        self._simulate_enabled = True
         self.update_plot()
         info_text = data.get("state_and_parameters_text") or state.get("info_text") or last_fit.get("info_text")
         if info_text:

@@ -265,6 +265,22 @@ class MossbauerApp(MossbauerFe33GUI):
         self.slider_widget_refs = {}
         self._build_ui()
 
+    def _refresh_sim_component_panels(self) -> None:
+        """Sincroniza los paneles de componentes con n_components_var.
+
+        ``n_components_var.set(...)`` no dispara el ``command`` del spinbox, así
+        que al activar componentes por código (p. ej. autodetección desde
+        mínimos) hay que invocar el refresco del panel de simulación a mano.
+        """
+        lm = getattr(self, "_layout_manager", None)
+        panels = getattr(lm, "_panels", {}) if lm is not None else {}
+        sim = panels.get("sim_controls")
+        if sim is not None and hasattr(sim, "_on_n_components_change"):
+            try:
+                sim._on_n_components_change()
+            except Exception:
+                pass
+
     def _open_layout_configurator(self) -> None:
         if hasattr(self, "_layout_manager"):
             self._layout_manager.open_configurator()
@@ -738,10 +754,15 @@ class MossbauerApp(MossbauerFe33GUI):
             params["s1_gamma1"] = float(np.clip(pk["width"] / 2.0, 0.04, 1.0))
             params["s1_depth"]  = float(np.clip(pk["depth"], 0.002, 0.25))
 
+        # Detectados los componentes: mostrar la simulación.
+        self._simulate_enabled = True
         # Adjust n_components_var to match detected components
         if hasattr(self, "n_components_var") and components:
             n_detected = max(i for i, _k, _g in components)
             self.n_components_var.set(min(n_detected, MAX_COMPONENTS))
+            # Refrescar los paneles para que aparezcan los componentes activados
+            # (set() sobre la variable no dispara el command del spinbox).
+            self._refresh_sim_component_panels()
 
         for idx in range(1, MAX_COMPONENTS + 1):
             found = next((k for i, k, _g in components if i == idx), "Sextete")
