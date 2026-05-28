@@ -4477,6 +4477,15 @@ class MossbauerFe33GUI(tk.Tk):
                     ax_dist.set_facecolor(c["ax_bg"])
                     ax_dist.plot(self.last_bhf_fit.bhf_centers, self.last_bhf_fit.probability, "-o", ms=3.0, color=c["dist_line"])
                     ax_dist.fill_between(self.last_bhf_fit.bhf_centers, self.last_bhf_fit.probability, 0, color=c["dist_fill"], alpha=0.25)
+                    # Banda de error 1σ de P (mejora 11), recortada a P≥0.
+                    wsig = getattr(self.last_bhf_fit, "weight_sigma", None)
+                    if wsig is not None and np.size(wsig) == self.last_bhf_fit.weights.size:
+                        area = float(np.trapezoid(self.last_bhf_fit.weights, self.last_bhf_fit.bhf_centers))
+                        if np.isfinite(area) and area > 0:
+                            prob_sigma = np.asarray(wsig, dtype=float) / area
+                            lo_band = np.clip(self.last_bhf_fit.probability - prob_sigma, 0.0, None)
+                            hi_band = self.last_bhf_fit.probability + prob_sigma
+                            ax_dist.fill_between(self.last_bhf_fit.bhf_centers, lo_band, hi_band, color=c["dist_line"], alpha=0.18, linewidth=0)
                     if self.last_bhf_fit.sharp_bhf_centers is not None and self.last_bhf_fit.sharp_weights is not None:
                         ymax = max(float(np.nanmax(self.last_bhf_fit.probability)), 1e-12)
                         for b, w in zip(self.last_bhf_fit.sharp_bhf_centers, self.last_bhf_fit.sharp_weights):

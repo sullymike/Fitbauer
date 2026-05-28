@@ -47,6 +47,7 @@ class BhfDistributionFit:
     fitted_dist_sigma: float | None = None
     fitted_dist_p: float | None = None
     effective_dof: float | None = None
+    weight_sigma: np.ndarray | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Devuelve un dict serializable en JSON tras convertir arrays a listas."""
@@ -68,6 +69,7 @@ class BhfDistributionFit:
             "fitted_dist_sigma": self.fitted_dist_sigma,
             "fitted_dist_p": self.fitted_dist_p,
             "effective_dof": self.effective_dof,
+            "weight_sigma": [] if self.weight_sigma is None else self.weight_sigma.tolist(),
         }
 
 
@@ -259,6 +261,47 @@ def tikhonov_effective_dof(
         return float(np.trace(np.linalg.solve(H, XtWX)))
     except np.linalg.LinAlgError:
         return float(X.shape[1])
+
+
+def distribution_weight_sigma(
+    X: np.ndarray,
+    L_dist: np.ndarray,
+    alpha: float,
+    dist_start: int,
+    dist_end: int,
+    residuals: np.ndarray,
+    eff_dof: float,
+    sigma: np.ndarray | None = None,
+) -> np.ndarray:
+    """Incertidumbre 1σ de los pesos P por covarianza linealizada regularizada.
+
+    Para el estimador Tikhonov  ẑ = H⁻¹ XᵀW y  con  H = XᵀWX + α LᵀL,  W=diag(1/σ²),
+    la covarianza es  Cov(ẑ) = H⁻¹ (XᵀWX) H⁻¹.  Se escala por el χ²_ν efectivo
+    (igual convención que el ajuste discreto) para reflejar mala especificación
+    del modelo. Devuelve σ_P por bin (raíz de la diagonal de la parte de la
+    distribución). La no-negatividad no se impone aquí: en bins clavados a 0 la
+    σ es una cota superior (la banda se recorta a P≥0 al pintar).
+    """
+    n_data = X.shape[0]
+    if sigma is not None:
+        sigma = np.maximum(np.asarray(sigma, dtype=float), 1e-12)
+        W = 1.0 / sigma ** 2
+        chi2 = float(np.sum((residuals / sigma) ** 2))
+    else:
+        W = np.ones(n_data)
+        chi2 = float(np.sum(residuals ** 2))
+    XtWX = X.T @ (W[:, None] * X)
+    H = XtWX.copy()
+    H[dist_start:dist_end, dist_start:dist_end] += float(alpha) * (L_dist.T @ L_dist)
+    try:
+        H_inv = np.linalg.inv(H)
+    except np.linalg.LinAlgError:
+        H_inv = np.linalg.pinv(H)
+    cov = H_inv @ XtWX @ H_inv
+    var = np.clip(np.diag(cov)[dist_start:dist_end], 0.0, None)
+    dof = max(float(n_data) - float(eff_dof), 1.0)
+    var = var * (chi2 / dof)
+    return np.sqrt(var)
 
 
 def normalize_probability(weights: np.ndarray, bhf_centers: np.ndarray) -> np.ndarray:
@@ -517,6 +560,13 @@ def fit_hyperfine_distribution(
     except Exception:
         eff_dof = float(X.shape[1])
 
+    try:
+        weight_sigma = distribution_weight_sigma(
+            X, L, float(alpha), dist_start, dist_end, residuals, eff_dof, sigma=sigma_arr
+        )
+    except Exception:
+        weight_sigma = None
+
     return BhfDistributionFit(
         bhf_centers=centers,
         weights=weights,
@@ -532,6 +582,7 @@ def fit_hyperfine_distribution(
         sharp_bhf_centers=sharp_bhf_centers,
         sharp_weights=sharp_weights,
         effective_dof=eff_dof,
+        weight_sigma=weight_sigma,
     )
 
 
