@@ -19,7 +19,7 @@ import urllib.error
 import urllib.request
 
 import numpy as np
-from scipy.optimize import least_squares
+from scipy.optimize import least_squares, differential_evolution
 from scipy.special import wofz
 
 from mossbauer_i18n import available_languages, get_language, set_language, tr
@@ -425,6 +425,9 @@ class MossbauerFe33GUI(tk.Tk):
         self.robust_loss_var = tk.StringVar(value="linear")
         # Mejora 12: propagar la incertidumbre de calibración (σ_vmax) a los pesos.
         self.propagate_calib_var = tk.BooleanVar(value=False)
+        # Mejora 14: pre-pasada de optimización global (differential_evolution)
+        # antes del pulido TRF. Opt-in (lenta); útil con varios sextetes.
+        self.global_opt_var = tk.BooleanVar(value=False)
         self.show_residual_var = tk.BooleanVar(value=True)
         self.show_legend_var = tk.BooleanVar(value=False)
         self.fit_mode_var = tk.StringVar(value="discrete")
@@ -1025,6 +1028,7 @@ class MossbauerFe33GUI(tk.Tk):
             "likelihood": self.likelihood_var.get(),
             "robust_loss": self.robust_loss_var.get(),
             "propagate_calib": bool(self.propagate_calib_var.get()),
+            "global_opt": bool(self.global_opt_var.get()),
             "dist_variable": self.dist_variable_var.get(),
             "dist_shape": self.dist_shape_var.get(),
             "dist_reg_mode": self.dist_reg_mode_var.get(),
@@ -1094,6 +1098,7 @@ class MossbauerFe33GUI(tk.Tk):
             self.likelihood_var.set(data.get("likelihood", self.likelihood_var.get()))
             self.robust_loss_var.set(data.get("robust_loss", self.robust_loss_var.get()))
             self.propagate_calib_var.set(bool(data.get("propagate_calib", self.propagate_calib_var.get())))
+            self.global_opt_var.set(bool(data.get("global_opt", self.global_opt_var.get())))
             self.dist_variable_var.set(data.get("dist_variable", self.dist_variable_var.get()))
             self.dist_shape_var.set(data.get("dist_shape", self.dist_shape_var.get()))
             self.dist_reg_mode_var.set(data.get("dist_reg_mode", self.dist_reg_mode_var.get()))
@@ -3568,7 +3573,7 @@ class MossbauerFe33GUI(tk.Tk):
         base = key.split("_", 1)[-1]
         bounds = {
             "baseline": (0.70, 1.30),
-            "slope": (-0.0001, 0.0001),
+            "slope": (-0.005, 0.005),
             "delta": (-2.0, 3.0),
             "quad": (0.0, 4.0),
             "bhf": (0.0, 50.0),
@@ -3789,6 +3794,26 @@ class MossbauerFe33GUI(tk.Tk):
             result = None
             n_starts = 0
             candidates = multistart_candidates()
+            # Mejora 14: pre-pasada global con differential_evolution (opt-in).
+            # Su mejor punto se añade como semilla extra; el TRF lo pule luego.
+            if self.global_opt_var.get():
+                update_progress(tr("progress.fit_global"))
+
+                def _scalar_cost(x: np.ndarray) -> float:
+                    r = residual(x)
+                    return 0.5 * float(np.dot(r, r))
+
+                try:
+                    de = differential_evolution(
+                        _scalar_cost,
+                        bounds=list(zip(lo_arr.tolist(), hi_arr.tolist())),
+                        seed=12345, maxiter=60, tol=1e-4,
+                        mutation=(0.5, 1.0), recombination=0.7,
+                        polish=False, init="sobol", updating="deferred",
+                    )
+                    candidates.insert(0, np.clip(de.x, lo_arr, hi_arr))
+                except Exception:
+                    pass
             ls_kwargs = self._least_squares_kwargs()
             for candidate in candidates:
                 n_starts += 1
@@ -4834,6 +4859,7 @@ class MossbauerFe33GUI(tk.Tk):
             "likelihood": self.likelihood_var.get(),
             "robust_loss": self.robust_loss_var.get(),
             "propagate_calib": bool(self.propagate_calib_var.get()),
+            "global_opt": bool(self.global_opt_var.get()),
             "dist_variable": self.dist_variable_var.get(),
             "dist_shape": self.dist_shape_var.get(),
             "dist_reg_mode": self.dist_reg_mode_var.get(),
@@ -4912,6 +4938,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.likelihood_var.set(state.get("likelihood", self.likelihood_var.get()))
         self.robust_loss_var.set(state.get("robust_loss", self.robust_loss_var.get()))
         self.propagate_calib_var.set(bool(state.get("propagate_calib", self.propagate_calib_var.get())))
+        self.global_opt_var.set(bool(state.get("global_opt", self.global_opt_var.get())))
         self.dist_variable_var.set(state.get("dist_variable", self.dist_variable_var.get()))
         self.dist_shape_var.set(state.get("dist_shape", self.dist_shape_var.get()))
         self.dist_reg_mode_var.set(state.get("dist_reg_mode", self.dist_reg_mode_var.get()))

@@ -180,6 +180,8 @@ class MossbauerApp(MossbauerFe33GUI):
         fit_menu.add_cascade(label=tr("options.robust_loss"), menu=loss_menu)
         fit_menu.add_checkbutton(label=tr("options.propagate_calib"),
                                  variable=self.propagate_calib_var)
+        fit_menu.add_checkbutton(label=tr("options.global_opt"),
+                                 variable=self.global_opt_var)
         fit_menu.add_separator()
         fit_menu.add_checkbutton(label=tr("options.add_sharp"),
                                  variable=self.dist_use_sharp_var,

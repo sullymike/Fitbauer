@@ -470,5 +470,7 @@
   "msg.saved_title": "Guardado",
   "msg.fit_saved": "Ajuste guardado en:\n{path}",
   "logo.text_sextete": "sextete",
-  "bhf.reg_mode_label": "Regularización"
+  "bhf.reg_mode_label": "Regularización",
+  "options.global_opt": "Optimización global (DE) antes de TRF",
+  "progress.fit_global": "Optimización global (DE)..."
 }
