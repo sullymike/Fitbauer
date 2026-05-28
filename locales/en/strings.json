@@ -473,6 +473,7 @@
   "bhf.reg_mode_label": "Regularization",
   "options.global_opt": "Global optimization (DE) before TRF",
   "progress.fit_global": "Global optimization (DE)...",
+  "options.advanced_fit": "Advanced fit options",
   "context.intensity_mode_title": "Intensity mode",
   "context.intensity_mode_free": "Free",
   "context.intensity_mode_texture": "Texture",

@@ -491,6 +491,10 @@ class MossbauerFe33GUI(tk.Tk):
                 break
 
         self.load_settings()
+        # Estado inicial de agrisado (cubre el arranque sin settings.json).
+        self._refresh_component_widgets()
+        self.on_line_profile_change()
+        self.refresh_dist_slider_labels()
         if self.counts is not None:
             self.refold_data()
             self.update_plot()
@@ -964,10 +968,16 @@ class MossbauerFe33GUI(tk.Tk):
             mode_box = ttk.Combobox(top_row, textvariable=self.intensity_mode[idx], values=("free", "texture"), width=8, state="readonly")
             mode_box.pack(side=tk.LEFT)
             mode_box.bind("<<ComboboxSelected>>", lambda _event, i=idx: self.on_intensity_mode_change(i))
+            if not hasattr(self, "_intensity_combos"):
+                self._intensity_combos = {}
+            self._intensity_combos[idx] = mode_box
             ttk.Label(top_row, text=tr("component.quad_treatment_label")).pack(side=tk.LEFT, padx=(12, 4))
             treat_box = ttk.Combobox(top_row, textvariable=self.quad_treatment[idx], values=("1st_order", "kundig_fixed", "kundig_powder"), width=14, state="readonly")
             treat_box.pack(side=tk.LEFT)
             treat_box.bind("<<ComboboxSelected>>", lambda _event, i=idx: self.on_quad_treatment_change(i))
+            if not hasattr(self, "_quad_combos"):
+                self._quad_combos = {}
+            self._quad_combos[idx] = treat_box
             cols = ttk.Frame(tab)
             cols.pack(fill=tk.X)
             c1 = ttk.Frame(cols); c2 = ttk.Frame(cols); c3 = ttk.Frame(cols)
@@ -1482,6 +1492,8 @@ class MossbauerFe33GUI(tk.Tk):
         global LINE_PROFILE_KIND, VOIGT_SIGMA
         LINE_PROFILE_KIND = self.line_profile_var.get()
         VOIGT_SIGMA = self.vars.get("voigt_sigma", tk.DoubleVar(value=0.05)).get()
+        # σ gaussiano sólo se usa con perfil Voigt → agrisarlo en Lorentziana.
+        self._set_slider_enabled("voigt_sigma", LINE_PROFILE_KIND == "Voigt")
         if self.updating_sliders:
             return
         self.update_plot()
@@ -1627,6 +1639,11 @@ class MossbauerFe33GUI(tk.Tk):
                 widget.configure(text=tr(tr_key))
             except tk.TclError:
                 pass
+        # Agrisar el parámetro fijo que no se usa con la variable elegida:
+        # en modo BHF el ΔEQ fijo (dist_quad) sí se usa y el BHF fijo no;
+        # en modo ΔEQ es al revés.
+        self._set_slider_enabled("dist_quad", is_quad is False)
+        self._set_slider_enabled("dist_fixed_bhf", is_quad is True)
 
     def on_component_activation_change(self) -> None:
         if self.fit_mode_var.get() == "bhf_distribution" and self.dist_use_sharp_var.get():
@@ -3074,8 +3091,7 @@ class MossbauerFe33GUI(tk.Tk):
             key = p + name
             if key in self.fixed_vars and name not in relevant:
                 self.fixed_vars[key].set(True)
-        self._refresh_intensity_mode_widgets(idx)
-        self._refresh_quad_treatment_widgets(idx)
+        self._refresh_component_widgets(idx)
         self.update_plot()
 
     def _set_slider_enabled(self, key: str, enabled: bool) -> None:
@@ -3092,40 +3108,62 @@ class MossbauerFe33GUI(tk.Tk):
             except tk.TclError:
                 pass
 
-    def _refresh_intensity_mode_widgets(self, idx: int | None = None) -> None:
-        """Habilita/deshabilita los sliders i1,i2,i3 y texture según el modo."""
-        if not hasattr(self, "intensity_mode"):
+    def _component_relevant_params(self, idx: int) -> set[str]:
+        """Conjunto de parámetros REALMENTE usados por el componente idx,
+        teniendo en cuenta su tipo (sextete/doblete/singlete) y, en sextete,
+        el modo de intensidades (libre/textura) y el tratamiento del cuadrupolo
+        (1er orden / Kündig). Los no incluidos se deshabilitan (gris)."""
+        kind = self.component_kind[idx].get()
+        if kind == "Singlete":
+            return {"delta", "gamma1", "depth", "int1"}
+        if kind == "Doblete":
+            return {"delta", "quad", "gamma1", "gamma2", "depth", "int1", "int2"}
+        # Sextete
+        rel = {"delta", "quad", "bhf", "gamma1", "gamma2", "gamma3", "depth"}
+        mode = getattr(self, "intensity_mode", {}).get(idx)
+        if mode is not None and mode.get() == "texture":
+            rel.add("texture")
+        else:
+            rel.update({"int1", "int2", "int3"})
+        treat = getattr(self, "quad_treatment", {}).get(idx)
+        if treat is not None and treat.get() == "kundig_fixed":
+            rel.add("beta")
+        return rel
+
+    def _refresh_component_widgets(self, idx: int | None = None) -> None:
+        """Agrisa (deshabilita) todo parámetro del componente que no se use con
+        el tipo y modo actuales; habilita los relevantes. Unifica el greying de
+        dobletes/singletes, textura y β de Kündig. También deshabilita los combos
+        de intensidades y tratamiento de cuadrupolo si el componente no es sextete."""
+        if not hasattr(self, "component_kind"):
             return
-        indices = [idx] if idx is not None else list(self.intensity_mode.keys())
+        indices = [idx] if idx is not None else list(self.component_kind.keys())
+        all_params = SEXTET_PARAM_NAMES + ["texture", "beta"]
         for i in indices:
-            if i not in self.intensity_mode:
+            if i not in self.component_kind:
                 continue
-            mode = self.intensity_mode[i].get()
-            is_sextete = self.component_kind.get(i) is not None and self.component_kind[i].get() == "Sextete"
-            texture_active = (mode == "texture") and is_sextete
-            # En modo textura los i_k son derivados (sólo lectura).
-            self._set_slider_enabled(f"s{i}_int1", not texture_active)
-            self._set_slider_enabled(f"s{i}_int2", not texture_active)
-            self._set_slider_enabled(f"s{i}_int3", not texture_active)
-            # El slider t sólo es libre en modo textura y sextete.
-            self._set_slider_enabled(f"s{i}_texture", texture_active)
+            rel = self._component_relevant_params(i)
+            for name in all_params:
+                self._set_slider_enabled(f"s{i}_{name}", name in rel)
+            is_sextete = self.component_kind[i].get() == "Sextete"
+            for combo in (getattr(self, "_intensity_combos", {}).get(i),
+                          getattr(self, "_quad_combos", {}).get(i)):
+                if combo is not None:
+                    try:
+                        combo.configure(state="readonly" if is_sextete else "disabled")
+                    except tk.TclError:
+                        pass
+
+    # Alias retro-compatibles (los paneles los invocan al construir/cargar).
+    def _refresh_intensity_mode_widgets(self, idx: int | None = None) -> None:
+        self._refresh_component_widgets(idx)
 
     def _refresh_quad_treatment_widgets(self, idx: int | None = None) -> None:
-        """Habilita/deshabilita el slider β según el tratamiento del cuadrupolo."""
-        if not hasattr(self, "quad_treatment"):
-            return
-        indices = [idx] if idx is not None else list(self.quad_treatment.keys())
-        for i in indices:
-            if i not in self.quad_treatment:
-                continue
-            treat = self.quad_treatment[i].get()
-            is_sextete = self.component_kind.get(i) is not None and self.component_kind[i].get() == "Sextete"
-            # β sólo es libre con tratamiento kundig_fixed sobre un sextete.
-            self._set_slider_enabled(f"s{i}_beta", treat == "kundig_fixed" and is_sextete)
+        self._refresh_component_widgets(idx)
 
     def on_quad_treatment_change(self, idx: int) -> None:
         """Reacciona al cambio del tratamiento del cuadrupolo en un sextete."""
-        self._refresh_quad_treatment_widgets(idx)
+        self._refresh_component_widgets(idx)
         if self.fit_mode_var.get() == "bhf_distribution":
             self.last_bhf_fit = None
         self.update_plot()
