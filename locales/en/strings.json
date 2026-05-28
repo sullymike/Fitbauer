@@ -472,5 +472,6 @@
   "logo.text_sextete": "sextet",
   "bhf.reg_mode_label": "Regularization",
   "options.global_opt": "Global optimization (DE) before TRF",
-  "progress.fit_global": "Global optimization (DE)..."
+  "progress.fit_global": "Global optimization (DE)...",
+  "options.advanced_fit": "Advanced fit options"
 }

@@ -156,39 +156,42 @@ class MossbauerApp(MossbauerFe33GUI):
                                  variable=self.fit_mode_var, value="bhf_distribution",
                                  command=self.set_fit_mode_from_menu)
         fit_menu.add_separator()
-        profile_menu = tk.Menu(fit_menu, tearoff=0)
+        # ── Submenú: opciones avanzadas de ajuste ───────────────────────────
+        adv_menu = tk.Menu(fit_menu, tearoff=0)
+        profile_menu = tk.Menu(adv_menu, tearoff=0)
         profile_menu.add_radiobutton(label=tr("options.profile_lorentzian"),
                                      variable=self.line_profile_var, value="Lorentziana",
                                      command=self.on_line_profile_change)
         profile_menu.add_radiobutton(label=tr("options.profile_voigt"),
                                      variable=self.line_profile_var, value="Voigt",
                                      command=self.on_line_profile_change)
-        fit_menu.add_cascade(label=tr("options.line_profile"), menu=profile_menu)
-        likelihood_menu = tk.Menu(fit_menu, tearoff=0)
+        adv_menu.add_cascade(label=tr("options.line_profile"), menu=profile_menu)
+        likelihood_menu = tk.Menu(adv_menu, tearoff=0)
         likelihood_menu.add_radiobutton(label=tr("options.likelihood_gauss"),
                                         variable=self.likelihood_var, value="gauss")
         likelihood_menu.add_radiobutton(label=tr("options.likelihood_poisson"),
                                         variable=self.likelihood_var, value="poisson")
-        fit_menu.add_cascade(label=tr("options.likelihood"), menu=likelihood_menu)
-        loss_menu = tk.Menu(fit_menu, tearoff=0)
+        adv_menu.add_cascade(label=tr("options.likelihood"), menu=likelihood_menu)
+        loss_menu = tk.Menu(adv_menu, tearoff=0)
         loss_menu.add_radiobutton(label=tr("options.loss_linear"),
                                   variable=self.robust_loss_var, value="linear")
         loss_menu.add_radiobutton(label=tr("options.loss_soft_l1"),
                                   variable=self.robust_loss_var, value="soft_l1")
         loss_menu.add_radiobutton(label=tr("options.loss_huber"),
                                   variable=self.robust_loss_var, value="huber")
-        fit_menu.add_cascade(label=tr("options.robust_loss"), menu=loss_menu)
-        fit_menu.add_checkbutton(label=tr("options.propagate_calib"),
+        adv_menu.add_cascade(label=tr("options.robust_loss"), menu=loss_menu)
+        adv_menu.add_checkbutton(label=tr("options.propagate_calib"),
                                  variable=self.propagate_calib_var)
-        fit_menu.add_checkbutton(label=tr("options.global_opt"),
+        adv_menu.add_checkbutton(label=tr("options.global_opt"),
                                  variable=self.global_opt_var)
-        fit_menu.add_separator()
-        fit_menu.add_checkbutton(label=tr("options.add_sharp"),
+        adv_menu.add_separator()
+        adv_menu.add_checkbutton(label=tr("options.add_sharp"),
                                  variable=self.dist_use_sharp_var,
                                  command=self.on_bhf_distribution_option_change)
-        fit_menu.add_checkbutton(label=tr("options.refine_global"),
+        adv_menu.add_checkbutton(label=tr("options.refine_global"),
                                  variable=self.dist_refine_global_var,
                                  command=self.on_bhf_distribution_option_change)
+        fit_menu.add_cascade(label=tr("options.advanced_fit"), menu=adv_menu)
         fit_menu.add_separator()
         fit_menu.add_command(label=tr("fit.free_all"), command=self.free_all_parameters)
         fit_menu.add_command(label=tr("fit.fix_all"),  command=self.fix_all_parameters)
