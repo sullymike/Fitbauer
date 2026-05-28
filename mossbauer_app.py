@@ -769,6 +769,9 @@ class MossbauerApp(MossbauerFe33GUI):
             self.component_kind[idx].set(found)
             if idx > 1 and not any(i == idx for i, _k, _g in components):
                 self.sextet_enabled[idx].set(False)
+        # Evitar que el modelo inicial se pase de los datos (sobre-tiro de
+        # profundidad por los pesos relativos de las líneas del sextete).
+        self._rescale_initial_depths(params, component_range=range(1, MAX_COMPONENTS + 1))
         self.set_params(params)
         for idx, kind, _group in components:
             self.on_component_kind_change(idx)
