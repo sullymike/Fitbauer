@@ -132,10 +132,15 @@ class SimPanel(BasePanel):
 
         dist_cols = ttk.Frame(dist_tab)
         dist_cols.pack(fill=tk.X)
+        # Usar grid con grupo uniforme: las dos columnas tienen siempre el
+        # mismo ancho. Con pack, la columna izquierda conservaba su ancho
+        # solicitado y la derecha absorbía casi toda la reducción al estrechar.
+        dist_cols.columnconfigure(0, weight=1, uniform="dist_cols")
+        dist_cols.columnconfigure(1, weight=1, uniform="dist_cols")
         d1 = ttk.Frame(dist_cols)
         d2 = ttk.Frame(dist_cols)
-        d1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 6))
-        d2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(6, 0))
+        d1.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        d2.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
 
         # Columna 1 — sliders principales + selección de variable/forma
         self._add_slider(d1, "dist_delta",     tr("slider.dist_delta"),     0.0,          -2.5, 2.5,  0.001, fit_param=False)
@@ -173,15 +178,19 @@ class SimPanel(BasePanel):
 
         ab = ttk.Frame(d2)
         ab.pack(fill=tk.X, pady=(4, 2))
+        # Botones de alpha con columnas uniformes: ocupan todo el ancho y se
+        # redimensionan por igual al hacer la ventana más estrecha/ancha.
+        for col in range(3):
+            ab.columnconfigure(col, weight=1, uniform="alpha_buttons")
         ttk.Button(ab, text=tr("bhf.alpha_fine"),
                    command=lambda: app.set_bhf_alpha_preset(-5.0), style="Small.TButton"
-                   ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 2))
+                   ).grid(row=0, column=0, sticky="ew", padx=(0, 2))
         ttk.Button(ab, text=tr("bhf.alpha_medium"),
                    command=lambda: app.set_bhf_alpha_preset(-2.0), style="Small.TButton"
-                   ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+                   ).grid(row=0, column=1, sticky="ew", padx=2)
         ttk.Button(ab, text=tr("bhf.alpha_smooth"),
                    command=lambda: app.set_bhf_alpha_preset(1.0), style="Small.TButton"
-                   ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(2, 0))
+                   ).grid(row=0, column=2, sticky="ew", padx=(2, 0))
 
         ttk.Checkbutton(d2, text=tr("bhf.use_sharp"), variable=app.dist_use_sharp_var,
                         command=app.on_bhf_distribution_option_change).pack(anchor=tk.W, pady=(2, 0))
@@ -264,41 +273,19 @@ class SimPanel(BasePanel):
         kind_box.pack(side=tk.LEFT)
         kind_box.bind("<<ComboboxSelected>>", lambda _e, i=idx: app.on_component_kind_change(i))
 
-        # Modo de intensidades del sextete: Libre / Textura
+        # Variables para modo de intensidades y tratamiento del cuadrupolo
         if idx not in app.intensity_mode:
             app.intensity_mode[idx] = tk.StringVar(value="free")
-        ttk.Label(top, text=tr("component.intensity_label")).pack(side=tk.LEFT, padx=(12, 4))
-        mode_box = ttk.Combobox(
-            top, textvariable=app.intensity_mode[idx],
-            values=("free", "texture"), width=8, state="readonly",
-        )
-        mode_box.pack(side=tk.LEFT)
-        mode_box.bind("<<ComboboxSelected>>", lambda _e, i=idx: app.on_intensity_mode_change(i))
-        if not hasattr(app, "_intensity_combos"):
-            app._intensity_combos = {}
-        app._intensity_combos[idx] = mode_box
-
-        # Tratamiento del cuadrupolo (mejora 8b)
         if idx not in app.quad_treatment:
             app.quad_treatment[idx] = tk.StringVar(value="1st_order")
-        ttk.Label(top, text=tr("component.quad_treatment_label")).pack(side=tk.LEFT, padx=(12, 4))
-        treat_box = ttk.Combobox(
-            top, textvariable=app.quad_treatment[idx],
-            values=("1st_order", "kundig_fixed", "kundig_powder"), width=14, state="readonly",
-        )
-        treat_box.pack(side=tk.LEFT)
-        treat_box.bind("<<ComboboxSelected>>", lambda _e, i=idx: app.on_quad_treatment_change(i))
-        if not hasattr(app, "_quad_combos"):
-            app._quad_combos = {}
-        app._quad_combos[idx] = treat_box
 
         # Sliders en 2 columnas — funcionan a cualquier ancho ≥ ~350 px
         cols = ttk.Frame(parent)
         cols.pack(fill=tk.X)
         c1 = ttk.Frame(cols)
         c2 = ttk.Frame(cols)
-        c1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        c2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        c1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 3))
+        c2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(3, 0))
 
         p = f"s{idx}_"
         depth_default = 0.030 if idx == 1 else 0.005
@@ -319,10 +306,59 @@ class SimPanel(BasePanel):
         # Ángulo β entre B y V_zz, en grados (mejora 8b)
         self._add_slider(c2, p + "beta",   tr("slider.s_beta"),   0.0,            0.0,  90.0, 0.1)
 
+        # Menús contextuales (clic derecho): intensidades ↔ modo, β/ΔEQ ↔ cuadrupolo
+        for key in (p + "int1", p + "int2", p + "int3", p + "texture"):
+            for w in app.slider_widget_refs.get(key, {}).values():
+                w.bind("<Button-3>", lambda e, i=idx: self._show_intensity_mode_menu(e, i), add=True)
+        for key in (p + "beta", p + "quad"):
+            for w in app.slider_widget_refs.get(key, {}).values():
+                w.bind("<Button-3>", lambda e, i=idx: self._show_quad_treatment_menu(e, i), add=True)
+
         # Estado inicial: el slider t empieza deshabilitado salvo que el modo
         # cargado sea "texture"; y β según quad_treatment.
         app._refresh_intensity_mode_widgets(idx)
         app._refresh_quad_treatment_widgets(idx)
+
+    # ── Menús contextuales ────────────────────────────────────────────────────
+
+    def _show_intensity_mode_menu(self, event: tk.Event, idx: int) -> None:
+        app = self.app
+        if idx not in app.intensity_mode:
+            return
+        menu = tk.Menu(app, tearoff=0)
+        menu.add_command(label=tr("context.intensity_mode_title"), state="disabled")
+        menu.add_separator()
+        for val, label in (
+            ("free", tr("context.intensity_mode_free")),
+            ("texture", tr("context.intensity_mode_texture")),
+        ):
+            menu.add_radiobutton(
+                label=label,
+                variable=app.intensity_mode[idx],
+                value=val,
+                command=lambda i=idx: app.on_intensity_mode_change(i),
+            )
+        menu.tk_popup(event.x_root, event.y_root)
+
+    def _show_quad_treatment_menu(self, event: tk.Event, idx: int) -> None:
+        app = self.app
+        if idx not in app.quad_treatment:
+            return
+        menu = tk.Menu(app, tearoff=0)
+        menu.add_command(label=tr("context.quad_treatment_title"), state="disabled")
+        menu.add_separator()
+        for val, label in (
+            ("1st_order", tr("context.quad_treatment_1st_order")),
+            ("kundig_fixed", tr("context.quad_treatment_kundig_fixed")),
+            ("kundig_powder", tr("context.quad_treatment_kundig_powder")),
+        ):
+            menu.add_radiobutton(
+                label=label,
+                variable=app.quad_treatment[idx],
+                value=val,
+                command=lambda i=idx: app.on_quad_treatment_change(i),
+            )
+        menu.tk_popup(event.x_root, event.y_root)
 
     # ── Cambio dinámico de modo ───────────────────────────────────────────────
 

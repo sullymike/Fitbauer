@@ -1,7 +1,8 @@
 # Mössbauer Fe-57 GUI
 
-Desktop application to load, fold, simulate and fit 57Fe Mössbauer spectra.
+Stable desktop application to load, fold, simulate and fit 57Fe Mössbauer spectra.
 
+Current stable version: **v2.0**.  
 Main application: `mossbauer_fe33_gui_v2IA.py`.
 
 Author: Jorge Sánchez Marcos  
@@ -23,15 +24,16 @@ Main features:
 - Quadrupole-splitting distribution fitting, `P(ΔEQ)`.
 - Lorentzian and Voigt profiles.
 - Poisson-weighted fits, reduced χ², AIC and BIC.
-- Numerical component areas and parameter correlations.
-- Residual diagnostics and deterministic multi-start fitting.
-- Monte Carlo bootstrap errors for discrete fits.
-- Physical constraint presets.
-- Optional folding-point fitting.
+- Numerical component areas, parameter correlations and residual diagnostics.
+- Deterministic multi-start fitting and Monte Carlo bootstrap errors for discrete fits.
+- Advanced quadrupole treatment: first order, fixed Kündig and powder Kündig.
+- Sextet intensity texture mode and physical constraint presets.
+- Optional folding-point and Vmax fitting.
+- Local or web-based calibration metadata.
 - Markdown/PDF report export.
 - Complete JSON session save/load.
 - Update checking through GitHub Releases.
-- Multilingual interface foundation with current menu catalogs in Spanish, English and French; built-in help in Spanish, English and French.
+- Spanish, English and French interface/help.
 
 Included sample data:
 

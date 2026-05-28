@@ -1,7 +1,8 @@
 # Mössbauer Fe-57 GUI
 
-Programa de escritorio para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
+Programa de escritorio estable para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
 
+Versión estable actual: **v2.0**.  
 Aplicación principal: `mossbauer_fe33_gui_v2IA.py`.
 
 Autor: Jorge Sánchez Marcos  
@@ -19,13 +20,16 @@ Funciones principales:
 - Descarga de espectros y calibraciones desde la web del laboratorio.
 - Búsqueda en la lista web por muestra, fecha, id, entorno o parámetros.
 - Doblado del espectro con folding point fraccionario/interpolado.
-- Ajuste con singletes, dobletes y sextetes.
-- Ajuste con distribución de campo hiperfino `P(BHF)`.
+- Ajuste con singletes, dobletes y sextetes, con pesos Poisson, autoarranques, χ²/AIC/BIC, diagnóstico de residuos y errores cuando están disponibles.
+- Ajuste con distribuciones `P(BHF)` y `P(ΔEQ)`, L-curve, regularización avanzada y componentes nítidos simultáneos.
+- Perfiles Lorentziano y Voigt.
+- Tratamiento cuadrupolar de primer orden, Kündig fijo y Kündig polvo; textura de intensidades de sextete.
+- Calibración desde la web o usando el fichero actual como calibración local.
 - Visualización de datos, modelo, componentes, fondo, residuo y distribución.
-- Porcentajes de área de componentes y errores aproximados.
-- Guardado de ajuste y guardado/carga de sesión completa.
+- Porcentajes de área de componentes, correlaciones y métricas estadísticas.
+- Guardado de ajuste, guardado/carga de sesión completa e informe Markdown/PDF.
 - Comprobación de nuevas versiones desde GitHub Releases y descarga de actualizaciones.
-- Interfaz preparada para varios idiomas, actualmente con menús en español, inglés y francés; ayuda integrada en español, inglés y francés.
+- Interfaz en español, inglés y francés; ayuda integrada en español, inglés y francés.
 
 Datos de ejemplo incluidos:
 
@@ -168,7 +172,7 @@ El programa comprueba nuevas versiones publicadas en GitHub Releases al arrancar
 Ayuda → Buscar actualizaciones...
 ```
 
-La versión local está definida en `APP_VERSION`. Si existe una release con un tag superior, por ejemplo `v0.1.1`, el programa ofrece descargarla en `Descargas`/`Downloads`. Si la descarga es un ZIP de GitHub, puede descomprimirlo automáticamente en la misma carpeta del programa; después basta con reiniciar.
+La versión local está definida en `APP_VERSION`. Si existe una release con un tag superior, por ejemplo `v2.1`, el programa ofrece descargarla en `Descargas`/`Downloads`. Si la descarga es un ZIP de GitHub, puede descomprimirlo automáticamente en la misma carpeta del programa; después basta con reiniciar.
 
 Las instrucciones para publicar versiones están en `RELEASES.md`.
 

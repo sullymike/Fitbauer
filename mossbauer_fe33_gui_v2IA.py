@@ -48,7 +48,7 @@ C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
 APP_NAME = "Mössbauer Fe-57 v2IA"
-APP_VERSION = "1.2"
+APP_VERSION = "2.0"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -1792,6 +1792,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.calib_label_var.set(text)
         self.calib_label.pack(anchor=tk.W, fill=tk.X, pady=(0, 6))
 
+
     def open_web_download_dialog(self, kind: str = "mossbauer") -> None:
         """Lista y descarga medidas o calibraciones usando la API REST del laboratorio."""
         try:
@@ -2363,34 +2364,56 @@ class MossbauerFe33GUI(tk.Tk):
             baseline0 = float(np.percentile(y, 90)); slope = 0.0
         baseline_line = baseline0 + slope * v
         absorption = np.maximum(baseline_line - y, 0.0)
-        smooth = self._smooth_1d(absorption, max(5, absorption.size // 80))
-        max_abs = float(np.nanmax(smooth)) if smooth.size else 0.0
+
+        # Suavizado grueso: estimación de ruido y máximo global.
+        coarse_smooth = self._smooth_1d(absorption, max(5, absorption.size // 80))
+        max_abs = float(np.nanmax(coarse_smooth)) if coarse_smooth.size else 0.0
         if max_abs <= 0:
             return [], float(baseline0), float(slope)
-        diff_noise = np.diff(smooth)
+        diff_noise = np.diff(coarse_smooth)
         noise = 1.4826 * float(np.median(np.abs(diff_noise - np.median(diff_noise)))) if diff_noise.size else 0.0
-        threshold = max(0.10 * max_abs, 4.0 * noise, 5e-4)
-        idxs = [i for i in range(1, smooth.size - 1) if smooth[i] >= smooth[i - 1] and smooth[i] > smooth[i + 1] and smooth[i] >= threshold]
+
+        # Suavizado fino: mejor resolución de hombros entre picos solapados.
+        fine_win = max(3, absorption.size // 120)
+        if fine_win % 2 == 0:
+            fine_win += 1
+        fine_smooth = self._smooth_1d(absorption, fine_win)
+
+        dv = abs(float(v[1] - v[0])) if v.size > 1 else 0.05
+        min_dist_ch = max(3, int(0.15 / dv))
+
+        # Umbral de altura al 6% (era 10%); los hombros de sextetos solapados
+        # suelen ser 5-8% del máximo global.
+        height_thr = max(0.06 * max_abs, 4.0 * noise, 5e-4)
+        # Prominencia mínima: el pico debe sobresalir al menos un 5% del máximo
+        # sobre los valles que lo flanquean (filtra ruido sin eliminar hombros).
+        prom_thr = max(0.05 * max_abs, 2.5 * noise, 3e-4)
+
+        from scipy.signal import find_peaks as _find_peaks
+        peak_idxs, _ = _find_peaks(fine_smooth, height=height_thr,
+                                   prominence=prom_thr, distance=min_dist_ch)
 
         peaks: list[dict[str, float]] = []
-        min_distance = max(0.12, 2.0 * abs(v[1] - v[0]))
-        for i in idxs:
-            half = 0.5 * smooth[i]
-            left = i
-            while left > 0 and smooth[left] > half:
+        min_distance = max(0.12, 2.0 * dv)
+        for i in peak_idxs:
+            half = 0.5 * fine_smooth[i]
+            left = int(i)
+            while left > 0 and fine_smooth[left] > half:
                 left -= 1
-            right = i
-            while right < smooth.size - 1 and smooth[right] > half:
+            right = int(i)
+            while right < fine_smooth.size - 1 and fine_smooth[right] > half:
                 right += 1
-            width = abs(float(v[right] - v[left])) if right > left else max(0.12, 2.0 * abs(v[1] - v[0]))
-            peaks.append({"i": float(i), "pos": float(v[i]), "depth": float(absorption[i]), "smooth_depth": float(smooth[i]), "width": width})
+            width = abs(float(v[right] - v[left])) if right > left else min_distance
+            peaks.append({"i": float(i), "pos": float(v[i]),
+                          "depth": float(absorption[i]),
+                          "smooth_depth": float(fine_smooth[i]), "width": width})
 
         # Quitar duplicados muy cercanos quedándonos con el más profundo.
         selected: list[dict[str, float]] = []
         for peak in sorted(peaks, key=lambda p: p["smooth_depth"], reverse=True):
             if all(abs(peak["pos"] - q["pos"]) >= min_distance for q in selected):
                 selected.append(peak)
-        selected = sorted(selected[:12], key=lambda p: p["pos"])
+        selected = sorted(selected[:15], key=lambda p: p["pos"])
         return selected, float(baseline0), float(slope)
 
     def _best_sextet_from_peaks(self, peaks: list[dict[str, float]]) -> tuple[list[dict[str, float]], float, float, float, float] | None:
@@ -2445,20 +2468,10 @@ class MossbauerFe33GUI(tk.Tk):
         return sub, delta, bhf, width, depth
 
     def _try_split_peaks_for_sextet(self, peaks: list[dict[str, float]]) -> tuple | None:
-        """Para 4-5 picos detectados, detecta fusiones (pico más ancho/profundo que
-        oculta dos líneas del sexteto) e inserta picos virtuales en las posiciones
-        predichas por la plantilla.
+        """Para 4-5 picos detectados, detecta fusiones e inserta picos virtuales.
 
-        Flujo:
-        1. Clasifica picos como «normales» (estrechos/normales) o «fusionados»
-           (anchos o profundos respecto a la mediana).
-        2. Usa pares de picos normales para estimar BHF (de su separación relativa).
-        3. Predice las 6 posiciones del sexteto con ese BHF.
-        4. Por cada posición no cubierta por un pico normal: si un pico fusionado
-           la cubre con su anchura, inserta un pico virtual ahí.
-        5. Llama a _best_sextet_from_peaks con el conjunto aumentado.
-        6. Entre todos los resultados válidos elige el que mejor explica los picos
-           fusionados (≥2 líneas predichas dentro de su span).
+        Útil cuando dos líneas solapadas del sexteto se detectan como un único
+        pico más ancho/profundo (caso 6+4→6+6 o 6+5→6+6).
         """
         n = len(peaks)
         if n < 4 or n >= 6:
@@ -2487,7 +2500,6 @@ class MossbauerFe33GUI(tk.Tk):
             span_obs = abs(pk_b["pos"] - pk_a["pos"])
             if span_obs < 0.5:
                 continue
-            # Probar todas las asignaciones (línea_a, línea_b) de la plantilla
             for la in range(6):
                 for lb in range(la + 1, 6):
                     span_ref = LINE_POS_33T[lb] - LINE_POS_33T[la]
@@ -2500,7 +2512,6 @@ class MossbauerFe33GUI(tk.Tk):
                     delta = pk_a["pos"] - scale * LINE_POS_33T[la]
                     pred_all = delta + scale * LINE_POS_33T
 
-                    # Verificar que las semillas cuadran con la predicción
                     if max(abs(pk_a["pos"] - pred_all[la]),
                            abs(pk_b["pos"] - pred_all[lb])) > 0.18:
                         continue
@@ -2510,14 +2521,13 @@ class MossbauerFe33GUI(tk.Tk):
                         continue
                     seen.add(key)
 
-                    # Añadir virtuales en posiciones no cubiertas por picos normales
                     augmented = list(peaks)
                     vid = next_vid
                     virtual_added = 0
                     for pred_pos in pred_all:
                         if any(abs(p["pos"] - pred_pos) < narrow_tol and is_normal(p)
                                for p in peaks):
-                            continue  # Cubierto por pico normal
+                            continue
                         for pk in sorted(peaks, key=lambda p: abs(p["pos"] - pred_pos)):
                             if abs(pk["pos"] - pred_pos) > pk["width"] * 0.7:
                                 break
@@ -2540,7 +2550,6 @@ class MossbauerFe33GUI(tk.Tk):
                     if result is None:
                         continue
 
-                    # Puntuar: nº de picos fusionados explicados por ≥2 líneas predichas
                     _, delta_r, bhf_r, _, _ = result
                     scale_r = bhf_r / BHF_DEFAULT_T
                     pred_r = delta_r + scale_r * LINE_POS_33T
@@ -2554,6 +2563,80 @@ class MossbauerFe33GUI(tk.Tk):
                         best_result = result
 
         return best_result
+
+    def _try_2peak_sextet_estimate(
+        self, peaks: list[dict[str, float]]
+    ) -> tuple[list[dict[str, float]], float, float, float, float] | None:
+        """Estima BHF y δ cuando solo quedan 2 picos tras identificar el primer sexteto.
+
+        Prueba los pares exteriores adyacentes (0,1) y (4,5) del patrón Fe-57.
+        Solo acepta si BHF ∈ [25,60] T, |δ| ≤ 1.5 mm/s y ambos picos están
+        en el mismo semiplano de velocidades.
+        """
+        if len(peaks) != 2:
+            return None
+        from core.constants import _BASE_POSITIONS
+        p = sorted(peaks, key=lambda x: x["pos"])
+        p0_pos, p1_pos = p[0]["pos"], p[1]["pos"]
+        obs_spacing = p1_pos - p0_pos
+        if obs_spacing < 0.5:
+            return None
+
+        b0, b1 = float(_BASE_POSITIONS[0]), float(_BASE_POSITIONS[1])
+        b4, b5 = float(_BASE_POSITIONS[4]), float(_BASE_POSITIONS[5])
+        spacing_ref = b1 - b0  # idéntico a b5 - b4 por simetría
+
+        scale = obs_spacing / spacing_ref
+        bhf = scale * 32.95
+        if not (25.0 <= bhf <= 60.0):
+            return None
+
+        best: tuple | None = None
+        if p0_pos < 0 and p1_pos < 0:
+            delta_01 = p0_pos - scale * b0
+            if abs(delta_01) <= 1.5:
+                best = (delta_01, bhf)
+        if p0_pos > 0 and p1_pos > 0:
+            delta_45 = p0_pos - scale * b4
+            if abs(delta_45) <= 1.5:
+                best = (delta_45, bhf)
+
+        if best is None:
+            return None
+
+        delta_est, bhf_est = best
+        width = float(np.mean([p[0]["width"], p[1]["width"]]))
+        depth = float(np.mean([p[0]["depth"], p[1]["depth"]]))
+        return list(p), delta_est, bhf_est, width, depth
+
+    def _depth_profile_hint(
+        self, peaks: list[dict[str, float]]
+    ) -> tuple[str, list[dict[str, float]]] | None:
+        """Clasifica el espectro en singlete/doblete cuando el perfil es obvio.
+
+        - Singlete: pico dominante ≥2.5× el siguiente y dentro de ±2.5 mm/s del cero.
+        - Doblete: dos picos similares (d₁ ≥ 40% d₀), el tercero mucho menor
+          (d₂ < 30% d₀), ≤4 picos totales y separación 0.18–5 mm/s.
+        - None: patrón no concluyente → intentar sexteto.
+        """
+        if not peaks:
+            return None
+        by_d = sorted(peaks, key=lambda p: p["smooth_depth"], reverse=True)
+        d0 = by_d[0]["smooth_depth"]
+        d1 = by_d[1]["smooth_depth"] if len(by_d) > 1 else 0.0
+        d2 = by_d[2]["smooth_depth"] if len(by_d) > 2 else 0.0
+
+        if d0 > 2.5 * max(d1, 1e-10) and abs(by_d[0]["pos"]) < 2.5:
+            return ("Singlete", [by_d[0]])
+
+        if (len(by_d) >= 2 and d1 >= 0.40 * d0 and d2 < 0.30 * d0
+                and len(peaks) <= 4):
+            pair = sorted([by_d[0], by_d[1]], key=lambda p: p["pos"])
+            sep = abs(pair[1]["pos"] - pair[0]["pos"])
+            if 0.18 <= sep <= 5.0:
+                return ("Doblete", pair)
+
+        return None
 
     def auto_guess_from_minima(self, fit_after: bool = False) -> None:
         if self.velocity is None or self.y_data is None:
@@ -2574,18 +2657,42 @@ class MossbauerFe33GUI(tk.Tk):
 
         components: list[tuple[int, str, list[dict[str, float]]]] = []
         used_ids: set[int] = set()
-        sext = self._best_sextet_from_peaks(peaks)
-        if sext is not None:
-            sub, delta, bhf, width, depth = sext
-            if len(sub) >= 5 and abs(sub[-1]["pos"] - sub[0]["pos"]) > 3.0:
-                components.append((1, "Sextete", sub))
-                p = "s1_"
-                params[p + "delta"] = float(np.clip(delta, -2.5, 2.5))
-                params[p + "bhf"] = float(np.clip(bhf, 20.0, 50.0))
-                params[p + "quad"] = 0.0
-                params[p + "gamma1"] = float(np.clip(width / 2.0, 0.04, 1.0))
-                params[p + "depth"] = float(np.clip(depth, 0.002, 0.25))
-                used_ids.update(int(p["i"]) for p in sub)
+
+        # Clasificación previa por perfil de profundidades: si hay un singlete
+        # o doblete obvio, se coloca antes de intentar el sexteto.
+        hint = self._depth_profile_hint(peaks)
+        if hint is not None:
+            kind_h, group_h = hint
+            components.append((1, kind_h, group_h))
+            pfx = "s1_"
+            if kind_h == "Doblete":
+                g = group_h
+                params[pfx + "delta"]  = float(np.mean([g[0]["pos"], g[1]["pos"]]))
+                params[pfx + "quad"]   = float(abs(g[1]["pos"] - g[0]["pos"]))
+                params[pfx + "gamma1"] = float(np.clip(np.mean([x["width"] for x in g]) / 2.0, 0.04, 1.0))
+                params[pfx + "gamma2"] = 1.0
+                params[pfx + "depth"]  = float(np.clip(np.mean([x["depth"] for x in g]), 0.002, 0.25))
+                params[pfx + "int1"]   = 1.0; params[pfx + "int2"] = 1.0
+            else:
+                pk = group_h[0]
+                params[pfx + "delta"]  = float(pk["pos"])
+                params[pfx + "gamma1"] = float(np.clip(pk["width"] / 2.0, 0.04, 1.0))
+                params[pfx + "depth"]  = float(np.clip(pk["depth"], 0.002, 0.25))
+                params[pfx + "int1"]   = 1.0
+            used_ids.update(int(pk["i"]) for pk in group_h)
+        else:
+            sext = self._best_sextet_from_peaks(peaks)
+            if sext is not None:
+                sub, delta, bhf, width, depth = sext
+                if len(sub) >= 5 and abs(sub[-1]["pos"] - sub[0]["pos"]) > 3.0:
+                    components.append((1, "Sextete", sub))
+                    p = "s1_"
+                    params[p + "delta"] = float(np.clip(delta, -2.5, 2.5))
+                    params[p + "bhf"] = float(np.clip(bhf, 20.0, 50.0))
+                    params[p + "quad"] = 0.0
+                    params[p + "gamma1"] = float(np.clip(width / 2.0, 0.04, 1.0))
+                    params[p + "depth"] = float(np.clip(depth, 0.002, 0.25))
+                    used_ids.update(int(p["i"]) for p in sub)
 
         remaining = [p for p in sorted(peaks, key=lambda q: q["smooth_depth"], reverse=True) if int(p["i"]) not in used_ids]
         next_idx = 2 if components else 1
@@ -4193,17 +4300,41 @@ class MossbauerFe33GUI(tk.Tk):
         indices = self.active_sharp_component_indices_for_bhf()
         for idx in indices:
             p = f"s{idx}_"
+            kind = self.component_kind[idx].get()
+            int1_gui = float(self.vars[p + "int1"].get())
+            int2_gui = float(self.vars[p + "int2"].get())
+            int3_gui = float(self.vars[p + "int3"].get())
+            # El motor de distribución usa para sextetes la convención interna
+            # int1, (2/3)*int1*int2_rel, (1/3)*int1*int3_rel, mientras que
+            # la GUI discreta usa la convención NORMOS I13/I23/I: int3*int1,
+            # int3*int2, int3. Convertimos aquí para que el kernel nítido que
+            # se ajusta sea exactamente el mismo que luego se dibuja y se resta
+            # de la curva total para mostrar solo la distribución.
+            if kind == "Sextete":
+                i1 = int3_gui * int1_gui
+                if abs(i1) > 1e-12:
+                    engine_int1 = i1
+                    engine_int2_rel = (1.5 * int2_gui / int1_gui) if abs(int1_gui) > 1e-12 else 0.0
+                    engine_int3_rel = 3.0 / int1_gui if abs(int1_gui) > 1e-12 else 0.0
+                else:
+                    engine_int1 = 0.0
+                    engine_int2_rel = 0.0
+                    engine_int3_rel = 0.0
+            else:
+                engine_int1 = int1_gui
+                engine_int2_rel = int2_gui
+                engine_int3_rel = int3_gui
             components.append({
-                "kind": self.component_kind[idx].get(),
+                "kind": kind,
                 "bhf": self.vars[p + "bhf"].get(),
                 "delta": self.vars[p + "delta"].get(),
                 "quad": self.vars[p + "quad"].get(),
                 "gamma": self.vars[p + "gamma1"].get(),
                 "gamma2_rel": self.vars[p + "gamma2"].get(),
                 "gamma3_rel": self.vars[p + "gamma3"].get(),
-                "int1": self.vars[p + "int1"].get(),
-                "int2_rel": self.vars[p + "int2"].get(),
-                "int3_rel": self.vars[p + "int3"].get(),
+                "int1": engine_int1,
+                "int2_rel": engine_int2_rel,
+                "int3_rel": engine_int3_rel,
             })
         return components, indices
 

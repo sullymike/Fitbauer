@@ -10,6 +10,7 @@ https://github.com/sullymike/Mossbauer/releases
 
 1. Cambiar `APP_VERSION` en:
    - `mossbauer_fe33_gui_v2IA.py`
+   - `core/constants.py`
 
 2. Actualizar `CHANGELOG.md`.
 
@@ -45,6 +46,6 @@ También se puede comprobar manualmente desde:
 Ayuda → Buscar actualizaciones...
 ```
 
-Si el tag de GitHub, por ejemplo `v0.1.7`, es mayor que `APP_VERSION`, ofrece
+Si el tag de GitHub, por ejemplo `v2.1`, es mayor que `APP_VERSION`, ofrece
 descargar el ZIP en la carpeta `Descargas`/`Downloads` y verificar su integridad
 con el `sha256sums.txt` adjunto.
