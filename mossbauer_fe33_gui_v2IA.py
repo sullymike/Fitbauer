@@ -2768,6 +2768,8 @@ class MossbauerFe33GUI(tk.Tk):
             self.component_kind[idx].set(found)
             if idx > 1 and not any(i == idx for i, _kind, _g in components):
                 self.sextet_enabled[idx].set(False)
+        self._simulate_enabled = True
+        self._rescale_initial_depths(params, component_range=(1, 2, 3))
         self.set_params(params)
         for idx, kind, _group in components:
             self.on_component_kind_change(idx)
@@ -3710,6 +3712,44 @@ class MossbauerFe33GUI(tk.Tk):
         stats = {"n": float(n), "n_params": float(k), "dof": float(dof), "rms": rms, "chi2": chi2, "red_chi2": red_chi2, "aic": aic, "bic": bic}
         stats.update(self.residual_diagnostics(residual, sigma))
         return stats
+
+    def _rescale_initial_depths(self, params: dict[str, float], component_range=None) -> None:
+        """Reescala las profundidades del guess inicial para que la absorción
+        máxima del modelo no supere la de los datos.
+
+        Los estimadores de profundidad por pico no siempre dividen por el peso
+        relativo de cada línea (W hasta 3 en un sextete), por lo que el modelo
+        inicial puede pasarse con creces de los datos. Un factor global común a
+        todas las profundidades corrige el sobre-tiro preservando las relaciones
+        entre componentes; el ajuste posterior afina el resto.
+        """
+        if self.velocity is None or self.y_data is None:
+            return
+        rng = component_range if component_range is not None else (
+            self._component_range() if hasattr(self, "_component_range") else (1, 2, 3))
+        baseline = float(params.get("baseline", self.vars["baseline"].get()))
+        slope = float(params.get("slope", self.vars["slope"].get()))
+        v = self.velocity
+        comps: list[tuple[str, np.ndarray]] = []
+        depth_keys: list[str] = []
+        for idx in rng:
+            if idx not in self.sextet_enabled or not self.sextet_enabled[idx].get():
+                continue
+            p = f"s{idx}_"
+            arr = np.array([params.get(p + name, self.vars[p + name].get()) for name in SEXTET_PARAM_NAMES], dtype=float)
+            comps.append((self.component_kind[idx].get(), arr))
+            depth_keys.append(p + "depth")
+        if not comps:
+            return
+        baseline_line = baseline + slope * v
+        model = total_model(v, baseline, slope, comps)
+        model_abs = float(np.max(baseline_line - model)) if v.size else 0.0
+        data_abs = float(np.max(baseline_line - self.y_data)) if v.size else 0.0
+        if model_abs > 1e-6 and data_abs > 0.0 and model_abs > data_abs:
+            factor = data_abs / model_abs
+            for key in depth_keys:
+                if key in params:
+                    params[key] = float(params[key] * factor)
 
     def current_model(self) -> np.ndarray | None:
         if self.fit_mode_var.get() == "bhf_distribution" and self.last_bhf_fit is not None:
