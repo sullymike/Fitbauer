@@ -480,5 +480,6 @@
   "context.quad_treatment_title": "Quadrupole treatment",
   "context.quad_treatment_1st_order": "1st order",
   "context.quad_treatment_kundig_fixed": "Kündig fixed",
-  "context.quad_treatment_kundig_powder": "Kündig powder"
+  "context.quad_treatment_kundig_powder": "Kündig powder",
+  "plot.legend_preview": "Preview (not fitted)"
 }

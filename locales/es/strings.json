@@ -480,5 +480,6 @@
   "context.quad_treatment_title": "Tratamiento Cuadrupolo",
   "context.quad_treatment_1st_order": "1er orden",
   "context.quad_treatment_kundig_fixed": "Kündig fijo",
-  "context.quad_treatment_kundig_powder": "Kündig polvo"
+  "context.quad_treatment_kundig_powder": "Kündig polvo",
+  "plot.legend_preview": "Previsualización (sin ajustar)"
 }
