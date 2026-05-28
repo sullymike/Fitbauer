@@ -264,35 +264,19 @@ class SimPanel(BasePanel):
         kind_box.pack(side=tk.LEFT)
         kind_box.bind("<<ComboboxSelected>>", lambda _e, i=idx: app.on_component_kind_change(i))
 
-        # Modo de intensidades del sextete: Libre / Textura
+        # Variables para modo de intensidades y tratamiento del cuadrupolo
         if idx not in app.intensity_mode:
             app.intensity_mode[idx] = tk.StringVar(value="free")
-        ttk.Label(top, text=tr("component.intensity_label")).pack(side=tk.LEFT, padx=(12, 4))
-        mode_box = ttk.Combobox(
-            top, textvariable=app.intensity_mode[idx],
-            values=("free", "texture"), width=8, state="readonly",
-        )
-        mode_box.pack(side=tk.LEFT)
-        mode_box.bind("<<ComboboxSelected>>", lambda _e, i=idx: app.on_intensity_mode_change(i))
-
-        # Tratamiento del cuadrupolo (mejora 8b)
         if idx not in app.quad_treatment:
             app.quad_treatment[idx] = tk.StringVar(value="1st_order")
-        ttk.Label(top, text=tr("component.quad_treatment_label")).pack(side=tk.LEFT, padx=(12, 4))
-        treat_box = ttk.Combobox(
-            top, textvariable=app.quad_treatment[idx],
-            values=("1st_order", "kundig_fixed", "kundig_powder"), width=14, state="readonly",
-        )
-        treat_box.pack(side=tk.LEFT)
-        treat_box.bind("<<ComboboxSelected>>", lambda _e, i=idx: app.on_quad_treatment_change(i))
 
         # Sliders en 2 columnas — funcionan a cualquier ancho ≥ ~350 px
         cols = ttk.Frame(parent)
         cols.pack(fill=tk.X)
         c1 = ttk.Frame(cols)
         c2 = ttk.Frame(cols)
-        c1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 6))
-        c2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(6, 0))
+        c1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 3))
+        c2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(3, 0))
 
         p = f"s{idx}_"
         depth_default = 0.030 if idx == 1 else 0.005
@@ -319,7 +303,6 @@ class SimPanel(BasePanel):
                 w.bind("<Button-3>", lambda e, i=idx: self._show_intensity_mode_menu(e, i), add=True)
         for w in app.slider_widget_refs.get(p + "beta", {}).values():
             w.bind("<Button-3>", lambda e, i=idx: self._show_quad_treatment_menu(e, i), add=True)
-        treat_box.bind("<Button-3>", lambda e, i=idx: self._show_quad_treatment_menu(e, i), add=True)
 
         # Estado inicial: el slider t empieza deshabilitado salvo que el modo
         # cargado sea "texture"; y β según quad_treatment.
