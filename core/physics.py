@@ -19,10 +19,14 @@ VOIGT_SIGMA: float = 0.05
 def lorentzian(v: np.ndarray, center: float, gamma: float) -> np.ndarray:
     if LINE_PROFILE_KIND == "Voigt":
         sigma = max(float(VOIGT_SIGMA), 1e-9)
-        z = ((v - center) + 1j * gamma) / (sigma * np.sqrt(2.0))
-        prof = np.real(wofz(z)) / (sigma * np.sqrt(2.0 * np.pi))
-        max_prof = float(np.nanmax(prof)) if prof.size else 1.0
-        return prof / max(max_prof, 1e-12)
+        denom = sigma * np.sqrt(2.0)
+        norm = sigma * np.sqrt(2.0 * np.pi)
+        prof = np.real(wofz(((v - center) + 1j * gamma) / denom)) / norm
+        # Normalización analítica al pico (v=v0): Re[w(iγ/(σ√2))]/(σ√2π).
+        # Independiente del muestreo (antes se dividía por el máximo discreto,
+        # que subestima el pico si la malla no cae justo en v0).
+        peak = float(np.real(wofz(1j * gamma / denom))) / norm
+        return prof / max(peak, 1e-12)
     return gamma * gamma / ((v - center) ** 2 + gamma * gamma)
 
 
