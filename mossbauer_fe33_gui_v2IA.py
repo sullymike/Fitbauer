@@ -2444,15 +2444,19 @@ class MossbauerFe33GUI(tk.Tk):
                     pred5 = delta5 + scale5 * ref5
                     rms5 = float(np.sqrt(np.mean((pos - pred5) ** 2)))
                     if local_best is None or rms5 < local_best[0]:
-                        local_best = (rms5, delta5, scale5)
+                        local_best = (rms5, delta5, scale5, missing)
                 assert local_best is not None
-                rms, delta, scale = local_best
+                rms, delta, scale, missing_idx = local_best
                 bhf = scale * BHF_DEFAULT_T
                 score = rms
                 if 10.0 <= bhf <= 60.0 and (best is None or score < best[0]):
                     widths = [p["width"] for p in sub]
-                    depths = [p["depth"] for p in sub]
-                    best = (score, list(sub), float(delta), float(bhf), float(np.median(widths)), float(np.median(depths)))
+                    # Profundidad por línea / peso relativo (W = [3,2,1,1,2,3]),
+                    # quitando la línea no detectada, para no sobre-tirar.
+                    weights5 = np.delete(np.array([3.0, 2.0, 1.0, 1.0, 2.0, 3.0]), missing_idx)
+                    depths = np.array([p["depth"] for p in sub], dtype=float)
+                    depth_est = float(np.median(depths / weights5))
+                    best = (score, list(sub), float(delta), float(bhf), float(np.median(widths)), depth_est)
                 continue
             A = np.column_stack([np.ones(ref.size), ref])
             delta, scale = np.linalg.lstsq(A, pos, rcond=None)[0]
@@ -2599,21 +2603,24 @@ class MossbauerFe33GUI(tk.Tk):
             return None
 
         best: tuple | None = None
+        # Pesos relativos de las líneas externas del patrón [3,2,1,1,2,3]:
+        # par (0,1) → (3,2); par (4,5) → (2,3).
         if p0_pos < 0 and p1_pos < 0:
             delta_01 = p0_pos - scale * b0
             if abs(delta_01) <= 1.5:
-                best = (delta_01, bhf)
+                best = (delta_01, bhf, (3.0, 2.0))
         if p0_pos > 0 and p1_pos > 0:
             delta_45 = p0_pos - scale * b4
             if abs(delta_45) <= 1.5:
-                best = (delta_45, bhf)
+                best = (delta_45, bhf, (2.0, 3.0))
 
         if best is None:
             return None
 
-        delta_est, bhf_est = best
+        delta_est, bhf_est, (w0, w1) = best
         width = float(np.mean([p[0]["width"], p[1]["width"]]))
-        depth = float(np.mean([p[0]["depth"], p[1]["depth"]]))
+        # Profundidad por línea / peso, para no sobre-tirar (líneas externas W≈3).
+        depth = float(np.median([p[0]["depth"] / w0, p[1]["depth"] / w1]))
         return list(p), delta_est, bhf_est, width, depth
 
     def _depth_profile_hint(
