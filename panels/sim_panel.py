@@ -132,10 +132,15 @@ class SimPanel(BasePanel):
 
         dist_cols = ttk.Frame(dist_tab)
         dist_cols.pack(fill=tk.X)
+        # Usar grid con grupo uniforme: las dos columnas tienen siempre el
+        # mismo ancho. Con pack, la columna izquierda conservaba su ancho
+        # solicitado y la derecha absorbía casi toda la reducción al estrechar.
+        dist_cols.columnconfigure(0, weight=1, uniform="dist_cols")
+        dist_cols.columnconfigure(1, weight=1, uniform="dist_cols")
         d1 = ttk.Frame(dist_cols)
         d2 = ttk.Frame(dist_cols)
-        d1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 6))
-        d2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(6, 0))
+        d1.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        d2.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
 
         # Columna 1 — sliders principales + selección de variable/forma
         self._add_slider(d1, "dist_delta",     tr("slider.dist_delta"),     0.0,          -2.5, 2.5,  0.001, fit_param=False)
@@ -173,15 +178,19 @@ class SimPanel(BasePanel):
 
         ab = ttk.Frame(d2)
         ab.pack(fill=tk.X, pady=(4, 2))
+        # Botones de alpha con columnas uniformes: ocupan todo el ancho y se
+        # redimensionan por igual al hacer la ventana más estrecha/ancha.
+        for col in range(3):
+            ab.columnconfigure(col, weight=1, uniform="alpha_buttons")
         ttk.Button(ab, text=tr("bhf.alpha_fine"),
                    command=lambda: app.set_bhf_alpha_preset(-5.0), style="Small.TButton"
-                   ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 2))
+                   ).grid(row=0, column=0, sticky="ew", padx=(0, 2))
         ttk.Button(ab, text=tr("bhf.alpha_medium"),
                    command=lambda: app.set_bhf_alpha_preset(-2.0), style="Small.TButton"
-                   ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+                   ).grid(row=0, column=1, sticky="ew", padx=2)
         ttk.Button(ab, text=tr("bhf.alpha_smooth"),
                    command=lambda: app.set_bhf_alpha_preset(1.0), style="Small.TButton"
-                   ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(2, 0))
+                   ).grid(row=0, column=2, sticky="ew", padx=(2, 0))
 
         ttk.Checkbutton(d2, text=tr("bhf.use_sharp"), variable=app.dist_use_sharp_var,
                         command=app.on_bhf_distribution_option_change).pack(anchor=tk.W, pady=(2, 0))
