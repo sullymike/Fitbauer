@@ -373,6 +373,7 @@ def fit_hyperfine_distribution(
     slope_bounds: tuple[float, float] = (-np.inf, np.inf),
     sharp_components: list[dict[str, float]] | None = None,
     sigma: np.ndarray | None = None,
+    rescale_columns: bool = True,
 ) -> BhfDistributionFit:
     """Ajusta una distribución Hesse-Rübartsch de BHF o ΔEQ.
 
@@ -467,19 +468,37 @@ def fit_hyperfine_distribution(
     sharp_end = len(labels)
 
     X = np.column_stack(columns)
+
+    # Mejora 13: preacondicionamiento por escala de columnas de la distribución.
+    # Para BHF pequeño el sextete colapsa y las columnas de K se vuelven casi
+    # colineales (||K_j|| muy dispares), lo que hace mal condicionado el sistema
+    # acotado. Reescalando K_j → K_j/s_j y P_j → P_j·s_j el problema queda mejor
+    # condicionado SIN cambiar la solución (reparametrización exacta). El
+    # penalizador y los pesos se ajustan en consecuencia.
+    scale = np.ones(X.shape[1], dtype=float)
+    if rescale_columns and dist_end > dist_start:
+        Kw = K / sigma_arr[:, None] if sigma_arr is not None else K
+        col_norms = np.linalg.norm(Kw, axis=0)
+        col_norms = np.where(np.isfinite(col_norms) & (col_norms > 1e-12), col_norms, 1.0)
+        scale[dist_start:dist_end] = col_norms
+
+    Xs = X / scale[None, :]
+    L_scaled = L / scale[None, dist_start:dist_end]
     if sigma_arr is not None:
-        X_fit = X / sigma_arr[:, None]
+        X_fit = Xs / sigma_arr[:, None]
         y_fit = y_work / sigma_arr
     else:
-        X_fit = X
+        X_fit = Xs
         y_fit = y_work
     reg = np.zeros((L.shape[0], X.shape[1]), dtype=float)
-    reg[:, dist_start:dist_end] = np.sqrt(float(alpha)) * L
+    reg[:, dist_start:dist_end] = np.sqrt(float(alpha)) * L_scaled
     X_aug = np.vstack([X_fit, reg])
     y_aug = np.concatenate([y_fit, np.zeros(L.shape[0], dtype=float)])
 
+    # Las cotas de p̃ = escala·P coinciden con las de P (0 e ∞ invariantes bajo
+    # escala positiva), así que se reutilizan sin cambio.
     result = lsq_linear(X_aug, y_aug, bounds=(np.array(lower), np.array(upper)), lsmr_tol="auto", max_iter=2000)
-    params = result.x
+    params = result.x / scale  # deshacer el escalado para recuperar P físico
 
     baseline_fit = float(params[labels.index("baseline")]) if fit_baseline else float(baseline)
     slope_fit = float(params[labels.index("slope")]) if fit_slope else float(slope)

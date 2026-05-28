@@ -418,6 +418,10 @@ class MossbauerFe33GUI(tk.Tk):
         self.fit_velocity_var = tk.BooleanVar(value=False)
         self.fit_center_var = tk.BooleanVar(value=False)
         self.likelihood_var = tk.StringVar(value="gauss")
+        # Mejora 10: pérdida robusta del optimizador (linear/soft_l1/huber).
+        self.robust_loss_var = tk.StringVar(value="linear")
+        # Mejora 12: propagar la incertidumbre de calibración (σ_vmax) a los pesos.
+        self.propagate_calib_var = tk.BooleanVar(value=False)
         self.show_residual_var = tk.BooleanVar(value=True)
         self.show_legend_var = tk.BooleanVar(value=False)
         self.fit_mode_var = tk.StringVar(value="discrete")
@@ -1013,6 +1017,8 @@ class MossbauerFe33GUI(tk.Tk):
             "fit_mode": self.fit_mode_var.get(),
             "line_profile": self.line_profile_var.get(),
             "likelihood": self.likelihood_var.get(),
+            "robust_loss": self.robust_loss_var.get(),
+            "propagate_calib": bool(self.propagate_calib_var.get()),
             "dist_variable": self.dist_variable_var.get(),
             "dist_shape": self.dist_shape_var.get(),
             "fixed_distribution_path": str(self.fixed_distribution_path) if self.fixed_distribution_path else None,
@@ -1079,6 +1085,8 @@ class MossbauerFe33GUI(tk.Tk):
             self.line_profile_var.set(data.get("line_profile", self.line_profile_var.get()))
             self.on_line_profile_change()
             self.likelihood_var.set(data.get("likelihood", self.likelihood_var.get()))
+            self.robust_loss_var.set(data.get("robust_loss", self.robust_loss_var.get()))
+            self.propagate_calib_var.set(bool(data.get("propagate_calib", self.propagate_calib_var.get())))
             self.dist_variable_var.set(data.get("dist_variable", self.dist_variable_var.get()))
             self.dist_shape_var.set(data.get("dist_shape", self.dist_shape_var.get()))
             self.fixed_distribution_path = Path(data["fixed_distribution_path"]) if data.get("fixed_distribution_path") else None
@@ -3382,9 +3390,9 @@ class MossbauerFe33GUI(tk.Tk):
             val = self.calibration_info.get(key)
             if val not in (None, ""):
                 try:
-                    return tr("info.calib_uncertainty", key=key, value=f"{float(val):.4g}")
+                    return tr("info.calib_uncertainty", field=key, value=f"{float(val):.4g}")
                 except (TypeError, ValueError):
-                    return tr("info.calib_uncertainty_raw", key=key, value=val)
+                    return tr("info.calib_uncertainty_raw", field=key, value=val)
         return tr("info.calib_no_uncertainty")
 
     def data_sigma(self) -> np.ndarray | None:
@@ -3419,6 +3427,51 @@ class MossbauerFe33GUI(tk.Tk):
             if sig is not None:
                 return sig
         return self.data_sigma()
+
+    def calibration_vmax_sigma(self) -> float | None:
+        """σ de la escala de velocidad (vmax) leída de calibration_info, o None."""
+        info = getattr(self, "calibration_info", None)
+        if not info:
+            return None
+        for key in ("vmax_uncertainty", "velocity_uncertainty", "sigma_vmax", "vmax_error", "velocity_error"):
+            val = info.get(key)
+            if val not in (None, ""):
+                try:
+                    s = abs(float(val))
+                    return s if np.isfinite(s) and s > 0 else None
+                except (TypeError, ValueError):
+                    continue
+        return None
+
+    def augment_sigma_calibration(self, base_sigma: np.ndarray | None, model_y: np.ndarray, vmax: float) -> np.ndarray | None:
+        """Suma en cuadratura la contribución de σ_vmax a la incertidumbre.
+
+        La sensibilidad del modelo al cambio de escala es
+            ∂T/∂v_max |_i = (∂T/∂v)|_i · (v_i / v_max),
+        porque v_i = v_max·(2i/(N−1) − 1) ⇒ ∂v_i/∂v_max = v_i/v_max.
+        El término pesa más en los flancos de los picos (∂T/∂v grande), que es
+        justo donde un error de calibración sesga δ y BHF.
+        """
+        if base_sigma is None:
+            return None
+        if not self.propagate_calib_var.get():
+            return base_sigma
+        sv = self.calibration_vmax_sigma()
+        if not sv or vmax <= 0 or self.velocity is None or self.velocity.size != base_sigma.size:
+            return base_sigma
+        v = self.velocity
+        dT_dv = np.gradient(np.asarray(model_y, dtype=float), v)
+        dT_dvmax = dT_dv * (v / vmax)
+        return np.sqrt(base_sigma ** 2 + (dT_dvmax * sv) ** 2)
+
+    def _least_squares_kwargs(self) -> dict:
+        """kwargs comunes para least_squares incluyendo pérdida robusta (mejora 10)."""
+        loss = self.robust_loss_var.get()
+        kwargs: dict = {}
+        if loss in ("soft_l1", "huber", "cauchy"):
+            kwargs["loss"] = loss
+            kwargs["f_scale"] = 3.0  # umbral ~3σ (residuos ya normalizados por σ)
+        return kwargs
 
     def fit_correlation_summary(self, cov: np.ndarray | None, names: list[str], threshold: float = 0.95) -> dict[str, object]:
         """Resume correlaciones de la matriz de covarianza para diagnosticar degeneraciones."""
@@ -3701,6 +3754,7 @@ class MossbauerFe33GUI(tk.Tk):
                     sig_use = sig
             else:
                 sig_use = sig
+            sig_use = self.augment_sigma_calibration(sig_use, model_y, vmax)
             res = model_y - yy
             return res / sig_use if sig_use is not None else res
 
@@ -3727,10 +3781,11 @@ class MossbauerFe33GUI(tk.Tk):
             result = None
             n_starts = 0
             candidates = multistart_candidates()
+            ls_kwargs = self._least_squares_kwargs()
             for candidate in candidates:
                 n_starts += 1
                 update_progress(tr("progress.fit_step", i=n_starts, total=len(candidates)))
-                res_i = least_squares(residual, candidate, bounds=(lo_arr, hi_arr), max_nfev=7000)
+                res_i = least_squares(residual, candidate, bounds=(lo_arr, hi_arr), max_nfev=7000, **ls_kwargs)
                 if result is None or res_i.cost < result.cost:
                     result = res_i
                     update_progress(tr("progress.fit_step_new_best", i=n_starts, total=len(candidates), cost=res_i.cost))
@@ -3773,8 +3828,10 @@ class MossbauerFe33GUI(tk.Tk):
         model_final = self.model_from_values(values_final, vmax_final)
         final_residual = model_final - y_final
         sigma_for_stats = self.predicted_sigma(model_final) if use_poisson else sigma_final
+        sigma_for_stats = self.augment_sigma_calibration(sigma_for_stats, model_final, vmax_final)
         self.last_fit_stats = self.fit_statistics(final_residual, sigma_for_stats, len(result.x))
         self.last_fit_stats["likelihood"] = self.likelihood_var.get()
+        self.last_fit_stats["robust_loss"] = self.robust_loss_var.get()
         self.last_fit_stats["n_starts"] = float(n_starts)
         self.set_params(values_final)
         if fit_velocity:
@@ -3844,7 +3901,7 @@ class MossbauerFe33GUI(tk.Tk):
                         sig_use = sigma
                     return (model_v - _y_sim) / sig_use
                 update_progress(tr("progress.bootstrap_step", i=i + 1, n=nrep))
-                res = least_squares(resid, x0, bounds=(lo, hi), max_nfev=2500)
+                res = least_squares(resid, x0, bounds=(lo, hi), max_nfev=2500, **self._least_squares_kwargs())
                 if res.success and np.all(np.isfinite(res.x)):
                     samples.append(res.x.copy())
             close_progress()
@@ -4756,6 +4813,8 @@ class MossbauerFe33GUI(tk.Tk):
             "fit_mode": self.fit_mode_var.get(),
             "line_profile": self.line_profile_var.get(),
             "likelihood": self.likelihood_var.get(),
+            "robust_loss": self.robust_loss_var.get(),
+            "propagate_calib": bool(self.propagate_calib_var.get()),
             "dist_variable": self.dist_variable_var.get(),
             "dist_shape": self.dist_shape_var.get(),
             "fixed_distribution_path": str(self.fixed_distribution_path) if self.fixed_distribution_path else None,
@@ -4831,6 +4890,8 @@ class MossbauerFe33GUI(tk.Tk):
         self.line_profile_var.set(state.get("line_profile", self.line_profile_var.get()))
         self.on_line_profile_change()
         self.likelihood_var.set(state.get("likelihood", self.likelihood_var.get()))
+        self.robust_loss_var.set(state.get("robust_loss", self.robust_loss_var.get()))
+        self.propagate_calib_var.set(bool(state.get("propagate_calib", self.propagate_calib_var.get())))
         self.dist_variable_var.set(state.get("dist_variable", self.dist_variable_var.get()))
         self.dist_shape_var.set(state.get("dist_shape", self.dist_shape_var.get()))
         self.fixed_distribution_path = Path(state["fixed_distribution_path"]) if state.get("fixed_distribution_path") else None
