@@ -125,17 +125,33 @@ def total_model(
     baseline: float,
     slope: float,
     components,
+    sat_scale: float | None = None,
 ) -> np.ndarray:
-    """``components`` es lista de ``(kind, params)`` o ``(kind, params, extras)``."""
-    y = baseline + slope * v
+    """Modelo de transmisión.
+
+    ``components`` es lista de ``(kind, params)`` o ``(kind, params, extras)``.
+
+    Si ``sat_scale`` (C>0) se da, se aplica el modelo de absorbente grueso
+    (saturación exponencial):
+
+        T = baseline + slope·v − C·(1 − exp(−A_tot/C)),   A_tot = Σ_c A_c.
+
+    En el límite C→∞ se recupera el modelo delgado lineal
+    T = baseline + slope·v − A_tot. C es la amplitud de saturación (≈ f_s·baseline).
+    """
+    a_tot = np.zeros_like(v, dtype=float)
     for comp in components:
         if isinstance(comp, tuple):
             if len(comp) == 3:
                 kind, p, extras = comp
-                y -= component_absorption(v, kind, p, extras=extras)
+                a_tot += component_absorption(v, kind, p, extras=extras)
             else:
                 kind, p = comp
-                y -= component_absorption(v, kind, p)
+                a_tot += component_absorption(v, kind, p)
         else:
-            y -= sextet_absorption(v, *comp)
-    return y
+            a_tot += sextet_absorption(v, *comp)
+    if sat_scale is not None and np.isfinite(sat_scale) and sat_scale > 0:
+        a_eff = sat_scale * (1.0 - np.exp(-a_tot / sat_scale))
+    else:
+        a_eff = a_tot
+    return baseline + slope * v - a_eff

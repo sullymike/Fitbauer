@@ -36,6 +36,17 @@ class CalibrationPanel(BasePanel):
         self._add_slider(
             box, "voigt_sigma", tr("slider.voigt_sigma"), 0.05, 0.0, 1.0, 0.001, fit_param=False
         )
+        # Mejora 9 (experimental): selector de modelo de absorbente + escala de
+        # saturación C. C sólo se usa (y se ajusta) en modo "thickness".
+        am = ttk.Frame(box)
+        am.pack(fill=tk.X, pady=(4, 0))
+        ttk.Label(am, text=tr("absorber.model_label")).pack(side=tk.LEFT, padx=(0, 4))
+        amb = ttk.Combobox(am, textvariable=app.absorber_model_var,
+                           values=("thin", "thickness"), width=10, state="readonly")
+        amb.pack(side=tk.LEFT)
+        amb.bind("<<ComboboxSelected>>", lambda _e: app.on_absorber_model_change())
+        self._add_slider(box, "sat_scale", tr("slider.sat_scale"), 5.0, 0.05, 50.0, 0.01)
+        app._refresh_absorber_widgets()
 
         self._root = box
         return box

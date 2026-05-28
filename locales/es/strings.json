@@ -472,5 +472,9 @@
   "logo.text_sextete": "sextete",
   "bhf.reg_mode_label": "Regularización",
   "options.global_opt": "Optimización global (DE) antes de TRF",
-  "progress.fit_global": "Optimización global (DE)..."
+  "progress.fit_global": "Optimización global (DE)...",
+  "absorber.model_label": "Absorbente",
+  "absorber.thin": "Delgado (lineal)",
+  "absorber.thickness": "Grueso (saturación)",
+  "slider.sat_scale": "Escala saturación C"
 }

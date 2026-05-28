@@ -382,20 +382,28 @@ def component_absorption(v: np.ndarray, kind: str, p: np.ndarray, *, extras: dic
     return sextet_absorption(v, *p)
 
 
-def total_model(v: np.ndarray, baseline: float, slope: float, components) -> np.ndarray:
-    """``components`` es lista de ``(kind, params)`` o ``(kind, params, extras)``."""
-    y = baseline + slope * v
+def total_model(v: np.ndarray, baseline: float, slope: float, components, sat_scale: float | None = None) -> np.ndarray:
+    """``components`` es lista de ``(kind, params)`` o ``(kind, params, extras)``.
+
+    Con ``sat_scale`` (C>0) aplica el modelo de absorbente grueso:
+    T = baseline + slope·v − C·(1 − exp(−A_tot/C)); C→∞ recupera el lineal.
+    """
+    a_tot = np.zeros_like(v, dtype=float)
     for comp in components:
         if isinstance(comp, tuple):
             if len(comp) == 3:
                 kind, p, extras = comp
-                y -= component_absorption(v, kind, p, extras=extras)
+                a_tot += component_absorption(v, kind, p, extras=extras)
             else:
                 kind, p = comp
-                y -= component_absorption(v, kind, p)
+                a_tot += component_absorption(v, kind, p)
         else:
-            y -= sextet_absorption(v, *comp)
-    return y
+            a_tot += sextet_absorption(v, *comp)
+    if sat_scale is not None and np.isfinite(sat_scale) and sat_scale > 0:
+        a_eff = sat_scale * (1.0 - np.exp(-a_tot / sat_scale))
+    else:
+        a_eff = a_tot
+    return baseline + slope * v - a_eff
 
 
 def _log_warning(context: str, exc: BaseException) -> None:
@@ -428,6 +436,9 @@ class MossbauerFe33GUI(tk.Tk):
         # Mejora 14: pre-pasada de optimización global (differential_evolution)
         # antes del pulido TRF. Opt-in (lenta); útil con varios sextetes.
         self.global_opt_var = tk.BooleanVar(value=False)
+        # Mejora 9 (experimental): modelo de absorbente — "thin" (lineal) o
+        # "thickness" (saturación exponencial con escala C = sat_scale).
+        self.absorber_model_var = tk.StringVar(value="thin")
         self.show_residual_var = tk.BooleanVar(value=True)
         self.show_legend_var = tk.BooleanVar(value=False)
         self.fit_mode_var = tk.StringVar(value="discrete")
@@ -877,6 +888,13 @@ class MossbauerFe33GUI(tk.Tk):
         self._add_slider(calib_box, "baseline", tr("slider.baseline"), 1.0, 0.70, 1.30, 0.0005)
         self._add_slider(calib_box, "slope", tr("slider.slope"), 0.0, -0.0001, 0.0001, 0.000001)
         self._add_slider(calib_box, "voigt_sigma", tr("slider.voigt_sigma"), 0.05, 0.0, 1.0, 0.001, fit_param=False)
+        am_row = ttk.Frame(calib_box); am_row.pack(fill=tk.X, pady=(4, 0))
+        ttk.Label(am_row, text=tr("absorber.model_label")).pack(side=tk.LEFT, padx=(0, 4))
+        amb = ttk.Combobox(am_row, textvariable=self.absorber_model_var, values=("thin", "thickness"), width=10, state="readonly")
+        amb.pack(side=tk.LEFT)
+        amb.bind("<<ComboboxSelected>>", lambda _e: self.on_absorber_model_change())
+        self._add_slider(calib_box, "sat_scale", tr("slider.sat_scale"), 5.0, 0.05, 50.0, 0.01)
+        self._refresh_absorber_widgets()
 
         line_box = ttk.LabelFrame(controls, text=tr("controls.reference_box"), style="Section.TLabelframe")
         line_box.pack(fill=tk.X, pady=8)
@@ -1029,6 +1047,7 @@ class MossbauerFe33GUI(tk.Tk):
             "robust_loss": self.robust_loss_var.get(),
             "propagate_calib": bool(self.propagate_calib_var.get()),
             "global_opt": bool(self.global_opt_var.get()),
+            "absorber_model": self.absorber_model_var.get(),
             "dist_variable": self.dist_variable_var.get(),
             "dist_shape": self.dist_shape_var.get(),
             "dist_reg_mode": self.dist_reg_mode_var.get(),
@@ -1099,6 +1118,7 @@ class MossbauerFe33GUI(tk.Tk):
             self.robust_loss_var.set(data.get("robust_loss", self.robust_loss_var.get()))
             self.propagate_calib_var.set(bool(data.get("propagate_calib", self.propagate_calib_var.get())))
             self.global_opt_var.set(bool(data.get("global_opt", self.global_opt_var.get())))
+            self.absorber_model_var.set(data.get("absorber_model", self.absorber_model_var.get()))
             self.dist_variable_var.set(data.get("dist_variable", self.dist_variable_var.get()))
             self.dist_shape_var.set(data.get("dist_shape", self.dist_shape_var.get()))
             self.dist_reg_mode_var.set(data.get("dist_reg_mode", self.dist_reg_mode_var.get()))
@@ -1124,6 +1144,7 @@ class MossbauerFe33GUI(tk.Tk):
             self._refresh_distribution_tab_visibility(update=False)
             self._refresh_intensity_mode_widgets()
             self._refresh_quad_treatment_widgets()
+            self._refresh_absorber_widgets()
 
     def save_settings(self) -> None:
         try:
@@ -3283,6 +3304,8 @@ class MossbauerFe33GUI(tk.Tk):
 
     def active_param_keys(self) -> list[str]:
         keys = GLOBAL_PARAM_NAMES.copy()
+        if self.absorber_model_var.get() == "thickness" and "sat_scale" in self.vars:
+            keys.append("sat_scale")
         for idx in (1, 2, 3):
             if self.sextet_enabled[idx].get():
                 keys.extend(f"s{idx}_{name}" for name in self.component_param_names(idx))
@@ -3567,9 +3590,12 @@ class MossbauerFe33GUI(tk.Tk):
             self.vars["baseline"].get(),
             self.vars["slope"].get(),
             self.build_components_from_vars(),
+            sat_scale=self.current_sat_scale(),
         )
 
     def bounds_for_key(self, key: str) -> tuple[float, float]:
+        if key == "sat_scale":
+            return (0.05, 50.0)
         base = key.split("_", 1)[-1]
         bounds = {
             "baseline": (0.70, 1.30),
@@ -3586,8 +3612,30 @@ class MossbauerFe33GUI(tk.Tk):
             "int3": (0.0, 3.0),
             "texture": (0.0, 1.0),
             "beta": (0.0, 90.0),   # ángulo β entre B y V_zz, en grados
+            "sat_scale": (0.05, 50.0),  # escala de saturación C (absorbente grueso)
         }
         return bounds[base]
+
+    def current_sat_scale(self) -> float | None:
+        """Escala de saturación C si el modo es 'thickness', None si 'thin'."""
+        if getattr(self, "absorber_model_var", None) is None:
+            return None
+        if self.absorber_model_var.get() != "thickness":
+            return None
+        if "sat_scale" not in self.vars:
+            return None
+        return float(self.vars["sat_scale"].get())
+
+    def _refresh_absorber_widgets(self) -> None:
+        """Habilita el slider sat_scale sólo en modo 'thickness'."""
+        enabled = getattr(self, "absorber_model_var", None) is not None and self.absorber_model_var.get() == "thickness"
+        self._set_slider_enabled("sat_scale", enabled)
+
+    def on_absorber_model_change(self) -> None:
+        self._refresh_absorber_widgets()
+        if self.fit_mode_var.get() == "bhf_distribution":
+            self.last_bhf_fit = None
+        self.update_plot()
 
     @staticmethod
     def texture_to_intensities(t: float) -> tuple[float, float, float]:
@@ -3648,7 +3696,11 @@ class MossbauerFe33GUI(tk.Tk):
                         components.append((kind, params, extras))
                         continue
                 components.append((kind, params))
-        return total_model(v, values["baseline"], values["slope"], components)
+        if self.absorber_model_var.get() == "thickness":
+            sat = float(values.get("sat_scale", self.vars["sat_scale"].get()))
+        else:
+            sat = None
+        return total_model(v, values["baseline"], values["slope"], components, sat_scale=sat)
 
     def open_progress_dialog(self, title: str, message: str | None = None):
         if message is None:
@@ -4860,6 +4912,7 @@ class MossbauerFe33GUI(tk.Tk):
             "robust_loss": self.robust_loss_var.get(),
             "propagate_calib": bool(self.propagate_calib_var.get()),
             "global_opt": bool(self.global_opt_var.get()),
+            "absorber_model": self.absorber_model_var.get(),
             "dist_variable": self.dist_variable_var.get(),
             "dist_shape": self.dist_shape_var.get(),
             "dist_reg_mode": self.dist_reg_mode_var.get(),
@@ -4939,6 +4992,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.robust_loss_var.set(state.get("robust_loss", self.robust_loss_var.get()))
         self.propagate_calib_var.set(bool(state.get("propagate_calib", self.propagate_calib_var.get())))
         self.global_opt_var.set(bool(state.get("global_opt", self.global_opt_var.get())))
+        self.absorber_model_var.set(state.get("absorber_model", self.absorber_model_var.get()))
         self.dist_variable_var.set(state.get("dist_variable", self.dist_variable_var.get()))
         self.dist_shape_var.set(state.get("dist_shape", self.dist_shape_var.get()))
         self.dist_reg_mode_var.set(state.get("dist_reg_mode", self.dist_reg_mode_var.get()))
@@ -4974,6 +5028,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.refold_data()
         self._refresh_intensity_mode_widgets()
         self._refresh_quad_treatment_widgets()
+        self._refresh_absorber_widgets()
         self.update_plot()
         info_text = data.get("state_and_parameters_text") or state.get("info_text") or last_fit.get("info_text")
         if info_text:
