@@ -87,6 +87,7 @@ def smoke_test() -> None:
         "-m",
         "py_compile",
         str(ROOT / MAIN_GUI),
+        str(ROOT / "mossbauer_app.py"),
         str(ROOT / "mossbauer_updater.py"),
         str(ROOT / "mossbauer_updater_ui.py"),
         str(ROOT / "mossbauer_api_client.py"),

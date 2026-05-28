@@ -184,6 +184,12 @@ class LayoutManager:
         if app.counts is not None:
             app.refold_data()
             app.update_plot()
+        # Re-aplicar tema: el rebuild crea una nueva figura matplotlib
+        try:
+            from tkinter import ttk as _ttk
+            app._reconfigure_styles(_ttk.Style(app), app._sv_active)
+        except Exception:
+            pass
 
     # ── Presets de usuario ────────────────────────────────────────────────────
 

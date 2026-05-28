@@ -253,3 +253,10 @@ def install_zip_update(archive_path: Path, app_dir: Path) -> None:
             elif item.is_file():
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(item, dest)
+
+        # Python's zipfile.extractall no preserva permisos Unix; restauramos
+        # el bit ejecutable del lanzador de Linux tras la copia.
+        launcher = app_dir / "mossbauer"
+        if launcher.exists():
+            import stat as _stat
+            launcher.chmod(launcher.stat().st_mode | _stat.S_IXUSR | _stat.S_IXGRP | _stat.S_IXOTH)

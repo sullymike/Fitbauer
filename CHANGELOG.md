@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.2
+
+- ZIP de release incluye ahora `mossbauer_app.py`, los subpaquetes `core/`, `layout/` y `panels/`, y los lanzadores `mossbauer` y `mossbauer.bat`. Sin esto, una actualización vía ZIP sobre una instalación v0.4.x fallaba con `ImportError` al arrancar.
+- Lanzadores portables incluidos directamente en el repo (no se regeneran con `install.py`, así que se sustituyen al actualizar).
+- `install_zip_update()` restaura el bit ejecutable (`+x`) del lanzador Linux tras la descompresión, ya que `zipfile.extractall` no preserva permisos Unix.
+
+## v1.1
+
+- Lanzadores (`mossbauer`, `mossbauer.bat`, ejecutable PyInstaller) arrancan ahora `MossbauerApp` (UI modular con paneles, layout y temas). Antes seguían arrancando la clase base sin paneles.
+- `MossbauerFeFit.spec` añade `hiddenimports` para `mossbauer_app`, `core/`, `layout/` y `panels/` para que el ejecutable de PyInstaller los empaquete.
+- `install.py` compila también `mossbauer_app.py` en el smoke test.
+- `mossbauer_updater_ui.py`: el diálogo de actualización difiere `grab_set()` hasta que la ventana es visible (evita `TclError: grab failed: window not viewable`).
+
+## v1.0
+
+- **Arquitectura modular de paneles** (`LayoutManager`): 6 paneles configurables (cabecera, fichero, info, calibración, referencia, sim/ajuste) más la gráfica. Cada panel hereda de `BasePanel` y se ensambla en 3 columnas.
+- **Layout configurable y persistente** con 4 presets integrados (Estándar/Compacto/Expandido/Laboratorio) y 2 slots de usuario. Configurador en menú **Vista → Configurar layout**.
+- **Distribución BHF** apilada junto a los componentes cuando hay altura o en pestañas cuando la ventana es baja; libera espacio real al desactivarse.
+- **Convención NORMOS** para sextetes: intensidades relativas independientes `I`, `I₂₃`, `I₁₃` (en vez de ratio fijo); defaults 3/2/1 en auto-estimación. Sliders reordenados: profundidad · intensidad · δ | EQ · BHF · Γ.
+- **Menús en 4 grupos**: Archivo, Ajuste, Vista, Ayuda.
+- **Tres temas**: Moderno (sv_ttk light), Oscuro (sv_ttk dark + Catppuccin Mocha) y Clásico (clam). La gráfica matplotlib aplica los colores del tema en cada `update_plot()`.
+- **Diálogo de actualización** ampliado (860×480) con scroll y sin truncar el changelog.
+- Correcciones varias: `TclError` en `comp_area`, paneles esenciales siempre construidos, guard en `update_info`, `i1_real` en display, límites de pendiente para fondos no planos, recorte de primer/último punto del plegado.
+
 ## v0.4.7
 
 - Tras instalar una actualización, el programa ejecuta automáticamente `pip install -r requirements.txt` y muestra el resultado en el mensaje de "reinicia el programa".

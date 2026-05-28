@@ -64,12 +64,16 @@ class MossbauerApp(MossbauerFe33GUI):
         if not hasattr(self, "n_components_var"):
             self.n_components_var = tk.IntVar(value=1)
 
-        # Extender sextet_enabled y component_kind al máximo de componentes
+        # Extender sextet_enabled, component_kind, intensity_mode, quad_treatment al máximo de componentes
         for idx in range(4, MAX_COMPONENTS + 1):
             if idx not in self.sextet_enabled:
                 self.sextet_enabled[idx] = tk.BooleanVar(value=False)
             if idx not in self.component_kind:
                 self.component_kind[idx] = tk.StringVar(value="Sextete")
+            if idx not in self.intensity_mode:
+                self.intensity_mode[idx] = tk.StringVar(value="free")
+            if idx not in self.quad_treatment:
+                self.quad_treatment[idx] = tk.StringVar(value="1st_order")
 
         # ── Tema ──────────────────────────────────────────────────────────────
         style = ttk.Style(self)
@@ -85,7 +89,10 @@ class MossbauerApp(MossbauerFe33GUI):
         try:
             import sv_ttk
             self._sv_available = True
-            if _saved_theme != "clam":
+            if _saved_theme == "sv_ttk_dark":
+                sv_ttk.set_theme("dark")
+                _sv = True
+            elif _saved_theme != "clam":
                 sv_ttk.set_theme("light")
                 _sv = True
         except ImportError:
@@ -96,7 +103,7 @@ class MossbauerApp(MossbauerFe33GUI):
             except tk.TclError:
                 pass
         self._sv_active = _sv
-        self._theme_var.set("sv_ttk" if _sv else "clam")
+        self._theme_var.set(_saved_theme if _saved_theme in ("sv_ttk", "sv_ttk_dark", "clam") else ("sv_ttk" if _sv else "clam"))
         self._reconfigure_styles(style, _sv)
 
         # ── Menú ──────────────────────────────────────────────────────────────
@@ -157,6 +164,24 @@ class MossbauerApp(MossbauerFe33GUI):
                                      variable=self.line_profile_var, value="Voigt",
                                      command=self.on_line_profile_change)
         fit_menu.add_cascade(label=tr("options.line_profile"), menu=profile_menu)
+        likelihood_menu = tk.Menu(fit_menu, tearoff=0)
+        likelihood_menu.add_radiobutton(label=tr("options.likelihood_gauss"),
+                                        variable=self.likelihood_var, value="gauss")
+        likelihood_menu.add_radiobutton(label=tr("options.likelihood_poisson"),
+                                        variable=self.likelihood_var, value="poisson")
+        fit_menu.add_cascade(label=tr("options.likelihood"), menu=likelihood_menu)
+        loss_menu = tk.Menu(fit_menu, tearoff=0)
+        loss_menu.add_radiobutton(label=tr("options.loss_linear"),
+                                  variable=self.robust_loss_var, value="linear")
+        loss_menu.add_radiobutton(label=tr("options.loss_soft_l1"),
+                                  variable=self.robust_loss_var, value="soft_l1")
+        loss_menu.add_radiobutton(label=tr("options.loss_huber"),
+                                  variable=self.robust_loss_var, value="huber")
+        fit_menu.add_cascade(label=tr("options.robust_loss"), menu=loss_menu)
+        fit_menu.add_checkbutton(label=tr("options.propagate_calib"),
+                                 variable=self.propagate_calib_var)
+        fit_menu.add_checkbutton(label=tr("options.global_opt"),
+                                 variable=self.global_opt_var)
         fit_menu.add_separator()
         fit_menu.add_checkbutton(label=tr("options.add_sharp"),
                                  variable=self.dist_use_sharp_var,
@@ -183,6 +208,9 @@ class MossbauerApp(MossbauerFe33GUI):
         theme_menu.add_radiobutton(label=tr("options.theme_modern"),
                                    variable=self._theme_var, value="sv_ttk",
                                    command=lambda: self._switch_theme("sv_ttk"))
+        theme_menu.add_radiobutton(label=tr("options.theme_dark"),
+                                   variable=self._theme_var, value="sv_ttk_dark",
+                                   command=lambda: self._switch_theme("sv_ttk_dark"))
         theme_menu.add_radiobutton(label=tr("options.theme_classic"),
                                    variable=self._theme_var, value="clam",
                                    command=lambda: self._switch_theme("clam"))
@@ -230,6 +258,8 @@ class MossbauerApp(MossbauerFe33GUI):
         self.entry_vars = {}
         self.fixed_vars = {}
         self.slider_specs = {}
+        self.slider_label_widgets = {}
+        self.slider_widget_refs = {}
         self._build_ui()
 
     def _open_layout_configurator(self) -> None:
@@ -259,10 +289,11 @@ class MossbauerApp(MossbauerFe33GUI):
             and self.component_kind[idx].get() == "Sextete"
         ]
 
-    def build_components_from_vars(self) -> list[tuple[str, np.ndarray]]:
-        if self.constraints and not self.updating_sliders:
+    def build_components_from_vars(self):
+        if not self.updating_sliders:
+            # Cubre constraints lineales + derivación de textura.
             self.apply_constraints_to_vars()
-        components: list[tuple[str, np.ndarray]] = []
+        components = []
         for idx in self._component_range():
             if not self.sextet_enabled[idx].get():
                 continue
@@ -270,7 +301,12 @@ class MossbauerApp(MossbauerFe33GUI):
             params = np.array(
                 [self.vars[p + name].get() for name in SEXTET_PARAM_NAMES], dtype=float
             )
-            components.append((self.component_kind[idx].get(), params))
+            kind = self.component_kind[idx].get()
+            extras = self.sextet_extras(idx) if kind == "Sextete" else None
+            if extras is not None:
+                components.append((kind, params, extras))
+            else:
+                components.append((kind, params))
         return components
 
     def component_area_percentages(
@@ -303,6 +339,7 @@ class MossbauerApp(MossbauerFe33GUI):
         if self.fit_mode_var.get() == "bhf_distribution":
             self.update_plot_bhf_distribution()
             return
+        c = self._plot_theme()
         self.fig.clear()
         show_residual = self.show_residual_var.get()
         if show_residual:
@@ -313,35 +350,39 @@ class MossbauerApp(MossbauerFe33GUI):
             self.ax = self.fig.add_subplot(111)
             self.ax_res = None
 
-        self.fig.set_facecolor("#f8fbff")
-        self.ax.set_facecolor("#fbfdff")
-        self.ax.set_title(tr("plot.title_discrete"), color="#083344", pad=10, fontweight="bold")
+        self.fig.set_facecolor(c["fig_bg"])
+        self.ax.set_facecolor(c["ax_bg"])
+        self.ax.set_title(tr("plot.title_discrete"), color=c["title"], pad=10, fontweight="bold")
         self.ax.set_ylabel(tr("plot.transmission_ylabel"))
-        self.ax.grid(True, color="#c8e4f7", alpha=0.85, linewidth=0.8)
-        self.ax.tick_params(colors="#243b53")
+        self.ax.yaxis.label.set_color(c["lbl"])
+        self.ax.grid(True, color=c["grid"], alpha=c["grid_alpha"], linewidth=0.8)
+        self.ax.tick_params(colors=c["tick"])
         for spine in self.ax.spines.values():
-            spine.set_color("#8ecae6")
+            spine.set_color(c["spine"])
 
         if self.ax_res is not None:
-            self.ax_res.set_facecolor("#fff7ed")
+            self.ax_res.set_facecolor(c["res_bg"])
             self.ax_res.set_ylabel(tr("plot.residual_ylabel"))
             self.ax_res.set_xlabel(tr("plot.velocity_xlabel"))
-            self.ax_res.grid(True, color="#fed7aa", alpha=0.8, linewidth=0.75)
-            self.ax_res.tick_params(colors="#7c2d12")
+            self.ax_res.yaxis.label.set_color(c["lbl"])
+            self.ax_res.xaxis.label.set_color(c["lbl"])
+            self.ax_res.grid(True, color=c["res_grid"], alpha=0.8, linewidth=0.75)
+            self.ax_res.tick_params(colors=c["res_tick"])
             for spine in self.ax_res.spines.values():
-                spine.set_color("#fdba74")
+                spine.set_color(c["res_spine"])
         else:
             self.ax.set_xlabel(tr("plot.velocity_xlabel"))
+            self.ax.xaxis.label.set_color(c["lbl"])
 
         if self.velocity is not None and self.y_data is not None:
             model = self.current_model()
-            self.ax.plot(self.velocity, self.y_data, ".", color="#0f172a",
+            self.ax.plot(self.velocity, self.y_data, ".", color=c["data"],
                          ms=4, alpha=0.88, label=tr("plot.legend_data"))
             if model is not None:
                 baseline_line = (
                     self.vars["baseline"].get() + self.vars["slope"].get() * self.velocity
                 )
-                self.ax.plot(self.velocity, baseline_line, ":", color="#64748b",
+                self.ax.plot(self.velocity, baseline_line, ":", color=c["baseline"],
                              lw=1.35, label=tr("plot.legend_baseline"))
 
                 for idx in self._component_range():
@@ -352,7 +393,8 @@ class MossbauerApp(MossbauerFe33GUI):
                         [self.vars[p + name].get() for name in SEXTET_PARAM_NAMES], dtype=float
                     )
                     kind = self.component_kind[idx].get()
-                    comp_line = baseline_line - component_absorption(self.velocity, kind, params)
+                    extras = self.sextet_extras(idx) if kind == "Sextete" else None
+                    comp_line = baseline_line - component_absorption(self.velocity, kind, params, extras=extras)
                     color = _COMPONENT_COLORS.get(idx, "#888888")
                     self.ax.plot(
                         self.velocity, comp_line, "--",
@@ -360,31 +402,31 @@ class MossbauerApp(MossbauerFe33GUI):
                         label=f"{tr(f'kind.{kind}', default=kind)} {idx}",
                     )
 
-                self.ax.plot(self.velocity, model, "-", color="#dc2626",
+                self.ax.plot(self.velocity, model, "-", color=c["model"],
                              lw=2.6, label=tr("plot.legend_model"))
                 residual = self.y_data - model
                 rms = float(np.sqrt(np.mean(residual ** 2)))
                 if self.ax_res is not None:
-                    self.ax_res.axhline(0, color="#9a3412", lw=0.9, alpha=0.9)
+                    self.ax_res.axhline(0, color=c["res_zero"], lw=0.9, alpha=0.9)
                     self.ax_res.fill_between(self.velocity, residual, 0,
-                                             color="#fb923c", alpha=0.22)
+                                             color=c["res_fill"], alpha=0.22)
                     self.ax_res.plot(self.velocity, residual, "-",
-                                     color="#ea580c", lw=1.25)
+                                     color=c["res_line"], lw=1.25)
                     lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
                     self.ax_res.set_ylim(-lim, lim)
                     self.ax.tick_params(labelbottom=False)
             else:
                 rms = float("nan")
             if self.show_legend_var.get():
-                leg = self.ax.legend(loc="best", frameon=True, facecolor="#ffffff",
-                                     edgecolor="#bae6fd", framealpha=0.85)
+                leg = self.ax.legend(loc="best", frameon=True, facecolor=c["leg_face"],
+                                     edgecolor=c["leg_edge"], framealpha=0.85)
                 leg.set_draggable(True)
                 for text in leg.get_texts():
-                    text.set_color("#102a43")
+                    text.set_color(c["leg_text"])
             self.update_info(rms)
         else:
             self.ax.text(0.5, 0.5, tr("plot.no_file"), transform=self.ax.transAxes,
-                         ha="center", va="center", color="#075985",
+                         ha="center", va="center", color=c["no_file"],
                          fontsize=14, fontweight="bold")
         self.fig.tight_layout()
         self.canvas.draw_idle()
@@ -500,6 +542,8 @@ class MossbauerApp(MossbauerFe33GUI):
     # ── Visibilidad del panel de distribución BHF ───────────────────────────
 
     def _refresh_distribution_tab_visibility(self, update: bool = True) -> None:
+        if hasattr(self, "refresh_dist_slider_labels"):
+            self.refresh_dist_slider_labels()
         nb        = getattr(self, "notebook",          None)
         dist_tab  = getattr(self, "dist_tab",          None)
         wrapper   = getattr(self, "_sim_dist_wrapper", None)

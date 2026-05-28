@@ -12,6 +12,55 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 
+def _update_dialog(parent, title: str, msg: str) -> bool:
+    """Diálogo scrollable para notificación de actualización. Devuelve True si el usuario acepta."""
+    result = tk.BooleanVar(value=False)
+    win = tk.Toplevel(parent)
+    win.title(title)
+    win.geometry("860x480")
+    win.resizable(True, True)
+    win.transient(parent)
+
+    def _set_grab() -> None:
+        try:
+            win.wait_visibility()
+            win.grab_set()
+        except tk.TclError:
+            pass
+
+    win.after(50, _set_grab)
+
+    frame = ttk.Frame(win, padding=(12, 10, 12, 6))
+    frame.pack(fill=tk.BOTH, expand=True)
+    frame.rowconfigure(0, weight=1)
+    frame.columnconfigure(0, weight=1)
+
+    txt = tk.Text(frame, wrap=tk.WORD, font=("TkDefaultFont", 9),
+                  relief="flat", padx=8, pady=8)
+    scroll = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=txt.yview)
+    txt.configure(yscrollcommand=scroll.set)
+    txt.grid(row=0, column=0, sticky="nsew")
+    scroll.grid(row=0, column=1, sticky="ns")
+    txt.insert("1.0", msg)
+    txt.configure(state=tk.DISABLED)
+
+    btn_frame = ttk.Frame(win, padding=(12, 4, 12, 10))
+    btn_frame.pack(fill=tk.X)
+
+    def on_yes():
+        result.set(True)
+        win.destroy()
+
+    def on_no():
+        win.destroy()
+
+    ttk.Button(btn_frame, text="Sí, descargar ahora", command=on_yes).pack(side=tk.RIGHT, padx=(6, 0))
+    ttk.Button(btn_frame, text="No por ahora",        command=on_no).pack(side=tk.RIGHT)
+
+    win.wait_window()
+    return result.get()
+
+
 def _pip_install_requirements(install_dir: Path) -> str:
     """Ejecuta pip install -r requirements.txt del directorio dado.
 
@@ -243,18 +292,16 @@ def check_for_updates(
                     messagebox.showinfo("Actualizaciones", f"Ya tienes la última versión ({app_version}) para el canal: {channel_txt}.", parent=parent)
                 return
             body = (release.body or "").strip()
-            if len(body) > 900:
-                body = body[:900] + "…"
             release_kind = "no estable/beta" if getattr(release, "prerelease", False) else "estable"
             msg = (
                 f"Hay una versión nueva disponible ({release_kind}).\n\n"
                 f"Canal configurado: {channel_txt}\n"
-                f"Versión actual: {app_version}\n"
-                f"Nueva versión: {release.tag}\n\n"
-                f"{body}\n\n"
-                "¿Quieres descargarla ahora?"
+                f"Versión actual:    {app_version}\n"
+                f"Nueva versión:     {release.tag}\n\n"
+                + ("─" * 60 + "\n\n" + body + "\n\n" if body else "")
+                + "¿Quieres descargarla ahora?"
             )
-            if messagebox.askyesno("Actualización disponible", msg, parent=parent):
+            if _update_dialog(parent, "Actualización disponible", msg):
                 url, filename = choose_download(release, prefer_exe=(os.name == "nt"))
                 download_in_background(release, url, filename)
             else:

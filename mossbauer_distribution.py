@@ -43,6 +43,11 @@ class BhfDistributionFit:
     message: str
     sharp_bhf_centers: np.ndarray | None = None
     sharp_weights: np.ndarray | None = None
+    fitted_dist_center: float | None = None
+    fitted_dist_sigma: float | None = None
+    fitted_dist_p: float | None = None
+    effective_dof: float | None = None
+    weight_sigma: np.ndarray | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Devuelve un dict serializable en JSON tras convertir arrays a listas."""
@@ -60,6 +65,11 @@ class BhfDistributionFit:
             "message": self.message,
             "sharp_BHF_centers": [] if self.sharp_bhf_centers is None else self.sharp_bhf_centers.tolist(),
             "sharp_weights": [] if self.sharp_weights is None else self.sharp_weights.tolist(),
+            "fitted_dist_center": self.fitted_dist_center,
+            "fitted_dist_sigma": self.fitted_dist_sigma,
+            "fitted_dist_p": self.fitted_dist_p,
+            "effective_dof": self.effective_dof,
+            "weight_sigma": [] if self.weight_sigma is None else self.weight_sigma.tolist(),
         }
 
 
@@ -218,6 +228,94 @@ def second_difference_matrix(n: int) -> np.ndarray:
     return L
 
 
+def first_difference_matrix(n: int) -> np.ndarray:
+    """Operador D de primeras diferencias, dimensión (n-1) x n."""
+    n = int(n)
+    if n < 2:
+        raise ValueError("n debe ser >= 2")
+    D = np.zeros((n - 1, n), dtype=float)
+    rows = np.arange(n - 1)
+    D[rows, rows] = -1.0
+    D[rows, rows + 1] = 1.0
+    return D
+
+
+def tikhonov_effective_dof(
+    X: np.ndarray,
+    L_dist: np.ndarray,
+    alpha: float,
+    dist_start: int,
+    dist_end: int,
+    sigma: np.ndarray | None = None,
+) -> float:
+    """Grados de libertad efectivos del problema Tikhonov bajo restricciones lineales.
+
+    Devuelve  tr A(α)  con  A(α) = X (XᵀWX + α LᵀL)⁻¹ XᵀW,  W = diag(1/σ²).
+    El penalizador LᵀL actúa sólo sobre las columnas [dist_start:dist_end].
+
+    La cota de no-negatividad sobre P se ignora aquí: la traza es una buena
+    estimación incluso con bordes activos (sólo sobreestima ligeramente).
+    """
+    X = np.asarray(X, dtype=float)
+    L_dist = np.asarray(L_dist, dtype=float)
+    if X.size == 0:
+        return 0.0
+    if sigma is not None:
+        sigma = np.maximum(np.asarray(sigma, dtype=float), 1e-12)
+        Xw = X / sigma[:, None]
+    else:
+        Xw = X
+    XtWX = Xw.T @ Xw
+    LtL = L_dist.T @ L_dist
+    H = XtWX.copy()
+    H[dist_start:dist_end, dist_start:dist_end] += float(alpha) * LtL
+    try:
+        return float(np.trace(np.linalg.solve(H, XtWX)))
+    except np.linalg.LinAlgError:
+        return float(X.shape[1])
+
+
+def distribution_weight_sigma(
+    X: np.ndarray,
+    L_dist: np.ndarray,
+    alpha: float,
+    dist_start: int,
+    dist_end: int,
+    residuals: np.ndarray,
+    eff_dof: float,
+    sigma: np.ndarray | None = None,
+) -> np.ndarray:
+    """Incertidumbre 1σ de los pesos P por covarianza linealizada regularizada.
+
+    Para el estimador Tikhonov  ẑ = H⁻¹ XᵀW y  con  H = XᵀWX + α LᵀL,  W=diag(1/σ²),
+    la covarianza es  Cov(ẑ) = H⁻¹ (XᵀWX) H⁻¹.  Se escala por el χ²_ν efectivo
+    (igual convención que el ajuste discreto) para reflejar mala especificación
+    del modelo. Devuelve σ_P por bin (raíz de la diagonal de la parte de la
+    distribución). La no-negatividad no se impone aquí: en bins clavados a 0 la
+    σ es una cota superior (la banda se recorta a P≥0 al pintar).
+    """
+    n_data = X.shape[0]
+    if sigma is not None:
+        sigma = np.maximum(np.asarray(sigma, dtype=float), 1e-12)
+        W = 1.0 / sigma ** 2
+        chi2 = float(np.sum((residuals / sigma) ** 2))
+    else:
+        W = np.ones(n_data)
+        chi2 = float(np.sum(residuals ** 2))
+    XtWX = X.T @ (W[:, None] * X)
+    H = XtWX.copy()
+    H[dist_start:dist_end, dist_start:dist_end] += float(alpha) * (L_dist.T @ L_dist)
+    try:
+        H_inv = np.linalg.inv(H)
+    except np.linalg.LinAlgError:
+        H_inv = np.linalg.pinv(H)
+    cov = H_inv @ XtWX @ H_inv
+    var = np.clip(np.diag(cov)[dist_start:dist_end], 0.0, None)
+    dof = max(float(n_data) - float(eff_dof), 1.0)
+    var = var * (chi2 / dof)
+    return np.sqrt(var)
+
+
 def normalize_probability(weights: np.ndarray, bhf_centers: np.ndarray) -> np.ndarray:
     """Normaliza P para que su integral sobre BHF sea 1 si hay area positiva."""
     weights = np.maximum(np.asarray(weights, dtype=float), 0.0)
@@ -330,6 +428,9 @@ def fit_hyperfine_distribution(
     slope_bounds: tuple[float, float] = (-np.inf, np.inf),
     sharp_components: list[dict[str, float]] | None = None,
     sigma: np.ndarray | None = None,
+    rescale_columns: bool = True,
+    reg_mode: str = "tikhonov",
+    tv_iters: int = 8,
 ) -> BhfDistributionFit:
     """Ajusta una distribución Hesse-Rübartsch de BHF o ΔEQ.
 
@@ -381,7 +482,13 @@ def fit_hyperfine_distribution(
         default_int2_rel=int2_rel,
         default_int3_rel=int3_rel,
     )
-    L = second_difference_matrix(centers.size)
+    # Penalizador: Tikhonov L2 (segunda diferencia, suave) o Variación Total
+    # (primera diferencia, L1 → picos afilados con bordes). Mejora 5.
+    use_tv = str(reg_mode).lower() in ("tv", "total_variation", "variacion_total")
+    if use_tv:
+        L = first_difference_matrix(centers.size)
+    else:
+        L = second_difference_matrix(centers.size)
 
     y_work = y.astype(float).copy()
     columns: list[np.ndarray] = []
@@ -424,19 +531,59 @@ def fit_hyperfine_distribution(
     sharp_end = len(labels)
 
     X = np.column_stack(columns)
+
+    # Mejora 13: preacondicionamiento por escala de columnas de la distribución.
+    # Para BHF pequeño el sextete colapsa y las columnas de K se vuelven casi
+    # colineales (||K_j|| muy dispares), lo que hace mal condicionado el sistema
+    # acotado. Reescalando K_j → K_j/s_j y P_j → P_j·s_j el problema queda mejor
+    # condicionado SIN cambiar la solución (reparametrización exacta). El
+    # penalizador y los pesos se ajustan en consecuencia.
+    scale = np.ones(X.shape[1], dtype=float)
+    if rescale_columns and dist_end > dist_start:
+        Kw = K / sigma_arr[:, None] if sigma_arr is not None else K
+        col_norms = np.linalg.norm(Kw, axis=0)
+        col_norms = np.where(np.isfinite(col_norms) & (col_norms > 1e-12), col_norms, 1.0)
+        scale[dist_start:dist_end] = col_norms
+
+    Xs = X / scale[None, :]
+    L_scaled = L / scale[None, dist_start:dist_end]
     if sigma_arr is not None:
-        X_fit = X / sigma_arr[:, None]
+        X_fit = Xs / sigma_arr[:, None]
         y_fit = y_work / sigma_arr
     else:
-        X_fit = X
+        X_fit = Xs
         y_fit = y_work
-    reg = np.zeros((L.shape[0], X.shape[1]), dtype=float)
-    reg[:, dist_start:dist_end] = np.sqrt(float(alpha)) * L
-    X_aug = np.vstack([X_fit, reg])
-    y_aug = np.concatenate([y_fit, np.zeros(L.shape[0], dtype=float)])
+    lower_arr = np.array(lower)
+    upper_arr = np.array(upper)
 
-    result = lsq_linear(X_aug, y_aug, bounds=(np.array(lower), np.array(upper)), lsmr_tol="auto", max_iter=2000)
-    params = result.x
+    def _solve(L_pen_scaled: np.ndarray):
+        reg = np.zeros((L_pen_scaled.shape[0], X.shape[1]), dtype=float)
+        reg[:, dist_start:dist_end] = np.sqrt(float(alpha)) * L_pen_scaled
+        X_aug = np.vstack([X_fit, reg])
+        y_aug = np.concatenate([y_fit, np.zeros(L_pen_scaled.shape[0], dtype=float)])
+        # Las cotas de p̃ = escala·P coinciden con las de P (0 e ∞ invariantes).
+        res = lsq_linear(X_aug, y_aug, bounds=(lower_arr, upper_arr), lsmr_tol="auto", max_iter=2000)
+        return res, res.x / scale  # deshace el escalado para recuperar P físico
+
+    if use_tv:
+        # IRLS para ‖α^{1/2} D P‖₁: en cada iteración se resuelve un Tikhonov
+        # ponderado con pesos w_k = 1/√((D P)_k² + ε²). Converge a la solución
+        # de variación total, que preserva bordes (picos afilados).
+        L_eff = L_scaled.copy()
+        result = None
+        params = None
+        for _ in range(max(1, int(tv_iters))):
+            result, params = _solve(L_eff)
+            p_phys = params[dist_start:dist_end]
+            dp = L @ p_phys  # primera diferencia del P físico
+            eps = max(1e-3 * float(np.max(np.abs(p_phys))) if p_phys.size else 1e-6, 1e-9)
+            w = 1.0 / np.sqrt(dp ** 2 + eps ** 2)
+            L_eff = (np.sqrt(w)[:, None]) * L_scaled
+        # Operador efectivo (sin escala) para dof y covarianza: √w · D.
+        L_stats = (np.sqrt(w)[:, None]) * L
+    else:
+        result, params = _solve(L_scaled)
+        L_stats = L
 
     baseline_fit = float(params[labels.index("baseline")]) if fit_baseline else float(baseline)
     slope_fit = float(params[labels.index("slope")]) if fit_slope else float(slope)
@@ -447,6 +594,20 @@ def fit_hyperfine_distribution(
         fitted = fitted - K_sharp @ sharp_weights
     residuals = y - fitted
     rms = float(np.sqrt(np.mean(residuals**2)))
+
+    try:
+        eff_dof = tikhonov_effective_dof(
+            X, L_stats, float(alpha), dist_start, dist_end, sigma=sigma_arr
+        )
+    except Exception:
+        eff_dof = float(X.shape[1])
+
+    try:
+        weight_sigma = distribution_weight_sigma(
+            X, L_stats, float(alpha), dist_start, dist_end, residuals, eff_dof, sigma=sigma_arr
+        )
+    except Exception:
+        weight_sigma = None
 
     return BhfDistributionFit(
         bhf_centers=centers,
@@ -462,6 +623,8 @@ def fit_hyperfine_distribution(
         message=str(result.message),
         sharp_bhf_centers=sharp_bhf_centers,
         sharp_weights=sharp_weights,
+        effective_dof=eff_dof,
+        weight_sigma=weight_sigma,
     )
 
 
@@ -541,6 +704,8 @@ def fit_gaussian_hyperfine_distribution(
         message=f"Gaussian {variable}: center={cen:.6g}, sigma={np.exp(log_sig):.6g}; {res.message}",
         sharp_bhf_centers=sharp_bhf_centers,
         sharp_weights=sharp_weights_arr,
+        fitted_dist_center=float(cen),
+        fitted_dist_sigma=float(np.exp(log_sig)),
     )
 
 
@@ -623,6 +788,7 @@ def fit_binomial_hyperfine_distribution(
         message=f"Binomial {variable}: p={pval:.6g}; {res.message}",
         sharp_bhf_centers=sharp_bhf_centers,
         sharp_weights=sharp_weights_arr,
+        fitted_dist_p=float(pval),
     )
 
 
