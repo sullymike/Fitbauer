@@ -472,5 +472,12 @@
   "logo.text_sextete": "sextete",
   "bhf.reg_mode_label": "Regularización",
   "options.global_opt": "Optimización global (DE) antes de TRF",
-  "progress.fit_global": "Optimización global (DE)..."
+  "progress.fit_global": "Optimización global (DE)...",
+  "context.intensity_mode_title": "Modo de intensidades",
+  "context.intensity_mode_free": "Libre",
+  "context.intensity_mode_texture": "Textura",
+  "context.quad_treatment_title": "Tratamiento Cuadrupolo",
+  "context.quad_treatment_1st_order": "1er orden",
+  "context.quad_treatment_kundig_fixed": "Kündig fijo",
+  "context.quad_treatment_kundig_powder": "Kündig polvo"
 }
