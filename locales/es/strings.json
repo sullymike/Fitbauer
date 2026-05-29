@@ -82,6 +82,7 @@
   "slider.voigt_sigma": "σ gauss Voigt",
   "checkbox.fit_vmax": "Ajustar Vmax con el patrón de líneas (requiere BHF fijo)",
   "checkbox.fit_center": "Ajustar folding point dentro del ajuste",
+  "checkbox.fit_sigma": "Ajustar σ gaussiano (Voigt) en el ajuste",
   "checkbox.fixed": "fijo",
   "sim.fit": "Ajuste",
   "sim.ai_start": "IA inicio",

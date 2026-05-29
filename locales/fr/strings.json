@@ -82,6 +82,7 @@
   "slider.voigt_sigma": "σ Voigt gauss.",
   "checkbox.fit_vmax": "Ajuster Vmax avec le motif de raies (BHF fixe requis)",
   "checkbox.fit_center": "Ajuster le point de pliage pendant l'ajustement",
+  "checkbox.fit_sigma": "Ajuster σ gaussien (Voigt) pendant l'ajustement",
   "checkbox.fixed": "fixe",
   "sim.fit": "Ajuster",
   "sim.ai_start": "IA départ",
