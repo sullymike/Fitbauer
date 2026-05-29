@@ -47,7 +47,7 @@ class CalibrationPanel(BasePanel):
         )
         app.fit_sigma_check.pack(anchor=tk.W, pady=(0, 4))
         app.fit_sigma_check.configure(
-            state=tk.NORMAL if app.line_profile_var.get() in ("Gaussiana", "Voigt", "Pseudo-Voigt") else tk.DISABLED
+            state=tk.NORMAL if app.line_profile_var.get() == "Voigt" else tk.DISABLED
         )
 
         self._root = box

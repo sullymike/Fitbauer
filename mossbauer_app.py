@@ -162,12 +162,6 @@ class MossbauerApp(MossbauerFe33GUI):
         profile_menu.add_radiobutton(label=tr("options.profile_lorentzian"),
                                      variable=self.line_profile_var, value="Lorentziana",
                                      command=self.on_line_profile_change)
-        profile_menu.add_radiobutton(label=tr("options.profile_gaussian"),
-                                     variable=self.line_profile_var, value="Gaussiana",
-                                     command=self.on_line_profile_change)
-        profile_menu.add_radiobutton(label=tr("options.profile_pseudo_voigt"),
-                                     variable=self.line_profile_var, value="Pseudo-Voigt",
-                                     command=self.on_line_profile_change)
         profile_menu.add_radiobutton(label=tr("options.profile_voigt"),
                                      variable=self.line_profile_var, value="Voigt",
                                      command=self.on_line_profile_change)
