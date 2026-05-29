@@ -1527,7 +1527,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.update_plot()
 
     def show_sigma_profile_menu(self, event) -> None:
-        """Menú contextual sobre el slider σ: alterna Lorentziana/Voigt y el ajuste de σ."""
+        """Menú contextual sobre el slider σ: alterna Lorentziana/Voigt."""
         menu = tk.Menu(self, tearoff=0)
         menu.add_command(label=tr("context.sigma_profile_title"), state="disabled")
         menu.add_separator()
@@ -1541,12 +1541,6 @@ class MossbauerFe33GUI(tk.Tk):
                 value=value,
                 command=self.on_line_profile_change,
             )
-        menu.add_separator()
-        menu.add_checkbutton(
-            label=tr("checkbox.fit_sigma"),
-            variable=self.fit_sigma_var,
-            state=tk.NORMAL if self.line_profile_var.get() == "Voigt" else tk.DISABLED,
-        )
         try:
             menu.tk_popup(event.x_root, event.y_root)
         finally:
