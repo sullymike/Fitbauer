@@ -290,9 +290,29 @@ def lorentzian(v: np.ndarray, center: float, gamma: float) -> np.ndarray:
     """Perfil de línea normalizado a altura máxima 1.
 
     Por defecto es Lorentziana: γ²/((v−c)² + γ²), con γ=HWHM.
-    Si LINE_PROFILE_KIND='Voigt', usa una convolución Voigt con sigma gaussiana
-    global VOIGT_SIGMA y gamma Lorentziana HWHM.
+    Con LINE_PROFILE_KIND='Voigt' usa la convolución Voigt exacta (wofz) de la
+    Lorentziana γ con una gaussiana global σ=VOIGT_SIGMA. 'Pseudo-Voigt' usa la
+    aproximación de Thompson–Cox–Hastings (η·L+(1−η)·G) con las mismas anchuras.
+    'Gaussiana' es una gaussiana pura de anchura σ (los γ por línea se ignoran).
+    Todos los perfiles se normalizan a altura 1 en el centro.
     """
+    if LINE_PROFILE_KIND == "Gaussiana":
+        sigma = max(float(VOIGT_SIGMA), 1e-9)
+        return np.exp(-0.5 * ((v - center) / sigma) ** 2)
+    if LINE_PROFILE_KIND == "Pseudo-Voigt":
+        sigma = max(float(VOIGT_SIGMA), 1e-9)
+        f_l = 2.0 * gamma
+        f_g = 2.0 * np.sqrt(2.0 * np.log(2.0)) * sigma
+        f = (f_g ** 5 + 2.69269 * f_g ** 4 * f_l + 2.42843 * f_g ** 3 * f_l ** 2
+             + 4.47163 * f_g ** 2 * f_l ** 3 + 0.07842 * f_g * f_l ** 4 + f_l ** 5) ** 0.2
+        f = max(f, 1e-12)
+        r = f_l / f
+        eta = 1.36603 * r - 0.47719 * r ** 2 + 0.11116 * r ** 3
+        hwhm = 0.5 * f
+        g_sigma = hwhm / np.sqrt(2.0 * np.log(2.0))
+        lor = hwhm * hwhm / ((v - center) ** 2 + hwhm * hwhm)
+        gauss = np.exp(-0.5 * ((v - center) / g_sigma) ** 2)
+        return eta * lor + (1.0 - eta) * gauss
     if LINE_PROFILE_KIND == "Voigt":
         sigma = max(float(VOIGT_SIGMA), 1e-9)
         denom = sigma * np.sqrt(2.0)
@@ -753,6 +773,8 @@ class MossbauerFe33GUI(tk.Tk):
         options_menu.add_separator()
         profile_menu = tk.Menu(options_menu, tearoff=0)
         profile_menu.add_radiobutton(label=tr("options.profile_lorentzian"), variable=self.line_profile_var, value="Lorentziana", command=self.on_line_profile_change)
+        profile_menu.add_radiobutton(label=tr("options.profile_gaussian"), variable=self.line_profile_var, value="Gaussiana", command=self.on_line_profile_change)
+        profile_menu.add_radiobutton(label=tr("options.profile_pseudo_voigt"), variable=self.line_profile_var, value="Pseudo-Voigt", command=self.on_line_profile_change)
         profile_menu.add_radiobutton(label=tr("options.profile_voigt"), variable=self.line_profile_var, value="Voigt", command=self.on_line_profile_change)
         options_menu.add_cascade(label=tr("options.line_profile"), menu=profile_menu)
         options_menu.add_separator()
@@ -888,6 +910,10 @@ class MossbauerFe33GUI(tk.Tk):
         self._add_slider(calib_box, "baseline", tr("slider.baseline"), 1.0, 0.70, 1.30, 0.0005)
         self._add_slider(calib_box, "slope", tr("slider.slope"), 0.0, -0.0001, 0.0001, 0.000001)
         self._add_slider(calib_box, "voigt_sigma", tr("slider.voigt_sigma"), 0.05, 0.0, 1.0, 0.001, fit_param=False)
+        _sigma_refs = self.slider_widget_refs.get("voigt_sigma", {})
+        for _w in (_sigma_refs.get("slider"), _sigma_refs.get("label")):
+            if _w is not None:
+                _w.bind("<Button-3>", self.show_sigma_profile_menu)
         self.fit_sigma_check = ttk.Checkbutton(
             calib_box,
             text=tr("checkbox.fit_sigma"),
@@ -895,7 +921,7 @@ class MossbauerFe33GUI(tk.Tk):
         )
         self.fit_sigma_check.pack(anchor=tk.W, pady=(0, 4))
         self.fit_sigma_check.configure(
-            state=tk.NORMAL if self.line_profile_var.get() == "Voigt" else tk.DISABLED
+            state=tk.NORMAL if self.line_profile_var.get() in ("Gaussiana", "Voigt", "Pseudo-Voigt") else tk.DISABLED
         )
 
         line_box = ttk.LabelFrame(controls, text=tr("controls.reference_box"), style="Section.TLabelframe")
@@ -1508,17 +1534,44 @@ class MossbauerFe33GUI(tk.Tk):
         global LINE_PROFILE_KIND, VOIGT_SIGMA
         LINE_PROFILE_KIND = self.line_profile_var.get()
         VOIGT_SIGMA = self.vars.get("voigt_sigma", tk.DoubleVar(value=0.05)).get()
-        # σ gaussiano sólo se usa con perfil Voigt → agrisarlo en Lorentziana.
-        is_voigt = LINE_PROFILE_KIND == "Voigt"
-        self._set_slider_enabled("voigt_sigma", is_voigt)
+        # Mantener sincronizada la física pura (core.physics) por si se usa.
+        try:
+            import core.physics as _cphys
+            _cphys.LINE_PROFILE_KIND = LINE_PROFILE_KIND
+            _cphys.VOIGT_SIGMA = VOIGT_SIGMA
+        except Exception:
+            pass
+        # σ gaussiano interviene en todos los perfiles menos la Lorentziana pura.
+        uses_sigma = LINE_PROFILE_KIND in ("Gaussiana", "Voigt", "Pseudo-Voigt")
+        self._set_slider_enabled("voigt_sigma", uses_sigma)
         check = getattr(self, "fit_sigma_check", None)
         if check is not None:
-            check.configure(state=tk.NORMAL if is_voigt else tk.DISABLED)
-        if not is_voigt:
+            check.configure(state=tk.NORMAL if uses_sigma else tk.DISABLED)
+        if not uses_sigma:
             self.fit_sigma_var.set(False)
         if self.updating_sliders:
             return
         self.update_plot()
+
+    def show_sigma_profile_menu(self, event) -> None:
+        """Menú contextual sobre el slider σ: alterna Gaussiana / Pseudo-Voigt."""
+        menu = tk.Menu(self, tearoff=0)
+        menu.add_command(label=tr("context.sigma_profile_title"), state="disabled")
+        menu.add_separator()
+        for value, label in (
+            ("Gaussiana", tr("options.profile_gaussian")),
+            ("Pseudo-Voigt", tr("options.profile_pseudo_voigt")),
+        ):
+            menu.add_radiobutton(
+                label=label,
+                variable=self.line_profile_var,
+                value=value,
+                command=self.on_line_profile_change,
+            )
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
 
     def _add_slider(self, parent: ttk.Frame, key: str, label: str, value: float,
                     min_value: float, max_value: float, resolution: float,
@@ -3981,7 +4034,7 @@ class MossbauerFe33GUI(tk.Tk):
 
         fit_velocity = self.fit_velocity_var.get()
         fit_center = self.fit_center_var.get()
-        fit_sigma = self.fit_sigma_var.get() and self.line_profile_var.get() == "Voigt"
+        fit_sigma = self.fit_sigma_var.get() and self.line_profile_var.get() in ("Gaussiana", "Voigt", "Pseudo-Voigt")
         if fit_velocity and not all(self.fixed_vars[k].get() for k in self.active_bhf_keys()):
             messagebox.showwarning(
                 tr("msg.fit_velocity_title"),

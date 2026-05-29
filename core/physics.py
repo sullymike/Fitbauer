@@ -17,6 +17,23 @@ VOIGT_SIGMA: float = 0.05
 
 
 def lorentzian(v: np.ndarray, center: float, gamma: float) -> np.ndarray:
+    if LINE_PROFILE_KIND == "Gaussiana":
+        sigma = max(float(VOIGT_SIGMA), 1e-9)
+        return np.exp(-0.5 * ((v - center) / sigma) ** 2)
+    if LINE_PROFILE_KIND == "Pseudo-Voigt":
+        sigma = max(float(VOIGT_SIGMA), 1e-9)
+        f_l = 2.0 * gamma
+        f_g = 2.0 * np.sqrt(2.0 * np.log(2.0)) * sigma
+        f = (f_g ** 5 + 2.69269 * f_g ** 4 * f_l + 2.42843 * f_g ** 3 * f_l ** 2
+             + 4.47163 * f_g ** 2 * f_l ** 3 + 0.07842 * f_g * f_l ** 4 + f_l ** 5) ** 0.2
+        f = max(f, 1e-12)
+        r = f_l / f
+        eta = 1.36603 * r - 0.47719 * r ** 2 + 0.11116 * r ** 3
+        hwhm = 0.5 * f
+        g_sigma = hwhm / np.sqrt(2.0 * np.log(2.0))
+        lor = hwhm * hwhm / ((v - center) ** 2 + hwhm * hwhm)
+        gauss = np.exp(-0.5 * ((v - center) / g_sigma) ** 2)
+        return eta * lor + (1.0 - eta) * gauss
     if LINE_PROFILE_KIND == "Voigt":
         sigma = max(float(VOIGT_SIGMA), 1e-9)
         denom = sigma * np.sqrt(2.0)
