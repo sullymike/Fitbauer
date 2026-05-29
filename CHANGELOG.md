@@ -1,5 +1,44 @@
 # Changelog
 
+## v2.1 — motor de ajuste ampliado y usabilidad
+
+Incorpora las mejoras desarrolladas tras el manual matemático del motor de
+ajuste (`docs/manual_mossbauer.pdf`).
+
+### Motor de ajuste
+
+- Verosimilitud seleccionable Gauss / Poisson (IRLS sobre σ del modelo).
+- Pérdida robusta opcional (Soft L1 / Huber) frente a canales con picos espurios.
+- Propagación de la incertidumbre de calibración (σ de vmax) a los pesos.
+- Optimización global opcional (evolución diferencial) antes del pulido TRF.
+- Tratamiento de Kündig del cuadrupolo (Hamiltoniano axial, β libre) y promedio policristalino, además del 1er orden.
+- Parámetro de textura por sextete (t = sin²θ → 3 : 4t/(2−t) : 1).
+- Normalización analítica del perfil Voigt (independiente del muestreo).
+
+### Distribución P(BHF) / P(ΔEQ)
+
+- Regularización por Variación Total (bordes afilados) además de Tikhonov.
+- Selección automática de α por GCV (junto a curva L y compromiso).
+- Grados de libertad efectivos en el χ² reducido.
+- Barras de error 1σ de P(BHF) por covarianza linealizada.
+- Preacondicionamiento de la matriz núcleo para BHF pequeño.
+
+### Usabilidad
+
+- Submenú "Ajuste → Opciones avanzadas de ajuste" para descongestionar el menú.
+- Menús contextuales (clic derecho) en los sliders para elegir modo de intensidades y tratamiento del cuadrupolo.
+- Agrisado de los parámetros no usados según tipo de componente y modo.
+- No se simula nada al cargar datos hasta tocar un parámetro o ajustar.
+- Previsualización en vivo de los sextetes en modo distribución antes de ajustar.
+- "Inicializar desde mínimos" activa los componentes detectados y escala las profundidades para no pasarse de los datos.
+- Clic derecho en la caja de muestra: usarla como calibración tomando vmax e iso actuales.
+- Desplazamiento isomérico corregido (δ − iso de calibración) en el cuadro de resultados y el informe.
+- Ayuda integrada ampliada (capítulo de acceso a opciones y novedades) en es/en/fr.
+
+### Documentación
+
+- Manual matemático extenso del motor de ajuste en `docs/` (LaTeX + PDF).
+
 ## v2.0 — release estable
 
 Versión estable que consolida el desarrollo anterior y sustituye al historial fragmentado de releases 0.x y 1.x.
