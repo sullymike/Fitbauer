@@ -465,6 +465,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.last_fit_free_keys: list[str] = []
         self.last_fit_cov: np.ndarray | None = None
         self.last_fit_param_errors: dict[str, float] = {}
+        self.last_fit_profile_errors: dict[str, dict] = {}
         self.last_fit_stats: dict[str, float] = {}
         self.last_fit_correlations: dict[str, object] = {}
         # Restricciones lineales: target = factor * source + offset.
@@ -892,15 +893,6 @@ class MossbauerFe33GUI(tk.Tk):
         for _w in (_sigma_refs.get("slider"), _sigma_refs.get("label")):
             if _w is not None:
                 _w.bind("<Button-3>", self.show_sigma_profile_menu)
-        self.fit_sigma_check = ttk.Checkbutton(
-            calib_box,
-            text=tr("checkbox.fit_sigma"),
-            variable=self.fit_sigma_var,
-        )
-        self.fit_sigma_check.pack(anchor=tk.W, pady=(0, 4))
-        self.fit_sigma_check.configure(
-            state=tk.NORMAL if self.line_profile_var.get() == "Voigt" else tk.DISABLED
-        )
 
         line_box = ttk.LabelFrame(controls, text=tr("controls.reference_box"), style="Section.TLabelframe")
         line_box.pack(fill=tk.X, pady=8)
@@ -1522,9 +1514,13 @@ class MossbauerFe33GUI(tk.Tk):
         # σ gaussiano sólo se usa con perfil Voigt → agrisarlo en Lorentziana.
         uses_sigma = LINE_PROFILE_KIND == "Voigt"
         self._set_slider_enabled("voigt_sigma", uses_sigma)
-        check = getattr(self, "fit_sigma_check", None)
-        if check is not None:
-            check.configure(state=tk.NORMAL if uses_sigma else tk.DISABLED)
+        menu = getattr(self, "_fit_sigma_menu", None)
+        idx = getattr(self, "_fit_sigma_menu_index", None)
+        if menu is not None and idx is not None:
+            try:
+                menu.entryconfigure(idx, state=tk.NORMAL if uses_sigma else tk.DISABLED)
+            except tk.TclError:
+                pass
         if not uses_sigma:
             self.fit_sigma_var.set(False)
         if self.updating_sliders:
@@ -1532,7 +1528,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.update_plot()
 
     def show_sigma_profile_menu(self, event) -> None:
-        """Menú contextual sobre el slider σ: alterna Lorentziana / Voigt."""
+        """Menú contextual sobre el slider σ: alterna Lorentziana/Voigt."""
         menu = tk.Menu(self, tearoff=0)
         menu.add_command(label=tr("context.sigma_profile_title"), state="disabled")
         menu.add_separator()
@@ -4153,6 +4149,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.last_fit_free_keys = free_keys.copy()
         self.last_fit_cov = None
         self.last_fit_param_errors = {}
+        self.last_fit_profile_errors = {}
         self.last_fit_stats = {}
         self.last_fit_correlations = {}
         try:
@@ -4201,6 +4198,160 @@ class MossbauerFe33GUI(tk.Tk):
             self.refold_data()
         self.update_plot()
         close_progress()
+
+    def profile_likelihood_errors_current(self) -> None:
+        """Calcula intervalos de confianza asimétricos por verosimilitud perfilada.
+
+        Para cada parámetro libre del último ajuste discreto: fija el parámetro
+        en una rejilla en torno al óptimo, reajusta el resto, calcula Δχ²(p) y
+        localiza los cruces Δχ²=1 (1σ) y Δχ²=4 (2σ). Guarda los resultados en
+        ``self.last_fit_profile_errors`` y muestra una ventana con las curvas.
+        """
+        from core.profile_likelihood import asymmetric_intervals
+        if self.fit_mode_var.get() == "bhf_distribution":
+            messagebox.showinfo(
+                tr("msg.profile_lik_title"), tr("msg.profile_lik_discrete_only"))
+            return
+        if self.velocity is None or self.y_data is None:
+            return
+        if not self.last_fit_free_keys:
+            messagebox.showinfo(
+                tr("msg.profile_lik_title"), tr("msg.profile_lik_no_fit"))
+            return
+
+        free_keys = list(self.last_fit_free_keys)
+        keys_all = self.active_param_keys()
+        base_values = {k: self.vars[k].get() for k in keys_all}
+        vmax = abs(self.vars["vmax"].get())
+        use_poisson = self.likelihood_var.get() == "poisson"
+        y_data = self.y_data
+        sigma_data = self.data_sigma()
+
+        def _weighted_chi2(values: dict[str, float]) -> float:
+            values = self.apply_constraints_to_values(values)
+            m = self.model_from_values(values, vmax)
+            if use_poisson:
+                sig = self.predicted_sigma(m)
+                if sig is None:
+                    sig = sigma_data
+            else:
+                sig = sigma_data
+            sig = self.augment_sigma_calibration(sig, m, vmax)
+            if sig is None:
+                return float(np.sum((m - y_data) ** 2))
+            return float(np.sum(((m - y_data) / sig) ** 2))
+
+        chi2_min = float(self.last_fit_stats.get("chi2") or _weighted_chi2(base_values))
+
+        def _cost_with_fixed(fix_key: str, fix_val: float) -> float:
+            other_keys = [k for k in free_keys if k != fix_key]
+            if not other_keys:
+                vals = base_values.copy()
+                vals[fix_key] = fix_val
+                return _weighted_chi2(vals)
+            lo_arr = np.array([self.bounds_for_key(k)[0] for k in other_keys], dtype=float)
+            hi_arr = np.array([self.bounds_for_key(k)[1] for k in other_keys], dtype=float)
+            x0 = np.clip(np.array([base_values[k] for k in other_keys], dtype=float), lo_arr, hi_arr)
+
+            def _resid(x: np.ndarray) -> np.ndarray:
+                vals = base_values.copy()
+                for k, v in zip(other_keys, x):
+                    vals[k] = float(v)
+                vals[fix_key] = fix_val
+                vals = self.apply_constraints_to_values(vals)
+                m = self.model_from_values(vals, vmax)
+                if use_poisson:
+                    sig = self.predicted_sigma(m)
+                    if sig is None:
+                        sig = sigma_data
+                else:
+                    sig = sigma_data
+                sig = self.augment_sigma_calibration(sig, m, vmax)
+                if sig is None:
+                    return m - y_data
+                return (m - y_data) / sig
+
+            try:
+                res = least_squares(_resid, x0, bounds=(lo_arr, hi_arr), max_nfev=2000)
+                return 2.0 * float(res.cost)
+            except Exception:
+                return float("inf")
+
+        progress = self.open_progress_dialog(
+            tr("progress.profile_lik_title"), tr("progress.profile_lik_prepare"))
+        _dlg, update_progress, close_progress = progress
+        results: dict[str, dict] = {}
+        try:
+            for ki, key in enumerate(free_keys, 1):
+                update_progress(tr("progress.profile_lik_step", i=ki, n=len(free_keys), name=key))
+                best = float(base_values[key])
+                sigma_est = float(self.last_fit_param_errors.get(key) or 0.0)
+                if sigma_est <= 0:
+                    sigma_est = max(0.05 * (abs(best) + 1.0), 1e-6)
+                lo_b, hi_b = self.bounds_for_key(key)
+                scan_vals = np.array([])
+                d_chi2 = np.array([])
+                # Escaneo adaptativo: empieza en ±3σ; si Δχ²=1 no se cruza en
+                # un lado pero hay margen frente al límite físico, amplía a ±5σ.
+                for span in (3.0, 5.0):
+                    left = np.linspace(max(lo_b, best - span * sigma_est), best, 11)
+                    right = np.linspace(best, min(hi_b, best + span * sigma_est), 11)
+                    grid = np.unique(np.concatenate([left, right]))
+                    costs = np.array([_cost_with_fixed(key, float(v)) for v in grid])
+                    d = costs - chi2_min
+                    bracket_left = any(d[i] >= 1.0 for i, v in enumerate(grid) if v < best)
+                    bracket_right = any(d[i] >= 1.0 for i, v in enumerate(grid) if v > best)
+                    headroom_left = (best - lo_b) > span * sigma_est * 1.05
+                    headroom_right = (hi_b - best) > span * sigma_est * 1.05
+                    scan_vals, d_chi2 = grid, d
+                    if (bracket_left or not headroom_left) and (bracket_right or not headroom_right):
+                        break
+                intervals = asymmetric_intervals(scan_vals, d_chi2, best)
+                results[key] = {
+                    "best": best,
+                    "scan_values": scan_vals.tolist(),
+                    "d_chi2": d_chi2.tolist(),
+                    **intervals,
+                }
+        except Exception as exc:
+            close_progress()
+            messagebox.showerror(tr("msg.profile_lik_title"), str(exc))
+            return
+        close_progress()
+        self.last_fit_profile_errors = results
+        self.update_plot()
+        self._show_profile_likelihood_dialog(results)
+
+    def _show_profile_likelihood_dialog(self, results: dict[str, dict]) -> None:
+        """Ventana con las curvas Δχ²(p) por parámetro libre."""
+        if not results:
+            return
+        dlg = tk.Toplevel(self)
+        dlg.title(tr("msg.profile_lik_title"))
+        dlg.transient(self)
+        ttk.Label(dlg, text=tr("dialog.profile_lik_subtitle"),
+                  wraplength=620, padding=8).pack(anchor=tk.W)
+        n = len(results)
+        ncols = 2 if n > 1 else 1
+        nrows = (n + ncols - 1) // ncols
+        fig = Figure(figsize=(7.5, 2.4 * nrows + 0.5), dpi=96)
+        keys = list(results.keys())
+        for i, key in enumerate(keys, 1):
+            ax = fig.add_subplot(nrows, ncols, i)
+            r = results[key]
+            ax.plot(r["scan_values"], r["d_chi2"], "o-", color="#1f77b4", ms=3)
+            ax.axhline(1.0, color="#888", linestyle="--", linewidth=0.8)
+            ax.axhline(4.0, color="#bbb", linestyle=":", linewidth=0.8)
+            ax.axvline(r["best"], color="#d62728", linewidth=0.8)
+            ax.set_title(key, fontsize=9)
+            ax.set_ylabel("Δχ²", fontsize=8)
+            ax.tick_params(labelsize=7)
+            ax.grid(alpha=0.3)
+        fig.tight_layout()
+        canvas = FigureCanvasTkAgg(fig, master=dlg)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=8, pady=4)
+        ttk.Button(dlg, text=tr("button.close"), command=dlg.destroy).pack(pady=6)
 
     def bootstrap_errors_current(self) -> None:
         """Estimación Monte Carlo rápida de errores para el modelo discreto actual."""
@@ -5212,6 +5363,19 @@ class MossbauerFe33GUI(tk.Tk):
             text.append(tr("info.constraints_header"))
             for c in cons:
                 text.append(tr("info.constraint_line", target=c['target'], factor=float(c.get('factor', 1.0)), source=c['source'], offset=float(c.get('offset', 0.0))))
+        if self.last_fit_profile_errors:
+            text.append("")
+            text.append(tr("info.profile_lik_header"))
+            for key, info in self.last_fit_profile_errors.items():
+                if key not in self.vars:
+                    continue
+                plus = info.get("plus_1s")
+                minus = info.get("minus_1s")
+                p_txt = f"{plus:.4g}" if plus is not None else "—"
+                m_txt = f"{minus:.4g}" if minus is not None else "—"
+                text.append(tr("info.profile_lik_line", name=key,
+                               val=f"{self.vars[key].get():.6g}",
+                               plus=p_txt, minus=m_txt))
         self.info.delete("1.0", tk.END)
         self.info.insert(tk.END, "\n".join(text))
 
@@ -5496,6 +5660,25 @@ class MossbauerFe33GUI(tk.Tk):
                 if key in self.vars:
                     lines.append(f"| `{key}` | {self.vars[key].get():.8g} |  |  |")
         lines.append("")
+
+        if self.last_fit_profile_errors:
+            lines.append(tr("report.profile_lik_header"))
+            lines.append("")
+            lines.append(
+                f"| {tr('report.param_col')} | {tr('report.value_col')} "
+                f"| {tr('report.profile_lik_col_plus')} "
+                f"| {tr('report.profile_lik_col_minus')} |"
+            )
+            lines.append("|---|---:|---:|---:|")
+            for key, info in self.last_fit_profile_errors.items():
+                if key not in self.vars:
+                    continue
+                plus = info.get("plus_1s")
+                minus = info.get("minus_1s")
+                p_txt = f"+{plus:.4g}" if plus is not None else "—"
+                m_txt = f"−{minus:.4g}" if minus is not None else "—"
+                lines.append(f"| `{key}` | {self.vars[key].get():.8g} | {p_txt} | {m_txt} |")
+            lines.append("")
 
         iso_ref = self.calibration_iso_ref()
         if iso_ref is not None:

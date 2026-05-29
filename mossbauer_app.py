@@ -148,6 +148,7 @@ class MossbauerApp(MossbauerFe33GUI):
         fit_menu.add_command(label=tr("fit.auto_from_minima"),command=self.auto_fit_from_minima)
         fit_menu.add_command(label=tr("fit.ollama_start"),    command=self.open_ollama_ai_dialog)
         fit_menu.add_command(label=tr("fit.bootstrap"),       command=self.bootstrap_errors_current)
+        fit_menu.add_command(label=tr("fit.profile_likelihood"), command=self.profile_likelihood_errors_current)
         fit_menu.add_separator()
         fit_menu.add_radiobutton(label=tr("options.discrete_sextets"),
                                  variable=self.fit_mode_var, value="discrete",
