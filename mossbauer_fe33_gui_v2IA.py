@@ -420,6 +420,8 @@ class MossbauerFe33GUI(tk.Tk):
         self.updating_sliders = False
         self.fit_velocity_var = tk.BooleanVar(value=False)
         self.fit_center_var = tk.BooleanVar(value=False)
+        # σ gaussiano de la Voigt como parámetro global libre (sólo en modo Voigt).
+        self.fit_sigma_var = tk.BooleanVar(value=False)
         self.likelihood_var = tk.StringVar(value="gauss")
         # Mejora 10: pérdida robusta del optimizador (linear/soft_l1/huber).
         self.robust_loss_var = tk.StringVar(value="linear")
@@ -886,6 +888,19 @@ class MossbauerFe33GUI(tk.Tk):
         self._add_slider(calib_box, "baseline", tr("slider.baseline"), 1.0, 0.70, 1.30, 0.0005)
         self._add_slider(calib_box, "slope", tr("slider.slope"), 0.0, -0.0001, 0.0001, 0.000001)
         self._add_slider(calib_box, "voigt_sigma", tr("slider.voigt_sigma"), 0.05, 0.0, 1.0, 0.001, fit_param=False)
+        _sigma_refs = self.slider_widget_refs.get("voigt_sigma", {})
+        for _w in (_sigma_refs.get("slider"), _sigma_refs.get("label")):
+            if _w is not None:
+                _w.bind("<Button-3>", self.show_sigma_profile_menu)
+        self.fit_sigma_check = ttk.Checkbutton(
+            calib_box,
+            text=tr("checkbox.fit_sigma"),
+            variable=self.fit_sigma_var,
+        )
+        self.fit_sigma_check.pack(anchor=tk.W, pady=(0, 4))
+        self.fit_sigma_check.configure(
+            state=tk.NORMAL if self.line_profile_var.get() == "Voigt" else tk.DISABLED
+        )
 
         line_box = ttk.LabelFrame(controls, text=tr("controls.reference_box"), style="Section.TLabelframe")
         line_box.pack(fill=tk.X, pady=8)
@@ -1497,11 +1512,44 @@ class MossbauerFe33GUI(tk.Tk):
         global LINE_PROFILE_KIND, VOIGT_SIGMA
         LINE_PROFILE_KIND = self.line_profile_var.get()
         VOIGT_SIGMA = self.vars.get("voigt_sigma", tk.DoubleVar(value=0.05)).get()
+        # Mantener sincronizada la física pura (core.physics) por si se usa.
+        try:
+            import core.physics as _cphys
+            _cphys.LINE_PROFILE_KIND = LINE_PROFILE_KIND
+            _cphys.VOIGT_SIGMA = VOIGT_SIGMA
+        except Exception:
+            pass
         # σ gaussiano sólo se usa con perfil Voigt → agrisarlo en Lorentziana.
-        self._set_slider_enabled("voigt_sigma", LINE_PROFILE_KIND == "Voigt")
+        uses_sigma = LINE_PROFILE_KIND == "Voigt"
+        self._set_slider_enabled("voigt_sigma", uses_sigma)
+        check = getattr(self, "fit_sigma_check", None)
+        if check is not None:
+            check.configure(state=tk.NORMAL if uses_sigma else tk.DISABLED)
+        if not uses_sigma:
+            self.fit_sigma_var.set(False)
         if self.updating_sliders:
             return
         self.update_plot()
+
+    def show_sigma_profile_menu(self, event) -> None:
+        """Menú contextual sobre el slider σ: alterna Lorentziana / Voigt."""
+        menu = tk.Menu(self, tearoff=0)
+        menu.add_command(label=tr("context.sigma_profile_title"), state="disabled")
+        menu.add_separator()
+        for value, label in (
+            ("Lorentziana", tr("options.profile_lorentzian")),
+            ("Voigt", tr("options.profile_voigt")),
+        ):
+            menu.add_radiobutton(
+                label=label,
+                variable=self.line_profile_var,
+                value=value,
+                command=self.on_line_profile_change,
+            )
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
 
     def _add_slider(self, parent: ttk.Frame, key: str, label: str, value: float,
                     min_value: float, max_value: float, resolution: float,
@@ -3964,6 +4012,7 @@ class MossbauerFe33GUI(tk.Tk):
 
         fit_velocity = self.fit_velocity_var.get()
         fit_center = self.fit_center_var.get()
+        fit_sigma = self.fit_sigma_var.get() and self.line_profile_var.get() == "Voigt"
         if fit_velocity and not all(self.fixed_vars[k].get() for k in self.active_bhf_keys()):
             messagebox.showwarning(
                 tr("msg.fit_velocity_title"),
@@ -3990,12 +4039,17 @@ class MossbauerFe33GUI(tk.Tk):
             x0.append(self.vars["center"].get())
             lo.append(self.slider_specs["center"][0])
             hi.append(self.slider_specs["center"][1])
+        if fit_sigma:
+            x0.append(float(self.vars["voigt_sigma"].get()))
+            lo.append(self.slider_specs["voigt_sigma"][0])
+            hi.append(self.slider_specs["voigt_sigma"][1])
         x0_arr = np.array(x0, dtype=float)
         lo_arr = np.array(lo, dtype=float)
         hi_arr = np.array(hi, dtype=float)
         x0_arr = np.clip(x0_arr, lo_arr, hi_arr)
 
         def unpack(x: np.ndarray) -> tuple[dict[str, float], float, float]:
+            global VOIGT_SIGMA
             values = values0.copy()
             for key, value in zip(free_keys, x[:len(free_keys)]):
                 values[key] = float(value)
@@ -4004,6 +4058,9 @@ class MossbauerFe33GUI(tk.Tk):
             vmax = float(x[pos]) if fit_velocity else abs(self.vars["vmax"].get())
             pos += 1 if fit_velocity else 0
             center_fit = float(x[pos]) if fit_center else self.vars["center"].get()
+            pos += 1 if fit_center else 0
+            if fit_sigma:
+                VOIGT_SIGMA = float(x[pos])
             return values, vmax, center_fit
 
         def data_for_center(center_value: float) -> tuple[np.ndarray, np.ndarray | None]:
@@ -4039,7 +4096,7 @@ class MossbauerFe33GUI(tk.Tk):
             span = hi_arr - lo_arr
             for _ in range(8):
                 trial = x0_arr.copy()
-                for i, key in enumerate(free_keys + (["vmax"] if fit_velocity else []) + (["center"] if fit_center else [])):
+                for i, key in enumerate(free_keys + (["vmax"] if fit_velocity else []) + (["center"] if fit_center else []) + (["voigt_sigma"] if fit_sigma else [])):
                     width = span[i]
                     if not np.isfinite(width) or width <= 0:
                         continue
@@ -4135,6 +4192,11 @@ class MossbauerFe33GUI(tk.Tk):
         if fit_center:
             self.vars["center"].set(center_final)
             self.entry_vars["center"].set(self._format_value("center", center_final))
+        if fit_sigma:
+            pos = len(free_keys) + (1 if fit_velocity else 0) + (1 if fit_center else 0)
+            sigma_final_val = float(result.x[pos])
+            self.vars["voigt_sigma"].set(sigma_final_val)
+            self.entry_vars["voigt_sigma"].set(self._format_value("voigt_sigma", sigma_final_val))
         if fit_velocity or fit_center:
             self.refold_data()
         self.update_plot()

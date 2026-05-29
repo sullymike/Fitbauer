@@ -36,6 +36,19 @@ class CalibrationPanel(BasePanel):
         self._add_slider(
             box, "voigt_sigma", tr("slider.voigt_sigma"), 0.05, 0.0, 1.0, 0.001, fit_param=False
         )
+        sigma_refs = app.slider_widget_refs.get("voigt_sigma", {})
+        for widget in (sigma_refs.get("slider"), sigma_refs.get("label")):
+            if widget is not None:
+                widget.bind("<Button-3>", app.show_sigma_profile_menu)
+        app.fit_sigma_check = ttk.Checkbutton(
+            box,
+            text=tr("checkbox.fit_sigma"),
+            variable=app.fit_sigma_var,
+        )
+        app.fit_sigma_check.pack(anchor=tk.W, pady=(0, 4))
+        app.fit_sigma_check.configure(
+            state=tk.NORMAL if app.line_profile_var.get() == "Voigt" else tk.DISABLED
+        )
 
         self._root = box
         return box

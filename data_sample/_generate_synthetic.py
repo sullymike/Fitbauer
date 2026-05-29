@@ -19,12 +19,12 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from core.physics import sextet_absorption, doublet_absorption  # noqa: E402
+from core.physics import sextet_absorption, doublet_absorption, singlet_absorption  # noqa: E402
 
 VMAX = 12.007          # mm/s, velocidad calibrada existente
 ISO_REF = -0.1092      # mm/s, corrimiento isomérico de la calibración (FC210422)
 N_CHANNELS = 512
-BASELINE_COUNTS = 450000.0
+BASELINE_COUNTS = 2_000_000.0   # cuentas altas → ruido de Poisson bajo
 RNG = np.random.default_rng(20260529)
 
 
@@ -41,6 +41,11 @@ def doublet(delta_lit, deq, gamma1, depth):
                             int1=1.0, int2=1.0))
 
 
+def singlet(delta_lit, gamma1, depth):
+    return ("singlet", dict(delta=delta_lit + ISO_REF, gamma1=gamma1,
+                            depth=depth, int1=1.0))
+
+
 def absorption_on_grid(components, v):
     total = np.zeros_like(v)
     for kind, p in components:
@@ -49,6 +54,10 @@ def absorption_on_grid(components, v):
                 v, p["delta"], p["quad"], p["bhf"],
                 p["gamma1"], p["gamma2"], p["gamma3"],
                 p["depth"], p["int1"], p["int2"], p["int3"],
+            )
+        elif kind == "singlet":
+            total += singlet_absorption(
+                v, p["delta"], p["gamma1"], p["depth"], p["int1"],
             )
         else:
             total += doublet_absorption(
@@ -85,17 +94,41 @@ def write_adt(path: Path, raw: np.ndarray) -> None:
 
 
 COMPOUNDS = {
+    # ── Compuestos de referencia (parámetros próximos a la literatura) ────────
     # Hematita alpha-Fe2O3 (RT): sextete único, delta~0.37, BHF~51.5, 2eps~-0.20
-    "hematita_Fe2O3": [sextet(0.37, 51.5, -0.20, 0.16, 0.012)],
+    "hematita_Fe2O3": [sextet(0.37, 51.5, -0.20, 0.16, 0.014)],
     # Magnetita Fe3O4 (RT): sitio A tetraédrico (Fe3+) + sitio B octaédrico (Fe2.5+)
     "magnetita_Fe3O4": [
-        sextet(0.27, 49.0, 0.0, 0.18, 0.010),
-        sextet(0.67, 46.0, 0.0, 0.28, 0.018),
+        sextet(0.27, 49.0, 0.0, 0.18, 0.012),
+        sextet(0.67, 46.0, 0.0, 0.28, 0.020),
     ],
     # Hierro metálico alpha-Fe: sextete del calibrante, delta=0, BHF=33
-    "hierro_metalico_alphaFe": [sextet(0.00, 33.0, 0.0, 0.14, 0.013)],
+    "hierro_metalico_alphaFe": [sextet(0.00, 33.0, 0.0, 0.14, 0.015)],
     # Siderita FeCO3: doblete paramagnético Fe2+, delta~1.23, DeltaEQ~1.80
     "siderita_FeCO3": [doublet(1.23, 1.80, 0.17, 0.045)],
+
+    # ── Espectros sintéticos de ejemplo (parámetros arbitrarios) ──────────────
+    # Singlete paramagnético estrecho.
+    "sintetico_singlete": [singlet(0.30, 0.16, 0.040)],
+    # Doblete simétrico de desdoblamiento moderado.
+    "sintetico_doblete": [doublet(0.45, 0.85, 0.16, 0.045)],
+    # Doblete + singlete (dos entornos paramagnéticos).
+    "sintetico_doblete_singlete": [
+        doublet(0.95, 2.10, 0.18, 0.038),
+        singlet(0.20, 0.17, 0.025),
+    ],
+    # Sextete de líneas anchas (campo intermedio, ensanchamiento tipo relajación).
+    "sintetico_sexteto_ancho": [sextet(0.40, 42.0, 0.10, 0.45, 0.018)],
+    # Dos sextetes solapados de campos distintos.
+    "sintetico_dos_sextetes": [
+        sextet(0.10, 50.0, 0.00, 0.16, 0.013),
+        sextet(0.35, 38.0, -0.15, 0.22, 0.015),
+    ],
+    # Fase mixta: un sextete magnético + un doblete paramagnético.
+    "sintetico_sexteto_doblete": [
+        sextet(0.20, 47.0, 0.0, 0.18, 0.014),
+        doublet(0.55, 1.20, 0.18, 0.022),
+    ],
 }
 
 
