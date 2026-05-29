@@ -838,6 +838,8 @@ class MossbauerFe33GUI(tk.Tk):
             wraplength=405,
         )
         self.file_label.pack(anchor=tk.W, fill=tk.X)
+        file_box.bind("<Button-3>", self.show_file_box_menu)
+        self.file_label.bind("<Button-3>", self.show_file_box_menu)
         self.calib_label = tk.Label(
             file_box,
             textvariable=self.calib_label_var,
@@ -1658,12 +1660,50 @@ class MossbauerFe33GUI(tk.Tk):
     def open_calibration_download_dialog(self) -> None:
         self.open_web_download_dialog(kind="calibraciones")
 
+    def mark_loaded_as_calibration_quick(self) -> None:
+        """Marca el fichero cargado como calibración tomando los valores actuales
+        de velocidad (vmax) y desplazamiento isomérico (δ del primer sextete
+        activo), sin diálogo. Pensado para el menú contextual de la caja."""
+        if self.file_path is None:
+            messagebox.showinfo(tr("msg.calibration_title"), tr("msg.no_file_loaded"))
+            return
+        vmax_val = abs(float(self.vars["vmax"].get())) if "vmax" in self.vars else None
+        active_idx = next((i for i in self.sextet_enabled if self.sextet_enabled[i].get()), None)
+        is_val = None
+        if active_idx is not None and f"s{active_idx}_delta" in self.vars:
+            is_val = float(self.vars[f"s{active_idx}_delta"].get())
+        self.calibration_info = {
+            "source": "local",
+            "calibration_file_name": self.file_path.name,
+            "calibration_file_path": str(self.file_path),
+            "calibration_sample": self.file_path.stem,
+            "calibration_date": None,
+            "velocity_calibrated": vmax_val,
+            "isomer_shift": is_val,
+        }
+        self.update_calibration_label()
+        messagebox.showinfo(tr("msg.calibration_title"),
+                            tr("msg.use_as_calib_quick_ok", name=self.file_path.name,
+                               vmax=f"{vmax_val:.6g}" if vmax_val is not None else "—",
+                               iso=f"{is_val:.6g}" if is_val is not None else "—"))
+
+    def show_file_box_menu(self, event) -> None:
+        """Menú contextual (clic derecho) sobre la caja del fichero/muestra."""
+        menu = tk.Menu(self, tearoff=0)
+        menu.add_command(label=tr("context.use_as_calibration_quick"),
+                         command=self.mark_loaded_as_calibration_quick)
+        menu.add_command(label=tr("context.use_as_calibration_detailed"),
+                         command=self.use_loaded_file_as_calibration)
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
     def use_loaded_file_as_calibration(self) -> None:
         """Marca el fichero actualmente cargado como espectro de calibración local."""
         if self.file_path is None:
             messagebox.showinfo(tr("msg.calibration_title"), tr("msg.no_file_loaded"))
             return
-
         fname = self.file_path.name
         dialog = tk.Toplevel(self)
         dialog.title(tr("dialog.use_as_calibration"))
@@ -3560,6 +3600,22 @@ class MossbauerFe33GUI(tk.Tk):
         self.apply_constraints_to_vars()
         self.update_plot()
 
+    def calibration_iso_ref(self) -> float | None:
+        """Desplazamiento isomérico de referencia de la calibración activa, o None.
+
+        El δ corregido de un componente es δ_medido − iso_calibración, que
+        traslada el cero de la escala al centro del patrón de calibración
+        (p. ej. α-Fe), dejando los δ referidos al estándar.
+        """
+        info = getattr(self, "calibration_info", None)
+        if not info:
+            return None
+        v = info.get("isomer_shift")
+        try:
+            return float(v) if v not in (None, "") else None
+        except (TypeError, ValueError):
+            return None
+
     def calibration_uncertainty_text(self) -> str | None:
         if not self.calibration_info:
             return None
@@ -5067,6 +5123,7 @@ class MossbauerFe33GUI(tk.Tk):
                 kind_disp = tr(f"kind.{self.component_kind[idx].get()}", default=self.component_kind[idx].get())
                 text.append(tr("info.component_percent_line", idx=idx, kind=kind_disp, pct=pct, err_txt=err_txt, area=area))
             text.append("")
+        iso_ref = self.calibration_iso_ref()
         for idx in active:
             p = f"s{idx}_"
             i1 = self.vars[p + 'int1'].get()
@@ -5084,6 +5141,8 @@ class MossbauerFe33GUI(tk.Tk):
                 tr("info.gamma_rel", gamma2=self.vars[p+'gamma2'].get(), gamma3=self.vars[p+'gamma3'].get()),
                 tr("info.depth_intensities", depth=self.vars[p+'depth'].get(), i1=i1, i2=i2_real, i3=i3_real),
             ])
+            if iso_ref is not None:
+                text.append(tr("info.delta_corrected", value=f"{self.vars[p+'delta'].get() - iso_ref:.6g}", ref=f"{iso_ref:.6g}"))
         text.extend(["", tr("info.fixed_line", fixed=(", ".join(fixed) if fixed else tr("info.none")))])
         cons = self.enabled_constraints()
         if cons:
@@ -5375,6 +5434,22 @@ class MossbauerFe33GUI(tk.Tk):
                 if key in self.vars:
                     lines.append(f"| `{key}` | {self.vars[key].get():.8g} |  |  |")
         lines.append("")
+
+        iso_ref = self.calibration_iso_ref()
+        if iso_ref is not None:
+            lines.append(tr("report.iso_corrected_header", ref=f"{iso_ref:.6g}"))
+            lines.append("")
+            if self.fit_mode_var.get() == "bhf_distribution":
+                if "dist_delta" in self.vars:
+                    lines.append(tr("report.iso_corrected_row", name="dist_delta",
+                                    value=f"{self.vars['dist_delta'].get() - iso_ref:.6g}"))
+            else:
+                rng = self._component_range() if hasattr(self, "_component_range") else (1, 2, 3)
+                for idx in rng:
+                    if idx in self.sextet_enabled and self.sextet_enabled[idx].get():
+                        lines.append(tr("report.iso_corrected_row", name=f"s{idx}",
+                                        value=f"{self.vars[f's{idx}_delta'].get() - iso_ref:.6g}"))
+            lines.append("")
 
         if residual is not None:
             lines.append(tr("report.residual_summary_header"))

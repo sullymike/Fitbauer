@@ -481,5 +481,11 @@
   "context.quad_treatment_1st_order": "1er ordre",
   "context.quad_treatment_kundig_fixed": "Kündig fixe",
   "context.quad_treatment_kundig_powder": "Kündig poudre",
-  "plot.legend_preview": "Aperçu (non ajusté)"
+  "plot.legend_preview": "Aperçu (non ajusté)",
+  "context.use_as_calibration_quick": "Utiliser comme étalonnage (vmax et iso actuels)",
+  "context.use_as_calibration_detailed": "Utiliser comme étalonnage (détails)...",
+  "msg.use_as_calib_quick_ok": "« {name} » défini comme étalonnage.\nVitesse (vmax) = {vmax} mm/s\nDéplacement isomérique = {iso} mm/s",
+  "info.delta_corrected": "  δ corrigé (étal. iso={ref}) = {value} mm/s",
+  "report.iso_corrected_header": "## δ corrigé (référé à l'étalonnage, iso_ref = {ref} mm/s)",
+  "report.iso_corrected_row": "- {name} : δ corrigé = {value} mm/s"
 }
