@@ -18,6 +18,8 @@
 !layout/**
 !docs/
 !docs/**
+!tests/
+!tests/**
 
 # Cachés/temporales habituales si aparecen en la raíz
 __pycache__/
