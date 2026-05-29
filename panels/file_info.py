@@ -31,6 +31,9 @@ class FileInfoPanel(BasePanel):
             wraplength=405,
         )
         app.file_label.pack(anchor=tk.W, fill=tk.X)
+        # Clic derecho: marcar la muestra como calibración (valores actuales o detalle).
+        box.bind("<Button-3>", app.show_file_box_menu)
+        app.file_label.bind("<Button-3>", app.show_file_box_menu)
 
         app.calib_label = tk.Label(
             box,

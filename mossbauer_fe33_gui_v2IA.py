@@ -838,6 +838,8 @@ class MossbauerFe33GUI(tk.Tk):
             wraplength=405,
         )
         self.file_label.pack(anchor=tk.W, fill=tk.X)
+        file_box.bind("<Button-3>", self.show_file_box_menu)
+        self.file_label.bind("<Button-3>", self.show_file_box_menu)
         self.calib_label = tk.Label(
             file_box,
             textvariable=self.calib_label_var,
@@ -1658,12 +1660,50 @@ class MossbauerFe33GUI(tk.Tk):
     def open_calibration_download_dialog(self) -> None:
         self.open_web_download_dialog(kind="calibraciones")
 
+    def mark_loaded_as_calibration_quick(self) -> None:
+        """Marca el fichero cargado como calibración tomando los valores actuales
+        de velocidad (vmax) y desplazamiento isomérico (δ del primer sextete
+        activo), sin diálogo. Pensado para el menú contextual de la caja."""
+        if self.file_path is None:
+            messagebox.showinfo(tr("msg.calibration_title"), tr("msg.no_file_loaded"))
+            return
+        vmax_val = abs(float(self.vars["vmax"].get())) if "vmax" in self.vars else None
+        active_idx = next((i for i in self.sextet_enabled if self.sextet_enabled[i].get()), None)
+        is_val = None
+        if active_idx is not None and f"s{active_idx}_delta" in self.vars:
+            is_val = float(self.vars[f"s{active_idx}_delta"].get())
+        self.calibration_info = {
+            "source": "local",
+            "calibration_file_name": self.file_path.name,
+            "calibration_file_path": str(self.file_path),
+            "calibration_sample": self.file_path.stem,
+            "calibration_date": None,
+            "velocity_calibrated": vmax_val,
+            "isomer_shift": is_val,
+        }
+        self.update_calibration_label()
+        messagebox.showinfo(tr("msg.calibration_title"),
+                            tr("msg.use_as_calib_quick_ok", name=self.file_path.name,
+                               vmax=f"{vmax_val:.6g}" if vmax_val is not None else "—",
+                               iso=f"{is_val:.6g}" if is_val is not None else "—"))
+
+    def show_file_box_menu(self, event) -> None:
+        """Menú contextual (clic derecho) sobre la caja del fichero/muestra."""
+        menu = tk.Menu(self, tearoff=0)
+        menu.add_command(label=tr("context.use_as_calibration_quick"),
+                         command=self.mark_loaded_as_calibration_quick)
+        menu.add_command(label=tr("context.use_as_calibration_detailed"),
+                         command=self.use_loaded_file_as_calibration)
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
     def use_loaded_file_as_calibration(self) -> None:
         """Marca el fichero actualmente cargado como espectro de calibración local."""
         if self.file_path is None:
             messagebox.showinfo(tr("msg.calibration_title"), tr("msg.no_file_loaded"))
             return
-
         fname = self.file_path.name
         dialog = tk.Toplevel(self)
         dialog.title(tr("dialog.use_as_calibration"))

@@ -481,5 +481,8 @@
   "context.quad_treatment_1st_order": "1st order",
   "context.quad_treatment_kundig_fixed": "Kündig fixed",
   "context.quad_treatment_kundig_powder": "Kündig powder",
-  "plot.legend_preview": "Preview (not fitted)"
+  "plot.legend_preview": "Preview (not fitted)",
+  "context.use_as_calibration_quick": "Use as calibration (current vmax & iso)",
+  "context.use_as_calibration_detailed": "Use as calibration (details)...",
+  "msg.use_as_calib_quick_ok": "'{name}' set as calibration.\nVelocity (vmax) = {vmax} mm/s\nIsomer shift = {iso} mm/s"
 }
