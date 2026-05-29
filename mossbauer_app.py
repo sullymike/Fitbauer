@@ -665,7 +665,7 @@ class MossbauerApp(MossbauerFe33GUI):
                 if len(sub) >= 5 and abs(sub[-1]["pos"] - sub[0]["pos"]) > 3.0:
                     components.append((1, "Sextete", sub))
                     params["s1_delta"]  = float(np.clip(delta, -2.5, 2.5))
-                    params["s1_bhf"]    = float(np.clip(bhf, 20.0, 50.0))
+                    params["s1_bhf"]    = float(np.clip(bhf, 20.0, 60.0))
                     params["s1_quad"]   = 0.0
                     params["s1_gamma1"] = float(np.clip(width / 2.0, 0.04, 1.0))
                     params["s1_depth"]  = float(np.clip(depth, 0.002, 0.25))
@@ -690,7 +690,7 @@ class MossbauerApp(MossbauerFe33GUI):
                             self.sextet_enabled[next_idx].set(True)
                         components.append((next_idx, "Sextete", sub_e))
                         params[pfx + "delta"]  = float(np.clip(delta_e, -2.5, 2.5))
-                        params[pfx + "bhf"]    = float(np.clip(bhf_e, 20.0, 50.0))
+                        params[pfx + "bhf"]    = float(np.clip(bhf_e, 20.0, 60.0))
                         params[pfx + "quad"]   = 0.0
                         params[pfx + "gamma1"] = float(np.clip(width_e / 2.0, 0.04, 1.0))
                         params[pfx + "depth"]  = float(np.clip(depth_e, 0.002, 0.25))
