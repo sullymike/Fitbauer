@@ -522,6 +522,7 @@ class MossbauerApp(MossbauerFe33GUI):
                 text.append(tr("info.component_percent_line",
                                idx=idx, kind=kind_disp, pct=pct, err_txt=err_txt, area=area))
             text.append("")
+        iso_ref = self.calibration_iso_ref()
         for idx in active:
             p = f"s{idx}_"
             i3_real  = self.vars[p + "int3"].get()
@@ -545,6 +546,10 @@ class MossbauerApp(MossbauerFe33GUI):
                 tr("info.depth_intensities",depth=self.vars[p + "depth"].get(),
                                             i1=i1_real, i2=i2_real, i3=i3_real),
             ])
+            if iso_ref is not None:
+                text.append(tr("info.delta_corrected",
+                               value=f"{self.vars[p + 'delta'].get() - iso_ref:.6g}",
+                               ref=f"{iso_ref:.6g}"))
         text.extend(["", tr("info.fixed_line",
                              fixed=", ".join(fixed) if fixed else tr("info.none"))])
         cons = self.enabled_constraints()

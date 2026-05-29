@@ -3600,6 +3600,22 @@ class MossbauerFe33GUI(tk.Tk):
         self.apply_constraints_to_vars()
         self.update_plot()
 
+    def calibration_iso_ref(self) -> float | None:
+        """Desplazamiento isomérico de referencia de la calibración activa, o None.
+
+        El δ corregido de un componente es δ_medido − iso_calibración, que
+        traslada el cero de la escala al centro del patrón de calibración
+        (p. ej. α-Fe), dejando los δ referidos al estándar.
+        """
+        info = getattr(self, "calibration_info", None)
+        if not info:
+            return None
+        v = info.get("isomer_shift")
+        try:
+            return float(v) if v not in (None, "") else None
+        except (TypeError, ValueError):
+            return None
+
     def calibration_uncertainty_text(self) -> str | None:
         if not self.calibration_info:
             return None
@@ -5107,6 +5123,7 @@ class MossbauerFe33GUI(tk.Tk):
                 kind_disp = tr(f"kind.{self.component_kind[idx].get()}", default=self.component_kind[idx].get())
                 text.append(tr("info.component_percent_line", idx=idx, kind=kind_disp, pct=pct, err_txt=err_txt, area=area))
             text.append("")
+        iso_ref = self.calibration_iso_ref()
         for idx in active:
             p = f"s{idx}_"
             i1 = self.vars[p + 'int1'].get()
@@ -5124,6 +5141,8 @@ class MossbauerFe33GUI(tk.Tk):
                 tr("info.gamma_rel", gamma2=self.vars[p+'gamma2'].get(), gamma3=self.vars[p+'gamma3'].get()),
                 tr("info.depth_intensities", depth=self.vars[p+'depth'].get(), i1=i1, i2=i2_real, i3=i3_real),
             ])
+            if iso_ref is not None:
+                text.append(tr("info.delta_corrected", value=f"{self.vars[p+'delta'].get() - iso_ref:.6g}", ref=f"{iso_ref:.6g}"))
         text.extend(["", tr("info.fixed_line", fixed=(", ".join(fixed) if fixed else tr("info.none")))])
         cons = self.enabled_constraints()
         if cons:
@@ -5415,6 +5434,22 @@ class MossbauerFe33GUI(tk.Tk):
                 if key in self.vars:
                     lines.append(f"| `{key}` | {self.vars[key].get():.8g} |  |  |")
         lines.append("")
+
+        iso_ref = self.calibration_iso_ref()
+        if iso_ref is not None:
+            lines.append(tr("report.iso_corrected_header", ref=f"{iso_ref:.6g}"))
+            lines.append("")
+            if self.fit_mode_var.get() == "bhf_distribution":
+                if "dist_delta" in self.vars:
+                    lines.append(tr("report.iso_corrected_row", name="dist_delta",
+                                    value=f"{self.vars['dist_delta'].get() - iso_ref:.6g}"))
+            else:
+                rng = self._component_range() if hasattr(self, "_component_range") else (1, 2, 3)
+                for idx in rng:
+                    if idx in self.sextet_enabled and self.sextet_enabled[idx].get():
+                        lines.append(tr("report.iso_corrected_row", name=f"s{idx}",
+                                        value=f"{self.vars[f's{idx}_delta'].get() - iso_ref:.6g}"))
+            lines.append("")
 
         if residual is not None:
             lines.append(tr("report.residual_summary_header"))
