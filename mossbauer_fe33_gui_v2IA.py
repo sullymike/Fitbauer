@@ -889,10 +889,12 @@ class MossbauerFe33GUI(tk.Tk):
         self._add_slider(calib_box, "baseline", tr("slider.baseline"), 1.0, 0.70, 1.30, 0.0005)
         self._add_slider(calib_box, "slope", tr("slider.slope"), 0.0, -0.0001, 0.0001, 0.000001)
         self._add_slider(calib_box, "voigt_sigma", tr("slider.voigt_sigma"), 0.05, 0.0, 1.0, 0.001, fit_param=False)
-        _sigma_refs = self.slider_widget_refs.get("voigt_sigma", {})
-        for _w in (_sigma_refs.get("slider"), _sigma_refs.get("label")):
-            if _w is not None:
-                _w.bind("<Button-3>", self.show_sigma_profile_menu)
+        self.fit_sigma_check = ttk.Checkbutton(
+            calib_box,
+            text=tr("checkbox.fit_sigma"),
+            variable=self.fit_sigma_var,
+        )
+        self.fit_sigma_check.pack(anchor=tk.W, pady=(0, 4))
 
         line_box = ttk.LabelFrame(controls, text=tr("controls.reference_box"), style="Section.TLabelframe")
         line_box.pack(fill=tk.X, pady=8)
@@ -1043,6 +1045,7 @@ class MossbauerFe33GUI(tk.Tk):
             "quad_treatment": {str(k): v.get() for k, v in getattr(self, "quad_treatment", {}).items()},
             "fit_velocity": bool(self.fit_velocity_var.get()),
             "fit_center": bool(self.fit_center_var.get()),
+            "fit_sigma": bool(self.fit_sigma_var.get()),
             "show_residual": bool(self.show_residual_var.get()),
             "show_legend": bool(self.show_legend_var.get()),
             "fit_mode": self.fit_mode_var.get(),
@@ -1117,6 +1120,9 @@ class MossbauerFe33GUI(tk.Tk):
             self.fit_mode_var.set(data.get("fit_mode", self.fit_mode_var.get()))
             self.line_profile_var.set(data.get("line_profile", self.line_profile_var.get()))
             self.on_line_profile_change()
+            self.fit_sigma_var.set(bool(data.get("fit_sigma", self.fit_sigma_var.get())))
+            if self.line_profile_var.get() != "Voigt":
+                self.fit_sigma_var.set(False)
             self.likelihood_var.set(data.get("likelihood", self.likelihood_var.get()))
             self.robust_loss_var.set(data.get("robust_loss", self.robust_loss_var.get()))
             self.propagate_calib_var.set(bool(data.get("propagate_calib", self.propagate_calib_var.get())))
@@ -1514,44 +1520,14 @@ class MossbauerFe33GUI(tk.Tk):
         # σ gaussiano sólo se usa con perfil Voigt → agrisarlo en Lorentziana.
         uses_sigma = LINE_PROFILE_KIND == "Voigt"
         self._set_slider_enabled("voigt_sigma", uses_sigma)
-        menu = getattr(self, "_fit_sigma_menu", None)
-        idx = getattr(self, "_fit_sigma_menu_index", None)
-        if menu is not None and idx is not None:
-            try:
-                menu.entryconfigure(idx, state=tk.NORMAL if uses_sigma else tk.DISABLED)
-            except tk.TclError:
-                pass
+        fit_sigma_check = getattr(self, "fit_sigma_check", None)
+        if fit_sigma_check is not None:
+            fit_sigma_check.configure(state=tk.NORMAL if uses_sigma else tk.DISABLED)
         if not uses_sigma:
             self.fit_sigma_var.set(False)
         if self.updating_sliders:
             return
         self.update_plot()
-
-    def show_sigma_profile_menu(self, event) -> None:
-        """Menú contextual sobre el slider σ: alterna Lorentziana/Voigt y σ fijo/libre."""
-        menu = tk.Menu(self, tearoff=0)
-        menu.add_command(label=tr("context.sigma_profile_title"), state="disabled")
-        menu.add_separator()
-        for value, label in (
-            ("Lorentziana", tr("options.profile_lorentzian")),
-            ("Voigt", tr("options.profile_voigt")),
-        ):
-            menu.add_radiobutton(
-                label=label,
-                variable=self.line_profile_var,
-                value=value,
-                command=self.on_line_profile_change,
-            )
-        menu.add_separator()
-        menu.add_checkbutton(
-            label=tr("checkbox.fit_sigma"),
-            variable=self.fit_sigma_var,
-            state=tk.NORMAL if self.line_profile_var.get() == "Voigt" else tk.DISABLED,
-        )
-        try:
-            menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            menu.grab_release()
 
     def _add_slider(self, parent: ttk.Frame, key: str, label: str, value: float,
                     min_value: float, max_value: float, resolution: float,
@@ -4023,7 +3999,7 @@ class MossbauerFe33GUI(tk.Tk):
             return
 
         free_keys = [key for key in keys if key not in constrained_targets and not self.fixed_vars.get(key, tk.BooleanVar(value=False)).get()]
-        if not free_keys and not fit_velocity and not fit_center:
+        if not free_keys and not fit_velocity and not fit_center and not fit_sigma:
             messagebox.showinfo(tr("msg.fit_title"), tr("msg.fit_all_fixed"))
             return
 
@@ -5397,6 +5373,7 @@ class MossbauerFe33GUI(tk.Tk):
             "quad_treatment": {str(k): v.get() for k, v in getattr(self, "quad_treatment", {}).items()},
             "fit_velocity": bool(self.fit_velocity_var.get()),
             "fit_center": bool(self.fit_center_var.get()),
+            "fit_sigma": bool(self.fit_sigma_var.get()),
             "show_residual": bool(self.show_residual_var.get()),
             "show_legend": bool(self.show_legend_var.get()),
             "fit_mode": self.fit_mode_var.get(),
@@ -5475,11 +5452,14 @@ class MossbauerFe33GUI(tk.Tk):
                 self.quad_treatment[i].set(value)
         self.fit_velocity_var.set(bool(state.get("fit_velocity", self.fit_velocity_var.get())))
         self.fit_center_var.set(bool(state.get("fit_center", self.fit_center_var.get())))
+        self.fit_sigma_var.set(bool(state.get("fit_sigma", self.fit_sigma_var.get())))
         self.show_residual_var.set(bool(state.get("show_residual", self.show_residual_var.get())))
         self.show_legend_var.set(bool(state.get("show_legend", self.show_legend_var.get())))
         self.fit_mode_var.set(state.get("fit_mode", self.fit_mode_var.get()))
         self.line_profile_var.set(state.get("line_profile", self.line_profile_var.get()))
         self.on_line_profile_change()
+        if self.line_profile_var.get() != "Voigt":
+            self.fit_sigma_var.set(False)
         self.likelihood_var.set(state.get("likelihood", self.likelihood_var.get()))
         self.robust_loss_var.set(state.get("robust_loss", self.robust_loss_var.get()))
         self.propagate_calib_var.set(bool(state.get("propagate_calib", self.propagate_calib_var.get())))
