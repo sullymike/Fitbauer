@@ -892,15 +892,6 @@ class MossbauerFe33GUI(tk.Tk):
         for _w in (_sigma_refs.get("slider"), _sigma_refs.get("label")):
             if _w is not None:
                 _w.bind("<Button-3>", self.show_sigma_profile_menu)
-        self.fit_sigma_check = ttk.Checkbutton(
-            calib_box,
-            text=tr("checkbox.fit_sigma"),
-            variable=self.fit_sigma_var,
-        )
-        self.fit_sigma_check.pack(anchor=tk.W, pady=(0, 4))
-        self.fit_sigma_check.configure(
-            state=tk.NORMAL if self.line_profile_var.get() == "Voigt" else tk.DISABLED
-        )
 
         line_box = ttk.LabelFrame(controls, text=tr("controls.reference_box"), style="Section.TLabelframe")
         line_box.pack(fill=tk.X, pady=8)
@@ -1522,9 +1513,13 @@ class MossbauerFe33GUI(tk.Tk):
         # σ gaussiano sólo se usa con perfil Voigt → agrisarlo en Lorentziana.
         uses_sigma = LINE_PROFILE_KIND == "Voigt"
         self._set_slider_enabled("voigt_sigma", uses_sigma)
-        check = getattr(self, "fit_sigma_check", None)
-        if check is not None:
-            check.configure(state=tk.NORMAL if uses_sigma else tk.DISABLED)
+        menu = getattr(self, "_fit_sigma_menu", None)
+        idx = getattr(self, "_fit_sigma_menu_index", None)
+        if menu is not None and idx is not None:
+            try:
+                menu.entryconfigure(idx, state=tk.NORMAL if uses_sigma else tk.DISABLED)
+            except tk.TclError:
+                pass
         if not uses_sigma:
             self.fit_sigma_var.set(False)
         if self.updating_sliders:
@@ -1532,7 +1527,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.update_plot()
 
     def show_sigma_profile_menu(self, event) -> None:
-        """Menú contextual sobre el slider σ: alterna Lorentziana / Voigt."""
+        """Menú contextual sobre el slider σ: alterna Lorentziana/Voigt y el ajuste de σ."""
         menu = tk.Menu(self, tearoff=0)
         menu.add_command(label=tr("context.sigma_profile_title"), state="disabled")
         menu.add_separator()
@@ -1546,6 +1541,12 @@ class MossbauerFe33GUI(tk.Tk):
                 value=value,
                 command=self.on_line_profile_change,
             )
+        menu.add_separator()
+        menu.add_checkbutton(
+            label=tr("checkbox.fit_sigma"),
+            variable=self.fit_sigma_var,
+            state=tk.NORMAL if self.line_profile_var.get() == "Voigt" else tk.DISABLED,
+        )
         try:
             menu.tk_popup(event.x_root, event.y_root)
         finally:

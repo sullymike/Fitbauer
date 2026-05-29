@@ -184,6 +184,14 @@ class MossbauerApp(MossbauerFe33GUI):
                                  variable=self.propagate_calib_var)
         adv_menu.add_checkbutton(label=tr("options.global_opt"),
                                  variable=self.global_opt_var)
+        adv_menu.add_checkbutton(label=tr("checkbox.fit_sigma"),
+                                 variable=self.fit_sigma_var)
+        self._fit_sigma_menu = adv_menu
+        self._fit_sigma_menu_index = adv_menu.index("end")
+        adv_menu.entryconfigure(
+            self._fit_sigma_menu_index,
+            state=tk.NORMAL if self.line_profile_var.get() == "Voigt" else tk.DISABLED,
+        )
         adv_menu.add_separator()
         adv_menu.add_checkbutton(label=tr("options.add_sharp"),
                                  variable=self.dist_use_sharp_var,
