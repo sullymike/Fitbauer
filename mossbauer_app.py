@@ -191,6 +191,14 @@ class MossbauerApp(MossbauerFe33GUI):
                                  variable=self.propagate_calib_var)
         adv_menu.add_checkbutton(label=tr("options.global_opt"),
                                  variable=self.global_opt_var)
+        absorber_menu = tk.Menu(adv_menu, tearoff=0)
+        absorber_menu.add_radiobutton(label=tr("absorber.thin"),
+                                      variable=self.absorber_model_var, value="thin",
+                                      command=self.on_absorber_model_change)
+        absorber_menu.add_radiobutton(label=tr("absorber.thickness"),
+                                      variable=self.absorber_model_var, value="thickness",
+                                      command=self.on_absorber_model_change)
+        adv_menu.add_cascade(label=tr("absorber.model_label"), menu=absorber_menu)
         adv_menu.add_separator()
         adv_menu.add_checkbutton(label=tr("options.add_sharp"),
                                  variable=self.dist_use_sharp_var,
@@ -316,6 +324,8 @@ class MossbauerApp(MossbauerFe33GUI):
 
     def active_param_keys(self) -> list[str]:
         keys = GLOBAL_PARAM_NAMES.copy()
+        if self.absorber_model_var.get() == "thickness" and "sat_scale" in self.vars:
+            keys.append("sat_scale")
         for idx in self._component_range():
             if self.sextet_enabled[idx].get():
                 keys.extend(f"s{idx}_{name}" for name in self.component_param_names(idx))
