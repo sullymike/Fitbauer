@@ -29,7 +29,13 @@ def read_ws5_counts(path: str | Path) -> np.ndarray:
 
 
 def read_normos_folding_point(path: str | Path) -> float | None:
-    """Lee el 'Final folding point' de Normos si existe y lo pasa a centro interno."""
+    """Lee el 'Final folding point' de Normos si existe y lo pasa a centro interno.
+
+    Algunas versiones de Normos reportan el PFP en convención de espectro
+    completo (~511 para 512 canales) y otras en convención de semiespecro
+    (~256). Se distinguen por el valor: >= 400 → espectro completo (÷2);
+    < 400 → semiespecro (usar tal cual).
+    """
     path = Path(path)
     res = path.with_suffix(".RES")
     if not res.exists():
@@ -40,7 +46,8 @@ def read_normos_folding_point(path: str | Path) -> float | None:
     matches = re.findall(r"Final folding point\s*=\s*(" + _number_re() + ")", text, re.I)
     if not matches:
         return None
-    return 0.5 * float(matches[-1].replace("D", "E").replace("d", "E"))
+    v = float(matches[-1].replace("D", "E").replace("d", "E"))
+    return 0.5 * v if v >= 400.0 else v
 
 
 def read_normos_plt_velocity(path: str | Path) -> float | None:

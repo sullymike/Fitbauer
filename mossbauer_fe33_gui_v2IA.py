@@ -131,7 +131,13 @@ def _number_re() -> str:
 
 
 def read_normos_folding_point(path: Path) -> float | None:
-    """Lee el 'Final folding point' de Normos si existe y lo pasa a centro interno."""
+    """Lee el 'Final folding point' de Normos si existe y lo pasa a centro interno.
+
+    Algunas versiones de Normos reportan el PFP en convención de espectro
+    completo (~511 para 512 canales) y otras en convención de semiespecro
+    (~256). Se distinguen por el valor: >= 400 → espectro completo (÷2);
+    < 400 → semiespecro (usar tal cual).
+    """
     res = path.with_suffix(".RES")
     if not res.exists():
         res = path.with_suffix(".res")
@@ -141,9 +147,8 @@ def read_normos_folding_point(path: Path) -> float | None:
     matches = re.findall(r"Final folding point\s*=\s*(" + _number_re() + ")", text, re.I)
     if not matches:
         return None
-    # Normos informa el punto de retorno superior de una rampa triangular
-    # (≈511.55 para 512 canales). El centro de simetría usado aquí es la mitad.
-    return 0.5 * float(matches[-1].replace("D", "E").replace("d", "E"))
+    v = float(matches[-1].replace("D", "E").replace("d", "E"))
+    return 0.5 * v if v >= 400.0 else v
 
 
 def read_normos_plt_velocity(path: Path) -> float | None:
@@ -882,7 +887,7 @@ class MossbauerFe33GUI(tk.Tk):
             variable=self.fit_velocity_var,
             command=self.on_fit_velocity_toggle,
         ).pack(anchor=tk.W, pady=(0, 4))
-        self._add_slider(calib_box, "center", tr("slider.center"), 256.5, 250.0, 263.0, 0.0001, fit_param=False)
+        self._add_slider(calib_box, "center", tr("slider.center"), 256.5, 230.0, 280.0, 0.0001, fit_param=False)
         ttk.Checkbutton(
             calib_box,
             text=tr("checkbox.fit_center"),
@@ -2358,7 +2363,10 @@ class MossbauerFe33GUI(tk.Tk):
         # que el usuario indique explícitamente otra (diálogo local o descarga web).
         center = read_normos_folding_point(path)
         if center is None:
-            center = find_best_integer_or_half_center(counts)
+            half = 0.5 * counts.size
+            center = find_best_integer_or_half_center(
+                counts, max(1.5, half - 20.0), min(counts.size - 0.5, half + 20.0)
+            )
         self.updating_sliders = True
         self.vars["center"].set(center)
         self.entry_vars["center"].set(self._format_value("center", center))
@@ -3116,7 +3124,10 @@ class MossbauerFe33GUI(tk.Tk):
     def auto_center(self) -> None:
         if self.counts is None:
             return
-        center = find_best_integer_or_half_center(self.counts)
+        half = 0.5 * self.counts.size
+        center = find_best_integer_or_half_center(
+            self.counts, max(1.5, half - 20.0), min(self.counts.size - 0.5, half + 20.0)
+        )
         self.vars["center"].set(center)
         self.entry_vars["center"].set(self._format_value("center", center))
         self.refold_data()
