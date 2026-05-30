@@ -528,5 +528,9 @@
   "msg.use_as_calib_quick_ok": "'{name}' set as calibration.\nVelocity (vmax) = {vmax} mm/s\nIsomer shift = {iso} mm/s",
   "info.delta_corrected": "  corrected δ (calib iso={ref}) = {value} mm/s",
   "report.iso_corrected_header": "## Corrected δ (referenced to calibration, iso_ref = {ref} mm/s)",
-  "report.iso_corrected_row": "- {name}: corrected δ = {value} mm/s"
+  "report.iso_corrected_row": "- {name}: corrected δ = {value} mm/s",
+  "absorber.model_label": "Absorber",
+  "absorber.thin": "Thin (linear)",
+  "absorber.thickness": "Thick (saturation)",
+  "slider.sat_scale": "Saturation scale C"
 }

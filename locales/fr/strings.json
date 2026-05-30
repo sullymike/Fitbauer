@@ -528,5 +528,9 @@
   "msg.use_as_calib_quick_ok": "« {name} » défini comme étalonnage.\nVitesse (vmax) = {vmax} mm/s\nDéplacement isomérique = {iso} mm/s",
   "info.delta_corrected": "  δ corrigé (étal. iso={ref}) = {value} mm/s",
   "report.iso_corrected_header": "## δ corrigé (référé à l'étalonnage, iso_ref = {ref} mm/s)",
-  "report.iso_corrected_row": "- {name} : δ corrigé = {value} mm/s"
+  "report.iso_corrected_row": "- {name} : δ corrigé = {value} mm/s",
+  "absorber.model_label": "Absorbeur",
+  "absorber.thin": "Mince (linéaire)",
+  "absorber.thickness": "Épais (saturation)",
+  "slider.sat_scale": "Échelle saturation C"
 }
