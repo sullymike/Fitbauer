@@ -5680,6 +5680,22 @@ class MossbauerFe33GUI(tk.Tk):
                 i = int(idx)
                 if i in self.sextet_enabled:
                     self.sextet_enabled[i].set(bool(value))
+            # Si la app modular usa n_components_var (rango activo), asegúrate
+            # de que cubre el mayor índice habilitado; si no, active_param_keys
+            # se queda corto y deja fuera los sextetes 2/3.
+            if hasattr(self, "n_components_var"):
+                desired = state.get("n_components")
+                if not isinstance(desired, int):
+                    enabled = [i for i, var in self.sextet_enabled.items() if var.get()]
+                    desired = max(enabled) if enabled else 1
+                if self.n_components_var.get() < int(desired):
+                    self.n_components_var.set(int(desired))
+                    sync = getattr(self, "_sync_component_panels", None)
+                    if sync is not None:
+                        try:
+                            sync()
+                        except Exception:
+                            pass
             for idx, value in state.get("component_kind", {}).items():
                 i = int(idx)
                 if i in self.component_kind and value in ("Sextete", "Doblete", "Singlete"):
