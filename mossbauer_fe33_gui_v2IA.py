@@ -4335,6 +4335,250 @@ class MossbauerFe33GUI(tk.Tk):
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=8, pady=4)
         ttk.Button(dlg, text=tr("button.close"), command=dlg.destroy).pack(pady=6)
 
+    # ── Ajuste en serie (warm-start secuencial) ─────────────────────────────
+
+    def _run_silent_fit(self) -> dict:
+        """Ejecuta el ajuste discreto del estado actual sin diálogos ni mensajes.
+
+        Devuelve los valores, errores 1σ y estadísticas del último ajuste.
+        Útil para ajustes en lote: ningún ``Toplevel`` y ningún ``messagebox``.
+        """
+        orig_progress = self.open_progress_dialog
+        orig_update = self.update_plot
+        self.open_progress_dialog = lambda *a, **k: (
+            None, (lambda _m=None: None), (lambda: None))
+        self.update_plot = lambda *a, **k: None
+        saved_mb = {n: getattr(messagebox, n) for n in ("showinfo", "showwarning", "showerror")}
+        for n in saved_mb:
+            setattr(messagebox, n, lambda *a, **k: None)
+        try:
+            self.fit_current_data()
+        finally:
+            self.open_progress_dialog = orig_progress
+            self.update_plot = orig_update
+            for n, fn in saved_mb.items():
+                setattr(messagebox, n, fn)
+        return {
+            "values": {k: float(self.vars[k].get()) for k in self.active_param_keys()},
+            "errors": dict(self.last_fit_param_errors),
+            "stats": dict(self.last_fit_stats),
+            "free_keys": list(self.last_fit_free_keys),
+        }
+
+    def batch_fit_sequential(self, files: list[Path], metadata_list: list,
+                             progress_cb=None) -> list[dict]:
+        """Ajusta una serie de espectros uno a uno con warm-start.
+
+        Para cada fichero: lo carga, restaura los parámetros del modelo
+        anterior (warm-start) y ejecuta el ajuste discreto silencioso. Si un
+        ajuste falla, registra el error y sigue con el siguiente.
+
+        ``progress_cb(i, n, name)`` se llama antes de cada espectro.
+        Devuelve una lista de dicts con ``file``, ``metadata``, ``status``,
+        ``values``, ``errors``, ``stats``, ``error`` (mensaje si falló).
+        """
+        results: list[dict] = []
+        for i, (file_path, meta) in enumerate(zip(files, metadata_list), 1):
+            if progress_cb is not None:
+                try:
+                    progress_cb(i, len(files), Path(file_path).name)
+                except Exception:
+                    pass
+            file_path = Path(file_path)
+            # Snapshot del modelo actual (warm-start): valores de los parámetros
+            # del modelo + voigt_sigma. NO incluye center (cada fichero tiene
+            # el suyo) ni vmax (es calibración persistente).
+            saved = {k: self.vars[k].get() for k in self.active_param_keys()}
+            if "voigt_sigma" in self.vars:
+                saved["voigt_sigma"] = self.vars["voigt_sigma"].get()
+            row = {"file": file_path.name, "metadata": meta,
+                   "status": "failed", "values": {}, "errors": {}, "stats": {}}
+            try:
+                # Pre-chequea la lectura: load_ws5 se traga los errores con un
+                # messagebox y nos quedaríamos con los datos del fichero anterior.
+                read_ws5_counts(file_path)
+                self.load_ws5(file_path)
+                # Restaurar parámetros (warm-start).
+                for k, v in saved.items():
+                    if k in self.vars:
+                        self.vars[k].set(v)
+                self._simulate_enabled = True
+                fit_result = self._run_silent_fit()
+                row.update({
+                    "status": "ok",
+                    "values": fit_result["values"],
+                    "errors": fit_result["errors"],
+                    "stats": fit_result["stats"],
+                })
+            except Exception as exc:
+                row["error"] = f"{type(exc).__name__}: {exc}"
+            results.append(row)
+        self.last_batch_results = results
+        return results
+
+    def open_batch_fit_dialog(self) -> None:
+        """Diálogo del ajuste en serie."""
+        if not hasattr(self, "_batch_state"):
+            self._batch_state = {"files": []}
+        st = self._batch_state
+        dlg = tk.Toplevel(self)
+        dlg.title(tr("msg.batch_title"))
+        dlg.transient(self)
+
+        top = ttk.Frame(dlg, padding=8)
+        top.pack(fill=tk.X)
+        ttk.Button(top, text=tr("batch.add_files"),
+                   command=lambda: _add_files()).pack(side=tk.LEFT)
+        ttk.Button(top, text=tr("batch.remove"),
+                   command=lambda: _remove_selected()).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Label(top, text=tr("batch.template_label")).pack(side=tk.LEFT, padx=(20, 0))
+
+        tree = ttk.Treeview(dlg, columns=("file", "meta", "status"),
+                            show="headings", height=10, selectmode="extended")
+        tree.heading("file", text=tr("batch.col_file"))
+        tree.heading("meta", text=tr("batch.col_meta"))
+        tree.heading("status", text=tr("batch.col_status"))
+        tree.column("file", width=380)
+        tree.column("meta", width=110, anchor="e")
+        tree.column("status", width=90, anchor="center")
+        tree.pack(fill=tk.BOTH, expand=True, padx=8, pady=4)
+
+        regex_row = ttk.Frame(dlg, padding=(8, 4))
+        regex_row.pack(fill=tk.X)
+        ttk.Label(regex_row, text=tr("batch.regex_label")).pack(side=tk.LEFT)
+        regex_var = tk.StringVar(value=r"(?P<v>[-+]?\d+(?:\.\d+)?)\s*K")
+        ttk.Entry(regex_row, textvariable=regex_var, width=32).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(regex_row, text=tr("batch.apply_regex"),
+                   command=lambda: _apply_regex()).pack(side=tk.LEFT, padx=(6, 0))
+
+        bottom = ttk.Frame(dlg, padding=8)
+        bottom.pack(fill=tk.X)
+        progress_var = tk.StringVar(value="")
+        ttk.Label(bottom, textvariable=progress_var).pack(side=tk.LEFT)
+        run_btn = ttk.Button(bottom, text=tr("batch.run"), command=lambda: _run())
+        run_btn.pack(side=tk.RIGHT, padx=(6, 0))
+        csv_btn = ttk.Button(bottom, text=tr("batch.save_csv"),
+                             command=lambda: _save_csv(), state=tk.DISABLED)
+        csv_btn.pack(side=tk.RIGHT, padx=(6, 0))
+        trends_btn = ttk.Button(bottom, text=tr("batch.show_trends"),
+                                command=lambda: _show_trends(), state=tk.DISABLED)
+        trends_btn.pack(side=tk.RIGHT, padx=(6, 0))
+        ttk.Button(bottom, text=tr("button.close"),
+                   command=dlg.destroy).pack(side=tk.RIGHT)
+
+        from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data
+
+        def _refresh_tree():
+            tree.delete(*tree.get_children())
+            for i, entry in enumerate(st["files"], 1):
+                meta = entry.get("metadata")
+                meta_txt = "" if meta is None else f"{meta:g}" if isinstance(meta, (int, float)) else str(meta)
+                tree.insert("", tk.END, iid=str(i - 1),
+                            values=(entry["path"].name, meta_txt,
+                                    tr(f"batch.status_{entry['status']}")))
+
+        def _add_files():
+            paths = filedialog.askopenfilenames(
+                parent=dlg, title=tr("batch.add_files"),
+                filetypes=[("WS5/ADT", "*.ws5 *.adt *.WS5 *.ADT"),
+                           (tr("filetype.all"), "*.*")])
+            for p in paths:
+                st["files"].append({"path": Path(p), "metadata": None,
+                                    "status": "pending", "result": None})
+            _refresh_tree()
+
+        def _remove_selected():
+            sel = sorted((int(i) for i in tree.selection()), reverse=True)
+            for i in sel:
+                if 0 <= i < len(st["files"]):
+                    del st["files"][i]
+            _refresh_tree()
+
+        def _apply_regex():
+            pat = regex_var.get().strip()
+            for entry in st["files"]:
+                entry["metadata"] = extract_metadata(entry["path"].name, pat)
+            _refresh_tree()
+
+        def _run():
+            if not st["files"]:
+                messagebox.showinfo(tr("msg.batch_title"), tr("msg.batch_no_files"))
+                return
+            run_btn.configure(state=tk.DISABLED)
+            csv_btn.configure(state=tk.DISABLED)
+            trends_btn.configure(state=tk.DISABLED)
+
+            def _cb(i, n, name):
+                progress_var.set(tr("progress.batch_step", i=i, n=n, name=name))
+                dlg.update_idletasks()
+
+            files = [e["path"] for e in st["files"]]
+            metas = [e["metadata"] for e in st["files"]]
+            results = self.batch_fit_sequential(files, metas, progress_cb=_cb)
+            ok = sum(1 for r in results if r["status"] == "ok")
+            fail = len(results) - ok
+            for i, r in enumerate(results):
+                st["files"][i]["status"] = r["status"]
+                st["files"][i]["result"] = r
+            _refresh_tree()
+            progress_var.set(tr("msg.batch_done", ok=ok, fail=fail, n=len(results)))
+            run_btn.configure(state=tk.NORMAL)
+            csv_btn.configure(state=tk.NORMAL)
+            trends_btn.configure(state=tk.NORMAL)
+
+        def _save_csv():
+            path = filedialog.asksaveasfilename(
+                parent=dlg, title=tr("batch.save_csv"),
+                defaultextension=".tsv",
+                filetypes=[("TSV", "*.tsv"), ("CSV", "*.csv"),
+                           (tr("filetype.all"), "*.*")])
+            if not path:
+                return
+            results = [e.get("result") for e in st["files"] if e.get("result")]
+            keys: set[str] = set()
+            for r in results:
+                keys.update(r.get("free_keys", []) or r.get("values", {}).keys())
+            free_keys = sorted(keys)
+            write_results_csv(Path(path), free_keys, results)
+
+        def _show_trends():
+            results = [e.get("result") for e in st["files"] if e.get("result")]
+            keys: set[str] = set()
+            for r in results:
+                keys.update(r.get("values", {}).keys())
+            trend = collect_trend_data(results, sorted(keys))
+            self._show_batch_trends_dialog(trend)
+
+        _refresh_tree()
+
+    def _show_batch_trends_dialog(self, trend: dict) -> None:
+        if not trend:
+            return
+        dlg = tk.Toplevel(self)
+        dlg.title(tr("msg.batch_title"))
+        dlg.transient(self)
+        ttk.Label(dlg, text=tr("dialog.batch_trends_subtitle"),
+                  padding=8).pack(anchor=tk.W)
+        keys = sorted(trend.keys())
+        ncols = 2 if len(keys) > 1 else 1
+        nrows = (len(keys) + ncols - 1) // ncols
+        fig = Figure(figsize=(7.5, 2.4 * nrows + 0.5), dpi=96)
+        for i, key in enumerate(keys, 1):
+            ax = fig.add_subplot(nrows, ncols, i)
+            xs = [p[0] for p in trend[key]]
+            ys = [p[1] for p in trend[key]]
+            es = [p[2] if p[2] is not None else 0.0 for p in trend[key]]
+            ax.errorbar(xs, ys, yerr=es, fmt="o-", color="#1f77b4", ms=4)
+            ax.set_title(key, fontsize=9)
+            ax.tick_params(labelsize=7)
+            ax.grid(alpha=0.3)
+        fig.tight_layout()
+        canvas = FigureCanvasTkAgg(fig, master=dlg)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=8, pady=4)
+        ttk.Button(dlg, text=tr("button.close"),
+                   command=dlg.destroy).pack(pady=6)
+
     def bootstrap_errors_current(self) -> None:
         """Estimación Monte Carlo rápida de errores para el modelo discreto actual."""
         if self.fit_mode_var.get() == "bhf_distribution":
@@ -5410,6 +5654,67 @@ class MossbauerFe33GUI(tk.Tk):
             "model_state": model_state,
             "last_fit": last_fit,
         }
+
+    def apply_template_model_state(self, state: dict) -> None:
+        """Aplica el ``model_state`` de una sesión-plantilla al modelo actual.
+
+        Igual que ``apply_session_payload`` pero **sin tocar el espectro ni el
+        centro de folding** (cada espectro mantiene el suyo, detectado al
+        cargarlo). Útil para usar una sesión guardada como plantilla de
+        parámetros en un ajuste posterior.
+        """
+        if not state:
+            return
+        self.updating_sliders = True
+        try:
+            for key, value in state.get("vars", {}).items():
+                if key == "center" or key not in self.vars:
+                    continue
+                val = float(value)
+                self.vars[key].set(val)
+                self.entry_vars[key].set(self._format_value(key, val))
+            for key, value in state.get("fixed", {}).items():
+                if key in self.fixed_vars:
+                    self.fixed_vars[key].set(bool(value))
+            for idx, value in state.get("sextet_enabled", {}).items():
+                i = int(idx)
+                if i in self.sextet_enabled:
+                    self.sextet_enabled[i].set(bool(value))
+            for idx, value in state.get("component_kind", {}).items():
+                i = int(idx)
+                if i in self.component_kind and value in ("Sextete", "Doblete", "Singlete"):
+                    self.component_kind[i].set(value)
+            for idx, value in state.get("intensity_mode", {}).items():
+                if hasattr(self, "intensity_mode"):
+                    i = int(idx)
+                    if i in self.intensity_mode and value in ("free", "texture"):
+                        self.intensity_mode[i].set(value)
+            for idx, value in state.get("quad_treatment", {}).items():
+                if hasattr(self, "quad_treatment"):
+                    i = int(idx)
+                    if i in self.quad_treatment and value in ("1st_order", "kundig_fixed", "kundig_powder"):
+                        self.quad_treatment[i].set(value)
+            for var_name, attr in (
+                ("fit_velocity", "fit_velocity_var"),
+                ("fit_center", "fit_center_var"),
+                ("line_profile", "line_profile_var"),
+                ("likelihood", "likelihood_var"),
+                ("robust_loss", "robust_loss_var"),
+            ):
+                if var_name in state and hasattr(self, attr):
+                    v = state[var_name]
+                    if isinstance(v, bool):
+                        getattr(self, attr).set(bool(v))
+                    else:
+                        getattr(self, attr).set(v)
+            self.constraints = list(state.get("constraints", []))
+        finally:
+            self.updating_sliders = False
+        if hasattr(self, "on_line_profile_change"):
+            try:
+                self.on_line_profile_change()
+            except Exception:
+                pass
 
     def apply_session_payload(self, data: dict) -> None:
         file_path = Path(data["file_path"]) if data.get("file_path") else None
