@@ -13,7 +13,7 @@ from __future__ import annotations
 PRESETS: dict[str, dict] = {
     "Estándar": {
         "description": "Controles izquierda, simulación debajo del gráfico.",
-        "left":        ["header", "file_info", "info_display", "calibration", "reference"],
+        "left":        ["file_info", "info_display", "calibration", "reference"],
         "center":      [],
         "right":       ["sim_controls"],
         "left_width":  455,
@@ -21,7 +21,7 @@ PRESETS: dict[str, dict] = {
     },
     "Tres columnas": {
         "description": "Controles izquierda, gráfica centro, simulación derecha.",
-        "left":        ["header", "file_info", "info_display", "calibration", "reference"],
+        "left":        ["file_info", "info_display", "calibration", "reference"],
         "center":      [],
         "right":       ["sim_controls"],
         "left_width":  380,
@@ -29,7 +29,7 @@ PRESETS: dict[str, dict] = {
     },
     "Análisis": {
         "description": "Info y referencia en el centro, simulación a la derecha.",
-        "left":        ["header", "file_info", "calibration"],
+        "left":        ["file_info", "calibration"],
         "center":      ["info_display", "reference"],
         "right":       ["sim_controls"],
         "left_width":  340,
@@ -37,7 +37,7 @@ PRESETS: dict[str, dict] = {
     },
     "Compacto": {
         "description": "Solo calibración a la izquierda, máximo espacio de gráfica.",
-        "left":        ["header", "calibration"],
+        "left":        ["calibration"],
         "center":      [],
         "right":       ["sim_controls"],
         "left_width":  310,

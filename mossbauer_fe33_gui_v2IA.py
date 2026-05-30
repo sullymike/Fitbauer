@@ -1469,7 +1469,7 @@ class MossbauerFe33GUI(tk.Tk):
         ttk.Button(buttons, text=tr("help.close"), command=win.destroy, style="Accent.TButton").pack(side=tk.RIGHT)
 
     def show_about(self) -> None:
-        self.show_logo_popup(title=tr("help.about_title", version=APP_VERSION), scale=2.6, click_to_close=False)
+        self.show_logo_popup(title=tr("help.about_title", version=APP_VERSION), scale=2.6, click_to_close=True)
 
     def update_settings_payload(self) -> dict:
         from mossbauer_updater_ui import load_update_settings
