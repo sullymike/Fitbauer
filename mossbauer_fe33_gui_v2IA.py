@@ -5678,6 +5678,67 @@ class MossbauerFe33GUI(tk.Tk):
             "last_fit": last_fit,
         }
 
+    def apply_template_model_state(self, state: dict) -> None:
+        """Aplica el ``model_state`` de una sesión-plantilla al modelo actual.
+
+        Igual que ``apply_session_payload`` pero **sin tocar el espectro ni el
+        centro de folding** (cada espectro mantiene el suyo, detectado al
+        cargarlo). Útil para usar una sesión guardada como plantilla de
+        parámetros en un ajuste posterior.
+        """
+        if not state:
+            return
+        self.updating_sliders = True
+        try:
+            for key, value in state.get("vars", {}).items():
+                if key == "center" or key not in self.vars:
+                    continue
+                val = float(value)
+                self.vars[key].set(val)
+                self.entry_vars[key].set(self._format_value(key, val))
+            for key, value in state.get("fixed", {}).items():
+                if key in self.fixed_vars:
+                    self.fixed_vars[key].set(bool(value))
+            for idx, value in state.get("sextet_enabled", {}).items():
+                i = int(idx)
+                if i in self.sextet_enabled:
+                    self.sextet_enabled[i].set(bool(value))
+            for idx, value in state.get("component_kind", {}).items():
+                i = int(idx)
+                if i in self.component_kind and value in ("Sextete", "Doblete", "Singlete"):
+                    self.component_kind[i].set(value)
+            for idx, value in state.get("intensity_mode", {}).items():
+                if hasattr(self, "intensity_mode"):
+                    i = int(idx)
+                    if i in self.intensity_mode and value in ("free", "texture"):
+                        self.intensity_mode[i].set(value)
+            for idx, value in state.get("quad_treatment", {}).items():
+                if hasattr(self, "quad_treatment"):
+                    i = int(idx)
+                    if i in self.quad_treatment and value in ("1st_order", "kundig_fixed", "kundig_powder"):
+                        self.quad_treatment[i].set(value)
+            for var_name, attr in (
+                ("fit_velocity", "fit_velocity_var"),
+                ("fit_center", "fit_center_var"),
+                ("line_profile", "line_profile_var"),
+                ("likelihood", "likelihood_var"),
+                ("robust_loss", "robust_loss_var"),
+            ):
+                if var_name in state and hasattr(self, attr):
+                    v = state[var_name]
+                    if isinstance(v, bool):
+                        getattr(self, attr).set(bool(v))
+                    else:
+                        getattr(self, attr).set(v)
+            self.constraints = list(state.get("constraints", []))
+        finally:
+            self.updating_sliders = False
+        if hasattr(self, "on_line_profile_change"):
+            try:
+                self.on_line_profile_change()
+            except Exception:
+                pass
+
     def apply_session_payload(self, data: dict) -> None:
         file_path = Path(data["file_path"]) if data.get("file_path") else None
         loaded_file = False
