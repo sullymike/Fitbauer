@@ -1,5 +1,40 @@
 # Changelog
 
+## v2.2 — ajuste en serie, CLI y compatibilidad NORMOS
+
+Agrupa todos los cambios incorporados desde v2.1 y prepara la nueva release.
+
+### Ajuste y física
+
+- Ajuste en serie desde la GUI con warm-start secuencial para procesar lotes de espectros relacionados.
+- CLI de ajuste por fichero a partir de una plantilla JSON y un espectro, con salida JSON reproducible.
+- Errores asimétricos opcionales por verosimilitud perfilada.
+- Ajuste opcional de `σ` en perfiles Voigt y control visible desde el menú contextual del slider de `σ`.
+- Selector de perfil Lorentziana/Voigt desde el clic derecho del control `σ`.
+- Límites ampliados de `BHF` hasta 60 T y soporte para `ΔEQ` negativo.
+- Modelo experimental opt-in de absorbente grueso/saturación, disponible tanto en ajuste discreto como en distribución, con refinamiento VARPRO de `(b, s, C)`.
+
+### Datos, CLI y documentación
+
+- Nuevos espectros sintéticos de compuestos de hierro y espectros sintéticos adicionales con ruido reducido.
+- Plantillas CLI listas para magnetita, hematita, siderita y α-Fe.
+- Capítulo de ayuda sobre el CLI en español, inglés y francés.
+- Documento técnico sobre la corrección por espesor en `docs/correccion_espesor.*`.
+- Ayuda ampliada sobre `VMAX`, signo del eje de velocidades y criterios de calibración.
+
+### Interfaz y trazabilidad
+
+- Menú de estilos de gráficos: clásico, moderno, publicación y oscuro.
+- Corrección de la detección del punto de plegado (`PFP`) y mejor alineación con la convención NORMOS.
+- Ajustes de GUI/calibración para reproducir mejor flujos NORMOS, incluido `Vmax` con signo.
+- Eliminación de la caja de cabecera de presets para simplificar la interfaz.
+- Ventana **Acerca de** cerrable con clic.
+
+### Calidad
+
+- Suite inicial de `pytest` y workflow de CI en GitHub Actions.
+- Corrección del cableado del checkbox modular para ajustar `σ`.
+
 ## v2.1 — motor de ajuste ampliado y usabilidad
 
 Incorpora las mejoras desarrolladas tras el manual matemático del motor de

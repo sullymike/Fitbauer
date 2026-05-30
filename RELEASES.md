@@ -46,6 +46,6 @@ También se puede comprobar manualmente desde:
 Ayuda → Buscar actualizaciones...
 ```
 
-Si el tag de GitHub, por ejemplo `v2.1`, es mayor que `APP_VERSION`, ofrece
+Si el tag de GitHub, por ejemplo `v2.3`, es mayor que `APP_VERSION`, ofrece
 descargar el ZIP en la carpeta `Descargas`/`Downloads` y verificar su integridad
 con el `sha256sums.txt` adjunto.
