@@ -220,6 +220,20 @@ class MossbauerApp(MossbauerFe33GUI):
                                    variable=self._theme_var, value="clam",
                                    command=lambda: self._switch_theme("clam"))
         view_menu.add_cascade(label=tr("options.theme"), menu=theme_menu)
+        # Estilo de los gráficos (independiente del tema UI).
+        plot_style_menu = tk.Menu(view_menu, tearoff=0)
+        for value, label_key in (
+            ("classic", "plot_style.classic"),
+            ("modern", "plot_style.modern"),
+            ("publication", "plot_style.publication"),
+            ("dark", "plot_style.dark"),
+        ):
+            plot_style_menu.add_radiobutton(
+                label=tr(label_key),
+                variable=self.plot_style_var, value=value,
+                command=self.update_plot,
+            )
+        view_menu.add_cascade(label=tr("options.plot_style"), menu=plot_style_menu)
         language_menu = tk.Menu(view_menu, tearoff=0)
         self._ui_language_var = tk.StringVar(value=get_language())
         for lang_code, lang_name in available_languages().items():
@@ -373,13 +387,17 @@ class MossbauerApp(MossbauerFe33GUI):
 
         self.fig.set_facecolor(c["fig_bg"])
         self.ax.set_facecolor(c["ax_bg"])
-        self.ax.set_title(tr("plot.title_discrete"), color=c["title"], pad=10, fontweight="bold")
+        self.ax.set_title(tr("plot.title_discrete"), color=c["title"], pad=10,
+                          fontweight=c.get("title_weight", "bold"))
         self.ax.set_ylabel(tr("plot.transmission_ylabel"))
         self.ax.yaxis.label.set_color(c["lbl"])
-        self.ax.grid(True, color=c["grid"], alpha=c["grid_alpha"], linewidth=0.8)
+        self.ax.grid(True, color=c["grid"], alpha=c["grid_alpha"],
+                     linewidth=c.get("grid_lw", 0.8))
         self.ax.tick_params(colors=c["tick"])
-        for spine in self.ax.spines.values():
+        for name_, spine in self.ax.spines.items():
             spine.set_color(c["spine"])
+            if name_ in c.get("spines_hide", ()):
+                spine.set_visible(False)
 
         if self.ax_res is not None:
             self.ax_res.set_facecolor(c["res_bg"])
@@ -389,8 +407,10 @@ class MossbauerApp(MossbauerFe33GUI):
             self.ax_res.xaxis.label.set_color(c["lbl"])
             self.ax_res.grid(True, color=c["res_grid"], alpha=0.8, linewidth=0.75)
             self.ax_res.tick_params(colors=c["res_tick"])
-            for spine in self.ax_res.spines.values():
+            for name_, spine in self.ax_res.spines.items():
                 spine.set_color(c["res_spine"])
+                if name_ in c.get("spines_hide", ()):
+                    spine.set_visible(False)
         else:
             self.ax.set_xlabel(tr("plot.velocity_xlabel"))
             self.ax.xaxis.label.set_color(c["lbl"])
@@ -398,14 +418,17 @@ class MossbauerApp(MossbauerFe33GUI):
         if self.velocity is not None and self.y_data is not None:
             model = self.current_model()
             self.ax.plot(self.velocity, self.y_data, ".", color=c["data"],
-                         ms=4, alpha=0.88, label=tr("plot.legend_data"))
+                         ms=c.get("data_ms", 4.0), alpha=c.get("data_alpha", 0.88),
+                         label=tr("plot.legend_data"))
             if model is not None:
                 baseline_line = (
                     self.vars["baseline"].get() + self.vars["slope"].get() * self.velocity
                 )
                 self.ax.plot(self.velocity, baseline_line, ":", color=c["baseline"],
-                             lw=1.35, label=tr("plot.legend_baseline"))
+                             lw=c.get("baseline_lw", 1.35),
+                             label=tr("plot.legend_baseline"))
 
+                palette = c.get("components_palette") or tuple(_COMPONENT_COLORS.values())
                 for idx in self._component_range():
                     if not self.sextet_enabled[idx].get():
                         continue
@@ -416,23 +439,38 @@ class MossbauerApp(MossbauerFe33GUI):
                     kind = self.component_kind[idx].get()
                     extras = self.sextet_extras(idx) if kind == "Sextete" else None
                     comp_line = baseline_line - component_absorption(self.velocity, kind, params, extras=extras)
-                    color = _COMPONENT_COLORS.get(idx, "#888888")
+                    color = palette[(idx - 1) % len(palette)] if palette else _COMPONENT_COLORS.get(idx, "#888888")
                     self.ax.plot(
                         self.velocity, comp_line, "--",
-                        color=color, lw=1.65, alpha=0.95,
+                        color=color,
+                        lw=c.get("component_lw", 1.65),
+                        alpha=c.get("component_alpha", 0.95),
                         label=f"{tr(f'kind.{kind}', default=kind)} {idx}",
                     )
 
+                # Banda 1σ (ruido) alrededor del modelo si el estilo lo activa.
+                if c.get("show_band") and c.get("band_alpha", 0.0) > 0:
+                    sigma_band = self.data_sigma()
+                    if sigma_band is not None:
+                        self.ax.fill_between(
+                            self.velocity, model - sigma_band, model + sigma_band,
+                            color=c.get("band_color", c["model"]),
+                            alpha=c.get("band_alpha", 0.1), linewidth=0,
+                        )
+
                 self.ax.plot(self.velocity, model, "-", color=c["model"],
-                             lw=2.6, label=tr("plot.legend_model"))
+                             lw=c.get("model_lw", 2.6),
+                             label=tr("plot.legend_model"))
                 residual = self.y_data - model
                 rms = float(np.sqrt(np.mean(residual ** 2)))
                 if self.ax_res is not None:
                     self.ax_res.axhline(0, color=c["res_zero"], lw=0.9, alpha=0.9)
                     self.ax_res.fill_between(self.velocity, residual, 0,
-                                             color=c["res_fill"], alpha=0.22)
+                                             color=c["res_fill"],
+                                             alpha=c.get("res_fill_alpha", 0.22))
                     self.ax_res.plot(self.velocity, residual, "-",
-                                     color=c["res_line"], lw=1.25)
+                                     color=c["res_line"],
+                                     lw=c.get("res_line_lw", 1.25))
                     lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
                     self.ax_res.set_ylim(-lim, lim)
                     self.ax.tick_params(labelbottom=False)

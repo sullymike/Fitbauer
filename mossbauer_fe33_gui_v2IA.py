@@ -487,6 +487,8 @@ class MossbauerFe33GUI(tk.Tk):
             pass
 
         self._theme_var = tk.StringVar(value="sv_ttk")
+        # Estilo de los gráficos (independiente del tema UI).
+        self.plot_style_var = tk.StringVar(value="classic")
         self._sv_available = False
         self._sv_active = False
         self._build_ui()
@@ -1058,6 +1060,7 @@ class MossbauerFe33GUI(tk.Tk):
             "dist_use_sharp": bool(self.dist_use_sharp_var.get()),
             "dist_refine_global": bool(self.dist_refine_global_var.get()),
             "theme": self._theme_var.get(),
+            "plot_style": self.plot_style_var.get(),
             "ui_language": get_language(),
             "info_text": self.info.get("1.0", tk.END).strip() if hasattr(self, "info") else "",
             "constraints": self.constraints,
@@ -1128,6 +1131,9 @@ class MossbauerFe33GUI(tk.Tk):
             self.dist_use_sharp_var.set(bool(data.get("dist_use_sharp", self.dist_use_sharp_var.get())))
             self.dist_refine_global_var.set(bool(data.get("dist_refine_global", self.dist_refine_global_var.get())))
             self._theme_var.set(data.get("theme", "sv_ttk" if self._sv_active else "clam"))
+            saved_style = data.get("plot_style", "classic")
+            if saved_style in ("classic", "modern", "publication", "dark"):
+                self.plot_style_var.set(saved_style)
             if data.get("ui_language"):
                 set_language(data.get("ui_language"))
                 if hasattr(self, "_ui_language_var"):
@@ -5158,37 +5164,21 @@ class MossbauerFe33GUI(tk.Tk):
         close_progress()
 
     def _plot_theme(self) -> dict:
-        if getattr(self, "_theme_var", None) and self._theme_var.get() == "sv_ttk_dark":
-            return dict(
-                fig_bg="#1c1c1e", ax_bg="#2a2a2a", res_bg="#252520",
-                title="#e2e8f0",
-                grid="#444444", grid_alpha=0.45,
-                tick="#a6adc8", spine="#6c7086",
-                lbl="#a6adc8",
-                res_tick="#a6adc8", res_spine="#6c7086",
-                res_zero="#6c7086", res_fill="#fb923c", res_line="#fdba74",
-                res_grid="#3a3a3a",
-                data="#e2e8f0", baseline="#94a3b8", model="#f87171",
-                leg_face="#2a2a2a", leg_edge="#6c7086", leg_text="#e2e8f0",
-                no_file="#a6adc8",
-                dist_line="#89b4fa", dist_fill="#89b4fa",
-                dist_grid="#3a3a3a", ann="#f87171",
-            )
-        return dict(
-            fig_bg="#f8fbff", ax_bg="#fbfdff", res_bg="#fff7ed",
-            title="#083344",
-            grid="#c8e4f7", grid_alpha=0.85,
-            tick="#243b53", spine="#8ecae6",
-            lbl="#243b53",
-            res_tick="#7c2d12", res_spine="#fdba74",
-            res_zero="#9a3412", res_fill="#fb923c", res_line="#ea580c",
-            res_grid="#fed7aa",
-            data="#0f172a", baseline="#64748b", model="#dc2626",
-            leg_face="#ffffff", leg_edge="#bae6fd", leg_text="#102a43",
-            no_file="#075985",
-            dist_line="#2563eb", dist_fill="#60a5fa",
-            dist_grid="#bfdbfe", ann="#991b1b",
-        )
+        """Devuelve el dict del estilo de gráfico activo.
+
+        El nombre se lee de ``self.plot_style_var`` (4 estilos: classic,
+        modern, publication, dark). Si está vacío y el tema UI es
+        ``sv_ttk_dark``, se elige ``dark`` por retro-compatibilidad.
+        """
+        from core.plot_styles import get_style, apply_rc
+        name = ""
+        if getattr(self, "plot_style_var", None):
+            name = self.plot_style_var.get() or ""
+        if not name:
+            name = "dark" if (getattr(self, "_theme_var", None)
+                              and self._theme_var.get() == "sv_ttk_dark") else "classic"
+        apply_rc(name)
+        return get_style(name)
 
     def update_plot_bhf_distribution(self) -> None:
         c = self._plot_theme()
@@ -5459,13 +5449,17 @@ class MossbauerFe33GUI(tk.Tk):
 
         self.fig.set_facecolor(c["fig_bg"])
         self.ax.set_facecolor(c["ax_bg"])
-        self.ax.set_title(tr("plot.title_discrete"), color=c["title"], pad=10, fontweight="bold")
+        self.ax.set_title(tr("plot.title_discrete"), color=c["title"], pad=10,
+                          fontweight=c.get("title_weight", "bold"))
         self.ax.set_ylabel(tr("plot.transmission_ylabel"))
         self.ax.yaxis.label.set_color(c["lbl"])
-        self.ax.grid(True, color=c["grid"], alpha=c["grid_alpha"], linewidth=0.8)
+        self.ax.grid(True, color=c["grid"], alpha=c["grid_alpha"],
+                     linewidth=c.get("grid_lw", 0.8))
         self.ax.tick_params(colors=c["tick"])
-        for spine in self.ax.spines.values():
+        for name_, spine in self.ax.spines.items():
             spine.set_color(c["spine"])
+            if name_ in c.get("spines_hide", ()):
+                spine.set_visible(False)
 
         if self.ax_res is not None:
             self.ax_res.set_facecolor(c["res_bg"])
@@ -5475,20 +5469,25 @@ class MossbauerFe33GUI(tk.Tk):
             self.ax_res.xaxis.label.set_color(c["lbl"])
             self.ax_res.grid(True, color=c["res_grid"], alpha=0.8, linewidth=0.75)
             self.ax_res.tick_params(colors=c["res_tick"])
-            for spine in self.ax_res.spines.values():
+            for name_, spine in self.ax_res.spines.items():
                 spine.set_color(c["res_spine"])
+                if name_ in c.get("spines_hide", ()):
+                    spine.set_visible(False)
         else:
             self.ax.set_xlabel(tr("plot.velocity_xlabel"))
             self.ax.xaxis.label.set_color(c["lbl"])
 
         if self.velocity is not None and self.y_data is not None:
             model = self.current_model()
-            self.ax.plot(self.velocity, self.y_data, ".", color=c["data"], ms=4, alpha=0.88, label=tr("plot.legend_data"))
+            self.ax.plot(self.velocity, self.y_data, ".", color=c["data"],
+                         ms=c.get("data_ms", 4.0), alpha=c.get("data_alpha", 0.88),
+                         label=tr("plot.legend_data"))
             if model is not None:
                 baseline_line = self.vars["baseline"].get() + self.vars["slope"].get() * self.velocity
-                self.ax.plot(self.velocity, baseline_line, ":", color=c["baseline"], lw=1.35, label=tr("plot.legend_baseline"))
+                self.ax.plot(self.velocity, baseline_line, ":", color=c["baseline"],
+                             lw=c.get("baseline_lw", 1.35), label=tr("plot.legend_baseline"))
 
-                component_colors = {1: "#16a34a", 2: "#f97316", 3: "#8b5cf6"}
+                palette = c.get("components_palette") or ("#16a34a", "#f97316", "#8b5cf6")
                 for idx in (1, 2, 3):
                     if not self.sextet_enabled[idx].get():
                         continue
@@ -5498,17 +5497,34 @@ class MossbauerFe33GUI(tk.Tk):
                     component = baseline_line - component_absorption(self.velocity, kind, params)
                     self.ax.plot(
                         self.velocity, component, "--",
-                        color=component_colors[idx], lw=1.65, alpha=0.95,
+                        color=palette[(idx - 1) % len(palette)],
+                        lw=c.get("component_lw", 1.65),
+                        alpha=c.get("component_alpha", 0.95),
                         label=f"{tr(f'kind.{kind}', default=kind)} {idx}",
                     )
 
-                self.ax.plot(self.velocity, model, "-", color=c["model"], lw=2.6, label=tr("plot.legend_model"))
+                # Banda 1σ (ruido) alrededor del modelo si el estilo lo activa.
+                if c.get("show_band") and c.get("band_alpha", 0.0) > 0:
+                    sigma_band = self.data_sigma()
+                    if sigma_band is not None:
+                        self.ax.fill_between(
+                            self.velocity, model - sigma_band, model + sigma_band,
+                            color=c.get("band_color", c["model"]),
+                            alpha=c.get("band_alpha", 0.1), linewidth=0,
+                        )
+
+                self.ax.plot(self.velocity, model, "-", color=c["model"],
+                             lw=c.get("model_lw", 2.6), label=tr("plot.legend_model"))
                 residual = self.y_data - model
                 rms = float(np.sqrt(np.mean(residual ** 2)))
                 if self.ax_res is not None:
                     self.ax_res.axhline(0, color=c["res_zero"], lw=0.9, alpha=0.9)
-                    self.ax_res.fill_between(self.velocity, residual, 0, color=c["res_fill"], alpha=0.22)
-                    self.ax_res.plot(self.velocity, residual, "-", color=c["res_line"], lw=1.25)
+                    self.ax_res.fill_between(self.velocity, residual, 0,
+                                              color=c["res_fill"],
+                                              alpha=c.get("res_fill_alpha", 0.22))
+                    self.ax_res.plot(self.velocity, residual, "-",
+                                     color=c["res_line"],
+                                     lw=c.get("res_line_lw", 1.25))
                     lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
                     self.ax_res.set_ylim(-lim, lim)
                     self.ax.tick_params(labelbottom=False)
