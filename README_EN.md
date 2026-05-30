@@ -75,12 +75,14 @@ Future-comparison documents:
 
 The **Velocity, folding and background** panel contains:
 
-- **Vmax**: maximum velocity used to build the `-Vmax ... +Vmax` axis.
+- **Vmax**: maximum velocity used to build the `-Vmax ... +Vmax` axis. It may be negative; the sign is preserved to reproduce web/NORMOS calibrations with reversed velocity direction.
 - **Folding point**: internal symmetry center used to fold the spectrum. Fractional values are supported, as in NORMOS.
 - **Baseline**: normalized transmission/background, normally close to 1.
 - **Slope**: linear background term.
 
 The program also displays an approximate **NORMOS folding point**, usually about twice the GUI internal center.
+
+The modular GUI removes the first and last folded points because edge channels are often less reliable. The velocity axis is handled conservatively: the full `linspace(-Vmax, +Vmax, N)` axis is built first and then the same `[1:-1]` positions are trimmed in both data and velocity. A shorter axis is not rebuilt between `-Vmax` and `+Vmax`, because that would stretch the scale and bias `BHF`.
 
 ## 4. Discrete model
 
@@ -88,7 +90,7 @@ Each of the three component tabs can be configured as:
 
 - **Singlet**: one line.
 - **Doublet**: two lines separated by `ΔEQ`.
-- **Sextet**: six magnetic lines with `δ`, `ΔEQ`, `BHF`, widths, depth and relative intensities.
+- **Sextet**: six magnetic lines with `δ`, `ΔEQ`, `BHF`, widths, depth and relative intensities. Component-1 depth starts at `0.02`; the GUI depth slider is `0–0.07`, while the internal fit bound remains wider. Intensities follow the NORMOS convention: `int3` is hidden/fixed to `1`, and the visible controls are `int1≈D13` and `int2≈D23`.
 
 The **Fit** button optimizes all non-fixed parameters. The status panel reports integrated areas, errors when available, fit statistics and residual diagnostics.
 

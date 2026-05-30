@@ -74,12 +74,14 @@ Las imágenes siguientes muestran el aspecto general de la aplicación y de algu
 
 El panel **Velocidad, folding y fondo** contiene:
 
-- **Vmax**: velocidad máxima del eje, usado para construir el intervalo `-Vmax ... +Vmax`.
+- **Vmax**: velocidad máxima del eje, usado para construir el intervalo `-Vmax ... +Vmax`. Puede ser negativo; el signo se conserva para reproducir calibraciones web/NORMOS con eje invertido.
 - **Folding point**: centro interno de simetría usado para doblar el espectro. Puede ser fraccionario, como en Normos.
 - **Base**: transmisión/fondo normalizado, normalmente cercana a 1.
 - **Pendiente**: término lineal del fondo.
 
 El programa muestra también un **folding point Normos aproximado**, que suele ser aproximadamente el doble del centro interno de la GUI.
+
+En la GUI modular se eliminan el primer y último punto del espectro doblado, porque los canales extremos suelen ser menos fiables. El eje de velocidades se trata de forma conservadora: primero se construye el eje completo `linspace(-Vmax, +Vmax, N)` y después se recortan las mismas posiciones que en los datos (`[1:-1]`). No se reconstruye un eje nuevo entre `-Vmax` y `+Vmax` con menos canales, porque eso estiraría la escala y sesgaría `BHF`.
 
 ## 4. Modelo discreto
 
@@ -102,8 +104,9 @@ Seis líneas magnéticas. Parámetros principales:
 - `BHF`: campo hiperfino en teslas.
 - `Γ 1,6`: anchura HWHM de las líneas exteriores.
 - `Γ 2,5 rel` y `Γ 3,4 rel`: anchuras relativas.
-- `Profundidad`: escala global de absorción.
-- `I1`, `I2 rel`, `I3 rel`: intensidades relativas.
+- `Profundidad`: escala global de absorción. Por defecto empieza en `0.02`; la barra de la GUI va de `0` a `0.07`, pero el ajuste interno permite valores mayores.
+- `I1`/`int1` ≈ `D13` e `I2`/`int2` ≈ `D23`: intensidades relativas respecto a las líneas 3,4.
+- `int3`: no aparece en la GUI; queda fijo internamente a `1` siguiendo la convención NORMOS.
 
 El botón **Ajuste** optimiza todos los parámetros no fijados. Si hay varios componentes activos, el panel de estado muestra el porcentaje de área integrada de cada uno y, si se puede calcular la covarianza, su error 1σ.
 
