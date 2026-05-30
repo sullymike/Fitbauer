@@ -51,11 +51,16 @@ class MossbauerApp(MossbauerFe33GUI):
         super().refold_data()
         n = self._N_EDGE_TRIM
         if self.y_data is not None and self.y_data.size > 2 * n + 2:
-            self.folded_raw = self.folded_raw[n:-n]
-            self.pairs      = self.pairs[n:-n]
-            self.y_data     = self.y_data[n:-n]
-            vmax            = float(self.velocity[-1])
-            self.velocity   = np.linspace(-vmax, vmax, self.y_data.size)
+            # Recortamos los canales extremos problemáticos, pero NO reescalamos
+            # el eje a ±VMAX con menos puntos: eso estira artificialmente la
+            # escala de velocidad y desplaza BHF. El eje físico correcto es el
+            # original de NORMOS/VMAX recortado en las mismas posiciones.
+            if self.folded_raw is not None:
+                self.folded_raw = self.folded_raw[n:-n]
+            self.pairs = self.pairs[n:-n]
+            self.y_data = self.y_data[n:-n]
+            if self.velocity is not None:
+                self.velocity = self.velocity[n:-n]
 
 
 
@@ -328,6 +333,7 @@ class MossbauerApp(MossbauerFe33GUI):
         if not self.updating_sliders:
             # Cubre constraints lineales + derivación de textura.
             self.apply_constraints_to_vars()
+        self._force_int3_reference()
         components = []
         for idx in self._component_range():
             if not self.sextet_enabled[idx].get():

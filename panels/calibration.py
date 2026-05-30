@@ -18,7 +18,7 @@ class CalibrationPanel(BasePanel):
         box = ttk.LabelFrame(
             parent, text=tr("controls.calibration_box"), style="Section.TLabelframe"
         )
-        self._add_slider(box, "vmax", tr("slider.vmax"), 11.8788, 1.0, 15.0, 0.0001, fit_param=False)
+        self._add_slider(box, "vmax", tr("slider.vmax"), 11.8788, -15.0, 15.0, 0.0001, fit_param=False)
         ttk.Checkbutton(
             box,
             text=tr("checkbox.fit_vmax"),
@@ -36,12 +36,41 @@ class CalibrationPanel(BasePanel):
         self._add_slider(
             box, "voigt_sigma", tr("slider.voigt_sigma"), 0.05, 0.0, 1.0, 0.001, fit_param=False
         )
+        box.bind("<Button-3>", self._show_sigma_profile_menu, add=True)
+        for w in app.slider_widget_refs.get("voigt_sigma", {}).values():
+            try:
+                w.bind("<Button-3>", self._show_sigma_profile_menu, add=True)
+            except tk.TclError:
+                pass
         app.fit_sigma_check = ttk.Checkbutton(
             box,
             text=tr("checkbox.fit_sigma"),
             variable=app.fit_sigma_var,
         )
         app.fit_sigma_check.pack(anchor=tk.W, pady=(0, 4))
+        app.fit_sigma_check.bind("<Button-3>", self._show_sigma_profile_menu, add=True)
 
         self._root = box
         return box
+
+    def _show_sigma_profile_menu(self, event: tk.Event) -> None:
+        app = self.app
+        menu = tk.Menu(app, tearoff=0)
+        menu.add_command(label=tr("context.sigma_profile_title"), state="disabled")
+        menu.add_separator()
+        menu.add_radiobutton(
+            label=tr("options.profile_lorentzian"),
+            variable=app.line_profile_var,
+            value="Lorentziana",
+            command=app.on_line_profile_change,
+        )
+        menu.add_radiobutton(
+            label=tr("options.profile_voigt"),
+            variable=app.line_profile_var,
+            value="Voigt",
+            command=app.on_line_profile_change,
+        )
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()

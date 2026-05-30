@@ -288,10 +288,10 @@ class SimPanel(BasePanel):
         c2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(3, 0))
 
         p = f"s{idx}_"
-        depth_default = 0.030 if idx == 1 else 0.005
+        depth_default = 0.020 if idx == 1 else 0.005
         # c1: profundidad · intensidades · isomershift
-        self._add_slider(c1, p + "depth",  tr("slider.s_depth"),  depth_default,  0.0,  0.30, 0.0005)
-        self._add_slider(c1, p + "int3",   tr("slider.s_int3"),   1.0,            0.0,  3.0,  0.01)
+        self._add_slider(c1, p + "depth",  tr("slider.s_depth"),  depth_default,  0.0,  0.07, 0.0001)
+        app._add_hidden_model_param(p + "int3", 1.0, 1.0, 1.0, 0.0, fixed=True)
         self._add_slider(c1, p + "int2",   tr("slider.s_int2"),   2.0,            0.0,  4.0,  0.01)
         self._add_slider(c1, p + "int1",   tr("slider.s_int1"),   3.0,            0.0,  6.0,  0.01)
         # Parámetro de textura: t ∈ [0,1]. t=2/3 ⇒ 3:2:1 (polvo aleatorio).
@@ -300,14 +300,14 @@ class SimPanel(BasePanel):
         # c2: cuadrupolo · campo hiperfino · anchuras
         self._add_slider(c2, p + "quad",   tr("slider.s_quad"),   0.0,           -4.0,  4.0,  0.001)
         self._add_slider(c2, p + "bhf",    tr("slider.s_bhf"),    BHF_DEFAULT_T,  0.0, 60.0,  0.01)
-        self._add_slider(c2, p + "gamma1", tr("slider.s_gamma1"), 0.30,           0.03,  2.0,  0.001)
+        self._add_slider(c2, p + "gamma1", tr("slider.s_gamma1"), 0.15,           0.03,  2.0,  0.001)
         self._add_slider(c2, p + "gamma2", tr("slider.s_gamma2"), 1.0,            0.2,   3.0,  0.001)
         self._add_slider(c2, p + "gamma3", tr("slider.s_gamma3"), 1.0,            0.2,   3.0,  0.001)
         # Ángulo β entre B y V_zz, en grados (mejora 8b)
         self._add_slider(c2, p + "beta",   tr("slider.s_beta"),   0.0,            0.0,  90.0, 0.1)
 
         # Menús contextuales (clic derecho): intensidades ↔ modo, β/ΔEQ ↔ cuadrupolo
-        for key in (p + "int1", p + "int2", p + "int3", p + "texture"):
+        for key in (p + "int1", p + "int2", p + "texture"):
             for w in app.slider_widget_refs.get(key, {}).values():
                 w.bind("<Button-3>", lambda e, i=idx: self._show_intensity_mode_menu(e, i), add=True)
         for key in (p + "beta", p + "quad"):

@@ -504,6 +504,7 @@ class MossbauerFe33GUI(tk.Tk):
                 break
 
         self.load_settings()
+        self._force_int3_reference()
         # Estado inicial de agrisado (cubre el arranque sin settings.json).
         self._refresh_component_widgets()
         self.on_line_profile_change()
@@ -880,7 +881,7 @@ class MossbauerFe33GUI(tk.Tk):
 
         calib_box = ttk.LabelFrame(controls, text=tr("controls.calibration_box"), style="Section.TLabelframe")
         calib_box.pack(fill=tk.X, pady=8)
-        self._add_slider(calib_box, "vmax", tr("slider.vmax"), 11.8788, 1.0, 15.0, 0.0001, fit_param=False)
+        self._add_slider(calib_box, "vmax", tr("slider.vmax"), 11.8788, -15.0, 15.0, 0.0001, fit_param=False)
         ttk.Checkbutton(
             calib_box,
             text=tr("checkbox.fit_vmax"),
@@ -896,12 +897,19 @@ class MossbauerFe33GUI(tk.Tk):
         self._add_slider(calib_box, "baseline", tr("slider.baseline"), 1.0, 0.70, 1.30, 0.0005)
         self._add_slider(calib_box, "slope", tr("slider.slope"), 0.0, -0.0001, 0.0001, 0.000001)
         self._add_slider(calib_box, "voigt_sigma", tr("slider.voigt_sigma"), 0.05, 0.0, 1.0, 0.001, fit_param=False)
+        calib_box.bind("<Button-3>", self.show_sigma_profile_menu, add=True)
+        for w in self.slider_widget_refs.get("voigt_sigma", {}).values():
+            try:
+                w.bind("<Button-3>", self.show_sigma_profile_menu, add=True)
+            except tk.TclError:
+                pass
         self.fit_sigma_check = ttk.Checkbutton(
             calib_box,
             text=tr("checkbox.fit_sigma"),
             variable=self.fit_sigma_var,
         )
         self.fit_sigma_check.pack(anchor=tk.W, pady=(0, 4))
+        self.fit_sigma_check.bind("<Button-3>", self.show_sigma_profile_menu, add=True)
 
         line_box = ttk.LabelFrame(controls, text=tr("controls.reference_box"), style="Section.TLabelframe")
         line_box.pack(fill=tk.X, pady=8)
@@ -1009,13 +1017,13 @@ class MossbauerFe33GUI(tk.Tk):
             self._add_slider(c1, p + "delta", tr("slider.s_delta"), 0.0, -2.0, 3.0, 0.001)
             self._add_slider(c1, p + "quad", tr("slider.s_quad"), 0.0, -4.0, 4.0, 0.001)
             self._add_slider(c1, p + "bhf", tr("slider.s_bhf"), BHF_DEFAULT_T, 0.0, 60.0, 0.01)
-            self._add_slider(c2, p + "gamma1", tr("slider.s_gamma1"), 0.30, 0.03, 2.0, 0.001)
+            self._add_slider(c2, p + "gamma1", tr("slider.s_gamma1"), 0.15, 0.03, 2.0, 0.001)
             self._add_slider(c2, p + "gamma2", tr("slider.s_gamma2"), 1.0, 0.2, 3.0, 0.001)
             self._add_slider(c2, p + "gamma3", tr("slider.s_gamma3"), 1.0, 0.2, 3.0, 0.001)
-            self._add_slider(c3, p + "depth", tr("slider.s_depth"), 0.030 if idx == 1 else 0.005, 0.0, 0.30, 0.0005)
-            self._add_slider(c3, p + "int1", tr("slider.s_int1"), 1.0, 0.0, 2.0, 0.001)
-            self._add_slider(c3, p + "int2", tr("slider.s_int2"), 1.0, 0.0, 3.0, 0.001)
-            self._add_slider(c3, p + "int3", tr("slider.s_int3"), 1.0, 0.0, 3.0, 0.001)
+            self._add_slider(c3, p + "depth", tr("slider.s_depth"), 0.020 if idx == 1 else 0.005, 0.0, 0.07, 0.0001)
+            self._add_slider(c3, p + "int1", tr("slider.s_int1"), 3.0, 0.0, 6.0, 0.001)
+            self._add_slider(c3, p + "int2", tr("slider.s_int2"), 2.0, 0.0, 4.0, 0.001)
+            self._add_hidden_model_param(p + "int3", 1.0, 1.0, 1.0, 0.0, fixed=True)
             self._add_slider(c3, p + "texture", tr("slider.s_texture"), 2.0/3.0, 0.0, 1.0, 0.001)
             self._add_slider(c3, p + "beta", tr("slider.s_beta"), 0.0, 0.0, 90.0, 0.1)
             self._refresh_intensity_mode_widgets(idx)
@@ -1517,6 +1525,17 @@ class MossbauerFe33GUI(tk.Tk):
     def set_fit_mode_from_menu(self) -> None:
         self._refresh_distribution_tab_visibility(update=True)
 
+    def show_sigma_profile_menu(self, event: tk.Event) -> None:
+        menu = tk.Menu(self, tearoff=0)
+        menu.add_command(label=tr("context.sigma_profile_title"), state="disabled")
+        menu.add_separator()
+        menu.add_radiobutton(label=tr("options.profile_lorentzian"), variable=self.line_profile_var, value="Lorentziana", command=self.on_line_profile_change)
+        menu.add_radiobutton(label=tr("options.profile_voigt"), variable=self.line_profile_var, value="Voigt", command=self.on_line_profile_change)
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
     def on_line_profile_change(self) -> None:
         global LINE_PROFILE_KIND, VOIGT_SIGMA
         LINE_PROFILE_KIND = self.line_profile_var.get()
@@ -1593,6 +1612,48 @@ class MossbauerFe33GUI(tk.Tk):
         if not hasattr(self, "slider_widget_refs"):
             self.slider_widget_refs = {}
         self.slider_widget_refs[key] = widget_refs
+
+    def _add_hidden_model_param(self, key: str, value: float,
+                                min_value: float, max_value: float,
+                                resolution: float, *, fixed: bool = True) -> None:
+        """Crea un parámetro interno sin widget visible.
+
+        Se usa para ``int3``: en convención NORMOS la intensidad de las líneas
+        3,4 es la referencia y vale 1 implícitamente (D33 no existe). Mantener
+        la variable interna conserva compatibilidad con el modelo y sesiones,
+        pero evita que el usuario/optimizador introduzcan la degeneración
+        ``DEP × int3``.
+        """
+        self.vars[key] = tk.DoubleVar(value=value)
+        self.entry_vars[key] = tk.StringVar(value=self._format_value(key, value))
+        self.slider_specs[key] = (min_value, max_value, resolution)
+        self.fixed_vars[key] = tk.BooleanVar(value=bool(fixed))
+        if not hasattr(self, "slider_widget_refs"):
+            self.slider_widget_refs = {}
+        self.slider_widget_refs[key] = {}
+
+    def _force_int3_reference(self, values: dict[str, float] | None = None) -> None:
+        """Fija int3=1 como referencia NORMOS (D33 implícito)."""
+        indices = getattr(self, "_component_range", lambda: range(1, 4))()
+        for idx in indices:
+            key = f"s{idx}_int3"
+            if values is not None:
+                values[key] = 1.0
+            if key in self.vars:
+                try:
+                    self.vars[key].set(1.0)
+                except Exception:
+                    pass
+            if key in self.entry_vars:
+                try:
+                    self.entry_vars[key].set(self._format_value(key, 1.0))
+                except Exception:
+                    pass
+            if key in self.fixed_vars:
+                try:
+                    self.fixed_vars[key].set(True)
+                except Exception:
+                    pass
 
     def _format_value(self, key: str, value: float) -> str:
         base = key.split("_", 1)[-1]
@@ -1704,7 +1765,7 @@ class MossbauerFe33GUI(tk.Tk):
         if self.file_path is None:
             messagebox.showinfo(tr("msg.calibration_title"), tr("msg.no_file_loaded"))
             return
-        vmax_val = abs(float(self.vars["vmax"].get())) if "vmax" in self.vars else None
+        vmax_val = float(self.vars["vmax"].get()) if "vmax" in self.vars else None
         active_idx = next((i for i in self.sextet_enabled if self.sextet_enabled[i].get()), None)
         is_val = None
         if active_idx is not None and f"s{active_idx}_delta" in self.vars:
@@ -1797,7 +1858,7 @@ class MossbauerFe33GUI(tk.Tk):
             vmax_val: float | None = None
             if vmax_text:
                 try:
-                    vmax_val = abs(float(vmax_text))
+                    vmax_val = float(vmax_text)
                 except ValueError:
                     messagebox.showerror(tr("msg.calibration_title"),
                                          tr("msg.use_as_calib_invalid_vmax"))
@@ -2155,7 +2216,7 @@ class MossbauerFe33GUI(tk.Tk):
             debug("La calibración no trae velocity_calibrated; no se aplica Vmax.")
             return
         try:
-            vmax = abs(float(vmax))
+            vmax = float(vmax)
         except (TypeError, ValueError):
             debug(f"velocity_calibrated no numérico: {vmax!r}")
             return
@@ -2393,7 +2454,7 @@ class MossbauerFe33GUI(tk.Tk):
             if self.norm_factor == 0:
                 self.norm_factor = 1.0
             self.y_data = folded / self.norm_factor
-            vmax = abs(self.vars["vmax"].get())
+            vmax = self.vars["vmax"].get()
             self.velocity = np.linspace(-vmax, vmax, folded.size)
         else:
             self.y_data = None
@@ -2410,7 +2471,7 @@ class MossbauerFe33GUI(tk.Tk):
             p = f"s{idx}_"
             params.update({
                 p + "depth": depth / 2.5 if idx == 1 else 0.005,
-                p + "gamma1": 0.30,
+                p + "gamma1": 0.15,
                 p + "gamma2": 1.0,
                 p + "gamma3": 1.0,
                 p + "delta": -0.11 if idx == 1 else 0.0,
@@ -2747,7 +2808,7 @@ class MossbauerFe33GUI(tk.Tk):
             if idx > 1:
                 self.sextet_enabled[idx].set(False)
             p = f"s{idx}_"
-            params.update({p + "delta": 0.0, p + "quad": 0.0, p + "bhf": BHF_DEFAULT_T, p + "gamma1": 0.20, p + "gamma2": 1.0, p + "gamma3": 1.0, p + "depth": 0.005, p + "int1": 3.0, p + "int2": 2.0, p + "int3": 1.0})
+            params.update({p + "delta": 0.0, p + "quad": 0.0, p + "bhf": BHF_DEFAULT_T, p + "gamma1": 0.15, p + "gamma2": 1.0, p + "gamma3": 1.0, p + "depth": 0.005, p + "int1": 3.0, p + "int2": 2.0, p + "int3": 1.0})
 
         components: list[tuple[int, str, list[dict[str, float]]]] = []
         used_ids: set[int] = set()
@@ -3139,14 +3200,16 @@ class MossbauerFe33GUI(tk.Tk):
             return ["delta", "gamma1", "depth", "int1"]
         if kind == "Doblete":
             return ["delta", "quad", "gamma1", "gamma2", "depth", "int1", "int2"]
-        # Sextete: en modo "texture" el parámetro libre es s{i}_texture (t)
-        # en lugar de int1,int2,int3; el optimizador no toca i_k.
+        # Sextete: int3 no aparece como parámetro ajustable. En convención
+        # NORMOS la intensidad de líneas 3,4 es la referencia implícita (=1).
+        # En modo "texture" el parámetro libre es s{i}_texture (t)
+        # en lugar de int1,int2; el optimizador no toca i_k.
         mode_var = getattr(self, "intensity_mode", {}).get(idx)
         if mode_var is not None and mode_var.get() == "texture" and f"s{idx}_texture" in self.vars:
             names = [n for n in SEXTET_PARAM_NAMES if n not in ("int1", "int2", "int3")]
             names.append("texture")
         else:
-            names = SEXTET_PARAM_NAMES.copy()
+            names = [n for n in SEXTET_PARAM_NAMES if n != "int3"]
         # Tratamiento de Kündig con β fijo: β es libre del optimizador.
         # En modo policristal, β no aplica (se integra). En 1er orden, β no se usa.
         treat = getattr(self, "quad_treatment", {}).get(idx)
@@ -3223,7 +3286,7 @@ class MossbauerFe33GUI(tk.Tk):
         if mode is not None and mode.get() == "texture":
             rel.add("texture")
         else:
-            rel.update({"int1", "int2", "int3"})
+            rel.update({"int1", "int2"})
         treat = getattr(self, "quad_treatment", {}).get(idx)
         if treat is not None and treat.get() == "kundig_fixed":
             rel.add("beta")
@@ -3539,6 +3602,7 @@ class MossbauerFe33GUI(tk.Tk):
         if not self.updating_sliders:
             # apply_constraints_to_vars también re-deriva i1,i2,i3 de textura.
             self.apply_constraints_to_vars()
+        self._force_int3_reference()
         components = []
         for idx in (1, 2, 3):
             if not self.sextet_enabled[idx].get():
@@ -3933,7 +3997,17 @@ class MossbauerFe33GUI(tk.Tk):
     def model_from_values(self, values: dict[str, float], vmax: float) -> np.ndarray:
         assert self.y_data is not None
         values = self.apply_constraints_to_values(values)
-        v = np.linspace(-vmax, vmax, self.y_data.size)
+        self._force_int3_reference(values)
+        if self.velocity is not None and self.velocity.size == self.y_data.size:
+            current_vmax = float(self.vars.get("vmax", tk.DoubleVar(value=vmax)).get())
+            if abs(current_vmax) > 1e-12:
+                # Mantiene cualquier recorte de canales ya aplicado al eje de
+                # velocidades, escalándolo solo si VMAX se ajusta.
+                v = self.velocity * (float(vmax) / current_vmax)
+            else:
+                v = self.velocity.copy()
+        else:
+            v = np.linspace(-vmax, vmax, self.y_data.size)
         components: list = []
         for idx in (1, 2, 3):
             if self.sextet_enabled[idx].get():
@@ -4027,7 +4101,7 @@ class MossbauerFe33GUI(tk.Tk):
             a, b = self.bounds_for_key(key)
             lo.append(a); hi.append(b)
         if fit_velocity:
-            x0.append(abs(self.vars["vmax"].get()))
+            x0.append(self.vars["vmax"].get())
             lo.append(self.slider_specs["vmax"][0])
             hi.append(self.slider_specs["vmax"][1])
         if fit_center:
@@ -4050,7 +4124,7 @@ class MossbauerFe33GUI(tk.Tk):
                 values[key] = float(value)
             values = self.apply_constraints_to_values(values)
             pos = len(free_keys)
-            vmax = float(x[pos]) if fit_velocity else abs(self.vars["vmax"].get())
+            vmax = float(x[pos]) if fit_velocity else self.vars["vmax"].get()
             pos += 1 if fit_velocity else 0
             center_fit = float(x[pos]) if fit_center else self.vars["center"].get()
             pos += 1 if fit_center else 0
@@ -4221,7 +4295,7 @@ class MossbauerFe33GUI(tk.Tk):
         free_keys = list(self.last_fit_free_keys)
         keys_all = self.active_param_keys()
         base_values = {k: self.vars[k].get() for k in keys_all}
-        vmax = abs(self.vars["vmax"].get())
+        vmax = self.vars["vmax"].get()
         use_poisson = self.likelihood_var.get() == "poisson"
         y_data = self.y_data
         sigma_data = self.data_sigma()
@@ -4624,7 +4698,7 @@ class MossbauerFe33GUI(tk.Tk):
         x0 = np.clip(np.array([base_values[k] for k in free_keys], dtype=float), lo, hi)
 
         def model_values(values: dict[str, float]) -> np.ndarray:
-            return self.model_from_values(values, abs(self.vars["vmax"].get()))
+            return self.model_from_values(values, self.vars["vmax"].get())
 
         progress = self.open_progress_dialog(tr("progress.bootstrap_title"), tr("progress.bootstrap_prepare"))
         _dlg, update_progress, close_progress = progress
@@ -5751,6 +5825,7 @@ class MossbauerFe33GUI(tk.Tk):
                     else:
                         getattr(self, attr).set(v)
             self.constraints = list(state.get("constraints", []))
+            self._force_int3_reference()
         finally:
             self.updating_sliders = False
         if hasattr(self, "on_line_profile_change"):
@@ -5819,6 +5894,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.dist_use_sharp_var.set(bool(state.get("dist_use_sharp", self.dist_use_sharp_var.get())))
         self.dist_refine_global_var.set(bool(state.get("dist_refine_global", self.dist_refine_global_var.get())))
         self.constraints = list(state.get("constraints", data.get("constraints", self.constraints)))
+        self._force_int3_reference()
         self.updating_sliders = False
 
         self.calibration_info = data.get("calibration")
