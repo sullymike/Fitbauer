@@ -16,6 +16,8 @@
 !panels/**
 !layout/
 !layout/**
+!assets/
+!assets/**
 !docs/
 !docs/**
 !tests/

@@ -58,6 +58,8 @@ SETTINGS_PATH = CONFIG_DIR / "settings.json"
 CREDENTIALS_PATH = CONFIG_DIR / "credentials.json"
 README_PATH = Path(__file__).with_name("README.md")
 CHANGELOG_PATH = Path(__file__).with_name("CHANGELOG.md")
+APP_ICON_PNG = Path(__file__).with_name("assets") / "mossbauer_icon.png"
+APP_ICON_ICO = Path(__file__).with_name("assets") / "mossbauer_icon.ico"
 
 
 def load_credentials() -> dict:
@@ -420,6 +422,7 @@ class MossbauerFe33GUI(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Ajuste Mössbauer Fe-57 v2IA")
+        self._set_application_icon()
         self.geometry("1350x930")
         self.minsize(1150, 840)
 
@@ -527,6 +530,23 @@ class MossbauerFe33GUI(tk.Tk):
         self.after(150, self.show_startup_splash)
         self.after(2500, lambda: self.check_for_updates(silent=True))
         self.after(4000, self._check_requirements_background)
+
+    def _set_application_icon(self) -> None:
+        """Instala el icono de la ventana para el gestor de ventanas/Alt-Tab."""
+        try:
+            if sys.platform.startswith("win") and APP_ICON_ICO.exists():
+                try:
+                    self.iconbitmap(default=str(APP_ICON_ICO))
+                except tk.TclError:
+                    pass
+            if APP_ICON_PNG.exists():
+                icon = tk.PhotoImage(file=str(APP_ICON_PNG))
+                # True lo define como icono por defecto de la aplicación para
+                # esta ventana y los Toplevel que se creen después.
+                self.iconphoto(True, icon)
+                self._app_icon_image = icon  # evitar que Tk/Python lo liberen
+        except Exception as exc:
+            _log_warning("no se pudo cargar el icono de la aplicación", exc)
 
     def _reconfigure_styles(self, style: ttk.Style, sv_active: bool) -> None:
         _dark = (self._theme_var.get() == "sv_ttk_dark")
