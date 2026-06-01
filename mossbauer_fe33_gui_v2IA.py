@@ -12,6 +12,7 @@ import json
 import os
 import re
 import sys
+import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 from pathlib import Path
@@ -60,6 +61,8 @@ README_PATH = Path(__file__).with_name("README.md")
 CHANGELOG_PATH = Path(__file__).with_name("CHANGELOG.md")
 APP_ICON_PNG = Path(__file__).with_name("assets") / "mossbauer_icon.png"
 APP_ICON_ICO = Path(__file__).with_name("assets") / "mossbauer_icon.ico"
+OLLAMA_REQUEST_TIMEOUT = 120
+OLLAMA_LIST_TIMEOUT = 15
 
 
 def load_credentials() -> dict:
@@ -463,6 +466,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.dist_reg_mode_var = tk.StringVar(value="tikhonov")
         self.ai_ollama_url_var = tk.StringVar(value="http://localhost:11434")
         self.ai_ollama_model_var = tk.StringVar(value="")
+        self.ai_ollama_timeout_var = tk.IntVar(value=OLLAMA_REQUEST_TIMEOUT)
         self.last_bhf_fit = None
         self.last_bhf_sharp_indices: list[int] = []
         # No simular nada hasta que el usuario toque un parámetro del modelo
@@ -1088,6 +1092,10 @@ class MossbauerFe33GUI(tk.Tk):
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
     def settings_payload(self) -> dict:
+        try:
+            ai_ollama_timeout = max(5, min(3600, int(self.ai_ollama_timeout_var.get())))
+        except Exception:
+            ai_ollama_timeout = OLLAMA_REQUEST_TIMEOUT
         return {
             "geometry": self.geometry(),
             "vars": {k: float(v.get()) for k, v in self.vars.items()},
@@ -1121,6 +1129,7 @@ class MossbauerFe33GUI(tk.Tk):
             "constraints": self.constraints,
             "ai_ollama_url": self.ai_ollama_url_var.get(),
             "ai_ollama_model": self.ai_ollama_model_var.get(),
+            "ai_ollama_timeout": ai_ollama_timeout,
         }
 
     def load_settings(self) -> None:
@@ -1200,6 +1209,10 @@ class MossbauerFe33GUI(tk.Tk):
             self.constraints = list(data.get("constraints", self.constraints))
             self.ai_ollama_url_var.set(data.get("ai_ollama_url", self.ai_ollama_url_var.get()))
             self.ai_ollama_model_var.set(data.get("ai_ollama_model", self.ai_ollama_model_var.get()))
+            try:
+                self.ai_ollama_timeout_var.set(max(5, min(3600, int(data.get("ai_ollama_timeout", self.ai_ollama_timeout_var.get())))))
+            except Exception:
+                self.ai_ollama_timeout_var.set(OLLAMA_REQUEST_TIMEOUT)
             info_text = data.get("info_text")
             if info_text and hasattr(self, "info"):
                 self.info.delete("1.0", tk.END)
@@ -3002,15 +3015,17 @@ class MossbauerFe33GUI(tk.Tk):
             "note": "Sugiere solo valores iniciales; el ajuste final lo hará scipy en la GUI.",
         }
 
-    def ollama_request_json(self, prompt: str, model: str, base_url: str) -> dict[str, object]:
+    def ollama_request_json(self, prompt: str, model: str, base_url: str, progress_callback=None, timeout: int | None = None) -> dict[str, object]:
         base_url = base_url.rstrip("/")
         if not base_url:
             raise ValueError("Falta la URL de Ollama, por ejemplo http://localhost:11434")
         if not model:
             raise ValueError("Falta el modelo de Ollama, por ejemplo llama3.1, qwen2.5 o mistral")
+        stream_response = progress_callback is not None
+        request_timeout = max(5, min(3600, int(timeout if timeout is not None else OLLAMA_REQUEST_TIMEOUT)))
         payload = {
             "model": model,
-            "stream": False,
+            "stream": stream_response,
             "format": "json",
             "messages": [
                 {
@@ -3033,12 +3048,30 @@ class MossbauerFe33GUI(tk.Tk):
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                raw = resp.read().decode("utf-8", errors="replace")
+            with urllib.request.urlopen(req, timeout=request_timeout) as resp:
+                if stream_response:
+                    pieces: list[str] = []
+                    for raw_line in resp:
+                        line = raw_line.decode("utf-8", errors="replace").strip()
+                        if not line:
+                            continue
+                        try:
+                            event = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        chunk = event.get("message", {}).get("content", "")
+                        if isinstance(chunk, str) and chunk:
+                            pieces.append(chunk)
+                            progress_callback(chunk)
+                        if event.get("done"):
+                            break
+                    content = "".join(pieces)
+                else:
+                    raw = resp.read().decode("utf-8", errors="replace")
+                    outer = json.loads(raw)
+                    content = outer.get("message", {}).get("content", "")
         except urllib.error.URLError as exc:
             raise RuntimeError(f"No se pudo conectar con Ollama en {base_url}: {exc}") from exc
-        outer = json.loads(raw)
-        content = outer.get("message", {}).get("content", "")
         if not isinstance(content, str) or not content.strip():
             raise RuntimeError("Ollama respondió sin contenido útil")
         try:
@@ -3053,7 +3086,7 @@ class MossbauerFe33GUI(tk.Tk):
         base_url = base_url.rstrip("/")
         req = urllib.request.Request(base_url + "/api/tags", method="GET")
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=OLLAMA_LIST_TIMEOUT) as resp:
                 raw = resp.read().decode("utf-8", errors="replace")
         except urllib.error.URLError as exc:
             raise RuntimeError(f"No se pudo consultar Ollama en {base_url}: {exc}") from exc
@@ -3177,12 +3210,17 @@ class MossbauerFe33GUI(tk.Tk):
         models_var = tk.StringVar(value="")
         model_box = ttk.Combobox(frm, textvariable=models_var, values=(), state="readonly")
         model_box.grid(row=2, column=1, sticky="ew", pady=3)
+        ttk.Label(frm, text=tr("label.ollama_request_timeout")).grid(row=3, column=0, sticky="w", pady=3)
+        timeout_spin = ttk.Spinbox(frm, from_=5, to=3600, increment=5, textvariable=self.ai_ollama_timeout_var, width=10)
+        timeout_spin.grid(row=3, column=1, sticky="w", pady=3)
+        timeout_text = tr("label.ollama_timeout", list_timeout=OLLAMA_LIST_TIMEOUT)
+        ttk.Label(frm, text=timeout_text, wraplength=700).grid(row=4, column=0, columnspan=2, sticky="w", pady=(4, 2))
         status_var = tk.StringVar(value=tr("status.ollama_initial"))
-        ttk.Label(frm, textvariable=status_var, style="Subtitle.TLabel", wraplength=700).grid(row=3, column=0, columnspan=2, sticky="w", pady=(4, 8))
+        ttk.Label(frm, textvariable=status_var, style="Subtitle.TLabel", wraplength=700).grid(row=5, column=0, columnspan=2, sticky="w", pady=(2, 8))
         prompt = self.build_ollama_prompt()
         txt = tk.Text(frm, height=14, wrap=tk.WORD, background="#ffffff", foreground="#17202a", font=("TkFixedFont", 9))
-        txt.grid(row=4, column=0, columnspan=2, sticky="nsew")
-        frm.rowconfigure(4, weight=1)
+        txt.grid(row=6, column=0, columnspan=2, sticky="nsew")
+        frm.rowconfigure(6, weight=1)
         txt.insert("1.0", prompt)
 
         def load_models() -> None:
@@ -3203,25 +3241,95 @@ class MossbauerFe33GUI(tk.Tk):
                 self.ai_ollama_model_var.set(models_var.get())
         models_var.trace_add("write", choose_model)
 
+        def open_response_window(request_timeout: int) -> tuple[tk.Toplevel, tk.Text, ttk.Progressbar, tk.StringVar]:
+            win = tk.Toplevel(self)
+            win.title(tr("dialog.ollama_response_window"))
+            win.geometry("760x420")
+            win.transient(self)
+            frame = ttk.Frame(win, padding=10)
+            frame.pack(fill=tk.BOTH, expand=True)
+            frame.columnconfigure(0, weight=1)
+            frame.rowconfigure(2, weight=1)
+            stream_status = tk.StringVar(value=tr("status.ollama_streaming", timeout=request_timeout))
+            ttk.Label(frame, textvariable=stream_status, wraplength=720).grid(row=0, column=0, sticky="w", pady=(0, 6))
+            bar = ttk.Progressbar(frame, mode="indeterminate")
+            bar.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+            bar.start(10)
+            out = tk.Text(frame, height=14, wrap=tk.WORD, background="#ffffff", foreground="#17202a", font=("TkFixedFont", 9))
+            out.grid(row=2, column=0, sticky="nsew")
+            out.insert("1.0", tr("label.ollama_raw_response") + "\n\n")
+            out.configure(state="disabled")
+            ttk.Button(frame, text=tr("button.close"), command=win.destroy, style="Small.TButton").grid(row=3, column=0, sticky="e", pady=(8, 0))
+            return win, out, bar, stream_status
+
         def ask_ai() -> None:
             prompt_text = txt.get("1.0", tk.END).strip()
-            self.save_settings()
-            status_var.set(tr("status.ollama_querying"))
-            dialog.update_idletasks()
             try:
-                suggestion = self.ollama_request_json(prompt_text, self.ai_ollama_model_var.get().strip(), self.ai_ollama_url_var.get().strip())
-            except Exception as exc:
-                messagebox.showerror(tr("msg.ollama_title"), str(exc))
-                status_var.set(tr("status.ollama_error"))
+                request_timeout = max(5, min(3600, int(self.ai_ollama_timeout_var.get())))
+            except Exception:
+                messagebox.showerror(tr("msg.ollama_title"), tr("msg.ollama_timeout_invalid"))
                 return
-            dialog.destroy()
-            self.show_ai_suggestion_dialog(suggestion, prompt_text)
+            self.ai_ollama_timeout_var.set(request_timeout)
+            self.save_settings()
+            model_text = self.ai_ollama_model_var.get().strip()
+            base_url_text = self.ai_ollama_url_var.get().strip()
+            status_var.set(tr("status.ollama_querying_timeout", timeout=request_timeout))
+            response_win, response_txt, progress_bar, stream_status = open_response_window(request_timeout)
+            ask_button.configure(state="disabled")
+            list_button.configure(state="disabled")
+            dialog.update_idletasks()
+
+            def append_chunk(chunk: str) -> None:
+                def _append() -> None:
+                    if not response_win.winfo_exists():
+                        return
+                    response_txt.configure(state="normal")
+                    response_txt.insert(tk.END, chunk)
+                    response_txt.see(tk.END)
+                    response_txt.configure(state="disabled")
+                self.after(0, _append)
+
+            def finish_ok(suggestion: dict[str, object]) -> None:
+                if response_win.winfo_exists():
+                    progress_bar.stop()
+                    stream_status.set(tr("status.ollama_response_done"))
+                if dialog.winfo_exists():
+                    dialog.destroy()
+                self.show_ai_suggestion_dialog(suggestion, prompt_text)
+
+            def finish_error(error_text: str) -> None:
+                if response_win.winfo_exists():
+                    progress_bar.stop()
+                    stream_status.set(tr("status.ollama_error"))
+                if dialog.winfo_exists():
+                    status_var.set(tr("status.ollama_error"))
+                    ask_button.configure(state="normal")
+                    list_button.configure(state="normal")
+                messagebox.showerror(tr("msg.ollama_title"), error_text)
+
+            def worker() -> None:
+                try:
+                    suggestion = self.ollama_request_json(
+                        prompt_text,
+                        model_text,
+                        base_url_text,
+                        progress_callback=append_chunk,
+                        timeout=request_timeout,
+                    )
+                except Exception as exc:
+                    self.after(0, finish_error, str(exc))
+                    return
+                self.after(0, finish_ok, suggestion)
+
+            threading.Thread(target=worker, daemon=True).start()
 
         buttons = ttk.Frame(frm)
-        buttons.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(8, 0))
-        ttk.Button(buttons, text=tr("button.list_models"), command=load_models, style="Small.TButton").pack(side=tk.LEFT)
+        buttons.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(8, 0))
+        list_button = ttk.Button(buttons, text=tr("button.list_models"), command=load_models, style="Small.TButton")
+        list_button.pack(side=tk.LEFT)
         ttk.Button(buttons, text=tr("button.cancel"), command=dialog.destroy, style="Small.TButton").pack(side=tk.RIGHT)
-        ttk.Button(buttons, text=tr("button.ask_suggestion"), command=ask_ai, style="Accent.TButton").pack(side=tk.RIGHT, padx=(0, 6))
+        ask_button = ttk.Button(buttons, text=tr("button.ask_suggestion"), command=ask_ai, style="Accent.TButton")
+        ask_button.pack(side=tk.RIGHT, padx=(0, 6))
 
     def auto_center(self) -> None:
         if self.counts is None:
