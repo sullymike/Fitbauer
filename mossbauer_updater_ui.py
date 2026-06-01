@@ -44,8 +44,11 @@ def _update_dialog(parent, title: str, msg: str) -> bool:
     txt.insert("1.0", msg)
     txt.configure(state=tk.DISABLED)
 
-    btn_frame = ttk.Frame(win, padding=(12, 4, 12, 10))
+    btn_frame = ttk.Frame(win, padding=(6, 2, 6, 6))
     btn_frame.pack(fill=tk.X)
+
+    btn_style = ttk.Style()
+    btn_style.configure("Compact.TButton", padding=(4, 2))
 
     def on_yes():
         result.set(True)
@@ -54,8 +57,8 @@ def _update_dialog(parent, title: str, msg: str) -> bool:
     def on_no():
         win.destroy()
 
-    ttk.Button(btn_frame, text="Sí, descargar ahora", command=on_yes).pack(side=tk.RIGHT, padx=(6, 0))
-    ttk.Button(btn_frame, text="No por ahora",        command=on_no).pack(side=tk.RIGHT)
+    ttk.Button(btn_frame, text="Sí, descargar ahora", command=on_yes, style="Compact.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+    ttk.Button(btn_frame, text="No por ahora",        command=on_no,  style="Compact.TButton").pack(side=tk.RIGHT)
 
     win.wait_window()
     return result.get()
@@ -172,8 +175,8 @@ def open_update_settings_dialog(parent, config_dir: Path) -> None:
         save_update_settings(config_dir, {"channel": channel_var.get()}, parent=win)
         win.destroy()
 
-    ttk.Button(buttons, text="Guardar", command=save, style="Accent.TButton").pack(side=tk.RIGHT)
-    ttk.Button(buttons, text="Cancelar", command=win.destroy).pack(side=tk.RIGHT, padx=(0, 8))
+    ttk.Button(buttons, text="Guardar", command=save, style="Accent.TButton").pack(side=tk.RIGHT, padx=(4, 0))
+    ttk.Button(buttons, text="Cancelar", command=win.destroy, style="Compact.TButton").pack(side=tk.RIGHT, padx=(0, 4))
 
 
 def check_for_updates(
