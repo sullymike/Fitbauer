@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.3-beta1 — prerelease no estable
+
+Versión beta para validar cambios posteriores a v2.2 antes de una release estable.
+
+- Vmax con signo conservado en GUI, CLI y calibraciones web.
+- Corrección del eje de velocidades al recortar el primer y último punto doblado: se recorta el eje original en vez de reconstruirlo a ±Vmax con menos canales, evitando sesgo sistemático en BHF.
+- Convención NORMOS para intensidades de sextete: int3 oculto/fijo a 1, int1≈D13, int2≈D23 y DEP/profundidad como escala global.
+- Profundidad por defecto 0.02, Γ por defecto 0.15 mm/s y barra de profundidad 0–0.07 con límite interno de ajuste más amplio.
+- Menú contextual en σ para alternar Lorentziana/Voigt.
+- Icono de aplicación para gestor de ventanas/Alt-Tab.
+- Padding reducido en botones del diálogo de actualización.
+- Ayuda/README ampliados e informe de ejemplo Fe3O4 en Markdown/PDF.
+
 ## v2.2 — ajuste en serie, CLI y compatibilidad NORMOS
 
 Agrupa todos los cambios incorporados desde v2.1 y prepara la nueva release.

@@ -23,6 +23,10 @@ git tag vX.Y.Z
 git push origin main --tags
 ```
 
+Para una versión no estable usa un sufijo en el tag, por ejemplo `v2.3-beta1`,
+`v2.3-rc1` o `v2.3-dev1`. El workflow la marcará automáticamente como
+**prerelease** en GitHub.
+
 4. En GitHub, crear la release desde ese tag:
 
 ```text

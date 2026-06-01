@@ -2,7 +2,7 @@
 
 Stable desktop application to load, fold, simulate and fit 57Fe Mössbauer spectra.
 
-Current stable version: **v2.2**.  
+Current stable version: **v2.2**. Test prerelease: **v2.3-beta1**.  
 Main application: `mossbauer_fe33_gui_v2IA.py`.
 
 Author: Jorge Sánchez Marcos  

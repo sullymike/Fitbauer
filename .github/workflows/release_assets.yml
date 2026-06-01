@@ -52,6 +52,7 @@ jobs:
             core \
             layout \
             panels \
+            assets \
             locales \
             captura-pantalla-principal.png \
             captura-ajuste-discreto.png \
@@ -78,12 +79,17 @@ jobs:
           if [ -f "$NOTES" ]; then
             NOTES_ARG="--notes-file $NOTES"
           fi
+          PRERELEASE_FLAG=""
+          case "${{ github.ref_name }}" in
+            *alpha*|*beta*|*rc*|*pre*|*dev*) PRERELEASE_FLAG="--prerelease" ;;
+          esac
           if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
-            gh release edit "${{ github.ref_name }}" --title "Mossbauer ${{ github.ref_name }}" $NOTES_ARG
+            gh release edit "${{ github.ref_name }}" --title "Mossbauer ${{ github.ref_name }}" $PRERELEASE_FLAG $NOTES_ARG
             gh release upload "${{ github.ref_name }}" "$ZIP" sha256sums.txt --clobber
           else
             gh release create "${{ github.ref_name }}" "$ZIP" sha256sums.txt \
               --title "Mossbauer ${{ github.ref_name }}" \
+              $PRERELEASE_FLAG \
               $NOTES_ARG
           fi
 
