@@ -34,6 +34,13 @@ sys.path.insert(0, str(ROOT))
 
 MAX_QT_COMPONENTS = 6
 
+# Layout adaptativo del área de componentes (equivalente al panel Tk modular):
+# se apilan verticalmente cuando hay sitio y pasan a pestañas cuando no caben.
+# Alturas estimadas (px) usadas para decidir el modo, con histéresis.
+_COMP_STACK_H = 300      # altura aproximada de un componente apilado
+_DIST_STACK_H = 340      # altura aproximada del bloque de distribución
+_COMP_OVERHEAD_H = 120   # cabecera + botones + márgenes
+
 from mossbauer_i18n import (  # noqa: E402
     tr, get_language, set_language, available_languages,
 )
@@ -197,11 +204,11 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         self.line_profile = "Lorentziana"
         self.fit_sigma = QtWidgets.QCheckBox(tr("checkbox.fit_sigma"))
 
-        # Menú contextual (clic derecho) para el perfil de línea: igual que en Tk,
-        # disponible sobre toda la caja de calibración, los widgets del slider
-        # voigt_sigma (etiqueta, slider, spinbox) y la casilla 'Ajustar σ'.
-        for w in (self, self.voigt_sigma, self.voigt_sigma.label,
-                  self.voigt_sigma.slider, self.voigt_sigma.spin, self.fit_sigma):
+        # Menú contextual (clic derecho) del perfil de línea: solo sobre el
+        # control de σ-Voigt (etiqueta, slider y spinbox). No aparece sobre el
+        # resto de la caja de calibración ni sobre la casilla 'Ajustar σ'.
+        for w in (self.voigt_sigma, self.voigt_sigma.label,
+                  self.voigt_sigma.slider, self.voigt_sigma.spin):
             w.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
             w.customContextMenuRequested.connect(self._show_sigma_menu)
 
@@ -306,18 +313,6 @@ class ComponentPanel(QtWidgets.QWidget):
         row.addWidget(self.type_combo)
         v.addLayout(row)
 
-        mode_row = QtWidgets.QHBoxLayout()
-        mode_row.addWidget(QtWidgets.QLabel(tr("component.intensity_label")))
-        self.intensity_combo = QtWidgets.QComboBox()
-        self.intensity_combo.addItems(["free", "texture"])
-        mode_row.addWidget(self.intensity_combo)
-        mode_row.addWidget(QtWidgets.QLabel(tr("component.quad_treatment_label")))
-        self.quad_combo = QtWidgets.QComboBox()
-        self.quad_combo.addItems(["1st_order", "kundig_fixed", "kundig_powder"])
-        mode_row.addWidget(self.quad_combo)
-        mode_row.addStretch(1)
-        v.addLayout(mode_row)
-
         # Orden del GUI Tk clásico, repartido en dos columnas:
         # δ · ΔEQ · BHF · Γ1-Γ3 | profundidad · intensidades · textura · β.
         left_specs = [
@@ -363,25 +358,29 @@ class ComponentPanel(QtWidgets.QWidget):
         self.enabled.toggled.connect(lambda *_: self.paramChanged.emit())
         self.type_combo.currentTextChanged.connect(self._on_type_changed)
 
-        # Estado para menús contextuales y comboboxes (igual que Tk, con clic derecho adicional).
+        # Estado para los menús contextuales (clic derecho). Ya no hay
+        # desplegables: el modo de intensidades y el tratamiento del cuadrupolo
+        # se eligen únicamente con el menú contextual, aligerando el panel.
         self.intensity_mode = "free"       # "free" / "texture"
         self.quad_treatment = "1st_order"  # 1st_order / kundig_fixed / kundig_powder
-        self.intensity_combo.currentTextChanged.connect(self._set_intensity_mode)
-        self.quad_combo.currentTextChanged.connect(self._set_quad_treatment)
 
-        # Clic derecho sobre intensidades → menú Intensity mode
-        for k in ("int1", "int2", "texture"):
+        # Clic derecho sobre intensidades y profundidad → menú Intensity mode
+        # (free / textured), igual que el desplegable que sustituye.
+        for k in ("int1", "int2", "texture", "depth"):
             ctl = self.params[k]
-            ctl.spin.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-            ctl.spin.customContextMenuRequested.connect(
-                lambda pos, c=ctl: self._show_intensity_menu(c, pos))
+            for w in (ctl.spin, ctl.label, ctl.slider):
+                w.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+                w.customContextMenuRequested.connect(
+                    lambda pos, c=ctl: self._show_intensity_menu(c, pos))
         self.params["texture"].valueChanged.connect(lambda *_: self._update_texture_intensities())
 
         # Clic derecho sobre quad → menú Quadrupole treatment
+        # (1er orden / Kundig fijo / Kundig polvo).
         ctl_q = self.params["quad"]
-        ctl_q.spin.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        ctl_q.spin.customContextMenuRequested.connect(
-            lambda pos, c=ctl_q: self._show_quad_menu(c, pos))
+        for w in (ctl_q.spin, ctl_q.label, ctl_q.slider):
+            w.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+            w.customContextMenuRequested.connect(
+                lambda pos, c=ctl_q: self._show_quad_menu(c, pos))
 
         # Fijos típicos para α-Fe (intensidades + gammas relativas + quad).
         for k in ("int1", "int2", "int3", "gamma2", "gamma3", "quad", "texture"):
@@ -400,16 +399,14 @@ class ComponentPanel(QtWidgets.QWidget):
             act.setCheckable(True)
             act.setChecked(self.intensity_mode == val)
             act.triggered.connect(lambda _c=False, v=val: self._set_intensity_mode(v))
-        menu.exec(ctl.spin.mapToGlobal(pos))
+        sender = self.sender()
+        anchor = sender if isinstance(sender, QtWidgets.QWidget) else ctl.spin
+        menu.exec(anchor.mapToGlobal(pos))
 
     def _set_intensity_mode(self, mode: str) -> None:
         if mode not in ("free", "texture"):
             return
         self.intensity_mode = mode
-        if self.intensity_combo.currentText() != mode:
-            self.intensity_combo.blockSignals(True)
-            self.intensity_combo.setCurrentText(mode)
-            self.intensity_combo.blockSignals(False)
         # En modo textura, fija int1=3 / int2 (configurable via t implícito) /
         # int3=1 manteniéndolos como referencia 3:4t/(2-t):1 (t≈2/3 por defecto).
         if mode == "texture":
@@ -442,16 +439,14 @@ class ComponentPanel(QtWidgets.QWidget):
             act.setCheckable(True)
             act.setChecked(self.quad_treatment == val)
             act.triggered.connect(lambda _c=False, v=val: self._set_quad_treatment(v))
-        menu.exec(ctl.spin.mapToGlobal(pos))
+        sender = self.sender()
+        anchor = sender if isinstance(sender, QtWidgets.QWidget) else ctl.spin
+        menu.exec(anchor.mapToGlobal(pos))
 
     def _set_quad_treatment(self, treatment: str) -> None:
         if treatment not in ("1st_order", "kundig_fixed", "kundig_powder"):
             return
         self.quad_treatment = treatment
-        if self.quad_combo.currentText() != treatment:
-            self.quad_combo.blockSignals(True)
-            self.quad_combo.setCurrentText(treatment)
-            self.quad_combo.blockSignals(False)
         self._on_type_changed(self.kind)
         self.paramChanged.emit()
 
@@ -472,8 +467,6 @@ class ComponentPanel(QtWidgets.QWidget):
         else:
             used.discard("texture")
             used.discard("beta")
-        self.intensity_combo.setEnabled(kind == "Sextete")
-        self.quad_combo.setEnabled(kind == "Sextete")
         for name, ctl in self.params.items():
             ctl.setEnabled(name in used)
         self.paramChanged.emit()
@@ -1196,23 +1189,42 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.calib = CalibrationPanel()
         lv.addWidget(self.calib)
 
-        # Notebook de simulación igual al de Tk: pestaña de distribución +
-        # pestañas de componentes. El combo superior conserva la mejora Qt para
-        # elegir directamente Discreto / P(BHF) / P(ΔEQ).
-        self.comp_tabs = QtWidgets.QTabWidget()
+        # Área de componentes con disposición adaptativa, igual que el panel
+        # Tk modular: los sextetes se apilan verticalmente cuando hay espacio
+        # debajo y solo pasan a pestañas cuando ya no caben. El combo superior
+        # conserva la mejora Qt para elegir Discreto / P(BHF) / P(ΔEQ).
         self.dist_panel = DistributionPanel()
-        self.comp_tabs.addTab(self.dist_panel, tr("tab.distribution_bhf"))
         self.components_panels: list[ComponentPanel] = []
         for i in range(1, MAX_QT_COMPONENTS + 1):
-            cp = ComponentPanel(idx=i)
-            self.components_panels.append(cp)
-            self.comp_tabs.addTab(cp, tr("tab.component", idx=i))
-        sim_lay.addWidget(self.comp_tabs)
+            self.components_panels.append(ComponentPanel(idx=i))
+
+        # Contenedor que alberga las dos disposiciones intercambiables.
+        self.comp_area = QtWidgets.QWidget()
+        comp_area_lay = QtWidgets.QVBoxLayout(self.comp_area)
+        comp_area_lay.setContentsMargins(0, 0, 0, 0)
+        comp_area_lay.setSpacing(4)
+
+        # Disposición en pestañas (QTabWidget).
+        self.comp_tabs = QtWidgets.QTabWidget()
+        comp_area_lay.addWidget(self.comp_tabs)
+
+        # Disposición apilada (QVBoxLayout con envolturas tituladas).
+        self.comp_stack = QtWidgets.QWidget()
+        self._comp_stack_layout = QtWidgets.QVBoxLayout(self.comp_stack)
+        self._comp_stack_layout.setContentsMargins(0, 0, 0, 0)
+        self._comp_stack_layout.setSpacing(4)
+        self._comp_stack_frames: dict[int, QtWidgets.QGroupBox] = {}
+        comp_area_lay.addWidget(self.comp_stack)
+
+        self._using_tabs: bool | None = None  # fuerza la primera construcción
+        sim_lay.addWidget(self.comp_area)
+
         self.dist_panel.paramChanged.connect(self._on_model_param_changed)
         self.dist_panel.loadFixedRequested.connect(self._on_load_fixed_distribution)
         self.dist_panel.lcurve_link.clicked.connect(self.on_lcurve)
         self.dist_panel.use_sharp.toggled.connect(self._set_dist_use_sharp)
         self.dist_panel.refine_global.toggled.connect(self._set_dist_refine_global)
+        self._rebuild_component_area(use_tabs=False)
         self._sync_component_count(1)
         lv.addWidget(self.sim_controls_box)
         lv.addStretch(1)
@@ -1595,6 +1607,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             self.dist_panel.use_sharp.blockSignals(True)
             self.dist_panel.use_sharp.setChecked(self.dist_use_sharp)
             self.dist_panel.use_sharp.blockSignals(False)
+        # En distribución, los sextetes solo se ven si se suman como nítidas.
+        if hasattr(self, "_using_tabs") and self._using_tabs is not None:
+            self._sync_component_count(self.n_components_spin.value())
+            self._check_layout()
         self._simulate_enabled = True
         self._refresh_plot()
 
@@ -1666,8 +1682,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             "left_width": int(left_width),
             "right_width": int(right_width),
         }
-        assigned = set(out["left"]) | set(out["center"]) | set(out["right"])
-        out["left"].extend(pid for pid in known if pid not in assigned)
+        # Los paneles no asignados a ninguna columna quedan "apartados" (no se
+        # muestran), igual que el pool de Disponibles del configurador Tk.
         return out
 
     def _apply_panel_layout(self, spec: dict) -> None:
@@ -1679,10 +1695,13 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             "center": list(spec.get("center", [])),
             "right": list(spec.get("right", [])),
         }
+        # Los paneles que no estén en ninguna columna quedan apartados: se
+        # ocultan (equivalente al pool 'Disponibles' del configurador Tk).
         assigned = set(columns["left"]) | set(columns["center"]) | set(columns["right"])
-        columns["left"].extend(
-            pid for pid in self._layout_panel_widgets if pid not in assigned
-        )
+        for pid, widget in self._layout_panel_widgets.items():
+            if pid not in assigned:
+                widget.setParent(None)
+                widget.hide()
         for pid in columns["left"]:
             if pid in self._layout_panel_widgets:
                 self._insert_panel_widget(self._left_panels_layout,
@@ -1743,9 +1762,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         dlg.resize(980, 640)
         v = QtWidgets.QVBoxLayout(dlg)
         v.addWidget(QtWidgets.QLabel(
-            "<i>Elige un preset o mueve paneles entre las <b>3 columnas</b>. "
-            "La columna derecha con anchura 0 se oculta y sus paneles se anclan "
-            "debajo de la gráfica.</i>"))
+            "<i>Elige un preset o mueve paneles entre <b>Disponibles</b> y las "
+            "<b>3 columnas</b>. Los paneles que dejes en <b>Disponibles</b> "
+            "quedan apartados (no se muestran). La columna derecha con anchura 0 "
+            "se oculta y sus paneles se anclan debajo de la gráfica.</i>"))
 
         list_w = QtWidgets.QListWidget()
         v.addWidget(list_w, stretch=1)
@@ -1791,7 +1811,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 if pid not in used:
                     item = QtWidgets.QListWidgetItem(label)
                     item.setData(QtCore.Qt.UserRole, pid)
-                    panel_lists["left"].addItem(item)
+                    panel_lists["available"].addItem(item)
             left_width_spin.setValue(int(spec.get("left_width", 430)))
             right_width_spin.setValue(int(spec.get("right_width", 0)))
 
@@ -1821,7 +1841,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         edit_box = QtWidgets.QGroupBox("Editor de columnas")
         edit_v = QtWidgets.QVBoxLayout(edit_box)
         edit_row = QtWidgets.QHBoxLayout()
-        for key, title in (("left", "Izquierda"), ("center", "Centro"), ("right", "Derecha")):
+        for key, title in (("available", "Disponibles (sin asignar)"),
+                           ("left", "Izquierda"), ("center", "Centro"),
+                           ("right", "Derecha")):
             col = QtWidgets.QVBoxLayout()
             col.addWidget(QtWidgets.QLabel(f"<b>{title}</b>"))
             lw_col = QtWidgets.QListWidget()
@@ -1833,7 +1855,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         edit_v.addLayout(edit_row)
 
         move_row = QtWidgets.QHBoxLayout()
-        for key, label in (("left", "Mover a izquierda"),
+        for key, label in (("available", "Apartar"),
+                           ("left", "Mover a izquierda"),
                            ("center", "Mover al centro"),
                            ("right", "Mover a derecha")):
             btn = QtWidgets.QPushButton(label)
@@ -2023,7 +2046,21 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
     # ── Número de componentes ────────────────────────────────────────────
     def _on_n_components_changed(self, n_components: int) -> None:
         self._sync_component_count(n_components)
+        self._check_layout()
         self._refresh_plot()
+
+    def _component_visibility(self, n_components: int) -> tuple[bool, list[bool]]:
+        """(is_dist, [visible_i…]) para los MAX componentes.
+
+        En modo distribución los sextetes solo se muestran si está marcado
+        'sumar componentes nítidas' (dist_use_sharp), igual que en Tk: sin
+        nítidas, no aparecen los sextetes.
+        """
+        is_dist = self.is_distribution_mode if hasattr(self, "mode_combo") else False
+        show_components = (not is_dist) or bool(getattr(self, "dist_use_sharp", False))
+        vis = [(i <= n_components) and show_components
+               for i in range(1, MAX_QT_COMPONENTS + 1)]
+        return is_dist, vis
 
     def _sync_component_count(self, n_components: int) -> None:
         n_components = max(1, min(MAX_QT_COMPONENTS, int(n_components)))
@@ -2032,32 +2069,118 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             self.n_components_spin.setValue(n_components)
             self.n_components_spin.blockSignals(False)
 
-        is_dist = self.is_distribution_mode if hasattr(self, "mode_combo") else False
-        if hasattr(self, "comp_tabs"):
-            self.comp_tabs.setTabVisible(0, is_dist)
-        # Igual que en la versión Tk: las pestañas de componentes (sextetes)
-        # permanecen visibles también en modo distribución. Si hay un ajuste en
-        # distribución pero hay sextetes activos, los sextetes tienen que verse
-        # (se añaden como componentes "nítidas" sobre la distribución).
+        is_dist, vis = self._component_visibility(n_components)
+        # El estado 'activo' refleja el número de componentes elegido, aunque el
+        # panel esté oculto (en distribución sin nítidas se ocultan pero
+        # conservan su estado para cuando se reactiven).
         for i, cp in enumerate(self.components_panels, start=1):
-            visible = i <= n_components
-            cp.setVisible(visible)
-            if hasattr(self, "comp_tabs"):
-                self.comp_tabs.setTabVisible(i, visible)
             cp.enabled.blockSignals(True)
-            cp.enabled.setChecked(visible)
+            cp.enabled.setChecked(i <= n_components)
             cp.enabled.blockSignals(False)
-        if hasattr(self, "comp_tabs"):
-            # Al entrar en modo distribución se selecciona la pestaña de
-            # distribución (índice 0), pero las de componentes siguen accesibles.
+
+        if self._using_tabs:
+            self.comp_tabs.setTabVisible(0, is_dist)
+            for i in range(1, MAX_QT_COMPONENTS + 1):
+                self.comp_tabs.setTabVisible(i, vis[i - 1])
+            # Al entrar en distribución se selecciona la pestaña de distribución
+            # (índice 0); en discreto, la primera componente.
             self.comp_tabs.setCurrentIndex(0 if is_dist else 1)
+        else:
+            self.dist_panel.setVisible(is_dist)
+            for i in range(1, MAX_QT_COMPONENTS + 1):
+                frame = self._comp_stack_frames.get(i)
+                if frame is not None:
+                    frame.setVisible(vis[i - 1])
+
+    def _rebuild_component_area(self, use_tabs: bool) -> None:
+        """Reconstruye el área de componentes en modo pestañas o apilado.
+
+        Reutiliza los mismos paneles (conservan su estado) reparentándolos
+        entre el QTabWidget y el contenedor apilado.
+        """
+        if use_tabs == self._using_tabs:
+            return
+        # Saca todos los paneles de su contenedor actual.
+        self.dist_panel.setParent(None)
+        for cp in self.components_panels:
+            cp.setParent(None)
+        # Vacía el QTabWidget.
+        while self.comp_tabs.count():
+            self.comp_tabs.removeTab(0)
+        # Vacía el layout apilado (descarta las envolturas tituladas).
+        while self._comp_stack_layout.count():
+            item = self._comp_stack_layout.takeAt(0)
+            w = item.widget()
+            if w is not None and w is not self.dist_panel:
+                w.setParent(None)
+                w.deleteLater()
+        self._comp_stack_frames.clear()
+
+        if use_tabs:
+            self.comp_tabs.addTab(self.dist_panel, tr("tab.distribution_bhf"))
+            for i, cp in enumerate(self.components_panels, start=1):
+                self.comp_tabs.addTab(cp, tr("tab.component", idx=i))
+            self.comp_tabs.setVisible(True)
+            self.comp_stack.setVisible(False)
+        else:
+            self._comp_stack_layout.addWidget(self.dist_panel)
+            for i, cp in enumerate(self.components_panels, start=1):
+                box = QtWidgets.QGroupBox(tr("tab.component", idx=i))
+                bl = QtWidgets.QVBoxLayout(box)
+                bl.setContentsMargins(4, 4, 4, 4)
+                bl.setSpacing(2)
+                bl.addWidget(cp)
+                cp.setVisible(True)
+                self._comp_stack_frames[i] = box
+                self._comp_stack_layout.addWidget(box)
+            self._comp_stack_layout.addStretch(1)
+            self.comp_tabs.setVisible(False)
+            self.comp_stack.setVisible(True)
+
+        self._using_tabs = use_tabs
+        n = self.n_components_spin.value() if hasattr(self, "n_components_spin") else 1
+        self._sync_component_count(n)
+
+    def _check_layout(self) -> None:
+        """Cambia entre apilado y pestañas según el espacio vertical disponible.
+
+        Replica el comportamiento del panel Tk modular: apilado cuando cabe,
+        pestañas cuando no. La histéresis (0.78 / 0.88) evita oscilaciones.
+        """
+        if getattr(self, "_using_tabs", None) is None or not hasattr(self, "n_components_spin"):
+            return
+        if getattr(self, "_in_layout_check", False):
+            return
+        win_h = self.height()
+        if win_h < 100:
+            return
+        n = self.n_components_spin.value()
+        is_dist, vis = self._component_visibility(n)
+        n_visible = sum(1 for v in vis if v)
+        stacked_h = (_COMP_OVERHEAD_H + (_DIST_STACK_H if is_dist else 0)
+                     + n_visible * _COMP_STACK_H)
+        self._in_layout_check = True
+        try:
+            if self._using_tabs:
+                if stacked_h < win_h * 0.78:
+                    self._rebuild_component_area(use_tabs=False)
+            else:
+                if stacked_h > win_h * 0.88:
+                    self._rebuild_component_area(use_tabs=True)
+        finally:
+            self._in_layout_check = False
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._check_layout()
 
     # ── Cambio de modo ───────────────────────────────────────────────────
     def _on_mode_changed(self, idx: int) -> None:
         is_dist = (idx in (1, 2))
         is_deq = (idx == 2)
         self._sync_component_count(self.n_components_spin.value())
-        self.dist_panel.setVisible(is_dist)
+        # La visibilidad de dist_panel/sextetes la fija _sync_component_count
+        # según el modo y el contenedor (apilado o pestañas).
         # Sincroniza el radio del menú Fit
         if hasattr(self, "_mode_menu_actions") and 0 <= idx < 2:
             self._mode_menu_actions[idx].setChecked(True)
@@ -2074,6 +2197,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 self.dist_panel.bmax.label.setText(tr("slider.dist_bmax_bhf"))
                 self.dist_panel.fixed_bhf.label.setText(tr("slider.dist_fixed_bhf_inactive", default="BHF fijo (no usado en modo BHF)"))
                 self.dist_panel.fixed_bhf.setEnabled(False)
+        self._check_layout()
         self._refresh_plot()
 
     @property

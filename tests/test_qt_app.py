@@ -57,8 +57,12 @@ def test_qt_component_count_selector_shows_six_components(win):
     win.n_components_spin.setValue(4)
     assert [cp.enabled.isChecked() for cp in win.components_panels[:4]] == [True] * 4
     assert not win.components_panels[4].enabled.isChecked()
-    assert win.comp_tabs.isTabVisible(3)
-    assert not win.comp_tabs.isTabVisible(4)
+    # En modo pestañas: índice 0 = distribución, 1..6 = componentes. Con n=4 las
+    # pestañas de los componentes 1-4 están visibles y la del 5 (índice 5) oculta.
+    if not win._using_tabs:
+        win._rebuild_component_area(use_tabs=True)
+    assert win.comp_tabs.isTabVisible(4)        # componente 4 visible
+    assert not win.comp_tabs.isTabVisible(5)    # componente 5 oculto
 
 
 def test_qt_param_control_has_slider_bar_synced_with_spinbox(win):
