@@ -1,2 +1,6 @@
 -r requirements.txt
 pytest>=8.0
+# Tests del front-end Qt (mossbauer_qt.py). Si PySide6 no está disponible
+# en CI, los tests Qt se omiten con allow_module_level=True.
+PySide6
+pytest-qt

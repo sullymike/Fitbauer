@@ -42,7 +42,7 @@ from core.fit_engine import (  # noqa: E402
 from core.profile_likelihood import asymmetric_intervals  # noqa: E402
 from core.plot_styles import get_style, apply_rc  # noqa: E402
 from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data  # noqa: E402
-from mossbauer_distribution import fit_bhf_distribution  # noqa: E402
+from mossbauer_distribution import fit_bhf_distribution, fit_hyperfine_distribution  # noqa: E402
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -423,6 +423,91 @@ class DistributionPanel(QtWidgets.QGroupBox):
         v.addStretch(1)
 
 
+class ConstraintsDialog(QtWidgets.QDialog):
+    """Editor de restricciones lineales: target = factor·source + offset."""
+
+    def __init__(self, parent: "MossbauerQtWindow"):
+        super().__init__(parent)
+        self.setWindowTitle(tr("options.constraints"))
+        self.resize(660, 380)
+        self.parent_win = parent
+        v = QtWidgets.QVBoxLayout(self)
+        v.addWidget(QtWidgets.QLabel(
+            "<i>target = factor · source + offset</i>"))
+        self.table = QtWidgets.QTableWidget(0, 4)
+        self.table.setHorizontalHeaderLabels(["target", "factor", "source", "offset"])
+        h = self.table.horizontalHeader()
+        h.setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+        v.addWidget(self.table, stretch=1)
+        row = QtWidgets.QHBoxLayout()
+        btn_add = QtWidgets.QPushButton("+")
+        btn_add.clicked.connect(self._add_row)
+        btn_rm = QtWidgets.QPushButton("−")
+        btn_rm.clicked.connect(self._remove_row)
+        row.addWidget(btn_add); row.addWidget(btn_rm); row.addStretch(1)
+        bb = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        bb.accepted.connect(self._apply_and_accept)
+        bb.rejected.connect(self.reject)
+        row.addWidget(bb)
+        v.addLayout(row)
+        self._param_keys = self._collect_param_keys()
+        self._load_existing()
+
+    def _collect_param_keys(self) -> list[str]:
+        """Claves de parámetros disponibles (de las 3 componentes)."""
+        keys: list[str] = []
+        for cp in self.parent_win.components_panels:
+            for name in cp.params:
+                keys.append(f"s{cp.idx}_{name}")
+        return keys
+
+    def _load_existing(self) -> None:
+        constraints = getattr(self.parent_win, "constraints", []) or []
+        for c in constraints:
+            self._add_row(c)
+
+    def _make_combo(self, current: str = "") -> QtWidgets.QComboBox:
+        cb = QtWidgets.QComboBox()
+        cb.addItems(self._param_keys)
+        if current in self._param_keys:
+            cb.setCurrentText(current)
+        return cb
+
+    def _make_spin(self, value: float, decimals: int = 4) -> QtWidgets.QDoubleSpinBox:
+        s = QtWidgets.QDoubleSpinBox()
+        s.setRange(-1e6, 1e6); s.setDecimals(decimals); s.setSingleStep(0.1)
+        s.setValue(float(value))
+        return s
+
+    def _add_row(self, c: dict | None = None) -> None:
+        r = self.table.rowCount()
+        self.table.insertRow(r)
+        self.table.setCellWidget(r, 0, self._make_combo((c or {}).get("target", "")))
+        self.table.setCellWidget(r, 1, self._make_spin((c or {}).get("factor", 1.0)))
+        self.table.setCellWidget(r, 2, self._make_combo((c or {}).get("source", "")))
+        self.table.setCellWidget(r, 3, self._make_spin((c or {}).get("offset", 0.0)))
+
+    def _remove_row(self) -> None:
+        rows = sorted({i.row() for i in self.table.selectedIndexes()}, reverse=True)
+        for r in rows:
+            self.table.removeRow(r)
+
+    def _apply_and_accept(self) -> None:
+        new: list[dict] = []
+        for r in range(self.table.rowCount()):
+            target = self.table.cellWidget(r, 0).currentText()
+            factor = float(self.table.cellWidget(r, 1).value())
+            source = self.table.cellWidget(r, 2).currentText()
+            offset = float(self.table.cellWidget(r, 3).value())
+            if target and source and target != source:
+                new.append({"target": target, "factor": factor,
+                             "source": source, "offset": offset})
+        self.parent_win.constraints = new
+        self.parent_win._refresh_plot()
+        self.accept()
+
+
 class BatchFitDialog(QtWidgets.QDialog):
     """Diálogo de ajuste en serie con warm-start secuencial.
 
@@ -647,6 +732,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.file = FileState()
         self._building = False
         self.plot_style_name = "modern"
+        self.constraints: list[dict] = []
         self._build_ui()
         self._build_menubar()
         self.statusBar().showMessage(tr("plot.no_file"))
@@ -671,7 +757,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         mode_row = QtWidgets.QHBoxLayout()
         mode_row.addWidget(QtWidgets.QLabel(tr("controls.fit_mode_hint").split(":")[0] + ":"))
         self.mode_combo = QtWidgets.QComboBox()
-        self.mode_combo.addItems([tr("options.discrete_sextets"), tr("options.distribution_bhf")])
+        self.mode_combo.addItems([
+            tr("options.discrete_sextets"),
+            tr("options.distribution_bhf"),
+            "P(ΔEQ)",
+        ])
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_row.addWidget(self.mode_combo, stretch=1)
         lv.addLayout(mode_row)
@@ -766,6 +856,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         fit_menu.addAction(act_free_all)
 
         view_menu = mb.addMenu(tr("menu.view"))
+        act_constraints = QtGui.QAction(tr("options.constraints"), self)
+        act_constraints.triggered.connect(self.on_constraints)
+        view_menu.addAction(act_constraints)
+        view_menu.addSeparator()
         style_menu = view_menu.addMenu(tr("options.plot_style"))
         self.style_action_group = QtGui.QActionGroup(self)
         for value, label_key in (
@@ -793,14 +887,27 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
 
     # ── Cambio de modo ───────────────────────────────────────────────────
     def _on_mode_changed(self, idx: int) -> None:
-        is_dist = (idx == 1)
+        is_dist = (idx in (1, 2))
+        is_deq = (idx == 2)
         self.comp_tabs.setVisible(not is_dist)
         self.dist_panel.setVisible(is_dist)
+        # Etiquetas según variable distribuida
+        if is_dist:
+            if is_deq:
+                self.dist_panel.bmin.label.setText(tr("slider.dist_bmin_quad"))
+                self.dist_panel.bmax.label.setText(tr("slider.dist_bmax_quad"))
+            else:
+                self.dist_panel.bmin.label.setText(tr("slider.dist_bmin_bhf"))
+                self.dist_panel.bmax.label.setText(tr("slider.dist_bmax_bhf"))
         self._refresh_plot()
 
     @property
     def is_distribution_mode(self) -> bool:
-        return self.mode_combo.currentIndex() == 1
+        return self.mode_combo.currentIndex() in (1, 2)
+
+    @property
+    def dist_variable(self) -> str:
+        return "quad" if self.mode_combo.currentIndex() == 2 else "bhf"
 
     # ── Helpers UI ───────────────────────────────────────────────────────
     def _set_all_fixed(self, value: bool) -> None:
@@ -853,6 +960,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             fit_sigma=self.calib.fit_sigma.isChecked(),
             voigt_sigma=self.calib.voigt_sigma.value(),
             line_profile=self.calib.line_profile,
+            constraints=list(self.constraints),
         )
 
     # ── Acciones ─────────────────────────────────────────────────────────
@@ -1104,16 +1212,28 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         bmax = max(bmin + 0.5, float(d.bmax.value()))
         nbins = max(5, int(round(d.nbins.value())))
         alpha = 10.0 ** float(d.log_alpha.value())
-        self.statusBar().showMessage("Ajustando P(BHF)…")
+        var = self.dist_variable
+        label = "P(ΔEQ)" if var == "quad" else "P(BHF)"
+        self.statusBar().showMessage(f"Ajustando {label}…")
         QtWidgets.QApplication.processEvents()
         try:
-            result = fit_bhf_distribution(
-                self.file.velocity, self.file.y_data,
-                delta=float(d.delta.value()), quad=float(d.quad.value()),
-                gamma=float(d.gamma.value()),
-                bmin=bmin, bmax=bmax, nbins=nbins, alpha=alpha,
-                sigma=self.file.sigma,
-            )
+            if var == "quad":
+                result = fit_hyperfine_distribution(
+                    self.file.velocity, self.file.y_data,
+                    variable="quad",
+                    delta=float(d.delta.value()), quad=0.0,
+                    gamma=float(d.gamma.value()),
+                    pmin=bmin, pmax=bmax, nbins=nbins, alpha=alpha,
+                    sigma=self.file.sigma,
+                )
+            else:
+                result = fit_bhf_distribution(
+                    self.file.velocity, self.file.y_data,
+                    delta=float(d.delta.value()), quad=float(d.quad.value()),
+                    gamma=float(d.gamma.value()),
+                    bmin=bmin, bmax=bmax, nbins=nbins, alpha=alpha,
+                    sigma=self.file.sigma,
+                )
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("fit.run"),
                                             f"{type(exc).__name__}: {exc}")
@@ -1123,7 +1243,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         style = get_style(self.plot_style_name)
         self.canvas.render(self.file.velocity, self.file.y_data,
                            model=result.fitted_curve, style=style)
-        msg = (f"P(BHF): bins={nbins}  α=10^{d.log_alpha.value():.2f}  "
+        msg = (f"{label}: bins={nbins}  α=10^{d.log_alpha.value():.2f}  "
                f"RMS={result.rms:.5g}")
         self.statusBar().showMessage(msg)
         # Mostrar info
@@ -1141,8 +1261,12 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._show_distribution_dialog(result)
 
     def _show_distribution_dialog(self, result) -> None:
+        var = self.dist_variable
+        title = "P(ΔEQ)" if var == "quad" else "P(BHF)"
+        xlabel = (tr("plot.distribution_xlabel_deq") if var == "quad"
+                  else tr("plot.distribution_xlabel_bhf"))
         dlg = QtWidgets.QDialog(self)
-        dlg.setWindowTitle("P(BHF)")
+        dlg.setWindowTitle(title)
         dlg.resize(720, 480)
         v = QtWidgets.QVBoxLayout(dlg)
         fig = Figure(figsize=(8.0, 4.5), dpi=96)
@@ -1150,8 +1274,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         ax = fig.add_subplot(111)
         ax.plot(result.bhf_centers, result.probability, "-", color="#2563eb", lw=2.0)
         ax.fill_between(result.bhf_centers, result.probability, 0, color="#93c5fd", alpha=0.45)
-        ax.set_xlabel(tr("plot.distribution_xlabel_bhf"))
-        ax.set_ylabel("P(BHF)")
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(title)
         ax.grid(True, alpha=0.3)
         fig.tight_layout(); cv.draw_idle()
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
@@ -1335,6 +1459,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
     # ── Ajuste en serie (batch) ─────────────────────────────────────────
     def on_batch_fit(self) -> None:
         dlg = BatchFitDialog(self)
+        dlg.exec()
+
+    def on_constraints(self) -> None:
+        dlg = ConstraintsDialog(self)
         dlg.exec()
 
     def on_about(self) -> None:
