@@ -18,7 +18,7 @@ from core.folding import (  # noqa: E402
     read_ws5_counts, find_best_integer_or_half_center, fold_integer_or_half,
 )
 from core.fit_engine import (  # noqa: E402
-    Component, FitState, fit_discrete, model_from_values,
+    Component, FitState, fit_discrete, model_from_values, _refold_at_center,
 )
 
 DATA = ROOT / "data_sample"
@@ -94,6 +94,72 @@ def test_fit_discrete_recovers_alpha_fe():
     # Errores 1σ disponibles para los parámetros libres
     for k in ("s1_delta", "s1_bhf", "s1_gamma1", "s1_depth"):
         assert k in result.errors and result.errors[k] >= 0.0
+
+
+def _alpha_fe_counts_state(cstart: float):
+    """Estado α-Fe con cuentas crudas para ejercitar el re-folding del centro."""
+    counts = read_ws5_counts(DATA / "hierro_metalico_alphaFe.adt")
+    c0 = find_best_integer_or_half_center(counts)
+    folded, _ = fold_integer_or_half(counts, c0)
+    v = np.linspace(-VMAX, VMAX, folded.size)
+    norm = float(np.percentile(folded, 90))
+    y = folded / norm
+    sigma = np.sqrt(np.maximum(folded / 2.0, 1.0)) / norm
+    state = _alpha_fe_state(v, y, sigma)
+    state.values["center"] = cstart
+    state.bounds["center"] = (c0 - 1.5, c0 + 1.5)
+    state.fit_center = True
+    state.counts = counts
+    state.norm_factor = norm
+    return state, c0, counts, norm
+
+
+def test_refold_at_center_reproduces_reference():
+    """El helper de re-folding reproduce los datos de referencia en el centro óptimo."""
+    counts = read_ws5_counts(DATA / "hierro_metalico_alphaFe.adt")
+    c0 = find_best_integer_or_half_center(counts)
+    folded, _ = fold_integer_or_half(counts, c0)
+    norm = float(np.percentile(folded, 90))
+    y_ref = folded / norm
+    y, sig = _refold_at_center(counts, c0, norm)
+    assert y.size == counts.size // 2
+    assert np.allclose(y, y_ref)
+    assert np.all(sig > 0)
+
+
+def test_fit_center_refolding_pulls_toward_optimum():
+    """Con cuentas crudas, ajustar el centro lo arrastra hacia el óptimo del modelo
+    desde ambos lados (el re-folding crea una fuerza restauradora real)."""
+    # c0 = centro de simetría; el óptimo del modelo cae en su entorno.
+    _tmp, c0, _, _ = _alpha_fe_counts_state(0.0)
+    start_hi = c0 + 0.5
+    start_lo = c0 - 0.5
+    sh, _, _, _ = _alpha_fe_counts_state(start_hi)
+    sl, _, _, _ = _alpha_fe_counts_state(start_lo)
+    r_hi = fit_discrete(sh)
+    r_lo = fit_discrete(sl)
+    c_hi = r_hi.values["center"]
+    c_lo = r_lo.values["center"]
+    # Atraído hacia el óptimo: desde arriba baja, desde abajo sube.
+    assert c_hi < start_hi
+    assert c_lo > start_lo
+    # Ambos convergen a un entorno común del óptimo del modelo y ajustan bien.
+    assert abs(c_hi - c_lo) < abs(start_hi - start_lo)
+    assert r_hi.stats["red_chi2"] < 1.5 and r_lo.stats["red_chi2"] < 1.5
+
+
+def test_fit_center_without_counts_does_not_harm_model():
+    """Sin cuentas crudas, el centro no afecta al modelo (gradiente nulo): el ajuste
+    de los parámetros físicos sigue siendo correcto, como antes del re-folding."""
+    v, y, sigma = _load_alpha_fe()
+    state = _alpha_fe_state(v, y, sigma)
+    state.values["center"] = 256.9
+    state.bounds["center"] = (255.0, 258.0)
+    state.fit_center = True
+    state.counts = None  # sin cuentas → sin re-folding (center inerte)
+    result = fit_discrete(state)
+    assert abs(result.values["s1_bhf"] - 33.0) < 1.0
+    assert abs((result.values["s1_delta"] - ISO_REF)) < 0.05
 
 
 def test_fit_discrete_respects_fixed():

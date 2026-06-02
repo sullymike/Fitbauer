@@ -2911,6 +2911,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             propagate_calib=self.propagate_calib,
             global_opt=self.global_opt,
             absorber_model=self.absorber_model,
+            counts=self.file.counts,
+            norm_factor=self.file.norm_factor,
         )
 
     # ── Acciones ─────────────────────────────────────────────────────────

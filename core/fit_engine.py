@@ -27,6 +27,7 @@ from core.physics import (
     total_model,
 )
 from core.constants import SEXTET_PARAM_NAMES
+from core.folding import fold_integer_or_half
 
 
 # ── Tipos públicos ────────────────────────────────────────────────────────
@@ -71,6 +72,13 @@ class FitState:
     fit_sigma: bool = False
     absorber_model: str = "thin"        # "thin" / "thickness"
     multistart_n: int = 8               # nº de réplicas perturbadas (+1 base)
+    # Re-folding del centro (portado del Tk): cuentas crudas sin doblar y
+    # normalización de referencia. Si se proporcionan y fit_center=True, el
+    # residuo vuelve a doblar las cuentas en el centro de prueba en cada
+    # iteración (recalculando y y σ), igual que la GUI Tk. Sin ellas, fit_center
+    # no afecta al modelo (datos ya doblados).
+    counts: np.ndarray | None = None
+    norm_factor: float | None = None
 
 
 @dataclass
@@ -102,6 +110,28 @@ def apply_constraints(values: dict[str, float], constraints: list[dict]) -> dict
         if s in out and t in out:
             out[t] = factor * out[s] + offset
     return out
+
+
+def _refold_at_center(
+    counts: np.ndarray, center: float, fallback_norm: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Re-pliega las cuentas crudas en ``center`` y devuelve (y, σ) normalizados.
+
+    Réplica del ``data_for_center`` de la GUI Tk: dobla al estilo Normos, normaliza
+    por el percentil 90 (cae a ``fallback_norm`` si es 0) y estima σ Poisson del
+    promedio de dos canales (Var ≈ folded/2), con un suelo para evitar pesos
+    infinitos.
+    """
+    folded, _pairs = fold_integer_or_half(counts, center)
+    if folded.size:
+        norm = float(np.percentile(folded, 90))
+    else:
+        norm = fallback_norm
+    if not norm:
+        norm = fallback_norm or 1.0
+    y = folded / norm
+    sig = np.sqrt(np.maximum(folded / 2.0, 1.0)) / max(norm, 1e-12)
+    return y, np.maximum(sig, 1e-9)
 
 
 def _build_components_list(values: dict[str, float], components: list[Component]) -> list[tuple]:
@@ -172,6 +202,10 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
     fit_velocity = state.fit_velocity
     fit_center = state.fit_center
     fit_sigma = state.fit_sigma and profile == "Voigt"
+    # Re-folding del centro (portado del Tk): sólo si tenemos las cuentas crudas.
+    counts = state.counts
+    can_refold = fit_center and counts is not None
+    fallback_norm = float(state.norm_factor) if state.norm_factor else 1.0
 
     # Aplicamos el perfil globalmente (variable mutable en core.physics).
     from core import physics as _phys
@@ -184,8 +218,7 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
         pos = len(free_keys)
         vmax = float(x[pos]) if fit_velocity else float(vals.get("vmax", 0.0))
         pos += 1 if fit_velocity else 0
-        # center no afecta directamente al modelo aquí; se aplicaría al re-folding
-        # antes de entrar en el residuo (se ignora si los datos ya están doblados).
+        center = float(x[pos]) if fit_center else float(vals.get("center", 0.0))
         pos += 1 if fit_center else 0
         if fit_sigma:
             _phys.VOIGT_SIGMA = max(float(x[pos]), 1e-9)
@@ -201,21 +234,31 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
             v = state.velocity
         m = model_from_values(v, vals, state.components, state.constraints,
                               absorber_model=state.absorber_model)
-        # 4. σ por canal.
+        # 4. Datos: re-doblar las cuentas en el centro de prueba si procede; así
+        #    el ajuste del centro es físicamente real (cambia y y σ por iteración).
+        if can_refold:
+            y_use, sig_fold = _refold_at_center(counts, center, fallback_norm)
+            if y_use.size != m.size:   # malla incompatible → no re-doblar
+                y_use, sig_fold = y, sigma_data
+        else:
+            y_use, sig_fold = y, sigma_data
+        # 5. σ por canal.
         if likelihood == "poisson":
             sig = np.sqrt(np.maximum(np.abs(m), 1e-12))
         else:
-            sig = sigma_data
+            sig = sig_fold
         if sig is None:
             sig_use = np.ones_like(m)
         else:
-            sig_use = sig
-        if propagate and fit_velocity:
-            # Propaga la incertidumbre de la calibración: σ_eff² = σ² + (dm/dv·σ_v)².
-            # Como aproximación de primer orden usamos σ_v · |dm/dx|.
-            dmdv = np.gradient(m, v)
-            sig_use = np.sqrt(sig_use ** 2 + (dmdv * sigma_vmax) ** 2)
-        return (m - y) / np.maximum(sig_use, 1e-12)
+            sig_use = np.asarray(sig, dtype=float)
+        if propagate and fit_velocity and vmax > 0:
+            # Sensibilidad a la ESCALA vmax (portado del Tk, forma correcta):
+            #   ∂T/∂v_max|_i = (∂T/∂v)|_i · (v_i/v_max),  pues v_i = v_max·(…),
+            # de modo que σ_eff² = σ² + (∂T/∂v_max · σ_vmax)². Pesa en los flancos.
+            dT_dv = np.gradient(m, v)
+            dT_dvmax = dT_dv * (v / vmax)
+            sig_use = np.sqrt(sig_use ** 2 + (dT_dvmax * sigma_vmax) ** 2)
+        return (m - y_use) / np.maximum(sig_use, 1e-12)
 
     # Si fit_velocity está activo, la velocidad se reescala con x[pos_vmax].
     if fit_velocity:

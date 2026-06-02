@@ -4,10 +4,17 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from mossbauer_app import MossbauerApp  # noqa: E402
+try:
+    import tkinter as tk  # noqa: F401
+    from mossbauer_app import MossbauerApp
+except Exception as exc:  # pragma: no cover
+    pytest.skip(f"GUI/Tk no disponible: {exc}", allow_module_level=True)
+
 from core.constants import SEXTET_PARAM_NAMES  # noqa: E402
 
 
