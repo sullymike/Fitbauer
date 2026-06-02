@@ -27,6 +27,7 @@ from matplotlib.backends.backend_qtagg import (
     NavigationToolbar2QT as NavigationToolbar,
 )
 from matplotlib.figure import Figure
+from scipy.optimize import least_squares
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -49,11 +50,10 @@ from core.profile_likelihood import asymmetric_intervals  # noqa: E402
 from core.plot_styles import get_style, apply_rc  # noqa: E402
 from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data  # noqa: E402
 from mossbauer_distribution import (  # noqa: E402
-    fit_bhf_distribution, fit_hyperfine_distribution,
+    fit_hyperfine_distribution,
     fit_gaussian_hyperfine_distribution,
     fit_binomial_hyperfine_distribution,
     fit_fixed_hyperfine_distribution,
-    scan_alpha,
 )
 
 
@@ -469,11 +469,19 @@ class SpectrumCanvas(FigureCanvas):
                show_legend: bool = True) -> None:
         s = style or get_style("classic")
         self.fig.set_facecolor(s["fig_bg"])
-        self.ax.clear(); self.ax_res.clear()
-        self.ax.set_facecolor(s["ax_bg"])
-        self.ax_res.set_facecolor(s["res_bg"])
         actual_show_residual = bool(show_residual and model is not None)
-        self._gs.set_height_ratios([4.6, 1.0] if actual_show_residual else [1.0, 0.001])
+        self.fig.clear()
+        if actual_show_residual:
+            self._gs = self.fig.add_gridspec(2, 1, height_ratios=[4.6, 1.0], hspace=0.08)
+            self.ax = self.fig.add_subplot(self._gs[0])
+            self.ax_res = self.fig.add_subplot(self._gs[1], sharex=self.ax)
+        else:
+            self._gs = self.fig.add_gridspec(1, 1)
+            self.ax = self.fig.add_subplot(self._gs[0])
+            self.ax_res = None
+        self.ax.set_facecolor(s["ax_bg"])
+        if self.ax_res is not None:
+            self.ax_res.set_facecolor(s["res_bg"])
         self.ax.plot(v, y, ".", color=s["data"],
                      ms=s.get("data_ms", 3.5), alpha=s.get("data_alpha", 0.7),
                      label=tr("plot.legend_data"))
@@ -490,7 +498,7 @@ class SpectrumCanvas(FigureCanvas):
                          lw=s.get("model_lw", 2.2),
                          label=tr("plot.legend_model"))
             residual = y - model
-            if actual_show_residual:
+            if actual_show_residual and self.ax_res is not None:
                 self.ax_res.axhline(0, color=s["res_zero"], lw=0.9, alpha=0.9)
                 self.ax_res.fill_between(v, residual, 0, color=s["res_fill"],
                                          alpha=s.get("res_fill_alpha", 0.22))
@@ -499,14 +507,10 @@ class SpectrumCanvas(FigureCanvas):
                 lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
                 self.ax_res.set_ylim(-lim, lim)
                 self.ax.tick_params(labelbottom=False)
-            else:
-                self.ax_res.set_visible(False)
         if not actual_show_residual:
-            self.ax_res.set_visible(False)
             self.ax.tick_params(labelbottom=True)
             self.ax.set_xlabel(tr("plot.velocity_xlabel"), color=s["lbl"])
         else:
-            self.ax_res.set_visible(True)
             self.ax.set_xlabel("")
         self.ax.set_ylabel(tr("plot.transmission_ylabel"), color=s["lbl"])
         self.ax.set_title(tr("plot.title_discrete"), color=s["title"], pad=10,
@@ -518,14 +522,15 @@ class SpectrumCanvas(FigureCanvas):
             sp.set_color(s["spine"])
             if name in s.get("spines_hide", ()):
                 sp.set_visible(False)
-        self.ax_res.set_xlabel(tr("plot.velocity_xlabel"), color=s["lbl"])
-        self.ax_res.set_ylabel(tr("plot.residual_ylabel"), color=s["lbl"])
-        self.ax_res.tick_params(colors=s["res_tick"])
-        self.ax_res.grid(True, color=s["res_grid"], alpha=0.8, linewidth=0.75)
-        for name, sp in self.ax_res.spines.items():
-            sp.set_color(s["res_spine"])
-            if name in s.get("spines_hide", ()):
-                sp.set_visible(False)
+        if self.ax_res is not None:
+            self.ax_res.set_xlabel(tr("plot.velocity_xlabel"), color=s["lbl"])
+            self.ax_res.set_ylabel(tr("plot.residual_ylabel"), color=s["lbl"])
+            self.ax_res.tick_params(colors=s["res_tick"])
+            self.ax_res.grid(True, color=s["res_grid"], alpha=0.8, linewidth=0.75)
+            for name, sp in self.ax_res.spines.items():
+                sp.set_color(s["res_spine"])
+                if name in s.get("spines_hide", ()):
+                    sp.set_visible(False)
         if show_legend:
             self.ax.legend(loc="lower right", fontsize=9, framealpha=0.85,
                            facecolor=s["leg_face"], edgecolor=s["leg_edge"],
@@ -597,8 +602,32 @@ class DistributionPanel(QtWidgets.QGroupBox):
                   self.nbins, self.log_alpha):
             v.addWidget(w)
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
+
+        alpha_row = QtWidgets.QHBoxLayout()
+        for text, value in ((tr("bhf.alpha_fine", default="Fina"), -5.0),
+                            (tr("bhf.alpha_medium", default="Media"), -2.0),
+                            (tr("bhf.alpha_smooth", default="Suave"), 1.0)):
+            btn = QtWidgets.QPushButton(text)
+            btn.clicked.connect(lambda _=False, val=value: self._set_log_alpha(val))
+            alpha_row.addWidget(btn)
+        v.addLayout(alpha_row)
+
+        opts = QtWidgets.QVBoxLayout()
+        self.use_sharp = QtWidgets.QCheckBox(tr("bhf.use_sharp", default="Añadir componentes nítidas activas"))
+        self.refine_global = QtWidgets.QCheckBox(tr("bhf.refine_global", default="Refinar δ y Γ globales"))
+        self.lcurve_link = QtWidgets.QCommandLinkButton(tr("bhf.lcurve_alpha", default="L-curve α"))
+        self.lcurve_link.setDescription(tr("bhf.lcurve_hint", default="Estimar la regularización del histograma"))
+        for w in (self.use_sharp, self.refine_global):
+            opts.addWidget(w)
+            w.toggled.connect(lambda *_: self.paramChanged.emit())
+        opts.addWidget(self.lcurve_link)
+        v.addLayout(opts)
         v.addStretch(1)
         self.fixed_path: Path | None = None
+
+    def _set_log_alpha(self, value: float) -> None:
+        self.log_alpha.set_value(float(value))
+        self.paramChanged.emit()
 
     @property
     def shape(self) -> str:
@@ -1044,6 +1073,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.dist_panel.setVisible(False)
         self.dist_panel.paramChanged.connect(self._refresh_plot)
         self.dist_panel.loadFixedRequested.connect(self._on_load_fixed_distribution)
+        self.dist_panel.lcurve_link.clicked.connect(self.on_lcurve)
+        self.dist_panel.use_sharp.toggled.connect(self._set_dist_use_sharp)
+        self.dist_panel.refine_global.toggled.connect(self._set_dist_refine_global)
         sim_lay.addWidget(self.dist_panel)
         lv.addWidget(self.sim_controls_box)
         lv.addStretch(1)
@@ -1095,7 +1127,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         }
 
         splitter.setSizes([430, 1000, 0])
-        self._apply_layout_preset(self.layout_preset)
+        self._apply_layout_preset(self._layout_preset_with_available_space(self.layout_preset))
 
         # Conectar señales de cambio para refrescar el plot en vivo
         self.calib.paramChanged.connect(self._refresh_plot)
@@ -1263,14 +1295,12 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_add_sharp = QtGui.QAction(tr("options.add_sharp"), self,
                                             checkable=True)
         self.act_add_sharp.setChecked(self.dist_use_sharp)
-        self.act_add_sharp.toggled.connect(
-            lambda b: setattr(self, "dist_use_sharp", bool(b)))
+        self.act_add_sharp.toggled.connect(self._set_dist_use_sharp)
         adv_menu.addAction(self.act_add_sharp)
         self.act_refine_global = QtGui.QAction(tr("options.refine_global"), self,
                                                 checkable=True)
         self.act_refine_global.setChecked(self.dist_refine_global)
-        self.act_refine_global.toggled.connect(
-            lambda b: setattr(self, "dist_refine_global", bool(b)))
+        self.act_refine_global.toggled.connect(self._set_dist_refine_global)
         adv_menu.addAction(self.act_refine_global)
         fit_menu.addSeparator()
         act_free_all = QtGui.QAction(tr("fit.free_all"), self)
@@ -1361,6 +1391,31 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         act_configure_updates.triggered.connect(self.on_configure_updates)
         help_menu.addAction(act_configure_updates)
 
+
+    def _set_dist_use_sharp(self, enabled: bool) -> None:
+        self.dist_use_sharp = bool(enabled)
+        if hasattr(self, "act_add_sharp") and self.act_add_sharp.isChecked() != self.dist_use_sharp:
+            self.act_add_sharp.blockSignals(True)
+            self.act_add_sharp.setChecked(self.dist_use_sharp)
+            self.act_add_sharp.blockSignals(False)
+        if hasattr(self, "dist_panel") and self.dist_panel.use_sharp.isChecked() != self.dist_use_sharp:
+            self.dist_panel.use_sharp.blockSignals(True)
+            self.dist_panel.use_sharp.setChecked(self.dist_use_sharp)
+            self.dist_panel.use_sharp.blockSignals(False)
+        self._refresh_plot()
+
+    def _set_dist_refine_global(self, enabled: bool) -> None:
+        self.dist_refine_global = bool(enabled)
+        if hasattr(self, "act_refine_global") and self.act_refine_global.isChecked() != self.dist_refine_global:
+            self.act_refine_global.blockSignals(True)
+            self.act_refine_global.setChecked(self.dist_refine_global)
+            self.act_refine_global.blockSignals(False)
+        if hasattr(self, "dist_panel") and self.dist_panel.refine_global.isChecked() != self.dist_refine_global:
+            self.dist_panel.refine_global.blockSignals(True)
+            self.dist_panel.refine_global.setChecked(self.dist_refine_global)
+            self.dist_panel.refine_global.blockSignals(False)
+        self._refresh_plot()
+
     def _set_language(self, code: str) -> None:
         set_language(code)
         # Persistir
@@ -1446,6 +1501,15 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 self._insert_panel_widget(right_target, self._layout_panel_widgets[pid])
         self._center_top_widget.setVisible(bool(columns["center"]))
         self._center_bottom_widget.setVisible(right_w == 0 and bool(columns["right"]))
+
+    def _layout_preset_with_available_space(self, name: str) -> str:
+        """Coloca la simulación a la derecha si no cabe bien debajo del gráfico."""
+        if name == "Estándar":
+            screen = QtGui.QGuiApplication.primaryScreen()
+            width = screen.availableGeometry().width() if screen is not None else self.width()
+            if width >= 1450:
+                return "Tres columnas"
+        return name
 
     def _apply_layout_preset(self, name: str) -> None:
         """Aplica preset al QSplitter principal usando 3 columnas."""
@@ -1793,9 +1857,23 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             if is_deq:
                 self.dist_panel.bmin.label.setText(tr("slider.dist_bmin_quad"))
                 self.dist_panel.bmax.label.setText(tr("slider.dist_bmax_quad"))
+                self.dist_panel.quad.label.setText(tr("slider.dist_fixed_bhf", default="BHF fijo (T)"))
+                self.dist_panel.quad._lo = 0.0; self.dist_panel.quad._hi = 60.0
+                self.dist_panel.quad.spin.setRange(0.0, 60.0)
+                self.dist_panel.quad.spin.setSingleStep(0.01)
+                self.dist_panel.quad.spin.setSuffix(" T")
+                if self.dist_panel.quad.value() <= 4.0:
+                    self.dist_panel.quad.set_value(33.0)
             else:
                 self.dist_panel.bmin.label.setText(tr("slider.dist_bmin_bhf"))
                 self.dist_panel.bmax.label.setText(tr("slider.dist_bmax_bhf"))
+                self.dist_panel.quad.label.setText(tr("slider.dist_quad"))
+                self.dist_panel.quad._lo = -4.0; self.dist_panel.quad._hi = 4.0
+                self.dist_panel.quad.spin.setRange(-4.0, 4.0)
+                self.dist_panel.quad.spin.setSingleStep(0.001)
+                self.dist_panel.quad.spin.setSuffix("")
+                if self.dist_panel.quad.value() > 4.0:
+                    self.dist_panel.quad.set_value(0.0)
         self._refresh_plot()
 
     @property
@@ -2084,6 +2162,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             "absorber_model": self.absorber_model,
             "dist_use_sharp": self.dist_use_sharp,
             "dist_refine_global": self.dist_refine_global,
+            "dist_shape": self.dist_panel.shape if hasattr(self, "dist_panel") else "Histograma",
+            "dist_variable": "ΔEQ" if self.dist_variable == "quad" else "BHF",
             "fit_velocity": self.calib.fit_velocity.isChecked(),
             "fit_center": self.calib.fit_center.isChecked(),
             "fit_sigma": self.calib.fit_sigma.isChecked(),
@@ -2193,6 +2273,16 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 self.dist_use_sharp = bool(state["dist_use_sharp"])
             if "dist_refine_global" in state:
                 self.dist_refine_global = bool(state["dist_refine_global"])
+            shape_saved = state.get("dist_shape")
+            if shape_saved in ("Histograma", "Gaussiana", "Binomial", "Fija") and hasattr(self, "dist_panel"):
+                idx_shape = self.dist_panel.shape_combo.findData(shape_saved)
+                if idx_shape >= 0:
+                    self.dist_panel.shape_combo.setCurrentIndex(idx_shape)
+            var_saved = state.get("dist_variable")
+            if var_saved in ("BHF", "bhf"):
+                self.mode_combo.setCurrentIndex(1)
+            elif var_saved in ("ΔEQ", "quad"):
+                self.mode_combo.setCurrentIndex(2)
             # Sincroniza las acciones del menú avanzado si ya existen
             for grp_attr, val, items in (
                 ("likelihood_action_group", self.likelihood, ("gauss", "poisson")),
@@ -2215,6 +2305,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 a = getattr(self, attr, None)
                 if a is not None:
                     a.setChecked(bool(value))
+            if hasattr(self, "dist_panel"):
+                self.dist_panel.use_sharp.setChecked(bool(self.dist_use_sharp))
+                self.dist_panel.refine_global.setChecked(bool(self.dist_refine_global))
         finally:
             self._building = False
         self._refresh_plot()
@@ -2789,6 +2882,48 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         QtWidgets.QMessageBox.information(
             self, tr("msg.bootstrap_title"), "\n".join(msg_lines))
 
+    def _active_sharp_components_for_distribution(self) -> tuple[list[dict[str, float]] | None, list[int]]:
+        if not self.dist_use_sharp:
+            return None, []
+        components: list[dict[str, float]] = []
+        indices: list[int] = []
+        for cp in self.components_panels:
+            if not cp.enabled.isChecked():
+                continue
+            vals = cp.values_dict()
+            p = f"s{cp.idx}_"
+            kind = cp.kind
+            int1_gui = float(vals.get(p + "int1", 1.0))
+            int2_gui = float(vals.get(p + "int2", 1.0))
+            int3_gui = float(vals.get(p + "int3", 1.0))
+            if kind == "Sextete":
+                engine_int1 = int3_gui * int1_gui
+                if abs(int1_gui) > 1e-12:
+                    engine_int2_rel = 1.5 * int2_gui / int1_gui
+                    engine_int3_rel = 3.0 / int1_gui
+                else:
+                    engine_int2_rel = 0.0
+                    engine_int3_rel = 0.0
+            else:
+                engine_int1 = int1_gui
+                engine_int2_rel = int2_gui
+                engine_int3_rel = int3_gui
+            comp = {
+                "kind": kind,
+                "delta": float(vals.get(p + "delta", 0.0)),
+                "quad": float(vals.get(p + "quad", 0.0)),
+                "bhf": float(vals.get(p + "bhf", 33.0)),
+                "gamma": float(vals.get(p + "gamma1", 0.18)),
+                "gamma2_rel": float(vals.get(p + "gamma2", 1.0)),
+                "gamma3_rel": float(vals.get(p + "gamma3", 1.0)),
+                "int1": engine_int1,
+                "int2_rel": engine_int2_rel,
+                "int3_rel": engine_int3_rel,
+            }
+            components.append(comp)
+            indices.append(cp.idx)
+        return (components or None), indices
+
     # ── L-curve α scanner (modo distribución) ────────────────────────────
     def on_lcurve(self) -> None:
         if not self.is_distribution_mode:
@@ -2805,19 +2940,25 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         var = self.dist_variable
         bmin = float(d.bmin.value()); bmax = max(bmin + 0.5, float(d.bmax.value()))
         nbins = max(5, int(round(d.nbins.value())))
+        sharp_components, _sharp_indices = self._active_sharp_components_for_distribution()
+        fit_baseline = not self.calib.baseline.is_fixed()
+        fit_slope = not self.calib.slope.is_fixed()
         try:
+            common = dict(
+                delta=float(d.delta.value()), gamma=float(d.gamma.value()),
+                fit_baseline=fit_baseline, fit_slope=fit_slope,
+                baseline=float(self.calib.baseline.value()), slope=float(self.calib.slope.value()),
+                pmin=bmin, pmax=bmax, nbins=nbins, sigma=self.file.sigma,
+                sharp_components=sharp_components,
+            )
             if var == "quad":
                 fits = [fit_hyperfine_distribution(
                     self.file.velocity, self.file.y_data, variable="quad",
-                    delta=float(d.delta.value()), gamma=float(d.gamma.value()),
-                    pmin=bmin, pmax=bmax, nbins=nbins, alpha=float(a),
-                    sigma=self.file.sigma) for a in alphas]
+                    bhf=float(d.quad.value()), alpha=float(a), **common) for a in alphas]
             else:
-                fits = scan_alpha(
-                    self.file.velocity, self.file.y_data, list(alphas),
-                    delta=float(d.delta.value()), quad=float(d.quad.value()),
-                    gamma=float(d.gamma.value()),
-                    bmin=bmin, bmax=bmax, nbins=nbins, sigma=self.file.sigma)
+                fits = [fit_hyperfine_distribution(
+                    self.file.velocity, self.file.y_data, variable="bhf",
+                    quad=float(d.quad.value()), alpha=float(a), **common) for a in alphas]
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("bhf.lcurve_alpha"),
                                             f"{type(exc).__name__}: {exc}")
@@ -2849,8 +2990,15 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         ax2.set_title(tr("plot.alpha_scan_title"))
         ax2.grid(True, alpha=0.3, which="both")
         fig.tight_layout(); cv.draw_idle()
+        best_idx = int(np.nanargmin(rms)) if rms.size else 0
+        suggest = float(alphas[best_idx]) if alphas.size else 10.0 ** float(d.log_alpha.value())
+        buttons = QtWidgets.QHBoxLayout()
+        btn_use = QtWidgets.QPushButton(tr("button.use_lcurve", default="Usar α={value}", value=suggest))
+        btn_use.clicked.connect(lambda _=False, a=suggest, dialog=dlg: (d.log_alpha.set_value(float(np.log10(a))), dialog.accept()))
+        buttons.addWidget(btn_use); buttons.addStretch(1)
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
-        bb.rejected.connect(dlg.reject); v.addWidget(bb)
+        bb.rejected.connect(dlg.reject); buttons.addWidget(bb)
+        v.addLayout(buttons)
         dlg.exec()
 
     # ── Acciones rápidas ─────────────────────────────────────────────────
@@ -2960,61 +3108,140 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         label = "P(ΔEQ)" if var == "quad" else "P(BHF)"
         self.statusBar().showMessage(f"Ajustando {label} [{shape}]…")
         QtWidgets.QApplication.processEvents()
-        delta = float(d.delta.value())
-        quad_v = float(d.quad.value())
-        gamma_v = float(d.gamma.value())
+        sharp_components, sharp_indices = self._active_sharp_components_for_distribution()
+        fit_baseline = not self.calib.baseline.is_fixed()
+        fit_slope = not self.calib.slope.is_fixed()
+        base_delta = float(d.delta.value())
+        base_gamma = float(d.gamma.value())
         v_arr = self.file.velocity
         y_arr = self.file.y_data
-        try:
+
+        def run_fit(delta_value: float, gamma_value: float, sharp_for_fit: list[dict[str, float]] | None):
+            common = dict(
+                variable=var, delta=delta_value, gamma=gamma_value,
+                quad=(0.0 if var == "quad" else float(d.quad.value())),
+                bhf=(float(d.quad.value()) if var == "quad" else 33.0),
+                baseline=float(self.calib.baseline.value()), slope=float(self.calib.slope.value()),
+                sharp_components=sharp_for_fit,
+            )
             if shape == "Histograma":
-                # Hesse-Rübartsch (acepta sigma + alpha).
-                if var == "quad":
-                    result = fit_hyperfine_distribution(
-                        v_arr, y_arr, variable="quad",
-                        delta=delta, quad=quad_v, gamma=gamma_v,
-                        pmin=bmin, pmax=bmax, nbins=nbins, alpha=alpha,
-                        sigma=self.file.sigma)
-                else:
-                    result = fit_bhf_distribution(
-                        v_arr, y_arr,
-                        delta=delta, quad=quad_v, gamma=gamma_v,
-                        bmin=bmin, bmax=bmax, nbins=nbins, alpha=alpha,
-                        sigma=self.file.sigma)
-            elif shape == "Gaussiana":
-                result = fit_gaussian_hyperfine_distribution(
-                    v_arr, y_arr, variable=var,
-                    delta=delta, quad=quad_v, gamma=gamma_v,
-                    pmin=bmin, pmax=bmax, nbins=nbins)
-            elif shape == "Binomial":
-                result = fit_binomial_hyperfine_distribution(
-                    v_arr, y_arr, variable=var,
-                    delta=delta, quad=quad_v, gamma=gamma_v,
-                    pmin=bmin, pmax=bmax, nbins=nbins)
-            elif shape == "Fija":
+                return fit_hyperfine_distribution(
+                    v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins, alpha=alpha,
+                    fit_baseline=fit_baseline, fit_slope=fit_slope,
+                    sigma=self.file.sigma, **common)
+            if shape == "Gaussiana":
+                return fit_gaussian_hyperfine_distribution(
+                    v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins, **common)
+            if shape == "Binomial":
+                return fit_binomial_hyperfine_distribution(
+                    v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins, **common)
+            if shape == "Fija":
                 if d.fixed_path is None:
-                    QtWidgets.QMessageBox.information(
-                        self, label, "Carga primero un fichero de P fija.")
-                    return
-                # Lee fichero de dos columnas (centers, weights).
+                    raise RuntimeError("Carga primero un fichero de P fija.")
                 centers_arr, weights_arr = self._load_fixed_distribution(d.fixed_path)
-                result = fit_fixed_hyperfine_distribution(
-                    v_arr, y_arr, centers_arr, weights_arr, variable=var,
-                    delta=delta, quad=quad_v, gamma=gamma_v)
+                return fit_fixed_hyperfine_distribution(
+                    v_arr, y_arr, centers_arr, weights_arr, **common)
+            raise RuntimeError(f"Forma desconocida: {shape}")
+
+        outer_specs: list[tuple[str, str, float, float]] = []
+        if self.dist_refine_global:
+            if not d.delta.is_fixed():
+                outer_specs.append(("dist_delta", "lin", -2.5, 2.5))
+            if not d.gamma.is_fixed():
+                outer_specs.append(("dist_gamma", "loggamma", 0.03, 1.0))
+        if sharp_components:
+            for pos, idx in enumerate(sharp_indices):
+                cp = self.components_panels[idx - 1]
+                for pname in ("delta", "quad", "bhf", "gamma1"):
+                    if pname == "quad" and cp.kind == "Singlete":
+                        continue
+                    if pname == "bhf" and cp.kind != "Sextete":
+                        continue
+                    ctl = cp.params[pname]
+                    if ctl.is_fixed():
+                        continue
+                    outer_specs.append((f"sharp:{pos}:{pname}",
+                                        "loggamma" if pname == "gamma1" else "lin",
+                                        ctl._lo, ctl._hi))
+
+        def x0_bounds() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+            x0, lo, hi = [], [], []
+            for key, kind, lo_v, hi_v in outer_specs:
+                if key == "dist_delta":
+                    cur = base_delta
+                elif key == "dist_gamma":
+                    cur = base_gamma
+                else:
+                    _sharp, pos_txt, pname = key.split(":")
+                    cur = float(sharp_components[int(pos_txt)]["gamma" if pname == "gamma1" else pname])
+                if kind == "loggamma":
+                    x0.append(np.log(max(cur, lo_v))); lo.append(np.log(lo_v)); hi.append(np.log(hi_v))
+                else:
+                    x0.append(cur); lo.append(lo_v); hi.append(hi_v)
+            return np.array(x0, dtype=float), np.array(lo, dtype=float), np.array(hi, dtype=float)
+
+        def expand(x: np.ndarray) -> tuple[float, float, list[dict[str, float]] | None]:
+            delta_value = base_delta
+            gamma_value = base_gamma
+            local_sharp = [dict(c) for c in sharp_components] if sharp_components else None
+            for i, (key, kind, _lo, _hi) in enumerate(outer_specs):
+                value = float(np.exp(x[i])) if kind == "loggamma" else float(x[i])
+                if key == "dist_delta":
+                    delta_value = value
+                elif key == "dist_gamma":
+                    gamma_value = value
+                elif local_sharp is not None:
+                    _sharp, pos_txt, pname = key.split(":")
+                    local_sharp[int(pos_txt)]["gamma" if pname == "gamma1" else pname] = value
+            return delta_value, gamma_value, local_sharp
+
+        fitted_x = None
+        try:
+            if outer_specs:
+                x0, lo, hi = x0_bounds()
+                x0 = np.clip(x0, lo, hi)
+                def residual_outer(x: np.ndarray) -> np.ndarray:
+                    dd, gg, ss = expand(x)
+                    return run_fit(dd, gg, ss).residuals
+                opt = least_squares(residual_outer, x0, bounds=(lo, hi), max_nfev=60)
+                fitted_x = opt.x
+                delta_final, gamma_final, sharp_final = expand(fitted_x)
+                result = run_fit(delta_final, gamma_final, sharp_final)
             else:
-                raise RuntimeError(f"Forma desconocida: {shape}")
+                result = run_fit(base_delta, base_gamma, sharp_components)
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("fit.run"),
                                             f"{type(exc).__name__}: {exc}")
             return
-        # Pintar el ajuste sobre el canvas principal y abrir un diálogo
-        # con la curva P(BHF).
+
+        self._building = True
+        self.calib.baseline.set_value(float(result.baseline))
+        self.calib.slope.set_value(float(result.slope))
+        if fitted_x is not None:
+            for i, (key, kind, _lo, _hi) in enumerate(outer_specs):
+                value = float(np.exp(fitted_x[i])) if kind == "loggamma" else float(fitted_x[i])
+                if key == "dist_delta":
+                    d.delta.set_value(value)
+                elif key == "dist_gamma":
+                    d.gamma.set_value(value)
+                elif key.startswith("sharp:"):
+                    _sharp, pos_txt, pname = key.split(":")
+                    cp = self.components_panels[sharp_indices[int(pos_txt)] - 1]
+                    cp.params[pname].set_value(value)
+        if self.dist_use_sharp and result.sharp_weights is not None:
+            for idx, weight in zip(sharp_indices, result.sharp_weights):
+                self.components_panels[idx - 1].params["depth"].set_value(float(weight))
+        self._building = False
+
         style = get_style(self.plot_style_name)
+        show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
+        show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
         self.canvas.render(self.file.velocity, self.file.y_data,
-                           model=result.fitted_curve, style=style)
+                           model=result.fitted_curve, style=style,
+                           show_residual=show_res, show_legend=show_leg)
         msg = (f"{label}: bins={nbins}  α=10^{d.log_alpha.value():.2f}  "
                f"RMS={result.rms:.5g}")
         self.statusBar().showMessage(msg)
-        # Mostrar info
         class _R:
             pass
         r = _R()
