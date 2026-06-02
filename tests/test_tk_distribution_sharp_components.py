@@ -70,3 +70,56 @@ def test_distribution_sharp_builder_uses_components_above_three():
     assert indices == [1, 3, 4]
     assert len(components) == 3
     assert components[-1]["bhf"] == 33.0
+
+
+class DummyMutableVar:
+    def __init__(self, value):
+        self.value = value
+
+    def get(self):
+        return self.value
+
+    def set(self, value):
+        self.value = value
+
+
+class DummyWidget:
+    def __init__(self):
+        self.config = {}
+
+    def configure(self, **kwargs):
+        self.config.update(kwargs)
+
+
+def _dummy_app_for_distribution_limits(variable="BHF", bmin=0.0, bmax=50.0):
+    app = MossbauerApp.__new__(MossbauerApp)
+    app.dist_variable_var = DummyMutableVar(variable)
+    app.slider_specs = {"dist_bmin": (0.0, 60.0, 0.1), "dist_bmax": (0.0, 60.0, 0.1)}
+    app.vars = {"dist_bmin": DummyMutableVar(bmin), "dist_bmax": DummyMutableVar(bmax)}
+    app.entry_vars = {"dist_bmin": DummyMutableVar(str(bmin)), "dist_bmax": DummyMutableVar(str(bmax))}
+    app.slider_label_widgets = {}
+    app.slider_widget_refs = {"dist_bmin": {"slider": DummyWidget()}, "dist_bmax": {"slider": DummyWidget()}}
+    app.updating_sliders = False
+    app._set_slider_enabled = lambda *_args, **_kwargs: None
+    return app
+
+
+def test_distribution_range_limits_follow_selected_variable():
+    app = _dummy_app_for_distribution_limits("BHF")
+    assert app.distribution_range_limits() == (0.0, 60.0, 0.1)
+
+    app.dist_variable_var.set("ΔEQ")
+    assert app.distribution_range_limits() == (0.0, 7.0, 0.1)
+
+
+def test_distribution_range_sliders_are_clamped_for_aeq_mode():
+    app = _dummy_app_for_distribution_limits("ΔEQ", bmin=10.0, bmax=50.0)
+
+    app.refresh_dist_slider_labels()
+
+    assert app.slider_specs["dist_bmin"] == (0.0, 7.0, 0.1)
+    assert app.slider_specs["dist_bmax"] == (0.0, 7.0, 0.1)
+    assert app.vars["dist_bmin"].get() == 7.0
+    assert app.vars["dist_bmax"].get() == 7.0
+    assert app.slider_widget_refs["dist_bmin"]["slider"].config["to"] == 7.0
+    assert app.slider_widget_refs["dist_bmax"]["slider"].config["from_"] == 0.0
