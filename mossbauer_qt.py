@@ -824,6 +824,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.recent_files: list[str] = []
         self.layout_preset = "Estándar"
         self.custom_layouts: dict[str, dict] = {}
+        # Opciones avanzadas (compartidas con la GUI Tk)
+        self.likelihood = "gauss"          # "gauss" / "poisson"
+        self.robust_loss = "linear"        # "linear" / "soft_l1" / "huber"
+        self.propagate_calib = False
+        self.global_opt = False
+        self.absorber_model = "thin"       # "thin" / "thickness"
+        self.dist_use_sharp = False
+        self.dist_refine_global = False
         self._load_settings()
         self._build_ui()
         self._build_menubar()
@@ -1016,11 +1024,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         fit_menu.addAction(act_pbhf); self.mode_action_group.addAction(act_pbhf)
         self._mode_menu_actions = [act_discrete, act_pbhf]
         fit_menu.addSeparator()
-        # Submenú de opciones avanzadas (placeholders por ahora; algunas ya
-        # cubiertas por menús contextuales, otras quedan como TODO).
+        # Submenú de opciones avanzadas (igual estructura que la GUI Tk).
         adv_menu = fit_menu.addMenu(tr("options.advanced_fit"))
-        # Pérfil de línea (Lorentziana / Voigt) — accesible también con clic
-        # derecho sobre el slider σ.
+        # Perfil de línea
         prof_menu = adv_menu.addMenu(tr("options.line_profile"))
         self.profile_action_group = QtGui.QActionGroup(self)
         for kind, key in (("Lorentziana", "options.profile_lorentzian"),
@@ -1030,7 +1036,65 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 a.setChecked(True)
             a.triggered.connect(lambda _c, k=kind: self.calib._set_line_profile(k))
             prof_menu.addAction(a); self.profile_action_group.addAction(a)
-        adv_menu.addAction(self.act_lcurve if hasattr(self, "act_lcurve") else QtGui.QAction("L-curve α", self))
+        # Verosimilitud
+        lik_menu = adv_menu.addMenu(tr("options.likelihood"))
+        self.likelihood_action_group = QtGui.QActionGroup(self)
+        for val, key in (("gauss", "options.likelihood_gauss"),
+                          ("poisson", "options.likelihood_poisson")):
+            a = QtGui.QAction(tr(key), self, checkable=True)
+            if val == self.likelihood:
+                a.setChecked(True)
+            a.triggered.connect(lambda _c=False, v=val: setattr(self, "likelihood", v))
+            lik_menu.addAction(a); self.likelihood_action_group.addAction(a)
+        # Pérdida robusta
+        loss_menu = adv_menu.addMenu(tr("options.robust_loss"))
+        self.loss_action_group = QtGui.QActionGroup(self)
+        for val, key in (("linear", "options.loss_linear"),
+                          ("soft_l1", "options.loss_soft_l1"),
+                          ("huber", "options.loss_huber")):
+            a = QtGui.QAction(tr(key), self, checkable=True)
+            if val == self.robust_loss:
+                a.setChecked(True)
+            a.triggered.connect(lambda _c=False, v=val: setattr(self, "robust_loss", v))
+            loss_menu.addAction(a); self.loss_action_group.addAction(a)
+        # Propagar σ calibración (check)
+        self.act_propagate = QtGui.QAction(tr("options.propagate_calib"), self,
+                                            checkable=True)
+        self.act_propagate.setChecked(self.propagate_calib)
+        self.act_propagate.toggled.connect(
+            lambda b: setattr(self, "propagate_calib", bool(b)))
+        adv_menu.addAction(self.act_propagate)
+        # Optimización global DE (check)
+        self.act_global_opt = QtGui.QAction(tr("options.global_opt"), self,
+                                             checkable=True)
+        self.act_global_opt.setChecked(self.global_opt)
+        self.act_global_opt.toggled.connect(
+            lambda b: setattr(self, "global_opt", bool(b)))
+        adv_menu.addAction(self.act_global_opt)
+        # Modelo de absorbente
+        abs_menu = adv_menu.addMenu(tr("absorber.model_label"))
+        self.absorber_action_group = QtGui.QActionGroup(self)
+        for val, key in (("thin", "absorber.thin"),
+                          ("thickness", "absorber.thickness")):
+            a = QtGui.QAction(tr(key), self, checkable=True)
+            if val == self.absorber_model:
+                a.setChecked(True)
+            a.triggered.connect(lambda _c=False, v=val: setattr(self, "absorber_model", v))
+            abs_menu.addAction(a); self.absorber_action_group.addAction(a)
+        adv_menu.addSeparator()
+        # P(BHF) extras
+        self.act_add_sharp = QtGui.QAction(tr("options.add_sharp"), self,
+                                            checkable=True)
+        self.act_add_sharp.setChecked(self.dist_use_sharp)
+        self.act_add_sharp.toggled.connect(
+            lambda b: setattr(self, "dist_use_sharp", bool(b)))
+        adv_menu.addAction(self.act_add_sharp)
+        self.act_refine_global = QtGui.QAction(tr("options.refine_global"), self,
+                                                checkable=True)
+        self.act_refine_global.setChecked(self.dist_refine_global)
+        self.act_refine_global.toggled.connect(
+            lambda b: setattr(self, "dist_refine_global", bool(b)))
+        adv_menu.addAction(self.act_refine_global)
         fit_menu.addSeparator()
         act_free_all = QtGui.QAction(tr("fit.free_all"), self)
         act_free_all.triggered.connect(lambda: self._set_all_fixed(False))
@@ -1045,7 +1109,6 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         act_presets = QtGui.QAction(tr("options.physical_presets"), self)
         act_presets.triggered.connect(self.on_physical_presets)
         fit_menu.addAction(act_presets)
-        # L-curve α independiente (mismo método)
         self.act_lcurve = QtGui.QAction(tr("bhf.lcurve_alpha"), self)
         self.act_lcurve.triggered.connect(self.on_lcurve)
         self.act_lcurve.setEnabled(False)
@@ -1062,6 +1125,17 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_show_legend.toggled.connect(lambda _: self._refresh_plot())
         view_menu.addAction(self.act_show_legend)
         view_menu.addSeparator()
+        # Tema UI (QStyle de Qt). Por defecto Fusion.
+        theme_menu = view_menu.addMenu(tr("options.theme"))
+        self.theme_action_group = QtGui.QActionGroup(self)
+        from PySide6 import QtWidgets as _qw
+        available_styles = _qw.QStyleFactory.keys()
+        for style_name in available_styles:
+            a = QtGui.QAction(style_name, self, checkable=True)
+            if style_name.lower() == "fusion":
+                a.setChecked(True)
+            a.triggered.connect(lambda _c=False, s=style_name: self._set_qt_style(s))
+            theme_menu.addAction(a); self.theme_action_group.addAction(a)
         style_menu = view_menu.addMenu(tr("options.plot_style"))
         self.style_action_group = QtGui.QActionGroup(self)
         for value, label_key in (
@@ -1106,6 +1180,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         act_check_updates = QtGui.QAction(tr("help.check_updates"), self)
         act_check_updates.triggered.connect(self.on_check_updates)
         help_menu.addAction(act_check_updates)
+        act_configure_updates = QtGui.QAction(tr("help.configure_updates"), self)
+        act_configure_updates.triggered.connect(self.on_configure_updates)
+        help_menu.addAction(act_configure_updates)
 
     def _set_language(self, code: str) -> None:
         set_language(code)
@@ -1254,6 +1331,24 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._rebuild_recent_menu()
         self._save_settings()
 
+    def _set_qt_style(self, style_name: str) -> None:
+        try:
+            QtWidgets.QApplication.instance().setStyle(style_name)
+        except Exception:
+            return
+        self.qt_style = style_name
+        try:
+            import json
+            current = {}
+            if SETTINGS_PATH.exists():
+                current = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+            current["qt_style"] = style_name
+            SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            SETTINGS_PATH.write_text(
+                json.dumps(current, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
+
     def _set_plot_style(self, name: str) -> None:
         self.plot_style_name = name
         apply_rc(name)
@@ -1389,6 +1484,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             voigt_sigma=self.calib.voigt_sigma.value(),
             line_profile=self.calib.line_profile,
             constraints=list(self.constraints),
+            likelihood=self.likelihood,
+            robust_loss=self.robust_loss,
+            propagate_calib=self.propagate_calib,
+            global_opt=self.global_opt,
+            absorber_model=self.absorber_model,
         )
 
     # ── Acciones ─────────────────────────────────────────────────────────
@@ -1537,6 +1637,13 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             "component_kind": component_kind,
             "intensity_mode": intensity_mode,
             "quad_treatment": quad_treatment,
+            "likelihood": self.likelihood,
+            "robust_loss": self.robust_loss,
+            "propagate_calib": self.propagate_calib,
+            "global_opt": self.global_opt,
+            "absorber_model": self.absorber_model,
+            "dist_use_sharp": self.dist_use_sharp,
+            "dist_refine_global": self.dist_refine_global,
             "fit_velocity": self.calib.fit_velocity.isChecked(),
             "fit_center": self.calib.fit_center.isChecked(),
             "fit_sigma": self.calib.fit_sigma.isChecked(),
@@ -1621,6 +1728,46 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             self.calib.fit_velocity.setChecked(bool(state.get("fit_velocity", False)))
             self.calib.fit_center.setChecked(bool(state.get("fit_center", False)))
             self.calib.fit_sigma.setChecked(bool(state.get("fit_sigma", False)))
+            # Opciones avanzadas
+            lk = state.get("likelihood")
+            if lk in ("gauss", "poisson"):
+                self.likelihood = lk
+            rl = state.get("robust_loss")
+            if rl in ("linear", "soft_l1", "huber"):
+                self.robust_loss = rl
+            if "propagate_calib" in state:
+                self.propagate_calib = bool(state["propagate_calib"])
+            if "global_opt" in state:
+                self.global_opt = bool(state["global_opt"])
+            am = state.get("absorber_model")
+            if am in ("thin", "thickness"):
+                self.absorber_model = am
+            if "dist_use_sharp" in state:
+                self.dist_use_sharp = bool(state["dist_use_sharp"])
+            if "dist_refine_global" in state:
+                self.dist_refine_global = bool(state["dist_refine_global"])
+            # Sincroniza las acciones del menú avanzado si ya existen
+            for grp_attr, val, items in (
+                ("likelihood_action_group", self.likelihood, ("gauss", "poisson")),
+                ("loss_action_group", self.robust_loss, ("linear", "soft_l1", "huber")),
+                ("absorber_action_group", self.absorber_model, ("thin", "thickness")),
+            ):
+                grp = getattr(self, grp_attr, None)
+                if grp is None:
+                    continue
+                actions = grp.actions()
+                for idx_, key_ in enumerate(items):
+                    if key_ == val and idx_ < len(actions):
+                        actions[idx_].setChecked(True)
+            for attr, value in (
+                ("act_propagate", self.propagate_calib),
+                ("act_global_opt", self.global_opt),
+                ("act_add_sharp", self.dist_use_sharp),
+                ("act_refine_global", self.dist_refine_global),
+            ):
+                a = getattr(self, attr, None)
+                if a is not None:
+                    a.setChecked(bool(value))
         finally:
             self._building = False
         self._refresh_plot()
@@ -1996,6 +2143,41 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 f"Subido como analysis #{r.get('id', '?')}", 5000)
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("file.upload_session"), str(exc))
+
+    def on_configure_updates(self) -> None:
+        """Diálogo mínimo: toggles de check-al-arrancar y descarga de checksum."""
+        import json
+        cfg = {}
+        if SETTINGS_PATH.exists():
+            try:
+                cfg = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+            except Exception:
+                cfg = {}
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(tr("help.configure_updates"))
+        v = QtWidgets.QVBoxLayout(dlg)
+        cb_startup = QtWidgets.QCheckBox(
+            "Buscar actualizaciones al arrancar (silencioso)")
+        cb_startup.setChecked(bool(cfg.get("check_updates_on_startup", False)))
+        v.addWidget(cb_startup)
+        cb_checksum = QtWidgets.QCheckBox(
+            "Verificar checksum SHA-256 al descargar")
+        cb_checksum.setChecked(bool(cfg.get("verify_update_checksum", True)))
+        v.addWidget(cb_checksum)
+        bb = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        bb.accepted.connect(dlg.accept); bb.rejected.connect(dlg.reject)
+        v.addWidget(bb)
+        if dlg.exec() != QtWidgets.QDialog.Accepted:
+            return
+        cfg["check_updates_on_startup"] = bool(cb_startup.isChecked())
+        cfg["verify_update_checksum"] = bool(cb_checksum.isChecked())
+        try:
+            SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            SETTINGS_PATH.write_text(
+                json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception as exc:
+            QtWidgets.QMessageBox.warning(self, tr("help.configure_updates"), str(exc))
 
     # ── Check for updates ───────────────────────────────────────────────
     def on_check_updates(self) -> None:
