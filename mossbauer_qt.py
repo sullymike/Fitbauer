@@ -904,6 +904,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_init.triggered.connect(self.on_init_from_minima)
         self.act_init.setEnabled(False)
         fit_menu.addAction(self.act_init)
+        self.act_auto_fit = QtGui.QAction(tr("fit.auto_from_minima"), self)
+        self.act_auto_fit.triggered.connect(self.on_auto_fit_from_minima)
+        self.act_auto_fit.setEnabled(False)
+        fit_menu.addAction(self.act_auto_fit)
+        self.act_ai = QtGui.QAction(tr("fit.ollama_start"), self)
+        self.act_ai.triggered.connect(self.on_ai_summary)
+        self.act_ai.setEnabled(False)
+        fit_menu.addAction(self.act_ai)
         self.act_fit = QtGui.QAction(tr("fit.run"), self)
         self.act_fit.setShortcut("Ctrl+R")
         self.act_fit.triggered.connect(self.on_fit)
@@ -1213,6 +1221,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                                 f"norm={norm:.4g}")
         self.act_fit.setEnabled(True)
         self.act_init.setEnabled(True)
+        self.act_auto_fit.setEnabled(True)
+        self.act_ai.setEnabled(True)
         self.act_profile.setEnabled(True)
         self.act_find_center.setEnabled(True)
         self.act_save_fit.setEnabled(True)
@@ -1936,6 +1946,70 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         fig.tight_layout(); cv.draw_idle()
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
         bb.rejected.connect(dlg.reject); v.addWidget(bb)
+        dlg.exec()
+
+    def on_auto_fit_from_minima(self) -> None:
+        """Atajo: inicializa desde mínimos y a continuación ejecuta el ajuste."""
+        self.on_init_from_minima()
+        if not self.is_distribution_mode:
+            self.on_fit()
+
+    def on_ai_summary(self) -> None:
+        """Muestra un resumen JSON del espectro listo para pegar en un LLM."""
+        if self.file.velocity is None or self.file.y_data is None:
+            return
+        from scipy.signal import find_peaks
+        v = self.file.velocity
+        y = self.file.y_data
+        baseline = float(np.percentile(y, 90))
+        absorption = np.maximum(baseline - y, 0.0)
+        max_abs = float(np.nanmax(absorption)) or 1.0
+        dv = abs(float(v[1] - v[0])) if v.size > 1 else 0.05
+        idxs, _ = find_peaks(absorption, height=0.06 * max_abs,
+                              distance=max(3, int(0.15 / dv)))
+        peaks = []
+        for i in idxs:
+            half = 0.5 * absorption[int(i)]
+            left = int(i); right = int(i)
+            while left > 0 and absorption[left] > half:
+                left -= 1
+            while right < absorption.size - 1 and absorption[right] > half:
+                right += 1
+            width = float(abs(v[right] - v[left]))
+            peaks.append({"v_mm_s": round(float(v[i]), 4),
+                           "depth": round(float(absorption[int(i)]), 5),
+                           "fwhm_mm_s": round(width, 4)})
+        summary = {
+            "file": self.file.path.name if self.file.path else None,
+            "n_channels": int(self.file.counts.size) if self.file.counts is not None else 0,
+            "vmin_mm_s": round(float(np.min(v)), 4),
+            "vmax_mm_s": round(float(np.max(v)), 4),
+            "y_min": round(float(np.min(y)), 5),
+            "y_max": round(float(np.max(y)), 5),
+            "baseline_est": round(baseline, 5),
+            "detected_minima": peaks,
+            "ask": "Suggest a discrete Mössbauer Fe-57 fit (sextet/doublet/singlet) with starting δ, ΔEQ, BHF, Γ, depth.",
+        }
+        import json
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle("Resumen espectro (para IA/LLM)")
+        dlg.resize(640, 480)
+        v_lay = QtWidgets.QVBoxLayout(dlg)
+        v_lay.addWidget(QtWidgets.QLabel(
+            "<i>Copia este JSON en cualquier LLM (Ollama, ChatGPT, Claude, …) "
+            "para que sugiera valores iniciales del ajuste.</i>"))
+        text = QtWidgets.QTextEdit()
+        text.setReadOnly(True)
+        text.setStyleSheet("QTextEdit { font-family: monospace; font-size: 10pt; }")
+        text.setPlainText(json.dumps(summary, indent=2, ensure_ascii=False))
+        v_lay.addWidget(text, stretch=1)
+        btn_copy = QtWidgets.QPushButton("Copiar al portapapeles")
+        btn_copy.clicked.connect(
+            lambda: QtWidgets.QApplication.clipboard().setText(text.toPlainText()))
+        v_lay.addWidget(btn_copy)
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
+        bb.rejected.connect(dlg.reject)
+        v_lay.addWidget(bb)
         dlg.exec()
 
     # ── Auto-inicialización desde mínimos ───────────────────────────────

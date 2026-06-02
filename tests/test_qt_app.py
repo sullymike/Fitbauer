@@ -190,6 +190,27 @@ def test_export_report_writes_markdown(win, tmp_path):
     assert "Mössbauer" in content and "Componentes" in content
 
 
+def test_auto_fit_from_minima(win):
+    """Auto-fit = init + fit; sobre α-Fe recupera BHF≈33."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    # Mete valores groseramente desviados
+    cp = win.components_panels[0]
+    cp.params["bhf"].set_value(20.0)
+    cp.params["delta"].set_value(0.5)
+    win.on_auto_fit_from_minima()
+    bhf = cp.params["bhf"].value()
+    assert abs(bhf - 33.0) < 1.0
+
+
+def test_ai_summary_dialog_builds(win, monkeypatch):
+    """AI summary construye un JSON con los picos detectados sin bloquear modal."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    monkeypatch.setattr(
+        QtWidgets.QDialog, "exec",
+        lambda self_: QtWidgets.QDialog.Accepted)
+    win.on_ai_summary()  # No debe lanzar
+
+
 def test_recent_files_updates_on_load(win, monkeypatch):
     """Cargar un fichero añade su path a recent_files."""
     # No tocar settings.json real
