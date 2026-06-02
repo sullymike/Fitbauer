@@ -544,9 +544,14 @@ class ComponentPanel(QtWidgets.QWidget):
     def kind(self) -> str:
         return self.type_combo.currentText()
 
-    def _on_type_changed(self, kind: str) -> None:
-        used = set(self._USED_BY.get(kind, set()))
-        if kind == "Sextete":
+    def relevant_params(self) -> set[str]:
+        """Parámetros realmente usados por el tipo y modo actuales.
+
+        Los no incluidos (p. ej. 'texture' en modo libre, 'beta' salvo Kundig
+        fijo, int1/int2 en modo textura, int3 siempre) no deben ajustarse.
+        """
+        used = set(self._USED_BY.get(self.kind, set()))
+        if self.kind == "Sextete":
             if self.intensity_mode == "texture":
                 used.discard("int1")
                 used.discard("int2")
@@ -557,6 +562,10 @@ class ComponentPanel(QtWidgets.QWidget):
         else:
             used.discard("texture")
             used.discard("beta")
+        return used
+
+    def _on_type_changed(self, kind: str) -> None:
+        used = self.relevant_params()
         for name, ctl in self.params.items():
             ctl.setEnabled(name in used)
         self.paramChanged.emit()
@@ -2873,6 +2882,13 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         for cp in self.components_panels:
             values.update(cp.values_dict())
             fixed.update(cp.fixed_dict())
+            # Los parámetros no relevantes para el tipo/modo del componente
+            # (p. ej. 'texture' en modo libre, int3, 'beta' salvo Kundig fijo)
+            # nunca se ajustan, aunque su casilla 'fijo' esté desmarcada.
+            relevant = cp.relevant_params()
+            for name in cp.params:
+                if name not in relevant:
+                    fixed[f"s{cp.idx}_{name}"] = True
             for name, rng in param_bounds:
                 bounds[f"s{cp.idx}_{name}"] = rng
             components.append(Component(idx=cp.idx,
