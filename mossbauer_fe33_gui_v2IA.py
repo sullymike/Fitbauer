@@ -4045,6 +4045,57 @@ class MossbauerFe33GUI(tk.Tk):
 
         return dialog, update, close
 
+    def _build_fit_state(self, *, fit_velocity: bool = False,
+                         fit_center: bool = False, fit_sigma: bool = False):
+        """Construye un ``core.fit_engine.FitState`` desde el estado de la GUI.
+
+        Fuente única del mapeo GUI→motor, compartida por el ajuste, el bootstrap
+        y la verosimilitud perfilada. El conjunto de parámetros libres se fuerza
+        idéntico al de la GUI marcando como fijas todas las demás claves de
+        modelo (incluidas las de componentes inactivos).
+        """
+        from core.fit_engine import FitState as _FitState, Component as _Comp
+        self.apply_constraints_to_vars()
+        constrained = self.constrained_target_keys()
+        tk_free = {
+            k for k in self.active_param_keys()
+            if k not in constrained
+            and not self.fixed_vars.get(k, tk.BooleanVar(value=False)).get()
+        }
+        all_values = {k: var.get() for k, var in self.vars.items()}
+        fixed_map = {
+            k: (True if k in ("vmax", "center", "voigt_sigma") else (k not in tk_free))
+            for k in all_values
+        }
+        bounds_map = {k: self.bounds_for_key(k) for k in all_values}
+        components = [
+            _Comp(
+                idx=idx,
+                enabled=bool(self.sextet_enabled[idx].get()),
+                kind=self.component_kind[idx].get(),
+                intensity_mode=(self.intensity_mode[idx].get()
+                                if getattr(self, "intensity_mode", {}).get(idx) is not None else "free"),
+                quad_treatment=(self.quad_treatment[idx].get()
+                                if getattr(self, "quad_treatment", {}).get(idx) is not None else "1st_order"),
+            )
+            for idx in (1, 2, 3)
+        ]
+        return _FitState(
+            velocity=self.velocity, y_data=self.y_data, sigma_data=self.data_sigma(),
+            values=all_values, fixed=fixed_map, bounds=bounds_map,
+            components=components, constraints=list(self.enabled_constraints()),
+            likelihood=self.likelihood_var.get(),
+            robust_loss=self.robust_loss_var.get(),
+            line_profile=self.line_profile_var.get(),
+            voigt_sigma=float(self.vars["voigt_sigma"].get()),
+            propagate_calib=bool(self.propagate_calib_var.get()),
+            sigma_vmax=self.calibration_vmax_sigma(),
+            global_opt=bool(self.global_opt_var.get()),
+            fit_velocity=fit_velocity, fit_center=fit_center, fit_sigma=fit_sigma,
+            absorber_model=self.absorber_model_var.get(),
+            counts=self.counts, norm_factor=self.norm_factor,
+        )
+
     def fit_current_data(self) -> None:
         global VOIGT_SIGMA
         self._simulate_enabled = True
@@ -4080,9 +4131,7 @@ class MossbauerFe33GUI(tk.Tk):
         # mismo que usa la GUI Qt). Construimos un FitState desde el estado de la
         # GUI; core reproduce el residuo (σ Poisson/calibración), el re-folding
         # del centro, el modo textura y las restricciones encadenadas.
-        from core.fit_engine import (
-            FitState as _FitState, Component as _Comp, fit_discrete as _fit_discrete,
-        )
+        from core.fit_engine import fit_discrete as _fit_discrete
 
         def data_for_center(center_value: float) -> tuple[np.ndarray, np.ndarray | None]:
             if not fit_center or self.counts is None:
@@ -4096,43 +4145,8 @@ class MossbauerFe33GUI(tk.Tk):
             return yy, np.maximum(sig, 1e-9)
 
         use_poisson = self.likelihood_var.get() == "poisson"
-
-        # free_keys es el conjunto autoritativo de la GUI; forzamos a core a
-        # derivar el mismo marcando como fijas todas las demás claves de modelo.
-        tk_free = set(free_keys)
-        all_values = {k: var.get() for k, var in self.vars.items()}
-        fixed_map = {
-            k: (True if k in ("vmax", "center", "voigt_sigma") else (k not in tk_free))
-            for k in all_values
-        }
-        bounds_map = {k: self.bounds_for_key(k) for k in all_values}
-        components = [
-            _Comp(
-                idx=idx,
-                enabled=bool(self.sextet_enabled[idx].get()),
-                kind=self.component_kind[idx].get(),
-                intensity_mode=(self.intensity_mode[idx].get()
-                                if getattr(self, "intensity_mode", {}).get(idx) is not None else "free"),
-                quad_treatment=(self.quad_treatment[idx].get()
-                                if getattr(self, "quad_treatment", {}).get(idx) is not None else "1st_order"),
-            )
-            for idx in (1, 2, 3)
-        ]
-        state = _FitState(
-            velocity=self.velocity, y_data=y, sigma_data=sigma,
-            values=all_values, fixed=fixed_map, bounds=bounds_map,
-            components=components, constraints=list(self.enabled_constraints()),
-            likelihood=self.likelihood_var.get(),
-            robust_loss=self.robust_loss_var.get(),
-            line_profile=self.line_profile_var.get(),
-            voigt_sigma=float(self.vars["voigt_sigma"].get()),
-            propagate_calib=bool(self.propagate_calib_var.get()),
-            sigma_vmax=self.calibration_vmax_sigma(),
-            global_opt=bool(self.global_opt_var.get()),
-            fit_velocity=fit_velocity, fit_center=fit_center, fit_sigma=fit_sigma,
-            absorber_model=self.absorber_model_var.get(),
-            counts=self.counts, norm_factor=self.norm_factor,
-        )
+        state = self._build_fit_state(
+            fit_velocity=fit_velocity, fit_center=fit_center, fit_sigma=fit_sigma)
 
         progress = self.open_progress_dialog(tr("progress.fitting_title"), tr("progress.fit_prepare"))
         _progress_dialog, update_progress, close_progress = progress
@@ -4192,7 +4206,7 @@ class MossbauerFe33GUI(tk.Tk):
         localiza los cruces Δχ²=1 (1σ) y Δχ²=4 (2σ). Guarda los resultados en
         ``self.last_fit_profile_errors`` y muestra una ventana con las curvas.
         """
-        from core.profile_likelihood import asymmetric_intervals
+        from core.fit_engine import profile_likelihood as _profile_likelihood
         if self.fit_mode_var.get() == "bhf_distribution":
             messagebox.showinfo(
                 tr("msg.profile_lik_title"), tr("msg.profile_lik_discrete_only"))
@@ -4204,100 +4218,16 @@ class MossbauerFe33GUI(tk.Tk):
                 tr("msg.profile_lik_title"), tr("msg.profile_lik_no_fit"))
             return
 
-        free_keys = list(self.last_fit_free_keys)
-        keys_all = self.active_param_keys()
-        base_values = {k: self.vars[k].get() for k in keys_all}
-        vmax = self.vars["vmax"].get()
-        use_poisson = self.likelihood_var.get() == "poisson"
-        y_data = self.y_data
-        sigma_data = self.data_sigma()
-
-        def _weighted_chi2(values: dict[str, float]) -> float:
-            values = self.apply_constraints_to_values(values)
-            m = self.model_from_values(values, vmax)
-            if use_poisson:
-                sig = self.predicted_sigma(m)
-                if sig is None:
-                    sig = sigma_data
-            else:
-                sig = sigma_data
-            sig = self.augment_sigma_calibration(sig, m, vmax)
-            if sig is None:
-                return float(np.sum((m - y_data) ** 2))
-            return float(np.sum(((m - y_data) / sig) ** 2))
-
-        chi2_min = float(self.last_fit_stats.get("chi2") or _weighted_chi2(base_values))
-
-        def _cost_with_fixed(fix_key: str, fix_val: float) -> float:
-            other_keys = [k for k in free_keys if k != fix_key]
-            if not other_keys:
-                vals = base_values.copy()
-                vals[fix_key] = fix_val
-                return _weighted_chi2(vals)
-            lo_arr = np.array([self.bounds_for_key(k)[0] for k in other_keys], dtype=float)
-            hi_arr = np.array([self.bounds_for_key(k)[1] for k in other_keys], dtype=float)
-            x0 = np.clip(np.array([base_values[k] for k in other_keys], dtype=float), lo_arr, hi_arr)
-
-            def _resid(x: np.ndarray) -> np.ndarray:
-                vals = base_values.copy()
-                for k, v in zip(other_keys, x):
-                    vals[k] = float(v)
-                vals[fix_key] = fix_val
-                vals = self.apply_constraints_to_values(vals)
-                m = self.model_from_values(vals, vmax)
-                if use_poisson:
-                    sig = self.predicted_sigma(m)
-                    if sig is None:
-                        sig = sigma_data
-                else:
-                    sig = sigma_data
-                sig = self.augment_sigma_calibration(sig, m, vmax)
-                if sig is None:
-                    return m - y_data
-                return (m - y_data) / sig
-
-            try:
-                res = least_squares(_resid, x0, bounds=(lo_arr, hi_arr), max_nfev=2000)
-                return 2.0 * float(res.cost)
-            except Exception:
-                return float("inf")
-
+        state = self._build_fit_state()
         progress = self.open_progress_dialog(
             tr("progress.profile_lik_title"), tr("progress.profile_lik_prepare"))
         _dlg, update_progress, close_progress = progress
-        results: dict[str, dict] = {}
         try:
-            for ki, key in enumerate(free_keys, 1):
-                update_progress(tr("progress.profile_lik_step", i=ki, n=len(free_keys), name=key))
-                best = float(base_values[key])
-                sigma_est = float(self.last_fit_param_errors.get(key) or 0.0)
-                if sigma_est <= 0:
-                    sigma_est = max(0.05 * (abs(best) + 1.0), 1e-6)
-                lo_b, hi_b = self.bounds_for_key(key)
-                scan_vals = np.array([])
-                d_chi2 = np.array([])
-                # Escaneo adaptativo: empieza en ±3σ; si Δχ²=1 no se cruza en
-                # un lado pero hay margen frente al límite físico, amplía a ±5σ.
-                for span in (3.0, 5.0):
-                    left = np.linspace(max(lo_b, best - span * sigma_est), best, 11)
-                    right = np.linspace(best, min(hi_b, best + span * sigma_est), 11)
-                    grid = np.unique(np.concatenate([left, right]))
-                    costs = np.array([_cost_with_fixed(key, float(v)) for v in grid])
-                    d = costs - chi2_min
-                    bracket_left = any(d[i] >= 1.0 for i, v in enumerate(grid) if v < best)
-                    bracket_right = any(d[i] >= 1.0 for i, v in enumerate(grid) if v > best)
-                    headroom_left = (best - lo_b) > span * sigma_est * 1.05
-                    headroom_right = (hi_b - best) > span * sigma_est * 1.05
-                    scan_vals, d_chi2 = grid, d
-                    if (bracket_left or not headroom_left) and (bracket_right or not headroom_right):
-                        break
-                intervals = asymmetric_intervals(scan_vals, d_chi2, best)
-                results[key] = {
-                    "best": best,
-                    "scan_values": scan_vals.tolist(),
-                    "d_chi2": d_chi2.tolist(),
-                    **intervals,
-                }
+            results = _profile_likelihood(
+                state, points_per_side=11,
+                progress_cb=lambda _m, i, n: update_progress(
+                    tr("progress.profile_lik_step", i=i, n=n,
+                       name=list(self.last_fit_free_keys)[min(i, len(self.last_fit_free_keys)) - 1])))
         except Exception as exc:
             close_progress()
             messagebox.showerror(tr("msg.profile_lik_title"), str(exc))
@@ -4583,79 +4513,46 @@ class MossbauerFe33GUI(tk.Tk):
                    command=dlg.destroy).pack(pady=6)
 
     def bootstrap_errors_current(self) -> None:
-        """Estimación Monte Carlo rápida de errores para el modelo discreto actual."""
+        """Estimación Monte Carlo de errores (delega en core.fit_engine)."""
+        from core.fit_engine import bootstrap_errors as _bootstrap_errors
         if self.fit_mode_var.get() == "bhf_distribution":
             messagebox.showinfo(tr("msg.bootstrap_title"), tr("msg.bootstrap_discrete_only"))
             return
         if self.velocity is None or self.y_data is None:
             return
         self._simulate_enabled = True
-        model0 = self.current_model()
-        sigma = self.data_sigma()
-        if model0 is None or sigma is None:
+        if self.current_model() is None or self.data_sigma() is None:
             messagebox.showwarning(tr("msg.bootstrap_title"), tr("msg.bootstrap_no_model"))
             return
-        keys = self.active_param_keys()
         constrained_targets = self.constrained_target_keys()
-        free_keys = [key for key in keys if key not in constrained_targets and not self.fixed_vars.get(key, tk.BooleanVar(value=False)).get()]
+        free_keys = [key for key in self.active_param_keys()
+                     if key not in constrained_targets
+                     and not self.fixed_vars.get(key, tk.BooleanVar(value=False)).get()]
         if not free_keys:
             messagebox.showinfo(tr("msg.bootstrap_title"), tr("msg.bootstrap_no_free"))
             return
         nrep = simpledialog.askinteger(tr("msg.bootstrap_title"), tr("dialog.bootstrap_prompt"), initialvalue=30, minvalue=5, maxvalue=300, parent=self)
         if not nrep:
             return
-        base_values = {key: self.vars[key].get() for key in keys}
-        lo = np.array([self.bounds_for_key(k)[0] for k in free_keys], dtype=float)
-        hi = np.array([self.bounds_for_key(k)[1] for k in free_keys], dtype=float)
-        x0 = np.clip(np.array([base_values[k] for k in free_keys], dtype=float), lo, hi)
-
-        def model_values(values: dict[str, float]) -> np.ndarray:
-            return self.model_from_values(values, self.vars["vmax"].get())
-
+        state = self._build_fit_state()
         progress = self.open_progress_dialog(tr("progress.bootstrap_title"), tr("progress.bootstrap_prepare"))
         _dlg, update_progress, close_progress = progress
-        rng = np.random.default_rng(24680)
-        use_poisson_boot = self.likelihood_var.get() == "poisson"
-        norm_factor = max(float(self.norm_factor or 1.0), 1e-12)
-        samples: list[np.ndarray] = []
         try:
-            for i in range(int(nrep)):
-                if use_poisson_boot:
-                    # Simulación Poisson real: c_sim ~ Poisson(λ_pred=model0·f_norm·2)/2
-                    lam = np.maximum(model0 * norm_factor * 2.0, 0.0)
-                    c_sim = rng.poisson(lam).astype(float) / 2.0
-                    y_sim = c_sim / norm_factor
-                else:
-                    y_sim = model0 + rng.normal(0.0, sigma)
-
-                def resid(x: np.ndarray, _y_sim=y_sim) -> np.ndarray:
-                    vals = base_values.copy()
-                    for key, value in zip(free_keys, x):
-                        vals[key] = float(value)
-                    vals = self.apply_constraints_to_values(vals)
-                    model_v = model_values(vals)
-                    sig_use = self.predicted_sigma(model_v) if use_poisson_boot else sigma
-                    if sig_use is None:
-                        sig_use = sigma
-                    return (model_v - _y_sim) / sig_use
-                update_progress(tr("progress.bootstrap_step", i=i + 1, n=nrep))
-                res = least_squares(resid, x0, bounds=(lo, hi), max_nfev=2500, **self._least_squares_kwargs())
-                if res.success and np.all(np.isfinite(res.x)):
-                    samples.append(res.x.copy())
+            res = _bootstrap_errors(
+                state, n_rep=int(nrep),
+                progress_cb=lambda _m, i, n: update_progress(tr("progress.bootstrap_step", i=i, n=n)))
             close_progress()
         except Exception as exc:
             close_progress()
             messagebox.showerror(tr("msg.bootstrap_title"), str(exc))
             return
-        if len(samples) < 3:
+        if res.n_ok < 3:
             messagebox.showwarning(tr("msg.bootstrap_title"), tr("msg.bootstrap_few_replicas"))
             return
-        arr = np.vstack(samples)
-        errs = np.std(arr, axis=0, ddof=1)
-        self.last_fit_param_errors.update({k: float(e) for k, e in zip(free_keys, errs)})
-        self.last_fit_stats["bootstrap_replicates"] = float(len(samples))
+        self.last_fit_param_errors.update(res.std)
+        self.last_fit_stats["bootstrap_replicates"] = float(res.n_ok)
         self.update_info(self.last_fit_stats.get("rms", float("nan")))
-        messagebox.showinfo(tr("msg.bootstrap_title"), tr("msg.bootstrap_done", ok=len(samples), total=nrep))
+        messagebox.showinfo(tr("msg.bootstrap_title"), tr("msg.bootstrap_done", ok=res.n_ok, total=nrep))
 
     def load_fixed_distribution_file(self) -> None:
         filename = filedialog.askopenfilename(
