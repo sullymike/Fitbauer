@@ -190,6 +190,30 @@ def test_export_report_writes_markdown(win, tmp_path):
     assert "Mössbauer" in content and "Componentes" in content
 
 
+def test_recent_files_updates_on_load(win, monkeypatch):
+    """Cargar un fichero añade su path a recent_files."""
+    # No tocar settings.json real
+    import mossbauer_qt as mq
+    monkeypatch.setattr(mq.MossbauerQtWindow, "_save_settings", lambda self: None)
+    win.recent_files = []
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    assert win.recent_files
+    assert win.recent_files[0].endswith("hierro_metalico_alphaFe.adt")
+    # Cargar otro lo pone al frente
+    win._load_file(DATA / "hematita_Fe2O3.adt")
+    assert win.recent_files[0].endswith("hematita_Fe2O3.adt")
+
+
+def test_layout_presets_change_splitter_sizes(win):
+    """Aplicar un preset cambia las proporciones del splitter principal."""
+    win._apply_layout_preset("Wide plot")
+    sizes = win._main_splitter.sizes()
+    assert sizes  # se aplicó algo
+    assert win.layout_preset == "Wide plot"
+    win._apply_layout_preset("Balanced")
+    assert win.layout_preset == "Balanced"
+
+
 def test_login_dialog_cancel_returns_false(win, monkeypatch):
     """Si el usuario cierra el diálogo de login sin Ok, _login_dialog devuelve False."""
     # Fuerza credenciales vacías y simula cancelar el diálogo.

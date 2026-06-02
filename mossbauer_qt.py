@@ -741,6 +741,13 @@ class BatchFitDialog(QtWidgets.QDialog):
 
 
 class MossbauerQtWindow(QtWidgets.QMainWindow):
+    def closeEvent(self, event):
+        try:
+            self._save_settings()
+        except Exception:
+            pass
+        super().closeEvent(event)
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"{APP_NAME}  v{APP_VERSION}  (Qt)")
@@ -750,6 +757,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.plot_style_name = "modern"
         self.constraints: list[dict] = []
         self.calibration_info: dict | None = None
+        self.recent_files: list[str] = []
+        self.layout_preset = "Balanced"
         self._load_settings()
         self._build_ui()
         self._build_menubar()
@@ -760,6 +769,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         central = QtWidgets.QWidget(self); self.setCentralWidget(central)
         layout = QtWidgets.QHBoxLayout(central); layout.setContentsMargins(4, 4, 4, 4)
         splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal); layout.addWidget(splitter)
+        self._main_splitter = splitter
 
         # ── Columna izquierda: file info + calibración + sextete ─────────
         left = QtWidgets.QWidget()
@@ -836,6 +846,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         splitter.addWidget(center)
 
         splitter.setSizes([430, 1000])
+        self._apply_layout_preset(self.layout_preset)
 
         # Conectar señales de cambio para refrescar el plot en vivo
         self.calib.paramChanged.connect(self._refresh_plot)
@@ -851,6 +862,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         act_open.setShortcut(QtGui.QKeySequence.Open)
         act_open.triggered.connect(self.on_open)
         file_menu.addAction(act_open)
+        self.recent_menu = file_menu.addMenu("Open Recent")
+        self._rebuild_recent_menu()
         file_menu.addSeparator()
         self.act_save_fit = QtGui.QAction(tr("file.save_fit"), self)
         self.act_save_fit.triggered.connect(self.on_save_fit)
@@ -936,6 +949,15 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         act_presets.triggered.connect(self.on_physical_presets)
         view_menu.addAction(act_presets)
         view_menu.addSeparator()
+        layout_menu = view_menu.addMenu("Layout preset")
+        self.layout_action_group = QtGui.QActionGroup(self)
+        for preset in ("Balanced", "Wide plot", "Focus controls"):
+            act = QtGui.QAction(preset, self, checkable=True)
+            if preset == self.layout_preset:
+                act.setChecked(True)
+            act.triggered.connect(lambda _checked=False, p=preset: self._apply_layout_preset(p))
+            layout_menu.addAction(act)
+            self.layout_action_group.addAction(act)
         style_menu = view_menu.addMenu(tr("options.plot_style"))
         self.style_action_group = QtGui.QActionGroup(self)
         for value, label_key in (
@@ -997,6 +1019,44 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         QtWidgets.QMessageBox.information(
             self, tr("language.restart_title"), tr("language.restart_message"))
 
+    def _apply_layout_preset(self, name: str) -> None:
+        """Tres presets de proporciones para el QSplitter principal."""
+        sizes = {
+            "Balanced":         [430, 1000],
+            "Wide plot":        [320, 1200],
+            "Focus controls":   [560,  800],
+        }.get(name, [430, 1000])
+        if hasattr(self, "_main_splitter"):
+            self._main_splitter.setSizes(sizes)
+        self.layout_preset = name
+        self._save_settings()
+
+    def _rebuild_recent_menu(self) -> None:
+        self.recent_menu.clear()
+        if not self.recent_files:
+            act = QtGui.QAction("(vacío)", self); act.setEnabled(False)
+            self.recent_menu.addAction(act); return
+        for p in self.recent_files:
+            act = QtGui.QAction(Path(p).name, self)
+            act.setStatusTip(p)
+            act.triggered.connect(lambda _checked=False, path=p: self._open_recent(path))
+            self.recent_menu.addAction(act)
+
+    def _open_recent(self, path: str) -> None:
+        try:
+            self._load_file(Path(path))
+        except Exception as exc:
+            QtWidgets.QMessageBox.warning(self, tr("file.open"), str(exc))
+
+    def _add_recent(self, path: Path) -> None:
+        s = str(path.resolve())
+        if s in self.recent_files:
+            self.recent_files.remove(s)
+        self.recent_files.insert(0, s)
+        self.recent_files = self.recent_files[:5]
+        self._rebuild_recent_menu()
+        self._save_settings()
+
     def _set_plot_style(self, name: str) -> None:
         self.plot_style_name = name
         apply_rc(name)
@@ -1015,6 +1075,13 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 lang = data.get("ui_language")
                 if lang and lang in available_languages():
                     set_language(lang)
+                recent = data.get("recent_files")
+                if isinstance(recent, list):
+                    self.recent_files = [str(p) for p in recent
+                                          if isinstance(p, str) and Path(p).exists()][:5]
+                preset = data.get("layout_preset")
+                if preset in ("Balanced", "Wide plot", "Focus controls"):
+                    self.layout_preset = preset
         except Exception:
             pass
 
@@ -1028,6 +1095,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 except Exception:
                     current = {}
             current["plot_style"] = self.plot_style_name
+            current["recent_files"] = list(self.recent_files)
+            current["layout_preset"] = self.layout_preset
             SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
             SETTINGS_PATH.write_text(
                 json.dumps(current, indent=2, ensure_ascii=False),
@@ -1150,6 +1219,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_export_report.setEnabled(True)
         self.act_bootstrap.setEnabled(True)
         self.act_lcurve.setEnabled(True)
+        self._add_recent(path)
         self.statusBar().showMessage(
             f"{path.name} · {counts.size} canales · centro={center:.3f}")
         self._refresh_plot()
