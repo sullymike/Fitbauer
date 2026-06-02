@@ -454,3 +454,22 @@ def test_qt_update_available_dialog_can_offer_release_download(win, monkeypatch)
     win._show_update_available_dialog(release, "solo estables", verify_checksum=True)
 
     assert opened == []
+def test_qt_distribution_range_limits_follow_mode(win):
+    """Qt también ajusta límites de P(BHF) frente a P(ΔEQ)."""
+    win.mode_combo.setCurrentIndex(1)
+    assert win.dist_panel.bmin.spin.minimum() == 0.0
+    assert win.dist_panel.bmin.spin.maximum() == 60.0
+    assert win.dist_panel.bmax.spin.minimum() == 0.0
+    assert win.dist_panel.bmax.spin.maximum() == 60.0
+
+    win.dist_panel.bmin.set_value(10.0)
+    win.dist_panel.bmax.set_value(50.0)
+    win.mode_combo.setCurrentIndex(2)
+
+    assert win.dist_panel.bmin.spin.minimum() == 0.0
+    assert win.dist_panel.bmin.spin.maximum() == 7.0
+    assert win.dist_panel.bmax.spin.minimum() == 0.0
+    assert win.dist_panel.bmax.spin.maximum() == 7.0
+    assert win.dist_panel.bmin.value() == 7.0
+    assert win.dist_panel.bmax.value() == 7.0
+    assert win.dist_panel.fixed_bhf.isEnabled()

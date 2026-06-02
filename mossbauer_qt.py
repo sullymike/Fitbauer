@@ -101,6 +101,7 @@ from core.data_io import CONFIG_DIR, SETTINGS_PATH, load_credentials, save_crede
 from core.constants import (  # noqa: E402
     APP_VERSION, APP_NAME, APP_AUTHOR, APP_DEPARTMENT,
     SEXTET_PARAM_NAMES, LINE_POS_33T, BHF_DEFAULT_T, GLOBAL_PARAM_NAMES,
+    DIST_BHF_RANGE, DIST_QUAD_RANGE, DIST_RANGE_RESOLUTION,
 )
 from core.folding import (  # noqa: E402
     read_ws5_counts, find_best_integer_or_half_center, fold_integer_or_half,
@@ -199,6 +200,22 @@ class ParamControl(QtWidgets.QWidget):
         self.spin.blockSignals(True)
         self.slider.blockSignals(True)
         self.spin.setValue(float(v))
+        self.slider.setValue(self._value_to_slider(self.spin.value()))
+        self.slider.blockSignals(False)
+        self.spin.blockSignals(False)
+        self._syncing = False
+
+    def set_range(self, lo: float, hi: float, step: float | None = None) -> None:
+        self._lo = float(lo)
+        self._hi = float(hi)
+        value = max(self._lo, min(self._hi, float(self.spin.value())))
+        self._syncing = True
+        self.spin.blockSignals(True)
+        self.slider.blockSignals(True)
+        self.spin.setRange(self._lo, self._hi)
+        if step is not None:
+            self.spin.setSingleStep(float(step))
+        self.spin.setValue(value)
         self.slider.setValue(self._value_to_slider(self.spin.value()))
         self.slider.blockSignals(False)
         self.spin.blockSignals(False)
@@ -816,7 +833,7 @@ class DistributionPanel(QtWidgets.QGroupBox):
 
         # Columna 2 — rango/bins/alfa + presets y opciones avanzadas.
         self.bmin  = ParamControl(tr("slider.dist_bmin"), 0.0,  0.0, 60.0, 0.1, 2, with_fixed=False)
-        self.bmax  = ParamControl(tr("slider.dist_bmax"), 50.0, 1.0, 60.0, 0.1, 2, with_fixed=False)
+        self.bmax  = ParamControl(tr("slider.dist_bmax"), 50.0, 0.0, 60.0, 0.1, 2, with_fixed=False)
         self.nbins = ParamControl(tr("slider.dist_nbins"), 50.0, 10.0, 100.0, 1.0, 0, with_fixed=False)
         self.log_alpha = ParamControl(tr("slider.dist_log_alpha"), -2.0, -8.0, 4.0, 0.1, 2, with_fixed=False)
         for w in (self.bmin, self.bmax, self.nbins, self.log_alpha):
@@ -848,6 +865,23 @@ class DistributionPanel(QtWidgets.QGroupBox):
     def _set_log_alpha(self, value: float) -> None:
         self.log_alpha.set_value(float(value))
         self.paramChanged.emit()
+
+    def set_distribution_variable(self, variable: str) -> None:
+        is_quad = variable == "quad"
+        if is_quad:
+            self.bmin.label.setText(tr("slider.dist_bmin_quad"))
+            self.bmax.label.setText(tr("slider.dist_bmax_quad"))
+            self.fixed_bhf.label.setText(tr("slider.dist_fixed_bhf_active", default="BHF fijo (T)"))
+            self.fixed_bhf.setEnabled(True)
+            max_value = DIST_QUAD_RANGE[1]
+        else:
+            self.bmin.label.setText(tr("slider.dist_bmin_bhf"))
+            self.bmax.label.setText(tr("slider.dist_bmax_bhf"))
+            self.fixed_bhf.label.setText(tr("slider.dist_fixed_bhf_inactive", default="BHF fijo (no usado en modo BHF)"))
+            self.fixed_bhf.setEnabled(False)
+            max_value = DIST_BHF_RANGE[1]
+        for ctl in (self.bmin, self.bmax):
+            ctl.set_range(0.0, max_value, DIST_RANGE_RESOLUTION)
 
     @property
     def shape(self) -> str:
@@ -2429,19 +2463,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         # Sincroniza el radio del menú Fit
         if hasattr(self, "_mode_menu_actions") and 0 <= idx < 2:
             self._mode_menu_actions[idx].setChecked(True)
-        # Etiquetas según variable distribuida. P(ΔEQ) usa un BHF fijo
-        # independiente, manteniendo ΔEQ como parámetro global para P(BHF).
+        # Etiquetas y límites según variable distribuida. P(ΔEQ) usa un BHF fijo
+        # independiente y restringe el rango de distribución a 0–7 mm/s.
         if is_dist:
-            if is_deq:
-                self.dist_panel.bmin.label.setText(tr("slider.dist_bmin_quad"))
-                self.dist_panel.bmax.label.setText(tr("slider.dist_bmax_quad"))
-                self.dist_panel.fixed_bhf.label.setText(tr("slider.dist_fixed_bhf_active", default="BHF fijo (T)"))
-                self.dist_panel.fixed_bhf.setEnabled(True)
-            else:
-                self.dist_panel.bmin.label.setText(tr("slider.dist_bmin_bhf"))
-                self.dist_panel.bmax.label.setText(tr("slider.dist_bmax_bhf"))
-                self.dist_panel.fixed_bhf.label.setText(tr("slider.dist_fixed_bhf_inactive", default="BHF fijo (no usado en modo BHF)"))
-                self.dist_panel.fixed_bhf.setEnabled(False)
+            self.dist_panel.set_distribution_variable("quad" if is_deq else "bhf")
         self._check_layout()
         self._refresh_plot()
 
