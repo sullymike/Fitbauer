@@ -884,6 +884,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         # ── Columna izquierda: file info + calibración + sextete ─────────
         left = QtWidgets.QWidget()
         lv = QtWidgets.QVBoxLayout(left); lv.setContentsMargins(6, 6, 6, 6); lv.setSpacing(8)
+        self._left_panels_layout = lv
 
         self.file_box = QtWidgets.QGroupBox(tr("controls.file_box"))
         fb = QtWidgets.QVBoxLayout(self.file_box)
@@ -909,7 +910,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         rb.addWidget(ref_lbl)
         lv.addWidget(ref_box)
 
-        # Selector de modo (discreto / P(BHF)).
+        # Selector de modo (discreto / P(BHF)) y controles de simulación.
+        self.sim_controls_box = QtWidgets.QGroupBox("Simulación / ajuste")
+        sim_lay = QtWidgets.QVBoxLayout(self.sim_controls_box)
         mode_row = QtWidgets.QHBoxLayout()
         mode_row.addWidget(QtWidgets.QLabel(tr("controls.fit_mode_hint").split(":")[0] + ":"))
         self.mode_combo = QtWidgets.QComboBox()
@@ -920,7 +923,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         ])
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_row.addWidget(self.mode_combo, stretch=1)
-        lv.addLayout(mode_row)
+        sim_lay.addLayout(mode_row)
 
         self.calib = CalibrationPanel()
         lv.addWidget(self.calib)
@@ -932,14 +935,15 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             cp = ComponentPanel(idx=i)
             self.components_panels.append(cp)
             self.comp_tabs.addTab(cp, tr("tab.component", idx=i))
-        lv.addWidget(self.comp_tabs)
+        sim_lay.addWidget(self.comp_tabs)
 
         # Panel de distribución (oculto en modo discreto).
         self.dist_panel = DistributionPanel()
         self.dist_panel.setVisible(False)
         self.dist_panel.paramChanged.connect(self._refresh_plot)
         self.dist_panel.loadFixedRequested.connect(self._on_load_fixed_distribution)
-        lv.addWidget(self.dist_panel)
+        sim_lay.addWidget(self.dist_panel)
+        lv.addWidget(self.sim_controls_box)
         lv.addStretch(1)
 
         scroll = QtWidgets.QScrollArea(); scroll.setWidget(left); scroll.setWidgetResizable(True)
@@ -949,27 +953,44 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         # ── Centro: canvas + toolbar + panel de info ─────────────────────
         center = QtWidgets.QWidget()
         cv = QtWidgets.QVBoxLayout(center); cv.setContentsMargins(0, 0, 0, 0)
+        self._center_top_widget = QtWidgets.QWidget(center)
+        self._center_top_layout = QtWidgets.QVBoxLayout(self._center_top_widget)
+        self._center_top_layout.setContentsMargins(6, 6, 6, 0)
+        self._center_top_layout.setSpacing(8)
         self.canvas = SpectrumCanvas(center)
         self.toolbar = NavigationToolbar(self.canvas, center)
         self.info_panel = InfoPanel()
+        self._center_bottom_widget = QtWidgets.QWidget(center)
+        self._center_bottom_layout = QtWidgets.QVBoxLayout(self._center_bottom_widget)
+        self._center_bottom_layout.setContentsMargins(6, 0, 6, 6)
+        self._center_bottom_layout.setSpacing(8)
+        cv.addWidget(self._center_top_widget)
         cv.addWidget(self.toolbar); cv.addWidget(self.canvas, stretch=1)
-        cv.addWidget(self.info_panel)
+        cv.addWidget(self._center_bottom_widget)
         splitter.addWidget(center)
 
-        # ── Columna derecha: espacio reservado para presets de 3 columnas ──
-        # La migración Qt todavía reutiliza los controles creados en la columna
-        # izquierda, pero el splitter ya expone la tercera columna que manejan
-        # los presets Tk (right_width=0 oculta esta zona).
+        # ── Columna derecha: la completan los presets de layout ─────────────
         self._right_column = QtWidgets.QWidget()
         rv = QtWidgets.QVBoxLayout(self._right_column)
         rv.setContentsMargins(6, 6, 6, 6); rv.setSpacing(8)
-        hint = QtWidgets.QLabel(
-            "Columna derecha disponible para presets de tres columnas.\n"
-            "Usa el editor de layout para ajustar su anchura.")
-        hint.setWordWrap(True)
-        hint.setStyleSheet("color: #64748b; font-style: italic;")
-        rv.addWidget(hint); rv.addStretch(1)
+        self._right_panels_layout = rv
+        rv.addStretch(1)
         splitter.addWidget(self._right_column)
+
+        self._layout_panel_names = {
+            "file_info": "Fichero",
+            "info_display": "Info",
+            "calibration": "Calibración",
+            "reference": "Referencia",
+            "sim_controls": "Simulación / ajuste",
+        }
+        self._layout_panel_widgets = {
+            "file_info": self.file_box,
+            "info_display": self.info_panel,
+            "calibration": self.calib,
+            "reference": ref_box,
+            "sim_controls": self.sim_controls_box,
+        }
 
         splitter.setSizes([430, 1000, 0])
         self._apply_layout_preset(self.layout_preset)
@@ -1269,9 +1290,64 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             out[name] = spec
         return out
 
+    def _insert_panel_widget(self, layout: QtWidgets.QVBoxLayout, widget: QtWidgets.QWidget) -> None:
+        """Inserta un panel antes del stretch final de una columna, si existe."""
+        widget.setParent(None)
+        pos = layout.count()
+        if pos and layout.itemAt(pos - 1).spacerItem() is not None:
+            pos -= 1
+        layout.insertWidget(pos, widget)
+        widget.show()
+
+    def _collect_layout_spec(self, columns: dict[str, list[str]],
+                             left_width: int, right_width: int,
+                             description: str = "Personalizado") -> dict:
+        known = set(getattr(self, "_layout_panel_widgets", {}))
+        out = {
+            "description": description,
+            "left": [pid for pid in columns.get("left", []) if pid in known],
+            "center": [pid for pid in columns.get("center", []) if pid in known],
+            "right": [pid for pid in columns.get("right", []) if pid in known],
+            "left_width": int(left_width),
+            "right_width": int(right_width),
+        }
+        assigned = set(out["left"]) | set(out["center"]) | set(out["right"])
+        out["left"].extend(pid for pid in known if pid not in assigned)
+        return out
+
+    def _apply_panel_layout(self, spec: dict) -> None:
+        if not hasattr(self, "_layout_panel_widgets"):
+            return
+        right_w = int(spec.get("right_width", 0))
+        columns = {
+            "left": list(spec.get("left", [])),
+            "center": list(spec.get("center", [])),
+            "right": list(spec.get("right", [])),
+        }
+        assigned = set(columns["left"]) | set(columns["center"]) | set(columns["right"])
+        columns["left"].extend(
+            pid for pid in self._layout_panel_widgets if pid not in assigned
+        )
+        for pid in columns["left"]:
+            if pid in self._layout_panel_widgets:
+                self._insert_panel_widget(self._left_panels_layout,
+                                          self._layout_panel_widgets[pid])
+        for pid in columns["center"]:
+            if pid in self._layout_panel_widgets:
+                self._insert_panel_widget(self._center_top_layout,
+                                          self._layout_panel_widgets[pid])
+        right_target = (self._right_panels_layout if right_w > 0
+                        else self._center_bottom_layout)
+        for pid in columns["right"]:
+            if pid in self._layout_panel_widgets:
+                self._insert_panel_widget(right_target, self._layout_panel_widgets[pid])
+        self._center_top_widget.setVisible(bool(columns["center"]))
+        self._center_bottom_widget.setVisible(right_w == 0 and bool(columns["right"]))
+
     def _apply_layout_preset(self, name: str) -> None:
         """Aplica preset al QSplitter principal usando 3 columnas."""
         spec = self._all_presets().get(name, {})
+        self._apply_panel_layout(spec)
         left_w = int(spec.get("left_width", 430))
         right_w = int(spec.get("right_width", 0))
         total_w = max(900, self.width() - 20)
@@ -1285,7 +1361,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._save_settings()
 
     def on_configure_layout(self) -> None:
-        """Diálogo con presets Tk + 2 customizables por el usuario."""
+        """Editor visual de presets con columnas Izquierda | Centro | Derecha."""
         try:
             from layout.presets import PRESETS, DEFAULT_PRESET
         except Exception as exc:
@@ -1295,17 +1371,68 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             return
         dlg = QtWidgets.QDialog(self)
         dlg.setWindowTitle(tr("view.configure_layout"))
-        dlg.resize(860, 560)
+        dlg.resize(980, 640)
         v = QtWidgets.QVBoxLayout(dlg)
         v.addWidget(QtWidgets.QLabel(
-            "<i>Elige un preset para ajustar la proporción de las "
-            "<b>3 columnas</b> (izquierda, centro y derecha), o configura tus "
-            "propios <b>Custom 1</b> / <b>Custom 2</b>.</i>"))
+            "<i>Elige un preset o mueve paneles entre las <b>3 columnas</b>. "
+            "La columna derecha con anchura 0 se oculta y sus paneles se anclan "
+            "debajo de la gráfica.</i>"))
 
-        # Lista de presets actuales (built-in + customs)
         list_w = QtWidgets.QListWidget()
+        v.addWidget(list_w, stretch=1)
 
-        def refresh_list():
+        left_width_spin = QtWidgets.QSpinBox()
+        left_width_spin.setRange(200, 900); left_width_spin.setSuffix("  px izquierda")
+        right_width_spin = QtWidgets.QSpinBox()
+        right_width_spin.setRange(0, 900); right_width_spin.setSuffix("  px derecha")
+
+        panel_names = dict(getattr(self, "_layout_panel_names", {}))
+        panel_lists: dict[str, QtWidgets.QListWidget] = {}
+
+        def clear_selection_except(active: QtWidgets.QListWidget) -> None:
+            for lw_col in panel_lists.values():
+                if lw_col is not active:
+                    lw_col.clearSelection()
+
+        def selected_column() -> tuple[str, QtWidgets.QListWidget] | tuple[None, None]:
+            for key, lw_col in panel_lists.items():
+                if lw_col.currentItem() is not None:
+                    return key, lw_col
+            return None, None
+
+        def columns_from_lists() -> dict[str, list[str]]:
+            return {
+                key: [lw_col.item(i).data(QtCore.Qt.UserRole)
+                      for i in range(lw_col.count())]
+                for key, lw_col in panel_lists.items()
+            }
+
+        def fill_columns(spec: dict) -> None:
+            for lw_col in panel_lists.values():
+                lw_col.clear()
+            used: set[str] = set()
+            for key in ("left", "center", "right"):
+                for pid in spec.get(key, []):
+                    if pid in panel_names and pid not in used:
+                        item = QtWidgets.QListWidgetItem(panel_names.get(pid, pid))
+                        item.setData(QtCore.Qt.UserRole, pid)
+                        panel_lists[key].addItem(item)
+                        used.add(pid)
+            for pid, label in panel_names.items():
+                if pid not in used:
+                    item = QtWidgets.QListWidgetItem(label)
+                    item.setData(QtCore.Qt.UserRole, pid)
+                    panel_lists["left"].addItem(item)
+            left_width_spin.setValue(int(spec.get("left_width", 430)))
+            right_width_spin.setValue(int(spec.get("right_width", 0)))
+
+        def current_spec(description: str = "Personalizado") -> dict:
+            return self._collect_layout_spec(
+                columns_from_lists(), left_width_spin.value(), right_width_spin.value(),
+                description=description,
+            )
+
+        def refresh_list(select_name: str | None = None) -> None:
             list_w.clear()
             all_presets = self._all_presets()
             for name, spec in all_presets.items():
@@ -1317,84 +1444,89 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 item = QtWidgets.QListWidgetItem(txt)
                 item.setData(QtCore.Qt.UserRole, name)
                 list_w.addItem(item)
-                if name == (self.layout_preset if self.layout_preset in all_presets else DEFAULT_PRESET):
+                target = select_name or (self.layout_preset if self.layout_preset in all_presets else DEFAULT_PRESET)
+                if name == target:
                     list_w.setCurrentItem(item)
-        refresh_list()
-        v.addWidget(list_w, stretch=1)
 
-        # Vista visual de las tres columnas declaradas por el preset.
-        preview_box = QtWidgets.QGroupBox("Vista de columnas")
-        preview_row = QtWidgets.QHBoxLayout(preview_box)
-        preview_lists: dict[str, QtWidgets.QListWidget] = {}
-        panel_names = {
-            "file_info": "Fichero",
-            "info_display": "Info",
-            "calibration": "Calibración",
-            "reference": "Referencia",
-            "sim_controls": "Simulación",
-        }
+        # Editor visual de columnas.
+        edit_box = QtWidgets.QGroupBox("Editor de columnas")
+        edit_v = QtWidgets.QVBoxLayout(edit_box)
+        edit_row = QtWidgets.QHBoxLayout()
         for key, title in (("left", "Izquierda"), ("center", "Centro"), ("right", "Derecha")):
             col = QtWidgets.QVBoxLayout()
             col.addWidget(QtWidgets.QLabel(f"<b>{title}</b>"))
             lw_col = QtWidgets.QListWidget()
-            lw_col.setMaximumHeight(96)
+            lw_col.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+            lw_col.currentItemChanged.connect(lambda _cur, _prev, lw=lw_col: clear_selection_except(lw))
             col.addWidget(lw_col)
-            preview_row.addLayout(col)
-            preview_lists[key] = lw_col
-        v.addWidget(preview_box)
+            edit_row.addLayout(col)
+            panel_lists[key] = lw_col
+        edit_v.addLayout(edit_row)
 
-        def refresh_preview() -> None:
-            item = list_w.currentItem()
-            all_presets = self._all_presets()
-            spec = all_presets.get(item.data(QtCore.Qt.UserRole), {}) if item else {}
-            for key, lw_col in preview_lists.items():
-                lw_col.clear()
-                values = list(spec.get(key, []))
-                if not values and key == "center":
-                    values = ["plot"]
-                elif key == "center":
-                    values.append("plot")
-                if not values:
-                    lw_col.addItem("(vacía / oculta)")
-                for pid in values:
-                    lw_col.addItem("Gráfica" if pid == "plot" else panel_names.get(pid, pid))
+        move_row = QtWidgets.QHBoxLayout()
+        for key, label in (("left", "Mover a izquierda"),
+                           ("center", "Mover al centro"),
+                           ("right", "Mover a derecha")):
+            btn = QtWidgets.QPushButton(label)
+            def _move(_=False, target=key):
+                _src_key, src = selected_column()
+                if src is None:
+                    return
+                item = src.takeItem(src.currentRow())
+                panel_lists[target].addItem(item)
+                panel_lists[target].setCurrentItem(item)
+            btn.clicked.connect(_move)
+            move_row.addWidget(btn)
+        btn_up = QtWidgets.QPushButton("Subir")
+        btn_down = QtWidgets.QPushButton("Bajar")
+        def _reorder(delta: int) -> None:
+            _key, lw_col = selected_column()
+            if lw_col is None:
+                return
+            row = lw_col.currentRow()
+            new_row = row + delta
+            if new_row < 0 or new_row >= lw_col.count():
+                return
+            item = lw_col.takeItem(row)
+            lw_col.insertItem(new_row, item)
+            lw_col.setCurrentItem(item)
+        btn_up.clicked.connect(lambda: _reorder(-1))
+        btn_down.clicked.connect(lambda: _reorder(+1))
+        move_row.addWidget(btn_up); move_row.addWidget(btn_down)
+        edit_v.addLayout(move_row)
 
-        list_w.currentItemChanged.connect(lambda *_: refresh_preview())
-        refresh_preview()
+        width_row = QtWidgets.QHBoxLayout()
+        width_row.addWidget(QtWidgets.QLabel("Anchos:"))
+        width_row.addWidget(left_width_spin)
+        width_row.addWidget(right_width_spin)
+        width_row.addStretch(1)
+        edit_v.addLayout(width_row)
+        v.addWidget(edit_box, stretch=2)
 
-        # Editores para Custom 1 / Custom 2
+        def on_preset_changed(item: QtWidgets.QListWidgetItem | None) -> None:
+            if item is None:
+                return
+            spec = self._all_presets().get(item.data(QtCore.Qt.UserRole), {})
+            fill_columns(spec)
+
+        list_w.currentItemChanged.connect(lambda cur, _prev: on_preset_changed(cur))
+        refresh_list()
+        on_preset_changed(list_w.currentItem())
+
+        # Guardar el diseño visual actual en Custom 1 / Custom 2.
         for slot in ("Custom 1", "Custom 2"):
             row = QtWidgets.QHBoxLayout()
             row.addWidget(QtWidgets.QLabel(f"<b>{slot}</b>:"))
-            name_e = QtWidgets.QLineEdit(slot if slot not in self.custom_layouts
-                                          else slot)
-            name_e.setPlaceholderText("Nombre")
-            name_e.setMaximumWidth(160)
-            row.addWidget(name_e)
-            lw_spin = QtWidgets.QSpinBox()
-            lw_spin.setRange(200, 900); lw_spin.setSuffix("  px (izq.)")
-            lw_spin.setValue(int(self.custom_layouts.get(slot, {}).get("left_width", 430)))
-            row.addWidget(lw_spin)
-            rw_spin = QtWidgets.QSpinBox()
-            rw_spin.setRange(0, 900); rw_spin.setSuffix("  px (der.; 0 oculta)")
-            rw_spin.setValue(int(self.custom_layouts.get(slot, {}).get("right_width", 0)))
-            row.addWidget(rw_spin)
             desc_e = QtWidgets.QLineEdit(
-                self.custom_layouts.get(slot, {}).get("description",
-                                                       "Personalizado por el usuario"))
-            desc_e.setPlaceholderText("Descripción")
+                self.custom_layouts.get(slot, {}).get(
+                    "description", "Personalizado por el usuario"))
             row.addWidget(desc_e, stretch=1)
-            btn = QtWidgets.QPushButton("Guardar")
-            def _save(_=False, _slot=slot, _name=name_e, _lw=lw_spin,
-                      _rw=rw_spin, _desc=desc_e):
-                self.custom_layouts[_slot] = {
-                    "left_width": int(_lw.value()),
-                    "right_width": int(_rw.value()),
-                    "description": _desc.text().strip() or "Personalizado",
-                }
+            btn = QtWidgets.QPushButton("Guardar diseño mostrado")
+            def _save(_=False, _slot=slot, _desc=desc_e):
+                self.custom_layouts[_slot] = current_spec(
+                    _desc.text().strip() or "Personalizado")
                 self._save_settings()
-                refresh_list()
-                refresh_preview()
+                refresh_list(_slot)
             btn.clicked.connect(_save)
             row.addWidget(btn)
             v.addLayout(row)
@@ -1409,6 +1541,16 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         if item is None:
             return
         name = item.data(QtCore.Qt.UserRole)
+        shown = current_spec(self._all_presets().get(name, {}).get("description", "Personalizado"))
+        selected = self._all_presets().get(name, {})
+        comparable = {k: selected.get(k, [] if k in ("left", "center", "right") else 0)
+                      for k in ("left", "center", "right", "left_width", "right_width")}
+        shown_comp = {k: shown.get(k) for k in comparable}
+        if shown_comp != comparable:
+            name = name if name in self.custom_layouts else "Custom 1"
+            shown["description"] = shown.get("description") or "Personalizado"
+            self.custom_layouts[name] = shown
+            self._save_settings()
         self._apply_layout_preset(name)
 
     def _rebuild_recent_menu(self) -> None:
@@ -2024,9 +2166,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         dest_row.addWidget(e_dest, stretch=1)
         btn_choose = QtWidgets.QPushButton(
             tr("button.choose") if hasattr(tr, "_d") else "Elegir...")
-        btn_create = QtWidgets.QPushButton(
-            tr("button.create") if hasattr(tr, "_d") else "Crear...")
-        dest_row.addWidget(btn_choose); dest_row.addWidget(btn_create)
+        dest_row.addWidget(btn_choose)
         dest_wrap = QtWidgets.QWidget(); dest_wrap.setLayout(dest_row)
         form.addRow(tr("label.dest_folder") if hasattr(tr, "_d") else "Carpeta destino:", dest_wrap)
         cb_with_calib = QtWidgets.QCheckBox(
@@ -2073,26 +2213,6 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             if folder:
                 e_dest.setText(folder)
         btn_choose.clicked.connect(choose_dest)
-
-        def create_subfolder():
-            base = e_dest.text().strip() or str(Path.home() / "Mossbauer")
-            name, ok = QtWidgets.QInputDialog.getText(
-                dlg, "Crear subcarpeta", "Nombre:")
-            if not ok or not name.strip():
-                return
-            import re as _re
-            safe = _re.sub(r"[^\w.()+\- ]+", "_", name).strip()
-            if not safe:
-                return
-            path = Path(base) / safe
-            try:
-                path.mkdir(parents=True, exist_ok=True)
-            except Exception as exc:
-                QtWidgets.QMessageBox.critical(dlg, "Carpeta", str(exc))
-                return
-            e_dest.setText(str(path))
-            debug(f"Carpeta lista: {path}")
-        btn_create.clicked.connect(create_subfolder)
 
         items: list[dict] = []
 
@@ -2174,12 +2294,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
 
         # Botones inferiores
         btn_row = QtWidgets.QHBoxLayout()
+        btn_list = QtWidgets.QPushButton(tr("button.list") if hasattr(tr, "_d") else "Listar")
         btn_download_only = QtWidgets.QPushButton("Descargar")
         btn_dl = QtWidgets.QPushButton("Descargar y cargar")
         btn_close = QtWidgets.QPushButton(
             tr("button.close") if hasattr(tr, "_d") else "Cerrar")
         btn_row.addStretch(1)
-        btn_row.addWidget(btn_download_only); btn_row.addWidget(btn_dl); btn_row.addWidget(btn_close)
+        btn_row.addWidget(btn_list); btn_row.addWidget(btn_download_only)
+        btn_row.addWidget(btn_dl); btn_row.addWidget(btn_close)
         v.addLayout(btn_row)
 
         def download(load_after: bool = True):
@@ -2219,6 +2341,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             except Exception as exc:
                 QtWidgets.QMessageBox.warning(dlg, "Cargar", str(exc))
 
+        btn_list.clicked.connect(refresh)
         btn_download_only.clicked.connect(lambda: download(False))
         btn_dl.clicked.connect(lambda: download(True))
         btn_close.clicked.connect(dlg.reject)
