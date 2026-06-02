@@ -873,12 +873,20 @@ class DistributionPanel(QtWidgets.QGroupBox):
             self.bmax.label.setText(tr("slider.dist_bmax_quad"))
             self.fixed_bhf.label.setText(tr("slider.dist_fixed_bhf_active", default="BHF fijo (T)"))
             self.fixed_bhf.setEnabled(True)
+            # En P(ΔEQ) el ΔEQ ES la magnitud distribuida (rango bmin/bmax), así
+            # que el ΔEQ global no tiene sentido y se desactiva.
+            self.quad.label.setText(
+                tr("slider.dist_quad_inactive", default="ΔEQ global (no usado: distribuido)"))
+            self.quad.setEnabled(False)
             max_value = DIST_QUAD_RANGE[1]
         else:
             self.bmin.label.setText(tr("slider.dist_bmin_bhf"))
             self.bmax.label.setText(tr("slider.dist_bmax_bhf"))
             self.fixed_bhf.label.setText(tr("slider.dist_fixed_bhf_inactive", default="BHF fijo (no usado en modo BHF)"))
             self.fixed_bhf.setEnabled(False)
+            # En P(BHF) el ΔEQ global sí actúa como desplazamiento común.
+            self.quad.label.setText(tr("slider.dist_quad"))
+            self.quad.setEnabled(True)
             max_value = DIST_BHF_RANGE[1]
         for ctl in (self.bmin, self.bmax):
             ctl.set_range(0.0, max_value, DIST_RANGE_RESOLUTION)
