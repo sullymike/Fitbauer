@@ -164,124 +164,15 @@ def find_best_integer_or_half_center(counts: np.ndarray, cmin: float = 250.5, cm
     return _impl(counts, cmin, cmax)
 
 
-def lorentzian(v: np.ndarray, center: float, gamma: float) -> np.ndarray:
-    """Perfil de línea normalizado a altura máxima 1.
-
-    Por defecto es Lorentziana: γ²/((v−c)² + γ²), con γ=HWHM.
-    Si LINE_PROFILE_KIND='Voigt', usa una convolución Voigt con sigma gaussiana
-    global VOIGT_SIGMA y gamma Lorentziana HWHM.
-    """
-    if LINE_PROFILE_KIND == "Voigt":
-        sigma = max(float(VOIGT_SIGMA), 1e-9)
-        denom = sigma * np.sqrt(2.0)
-        norm = sigma * np.sqrt(2.0 * np.pi)
-        prof = np.real(wofz(((v - center) + 1j * gamma) / denom)) / norm
-        # Normalización analítica al pico (v=v0), independiente del muestreo.
-        peak = float(np.real(wofz(1j * gamma / denom))) / norm
-        return prof / max(peak, 1e-12)
-    return gamma * gamma / ((v - center) ** 2 + gamma * gamma)
-
-
-def sextet_absorption(v: np.ndarray, delta: float, quad: float, bhf: float,
-                      gamma1: float, gamma2: float, gamma3: float, depth: float,
-                      int1: float, int2: float, int3: float,
-                      *, treatment: str = "1st_order", beta: float = 0.0,
-                      n_quad: int = 20) -> np.ndarray:
-    """Absorción de un sextete Fe-57.
-
-    Convención NORMOS: int3=I (intensidad base, líneas 3 y 4),
-    int2=I23 (ratio líneas 2,5 / 3,4; estándar=2), int1=I13 (ratio líneas 1,6 / 3,4; estándar=3).
-    gamma1 es la anchura de las líneas 1 y 6. gamma2 y gamma3 son relativas:
-    gamma2=1 -> Γ2,5=Γ1,6; gamma3=1 -> Γ3,4=Γ1,6.
-
-    ``treatment``: "1st_order" (histórico), "kundig_fixed" (β fijo, mejora 8b),
-    "kundig_powder" (promedio policristal por Gauss-Legendre).
-    """
-    from core.hamiltonian import (
-        kundig_sextet_positions, polycrystal_kundig_positions,
-    )
-
-    i3 = int3
-    i2 = int3 * int2
-    i1 = int3 * int1
-    weights = np.array([i1, i2, i3, i3, i2, i1], dtype=float)
-    g1 = gamma1
-    g2 = gamma1 * gamma2
-    g3 = gamma1 * gamma3
-    gammas = np.array([g1, g2, g3, g3, g2, g1], dtype=float)
-
-    if treatment == "kundig_fixed":
-        positions = kundig_sextet_positions(bhf, delta, quad, beta)
-        absorption = np.zeros_like(v, dtype=float)
-        for pos, weight, gamma in zip(positions, weights, gammas):
-            absorption += weight * lorentzian(v, pos, gamma)
-        return depth * absorption
-
-    if treatment == "kundig_powder":
-        pos_grid, w_grid = polycrystal_kundig_positions(bhf, delta, quad, n_quad)
-        absorption = np.zeros_like(v, dtype=float)
-        for k in range(pos_grid.shape[0]):
-            for j in range(6):
-                absorption += w_grid[k] * weights[j] * lorentzian(v, pos_grid[k, j], gammas[j])
-        return depth * absorption
-
-    positions = LINE_POS_33T * (bhf / BHF_DEFAULT_T) + delta + quad * LINE_QUAD_PATTERN
-    absorption = np.zeros_like(v, dtype=float)
-    for pos, weight, gamma in zip(positions, weights, gammas):
-        absorption += weight * lorentzian(v, pos, gamma)
-    return depth * absorption
-
-
-def singlet_absorption(v: np.ndarray, delta: float, gamma1: float, depth: float, int1: float) -> np.ndarray:
-    return depth * int1 * lorentzian(v, delta, gamma1)
-
-
-def doublet_absorption(v: np.ndarray, delta: float, quad: float, gamma1: float,
-                       gamma2: float, depth: float, int1: float, int2: float) -> np.ndarray:
-    g1 = gamma1
-    g2 = gamma1 * gamma2
-    return depth * (int1 * lorentzian(v, delta - quad / 2.0, g1) + int1 * int2 * lorentzian(v, delta + quad / 2.0, g2))
-
-
-def component_absorption(v: np.ndarray, kind: str, p: np.ndarray, *, extras: dict | None = None) -> np.ndarray:
-    if kind == "Singlete":
-        delta, _quad, _bhf, gamma1, _gamma2, _gamma3, depth, int1, _int2, _int3 = p
-        return singlet_absorption(v, delta, gamma1, depth, int1)
-    if kind == "Doblete":
-        delta, quad, _bhf, gamma1, gamma2, _gamma3, depth, int1, int2, _int3 = p
-        return doublet_absorption(v, delta, quad, gamma1, gamma2, depth, int1, int2)
-    if extras:
-        return sextet_absorption(
-            v, *p,
-            treatment=str(extras.get("treatment", "1st_order")),
-            beta=float(extras.get("beta", 0.0)),
-            n_quad=int(extras.get("n_quad", 20)),
-        )
-    return sextet_absorption(v, *p)
-
-
-def total_model(v: np.ndarray, baseline: float, slope: float, components, sat_scale: float | None = None) -> np.ndarray:
-    """``components`` es lista de ``(kind, params)`` o ``(kind, params, extras)``.
-
-    Con ``sat_scale`` (C>0) aplica el modelo de absorbente grueso:
-    T = baseline + slope·v − C·(1 − exp(−A_tot/C)); C→∞ recupera el lineal.
-    """
-    a_tot = np.zeros_like(v, dtype=float)
-    for comp in components:
-        if isinstance(comp, tuple):
-            if len(comp) == 3:
-                kind, p, extras = comp
-                a_tot += component_absorption(v, kind, p, extras=extras)
-            else:
-                kind, p = comp
-                a_tot += component_absorption(v, kind, p)
-        else:
-            a_tot += sextet_absorption(v, *comp)
-    if sat_scale is not None and np.isfinite(sat_scale) and sat_scale > 0:
-        a_eff = sat_scale * (1.0 - np.exp(-a_tot / sat_scale))
-    else:
-        a_eff = a_tot
-    return baseline + slope * v - a_eff
+# Física del modelo: reutilizada desde core.physics (única fuente, compartida
+# con la GUI Qt) para no duplicar la implementación. El perfil de línea y σ-Voigt
+# se controlan vía core.physics.LINE_PROFILE_KIND / core.physics.VOIGT_SIGMA, que
+# esta GUI mantiene sincronizados con sus globales LINE_PROFILE_KIND / VOIGT_SIGMA.
+import core.physics as _physics
+from core.physics import (  # noqa: E402,F401
+    lorentzian, sextet_absorption, singlet_absorption, doublet_absorption,
+    component_absorption, total_model,
+)
 
 
 def _log_warning(context: str, exc: BaseException) -> None:
@@ -3756,6 +3647,7 @@ class MossbauerFe33GUI(tk.Tk):
         if key == "voigt_sigma":
             global VOIGT_SIGMA
             VOIGT_SIGMA = self.vars["voigt_sigma"].get()
+            _physics.VOIGT_SIGMA = VOIGT_SIGMA  # el modelo usa core.physics
         if key.startswith("dist_") or (self.fit_mode_var.get() == "bhf_distribution" and (key in {"baseline", "slope"} or (self.dist_use_sharp_var.get() and re.match(r"s[123]_", key)))):
             self.last_bhf_fit = None
         if key in {"center", "vmax"}:
@@ -4077,6 +3969,10 @@ class MossbauerFe33GUI(tk.Tk):
 
     def model_from_values(self, values: dict[str, float], vmax: float) -> np.ndarray:
         assert self.y_data is not None
+        # El modelo vive en core.physics: garantizar que su perfil de línea y
+        # σ-Voigt coinciden con el estado de esta GUI antes de evaluar.
+        _physics.LINE_PROFILE_KIND = LINE_PROFILE_KIND
+        _physics.VOIGT_SIGMA = VOIGT_SIGMA
         values = self.apply_constraints_to_values(values)
         self._force_int3_reference(values)
         if self.velocity is not None and self.velocity.size == self.y_data.size:
@@ -4215,6 +4111,7 @@ class MossbauerFe33GUI(tk.Tk):
             pos += 1 if fit_center else 0
             if fit_sigma:
                 VOIGT_SIGMA = float(x[pos])
+                _physics.VOIGT_SIGMA = VOIGT_SIGMA  # el modelo usa core.physics
             return values, vmax, center_fit
 
         def data_for_center(center_value: float) -> tuple[np.ndarray, np.ndarray | None]:
