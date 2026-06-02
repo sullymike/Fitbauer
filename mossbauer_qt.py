@@ -894,6 +894,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         act_web_calib = QtGui.QAction(tr("file.web_calibrations"), self)
         act_web_calib.triggered.connect(lambda: self._open_web_dialog("calibrations"))
         web_menu.addAction(act_web_calib)
+        web_menu.addSeparator()
+        self.act_upload_session = QtGui.QAction(tr("file.upload_session"), self)
+        self.act_upload_session.triggered.connect(self.on_upload_session)
+        self.act_upload_session.setEnabled(False)
+        web_menu.addAction(self.act_upload_session)
 
         fit_menu = mb.addMenu(tr("menu.fit"))
         self.act_find_center = QtGui.QAction(tr("fit.find_center"), self)
@@ -1001,6 +1006,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         act_changelog = QtGui.QAction(tr("help.changelog"), self)
         act_changelog.triggered.connect(self.on_changelog)
         help_menu.addAction(act_changelog)
+        act_check_updates = QtGui.QAction(tr("help.check_updates"), self)
+        act_check_updates.triggered.connect(self.on_check_updates)
+        help_menu.addAction(act_check_updates)
         help_menu.addSeparator()
         act_about = QtGui.QAction(tr("help.about"), self)
         act_about.triggered.connect(self.on_about)
@@ -1223,6 +1231,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_init.setEnabled(True)
         self.act_auto_fit.setEnabled(True)
         self.act_ai.setEnabled(True)
+        self.act_upload_session.setEnabled(True)
         self.act_profile.setEnabled(True)
         self.act_find_center.setEnabled(True)
         self.act_save_fit.setEnabled(True)
@@ -1584,6 +1593,68 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         btn_dl.clicked.connect(download)
         btn_close.clicked.connect(dlg.reject)
         dlg.exec()
+
+    # ── Subir sesión al API ──────────────────────────────────────────────
+    def on_upload_session(self) -> None:
+        if self.file.path is None:
+            return
+        client = self._get_api_client()
+        if client is None:
+            return
+        # Sugiere el medida_id si ya conocemos el fichero en remoto
+        suggested = ""
+        try:
+            m = client.find_medida_by_filename(self.file.path.name)
+            if m and "id" in m:
+                suggested = str(m["id"])
+        except Exception:
+            pass
+        medida_id, ok = QtWidgets.QInputDialog.getText(
+            self, tr("file.upload_session"), "medida_id:", text=suggested)
+        if not ok or not medida_id.strip():
+            return
+        note, _ = QtWidgets.QInputDialog.getText(
+            self, tr("file.upload_session"), "Nota (opcional):", text="")
+        try:
+            import json
+            payload = self._session_payload()
+            data = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
+            r = client.upload_analysis(medida_id.strip(), data=data,
+                                        filename="qt_session.json", note=note or "")
+            self.statusBar().showMessage(
+                f"Subido como analysis #{r.get('id', '?')}", 5000)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, tr("file.upload_session"), str(exc))
+
+    # ── Check for updates ───────────────────────────────────────────────
+    def on_check_updates(self) -> None:
+        try:
+            from mossbauer_updater import latest_release, is_newer
+        except Exception as exc:
+            QtWidgets.QMessageBox.warning(
+                self, tr("help.check_updates"),
+                f"Updater no disponible: {exc}")
+            return
+        self.statusBar().showMessage("Buscando actualizaciones…")
+        QtWidgets.QApplication.processEvents()
+        try:
+            rel = latest_release()
+        except Exception as exc:
+            QtWidgets.QMessageBox.warning(
+                self, tr("help.check_updates"),
+                f"No se pudo consultar el repositorio: {exc}")
+            return
+        tag = (rel or {}).get("tag_name", "")
+        if rel and is_newer(tag, APP_VERSION):
+            QtWidgets.QMessageBox.information(
+                self, tr("help.check_updates"),
+                f"Nueva versión disponible: {tag}\n"
+                f"(versión actual {APP_VERSION})\n\n"
+                "Descárgala desde la página de releases en GitHub.")
+        else:
+            QtWidgets.QMessageBox.information(
+                self, tr("help.check_updates"),
+                f"Estás en la última versión ({APP_VERSION}).")
 
     # ── Calibración rápida desde el cuadro de fichero ─────────────────────
     def _show_file_box_menu(self, pos: QtCore.QPoint) -> None:
@@ -2392,6 +2463,31 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         dlg.exec()
 
 
+def _show_splash(app: QtWidgets.QApplication, duration_ms: int = 1800) -> None:
+    """Splash sencillo con nombre/versión; se cierra al pulsar o al expirar."""
+    splash = QtWidgets.QDialog(None, QtCore.Qt.SplashScreen | QtCore.Qt.FramelessWindowHint)
+    splash.setStyleSheet(
+        "QDialog { background-color: #075985; }"
+        "QLabel { color: white; }")
+    splash.setFixedSize(440, 220)
+    v = QtWidgets.QVBoxLayout(splash); v.setContentsMargins(36, 28, 36, 28)
+    title = QtWidgets.QLabel(f"<h1 style='margin:0;'>{APP_NAME}</h1>")
+    title.setAlignment(QtCore.Qt.AlignCenter)
+    v.addWidget(title)
+    ver = QtWidgets.QLabel(
+        f"<center><b>{tr('splash.version', version=APP_VERSION)}</b><br>"
+        f"<i>{tr('main.subtitle')}</i></center>")
+    v.addWidget(ver)
+    v.addStretch(1)
+    hint = QtWidgets.QLabel(
+        f"<center><i>{tr('splash.click_to_continue')}</i></center>")
+    v.addWidget(hint)
+    splash.mousePressEvent = lambda _e: splash.accept()
+    # Cierre automático
+    QtCore.QTimer.singleShot(duration_ms, splash.accept)
+    splash.exec()
+
+
 def main() -> int:
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
     # Estilo Fusion (Qt nativo, plano y moderno; igual en Win/Linux/macOS).
@@ -2399,6 +2495,8 @@ def main() -> int:
         app.setStyle("Fusion")
     except Exception:
         pass
+    if "--no-splash" not in sys.argv:
+        _show_splash(app)
     win = MossbauerQtWindow(); win.show()
     return app.exec()
 
