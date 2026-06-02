@@ -540,5 +540,6 @@
   "absorber.model_label": "Absorbeur",
   "absorber.thin": "Mince (linéaire)",
   "absorber.thickness": "Épais (saturation)",
-  "slider.sat_scale": "Échelle saturation C"
+  "slider.sat_scale": "Échelle saturation C",
+  "button.download_load": "Télécharger et charger"
 }
