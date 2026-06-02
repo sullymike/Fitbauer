@@ -589,6 +589,10 @@ class SpectrumCanvas(FigureCanvas):
         self.fig = Figure(figsize=(7.0, 5.0), dpi=100, facecolor="white")
         super().__init__(self.fig)
         self.setParent(parent)
+        # Preferencia de mostrar la subgráfica de diferencia (residuos). Se fija
+        # al arrancar según los ajustes, de modo que el espacio dedicado se
+        # reserva (o no) desde el inicio.
+        self.residual_pref = True
         self._gs = self.fig.add_gridspec(2, 1, height_ratios=[4.6, 1.0], hspace=0.08)
         self.ax = self.fig.add_subplot(self._gs[0])
         self.ax_res = self.fig.add_subplot(self._gs[1], sharex=self.ax)
@@ -598,12 +602,24 @@ class SpectrumCanvas(FigureCanvas):
         self.show_no_file()
 
     def show_no_file(self) -> None:
-        self.ax.clear(); self.ax_res.clear()
+        # Reconstruye la rejilla según la preferencia: con residuos (2 filas) o
+        # sin ellos (1 fila), para que el espacio coincida con la opción ya
+        # desde el arranque.
+        self.fig.clear()
+        if self.residual_pref:
+            self._gs = self.fig.add_gridspec(2, 1, height_ratios=[4.6, 1.0], hspace=0.08)
+            self.ax = self.fig.add_subplot(self._gs[0])
+            self.ax_res = self.fig.add_subplot(self._gs[1], sharex=self.ax)
+        else:
+            self._gs = self.fig.add_gridspec(1, 1)
+            self.ax = self.fig.add_subplot(self._gs[0])
+            self.ax_res = None
         self.ax.text(0.5, 0.5, tr("plot.no_file"),
                      transform=self.ax.transAxes, ha="center", va="center",
                      fontsize=13, color="#075985", fontweight="bold")
-        for a in (self.ax, self.ax_res):
-            a.set_xticks([]); a.set_yticks([])
+        self.ax.set_xticks([]); self.ax.set_yticks([])
+        if self.ax_res is not None:
+            self.ax_res.set_xticks([]); self.ax_res.set_yticks([])
         self.fig.tight_layout()
         self.draw_idle()
 
@@ -615,7 +631,10 @@ class SpectrumCanvas(FigureCanvas):
                show_legend: bool = True) -> None:
         s = style or get_style("classic")
         self.fig.set_facecolor(s["fig_bg"])
-        actual_show_residual = bool(show_residual and model is not None)
+        # El espacio de residuos depende SOLO de la opción 'mostrar diferencia',
+        # no de que exista un modelo: así un ajuste no altera la disposición.
+        actual_show_residual = bool(show_residual)
+        self.residual_pref = actual_show_residual
         self.fig.clear()
         if actual_show_residual:
             self._gs = self.fig.add_gridspec(2, 1, height_ratios=[4.6, 1.0], hspace=0.08)
@@ -652,11 +671,11 @@ class SpectrumCanvas(FigureCanvas):
                                  lw=s.get("res_line_lw", 1.0))
                 lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
                 self.ax_res.set_ylim(-lim, lim)
-                self.ax.tick_params(labelbottom=False)
         if not actual_show_residual:
             self.ax.tick_params(labelbottom=True)
             self.ax.set_xlabel(tr("plot.velocity_xlabel"), color=s["lbl"])
         else:
+            self.ax.tick_params(labelbottom=False)
             self.ax.set_xlabel("")
         self.ax.set_ylabel(tr("plot.transmission_ylabel"), color=s["lbl"])
         self.ax.set_title(tr("plot.title_discrete"), color=s["title"], pad=10,
@@ -1141,6 +1160,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.layout_preset = "Estándar"
         self.custom_layouts: dict[str, dict] = {}
         self.color_theme = "blue"          # tema de color de la interfaz
+        self._show_residual_pref = True    # mostrar subgráfica de diferencia
         # Opciones avanzadas (compartidas con la GUI Tk)
         self.likelihood = "gauss"          # "gauss" / "poisson"
         self.robust_loss = "linear"        # "linear" / "soft_l1" / "huber"
@@ -1155,6 +1175,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._build_ui()
         self._build_menubar()
         self._apply_color_theme(self.color_theme, persist=False)
+        # Reserva (o no) el espacio de la subgráfica de diferencia desde el
+        # arranque, según la preferencia guardada.
+        self.canvas.residual_pref = self._show_residual_pref
+        self.canvas.show_no_file()
         self.statusBar().showMessage(tr("plot.no_file"))
 
     # ── Construcción de la UI ────────────────────────────────────────────
@@ -1569,7 +1593,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.mode_action_group.addAction(opt_pbhf)
         self._mode_menu_actions.extend([opt_discrete, opt_pbhf])
         options_menu.addSeparator()
-        self.act_opt_show_residual = QtGui.QAction(tr("options.show_residual"), self, checkable=True, checked=True)
+        self.act_opt_show_residual = QtGui.QAction(tr("options.show_residual"), self,
+                                                   checkable=True, checked=self._show_residual_pref)
         self.act_opt_show_residual.toggled.connect(lambda checked: getattr(self, "act_show_residual", self.act_opt_show_residual).setChecked(checked))
         options_menu.addAction(self.act_opt_show_residual)
         self.act_opt_show_legend = QtGui.QAction(tr("options.show_legend"), self, checkable=True, checked=True)
@@ -1610,7 +1635,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         # ── Vista ────────────────────────────────────────────────────────
         view_menu = mb.addMenu(tr("menu.view"))
         self.act_show_residual = QtGui.QAction(tr("options.show_residual"), self,
-                                                checkable=True, checked=True)
+                                                checkable=True, checked=self._show_residual_pref)
+        self.act_show_residual.toggled.connect(self._on_show_residual_toggled)
         self.act_show_residual.toggled.connect(lambda _: self._refresh_plot())
         self.act_show_residual.toggled.connect(lambda checked: self.act_opt_show_residual.setChecked(checked) if hasattr(self, "act_opt_show_residual") and self.act_opt_show_residual.isChecked() != checked else None)
         view_menu.addAction(self.act_show_residual)
@@ -2186,6 +2212,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 ctheme = data.get("color_theme")
                 if ctheme in COLOR_THEMES:
                     self.color_theme = ctheme
+                if isinstance(data.get("show_residual"), bool):
+                    self._show_residual_pref = data["show_residual"]
                 preset = data.get("layout_preset")
                 if isinstance(preset, str) and preset:
                     self.layout_preset = preset
@@ -2209,6 +2237,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                     current = {}
             current["plot_style"] = self.plot_style_name
             current["color_theme"] = self.color_theme
+            if hasattr(self, "act_show_residual"):
+                current["show_residual"] = bool(self.act_show_residual.isChecked())
             current["recent_files"] = list(self.recent_files)
             current["layout_preset"] = self.layout_preset
             current["custom_layouts"] = dict(self.custom_layouts)
@@ -2426,6 +2456,16 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             tr("msg.fit_velocity_requires_bhf_fixed",
                default="Ajuste de Vmax: se han fijado los BHF automáticamente."),
             5000)
+
+    def _on_show_residual_toggled(self, checked: bool) -> None:
+        """Reserva o libera el espacio de la diferencia y persiste la opción."""
+        if hasattr(self, "canvas"):
+            self.canvas.residual_pref = bool(checked)
+            # Sin fichero cargado, _refresh_plot no redibuja: actualiza el
+            # marcador de 'sin fichero' con la nueva disposición.
+            if self.file.velocity is None:
+                self.canvas.show_no_file()
+        self._save_settings()
 
     # ── Helpers UI ───────────────────────────────────────────────────────
     def _set_all_fixed(self, value: bool) -> None:
