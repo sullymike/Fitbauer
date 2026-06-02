@@ -31,7 +31,11 @@ from matplotlib.figure import Figure
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from mossbauer_i18n import tr  # noqa: E402
+from mossbauer_i18n import (  # noqa: E402
+    tr, get_language, set_language, available_languages,
+)
+from mossbauer_help import get_help_sections  # noqa: E402
+from core.data_io import SETTINGS_PATH  # noqa: E402
 from core.constants import APP_VERSION, APP_NAME, SEXTET_PARAM_NAMES  # noqa: E402
 from core.folding import (  # noqa: E402
     read_ws5_counts, find_best_integer_or_half_center, fold_integer_or_half,
@@ -733,6 +737,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._building = False
         self.plot_style_name = "modern"
         self.constraints: list[dict] = []
+        self._load_settings()
         self._build_ui()
         self._build_menubar()
         self.statusBar().showMessage(tr("plot.no_file"))
@@ -875,15 +880,85 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             style_menu.addAction(act)
             self.style_action_group.addAction(act)
 
+        # Submenú de idioma dentro de View
+        view_menu.addSeparator()
+        lang_menu = view_menu.addMenu(tr("menu.language"))
+        self.lang_action_group = QtGui.QActionGroup(self)
+        current_lang = get_language()
+        for code, name in available_languages().items():
+            act = QtGui.QAction(name, self, checkable=True)
+            act.setChecked(code == current_lang)
+            act.triggered.connect(lambda _checked=False, c=code: self._set_language(c))
+            lang_menu.addAction(act)
+            self.lang_action_group.addAction(act)
+
         help_menu = mb.addMenu(tr("menu.help"))
+        act_help = QtGui.QAction(tr("help.open"), self)
+        act_help.setShortcut("F1")
+        act_help.triggered.connect(self.on_help)
+        help_menu.addAction(act_help)
         act_about = QtGui.QAction(tr("help.about"), self)
         act_about.triggered.connect(self.on_about)
         help_menu.addAction(act_about)
 
+    def _set_language(self, code: str) -> None:
+        set_language(code)
+        # Persistir
+        try:
+            import json
+            current = {}
+            if SETTINGS_PATH.exists():
+                try:
+                    current = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+            current["ui_language"] = code
+            SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            SETTINGS_PATH.write_text(
+                json.dumps(current, indent=2, ensure_ascii=False),
+                encoding="utf-8")
+        except Exception:
+            pass
+        QtWidgets.QMessageBox.information(
+            self, tr("language.restart_title"), tr("language.restart_message"))
+
     def _set_plot_style(self, name: str) -> None:
         self.plot_style_name = name
         apply_rc(name)
+        self._save_settings()
         self._refresh_plot()
+
+    # ── Persistencia mínima ──────────────────────────────────────────────
+    def _load_settings(self) -> None:
+        try:
+            import json
+            if SETTINGS_PATH.exists():
+                data = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+                style = data.get("plot_style")
+                if style in ("classic", "modern", "publication", "dark"):
+                    self.plot_style_name = style
+                lang = data.get("ui_language")
+                if lang and lang in available_languages():
+                    set_language(lang)
+        except Exception:
+            pass
+
+    def _save_settings(self) -> None:
+        try:
+            import json
+            current = {}
+            if SETTINGS_PATH.exists():
+                try:
+                    current = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+                except Exception:
+                    current = {}
+            current["plot_style"] = self.plot_style_name
+            SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            SETTINGS_PATH.write_text(
+                json.dumps(current, indent=2, ensure_ascii=False),
+                encoding="utf-8")
+        except Exception:
+            pass
 
     # ── Cambio de modo ───────────────────────────────────────────────────
     def _on_mode_changed(self, idx: int) -> None:
@@ -1463,6 +1538,48 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
 
     def on_constraints(self) -> None:
         dlg = ConstraintsDialog(self)
+        dlg.exec()
+
+    def on_help(self) -> None:
+        sections = get_help_sections(
+            voigt_sigma=self.calib.voigt_sigma.value(),
+            settings_path=SETTINGS_PATH,
+            lang=get_language(),
+        )
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(tr("help.window_title"))
+        dlg.resize(960, 640)
+        v = QtWidgets.QVBoxLayout(dlg)
+        header = QtWidgets.QLabel(f"<h2>{tr('help.header_title')}</h2>")
+        header.setAlignment(QtCore.Qt.AlignCenter)
+        v.addWidget(header)
+        # Lista lateral + texto: usamos QListWidget + QTextBrowser
+        split = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        list_w = QtWidgets.QListWidget()
+        for title, _heading, _content in sections:
+            list_w.addItem(title)
+        list_w.setMaximumWidth(260)
+        split.addWidget(list_w)
+        text_w = QtWidgets.QTextBrowser()
+        text_w.setOpenExternalLinks(True)
+        split.addWidget(text_w)
+        split.setSizes([260, 700])
+        v.addWidget(split, stretch=1)
+
+        def show_section(idx: int) -> None:
+            if 0 <= idx < len(sections):
+                title, heading, content = sections[idx]
+                html = (f"<h2>{title}</h2><h3 style='color:#475569;'>{heading}</h3>"
+                        f"<pre style='white-space:pre-wrap; font-family:sans-serif;'>"
+                        f"{content}</pre>")
+                text_w.setHtml(html)
+
+        list_w.currentRowChanged.connect(show_section)
+        if sections:
+            list_w.setCurrentRow(0)
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
+        bb.rejected.connect(dlg.reject)
+        v.addWidget(bb)
         dlg.exec()
 
     def on_about(self) -> None:
