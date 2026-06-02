@@ -20,7 +20,7 @@ import urllib.error
 import urllib.request
 
 import numpy as np
-from scipy.optimize import least_squares, differential_evolution
+from scipy.optimize import least_squares
 from scipy.special import wofz
 
 from mossbauer_i18n import available_languages, get_language, set_language, tr
@@ -3751,15 +3751,6 @@ class MossbauerFe33GUI(tk.Tk):
         dT_dv = np.gradient(np.asarray(model_y, dtype=float), v)
         dT_dvmax = dT_dv * (v / vmax)
         return np.sqrt(base_sigma ** 2 + (dT_dvmax * sv) ** 2)
-
-    def _least_squares_kwargs(self) -> dict:
-        """kwargs comunes para least_squares incluyendo pérdida robusta (mejora 10)."""
-        loss = self.robust_loss_var.get()
-        kwargs: dict = {}
-        if loss in ("soft_l1", "huber", "cauchy"):
-            kwargs["loss"] = loss
-            kwargs["f_scale"] = 3.0  # umbral ~3σ (residuos ya normalizados por σ)
-        return kwargs
 
     def fit_correlation_summary(self, cov: np.ndarray | None, names: list[str], threshold: float = 0.95) -> dict[str, object]:
         """Resume correlaciones de la matriz de covarianza para diagnosticar degeneraciones."""
