@@ -375,9 +375,11 @@ class ComponentPanel(QtWidgets.QWidget):
     paramChanged = QtCore.Signal()
 
     # Qué parámetros usa cada tipo (los demás se agrisan).
+    # 'int3' es la intensidad de referencia (=1, oculta y siempre fija, igual
+    # que en Tk): no se incluye aquí para que nunca se libere ni se ajuste.
     _USED_BY = {
         "Sextete":  {"delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
-                     "depth", "int1", "int2", "int3", "texture", "beta"},
+                     "depth", "int1", "int2", "texture", "beta"},
         "Doblete":  {"delta", "quad", "gamma1", "gamma2", "depth", "int1", "int2"},
         "Singlete": {"delta", "gamma1", "depth", "int1"},
     }
@@ -2545,7 +2547,12 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         for ctl in (self.calib.baseline, self.calib.slope, self.calib.sat_scale):
             ctl.set_fixed(value)
         for cp in self.components_panels:
-            for ctl in cp.params.values():
+            for name, ctl in cp.params.items():
+                # int3 (intensidad de referencia = 1) permanece siempre fija,
+                # igual que en Tk; no se libera con "Liberar todos".
+                if name == "int3":
+                    ctl.set_fixed(True)
+                    continue
                 ctl.set_fixed(value)
         self._building = False
         self._refresh_plot()
