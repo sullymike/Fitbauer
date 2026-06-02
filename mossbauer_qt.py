@@ -47,7 +47,11 @@ from core.profile_likelihood import asymmetric_intervals  # noqa: E402
 from core.plot_styles import get_style, apply_rc  # noqa: E402
 from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data  # noqa: E402
 from mossbauer_distribution import (  # noqa: E402
-    fit_bhf_distribution, fit_hyperfine_distribution, scan_alpha,
+    fit_bhf_distribution, fit_hyperfine_distribution,
+    fit_gaussian_hyperfine_distribution,
+    fit_binomial_hyperfine_distribution,
+    fit_fixed_hyperfine_distribution,
+    scan_alpha,
 )
 
 
@@ -479,14 +483,38 @@ class FileState:
 
 
 class DistributionPanel(QtWidgets.QGroupBox):
-    """Panel para modo distribución P(BHF) (Hesse-Rübartsch)."""
+    """Panel para modo distribución P(BHF) / P(ΔEQ).
+
+    Soporta 4 formas (igual que la GUI Tk): Histograma (Hesse-Rübartsch
+    no paramétrica), Gaussiana, Binomial y Fija (P cargada desde fichero).
+    """
 
     paramChanged = QtCore.Signal()
+    loadFixedRequested = QtCore.Signal()
 
     def __init__(self, parent=None):
         super().__init__(tr("tab.distribution_bhf"), parent)
         v = QtWidgets.QVBoxLayout(self)
         v.setSpacing(2)
+
+        # Selector de forma
+        row = QtWidgets.QHBoxLayout()
+        row.addWidget(QtWidgets.QLabel(tr("bhf.shape_label") + ":"))
+        self.shape_combo = QtWidgets.QComboBox()
+        for code, key in (("Histograma", "shape.Histograma"),
+                          ("Gaussiana", "shape.Gaussiana"),
+                          ("Binomial", "shape.Binomial"),
+                          ("Fija", "shape.Fija")):
+            self.shape_combo.addItem(tr(key), code)
+        self.shape_combo.currentIndexChanged.connect(lambda *_: self.paramChanged.emit())
+        row.addWidget(self.shape_combo, stretch=1)
+        self.btn_load_fixed = QtWidgets.QPushButton(tr("bhf.load_fixed"))
+        self.btn_load_fixed.clicked.connect(self.loadFixedRequested)
+        self.btn_load_fixed.setEnabled(False)
+        row.addWidget(self.btn_load_fixed)
+        self.shape_combo.currentIndexChanged.connect(
+            lambda i: self.btn_load_fixed.setEnabled(self.shape == "Fija"))
+        v.addLayout(row)
 
         self.delta = ParamControl(tr("slider.dist_delta"), 0.0, -2.5, 2.5, 0.001, 4)
         self.quad  = ParamControl(tr("slider.dist_quad"),  0.0, -4.0, 4.0, 0.001, 4)
@@ -501,6 +529,11 @@ class DistributionPanel(QtWidgets.QGroupBox):
             v.addWidget(w)
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
         v.addStretch(1)
+        self.fixed_path: Path | None = None
+
+    @property
+    def shape(self) -> str:
+        return self.shape_combo.currentData() or "Histograma"
 
 
 class ConstraintsDialog(QtWidgets.QDialog):
@@ -815,6 +848,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"{APP_NAME}  v{APP_VERSION}  (Qt)")
+        # Icono de la app (mismo que la GUI Tk)
+        icon_png = ROOT / "assets" / "mossbauer_icon.png"
+        if icon_png.exists():
+            self.setWindowIcon(QtGui.QIcon(str(icon_png)))
         self.resize(1400, 900)
         self.file = FileState()
         self._building = False
@@ -901,6 +938,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.dist_panel = DistributionPanel()
         self.dist_panel.setVisible(False)
         self.dist_panel.paramChanged.connect(self._refresh_plot)
+        self.dist_panel.loadFixedRequested.connect(self._on_load_fixed_distribution)
         lv.addWidget(self.dist_panel)
         lv.addStretch(1)
 
@@ -2493,6 +2531,33 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         v.addWidget(bb)
         dlg.exec()
 
+    def _load_fixed_distribution(self, path: Path) -> tuple[np.ndarray, np.ndarray]:
+        """Lee dos columnas (centers, weights) de un .txt/.dat/.csv."""
+        raw = Path(path).read_text(encoding="utf-8", errors="replace").strip().splitlines()
+        c, w = [], []
+        for line in raw:
+            line = line.strip()
+            if not line or line.startswith(("#", "//")):
+                continue
+            parts = line.replace(",", " ").replace(";", " ").split()
+            if len(parts) < 2:
+                continue
+            try:
+                c.append(float(parts[0])); w.append(float(parts[1]))
+            except ValueError:
+                continue
+        return np.array(c, dtype=float), np.array(w, dtype=float)
+
+    def _on_load_fixed_distribution(self) -> None:
+        """Carga una distribución P fija desde fichero (dos columnas)."""
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, tr("bhf.load_fixed"), str(ROOT),
+            "Texto (*.txt *.dat *.csv *.tsv);;All (*.*)")
+        if not path:
+            return
+        self.dist_panel.fixed_path = Path(path)
+        self.statusBar().showMessage(f"P fija: {path}", 5000)
+
     # ── Ajuste distribución P(BHF) ──────────────────────────────────────
     def on_fit_distribution(self) -> None:
         if self.file.velocity is None or self.file.y_data is None:
@@ -2503,27 +2568,52 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         nbins = max(5, int(round(d.nbins.value())))
         alpha = 10.0 ** float(d.log_alpha.value())
         var = self.dist_variable
+        shape = d.shape
         label = "P(ΔEQ)" if var == "quad" else "P(BHF)"
-        self.statusBar().showMessage(f"Ajustando {label}…")
+        self.statusBar().showMessage(f"Ajustando {label} [{shape}]…")
         QtWidgets.QApplication.processEvents()
+        delta = float(d.delta.value())
+        quad_v = float(d.quad.value())
+        gamma_v = float(d.gamma.value())
+        v_arr = self.file.velocity
+        y_arr = self.file.y_data
         try:
-            if var == "quad":
-                result = fit_hyperfine_distribution(
-                    self.file.velocity, self.file.y_data,
-                    variable="quad",
-                    delta=float(d.delta.value()), quad=0.0,
-                    gamma=float(d.gamma.value()),
-                    pmin=bmin, pmax=bmax, nbins=nbins, alpha=alpha,
-                    sigma=self.file.sigma,
-                )
+            if shape == "Histograma":
+                # Hesse-Rübartsch (acepta sigma + alpha).
+                if var == "quad":
+                    result = fit_hyperfine_distribution(
+                        v_arr, y_arr, variable="quad",
+                        delta=delta, quad=quad_v, gamma=gamma_v,
+                        pmin=bmin, pmax=bmax, nbins=nbins, alpha=alpha,
+                        sigma=self.file.sigma)
+                else:
+                    result = fit_bhf_distribution(
+                        v_arr, y_arr,
+                        delta=delta, quad=quad_v, gamma=gamma_v,
+                        bmin=bmin, bmax=bmax, nbins=nbins, alpha=alpha,
+                        sigma=self.file.sigma)
+            elif shape == "Gaussiana":
+                result = fit_gaussian_hyperfine_distribution(
+                    v_arr, y_arr, variable=var,
+                    delta=delta, quad=quad_v, gamma=gamma_v,
+                    pmin=bmin, pmax=bmax, nbins=nbins)
+            elif shape == "Binomial":
+                result = fit_binomial_hyperfine_distribution(
+                    v_arr, y_arr, variable=var,
+                    delta=delta, quad=quad_v, gamma=gamma_v,
+                    pmin=bmin, pmax=bmax, nbins=nbins)
+            elif shape == "Fija":
+                if d.fixed_path is None:
+                    QtWidgets.QMessageBox.information(
+                        self, label, "Carga primero un fichero de P fija.")
+                    return
+                # Lee fichero de dos columnas (centers, weights).
+                centers_arr, weights_arr = self._load_fixed_distribution(d.fixed_path)
+                result = fit_fixed_hyperfine_distribution(
+                    v_arr, y_arr, centers_arr, weights_arr, variable=var,
+                    delta=delta, quad=quad_v, gamma=gamma_v)
             else:
-                result = fit_bhf_distribution(
-                    self.file.velocity, self.file.y_data,
-                    delta=float(d.delta.value()), quad=float(d.quad.value()),
-                    gamma=float(d.gamma.value()),
-                    bmin=bmin, bmax=bmax, nbins=nbins, alpha=alpha,
-                    sigma=self.file.sigma,
-                )
+                raise RuntimeError(f"Forma desconocida: {shape}")
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("fit.run"),
                                             f"{type(exc).__name__}: {exc}")
@@ -3043,6 +3133,10 @@ def _show_splash(app: QtWidgets.QApplication, duration_ms: int = 1800) -> None:
 
 def main() -> int:
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
+    # Icono global (taskbar / dock)
+    icon_png = ROOT / "assets" / "mossbauer_icon.png"
+    if icon_png.exists():
+        app.setWindowIcon(QtGui.QIcon(str(icon_png)))
     # Estilo Fusion (Qt nativo, plano y moderno; igual en Win/Linux/macOS).
     try:
         app.setStyle("Fusion")
