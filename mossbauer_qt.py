@@ -228,11 +228,75 @@ class ComponentPanel(QtWidgets.QWidget):
         self.enabled.toggled.connect(lambda *_: self.paramChanged.emit())
         self.type_combo.currentTextChanged.connect(self._on_type_changed)
 
+        # Estado para menús contextuales
+        self.intensity_mode = "free"       # "free" / "texture"
+        self.quad_treatment = "1st_order"  # 1st_order / kundig_fixed / kundig_powder
+
+        # Clic derecho sobre intensidades → menú Intensity mode
+        for k in ("int1", "int2", "int3"):
+            ctl = self.params[k]
+            ctl.spin.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+            ctl.spin.customContextMenuRequested.connect(
+                lambda pos, c=ctl: self._show_intensity_menu(c, pos))
+        # Clic derecho sobre quad → menú Quadrupole treatment
+        ctl_q = self.params["quad"]
+        ctl_q.spin.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        ctl_q.spin.customContextMenuRequested.connect(
+            lambda pos, c=ctl_q: self._show_quad_menu(c, pos))
+
         # Fijos típicos para α-Fe (intensidades + gammas relativas + quad).
         for k in ("int1", "int2", "int3", "gamma2", "gamma3", "quad"):
             self.params[k].set_fixed(True)
         v.addStretch(1)
         self._on_type_changed(self.type_combo.currentText())
+
+    def _show_intensity_menu(self, ctl: "ParamControl", pos: QtCore.QPoint) -> None:
+        menu = QtWidgets.QMenu(self)
+        title = menu.addAction(tr("context.intensity_mode_title"))
+        title.setEnabled(False)
+        menu.addSeparator()
+        for val, key in (("free", "context.intensity_mode_free"),
+                          ("texture", "context.intensity_mode_texture")):
+            act = menu.addAction(tr(key))
+            act.setCheckable(True)
+            act.setChecked(self.intensity_mode == val)
+            act.triggered.connect(lambda _c=False, v=val: self._set_intensity_mode(v))
+        menu.exec(ctl.spin.mapToGlobal(pos))
+
+    def _set_intensity_mode(self, mode: str) -> None:
+        self.intensity_mode = mode
+        # En modo textura, fija int1=3 / int2 (configurable via t implícito) /
+        # int3=1 manteniéndolos como referencia 3:4t/(2-t):1 (t≈2/3 por defecto).
+        if mode == "texture":
+            t = 2.0 / 3.0
+            denom = max(2.0 - t, 1e-9)
+            i1, i2, i3 = 3.0, 4.0 * t / denom, 1.0
+            self.params["int1"].set_value(i1)
+            self.params["int2"].set_value(i2)
+            self.params["int3"].set_value(i3)
+            for k in ("int1", "int2", "int3"):
+                self.params[k].set_fixed(True)
+        self.paramChanged.emit()
+
+    def _show_quad_menu(self, ctl: "ParamControl", pos: QtCore.QPoint) -> None:
+        menu = QtWidgets.QMenu(self)
+        title = menu.addAction(tr("context.quad_treatment_title"))
+        title.setEnabled(False)
+        menu.addSeparator()
+        for val, key in (
+            ("1st_order", "context.quad_treatment_1st_order"),
+            ("kundig_fixed", "context.quad_treatment_kundig_fixed"),
+            ("kundig_powder", "context.quad_treatment_kundig_powder"),
+        ):
+            act = menu.addAction(tr(key))
+            act.setCheckable(True)
+            act.setChecked(self.quad_treatment == val)
+            act.triggered.connect(lambda _c=False, v=val: self._set_quad_treatment(v))
+        menu.exec(ctl.spin.mapToGlobal(pos))
+
+    def _set_quad_treatment(self, treatment: str) -> None:
+        self.quad_treatment = treatment
+        self.paramChanged.emit()
 
     @property
     def kind(self) -> str:
@@ -758,7 +822,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.constraints: list[dict] = []
         self.calibration_info: dict | None = None
         self.recent_files: list[str] = []
-        self.layout_preset = "Balanced"
+        self.layout_preset = "Estándar"
         self._load_settings()
         self._build_ui()
         self._build_menubar()
@@ -853,10 +917,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         for cp in self.components_panels:
             cp.paramChanged.connect(self._refresh_plot)
 
-    # ── Menubar ──────────────────────────────────────────────────────────
+    # ── Menubar (orden igual al de la GUI Tk) ────────────────────────────
     def _build_menubar(self) -> None:
         mb = self.menuBar()
 
+        # ── Archivo ──────────────────────────────────────────────────────
         file_menu = mb.addMenu(tr("menu.file"))
         act_open = QtGui.QAction(tr("file.open"), self)
         act_open.setShortcut(QtGui.QKeySequence.Open)
@@ -864,6 +929,21 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         file_menu.addAction(act_open)
         self.recent_menu = file_menu.addMenu("Open Recent")
         self._rebuild_recent_menu()
+        web_menu = file_menu.addMenu(tr("file.web"))
+        act_web_meas = QtGui.QAction(tr("file.web_measurements"), self)
+        act_web_meas.triggered.connect(lambda: self._open_web_dialog("measurements"))
+        web_menu.addAction(act_web_meas)
+        act_web_calib = QtGui.QAction(tr("file.web_calibrations"), self)
+        act_web_calib.triggered.connect(lambda: self._open_web_dialog("calibrations"))
+        web_menu.addAction(act_web_calib)
+        self.act_upload_session = QtGui.QAction(tr("file.upload_session"), self)
+        self.act_upload_session.triggered.connect(self.on_upload_session)
+        self.act_upload_session.setEnabled(False)
+        web_menu.addAction(self.act_upload_session)
+        self.act_use_as_calib = QtGui.QAction(tr("file.use_as_calibration"), self)
+        self.act_use_as_calib.triggered.connect(self._use_as_calibration_detailed)
+        self.act_use_as_calib.setEnabled(False)
+        file_menu.addAction(self.act_use_as_calib)
         file_menu.addSeparator()
         self.act_save_fit = QtGui.QAction(tr("file.save_fit"), self)
         self.act_save_fit.triggered.connect(self.on_save_fit)
@@ -873,6 +953,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_export_report.triggered.connect(self.on_export_report)
         self.act_export_report.setEnabled(False)
         file_menu.addAction(self.act_export_report)
+        file_menu.addSeparator()
         act_save_session = QtGui.QAction(tr("file.save_session"), self)
         act_save_session.setShortcut("Ctrl+S")
         act_save_session.triggered.connect(self.on_save_session)
@@ -887,20 +968,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         act_exit.triggered.connect(self.close)
         file_menu.addAction(act_exit)
 
-        web_menu = mb.addMenu(tr("file.web"))
-        act_web_meas = QtGui.QAction(tr("file.web_measurements"), self)
-        act_web_meas.triggered.connect(lambda: self._open_web_dialog("measurements"))
-        web_menu.addAction(act_web_meas)
-        act_web_calib = QtGui.QAction(tr("file.web_calibrations"), self)
-        act_web_calib.triggered.connect(lambda: self._open_web_dialog("calibrations"))
-        web_menu.addAction(act_web_calib)
-        web_menu.addSeparator()
-        self.act_upload_session = QtGui.QAction(tr("file.upload_session"), self)
-        self.act_upload_session.triggered.connect(self.on_upload_session)
-        self.act_upload_session.setEnabled(False)
-        web_menu.addAction(self.act_upload_session)
-
+        # ── Ajuste ───────────────────────────────────────────────────────
         fit_menu = mb.addMenu(tr("menu.fit"))
+        self.act_fit = QtGui.QAction(tr("fit.run"), self)
+        self.act_fit.setShortcut("Ctrl+R")
+        self.act_fit.triggered.connect(self.on_fit)
+        self.act_fit.setEnabled(False)
+        fit_menu.addAction(self.act_fit)
+        fit_menu.addSeparator()
         self.act_find_center = QtGui.QAction(tr("fit.find_center"), self)
         self.act_find_center.triggered.connect(self.on_find_center)
         self.act_find_center.setEnabled(False)
@@ -917,11 +992,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_ai.triggered.connect(self.on_ai_summary)
         self.act_ai.setEnabled(False)
         fit_menu.addAction(self.act_ai)
-        self.act_fit = QtGui.QAction(tr("fit.run"), self)
-        self.act_fit.setShortcut("Ctrl+R")
-        self.act_fit.triggered.connect(self.on_fit)
-        self.act_fit.setEnabled(False)
-        fit_menu.addAction(self.act_fit)
+        self.act_bootstrap = QtGui.QAction(tr("fit.bootstrap"), self)
+        self.act_bootstrap.triggered.connect(self.on_bootstrap)
+        self.act_bootstrap.setEnabled(False)
+        fit_menu.addAction(self.act_bootstrap)
         self.act_profile = QtGui.QAction(tr("fit.profile_likelihood"), self)
         self.act_profile.triggered.connect(self.on_profile_likelihood)
         self.act_profile.setEnabled(False)
@@ -929,22 +1003,54 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_batch = QtGui.QAction(tr("fit.batch_fit"), self)
         self.act_batch.triggered.connect(self.on_batch_fit)
         fit_menu.addAction(self.act_batch)
-        self.act_bootstrap = QtGui.QAction(tr("fit.bootstrap"), self)
-        self.act_bootstrap.triggered.connect(self.on_bootstrap)
-        self.act_bootstrap.setEnabled(False)
-        fit_menu.addAction(self.act_bootstrap)
+        fit_menu.addSeparator()
+        # Modos (radio): Discreto / P(BHF) — coincide con el combobox lateral.
+        self.mode_action_group = QtGui.QActionGroup(self)
+        act_discrete = QtGui.QAction(tr("options.discrete_sextets"), self, checkable=True)
+        act_discrete.setChecked(True)
+        act_discrete.triggered.connect(lambda _c: self.mode_combo.setCurrentIndex(0))
+        fit_menu.addAction(act_discrete); self.mode_action_group.addAction(act_discrete)
+        act_pbhf = QtGui.QAction(tr("options.distribution_bhf"), self, checkable=True)
+        act_pbhf.triggered.connect(lambda _c: self.mode_combo.setCurrentIndex(1))
+        fit_menu.addAction(act_pbhf); self.mode_action_group.addAction(act_pbhf)
+        self._mode_menu_actions = [act_discrete, act_pbhf]
+        fit_menu.addSeparator()
+        # Submenú de opciones avanzadas (placeholders por ahora; algunas ya
+        # cubiertas por menús contextuales, otras quedan como TODO).
+        adv_menu = fit_menu.addMenu(tr("options.advanced_fit"))
+        # Pérfil de línea (Lorentziana / Voigt) — accesible también con clic
+        # derecho sobre el slider σ.
+        prof_menu = adv_menu.addMenu(tr("options.line_profile"))
+        self.profile_action_group = QtGui.QActionGroup(self)
+        for kind, key in (("Lorentziana", "options.profile_lorentzian"),
+                          ("Voigt", "options.profile_voigt")):
+            a = QtGui.QAction(tr(key), self, checkable=True)
+            if kind == "Lorentziana":
+                a.setChecked(True)
+            a.triggered.connect(lambda _c, k=kind: self.calib._set_line_profile(k))
+            prof_menu.addAction(a); self.profile_action_group.addAction(a)
+        adv_menu.addAction(self.act_lcurve if hasattr(self, "act_lcurve") else QtGui.QAction("L-curve α", self))
+        fit_menu.addSeparator()
+        act_free_all = QtGui.QAction(tr("fit.free_all"), self)
+        act_free_all.triggered.connect(lambda: self._set_all_fixed(False))
+        fit_menu.addAction(act_free_all)
+        act_fix_all = QtGui.QAction(tr("fit.fix_all"), self)
+        act_fix_all.triggered.connect(lambda: self._set_all_fixed(True))
+        fit_menu.addAction(act_fix_all)
+        fit_menu.addSeparator()
+        act_constraints = QtGui.QAction(tr("options.constraints"), self)
+        act_constraints.triggered.connect(self.on_constraints)
+        fit_menu.addAction(act_constraints)
+        act_presets = QtGui.QAction(tr("options.physical_presets"), self)
+        act_presets.triggered.connect(self.on_physical_presets)
+        fit_menu.addAction(act_presets)
+        # L-curve α independiente (mismo método)
         self.act_lcurve = QtGui.QAction(tr("bhf.lcurve_alpha"), self)
         self.act_lcurve.triggered.connect(self.on_lcurve)
         self.act_lcurve.setEnabled(False)
         fit_menu.addAction(self.act_lcurve)
-        fit_menu.addSeparator()
-        act_fix_all = QtGui.QAction(tr("fit.fix_all"), self)
-        act_fix_all.triggered.connect(lambda: self._set_all_fixed(True))
-        fit_menu.addAction(act_fix_all)
-        act_free_all = QtGui.QAction(tr("fit.free_all"), self)
-        act_free_all.triggered.connect(lambda: self._set_all_fixed(False))
-        fit_menu.addAction(act_free_all)
 
+        # ── Vista ────────────────────────────────────────────────────────
         view_menu = mb.addMenu(tr("menu.view"))
         self.act_show_residual = QtGui.QAction(tr("options.show_residual"), self,
                                                 checkable=True, checked=True)
@@ -955,22 +1061,6 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_show_legend.toggled.connect(lambda _: self._refresh_plot())
         view_menu.addAction(self.act_show_legend)
         view_menu.addSeparator()
-        act_constraints = QtGui.QAction(tr("options.constraints"), self)
-        act_constraints.triggered.connect(self.on_constraints)
-        view_menu.addAction(act_constraints)
-        act_presets = QtGui.QAction(tr("options.physical_presets"), self)
-        act_presets.triggered.connect(self.on_physical_presets)
-        view_menu.addAction(act_presets)
-        view_menu.addSeparator()
-        layout_menu = view_menu.addMenu("Layout preset")
-        self.layout_action_group = QtGui.QActionGroup(self)
-        for preset in ("Balanced", "Wide plot", "Focus controls"):
-            act = QtGui.QAction(preset, self, checkable=True)
-            if preset == self.layout_preset:
-                act.setChecked(True)
-            act.triggered.connect(lambda _checked=False, p=preset: self._apply_layout_preset(p))
-            layout_menu.addAction(act)
-            self.layout_action_group.addAction(act)
         style_menu = view_menu.addMenu(tr("options.plot_style"))
         self.style_action_group = QtGui.QActionGroup(self)
         for value, label_key in (
@@ -985,9 +1075,6 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             act.triggered.connect(lambda _checked=False, v=value: self._set_plot_style(v))
             style_menu.addAction(act)
             self.style_action_group.addAction(act)
-
-        # Submenú de idioma dentro de View
-        view_menu.addSeparator()
         lang_menu = view_menu.addMenu(tr("menu.language"))
         self.lang_action_group = QtGui.QActionGroup(self)
         current_lang = get_language()
@@ -997,22 +1084,27 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             act.triggered.connect(lambda _checked=False, c=code: self._set_language(c))
             lang_menu.addAction(act)
             self.lang_action_group.addAction(act)
+        view_menu.addSeparator()
+        act_configure_layout = QtGui.QAction(tr("view.configure_layout"), self)
+        act_configure_layout.triggered.connect(self.on_configure_layout)
+        view_menu.addAction(act_configure_layout)
 
+        # ── Ayuda ────────────────────────────────────────────────────────
         help_menu = mb.addMenu(tr("menu.help"))
         act_help = QtGui.QAction(tr("help.open"), self)
         act_help.setShortcut("F1")
         act_help.triggered.connect(self.on_help)
         help_menu.addAction(act_help)
+        act_about = QtGui.QAction(tr("help.about"), self)
+        act_about.triggered.connect(self.on_about)
+        help_menu.addAction(act_about)
+        help_menu.addSeparator()
         act_changelog = QtGui.QAction(tr("help.changelog"), self)
         act_changelog.triggered.connect(self.on_changelog)
         help_menu.addAction(act_changelog)
         act_check_updates = QtGui.QAction(tr("help.check_updates"), self)
         act_check_updates.triggered.connect(self.on_check_updates)
         help_menu.addAction(act_check_updates)
-        help_menu.addSeparator()
-        act_about = QtGui.QAction(tr("help.about"), self)
-        act_about.triggered.connect(self.on_about)
-        help_menu.addAction(act_about)
 
     def _set_language(self, code: str) -> None:
         set_language(code)
@@ -1036,16 +1128,55 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             self, tr("language.restart_title"), tr("language.restart_message"))
 
     def _apply_layout_preset(self, name: str) -> None:
-        """Tres presets de proporciones para el QSplitter principal."""
-        sizes = {
-            "Balanced":         [430, 1000],
-            "Wide plot":        [320, 1200],
-            "Focus controls":   [560,  800],
-        }.get(name, [430, 1000])
+        """Aplica preset al QSplitter principal usando los anchos del preset Tk."""
+        try:
+            from layout.presets import PRESETS
+        except Exception:
+            PRESETS = {}
+        spec = PRESETS.get(name, {})
+        left_w = int(spec.get("left_width", 430))
+        # Total fijo aproximado; el resto va al área central.
+        sizes = [left_w, max(800, self.width() - left_w - 20)]
         if hasattr(self, "_main_splitter"):
             self._main_splitter.setSizes(sizes)
         self.layout_preset = name
         self._save_settings()
+
+    def on_configure_layout(self) -> None:
+        """Diálogo que muestra los 4 presets Tk y permite escogerlos."""
+        try:
+            from layout.presets import PRESETS, DEFAULT_PRESET
+        except Exception as exc:
+            QtWidgets.QMessageBox.warning(
+                self, tr("view.configure_layout"),
+                f"layout.presets no disponible: {exc}")
+            return
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(tr("view.configure_layout"))
+        dlg.resize(560, 360)
+        v = QtWidgets.QVBoxLayout(dlg)
+        v.addWidget(QtWidgets.QLabel(
+            "<i>Elige un preset para ajustar la proporción de los paneles. "
+            "El núcleo Qt usa QSplitter, así que el preset solo fija anchos.</i>"))
+        list_w = QtWidgets.QListWidget()
+        for name, spec in PRESETS.items():
+            item = QtWidgets.QListWidgetItem(f"{name}  ·  {spec.get('description', '')}")
+            item.setData(QtCore.Qt.UserRole, name)
+            list_w.addItem(item)
+            if name == (self.layout_preset if self.layout_preset in PRESETS else DEFAULT_PRESET):
+                list_w.setCurrentItem(item)
+        v.addWidget(list_w, stretch=1)
+        bb = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        bb.accepted.connect(dlg.accept); bb.rejected.connect(dlg.reject)
+        v.addWidget(bb)
+        if dlg.exec() != QtWidgets.QDialog.Accepted:
+            return
+        item = list_w.currentItem()
+        if item is None:
+            return
+        name = item.data(QtCore.Qt.UserRole)
+        self._apply_layout_preset(name)
 
     def _rebuild_recent_menu(self) -> None:
         self.recent_menu.clear()
@@ -1096,7 +1227,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                     self.recent_files = [str(p) for p in recent
                                           if isinstance(p, str) and Path(p).exists()][:5]
                 preset = data.get("layout_preset")
-                if preset in ("Balanced", "Wide plot", "Focus controls"):
+                if isinstance(preset, str) and preset:
                     self.layout_preset = preset
         except Exception:
             pass
@@ -1126,6 +1257,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         is_deq = (idx == 2)
         self.comp_tabs.setVisible(not is_dist)
         self.dist_panel.setVisible(is_dist)
+        # Sincroniza el radio del menú Fit
+        if hasattr(self, "_mode_menu_actions") and 0 <= idx < 2:
+            self._mode_menu_actions[idx].setChecked(True)
         # Etiquetas según variable distribuida
         if is_dist:
             if is_deq:
@@ -1185,7 +1319,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 bounds[f"s{cp.idx}_{name}"] = rng
             components.append(Component(idx=cp.idx,
                                         enabled=cp.enabled.isChecked(),
-                                        kind=cp.kind))
+                                        kind=cp.kind,
+                                        intensity_mode=cp.intensity_mode,
+                                        quad_treatment=cp.quad_treatment))
         return FitState(
             velocity=self.file.velocity, y_data=self.file.y_data,
             sigma_data=self.file.sigma, values=values, fixed=fixed,
@@ -1232,6 +1368,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_auto_fit.setEnabled(True)
         self.act_ai.setEnabled(True)
         self.act_upload_session.setEnabled(True)
+        self.act_use_as_calib.setEnabled(True)
         self.act_profile.setEnabled(True)
         self.act_find_center.setEnabled(True)
         self.act_save_fit.setEnabled(True)
@@ -1327,16 +1464,22 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         fixed: dict[str, bool] = {}
         sextet_enabled: dict[str, bool] = {}
         component_kind: dict[str, str] = {}
+        intensity_mode: dict[str, str] = {}
+        quad_treatment: dict[str, str] = {}
         for cp in self.components_panels:
             values.update(cp.values_dict())
             fixed.update(cp.fixed_dict())
             sextet_enabled[str(cp.idx)] = bool(cp.enabled.isChecked())
             component_kind[str(cp.idx)] = cp.kind
+            intensity_mode[str(cp.idx)] = cp.intensity_mode
+            quad_treatment[str(cp.idx)] = cp.quad_treatment
         model_state = {
             "vars": values,
             "fixed": fixed,
             "sextet_enabled": sextet_enabled,
             "component_kind": component_kind,
+            "intensity_mode": intensity_mode,
+            "quad_treatment": quad_treatment,
             "fit_velocity": self.calib.fit_velocity.isChecked(),
             "fit_center": self.calib.fit_center.isChecked(),
             "fit_sigma": self.calib.fit_sigma.isChecked(),
@@ -1408,6 +1551,12 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 en = state.get("sextet_enabled", {}).get(str(cp.idx))
                 if en is not None:
                     cp.enabled.setChecked(bool(en))
+                im = state.get("intensity_mode", {}).get(str(cp.idx))
+                if im in ("free", "texture"):
+                    cp.intensity_mode = im
+                qt_v = state.get("quad_treatment", {}).get(str(cp.idx))
+                if qt_v in ("1st_order", "kundig_fixed", "kundig_powder"):
+                    cp.quad_treatment = qt_v
                 for name, ctl in cp.params.items():
                     f = state.get("fixed", {}).get(f"s{cp.idx}_{name}")
                     if f is not None:
