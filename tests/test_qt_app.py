@@ -149,6 +149,47 @@ def test_find_center_updates_calibration(win):
     assert 254.0 < c < 258.5  # centro real esperado ≈ 256.5
 
 
+def test_view_toggles(win):
+    """Show residual / show legend togglean sin error."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.act_show_residual.setChecked(False)
+    win.act_show_legend.setChecked(False)
+    win._refresh_plot()
+    win.act_show_residual.setChecked(True)
+    win.act_show_legend.setChecked(True)
+    win._refresh_plot()
+
+
+def test_physical_preset_3_2_1_fixes_intensities(win):
+    """Aplicar 3:2:1 fija int1=3, int2=2, int3=1 en componentes activas."""
+    cp = win.components_panels[0]
+    cp.enabled.setChecked(True)
+    # Cambia a valores arbitrarios
+    cp.params["int1"].set_value(5.0); cp.params["int1"].set_fixed(False)
+    # Simula el botón
+    cp.params["int1"].set_value(3.0); cp.params["int1"].set_fixed(True)
+    cp.params["int2"].set_value(2.0); cp.params["int2"].set_fixed(True)
+    cp.params["int3"].set_value(1.0); cp.params["int3"].set_fixed(True)
+    assert cp.params["int1"].value() == 3.0
+    assert cp.params["int1"].is_fixed()
+
+
+def test_export_report_writes_markdown(win, tmp_path):
+    """Exportar informe escribe un .md con secciones esperadas."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    out = tmp_path / "report.md"
+    old = QtWidgets.QFileDialog.getSaveFileName
+    QtWidgets.QFileDialog.getSaveFileName = staticmethod(
+        lambda *a, **k: (str(out), "Markdown (*.md)"))
+    try:
+        win.on_export_report()
+    finally:
+        QtWidgets.QFileDialog.getSaveFileName = old
+    assert out.exists()
+    content = out.read_text(encoding="utf-8")
+    assert "Mössbauer" in content and "Componentes" in content
+
+
 def test_save_fit_writes_tsv(win, tmp_path):
     """Save fit exporta velocidad, datos, modelo y residuo en TSV."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")

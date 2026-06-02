@@ -330,7 +330,9 @@ class SpectrumCanvas(FigureCanvas):
     def render(self, v: np.ndarray, y: np.ndarray,
                model: np.ndarray | None = None,
                components: list[tuple[int, str, np.ndarray]] | None = None,
-               style: dict | None = None) -> None:
+               style: dict | None = None,
+               show_residual: bool = True,
+               show_legend: bool = True) -> None:
         s = style or get_style("classic")
         self.fig.set_facecolor(s["fig_bg"])
         self.ax.clear(); self.ax_res.clear()
@@ -352,14 +354,21 @@ class SpectrumCanvas(FigureCanvas):
                          lw=s.get("model_lw", 2.2),
                          label=tr("plot.legend_model"))
             residual = y - model
-            self.ax_res.axhline(0, color=s["res_zero"], lw=0.9, alpha=0.9)
-            self.ax_res.fill_between(v, residual, 0, color=s["res_fill"],
-                                     alpha=s.get("res_fill_alpha", 0.22))
-            self.ax_res.plot(v, residual, "-", color=s["res_line"],
-                             lw=s.get("res_line_lw", 1.0))
-            lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
-            self.ax_res.set_ylim(-lim, lim)
-            self.ax.tick_params(labelbottom=False)
+            if show_residual:
+                self.ax_res.axhline(0, color=s["res_zero"], lw=0.9, alpha=0.9)
+                self.ax_res.fill_between(v, residual, 0, color=s["res_fill"],
+                                         alpha=s.get("res_fill_alpha", 0.22))
+                self.ax_res.plot(v, residual, "-", color=s["res_line"],
+                                 lw=s.get("res_line_lw", 1.0))
+                lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
+                self.ax_res.set_ylim(-lim, lim)
+                self.ax.tick_params(labelbottom=False)
+            else:
+                self.ax_res.set_visible(False)
+        if not show_residual:
+            self.ax_res.set_visible(False)
+        else:
+            self.ax_res.set_visible(True)
         self.ax.set_ylabel(tr("plot.transmission_ylabel"), color=s["lbl"])
         self.ax.set_title(tr("plot.title_discrete"), color=s["title"], pad=10,
                           fontweight=s.get("title_weight", "bold"))
@@ -378,9 +387,10 @@ class SpectrumCanvas(FigureCanvas):
             sp.set_color(s["res_spine"])
             if name in s.get("spines_hide", ()):
                 sp.set_visible(False)
-        self.ax.legend(loc="lower right", fontsize=9, framealpha=0.85,
-                       facecolor=s["leg_face"], edgecolor=s["leg_edge"],
-                       labelcolor=s["leg_text"])
+        if show_legend:
+            self.ax.legend(loc="lower right", fontsize=9, framealpha=0.85,
+                           facecolor=s["leg_face"], edgecolor=s["leg_edge"],
+                           labelcolor=s["leg_text"])
         self.fig.tight_layout()
         self.draw_idle()
 
@@ -825,6 +835,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_save_fit.triggered.connect(self.on_save_fit)
         self.act_save_fit.setEnabled(False)
         file_menu.addAction(self.act_save_fit)
+        self.act_export_report = QtGui.QAction(tr("file.export_report"), self)
+        self.act_export_report.triggered.connect(self.on_export_report)
+        self.act_export_report.setEnabled(False)
+        file_menu.addAction(self.act_export_report)
         act_save_session = QtGui.QAction(tr("file.save_session"), self)
         act_save_session.setShortcut("Ctrl+S")
         act_save_session.triggered.connect(self.on_save_session)
@@ -869,9 +883,21 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         fit_menu.addAction(act_free_all)
 
         view_menu = mb.addMenu(tr("menu.view"))
+        self.act_show_residual = QtGui.QAction(tr("options.show_residual"), self,
+                                                checkable=True, checked=True)
+        self.act_show_residual.toggled.connect(lambda _: self._refresh_plot())
+        view_menu.addAction(self.act_show_residual)
+        self.act_show_legend = QtGui.QAction(tr("options.show_legend"), self,
+                                              checkable=True, checked=True)
+        self.act_show_legend.toggled.connect(lambda _: self._refresh_plot())
+        view_menu.addAction(self.act_show_legend)
+        view_menu.addSeparator()
         act_constraints = QtGui.QAction(tr("options.constraints"), self)
         act_constraints.triggered.connect(self.on_constraints)
         view_menu.addAction(act_constraints)
+        act_presets = QtGui.QAction(tr("options.physical_presets"), self)
+        act_presets.triggered.connect(self.on_physical_presets)
+        view_menu.addAction(act_presets)
         view_menu.addSeparator()
         style_menu = view_menu.addMenu(tr("options.plot_style"))
         self.style_action_group = QtGui.QActionGroup(self)
@@ -1084,6 +1110,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_profile.setEnabled(True)
         self.act_find_center.setEnabled(True)
         self.act_save_fit.setEnabled(True)
+        self.act_export_report.setEnabled(True)
         self.statusBar().showMessage(
             f"{path.name} · {counts.size} canales · centro={center:.3f}")
         self._refresh_plot()
@@ -1100,13 +1127,17 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             self.file.velocity = v
         state = self._build_state()
         style = get_style(self.plot_style_name)
+        show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
+        show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
         if state is None:
-            self.canvas.render(v, y, style=style)
+            self.canvas.render(v, y, style=style,
+                               show_residual=show_res, show_legend=show_leg)
             return
         try:
             model = model_from_values(v, state.values, state.components)
         except Exception:
-            self.canvas.render(v, y, style=style)
+            self.canvas.render(v, y, style=style,
+                               show_residual=show_res, show_legend=show_leg)
             return
         # Solo dibujar componentes individuales si hay más de uno activo.
         comps = []
@@ -1115,7 +1146,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             for comp in enabled:
                 only_this = model_from_values(v, state.values, [comp])
                 comps.append((comp.idx, comp.kind, only_this))
-        self.canvas.render(v, y, model=model, components=comps, style=style)
+        self.canvas.render(v, y, model=model, components=comps, style=style,
+                           show_residual=show_res, show_legend=show_leg)
 
     def on_fit(self) -> None:
         if self.is_distribution_mode:
@@ -1627,6 +1659,126 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
     def on_constraints(self) -> None:
         dlg = ConstraintsDialog(self)
         dlg.exec()
+
+    def on_physical_presets(self) -> None:
+        """Cuatro botones rápidos para imponer relaciones físicas habituales."""
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(tr("options.physical_presets"))
+        dlg.resize(520, 240)
+        v = QtWidgets.QVBoxLayout(dlg)
+        v.addWidget(QtWidgets.QLabel(
+            "Aplica con un clic relaciones físicas sobre las componentes activas."))
+
+        def _apply_321() -> None:
+            """3:2:1 fijado en int1=3, int2=2, int3=1."""
+            self._building = True
+            for cp in self.components_panels:
+                if not cp.enabled.isChecked():
+                    continue
+                cp.params["int1"].set_value(3.0); cp.params["int1"].set_fixed(True)
+                cp.params["int2"].set_value(2.0); cp.params["int2"].set_fixed(True)
+                cp.params["int3"].set_value(1.0); cp.params["int3"].set_fixed(True)
+            self._building = False
+            self._refresh_plot()
+
+        def _equal_widths() -> None:
+            """Γ2 = Γ3 = 1 (misma anchura)."""
+            self._building = True
+            for cp in self.components_panels:
+                if not cp.enabled.isChecked():
+                    continue
+                cp.params["gamma2"].set_value(1.0); cp.params["gamma2"].set_fixed(True)
+                cp.params["gamma3"].set_value(1.0); cp.params["gamma3"].set_fixed(True)
+            self._building = False
+            self._refresh_plot()
+
+        def _link_delta() -> None:
+            """δ de las componentes 2 y 3 atados al δ del componente 1."""
+            for idx in (2, 3):
+                cp = self.components_panels[idx - 1]
+                if cp.enabled.isChecked():
+                    self.constraints = [c for c in self.constraints
+                                         if c.get("target") != f"s{idx}_delta"]
+                    self.constraints.append({
+                        "target": f"s{idx}_delta", "source": "s1_delta",
+                        "factor": 1.0, "offset": 0.0,
+                    })
+            self._refresh_plot()
+
+        def _link_gamma() -> None:
+            """Γ1 de componentes 2 y 3 atados a Γ1 del 1."""
+            for idx in (2, 3):
+                cp = self.components_panels[idx - 1]
+                if cp.enabled.isChecked():
+                    self.constraints = [c for c in self.constraints
+                                         if c.get("target") != f"s{idx}_gamma1"]
+                    self.constraints.append({
+                        "target": f"s{idx}_gamma1", "source": "s1_gamma1",
+                        "factor": 1.0, "offset": 0.0,
+                    })
+            self._refresh_plot()
+
+        for label, fn in (
+            ("Sextetes polvo 3:2:1", _apply_321),
+            ("Mismas anchuras (γ2 = γ3 = 1)", _equal_widths),
+            ("Ligar δ a componente 1", _link_delta),
+            ("Ligar Γ1 a componente 1", _link_gamma),
+        ):
+            btn = QtWidgets.QPushButton(label)
+            btn.clicked.connect(fn)
+            v.addWidget(btn)
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
+        bb.rejected.connect(dlg.reject); v.addWidget(bb)
+        dlg.exec()
+
+    def on_export_report(self) -> None:
+        """Exporta un informe Markdown del ajuste actual."""
+        if self.file.path is None:
+            return
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, tr("file.export_report"), str(ROOT),
+            "Markdown (*.md);;All (*.*)")
+        if not path:
+            return
+        state = self._build_state()
+        if state is None:
+            return
+        lines: list[str] = []
+        lines.append(f"# Mössbauer Fe-57 — Ajuste\n")
+        lines.append(f"- Fichero: `{self.file.path.name}`")
+        lines.append(f"- Canales: {self.file.counts.size if self.file.counts is not None else 0}")
+        lines.append(f"- Centro de folding: {self.file.center:.4f}")
+        lines.append(f"- Perfil de línea: {self.calib.line_profile}\n")
+        # Componentes activos
+        lines.append("## Componentes\n")
+        for cp in self.components_panels:
+            if not cp.enabled.isChecked():
+                continue
+            lines.append(f"### Componente {cp.idx} — {cp.kind}")
+            for k, ctl in cp.params.items():
+                fixed = " (fijo)" if ctl.is_fixed() else ""
+                lines.append(f"- `s{cp.idx}_{k}` = {ctl.value():.6g}{fixed}")
+            lines.append("")
+        # Si hay último ajuste, añadir estadísticas
+        info_txt = self.info_panel.text.toPlainText().strip()
+        if info_txt and info_txt != "—":
+            lines.append("## Estadísticos del último ajuste\n")
+            lines.append("```")
+            lines.append(info_txt)
+            lines.append("```\n")
+        # Restricciones
+        if self.constraints:
+            lines.append("## Restricciones\n")
+            for c in self.constraints:
+                lines.append(f"- `{c['target']}` = {c.get('factor', 1.0):g} · "
+                              f"`{c['source']}` + {c.get('offset', 0.0):g}")
+            lines.append("")
+        try:
+            Path(path).write_text("\n".join(lines), encoding="utf-8")
+            self.statusBar().showMessage(f"Informe guardado: {path}", 5000)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, tr("file.export_report"),
+                                            f"{type(exc).__name__}: {exc}")
 
     def on_help(self) -> None:
         sections = get_help_sections(
