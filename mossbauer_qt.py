@@ -39,6 +39,7 @@ from core.folding import (  # noqa: E402
 from core.fit_engine import (  # noqa: E402
     Component, FitState, fit_discrete, model_from_values,
 )
+from core.profile_likelihood import asymmetric_intervals  # noqa: E402
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -424,11 +425,19 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         file_menu.addAction(act_exit)
 
         fit_menu = mb.addMenu(tr("menu.fit"))
+        self.act_init = QtGui.QAction(tr("fit.init_from_minima"), self)
+        self.act_init.triggered.connect(self.on_init_from_minima)
+        self.act_init.setEnabled(False)
+        fit_menu.addAction(self.act_init)
         self.act_fit = QtGui.QAction(tr("fit.run"), self)
         self.act_fit.setShortcut("Ctrl+R")
         self.act_fit.triggered.connect(self.on_fit)
         self.act_fit.setEnabled(False)
         fit_menu.addAction(self.act_fit)
+        self.act_profile = QtGui.QAction(tr("fit.profile_likelihood"), self)
+        self.act_profile.triggered.connect(self.on_profile_likelihood)
+        self.act_profile.setEnabled(False)
+        fit_menu.addAction(self.act_profile)
         fit_menu.addSeparator()
         act_fix_all = QtGui.QAction(tr("fit.fix_all"), self)
         act_fix_all.triggered.connect(lambda: self._set_all_fixed(True))
@@ -524,6 +533,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                                 f"{counts.size} canales · centro={center:.3f} · "
                                 f"norm={norm:.4g}")
         self.act_fit.setEnabled(True)
+        self.act_init.setEnabled(True)
+        self.act_profile.setEnabled(True)
         self.statusBar().showMessage(
             f"{path.name} · {counts.size} canales · centro={center:.3f}")
         self._refresh_plot()
@@ -727,6 +738,180 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.critical(
                 self, tr("file.load_session"),
                 f"{type(exc).__name__}: {exc}")
+
+    # ── Auto-inicialización desde mínimos ───────────────────────────────
+    def on_init_from_minima(self) -> None:
+        """Detecta picos de absorción y propone parámetros para la componente 1."""
+        if self.file.velocity is None or self.file.y_data is None:
+            return
+        v = self.file.velocity
+        y = self.file.y_data
+        baseline0 = float(np.percentile(y, 90))
+        absorption = np.maximum(baseline0 - y, 0.0)
+        max_abs = float(np.nanmax(absorption))
+        if max_abs <= 0:
+            QtWidgets.QMessageBox.information(
+                self, tr("fit.init_from_minima"),
+                "No se detectaron mínimos de absorción.")
+            return
+        dv = abs(float(v[1] - v[0])) if v.size > 1 else 0.05
+        min_dist_ch = max(3, int(0.15 / dv))
+        try:
+            from scipy.signal import find_peaks
+        except ImportError:
+            return
+        idxs, _ = find_peaks(absorption, height=0.06 * max_abs, distance=min_dist_ch)
+        if idxs.size == 0:
+            QtWidgets.QMessageBox.information(
+                self, tr("fit.init_from_minima"),
+                "No se detectaron mínimos significativos.")
+            return
+        positions = v[idxs]
+        depths = absorption[idxs]
+        # Ordenar por posición.
+        order = np.argsort(positions)
+        positions = positions[order]
+        depths = depths[order]
+
+        from core.constants import LINE_POS_33T, BHF_DEFAULT_T
+        self._building = True
+        cp = self.components_panels[0]
+        cp.enabled.setChecked(True)
+        if len(positions) >= 5:
+            # Sextete: ajusta BHF al espaciado y delta al centro de simetría.
+            outer = (positions[-1] - positions[0])
+            bhf = float(BHF_DEFAULT_T * outer / (LINE_POS_33T[-1] - LINE_POS_33T[0]))
+            delta = float(0.5 * (positions[0] + positions[-1]))
+            cp.type_combo.setCurrentText("Sextete")
+            cp.params["delta"].set_value(delta)
+            cp.params["quad"].set_value(0.0)
+            cp.params["bhf"].set_value(max(1.0, min(60.0, bhf)))
+            cp.params["gamma1"].set_value(0.15)
+            cp.params["depth"].set_value(float(max(depths) / 3.0))
+            msg = f"Sextete: δ≈{delta:.3f}  BHF≈{bhf:.2f} T"
+        elif len(positions) == 2:
+            # Doblete.
+            delta = float(0.5 * (positions[0] + positions[1]))
+            deq = float(abs(positions[1] - positions[0]))
+            cp.type_combo.setCurrentText("Doblete")
+            cp.params["delta"].set_value(delta)
+            cp.params["quad"].set_value(deq)
+            cp.params["gamma1"].set_value(0.16)
+            cp.params["depth"].set_value(float(max(depths) * 1.0))
+            msg = f"Doblete: δ≈{delta:.3f}  ΔEQ≈{deq:.3f}"
+        else:
+            # Singlete: usar el pico más profundo.
+            i_best = int(np.argmax(depths))
+            cp.type_combo.setCurrentText("Singlete")
+            cp.params["delta"].set_value(float(positions[i_best]))
+            cp.params["gamma1"].set_value(0.16)
+            cp.params["depth"].set_value(float(depths[i_best]))
+            msg = f"Singlete: δ≈{positions[i_best]:.3f}"
+        self.calib.baseline.set_value(baseline0)
+        self._building = False
+        self.statusBar().showMessage(msg, 5000)
+        self._refresh_plot()
+
+    # ── Verosimilitud perfilada ─────────────────────────────────────────
+    def on_profile_likelihood(self) -> None:
+        """Para cada parámetro libre del último ajuste: perfila Δχ² y muestra los cruces."""
+        state = self._build_state()
+        if state is None:
+            return
+        self.statusBar().showMessage("Ajustando antes de perfilar…")
+        QtWidgets.QApplication.processEvents()
+        try:
+            base = fit_discrete(state)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, tr("fit.profile_likelihood"),
+                                            f"{type(exc).__name__}: {exc}")
+            return
+        if not base.free_keys:
+            QtWidgets.QMessageBox.information(
+                self, tr("fit.profile_likelihood"),
+                "No hay parámetros libres para perfilar.")
+            return
+        chi2_min = float(base.stats.get("chi2", 0.0))
+
+        results: dict[str, dict] = {}
+        n = len(base.free_keys)
+        for i, key in enumerate(base.free_keys, 1):
+            self.statusBar().showMessage(f"Perfilando {key} ({i}/{n})…")
+            QtWidgets.QApplication.processEvents()
+            best = float(base.values[key])
+            sigma_est = float(base.errors.get(key) or max(0.05 * (abs(best) + 1.0), 1e-6))
+            sigma_est = max(sigma_est, 1e-6)
+            lo_b, hi_b = state.bounds.get(key, (best - 5 * sigma_est, best + 5 * sigma_est))
+            grid = np.unique(np.concatenate([
+                np.linspace(max(lo_b, best - 3 * sigma_est), best, 7),
+                np.linspace(best, min(hi_b, best + 3 * sigma_est), 7),
+            ]))
+            costs = []
+            for val in grid:
+                sub = FitState(
+                    velocity=state.velocity, y_data=state.y_data,
+                    sigma_data=state.sigma_data,
+                    values={**base.values, key: float(val)},
+                    fixed={**state.fixed, key: True},
+                    bounds=state.bounds, components=state.components,
+                    constraints=state.constraints,
+                    likelihood=state.likelihood, robust_loss=state.robust_loss,
+                    line_profile=state.line_profile, voigt_sigma=state.voigt_sigma,
+                    multistart_n=2,
+                )
+                try:
+                    r = fit_discrete(sub)
+                    costs.append(float(r.stats.get("chi2", float("inf"))))
+                except Exception:
+                    costs.append(float("inf"))
+            d_chi2 = np.array(costs) - chi2_min
+            intervals = asymmetric_intervals(grid, d_chi2, best)
+            results[key] = {"best": best, "scan_values": grid.tolist(),
+                            "d_chi2": d_chi2.tolist(), **intervals}
+        self.statusBar().showMessage(f"Verosimilitud perfilada: {n} parámetros", 5000)
+        self._show_profile_dialog(results)
+
+    def _show_profile_dialog(self, results: dict) -> None:
+        if not results:
+            return
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(tr("msg.profile_lik_title"))
+        dlg.resize(900, 600)
+        v = QtWidgets.QVBoxLayout(dlg)
+        v.addWidget(QtWidgets.QLabel(tr("dialog.profile_lik_subtitle")))
+        fig = Figure(figsize=(8.5, 5.0), dpi=96)
+        canvas = FigureCanvas(fig); v.addWidget(canvas, stretch=1)
+        keys = list(results.keys())
+        ncols = 2 if len(keys) > 1 else 1
+        nrows = (len(keys) + ncols - 1) // ncols
+        for i, k in enumerate(keys, 1):
+            ax = fig.add_subplot(nrows, ncols, i)
+            r = results[k]
+            ax.plot(r["scan_values"], r["d_chi2"], "o-", color="#2563eb", ms=3)
+            ax.axhline(1.0, color="#888", ls="--", lw=0.8)
+            ax.axhline(4.0, color="#bbb", ls=":", lw=0.8)
+            ax.axvline(r["best"], color="#ef4444", lw=0.8)
+            ax.set_title(k, fontsize=9)
+            ax.set_ylabel("Δχ²", fontsize=8)
+            ax.tick_params(labelsize=7)
+            ax.grid(alpha=0.3)
+        fig.tight_layout(); canvas.draw_idle()
+        # Resumen como texto
+        text_lines = []
+        for k, r in results.items():
+            best = r["best"]; pl = r.get("plus_1s"); mi = r.get("minus_1s")
+            p_txt = f"+{pl:.4g}" if pl is not None else "—"
+            m_txt = f"−{mi:.4g}" if mi is not None else "—"
+            text_lines.append(f"  {k:14s} = {best:.6g}  ({p_txt} / {m_txt})")
+        summary = QtWidgets.QTextEdit(); summary.setReadOnly(True)
+        summary.setMaximumHeight(120)
+        summary.setStyleSheet("QTextEdit { font-family: monospace; font-size: 10pt; }")
+        summary.setPlainText("\n".join(text_lines))
+        v.addWidget(summary)
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
+        bb.rejected.connect(dlg.reject)
+        v.addWidget(bb)
+        dlg.exec()
 
     def on_about(self) -> None:
         dlg = QtWidgets.QDialog(self)
