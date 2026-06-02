@@ -4993,7 +4993,12 @@ class MossbauerFe33GUI(tk.Tk):
     def active_sharp_component_indices_for_bhf(self) -> list[int]:
         if not self.dist_use_sharp_var.get():
             return []
-        return [idx for idx in (1, 2, 3) if self.sextet_enabled[idx].get()]
+        component_range = getattr(self, "_component_range", lambda: range(1, 4))()
+        return [
+            idx
+            for idx in component_range
+            if idx in self.sextet_enabled and self.sextet_enabled[idx].get()
+        ]
 
     def build_bhf_sharp_components_from_active_components(self) -> tuple[list[dict[str, float]], list[int]]:
         components: list[dict[str, float]] = []
@@ -5445,13 +5450,14 @@ class MossbauerFe33GUI(tk.Tk):
                 fit = self.last_bhf_fit.fitted_curve
                 sharp_abs_sum = np.zeros_like(self.velocity, dtype=float)
                 if self.last_bhf_fit.sharp_weights is not None and self.last_bhf_fit.sharp_weights.size:
-                    comp_colors = {1: "#16a34a", 2: "#f97316", 3: "#8b5cf6"}
+                    comp_colors = {1: "#16a34a", 2: "#f97316", 3: "#8b5cf6", 4: "#e11d48", 5: "#0891b2", 6: "#ca8a04"}
                     for idx, weight in zip(self.last_bhf_sharp_indices, self.last_bhf_fit.sharp_weights):
                         p = f"s{idx}_"
                         params = np.array([self.vars[p + name].get() for name in SEXTET_PARAM_NAMES], dtype=float)
                         params[6] = float(weight)
                         kind = self.component_kind[idx].get()
-                        sharp_abs = component_absorption(self.velocity, kind, params)
+                        extras = self.sextet_extras(idx) if (kind == "Sextete" and hasattr(self, "sextet_extras")) else None
+                        sharp_abs = component_absorption(self.velocity, kind, params, extras=extras)
                         sharp_abs_sum += sharp_abs
                         sharp_curve = baseline_line - sharp_abs
                         ax.plot(self.velocity, sharp_curve, "--", color=comp_colors.get(idx, "#16a34a"), lw=1.45, alpha=0.9, label=tr("plot.legend_sharp_component", idx=idx, kind=tr(f"kind.{kind}", default=kind)))
