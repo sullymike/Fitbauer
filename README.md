@@ -185,7 +185,8 @@ Se puede instalar sin `.exe` con Python:
 
 ```bash
 python3 install.py
-./mossbauer
+./mossbauer        # interfaz Tk (clásica)
+./mossbauer-qt     # interfaz Qt (PySide6)
 ```
 
 En Windows:
@@ -193,6 +194,17 @@ En Windows:
 ```bat
 py install.py
 mossbauer.bat
+mossbauer-qt.bat
+```
+
+Ambas interfaces comparten el mismo núcleo de cálculo (`core/`): física,
+ajuste, bootstrap y verosimilitud perfilada. Elige la que prefieras.
+
+### Construir ejecutables (PyInstaller)
+
+```bash
+pyinstaller MossbauerFeFit.spec       # ejecutable Tk  -> dist/MossbauerFeFit/
+pyinstaller MossbauerFeFit-Qt.spec    # ejecutable Qt  -> dist/MossbauerFeFit-Qt/
 ```
 
 Más detalles en `INSTALL.md`.

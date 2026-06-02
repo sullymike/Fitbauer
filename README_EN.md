@@ -124,5 +124,14 @@ Quick start from source:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python mossbauer_fe33_gui_v2IA.py
+python mossbauer_app.py     # Tk GUI (classic)
+python mossbauer_qt.py      # Qt GUI (PySide6)
+```
+
+Both GUIs share the same computation core (`core/`): physics, fitting,
+bootstrap and profile-likelihood. Build standalone executables with PyInstaller:
+
+```bash
+pyinstaller MossbauerFeFit.spec       # Tk  -> dist/MossbauerFeFit/
+pyinstaller MossbauerFeFit-Qt.spec    # Qt  -> dist/MossbauerFeFit-Qt/
 ```

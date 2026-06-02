@@ -24,6 +24,7 @@ jobs:
           zip -r "$ZIP" \
             mossbauer_fe33_gui_v2IA.py \
             mossbauer_app.py \
+            mossbauer_qt.py \
             mossbauer_api_client.py \
             mossbauer_help.py \
             mossbauer_i18n.py \
@@ -38,6 +39,10 @@ jobs:
             install.py \
             mossbauer \
             mossbauer.bat \
+            mossbauer-qt \
+            mossbauer-qt.bat \
+            MossbauerFeFit.spec \
+            MossbauerFeFit-Qt.spec \
             requirements.txt \
             README.md \
             README_EN.md \
