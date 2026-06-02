@@ -137,3 +137,30 @@ def test_sigma_context_menu_toggle_profile(win):
     assert win.calib.voigt_sigma.spin.isEnabled()
     win.calib._set_line_profile("Lorentziana")
     assert not win.calib.fit_sigma.isChecked()
+
+
+def test_find_center_updates_calibration(win):
+    """Fit ▸ Find center detecta un centro razonable y lo escribe al panel."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    # Mueve el slider center fuera del óptimo
+    win.calib.center.set_value(258.0)
+    win.on_find_center()
+    c = win.calib.center.value()
+    assert 254.0 < c < 258.5  # centro real esperado ≈ 256.5
+
+
+def test_save_fit_writes_tsv(win, tmp_path):
+    """Save fit exporta velocidad, datos, modelo y residuo en TSV."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    out = tmp_path / "fit.dat"
+    # Bypass del diálogo de fichero
+    old = QtWidgets.QFileDialog.getSaveFileName
+    QtWidgets.QFileDialog.getSaveFileName = staticmethod(
+        lambda *a, **k: (str(out), "TSV (*.dat)"))
+    try:
+        win.on_save_fit()
+    finally:
+        QtWidgets.QFileDialog.getSaveFileName = old
+    assert out.exists()
+    head = out.read_text().splitlines()[0]
+    assert "velocity_mm_s" in head and "data_norm" in head and "model" in head

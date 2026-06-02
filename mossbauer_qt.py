@@ -821,6 +821,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         act_open.triggered.connect(self.on_open)
         file_menu.addAction(act_open)
         file_menu.addSeparator()
+        self.act_save_fit = QtGui.QAction(tr("file.save_fit"), self)
+        self.act_save_fit.triggered.connect(self.on_save_fit)
+        self.act_save_fit.setEnabled(False)
+        file_menu.addAction(self.act_save_fit)
         act_save_session = QtGui.QAction(tr("file.save_session"), self)
         act_save_session.setShortcut("Ctrl+S")
         act_save_session.triggered.connect(self.on_save_session)
@@ -836,6 +840,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         file_menu.addAction(act_exit)
 
         fit_menu = mb.addMenu(tr("menu.fit"))
+        self.act_find_center = QtGui.QAction(tr("fit.find_center"), self)
+        self.act_find_center.triggered.connect(self.on_find_center)
+        self.act_find_center.setEnabled(False)
+        fit_menu.addAction(self.act_find_center)
         self.act_init = QtGui.QAction(tr("fit.init_from_minima"), self)
         self.act_init.triggered.connect(self.on_init_from_minima)
         self.act_init.setEnabled(False)
@@ -897,6 +905,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         act_help.setShortcut("F1")
         act_help.triggered.connect(self.on_help)
         help_menu.addAction(act_help)
+        act_changelog = QtGui.QAction(tr("help.changelog"), self)
+        act_changelog.triggered.connect(self.on_changelog)
+        help_menu.addAction(act_changelog)
+        help_menu.addSeparator()
         act_about = QtGui.QAction(tr("help.about"), self)
         act_about.triggered.connect(self.on_about)
         help_menu.addAction(act_about)
@@ -1070,6 +1082,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_fit.setEnabled(True)
         self.act_init.setEnabled(True)
         self.act_profile.setEnabled(True)
+        self.act_find_center.setEnabled(True)
+        self.act_save_fit.setEnabled(True)
         self.statusBar().showMessage(
             f"{path.name} · {counts.size} canales · centro={center:.3f}")
         self._refresh_plot()
@@ -1277,6 +1291,80 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.critical(
                 self, tr("file.load_session"),
                 f"{type(exc).__name__}: {exc}")
+
+    # ── Acciones rápidas ─────────────────────────────────────────────────
+    def on_find_center(self) -> None:
+        if self.file.counts is None:
+            return
+        center = find_best_integer_or_half_center(self.file.counts)
+        # Re-dobla con el nuevo centro
+        folded, _ = fold_integer_or_half(self.file.counts, center)
+        norm = float(np.percentile(folded, 90)) or 1.0
+        self.file.folded = folded
+        self.file.center = center
+        self.file.norm_factor = norm
+        self.file.sigma = np.sqrt(np.maximum(folded / 2.0, 1.0)) / norm
+        self.file.y_data = folded / norm
+        vmax = abs(self.calib.vmax.value())
+        self.file.velocity = np.linspace(-vmax, vmax, folded.size)
+        self._building = True
+        self.calib.center.set_value(center)
+        self._building = False
+        self.statusBar().showMessage(f"Centro detectado: {center:.4f}", 5000)
+        self._refresh_plot()
+
+    def on_save_fit(self) -> None:
+        """Exporta velocidad / datos / modelo / residuo en TSV."""
+        if self.file.velocity is None or self.file.y_data is None:
+            return
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, tr("file.save_fit"), str(ROOT),
+            "TSV (*.dat *.tsv);;All (*.*)")
+        if not path:
+            return
+        state = self._build_state()
+        v = self.file.velocity
+        y = self.file.y_data
+        try:
+            model = model_from_values(v, state.values, state.components) if state else None
+        except Exception:
+            model = None
+        residual = (y - model) if model is not None else np.zeros_like(y)
+        cols = ["velocity_mm_s", "data_norm"]
+        rows = [v, y]
+        if model is not None:
+            cols += ["model", "residual"]
+            rows += [model, residual]
+        if self.file.folded is not None:
+            cols.append("folded_counts"); rows.append(self.file.folded)
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write("\t".join(cols) + "\n")
+                for i in range(v.size):
+                    fh.write("\t".join(f"{rows[j][i]:.8g}" for j in range(len(cols))) + "\n")
+            self.statusBar().showMessage(f"Ajuste guardado: {path}", 5000)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, tr("file.save_fit"),
+                                            f"{type(exc).__name__}: {exc}")
+
+    def on_changelog(self) -> None:
+        from mossbauer_fe33_gui_v2IA import CHANGELOG_PATH
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(tr("help.changelog"))
+        dlg.resize(820, 600)
+        v = QtWidgets.QVBoxLayout(dlg)
+        text = QtWidgets.QTextBrowser()
+        text.setOpenExternalLinks(True)
+        if CHANGELOG_PATH.exists():
+            content = CHANGELOG_PATH.read_text(encoding="utf-8", errors="replace")
+            text.setPlainText(content)
+        else:
+            text.setPlainText(tr("help.changelog_unavailable"))
+        v.addWidget(text, stretch=1)
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
+        bb.rejected.connect(dlg.reject)
+        v.addWidget(bb)
+        dlg.exec()
 
     # ── Ajuste distribución P(BHF) ──────────────────────────────────────
     def on_fit_distribution(self) -> None:
