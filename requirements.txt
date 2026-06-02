@@ -3,3 +3,4 @@ scipy
 matplotlib
 requests
 sv_ttk
+PySide6>=6.5

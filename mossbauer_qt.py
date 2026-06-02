@@ -2453,6 +2453,46 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.canvas.render(v, y, model=model, components=comps, style=style,
                            show_residual=show_res, show_legend=show_leg)
 
+    def _open_progress_dialog(self, title: str, message: str | None = None):
+        """Ventana modal de progreso (barra indeterminada), igual que la de Tk.
+
+        Devuelve ``(dialog, update, close)``: ``update(msg)`` cambia el texto y
+        ``close()`` la cierra. Mientras está abierta informa de que el cálculo
+        sigue activo.
+        """
+        if message is None:
+            message = tr("progress.generic_working", default="Trabajando…")
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(title)
+        dlg.setModal(True)
+        dlg.setWindowFlags(
+            (dlg.windowFlags() | QtCore.Qt.CustomizeWindowHint)
+            & ~QtCore.Qt.WindowCloseButtonHint
+            & ~QtCore.Qt.WindowContextHelpButtonHint)
+        v = QtWidgets.QVBoxLayout(dlg)
+        v.setContentsMargins(16, 16, 16, 16)
+        label = QtWidgets.QLabel(message)
+        label.setWordWrap(True)
+        label.setMinimumWidth(420)
+        v.addWidget(label)
+        bar = QtWidgets.QProgressBar()
+        bar.setRange(0, 0)  # indeterminado: barra animada
+        bar.setTextVisible(False)
+        v.addWidget(bar)
+        dlg.show()
+        QtWidgets.QApplication.processEvents()
+
+        def update(msg: str) -> None:
+            if dlg.isVisible():
+                label.setText(msg)
+                QtWidgets.QApplication.processEvents()
+
+        def close() -> None:
+            dlg.close()
+            dlg.deleteLater()
+
+        return dlg, update, close
+
     def on_fit(self) -> None:
         if self.is_distribution_mode:
             self._simulate_enabled = True
@@ -2462,13 +2502,15 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         state = self._build_state()
         if state is None:
             return
-        # Bloquea acción mientras corre
+        # Bloquea acción mientras corre y muestra una ventana de progreso.
         self.act_fit.setEnabled(False)
-        self.statusBar().showMessage("Ajustando…")
-        QtWidgets.QApplication.processEvents()
+        _dlg, update_progress, close_progress = self._open_progress_dialog(
+            tr("progress.fitting_title", default="Ajustando"),
+            tr("progress.fit_prepare", default="Preparando ajuste…"))
         try:
-            result = fit_discrete(state, progress_cb=lambda msg: self.statusBar().showMessage(msg))
+            result = fit_discrete(state, progress_cb=update_progress)
         except Exception as exc:
+            close_progress()
             QtWidgets.QMessageBox.critical(self, tr("fit.run"),
                                            f"{type(exc).__name__}: {exc}")
             self.act_fit.setEnabled(True)
@@ -2484,6 +2526,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         for cp in self.components_panels:
             cp.apply_values(result.values)
         self._building = False
+        close_progress()
         red = result.stats.get("red_chi2", float("nan"))
         chi2 = result.stats.get("chi2", float("nan"))
         self.statusBar().showMessage(
@@ -3499,7 +3542,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         shape = d.shape
         label = "P(ΔEQ)" if var == "quad" else "P(BHF)"
         self.statusBar().showMessage(f"Ajustando {label} [{shape}]…")
-        QtWidgets.QApplication.processEvents()
+        _dlg, update_progress, close_progress = self._open_progress_dialog(
+            tr("progress.distribution_title", default="Distribución hiperfina"),
+            tr("progress.distribution_prepare", default="Preparando ajuste de distribución…"))
         sharp_components, sharp_indices = self._active_sharp_components_for_distribution()
         fit_baseline = not self.calib.baseline.is_fixed()
         fit_slope = not self.calib.slope.is_fixed()
@@ -3590,6 +3635,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         fitted_x = None
         try:
             if outer_specs:
+                update_progress(tr("progress.distribution_refine",
+                                   default="Refinando δ y Γ globales…"))
                 x0, lo, hi = x0_bounds()
                 x0 = np.clip(x0, lo, hi)
                 def residual_outer(x: np.ndarray) -> np.ndarray:
@@ -3598,10 +3645,15 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 opt = least_squares(residual_outer, x0, bounds=(lo, hi), max_nfev=60)
                 fitted_x = opt.x
                 delta_final, gamma_final, sharp_final = expand(fitted_x)
+                update_progress(tr("progress.distribution_compute_final",
+                                   default="Calculando distribución final…"))
                 result = run_fit(delta_final, gamma_final, sharp_final)
             else:
+                update_progress(tr("progress.distribution_compute", shape=shape,
+                                   default=f"Calculando distribución {shape}…"))
                 result = run_fit(base_delta, base_gamma, sharp_components)
         except Exception as exc:
+            close_progress()
             QtWidgets.QMessageBox.critical(self, tr("fit.run"),
                                             f"{type(exc).__name__}: {exc}")
             return
@@ -3624,6 +3676,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             for idx, weight in zip(sharp_indices, result.sharp_weights):
                 self.components_panels[idx - 1].params["depth"].set_value(float(weight))
         self._building = False
+        close_progress()
 
         style = get_style(self.plot_style_name)
         show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
@@ -4123,6 +4176,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         finally:
             self._building = False
 
+        # Igual que en Tk: tras inicializar desde mínimos se dibuja ya la
+        # simulación propuesta (habilita el trazado del modelo).
+        self._simulate_enabled = True
         self._refresh_plot()
         summary = ", ".join(f"s{idx}: {kind}" for idx, kind, _g in components)
         msg = f"Detectados {len(peaks)} mínimos · {summary}"
