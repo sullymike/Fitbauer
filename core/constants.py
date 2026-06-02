@@ -11,6 +11,9 @@ APP_DEPARTMENT = "Departamento de Química Física · UAM"
 
 # ── Constantes físicas Fe-57 ───────────────────────────────────────────────────
 BHF_DEFAULT_T = 33.0
+DIST_BHF_RANGE = (0.0, 60.0)
+DIST_QUAD_RANGE = (0.0, 7.0)
+DIST_RANGE_RESOLUTION = 0.1
 MU_N = 5.0507837461e-27          # J/T
 E_GAMMA = 14.4125e3 * 1.602176634e-19  # J
 C_MM_S = 299_792_458_000.0       # mm/s
