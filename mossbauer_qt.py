@@ -83,17 +83,17 @@ class ParamControl(QtWidgets.QWidget):
         v.setSpacing(2)
 
         h = QtWidgets.QHBoxLayout()
-        h.setSpacing(8)
+        h.setSpacing(4)
         self.label = QtWidgets.QLabel(label)
-        self.label.setMinimumWidth(120)
+        self.label.setMinimumWidth(82)
+        self.label.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         self.spin = QtWidgets.QDoubleSpinBox()
         self.spin.setRange(lo, hi)
         self.spin.setSingleStep(step)
         self.spin.setDecimals(decimals)
         self.spin.setValue(value)
-        self.spin.setMinimumWidth(110)
-        h.addWidget(self.label)
-        h.addStretch(1)
+        self.spin.setMinimumWidth(80)
+        h.addWidget(self.label, stretch=1)
         h.addWidget(self.spin)
         self.fixed_cb = None
         if with_fixed:
@@ -245,7 +245,7 @@ class ComponentPanel(QtWidgets.QWidget):
     # Qué parámetros usa cada tipo (los demás se agrisan).
     _USED_BY = {
         "Sextete":  {"delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
-                     "depth", "int1", "int2", "int3"},
+                     "depth", "int1", "int2", "int3", "texture", "beta"},
         "Doblete":  {"delta", "quad", "gamma1", "gamma2", "depth", "int1", "int2"},
         "Singlete": {"delta", "gamma1", "depth", "int1"},
     }
@@ -269,26 +269,44 @@ class ComponentPanel(QtWidgets.QWidget):
         row.addWidget(self.type_combo)
         v.addLayout(row)
 
-        specs = [
-            ("delta",  tr("slider.s_delta"),  -0.11, -2.0, 3.0, 0.001, 4),
-            ("quad",   tr("slider.s_quad"),    0.00, -4.0, 4.0, 0.001, 4),
-            ("bhf",    tr("slider.s_bhf"),    33.00,  0.0, 60.0, 0.01, 3),
-            ("gamma1", tr("slider.s_gamma1"),  0.14, 0.03, 2.0, 0.001, 4),
-            ("gamma2", tr("slider.s_gamma2"),  1.00,  0.2, 3.0, 0.01,  3),
-            ("gamma3", tr("slider.s_gamma3"),  1.00,  0.2, 3.0, 0.01,  3),
-            ("depth",  tr("slider.s_depth"),   0.013, 0.0, 0.30, 0.0001, 5),
-            ("int1",   tr("slider.s_int1"),    3.0,   0.0, 9.0, 0.05,  3),
-            ("int2",   tr("slider.s_int2"),    2.0,   0.0, 6.0, 0.05,  3),
-            ("int3",   tr("slider.s_int3"),    1.0,   0.0, 3.0, 0.05,  3),
+        # Orden del GUI Tk clásico, repartido en dos columnas:
+        # δ · ΔEQ · BHF · Γ1-Γ3 | profundidad · intensidades · textura · β.
+        left_specs = [
+            ("delta",  tr("slider.s_delta"),  0.00, -2.0, 3.0, 0.001, 4),
+            ("quad",   tr("slider.s_quad"),   0.00, -4.0, 4.0, 0.001, 4),
+            ("bhf",    tr("slider.s_bhf"),    BHF_DEFAULT_T, 0.0, 60.0, 0.01, 3),
+            ("gamma1", tr("slider.s_gamma1"), 0.15, 0.03, 2.0, 0.001, 4),
+            ("gamma2", tr("slider.s_gamma2"), 1.00, 0.2, 3.0, 0.001, 4),
+            ("gamma3", tr("slider.s_gamma3"), 1.00, 0.2, 3.0, 0.001, 4),
+        ]
+        depth_default = 0.020 if idx == 1 else 0.005
+        right_specs = [
+            ("depth",   tr("slider.s_depth"),   depth_default, 0.0, 0.07, 0.0001, 5),
+            ("int1",    tr("slider.s_int1"),    3.0, 0.0, 6.0, 0.01, 3),
+            ("int2",    tr("slider.s_int2"),    2.0, 0.0, 4.0, 0.01, 3),
+            ("texture", tr("slider.s_texture"), 2.0 / 3.0, 0.0, 1.0, 0.001, 4),
+            ("beta",    tr("slider.s_beta"),    0.0, 0.0, 90.0, 0.1, 2),
+        ]
+        hidden_specs = [
+            ("int3", tr("slider.s_int3"), 1.0, 1.0, 1.0, 0.0, 3),
         ]
         self.params: dict[str, ParamControl] = {}
         params_grid = QtWidgets.QGridLayout()
         params_grid.setContentsMargins(0, 0, 0, 0)
         params_grid.setHorizontalSpacing(10)
         params_grid.setVerticalSpacing(2)
-        for pos, (name, label, val, lo, hi, step, dec) in enumerate(specs):
+        params_grid.setColumnStretch(0, 1)
+        params_grid.setColumnStretch(1, 1)
+        for col, specs in enumerate((left_specs, right_specs)):
+            for row_idx, (name, label, val, lo, hi, step, dec) in enumerate(specs):
+                ctl = ParamControl(label, val, lo, hi, step, dec)
+                params_grid.addWidget(ctl, row_idx, col)
+                self.params[name] = ctl
+                ctl.valueChanged.connect(lambda *_: self.paramChanged.emit())
+                ctl.fixedChanged.connect(lambda *_: self.paramChanged.emit())
+        for name, label, val, lo, hi, step, dec in hidden_specs:
             ctl = ParamControl(label, val, lo, hi, step, dec)
-            params_grid.addWidget(ctl, pos // 2, pos % 2)
+            ctl.hide()
             self.params[name] = ctl
             ctl.valueChanged.connect(lambda *_: self.paramChanged.emit())
             ctl.fixedChanged.connect(lambda *_: self.paramChanged.emit())
@@ -301,11 +319,13 @@ class ComponentPanel(QtWidgets.QWidget):
         self.quad_treatment = "1st_order"  # 1st_order / kundig_fixed / kundig_powder
 
         # Clic derecho sobre intensidades → menú Intensity mode
-        for k in ("int1", "int2", "int3"):
+        for k in ("int1", "int2", "texture"):
             ctl = self.params[k]
             ctl.spin.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
             ctl.spin.customContextMenuRequested.connect(
                 lambda pos, c=ctl: self._show_intensity_menu(c, pos))
+        self.params["texture"].valueChanged.connect(lambda *_: self._update_texture_intensities())
+
         # Clic derecho sobre quad → menú Quadrupole treatment
         ctl_q = self.params["quad"]
         ctl_q.spin.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -313,7 +333,7 @@ class ComponentPanel(QtWidgets.QWidget):
             lambda pos, c=ctl_q: self._show_quad_menu(c, pos))
 
         # Fijos típicos para α-Fe (intensidades + gammas relativas + quad).
-        for k in ("int1", "int2", "int3", "gamma2", "gamma3", "quad"):
+        for k in ("int1", "int2", "int3", "gamma2", "gamma3", "quad", "texture"):
             self.params[k].set_fixed(True)
         v.addStretch(1)
         self._on_type_changed(self.type_combo.currentText())
@@ -336,15 +356,19 @@ class ComponentPanel(QtWidgets.QWidget):
         # En modo textura, fija int1=3 / int2 (configurable via t implícito) /
         # int3=1 manteniéndolos como referencia 3:4t/(2-t):1 (t≈2/3 por defecto).
         if mode == "texture":
-            t = 2.0 / 3.0
-            denom = max(2.0 - t, 1e-9)
-            i1, i2, i3 = 3.0, 4.0 * t / denom, 1.0
-            self.params["int1"].set_value(i1)
-            self.params["int2"].set_value(i2)
-            self.params["int3"].set_value(i3)
+            self._update_texture_intensities()
             for k in ("int1", "int2", "int3"):
                 self.params[k].set_fixed(True)
         self.paramChanged.emit()
+
+    def _update_texture_intensities(self) -> None:
+        if self.intensity_mode != "texture":
+            return
+        t = float(self.params["texture"].value())
+        denom = max(2.0 - t, 1e-9)
+        self.params["int1"].set_value(3.0)
+        self.params["int2"].set_value(4.0 * t / denom)
+        self.params["int3"].set_value(1.0)
 
     def _show_quad_menu(self, ctl: "ParamControl", pos: QtCore.QPoint) -> None:
         menu = QtWidgets.QMenu(self)
@@ -571,9 +595,26 @@ class DistributionPanel(QtWidgets.QGroupBox):
         v = QtWidgets.QVBoxLayout(self)
         v.setSpacing(2)
 
-        # Selector de forma
-        row = QtWidgets.QHBoxLayout()
-        row.addWidget(QtWidgets.QLabel(tr("bhf.shape_label") + ":"))
+        cols = QtWidgets.QGridLayout()
+        cols.setContentsMargins(0, 0, 0, 0)
+        cols.setHorizontalSpacing(12)
+        cols.setVerticalSpacing(2)
+        cols.setColumnStretch(0, 1)
+        cols.setColumnStretch(1, 1)
+        left = QtWidgets.QWidget()
+        right = QtWidgets.QWidget()
+        left_v = QtWidgets.QVBoxLayout(left)
+        right_v = QtWidgets.QVBoxLayout(right)
+        for lay in (left_v, right_v):
+            lay.setContentsMargins(0, 0, 0, 0)
+            lay.setSpacing(2)
+        cols.addWidget(left, 0, 0)
+        cols.addWidget(right, 0, 1)
+        v.addLayout(cols)
+
+        # Columna 1 — forma, regulación y parámetros globales.
+        shape_row = QtWidgets.QHBoxLayout()
+        shape_row.addWidget(QtWidgets.QLabel(tr("bhf.shape_label") + ":"))
         self.shape_combo = QtWidgets.QComboBox()
         for code, key in (("Histograma", "shape.Histograma"),
                           ("Gaussiana", "shape.Gaussiana"),
@@ -581,47 +622,61 @@ class DistributionPanel(QtWidgets.QGroupBox):
                           ("Fija", "shape.Fija")):
             self.shape_combo.addItem(tr(key), code)
         self.shape_combo.currentIndexChanged.connect(lambda *_: self.paramChanged.emit())
-        row.addWidget(self.shape_combo, stretch=1)
+        shape_row.addWidget(self.shape_combo, stretch=1)
+        left_v.addLayout(shape_row)
+
+        reg_row = QtWidgets.QHBoxLayout()
+        reg_row.addWidget(QtWidgets.QLabel(tr("bhf.reg_mode_label") + ":"))
+        self.reg_mode_combo = QtWidgets.QComboBox()
+        self.reg_mode_combo.addItems(["tikhonov", "tv"])
+        self.reg_mode_combo.currentIndexChanged.connect(lambda *_: self.paramChanged.emit())
+        reg_row.addWidget(self.reg_mode_combo, stretch=1)
+        left_v.addLayout(reg_row)
+
         self.btn_load_fixed = QtWidgets.QPushButton(tr("bhf.load_fixed"))
         self.btn_load_fixed.clicked.connect(self.loadFixedRequested)
         self.btn_load_fixed.setEnabled(False)
-        row.addWidget(self.btn_load_fixed)
         self.shape_combo.currentIndexChanged.connect(
             lambda i: self.btn_load_fixed.setEnabled(self.shape == "Fija"))
-        v.addLayout(row)
+        left_v.addWidget(self.btn_load_fixed)
 
         self.delta = ParamControl(tr("slider.dist_delta"), 0.0, -2.5, 2.5, 0.001, 4)
         self.quad  = ParamControl(tr("slider.dist_quad"),  0.0, -4.0, 4.0, 0.001, 4)
+        self.fixed_bhf = ParamControl(tr("slider.dist_fixed_bhf"), BHF_DEFAULT_T, 0.0, 60.0, 0.01, 3, with_fixed=False)
         self.gamma = ParamControl(tr("slider.dist_gamma"), 0.18, 0.03, 1.0, 0.001, 4)
-        self.bmin  = ParamControl(tr("slider.dist_bmin_bhf"), 0.0,  0.0, 60.0, 0.1, 2, with_fixed=False)
-        self.bmax  = ParamControl(tr("slider.dist_bmax_bhf"), 50.0, 1.0, 60.0, 0.1, 2, with_fixed=False)
+        for w in (self.delta, self.quad, self.fixed_bhf, self.gamma):
+            left_v.addWidget(w)
+            w.valueChanged.connect(lambda *_: self.paramChanged.emit())
+        left_v.addStretch(1)
+
+        # Columna 2 — rango/bins/alfa + presets y opciones avanzadas.
+        self.bmin  = ParamControl(tr("slider.dist_bmin"), 0.0,  0.0, 60.0, 0.1, 2, with_fixed=False)
+        self.bmax  = ParamControl(tr("slider.dist_bmax"), 50.0, 1.0, 60.0, 0.1, 2, with_fixed=False)
         self.nbins = ParamControl(tr("slider.dist_nbins"), 50.0, 10.0, 100.0, 1.0, 0, with_fixed=False)
         self.log_alpha = ParamControl(tr("slider.dist_log_alpha"), -2.0, -8.0, 4.0, 0.1, 2, with_fixed=False)
-
-        for w in (self.delta, self.quad, self.gamma, self.bmin, self.bmax,
-                  self.nbins, self.log_alpha):
-            v.addWidget(w)
+        for w in (self.bmin, self.bmax, self.nbins, self.log_alpha):
+            right_v.addWidget(w)
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
 
         alpha_row = QtWidgets.QHBoxLayout()
+        alpha_row.setSpacing(4)
         for text, value in ((tr("bhf.alpha_fine", default="Fina"), -5.0),
                             (tr("bhf.alpha_medium", default="Media"), -2.0),
                             (tr("bhf.alpha_smooth", default="Suave"), 1.0)):
             btn = QtWidgets.QPushButton(text)
             btn.clicked.connect(lambda _=False, val=value: self._set_log_alpha(val))
             alpha_row.addWidget(btn)
-        v.addLayout(alpha_row)
+        right_v.addLayout(alpha_row)
 
-        opts = QtWidgets.QVBoxLayout()
         self.use_sharp = QtWidgets.QCheckBox(tr("bhf.use_sharp", default="Añadir componentes nítidas activas"))
         self.refine_global = QtWidgets.QCheckBox(tr("bhf.refine_global", default="Refinar δ y Γ globales"))
         self.lcurve_link = QtWidgets.QCommandLinkButton(tr("bhf.lcurve_alpha", default="L-curve α"))
         self.lcurve_link.setDescription(tr("bhf.lcurve_hint", default="Estimar la regularización del histograma"))
         for w in (self.use_sharp, self.refine_global):
-            opts.addWidget(w)
+            right_v.addWidget(w)
             w.toggled.connect(lambda *_: self.paramChanged.emit())
-        opts.addWidget(self.lcurve_link)
-        v.addLayout(opts)
+        right_v.addWidget(self.lcurve_link)
+        right_v.addStretch(1)
         v.addStretch(1)
         self.fixed_path: Path | None = None
 
@@ -632,6 +687,10 @@ class DistributionPanel(QtWidgets.QGroupBox):
     @property
     def shape(self) -> str:
         return self.shape_combo.currentData() or "Histograma"
+
+    @property
+    def reg_mode(self) -> str:
+        return self.reg_mode_combo.currentText() or "tikhonov"
 
 
 class ConstraintsDialog(QtWidgets.QDialog):
@@ -1058,14 +1117,24 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.calib = CalibrationPanel()
         lv.addWidget(self.calib)
 
-        # Componentes en pestañas: se muestran/activan tantas como indique el selector.
-        self.comp_tabs = QtWidgets.QTabWidget()
+        # Componentes apilados: el 2º y sucesivos aparecen debajo del 1º
+        # independientemente de si el bloque de simulación está a la izquierda,
+        # bajo la gráfica o en la columna derecha.
+        self.comp_stack_area = QtWidgets.QScrollArea()
+        self.comp_stack_area.setWidgetResizable(True)
+        self.comp_stack_area.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.comp_stack_widget = QtWidgets.QWidget()
+        self.comp_stack_layout = QtWidgets.QVBoxLayout(self.comp_stack_widget)
+        self.comp_stack_layout.setContentsMargins(0, 0, 0, 0)
+        self.comp_stack_layout.setSpacing(8)
         self.components_panels: list[ComponentPanel] = []
         for i in range(1, MAX_QT_COMPONENTS + 1):
             cp = ComponentPanel(idx=i)
             self.components_panels.append(cp)
-            self.comp_tabs.addTab(cp, tr("tab.component", idx=i))
-        sim_lay.addWidget(self.comp_tabs)
+            self.comp_stack_layout.addWidget(cp)
+        self.comp_stack_layout.addStretch(1)
+        self.comp_stack_area.setWidget(self.comp_stack_widget)
+        sim_lay.addWidget(self.comp_stack_area)
         self._sync_component_count(1)
 
         # Panel de distribución (oculto en modo discreto).
@@ -1081,7 +1150,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         lv.addStretch(1)
 
         scroll = QtWidgets.QScrollArea(); scroll.setWidget(left); scroll.setWidgetResizable(True)
-        scroll.setMinimumWidth(380); scroll.setMaximumWidth(460)
+        self._left_scroll = scroll
         splitter.addWidget(scroll)
 
         # ── Centro: canvas + toolbar + panel de info ─────────────────────
@@ -1520,8 +1589,13 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         total_w = max(900, self.width() - 20)
         center_w = max(500, total_w - left_w - right_w)
         sizes = [left_w, center_w, max(0, right_w)]
+        if hasattr(self, "_left_scroll"):
+            self._left_scroll.setMinimumWidth(left_w)
+            self._left_scroll.setMaximumWidth(left_w)
         if hasattr(self, "_right_column"):
             self._right_column.setVisible(right_w > 0)
+            self._right_column.setMinimumWidth(right_w if right_w > 0 else 0)
+            self._right_column.setMaximumWidth(right_w if right_w > 0 else 0)
         if hasattr(self, "_main_splitter"):
             self._main_splitter.setSizes(sizes)
         self.layout_preset = name
@@ -1832,48 +1906,33 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
 
         for i, cp in enumerate(self.components_panels, start=1):
             visible = i <= n_components
-            if hasattr(self.comp_tabs, "setTabVisible"):
-                self.comp_tabs.setTabVisible(i - 1, visible)
             cp.setVisible(visible)
             cp.enabled.blockSignals(True)
             cp.enabled.setChecked(visible)
             cp.enabled.blockSignals(False)
 
-        current = self.comp_tabs.currentIndex()
-        if current < 0 or current >= n_components:
-            self.comp_tabs.setCurrentIndex(0)
-
     # ── Cambio de modo ───────────────────────────────────────────────────
     def _on_mode_changed(self, idx: int) -> None:
         is_dist = (idx in (1, 2))
         is_deq = (idx == 2)
-        self.comp_tabs.setVisible(not is_dist)
+        self.comp_stack_area.setVisible(not is_dist)
         self.dist_panel.setVisible(is_dist)
         # Sincroniza el radio del menú Fit
         if hasattr(self, "_mode_menu_actions") and 0 <= idx < 2:
             self._mode_menu_actions[idx].setChecked(True)
-        # Etiquetas según variable distribuida
+        # Etiquetas según variable distribuida. P(ΔEQ) usa un BHF fijo
+        # independiente, manteniendo ΔEQ como parámetro global para P(BHF).
         if is_dist:
             if is_deq:
                 self.dist_panel.bmin.label.setText(tr("slider.dist_bmin_quad"))
                 self.dist_panel.bmax.label.setText(tr("slider.dist_bmax_quad"))
-                self.dist_panel.quad.label.setText(tr("slider.dist_fixed_bhf", default="BHF fijo (T)"))
-                self.dist_panel.quad._lo = 0.0; self.dist_panel.quad._hi = 60.0
-                self.dist_panel.quad.spin.setRange(0.0, 60.0)
-                self.dist_panel.quad.spin.setSingleStep(0.01)
-                self.dist_panel.quad.spin.setSuffix(" T")
-                if self.dist_panel.quad.value() <= 4.0:
-                    self.dist_panel.quad.set_value(33.0)
+                self.dist_panel.fixed_bhf.label.setText(tr("slider.dist_fixed_bhf_active", default="BHF fijo (T)"))
+                self.dist_panel.fixed_bhf.setEnabled(True)
             else:
                 self.dist_panel.bmin.label.setText(tr("slider.dist_bmin_bhf"))
                 self.dist_panel.bmax.label.setText(tr("slider.dist_bmax_bhf"))
-                self.dist_panel.quad.label.setText(tr("slider.dist_quad"))
-                self.dist_panel.quad._lo = -4.0; self.dist_panel.quad._hi = 4.0
-                self.dist_panel.quad.spin.setRange(-4.0, 4.0)
-                self.dist_panel.quad.spin.setSingleStep(0.001)
-                self.dist_panel.quad.spin.setSuffix("")
-                if self.dist_panel.quad.value() > 4.0:
-                    self.dist_panel.quad.set_value(0.0)
+                self.dist_panel.fixed_bhf.label.setText(tr("slider.dist_fixed_bhf_inactive", default="BHF fijo (no usado en modo BHF)"))
+                self.dist_panel.fixed_bhf.setEnabled(False)
         self._refresh_plot()
 
     @property
@@ -1974,6 +2033,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             ("gamma2", (0.2, 3.0)), ("gamma3", (0.2, 3.0)),
             ("depth", (0.0, 0.30)), ("int1", (0.0, 9.0)),
             ("int2", (0.0, 6.0)), ("int3", (0.0, 3.0)),
+            ("texture", (0.0, 1.0)), ("beta", (0.0, 90.0)),
         )
         components = []
         for cp in self.components_panels:
@@ -2954,11 +3014,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             if var == "quad":
                 fits = [fit_hyperfine_distribution(
                     self.file.velocity, self.file.y_data, variable="quad",
-                    bhf=float(d.quad.value()), alpha=float(a), **common) for a in alphas]
+                    bhf=float(d.fixed_bhf.value()), alpha=float(a), reg_mode=d.reg_mode, **common) for a in alphas]
             else:
                 fits = [fit_hyperfine_distribution(
                     self.file.velocity, self.file.y_data, variable="bhf",
-                    quad=float(d.quad.value()), alpha=float(a), **common) for a in alphas]
+                    quad=float(d.quad.value()), alpha=float(a), reg_mode=d.reg_mode, **common) for a in alphas]
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("bhf.lcurve_alpha"),
                                             f"{type(exc).__name__}: {exc}")
@@ -3120,7 +3180,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             common = dict(
                 variable=var, delta=delta_value, gamma=gamma_value,
                 quad=(0.0 if var == "quad" else float(d.quad.value())),
-                bhf=(float(d.quad.value()) if var == "quad" else 33.0),
+                bhf=(float(d.fixed_bhf.value()) if var == "quad" else BHF_DEFAULT_T),
                 baseline=float(self.calib.baseline.value()), slope=float(self.calib.slope.value()),
                 sharp_components=sharp_for_fit,
             )
@@ -3128,7 +3188,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 return fit_hyperfine_distribution(
                     v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins, alpha=alpha,
                     fit_baseline=fit_baseline, fit_slope=fit_slope,
-                    sigma=self.file.sigma, **common)
+                    sigma=self.file.sigma, reg_mode=d.reg_mode, **common)
             if shape == "Gaussiana":
                 return fit_gaussian_hyperfine_distribution(
                     v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins, **common)
