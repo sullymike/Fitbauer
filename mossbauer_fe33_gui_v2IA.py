@@ -164,15 +164,47 @@ def find_best_integer_or_half_center(counts: np.ndarray, cmin: float = 250.5, cm
     return _impl(counts, cmin, cmax)
 
 
-# Física del modelo: reutilizada desde core.physics (única fuente, compartida
-# con la GUI Qt) para no duplicar la implementación. El perfil de línea y σ-Voigt
-# se controlan vía core.physics.LINE_PROFILE_KIND / core.physics.VOIGT_SIGMA, que
-# esta GUI mantiene sincronizados con sus globales LINE_PROFILE_KIND / VOIGT_SIGMA.
+# Física del modelo: única implementación en core.physics (compartida con la GUI
+# Qt). Aquí se exponen como wrappers finos que sincronizan el perfil de línea y
+# σ-Voigt de core desde los globales de este módulo (LINE_PROFILE_KIND /
+# VOIGT_SIGMA) antes de delegar. Así, fijar mossbauer_fe33_gui_v2IA.VOIGT_SIGMA
+# sigue controlando estas funciones (contrato histórico), sin duplicar la física.
 import core.physics as _physics
-from core.physics import (  # noqa: E402,F401
-    lorentzian, sextet_absorption, singlet_absorption, doublet_absorption,
-    component_absorption, total_model,
-)
+
+
+def _sync_physics_globals() -> None:
+    _physics.LINE_PROFILE_KIND = LINE_PROFILE_KIND
+    _physics.VOIGT_SIGMA = VOIGT_SIGMA
+
+
+def lorentzian(*args, **kwargs):
+    _sync_physics_globals()
+    return _physics.lorentzian(*args, **kwargs)
+
+
+def sextet_absorption(*args, **kwargs):
+    _sync_physics_globals()
+    return _physics.sextet_absorption(*args, **kwargs)
+
+
+def singlet_absorption(*args, **kwargs):
+    _sync_physics_globals()
+    return _physics.singlet_absorption(*args, **kwargs)
+
+
+def doublet_absorption(*args, **kwargs):
+    _sync_physics_globals()
+    return _physics.doublet_absorption(*args, **kwargs)
+
+
+def component_absorption(*args, **kwargs):
+    _sync_physics_globals()
+    return _physics.component_absorption(*args, **kwargs)
+
+
+def total_model(*args, **kwargs):
+    _sync_physics_globals()
+    return _physics.total_model(*args, **kwargs)
 
 
 def _log_warning(context: str, exc: BaseException) -> None:
@@ -4058,7 +4090,18 @@ class MossbauerFe33GUI(tk.Tk):
             k: (True if k in ("vmax", "center", "voigt_sigma") else (k not in tk_free))
             for k in all_values
         }
-        bounds_map = {k: self.bounds_for_key(k) for k in all_values}
+        # bounds_for_key no conoce vmax/center/voigt_sigma (esos van por
+        # slider_specs); para esas claves usamos sus límites de slider.
+        bounds_map: dict[str, tuple[float, float]] = {}
+        for k in all_values:
+            try:
+                bounds_map[k] = self.bounds_for_key(k)
+            except Exception:
+                spec = getattr(self, "slider_specs", {}).get(k)
+                if spec is not None:
+                    bounds_map[k] = (float(spec[0]), float(spec[1]))
+        # Itera sobre TODOS los componentes existentes (la GUI modular admite
+        # hasta MAX_COMPONENTS, no solo 3).
         components = [
             _Comp(
                 idx=idx,
@@ -4069,7 +4112,7 @@ class MossbauerFe33GUI(tk.Tk):
                 quad_treatment=(self.quad_treatment[idx].get()
                                 if getattr(self, "quad_treatment", {}).get(idx) is not None else "1st_order"),
             )
-            for idx in (1, 2, 3)
+            for idx in sorted(self.sextet_enabled)
         ]
         return _FitState(
             velocity=self.velocity, y_data=self.y_data, sigma_data=self.data_sigma(),
