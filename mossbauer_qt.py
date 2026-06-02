@@ -50,7 +50,7 @@ COLOR_THEMES: dict[str, dict] = {
         "text": "#0f3d5c", "button": "#d8ecf9", "button_text": "#0f3d5c",
         "highlight": "#38bdf8", "highlight_text": "#ffffff",
         "accent": "#075985", "accent_text": "#ffffff", "accent_sub": "#dff6ff",
-        "title": "#075985",
+        "title": "#075985", "disabled_text": "#9bb0bf", "disabled_base": "#eef3f7",
     },
     "soft": {
         "label": "Multicolor suave",
@@ -58,7 +58,7 @@ COLOR_THEMES: dict[str, dict] = {
         "text": "#33302a", "button": "#e7e1d3", "button_text": "#33302a",
         "highlight": "#6f9a8d", "highlight_text": "#ffffff",
         "accent": "#5b6c8f", "accent_text": "#ffffff", "accent_sub": "#eef0f6",
-        "title": "#7a6a8f",
+        "title": "#7a6a8f", "disabled_text": "#b3aa99", "disabled_base": "#efece4",
     },
     "teal": {
         "label": "Verde azulado",
@@ -66,7 +66,7 @@ COLOR_THEMES: dict[str, dict] = {
         "text": "#173a36", "button": "#d2e8e3", "button_text": "#173a36",
         "highlight": "#2fa39a", "highlight_text": "#ffffff",
         "accent": "#0f5e57", "accent_text": "#ffffff", "accent_sub": "#dff3ef",
-        "title": "#0f5e57",
+        "title": "#0f5e57", "disabled_text": "#9bb5b0", "disabled_base": "#eef4f2",
     },
     "sepia": {
         "label": "Sepia cálido",
@@ -74,7 +74,7 @@ COLOR_THEMES: dict[str, dict] = {
         "text": "#4a3f2e", "button": "#e3d7c0", "button_text": "#4a3f2e",
         "highlight": "#b08968", "highlight_text": "#ffffff",
         "accent": "#8a6d4e", "accent_text": "#ffffff", "accent_sub": "#f3ece0",
-        "title": "#7c5e3f",
+        "title": "#7c5e3f", "disabled_text": "#b3a48c", "disabled_base": "#efe9dd",
     },
     "dark": {
         "label": "Oscuro",
@@ -82,7 +82,7 @@ COLOR_THEMES: dict[str, dict] = {
         "text": "#e6e9ee", "button": "#3a414b", "button_text": "#e6e9ee",
         "highlight": "#4f9fd6", "highlight_text": "#ffffff",
         "accent": "#11304a", "accent_text": "#ffffff", "accent_sub": "#cfe6f5",
-        "title": "#8ec5e6",
+        "title": "#8ec5e6", "disabled_text": "#6b727b", "disabled_base": "#262a30",
     },
     "system": {
         "label": "Sistema",
@@ -1364,6 +1364,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.calib.paramChanged.connect(self._on_model_param_changed)
         self.calib.center.valueChanged.connect(self._on_center_value_changed)
         self.calib.absorber_combo.currentIndexChanged.connect(self._sync_absorber_model_from_panel)
+        # Al activar "Ajustar Vmax", fijar automáticamente todos los BHF (el
+        # ajuste de velocidad exige que el campo hiperfino esté fijo).
+        self.calib.fit_velocity.toggled.connect(self._on_fit_velocity_toggled)
         for cp in self.components_panels:
             cp.paramChanged.connect(self._on_model_param_changed)
 
@@ -2126,13 +2129,32 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             pal.setColor(QtGui.QPalette.HighlightedText, c(theme["highlight_text"]))
             pal.setColor(QtGui.QPalette.ToolTipBase, c(theme["base"]))
             pal.setColor(QtGui.QPalette.ToolTipText, c(theme["text"]))
+            # Grupo "Disabled": los campos no modificables se ven claramente
+            # apagados (antes no se distinguían de los editables).
+            dis_text = c(theme.get("disabled_text", "#9aa0a6"))
+            dis_base = c(theme.get("disabled_base", theme["window"]))
+            for role in (QtGui.QPalette.WindowText, QtGui.QPalette.Text,
+                         QtGui.QPalette.ButtonText):
+                pal.setColor(QtGui.QPalette.Disabled, role, dis_text)
+            pal.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Base, dis_base)
+            pal.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Button, dis_base)
+            pal.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Highlight, dis_base)
             if app is not None:
                 app.setPalette(pal)
             accent = theme["accent"]; accent_text = theme["accent_text"]
             accent_sub = theme["accent_sub"]; title = theme["title"]
+            dt = theme.get("disabled_text", "#9aa0a6")
+            db = theme.get("disabled_base", theme["window"])
+            # Refuerzo por hoja de estilos: con stylesheet activa, Qt no aplica
+            # el grupo Disabled de la paleta a algunos widgets, así que se
+            # explicita el aspecto de los campos deshabilitados.
             self.setStyleSheet(
                 "QGroupBox { font-weight: 600; margin-top: 6px; }"
                 f"QGroupBox::title {{ color: {title}; subcontrol-origin: margin; left: 8px; }}"
+                f"QDoubleSpinBox:disabled, QSpinBox:disabled, QLineEdit:disabled, "
+                f"QComboBox:disabled {{ color: {dt}; background: {db}; }}"
+                f"QLabel:disabled, QCheckBox:disabled, QRadioButton:disabled {{ color: {dt}; }}"
+                f"QSlider:disabled {{ background: transparent; }}"
             )
 
         # La cabecera siempre con su banner de acento, acorde al tema.
@@ -2387,6 +2409,23 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             btn = getattr(self, name, None)
             if btn is not None:
                 btn.setEnabled(bool(enabled))
+
+    def _on_fit_velocity_toggled(self, checked: bool) -> None:
+        """Al activar 'Ajustar Vmax', fija automáticamente todos los BHF.
+
+        El ajuste de velocidad solo es válido con el campo hiperfino fijo, así
+        que se marcan como fijos los BHF de todas las componentes.
+        """
+        if not checked:
+            return
+        for cp in getattr(self, "components_panels", []):
+            ctl = cp.params.get("bhf")
+            if ctl is not None:
+                ctl.set_fixed(True)
+        self.statusBar().showMessage(
+            tr("msg.fit_velocity_requires_bhf_fixed",
+               default="Ajuste de Vmax: se han fijado los BHF automáticamente."),
+            5000)
 
     # ── Helpers UI ───────────────────────────────────────────────────────
     def _set_all_fixed(self, value: bool) -> None:
@@ -4576,6 +4615,24 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         lines.append(f"- Canales: {self.file.counts.size if self.file.counts is not None else 0}")
         lines.append(f"- Centro de folding: {self.file.center:.4f}")
         lines.append(f"- Perfil de línea: {self.calib.line_profile}\n")
+        # Calibración en uso (la que se está aplicando al espectro).
+        ci = self.calibration_info
+        lines.append("## Calibración\n")
+        if ci:
+            sample = ci.get("calibration_sample") or ci.get("calibration_file_name") or "—"
+            lines.append(f"- Origen: {ci.get('source', '?')}")
+            lines.append(f"- Muestra de calibración: {sample}")
+            if ci.get("calibration_file_name"):
+                lines.append(f"- Fichero de calibración: `{ci['calibration_file_name']}`")
+            if ci.get("velocity_calibrated") is not None:
+                lines.append(f"- Velocidad calibrada (Vmax): {float(ci['velocity_calibrated']):.6g} mm/s")
+            if ci.get("isomer_shift") is not None:
+                lines.append(f"- Desplazamiento isomérico de referencia: {float(ci['isomer_shift']):.6g} mm/s")
+            if ci.get("calibration_date"):
+                lines.append(f"- Fecha de calibración: {ci['calibration_date']}")
+        else:
+            lines.append("- (Sin calibración activa; δ sin corregir)")
+        lines.append("")
         # Componentes activos
         lines.append("## Componentes\n")
         for cp in self.components_panels:
@@ -4613,37 +4670,50 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         try:
             Path(path).write_text("\n".join(lines), encoding="utf-8")
             self.statusBar().showMessage(f"Informe guardado: {path}", 5000)
-            # Genera PDF acompañante: páginas con el texto del informe
-            # (monoespaciado) y, al final, la gráfica actual, igual que en Tk.
-            try:
-                pdf_path = Path(path).with_suffix(".pdf")
-                from matplotlib.backends.backend_pdf import PdfPages
-                from matplotlib.figure import Figure as _PdfFigure
-                import textwrap as _tw
-
-                def _text_page(pdf, text_lines):
-                    fig = _PdfFigure(figsize=(8.27, 11.69), dpi=100, facecolor="white")
-                    ax = fig.add_subplot(111); ax.axis("off")
-                    ax.text(0.04, 0.97, "\n".join(text_lines), va="top", ha="left",
-                            family="monospace", fontsize=8.5)
-                    pdf.savefig(fig, bbox_inches="tight")
-
-                with PdfPages(pdf_path) as pdf:
-                    page_lines: list[str] = []
-                    for line in "\n".join(lines).splitlines():
-                        for w in (_tw.wrap(line, width=95) or [""]):
-                            page_lines.append(w)
-                            if len(page_lines) >= 46:
-                                _text_page(pdf, page_lines); page_lines = []
-                    if page_lines:
-                        _text_page(pdf, page_lines)
-                    pdf.savefig(self.canvas.fig, bbox_inches="tight")
-                self.statusBar().showMessage(f"Informe + PDF guardados: {path}", 5000)
-            except Exception:
-                pass
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("file.export_report"),
                                             f"{type(exc).__name__}: {exc}")
+            return
+
+        # Preguntar si además se quiere un PDF (antes se generaba siempre).
+        want_pdf = QtWidgets.QMessageBox.question(
+            self, tr("file.export_report"),
+            tr("msg.report_ask_pdf",
+               default="Informe Markdown guardado. ¿Generar también un PDF?"),
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.Yes)
+        if want_pdf != QtWidgets.QMessageBox.Yes:
+            return
+        # PDF: páginas con el texto del informe (monoespaciado) y, al final, la
+        # gráfica actual, igual que en Tk.
+        try:
+            pdf_path = Path(path).with_suffix(".pdf")
+            from matplotlib.backends.backend_pdf import PdfPages
+            from matplotlib.figure import Figure as _PdfFigure
+            import textwrap as _tw
+
+            def _text_page(pdf, text_lines):
+                fig = _PdfFigure(figsize=(8.27, 11.69), dpi=100, facecolor="white")
+                ax = fig.add_subplot(111); ax.axis("off")
+                ax.text(0.04, 0.97, "\n".join(text_lines), va="top", ha="left",
+                        family="monospace", fontsize=8.5)
+                pdf.savefig(fig, bbox_inches="tight")
+
+            with PdfPages(pdf_path) as pdf:
+                page_lines: list[str] = []
+                for line in "\n".join(lines).splitlines():
+                    for w in (_tw.wrap(line, width=95) or [""]):
+                        page_lines.append(w)
+                        if len(page_lines) >= 46:
+                            _text_page(pdf, page_lines); page_lines = []
+                if page_lines:
+                    _text_page(pdf, page_lines)
+                pdf.savefig(self.canvas.fig, bbox_inches="tight")
+            self.statusBar().showMessage(f"Informe + PDF guardados: {path}", 5000)
+        except Exception as exc:
+            QtWidgets.QMessageBox.warning(
+                self, tr("file.export_report"),
+                f"No se pudo generar el PDF: {type(exc).__name__}: {exc}")
 
     def on_help(self) -> None:
         sections = get_help_sections(
