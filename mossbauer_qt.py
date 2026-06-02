@@ -282,12 +282,17 @@ class ComponentPanel(QtWidgets.QWidget):
             ("int3",   tr("slider.s_int3"),    1.0,   0.0, 3.0, 0.05,  3),
         ]
         self.params: dict[str, ParamControl] = {}
-        for name, label, val, lo, hi, step, dec in specs:
+        params_grid = QtWidgets.QGridLayout()
+        params_grid.setContentsMargins(0, 0, 0, 0)
+        params_grid.setHorizontalSpacing(10)
+        params_grid.setVerticalSpacing(2)
+        for pos, (name, label, val, lo, hi, step, dec) in enumerate(specs):
             ctl = ParamControl(label, val, lo, hi, step, dec)
-            v.addWidget(ctl)
+            params_grid.addWidget(ctl, pos // 2, pos % 2)
             self.params[name] = ctl
             ctl.valueChanged.connect(lambda *_: self.paramChanged.emit())
             ctl.fixedChanged.connect(lambda *_: self.paramChanged.emit())
+        v.addLayout(params_grid)
         self.enabled.toggled.connect(lambda *_: self.paramChanged.emit())
         self.type_combo.currentTextChanged.connect(self._on_type_changed)
 
@@ -438,9 +443,9 @@ class SpectrumCanvas(FigureCanvas):
         self.fig = Figure(figsize=(7.0, 5.0), dpi=100, facecolor="white")
         super().__init__(self.fig)
         self.setParent(parent)
-        gs = self.fig.add_gridspec(2, 1, height_ratios=[4.6, 1.0], hspace=0.08)
-        self.ax = self.fig.add_subplot(gs[0])
-        self.ax_res = self.fig.add_subplot(gs[1], sharex=self.ax)
+        self._gs = self.fig.add_gridspec(2, 1, height_ratios=[4.6, 1.0], hspace=0.08)
+        self.ax = self.fig.add_subplot(self._gs[0])
+        self.ax_res = self.fig.add_subplot(self._gs[1], sharex=self.ax)
         self.ax.set_ylabel(tr("plot.transmission_ylabel"))
         self.ax_res.set_xlabel(tr("plot.velocity_xlabel"))
         self.ax_res.set_ylabel(tr("plot.residual_ylabel"))
@@ -467,6 +472,8 @@ class SpectrumCanvas(FigureCanvas):
         self.ax.clear(); self.ax_res.clear()
         self.ax.set_facecolor(s["ax_bg"])
         self.ax_res.set_facecolor(s["res_bg"])
+        actual_show_residual = bool(show_residual and model is not None)
+        self._gs.set_height_ratios([4.6, 1.0] if actual_show_residual else [1.0, 0.001])
         self.ax.plot(v, y, ".", color=s["data"],
                      ms=s.get("data_ms", 3.5), alpha=s.get("data_alpha", 0.7),
                      label=tr("plot.legend_data"))
@@ -483,7 +490,7 @@ class SpectrumCanvas(FigureCanvas):
                          lw=s.get("model_lw", 2.2),
                          label=tr("plot.legend_model"))
             residual = y - model
-            if show_residual:
+            if actual_show_residual:
                 self.ax_res.axhline(0, color=s["res_zero"], lw=0.9, alpha=0.9)
                 self.ax_res.fill_between(v, residual, 0, color=s["res_fill"],
                                          alpha=s.get("res_fill_alpha", 0.22))
@@ -494,10 +501,13 @@ class SpectrumCanvas(FigureCanvas):
                 self.ax.tick_params(labelbottom=False)
             else:
                 self.ax_res.set_visible(False)
-        if not show_residual:
+        if not actual_show_residual:
             self.ax_res.set_visible(False)
+            self.ax.tick_params(labelbottom=True)
+            self.ax.set_xlabel(tr("plot.velocity_xlabel"), color=s["lbl"])
         else:
             self.ax_res.set_visible(True)
+            self.ax.set_xlabel("")
         self.ax.set_ylabel(tr("plot.transmission_ylabel"), color=s["lbl"])
         self.ax.set_title(tr("plot.title_discrete"), color=s["title"], pad=10,
                           fontweight=s.get("title_weight", "bold"))
@@ -928,6 +938,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.absorber_model = "thin"       # "thin" / "thickness"
         self.dist_use_sharp = False
         self.dist_refine_global = False
+        self._edge_trim = 1
         self._load_settings()
         self._build_ui()
         self._build_menubar()
@@ -996,6 +1007,24 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         ncomp_row.addWidget(QtWidgets.QLabel(f"(máx. {MAX_QT_COMPONENTS})"))
         ncomp_row.addStretch(1)
         sim_lay.addLayout(ncomp_row)
+
+        action_grid = QtWidgets.QGridLayout()
+        action_grid.setContentsMargins(0, 0, 0, 0)
+        action_grid.setHorizontalSpacing(6)
+        action_grid.setVerticalSpacing(4)
+        self.btn_sim_fit = QtWidgets.QPushButton(tr("fit.run"))
+        self.btn_sim_free_all = QtWidgets.QPushButton(tr("fit.free_all"))
+        self.btn_sim_auto_min = QtWidgets.QPushButton(tr("fit.auto_from_minima"))
+        self.btn_sim_ai = QtWidgets.QPushButton(tr("fit.ollama_start"))
+        for pos, btn in enumerate((self.btn_sim_fit, self.btn_sim_free_all,
+                                   self.btn_sim_auto_min, self.btn_sim_ai)):
+            action_grid.addWidget(btn, pos // 2, pos % 2)
+        self.btn_sim_fit.clicked.connect(self.on_fit)
+        self.btn_sim_free_all.clicked.connect(lambda: self._set_all_fixed(False))
+        self.btn_sim_auto_min.clicked.connect(self.on_auto_fit_from_minima)
+        self.btn_sim_ai.clicked.connect(self.on_ai_summary)
+        self._set_quick_action_buttons_enabled(False)
+        sim_lay.addLayout(action_grid)
 
         self.calib = CalibrationPanel()
         lv.addWidget(self.calib)
@@ -1070,6 +1099,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
 
         # Conectar señales de cambio para refrescar el plot en vivo
         self.calib.paramChanged.connect(self._refresh_plot)
+        self.calib.center.valueChanged.connect(self._on_center_value_changed)
         for cp in self.components_panels:
             cp.paramChanged.connect(self._refresh_plot)
 
@@ -1776,6 +1806,12 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
     def dist_variable(self) -> str:
         return "quad" if self.mode_combo.currentIndex() == 2 else "bhf"
 
+    def _set_quick_action_buttons_enabled(self, enabled: bool) -> None:
+        for name in ("btn_sim_fit", "btn_sim_auto_min", "btn_sim_ai"):
+            btn = getattr(self, name, None)
+            if btn is not None:
+                btn.setEnabled(bool(enabled))
+
     # ── Helpers UI ───────────────────────────────────────────────────────
     def _set_all_fixed(self, value: bool) -> None:
         self._building = True
@@ -1783,6 +1819,58 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             for ctl in cp.params.values():
                 ctl.set_fixed(value)
         self._building = False
+        self._refresh_plot()
+
+    def _fold_counts_for_center(self, center: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Dobla las cuentas con el mismo recorte de borde que la GUI Tk modular."""
+        if self.file.counts is None:
+            raise ValueError("No hay cuentas cargadas")
+        folded, _pairs = fold_integer_or_half(self.file.counts, float(center))
+        n = int(getattr(self, "_edge_trim", 0))
+        if n > 0 and folded.size > 2 * n + 2:
+            folded = folded[n:-n]
+        norm = float(np.percentile(folded, 90)) if folded.size else 1.0
+        norm = norm or 1.0
+        sigma = np.sqrt(np.maximum(folded / 2.0, 1.0)) / norm
+        y = folded / norm
+        return folded, sigma, y
+
+    def _velocity_for_folded(self, n_points: int, trim_edges: bool = True) -> np.ndarray:
+        """Crea el eje de velocidad y recorta sus extremos si se recortó el folding."""
+        vmax = abs(self.calib.vmax.value())
+        if self.file.counts is None:
+            return np.array([], dtype=float)
+        full_n = self.file.counts.size // 2
+        velocity = np.linspace(-vmax, vmax, full_n)
+        n = int(getattr(self, "_edge_trim", 0)) if trim_edges else 0
+        if n > 0 and velocity.size > 2 * n + 2 and n_points == velocity.size - 2 * n:
+            velocity = velocity[n:-n]
+        elif velocity.size != n_points:
+            velocity = np.linspace(-vmax, vmax, n_points)
+        return velocity
+
+    def _refold_current_data(self, center: float) -> None:
+        """Recalcula datos normalizados/sigma/eje cuando cambia el folding point."""
+        if self.file.counts is None:
+            return
+        folded, sigma, y = self._fold_counts_for_center(center)
+        self.file.folded = folded
+        self.file.center = float(center)
+        self.file.norm_factor = float(np.percentile(folded, 90)) if folded.size else 1.0
+        self.file.norm_factor = self.file.norm_factor or 1.0
+        self.file.sigma = sigma
+        self.file.y_data = y
+        self.file.velocity = self._velocity_for_folded(folded.size)
+
+    def _on_center_value_changed(self, center: float) -> None:
+        if self._building or self.file.counts is None:
+            return
+        self._refold_current_data(float(center))
+        if self.file.path is not None:
+            self.file_label.setText(f"<b>{self.file.path.name}</b><br>"
+                                    f"{self.file.counts.size} canales · centro={float(center):.3f} · "
+                                    f"norm={self.file.norm_factor:.4g}")
+        self.statusBar().showMessage(f"Datos re-doblados con centro={float(center):.4f}", 3000)
         self._refresh_plot()
 
     # ── Construcción del FitState a partir de la UI ───────────────────────
@@ -1853,14 +1941,16 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
     def _load_file(self, path: Path) -> None:
         counts = read_ws5_counts(path)
         center = find_best_integer_or_half_center(counts)
-        folded, _ = fold_integer_or_half(counts, center)
+        self.file = FileState(path=path, counts=counts, center=center)
+        folded, sigma, y = self._fold_counts_for_center(center)
         norm = float(np.percentile(folded, 90)) if folded.size else 1.0
         norm = norm or 1.0
-        sigma = np.sqrt(np.maximum(folded / 2.0, 1.0)) / norm
-        y = folded / norm
-        v = np.linspace(-self.calib.vmax.value(), self.calib.vmax.value(), folded.size)
-        self.file = FileState(path=path, counts=counts, folded=folded, sigma=sigma,
-                              norm_factor=norm, center=center, velocity=v, y_data=y)
+        v = self._velocity_for_folded(folded.size)
+        self.file.folded = folded
+        self.file.sigma = sigma
+        self.file.norm_factor = norm
+        self.file.velocity = v
+        self.file.y_data = y
         # actualiza UI
         self.calib.center.set_value(center)
         self.file_label.setText(f"<b>{path.name}</b><br>"
@@ -1878,6 +1968,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_export_report.setEnabled(True)
         self.act_bootstrap.setEnabled(True)
         self.act_lcurve.setEnabled(True)
+        self._set_quick_action_buttons_enabled(True)
         self._add_recent(path)
         self.statusBar().showMessage(
             f"{path.name} · {counts.size} canales · centro={center:.3f}")
@@ -1888,10 +1979,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             return
         v = self.file.velocity
         y = self.file.y_data
-        # recalcular velocidad si vmax cambia
-        vmax = abs(self.calib.vmax.value())
-        if v.size and (abs(v[-1] - vmax) > 1e-6 or abs(v[0] + vmax) > 1e-6):
-            v = np.linspace(-vmax, vmax, y.size)
+        # Recalcular velocidad si vmax cambia, respetando el recorte de bordes.
+        expected_v = self._velocity_for_folded(y.size)
+        if v.size and expected_v.size == v.size and not np.allclose(v, expected_v, atol=1e-9, rtol=0.0):
+            v = expected_v
             self.file.velocity = v
         state = self._build_state()
         style = get_style(self.plot_style_name)
@@ -2025,20 +2116,20 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             )
             counts = self.file.counts
             center = find_best_integer_or_half_center(counts)
-            folded, _ = fold_integer_or_half(counts, center)
-            norm = float(np.percentile(folded, 90)) or 1.0
-            sigma = np.sqrt(np.maximum(folded / 2.0, 1.0)) / norm
+            self.file.center = center
+            folded, sigma, y = self._fold_counts_for_center(center)
+            norm = float(np.percentile(folded, 90)) if folded.size else 1.0
+            norm = norm or 1.0
             self.file.folded = folded
             self.file.norm_factor = norm
             self.file.sigma = sigma
-            self.file.center = center
-            self.file.y_data = folded / norm
-            self.file.velocity = np.linspace(
-                -self.calib.vmax.value(), self.calib.vmax.value(), folded.size)
+            self.file.y_data = y
+            self.file.velocity = self._velocity_for_folded(folded.size)
             self.file_label.setText(
                 f"<b>{data.get('file_name') or '—'}</b><br>"
                 f"{counts.size} canales (sesión)")
             self.act_fit.setEnabled(True)
+            self._set_quick_action_buttons_enabled(True)
 
         # 2. Calibración guardada
         calib = data.get("calibration")
@@ -2767,16 +2858,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         if self.file.counts is None:
             return
         center = find_best_integer_or_half_center(self.file.counts)
-        # Re-dobla con el nuevo centro
-        folded, _ = fold_integer_or_half(self.file.counts, center)
-        norm = float(np.percentile(folded, 90)) or 1.0
-        self.file.folded = folded
-        self.file.center = center
-        self.file.norm_factor = norm
-        self.file.sigma = np.sqrt(np.maximum(folded / 2.0, 1.0)) / norm
-        self.file.y_data = folded / norm
-        vmax = abs(self.calib.vmax.value())
-        self.file.velocity = np.linspace(-vmax, vmax, folded.size)
+        # Re-dobla con el nuevo centro y aplica el recorte de bordes de Tk.
+        self._refold_current_data(center)
         self._building = True
         self.calib.center.set_value(center)
         self._building = False
