@@ -36,7 +36,7 @@ from mossbauer_i18n import (  # noqa: E402
 )
 from mossbauer_help import get_help_sections  # noqa: E402
 from core.data_io import SETTINGS_PATH  # noqa: E402
-from core.constants import APP_VERSION, APP_NAME, SEXTET_PARAM_NAMES  # noqa: E402
+from core.constants import APP_VERSION, APP_NAME, SEXTET_PARAM_NAMES, LINE_POS_33T  # noqa: E402
 from core.folding import (  # noqa: E402
     read_ws5_counts, find_best_integer_or_half_center, fold_integer_or_half,
 )
@@ -749,6 +749,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._building = False
         self.plot_style_name = "modern"
         self.constraints: list[dict] = []
+        self.calibration_info: dict | None = None
         self._load_settings()
         self._build_ui()
         self._build_menubar()
@@ -768,7 +769,25 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         fb = QtWidgets.QVBoxLayout(self.file_box)
         self.file_label = QtWidgets.QLabel("—"); self.file_label.setWordWrap(True)
         fb.addWidget(self.file_label)
+        self.calib_label = QtWidgets.QLabel("")
+        self.calib_label.setWordWrap(True)
+        self.calib_label.setStyleSheet("color: #0e7490; font-size: 9pt;")
+        fb.addWidget(self.calib_label)
+        # Clic derecho sobre el cuadro de fichero → menú "usar como calibración".
+        self.file_box.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.file_box.customContextMenuRequested.connect(self._show_file_box_menu)
+        self.file_label.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.file_label.customContextMenuRequested.connect(self._show_file_box_menu)
         lv.addWidget(self.file_box)
+
+        # Panel de referencia con las posiciones de las líneas Fe-57 a 33 T.
+        ref_box = QtWidgets.QGroupBox(tr("controls.reference_box"))
+        rb = QtWidgets.QVBoxLayout(ref_box)
+        pos_str = ", ".join(f"{x:+.3f}" for x in LINE_POS_33T)
+        ref_lbl = QtWidgets.QLabel(tr("controls.reference_lines", positions=pos_str))
+        ref_lbl.setWordWrap(True)
+        rb.addWidget(ref_lbl)
+        lv.addWidget(ref_box)
 
         # Selector de modo (discreto / P(BHF)).
         mode_row = QtWidgets.QHBoxLayout()
@@ -1234,6 +1253,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             "file_path": str(self.file.path) if self.file.path else None,
             "file_name": self.file.path.name if self.file.path else None,
             "counts": self.file.counts.tolist() if self.file.counts is not None else None,
+            "calibration": self.calibration_info,
             "model_state": model_state,
         }
 
@@ -1267,7 +1287,13 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 f"{counts.size} canales (sesión)")
             self.act_fit.setEnabled(True)
 
-        # 2. Modelo: aplicar vars / fixed / sextet_enabled / component_kind.
+        # 2. Calibración guardada
+        calib = data.get("calibration")
+        if isinstance(calib, dict):
+            self.calibration_info = calib
+            self._refresh_calib_label()
+
+        # 3. Modelo: aplicar vars / fixed / sextet_enabled / component_kind.
         state = data.get("model_state", {})
         self._building = True
         try:
@@ -1335,6 +1361,82 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.critical(
                 self, tr("file.load_session"),
                 f"{type(exc).__name__}: {exc}")
+
+    # ── Calibración rápida desde el cuadro de fichero ─────────────────────
+    def _show_file_box_menu(self, pos: QtCore.QPoint) -> None:
+        if self.file.path is None:
+            return
+        menu = QtWidgets.QMenu(self)
+        act_quick = menu.addAction(tr("context.use_as_calibration_quick"))
+        act_detail = menu.addAction(tr("context.use_as_calibration_detailed"))
+        chosen = menu.exec(self.file_box.mapToGlobal(pos))
+        if chosen == act_quick:
+            self._use_as_calibration_quick()
+        elif chosen == act_detail:
+            self._use_as_calibration_detailed()
+
+    def _use_as_calibration_quick(self) -> None:
+        if self.file.path is None:
+            return
+        vmax = float(self.calib.vmax.value())
+        iso = float(self.components_panels[0].params["delta"].value())
+        name = self.file.path.stem
+        self.calibration_info = {
+            "source": "local", "calibration_sample": name,
+            "velocity_calibrated": vmax, "isomer_shift": iso,
+            "calibration_file_name": self.file.path.name,
+            "calibration_file_path": str(self.file.path),
+        }
+        self._refresh_calib_label()
+        QtWidgets.QMessageBox.information(
+            self, tr("file.use_as_calibration"),
+            tr("msg.use_as_calib_quick_ok",
+               name=name, vmax=f"{vmax:.4f}", iso=f"{iso:.4f}"))
+
+    def _use_as_calibration_detailed(self) -> None:
+        if self.file.path is None:
+            return
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(tr("file.use_as_calibration"))
+        form = QtWidgets.QFormLayout(dlg)
+        e_name = QtWidgets.QLineEdit(self.file.path.stem)
+        e_vmax = QtWidgets.QDoubleSpinBox(); e_vmax.setRange(-30.0, 30.0)
+        e_vmax.setDecimals(4); e_vmax.setValue(float(self.calib.vmax.value()))
+        e_iso = QtWidgets.QDoubleSpinBox(); e_iso.setRange(-5.0, 5.0)
+        e_iso.setDecimals(4)
+        e_iso.setValue(float(self.components_panels[0].params["delta"].value()))
+        form.addRow("Sample:", e_name)
+        form.addRow("Vmax (mm/s):", e_vmax)
+        form.addRow("IS (mm/s):", e_iso)
+        bb = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        bb.accepted.connect(dlg.accept); bb.rejected.connect(dlg.reject)
+        form.addRow(bb)
+        if dlg.exec() != QtWidgets.QDialog.Accepted:
+            return
+        self.calibration_info = {
+            "source": "local",
+            "calibration_sample": e_name.text() or self.file.path.stem,
+            "velocity_calibrated": float(e_vmax.value()),
+            "isomer_shift": float(e_iso.value()),
+            "calibration_file_name": self.file.path.name,
+            "calibration_file_path": str(self.file.path),
+        }
+        self._refresh_calib_label()
+
+    def _refresh_calib_label(self) -> None:
+        if not self.calibration_info:
+            self.calib_label.setText("")
+            return
+        info = self.calibration_info
+        src = info.get("source", "local")
+        sample = info.get("calibration_sample", "")
+        vmax = info.get("velocity_calibrated")
+        iso = info.get("isomer_shift")
+        txt = f"Calibración [{src}] {sample}<br>"
+        if vmax is not None:
+            txt += f"Vmax = {vmax:.4f} mm/s · IS = {iso:.4f} mm/s"
+        self.calib_label.setText(txt)
 
     # ── Bootstrap MC ─────────────────────────────────────────────────────
     def on_bootstrap(self) -> None:
@@ -1919,9 +2021,28 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 lines.append(f"- `{c['target']}` = {c.get('factor', 1.0):g} · "
                               f"`{c['source']}` + {c.get('offset', 0.0):g}")
             lines.append("")
+        # Si hay calibración activa, incluye δ corregido.
+        if self.calibration_info and self.calibration_info.get("isomer_shift") is not None:
+            ref = float(self.calibration_info["isomer_shift"])
+            lines.append(f"## δ corregido (iso_ref = {ref:.6g} mm/s)\n")
+            for cp in self.components_panels:
+                if not cp.enabled.isChecked():
+                    continue
+                d = cp.params["delta"].value()
+                lines.append(f"- Componente {cp.idx}: δ corregido = {d - ref:.6g} mm/s")
+            lines.append("")
         try:
             Path(path).write_text("\n".join(lines), encoding="utf-8")
             self.statusBar().showMessage(f"Informe guardado: {path}", 5000)
+            # Genera PDF acompañante con el plot actual.
+            try:
+                pdf_path = Path(path).with_suffix(".pdf")
+                from matplotlib.backends.backend_pdf import PdfPages
+                with PdfPages(pdf_path) as pdf:
+                    pdf.savefig(self.canvas.fig, bbox_inches="tight")
+                self.statusBar().showMessage(f"Informe + PDF guardados: {path}", 5000)
+            except Exception:
+                pass
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("file.export_report"),
                                             f"{type(exc).__name__}: {exc}")

@@ -190,6 +190,35 @@ def test_export_report_writes_markdown(win, tmp_path):
     assert "Mössbauer" in content and "Componentes" in content
 
 
+def test_use_as_calibration_sets_info(win):
+    """'Usar como calibración' guarda vmax/iso del estado actual."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    cp = win.components_panels[0]
+    cp.params["delta"].set_value(-0.1092)
+    QtWidgets.QMessageBox.information = staticmethod(lambda *a, **k: None)
+    win._use_as_calibration_quick()
+    assert win.calibration_info is not None
+    assert abs(win.calibration_info["isomer_shift"] - (-0.1092)) < 1e-6
+    assert win.calibration_info["source"] == "local"
+
+
+def test_session_save_load_roundtrip_keeps_calibration(win, tmp_path):
+    """Save→Load preserva calibration_info."""
+    import json
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.calibration_info = {"source": "local", "calibration_sample": "X",
+                             "velocity_calibrated": 12.0, "isomer_shift": -0.11}
+    p = tmp_path / "s.json"
+    p.write_text(json.dumps(win._session_payload(), default=str))
+    win2 = mq.MossbauerQtWindow()
+    try:
+        win2._apply_session_payload(json.loads(p.read_text()))
+        assert win2.calibration_info is not None
+        assert win2.calibration_info["calibration_sample"] == "X"
+    finally:
+        win2.close(); win2.deleteLater()
+
+
 def test_bootstrap_returns_sigma_estimates(win):
     """Bootstrap MC con 5 réplicas devuelve un mensaje con σ(MC) por parámetro."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
