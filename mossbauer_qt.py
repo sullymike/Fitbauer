@@ -42,6 +42,7 @@ from core.fit_engine import (  # noqa: E402
 from core.profile_likelihood import asymmetric_intervals  # noqa: E402
 from core.plot_styles import get_style, apply_rc  # noqa: E402
 from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data  # noqa: E402
+from mossbauer_distribution import fit_bhf_distribution  # noqa: E402
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -397,6 +398,31 @@ class FileState:
     y_data: np.ndarray | None = None
 
 
+class DistributionPanel(QtWidgets.QGroupBox):
+    """Panel para modo distribución P(BHF) (Hesse-Rübartsch)."""
+
+    paramChanged = QtCore.Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(tr("tab.distribution_bhf"), parent)
+        v = QtWidgets.QVBoxLayout(self)
+        v.setSpacing(2)
+
+        self.delta = ParamControl(tr("slider.dist_delta"), 0.0, -2.5, 2.5, 0.001, 4)
+        self.quad  = ParamControl(tr("slider.dist_quad"),  0.0, -4.0, 4.0, 0.001, 4)
+        self.gamma = ParamControl(tr("slider.dist_gamma"), 0.18, 0.03, 1.0, 0.001, 4)
+        self.bmin  = ParamControl(tr("slider.dist_bmin_bhf"), 0.0,  0.0, 60.0, 0.1, 2, with_fixed=False)
+        self.bmax  = ParamControl(tr("slider.dist_bmax_bhf"), 50.0, 1.0, 60.0, 0.1, 2, with_fixed=False)
+        self.nbins = ParamControl(tr("slider.dist_nbins"), 50.0, 10.0, 100.0, 1.0, 0, with_fixed=False)
+        self.log_alpha = ParamControl(tr("slider.dist_log_alpha"), -2.0, -8.0, 4.0, 0.1, 2, with_fixed=False)
+
+        for w in (self.delta, self.quad, self.gamma, self.bmin, self.bmax,
+                  self.nbins, self.log_alpha):
+            v.addWidget(w)
+            w.valueChanged.connect(lambda *_: self.paramChanged.emit())
+        v.addStretch(1)
+
+
 class BatchFitDialog(QtWidgets.QDialog):
     """Diálogo de ajuste en serie con warm-start secuencial.
 
@@ -641,6 +667,15 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         fb.addWidget(self.file_label)
         lv.addWidget(self.file_box)
 
+        # Selector de modo (discreto / P(BHF)).
+        mode_row = QtWidgets.QHBoxLayout()
+        mode_row.addWidget(QtWidgets.QLabel(tr("controls.fit_mode_hint").split(":")[0] + ":"))
+        self.mode_combo = QtWidgets.QComboBox()
+        self.mode_combo.addItems([tr("options.discrete_sextets"), tr("options.distribution_bhf")])
+        self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        mode_row.addWidget(self.mode_combo, stretch=1)
+        lv.addLayout(mode_row)
+
         self.calib = CalibrationPanel()
         lv.addWidget(self.calib)
 
@@ -652,6 +687,12 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             self.components_panels.append(cp)
             self.comp_tabs.addTab(cp, tr("tab.component", idx=i))
         lv.addWidget(self.comp_tabs)
+
+        # Panel de distribución (oculto en modo discreto).
+        self.dist_panel = DistributionPanel()
+        self.dist_panel.setVisible(False)
+        self.dist_panel.paramChanged.connect(self._refresh_plot)
+        lv.addWidget(self.dist_panel)
         lv.addStretch(1)
 
         scroll = QtWidgets.QScrollArea(); scroll.setWidget(left); scroll.setWidgetResizable(True)
@@ -749,6 +790,17 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.plot_style_name = name
         apply_rc(name)
         self._refresh_plot()
+
+    # ── Cambio de modo ───────────────────────────────────────────────────
+    def _on_mode_changed(self, idx: int) -> None:
+        is_dist = (idx == 1)
+        self.comp_tabs.setVisible(not is_dist)
+        self.dist_panel.setVisible(is_dist)
+        self._refresh_plot()
+
+    @property
+    def is_distribution_mode(self) -> bool:
+        return self.mode_combo.currentIndex() == 1
 
     # ── Helpers UI ───────────────────────────────────────────────────────
     def _set_all_fixed(self, value: bool) -> None:
@@ -869,6 +921,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.canvas.render(v, y, model=model, components=comps, style=style)
 
     def on_fit(self) -> None:
+        if self.is_distribution_mode:
+            self.on_fit_distribution()
+            return
         state = self._build_state()
         if state is None:
             return
@@ -1039,6 +1094,69 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.critical(
                 self, tr("file.load_session"),
                 f"{type(exc).__name__}: {exc}")
+
+    # ── Ajuste distribución P(BHF) ──────────────────────────────────────
+    def on_fit_distribution(self) -> None:
+        if self.file.velocity is None or self.file.y_data is None:
+            return
+        d = self.dist_panel
+        bmin = float(d.bmin.value())
+        bmax = max(bmin + 0.5, float(d.bmax.value()))
+        nbins = max(5, int(round(d.nbins.value())))
+        alpha = 10.0 ** float(d.log_alpha.value())
+        self.statusBar().showMessage("Ajustando P(BHF)…")
+        QtWidgets.QApplication.processEvents()
+        try:
+            result = fit_bhf_distribution(
+                self.file.velocity, self.file.y_data,
+                delta=float(d.delta.value()), quad=float(d.quad.value()),
+                gamma=float(d.gamma.value()),
+                bmin=bmin, bmax=bmax, nbins=nbins, alpha=alpha,
+                sigma=self.file.sigma,
+            )
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, tr("fit.run"),
+                                            f"{type(exc).__name__}: {exc}")
+            return
+        # Pintar el ajuste sobre el canvas principal y abrir un diálogo
+        # con la curva P(BHF).
+        style = get_style(self.plot_style_name)
+        self.canvas.render(self.file.velocity, self.file.y_data,
+                           model=result.fitted_curve, style=style)
+        msg = (f"P(BHF): bins={nbins}  α=10^{d.log_alpha.value():.2f}  "
+               f"RMS={result.rms:.5g}")
+        self.statusBar().showMessage(msg)
+        # Mostrar info
+        class _R:
+            pass
+        r = _R()
+        r.stats = {"chi2": float(np.sum(result.residuals**2)), "red_chi2": float(result.rms),
+                   "dof": 0.0, "aic": 0.0, "bic": 0.0}
+        r.free_keys = []
+        r.values = {"baseline": result.baseline, "slope": result.slope, "alpha": result.alpha}
+        r.errors = {}
+        r.correlations = {}
+        r.n_starts = 1
+        self.info_panel.show_result(r)
+        self._show_distribution_dialog(result)
+
+    def _show_distribution_dialog(self, result) -> None:
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle("P(BHF)")
+        dlg.resize(720, 480)
+        v = QtWidgets.QVBoxLayout(dlg)
+        fig = Figure(figsize=(8.0, 4.5), dpi=96)
+        cv = FigureCanvas(fig); v.addWidget(cv, stretch=1)
+        ax = fig.add_subplot(111)
+        ax.plot(result.bhf_centers, result.probability, "-", color="#2563eb", lw=2.0)
+        ax.fill_between(result.bhf_centers, result.probability, 0, color="#93c5fd", alpha=0.45)
+        ax.set_xlabel(tr("plot.distribution_xlabel_bhf"))
+        ax.set_ylabel("P(BHF)")
+        ax.grid(True, alpha=0.3)
+        fig.tight_layout(); cv.draw_idle()
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
+        bb.rejected.connect(dlg.reject); v.addWidget(bb)
+        dlg.exec()
 
     # ── Auto-inicialización desde mínimos ───────────────────────────────
     def on_init_from_minima(self) -> None:
