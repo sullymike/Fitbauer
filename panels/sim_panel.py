@@ -68,7 +68,6 @@ class SimPanel(BasePanel):
         hdr2.pack(fill=tk.X, pady=(0, 4))
         for text, cmd in [
             (tr("sim.free_all"),    app.free_all_parameters),
-            (tr("sim.fix_all"),     app.fix_all_parameters),
             (tr("sim.auto_minima"), app.auto_fit_from_minima),
             (tr("sim.ai_start"),    app.open_ollama_ai_dialog),
         ]:

@@ -839,7 +839,6 @@ class MossbauerFe33GUI(tk.Tk):
         ttk.Button(sim_header, text=tr("sim.fit"), command=self.fit_current_data, style="Accent.TButton").pack(side=tk.RIGHT, padx=(4, 0))
         ttk.Button(sim_header, text=tr("sim.ai_start"), command=self.open_ollama_ai_dialog, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
         ttk.Button(sim_header, text=tr("sim.auto_minima"), command=self.auto_fit_from_minima, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
-        ttk.Button(sim_header, text=tr("sim.fix_all"), command=self.fix_all_parameters, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
         ttk.Button(sim_header, text=tr("sim.free_all"), command=self.free_all_parameters, style="Small.TButton").pack(side=tk.RIGHT, padx=(4, 0))
 
         notebook = ttk.Notebook(sim_box)
