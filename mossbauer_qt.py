@@ -31,6 +31,8 @@ from matplotlib.figure import Figure
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
+MAX_QT_COMPONENTS = 6
+
 from mossbauer_i18n import (  # noqa: E402
     tr, get_language, set_language, available_languages,
 )
@@ -72,8 +74,15 @@ class ParamControl(QtWidgets.QWidget):
                  step: float = 0.01, decimals: int = 4, with_fixed: bool = True,
                  parent=None):
         super().__init__(parent)
-        h = QtWidgets.QHBoxLayout(self)
-        h.setContentsMargins(0, 2, 0, 2)
+        self._lo = float(lo)
+        self._hi = float(hi)
+        self._syncing = False
+
+        v = QtWidgets.QVBoxLayout(self)
+        v.setContentsMargins(0, 2, 0, 2)
+        v.setSpacing(2)
+
+        h = QtWidgets.QHBoxLayout()
         h.setSpacing(8)
         self.label = QtWidgets.QLabel(label)
         self.label.setMinimumWidth(120)
@@ -91,15 +100,65 @@ class ParamControl(QtWidgets.QWidget):
             self.fixed_cb = QtWidgets.QCheckBox(tr("checkbox.fixed"))
             h.addWidget(self.fixed_cb)
             self.fixed_cb.toggled.connect(self.fixedChanged)
-        self.spin.valueChanged.connect(self.valueChanged)
+        v.addLayout(h)
+
+        self.slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.slider.setRange(0, 1000)
+        self.slider.setSingleStep(1)
+        self.slider.setPageStep(25)
+        self.slider.setToolTip(label)
+        self.slider.setValue(self._value_to_slider(value))
+        v.addWidget(self.slider)
+
+        self.spin.valueChanged.connect(self._on_spin_changed)
+        self.slider.valueChanged.connect(self._on_slider_changed)
 
     def value(self) -> float:
         return float(self.spin.value())
 
     def set_value(self, v: float) -> None:
+        self._syncing = True
         self.spin.blockSignals(True)
+        self.slider.blockSignals(True)
         self.spin.setValue(float(v))
+        self.slider.setValue(self._value_to_slider(self.spin.value()))
+        self.slider.blockSignals(False)
         self.spin.blockSignals(False)
+        self._syncing = False
+
+    def _value_to_slider(self, value: float) -> int:
+        if self._hi <= self._lo:
+            return 0
+        frac = (float(value) - self._lo) / (self._hi - self._lo)
+        return int(round(max(0.0, min(1.0, frac)) * self.slider.maximum()))
+
+    def _slider_to_value(self, pos: int) -> float:
+        if self.slider.maximum() <= 0:
+            return self._lo
+        frac = float(pos) / float(self.slider.maximum())
+        return self._lo + frac * (self._hi - self._lo)
+
+    def _on_spin_changed(self, value: float) -> None:
+        if self._syncing:
+            return
+        self._syncing = True
+        self.slider.blockSignals(True)
+        self.slider.setValue(self._value_to_slider(value))
+        self.slider.blockSignals(False)
+        self._syncing = False
+        self.valueChanged.emit(float(value))
+
+    def _on_slider_changed(self, pos: int) -> None:
+        if self._syncing:
+            return
+        value = self._slider_to_value(pos)
+        self._syncing = True
+        self.spin.blockSignals(True)
+        self.spin.setValue(value)
+        value = float(self.spin.value())
+        self.spin.blockSignals(False)
+        self._syncing = False
+        self.valueChanged.emit(value)
 
     def is_fixed(self) -> bool:
         return bool(self.fixed_cb.isChecked()) if self.fixed_cb is not None else False
@@ -925,17 +984,31 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         mode_row.addWidget(self.mode_combo, stretch=1)
         sim_lay.addLayout(mode_row)
 
+        ncomp_row = QtWidgets.QHBoxLayout()
+        ncomp_row.addWidget(QtWidgets.QLabel(tr("sim.n_components", default="Componentes:")))
+        self.n_components_spin = QtWidgets.QSpinBox()
+        self.n_components_spin.setRange(1, MAX_QT_COMPONENTS)
+        self.n_components_spin.setValue(1)
+        self.n_components_spin.setToolTip(
+            tr("sim.n_components", default="Número de componentes/sextetes activos"))
+        self.n_components_spin.valueChanged.connect(self._on_n_components_changed)
+        ncomp_row.addWidget(self.n_components_spin)
+        ncomp_row.addWidget(QtWidgets.QLabel(f"(máx. {MAX_QT_COMPONENTS})"))
+        ncomp_row.addStretch(1)
+        sim_lay.addLayout(ncomp_row)
+
         self.calib = CalibrationPanel()
         lv.addWidget(self.calib)
 
-        # Componentes 1, 2 y 3 en pestañas (solo el 1 activo por defecto).
+        # Componentes en pestañas: se muestran/activan tantas como indique el selector.
         self.comp_tabs = QtWidgets.QTabWidget()
         self.components_panels: list[ComponentPanel] = []
-        for i in (1, 2, 3):
+        for i in range(1, MAX_QT_COMPONENTS + 1):
             cp = ComponentPanel(idx=i)
             self.components_panels.append(cp)
             self.comp_tabs.addTab(cp, tr("tab.component", idx=i))
         sim_lay.addWidget(self.comp_tabs)
+        self._sync_component_count(1)
 
         # Panel de distribución (oculto en modo discreto).
         self.dist_panel = DistributionPanel()
@@ -1651,6 +1724,31 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         except Exception:
             pass
 
+    # ── Número de componentes ────────────────────────────────────────────
+    def _on_n_components_changed(self, n_components: int) -> None:
+        self._sync_component_count(n_components)
+        self._refresh_plot()
+
+    def _sync_component_count(self, n_components: int) -> None:
+        n_components = max(1, min(MAX_QT_COMPONENTS, int(n_components)))
+        if hasattr(self, "n_components_spin") and self.n_components_spin.value() != n_components:
+            self.n_components_spin.blockSignals(True)
+            self.n_components_spin.setValue(n_components)
+            self.n_components_spin.blockSignals(False)
+
+        for i, cp in enumerate(self.components_panels, start=1):
+            visible = i <= n_components
+            if hasattr(self.comp_tabs, "setTabVisible"):
+                self.comp_tabs.setTabVisible(i - 1, visible)
+            cp.setVisible(visible)
+            cp.enabled.blockSignals(True)
+            cp.enabled.setChecked(visible)
+            cp.enabled.blockSignals(False)
+
+        current = self.comp_tabs.currentIndex()
+        if current < 0 or current >= n_components:
+            self.comp_tabs.setCurrentIndex(0)
+
     # ── Cambio de modo ───────────────────────────────────────────────────
     def _on_mode_changed(self, idx: int) -> None:
         is_dist = (idx in (1, 2))
@@ -1885,6 +1983,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             "component_kind": component_kind,
             "intensity_mode": intensity_mode,
             "quad_treatment": quad_treatment,
+            "n_components": (
+                self.n_components_spin.value() if hasattr(self, "n_components_spin") else 1
+            ),
             "likelihood": self.likelihood,
             "robust_loss": self.robust_loss,
             "propagate_calib": self.propagate_calib,
@@ -1955,6 +2056,13 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             self.calib.baseline.set_value(vmap.get("baseline", self.calib.baseline.value()))
             self.calib.slope.set_value(vmap.get("slope", self.calib.slope.value()))
             self.calib.voigt_sigma.set_value(vmap.get("voigt_sigma", self.calib.voigt_sigma.value()))
+            n_saved = state.get("n_components")
+            if n_saved is None:
+                enabled_map = state.get("sextet_enabled", {})
+                enabled_idx = [int(k) for k, v in enabled_map.items()
+                               if str(k).isdigit() and bool(v)]
+                n_saved = max(enabled_idx, default=1)
+            self._sync_component_count(int(n_saved))
             for cp in self.components_panels:
                 cp.apply_values(vmap)
                 ki = state.get("component_kind", {}).get(str(cp.idx))

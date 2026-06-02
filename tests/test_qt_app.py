@@ -50,6 +50,29 @@ def test_window_starts_and_menus_exist(win):
     assert any("View" in t or "Vista" in t for t in titles)
 
 
+def test_qt_component_count_selector_shows_six_components(win):
+    """El selector de Qt permite activar hasta 6 componentes, igual que Tk."""
+    assert len(win.components_panels) == 6
+    assert win.n_components_spin.maximum() == 6
+    win.n_components_spin.setValue(4)
+    assert [cp.enabled.isChecked() for cp in win.components_panels[:4]] == [True] * 4
+    assert not win.components_panels[4].enabled.isChecked()
+    assert win.comp_tabs.isTabVisible(3)
+    assert not win.comp_tabs.isTabVisible(4)
+
+
+def test_qt_param_control_has_slider_bar_synced_with_spinbox(win):
+    """Cada control numérico de Qt incluye una barra tipo slider sincronizada."""
+    ctl = win.components_panels[0].params["bhf"]
+    assert isinstance(ctl.slider, QtWidgets.QSlider)
+    ctl.set_value(30.0)
+    before = ctl.slider.value()
+    ctl.spin.setValue(40.0)
+    assert ctl.slider.value() > before
+    ctl.slider.setValue(0)
+    assert abs(ctl.value() - ctl.spin.minimum()) < 1e-6
+
+
 def test_load_file_then_fit_recovers_alpha_fe(win):
     """Cargar α-Fe + lanzar Fit recupera BHF≈33 y δ≈ISO_REF."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
