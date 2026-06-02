@@ -823,6 +823,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.calibration_info: dict | None = None
         self.recent_files: list[str] = []
         self.layout_preset = "Estándar"
+        self.custom_layouts: dict[str, dict] = {}
         self._load_settings()
         self._build_ui()
         self._build_menubar()
@@ -1127,13 +1128,20 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         QtWidgets.QMessageBox.information(
             self, tr("language.restart_title"), tr("language.restart_message"))
 
-    def _apply_layout_preset(self, name: str) -> None:
-        """Aplica preset al QSplitter principal usando los anchos del preset Tk."""
+    def _all_presets(self) -> dict[str, dict]:
+        """Combina presets Tk + customs del usuario."""
         try:
             from layout.presets import PRESETS
         except Exception:
             PRESETS = {}
-        spec = PRESETS.get(name, {})
+        out: dict[str, dict] = dict(PRESETS)
+        for name, spec in self.custom_layouts.items():
+            out[name] = spec
+        return out
+
+    def _apply_layout_preset(self, name: str) -> None:
+        """Aplica preset al QSplitter principal usando los anchos del preset."""
+        spec = self._all_presets().get(name, {})
         left_w = int(spec.get("left_width", 430))
         # Total fijo aproximado; el resto va al área central.
         sizes = [left_w, max(800, self.width() - left_w - 20)]
@@ -1143,7 +1151,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._save_settings()
 
     def on_configure_layout(self) -> None:
-        """Diálogo que muestra los 4 presets Tk y permite escogerlos."""
+        """Diálogo con presets Tk + 2 customizables por el usuario."""
         try:
             from layout.presets import PRESETS, DEFAULT_PRESET
         except Exception as exc:
@@ -1153,19 +1161,61 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             return
         dlg = QtWidgets.QDialog(self)
         dlg.setWindowTitle(tr("view.configure_layout"))
-        dlg.resize(560, 360)
+        dlg.resize(720, 460)
         v = QtWidgets.QVBoxLayout(dlg)
         v.addWidget(QtWidgets.QLabel(
-            "<i>Elige un preset para ajustar la proporción de los paneles. "
-            "El núcleo Qt usa QSplitter, así que el preset solo fija anchos.</i>"))
+            "<i>Elige un preset para ajustar la proporción de los paneles, "
+            "o configura tus propios <b>Custom 1</b> / <b>Custom 2</b> con el "
+            "ancho de columna izquierda preferido.</i>"))
+
+        # Lista de presets actuales (built-in + customs)
         list_w = QtWidgets.QListWidget()
-        for name, spec in PRESETS.items():
-            item = QtWidgets.QListWidgetItem(f"{name}  ·  {spec.get('description', '')}")
-            item.setData(QtCore.Qt.UserRole, name)
-            list_w.addItem(item)
-            if name == (self.layout_preset if self.layout_preset in PRESETS else DEFAULT_PRESET):
-                list_w.setCurrentItem(item)
+
+        def refresh_list():
+            list_w.clear()
+            all_presets = self._all_presets()
+            for name, spec in all_presets.items():
+                kind = "(custom)" if name in self.custom_layouts else "(Tk)"
+                lw = spec.get("left_width", "—")
+                txt = f"{name}  {kind}  ·  left_width={lw}  ·  {spec.get('description', '')}"
+                item = QtWidgets.QListWidgetItem(txt)
+                item.setData(QtCore.Qt.UserRole, name)
+                list_w.addItem(item)
+                if name == (self.layout_preset if self.layout_preset in all_presets else DEFAULT_PRESET):
+                    list_w.setCurrentItem(item)
+        refresh_list()
         v.addWidget(list_w, stretch=1)
+
+        # Editores para Custom 1 / Custom 2
+        for slot in ("Custom 1", "Custom 2"):
+            row = QtWidgets.QHBoxLayout()
+            row.addWidget(QtWidgets.QLabel(f"<b>{slot}</b>:"))
+            name_e = QtWidgets.QLineEdit(slot if slot not in self.custom_layouts
+                                          else slot)
+            name_e.setPlaceholderText("Nombre")
+            name_e.setMaximumWidth(160)
+            row.addWidget(name_e)
+            lw_spin = QtWidgets.QSpinBox()
+            lw_spin.setRange(200, 900); lw_spin.setSuffix("  px (izq.)")
+            lw_spin.setValue(int(self.custom_layouts.get(slot, {}).get("left_width", 430)))
+            row.addWidget(lw_spin)
+            desc_e = QtWidgets.QLineEdit(
+                self.custom_layouts.get(slot, {}).get("description",
+                                                       "Personalizado por el usuario"))
+            desc_e.setPlaceholderText("Descripción")
+            row.addWidget(desc_e, stretch=1)
+            btn = QtWidgets.QPushButton("Guardar")
+            def _save(_=False, _slot=slot, _name=name_e, _lw=lw_spin, _desc=desc_e):
+                self.custom_layouts[_slot] = {
+                    "left_width": int(_lw.value()),
+                    "description": _desc.text().strip() or "Personalizado",
+                }
+                self._save_settings()
+                refresh_list()
+            btn.clicked.connect(_save)
+            row.addWidget(btn)
+            v.addLayout(row)
+
         bb = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         bb.accepted.connect(dlg.accept); bb.rejected.connect(dlg.reject)
@@ -1229,6 +1279,12 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 preset = data.get("layout_preset")
                 if isinstance(preset, str) and preset:
                     self.layout_preset = preset
+                custom = data.get("custom_layouts")
+                if isinstance(custom, dict):
+                    self.custom_layouts = {
+                        str(k): v for k, v in custom.items()
+                        if isinstance(v, dict) and "left_width" in v
+                    }
         except Exception:
             pass
 
@@ -1244,6 +1300,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             current["plot_style"] = self.plot_style_name
             current["recent_files"] = list(self.recent_files)
             current["layout_preset"] = self.layout_preset
+            current["custom_layouts"] = dict(self.custom_layouts)
             SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
             SETTINGS_PATH.write_text(
                 json.dumps(current, indent=2, ensure_ascii=False),
@@ -1665,40 +1722,181 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         return True
 
     def _open_web_dialog(self, kind: str) -> None:
-        """kind: 'measurements' o 'calibrations'."""
-        client = self._get_api_client()
-        if client is None:
+        """Diálogo Web estilo Tk: server / usuario / contraseña / recordar /
+        carpeta destino / buscar / log de depuración. ``kind`` ∈
+        {'measurements', 'calibrations'}.
+        """
+        try:
+            from mossbauer_api_client import MatelecLabClient, DEFAULT_BASE_URL
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(
+                self, tr("msg.web_title") if hasattr(tr, "_d") else "Web",
+                f"Cliente API no disponible: {exc}")
             return
+        kind_key = "calibraciones" if kind == "calibrations" else "medidas"
+        is_calib = (kind == "calibrations")
+        creds = load_credentials() or {}
+        saved_dirs = creds.get("download_dirs", {}) if isinstance(creds.get("download_dirs"), dict) else {}
+        default_dir_name = "calibraciones" if is_calib else "medidas"
+        effective_dir = saved_dirs.get(kind_key,
+                                        str(Path.home() / "Mossbauer" / default_dir_name))
+        base_url = creds.get("api_base") or DEFAULT_BASE_URL
+
         dlg = QtWidgets.QDialog(self)
-        dlg.setWindowTitle(tr(f"file.web_{kind}"))
-        dlg.resize(720, 460)
+        dlg.setWindowTitle(tr(f"dialog.web_download_{'calib' if is_calib else 'meas'}")
+                           if hasattr(tr, "_d") else
+                           f"{'Calibraciones' if is_calib else 'Medidas'} (web)")
+        dlg.resize(820, 600)
+
         v = QtWidgets.QVBoxLayout(dlg)
+        form = QtWidgets.QFormLayout()
+        e_server = QtWidgets.QLineEdit(base_url)
+        form.addRow(tr("label.server") if hasattr(tr, "_d") else "Servidor:", e_server)
+        e_user = QtWidgets.QLineEdit(creds.get("username", ""))
+        form.addRow(tr("label.username") if hasattr(tr, "_d") else "Usuario:", e_user)
+        pw_row = QtWidgets.QHBoxLayout()
+        e_pass = QtWidgets.QLineEdit(creds.get("password", ""))
+        e_pass.setEchoMode(QtWidgets.QLineEdit.Password)
+        pw_row.addWidget(e_pass, stretch=1)
+        cb_remember = QtWidgets.QCheckBox(
+            tr("checkbox.remember_credentials") if hasattr(tr, "_d") else
+            "Recordar usuario y token")
+        cb_remember.setChecked(bool(creds.get("username") or creds.get("token")))
+        pw_row.addWidget(cb_remember)
+        pw_wrap = QtWidgets.QWidget(); pw_wrap.setLayout(pw_row)
+        form.addRow(tr("label.password") if hasattr(tr, "_d") else "Contraseña:", pw_wrap)
+        # Carpeta destino + botones
+        dest_row = QtWidgets.QHBoxLayout()
+        e_dest = QtWidgets.QLineEdit(effective_dir)
+        dest_row.addWidget(e_dest, stretch=1)
+        btn_choose = QtWidgets.QPushButton(
+            tr("button.choose") if hasattr(tr, "_d") else "Elegir...")
+        btn_create = QtWidgets.QPushButton(
+            tr("button.create") if hasattr(tr, "_d") else "Crear...")
+        dest_row.addWidget(btn_choose); dest_row.addWidget(btn_create)
+        dest_wrap = QtWidgets.QWidget(); dest_wrap.setLayout(dest_row)
+        form.addRow(tr("label.dest_folder") if hasattr(tr, "_d") else "Carpeta destino:", dest_wrap)
+        cb_with_calib = QtWidgets.QCheckBox(
+            tr("checkbox.download_calibration_too") if hasattr(tr, "_d") else
+            "Descargar también la calibración asociada")
+        if not is_calib:
+            cb_with_calib.setChecked(True)
+            form.addRow("", cb_with_calib)
+        v.addLayout(form)
+
+        # Buscador + tabla
         search_row = QtWidgets.QHBoxLayout()
-        search_row.addWidget(QtWidgets.QLabel("Buscar:"))
+        search_row.addWidget(QtWidgets.QLabel(
+            tr("label.search") if hasattr(tr, "_d") else "Buscar:"))
         e_search = QtWidgets.QLineEdit()
         search_row.addWidget(e_search, stretch=1)
-        btn_refresh = QtWidgets.QPushButton("Buscar")
-        search_row.addWidget(btn_refresh)
+        btn_search = QtWidgets.QPushButton("Buscar/Refrescar")
+        search_row.addWidget(btn_search)
         v.addLayout(search_row)
         table = QtWidgets.QTableWidget(0, 3)
         table.setHorizontalHeaderLabels(["id", "fichero", "muestra"])
         table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
         table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         v.addWidget(table, stretch=1)
-        status = QtWidgets.QLabel("")
-        v.addWidget(status)
+
+        # Log de depuración
+        log = QtWidgets.QPlainTextEdit()
+        log.setReadOnly(True)
+        log.setMaximumHeight(140)
+        log.setStyleSheet(
+            "QPlainTextEdit { background:#111827; color:#d1fae5; "
+            "font-family:monospace; font-size:9pt; }")
+        v.addWidget(log)
+
+        def debug(msg: str) -> None:
+            log.appendPlainText(msg)
+            QtWidgets.QApplication.processEvents()
+
+        def choose_dest():
+            current = e_dest.text().strip() or str(Path.home())
+            folder = QtWidgets.QFileDialog.getExistingDirectory(
+                dlg, tr("dialog.select_folder") if hasattr(tr, "_d") else "Elegir carpeta",
+                current)
+            if folder:
+                e_dest.setText(folder)
+        btn_choose.clicked.connect(choose_dest)
+
+        def create_subfolder():
+            base = e_dest.text().strip() or str(Path.home() / "Mossbauer")
+            name, ok = QtWidgets.QInputDialog.getText(
+                dlg, "Crear subcarpeta", "Nombre:")
+            if not ok or not name.strip():
+                return
+            import re as _re
+            safe = _re.sub(r"[^\w.()+\- ]+", "_", name).strip()
+            if not safe:
+                return
+            path = Path(base) / safe
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+            except Exception as exc:
+                QtWidgets.QMessageBox.critical(dlg, "Carpeta", str(exc))
+                return
+            e_dest.setText(str(path))
+            debug(f"Carpeta lista: {path}")
+        btn_create.clicked.connect(create_subfolder)
+
+        items: list[dict] = []
+
+        def build_client():
+            base = e_server.text().strip() or DEFAULT_BASE_URL
+            token = creds.get("token")
+            client = MatelecLabClient(base_url=base, token=token)
+            if token:
+                try:
+                    if client.token_is_valid():
+                        debug("Token guardado válido; reusándolo.")
+                        return client
+                except Exception:
+                    pass
+            user = e_user.text().strip(); pwd = e_pass.text()
+            if not user or not pwd:
+                raise RuntimeError("Falta usuario o contraseña para hacer login.")
+            debug(f"Login como '{user}'...")
+            client.login(user, pwd)
+            creds["token"] = client.token
+            debug("Token nuevo recibido.")
+            return client
+
+        def persist():
+            if not cb_remember.isChecked():
+                return
+            creds["username"] = e_user.text().strip()
+            creds["password"] = e_pass.text()
+            creds["api_base"] = e_server.text().strip() or DEFAULT_BASE_URL
+            if e_dest.text().strip():
+                dirs = creds.setdefault("download_dirs", {})
+                if not isinstance(dirs, dict):
+                    dirs = {}
+                    creds["download_dirs"] = dirs
+                dirs[kind_key] = e_dest.text().strip()
+            save_credentials(creds)
 
         def refresh():
-            table.setRowCount(0)
+            nonlocal items
             try:
-                if kind == "measurements":
-                    items = list(client.iter_medidas(
-                        search=e_search.text().strip() or None, limit=200))
-                else:
+                client = build_client()
+            except Exception as exc:
+                debug(f"ERROR login: {exc}")
+                QtWidgets.QMessageBox.critical(dlg, "Login", str(exc))
+                return
+            persist()
+            try:
+                if is_calib:
                     items = list(client.iter_calibraciones(
                         search=e_search.text().strip() or None, limit=200))
+                else:
+                    items = list(client.iter_medidas(
+                        search=e_search.text().strip() or None, limit=200))
             except Exception as exc:
-                status.setText(f"Error: {exc}"); return
+                debug(f"ERROR consulta: {exc}")
+                return
+            table.setRowCount(0)
             for it in items:
                 r = table.rowCount(); table.insertRow(r)
                 table.setItem(r, 0, QtWidgets.QTableWidgetItem(str(it.get("id", ""))))
@@ -1706,39 +1904,63 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                     str(it.get("file_name") or it.get("filename") or "")))
                 table.setItem(r, 2, QtWidgets.QTableWidgetItem(
                     str(it.get("muestra") or it.get("sample") or "")))
-            status.setText(f"{len(items)} resultados.")
+            debug(f"{len(items)} resultados.")
 
-        btn_refresh.clicked.connect(refresh)
+        btn_search.clicked.connect(refresh)
         e_search.returnPressed.connect(refresh)
-        refresh()
 
+        # Filtro local opcional sobre items ya descargados
+        def local_filter(_=None):
+            q = e_search.text().strip().lower()
+            if not q:
+                return
+            for r in range(table.rowCount()):
+                hay = " ".join(table.item(r, c).text().lower() for c in range(3))
+                table.setRowHidden(r, q not in hay)
+        e_search.textChanged.connect(local_filter)
+
+        # Botones inferiores
         btn_row = QtWidgets.QHBoxLayout()
         btn_dl = QtWidgets.QPushButton("Descargar y cargar")
-        btn_close = QtWidgets.QPushButton(tr("button.close"))
+        btn_close = QtWidgets.QPushButton(
+            tr("button.close") if hasattr(tr, "_d") else "Cerrar")
         btn_row.addStretch(1); btn_row.addWidget(btn_dl); btn_row.addWidget(btn_close)
         v.addLayout(btn_row)
 
         def download():
             rows = sorted({i.row() for i in table.selectedIndexes()})
             if not rows:
+                debug("Selecciona una fila primero.")
                 return
             item_id = table.item(rows[0], 0).text()
+            dest = Path(e_dest.text().strip() or (Path.home() / "Mossbauer"))
             try:
-                dest = Path.home() / "mossbauer_downloads"
                 dest.mkdir(parents=True, exist_ok=True)
-                if kind == "measurements":
-                    p = client.download_datafile(item_id, dest_dir=str(dest))
-                else:
+                client = build_client()
+                persist()
+                if is_calib:
                     p = client.download_calibracion_datafile(item_id, dest_dir=str(dest))
+                else:
+                    p = client.download_datafile(item_id, dest_dir=str(dest))
+                    if cb_with_calib.isChecked():
+                        try:
+                            calib = client.get_calibracion_de_medida(item_id)
+                            if calib and "id" in calib:
+                                pc = client.download_calibracion_datafile(
+                                    calib["id"], dest_dir=str(dest))
+                                debug(f"Calibración asociada → {pc}")
+                        except Exception as exc:
+                            debug(f"(sin calibración asociada: {exc})")
             except Exception as exc:
-                QtWidgets.QMessageBox.critical(dlg, "Descarga", f"{exc}")
+                QtWidgets.QMessageBox.critical(dlg, "Descarga", str(exc))
                 return
-            status.setText(f"Descargado: {p}")
+            debug(f"Descargado: {p}")
             try:
                 self._load_file(Path(p))
                 dlg.accept()
             except Exception as exc:
-                QtWidgets.QMessageBox.warning(dlg, "Cargar", f"{exc}")
+                QtWidgets.QMessageBox.warning(dlg, "Cargar", str(exc))
+
         btn_dl.clicked.connect(download)
         btn_close.clicked.connect(dlg.reject)
         dlg.exec()
