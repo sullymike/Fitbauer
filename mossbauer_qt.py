@@ -1108,6 +1108,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
     def _build_ui(self) -> None:
         central = QtWidgets.QWidget(self); self.setCentralWidget(central)
         layout = QtWidgets.QHBoxLayout(central); layout.setContentsMargins(4, 4, 4, 4)
+        # El layout central NO debe redimensionar la ventana según su contenido:
+        # al añadir/quitar componentes (apilado) el tamaño global se mantiene.
+        layout.setSizeConstraint(QtWidgets.QLayout.SetNoConstraint)
+        # Mínimo de ventana fijo e independiente del contenido.
+        self.setMinimumSize(900, 520)
         splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal); layout.addWidget(splitter)
         self._main_splitter = splitter
 
@@ -1718,6 +1723,15 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._center_top_widget.setVisible(bool(columns["center"]))
         self._center_bottom_widget.setVisible(right_w == 0 and bool(columns["right"]))
 
+        # Igual que el panel Tk modular (_force_tabs en la columna central):
+        # si la simulación queda en el centro o anclada debajo del gráfico (poca
+        # altura), se fuerzan pestañas; el apilado adaptativo solo se permite en
+        # una columna lateral (izquierda o derecha con anchura propia).
+        sim_in_center = "sim_controls" in columns["center"]
+        sim_below_graph = (right_w == 0 and "sim_controls" in columns["right"])
+        self._sim_force_tabs = bool(sim_in_center or sim_below_graph)
+        self._check_layout()
+
     def _layout_preset_with_available_space(self, name: str) -> str:
         """Coloca la simulación a la derecha si no cabe bien debajo del gráfico."""
         if name == "Estándar":
@@ -2150,6 +2164,16 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         if getattr(self, "_using_tabs", None) is None or not hasattr(self, "n_components_spin"):
             return
         if getattr(self, "_in_layout_check", False):
+            return
+        # Si la simulación está en el centro o debajo del gráfico, siempre
+        # pestañas (no hay altura para apilar sin recortar).
+        if getattr(self, "_sim_force_tabs", False):
+            if not self._using_tabs:
+                self._in_layout_check = True
+                try:
+                    self._rebuild_component_area(use_tabs=True)
+                finally:
+                    self._in_layout_check = False
             return
         win_h = self.height()
         if win_h < 100:
