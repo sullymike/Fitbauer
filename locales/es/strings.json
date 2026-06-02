@@ -51,6 +51,7 @@
   "options.physical_presets": "Presets físicos de restricciones...",
   "options.theme": "Tema visual",
   "options.plot_style": "Estilo de gráficos",
+  "options.color_theme": "Tema de color",
   "plot_style.classic": "Clásico",
   "plot_style.modern": "Moderno",
   "plot_style.publication": "Publicación",

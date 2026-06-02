@@ -51,6 +51,7 @@
   "options.physical_presets": "Préréglages physiques de contraintes...",
   "options.theme": "Thème visuel",
   "options.plot_style": "Style des graphiques",
+  "options.color_theme": "Thème de couleur",
   "plot_style.classic": "Classique",
   "plot_style.modern": "Moderne",
   "plot_style.publication": "Publication",

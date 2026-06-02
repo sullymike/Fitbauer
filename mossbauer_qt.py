@@ -41,12 +41,39 @@ _COMP_STACK_H = 300      # altura aproximada de un componente apilado
 _DIST_STACK_H = 340      # altura aproximada del bloque de distribución
 _COMP_OVERHEAD_H = 120   # cabecera + botones + márgenes
 
+# Temas de color de la interfaz. "blue" imita el azul de la GUI Tk; "soft"
+# usa varios tonos apagados (no chillones). "system" deja el aspecto nativo.
+COLOR_THEMES: dict[str, dict] = {
+    "blue": {
+        "label": "Azul (clásico)",
+        "window": "#eaf4fb", "base": "#ffffff", "alt_base": "#dcebf7",
+        "text": "#0f3d5c", "button": "#d8ecf9", "button_text": "#0f3d5c",
+        "highlight": "#38bdf8", "highlight_text": "#ffffff",
+        "accent": "#075985", "accent_text": "#ffffff", "accent_sub": "#dff6ff",
+        "title": "#075985",
+    },
+    "soft": {
+        "label": "Multicolor suave",
+        "window": "#f4f2ec", "base": "#ffffff", "alt_base": "#ece7db",
+        "text": "#33302a", "button": "#e7e1d3", "button_text": "#33302a",
+        "highlight": "#6f9a8d", "highlight_text": "#ffffff",
+        "accent": "#5b6c8f", "accent_text": "#ffffff", "accent_sub": "#eef0f6",
+        "title": "#7a6a8f",
+    },
+    "system": {
+        "label": "Sistema",
+    },
+}
+
 from mossbauer_i18n import (  # noqa: E402
     tr, get_language, set_language, available_languages,
 )
 from mossbauer_help import get_help_sections  # noqa: E402
 from core.data_io import SETTINGS_PATH, load_credentials, save_credentials  # noqa: E402
-from core.constants import APP_VERSION, APP_NAME, SEXTET_PARAM_NAMES, LINE_POS_33T, BHF_DEFAULT_T  # noqa: E402
+from core.constants import (  # noqa: E402
+    APP_VERSION, APP_NAME, APP_AUTHOR, APP_DEPARTMENT,
+    SEXTET_PARAM_NAMES, LINE_POS_33T, BHF_DEFAULT_T,
+)
 from core.folding import (  # noqa: E402
     read_ws5_counts, find_best_integer_or_half_center, fold_integer_or_half,
 )
@@ -1089,6 +1116,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.recent_files: list[str] = []
         self.layout_preset = "Estándar"
         self.custom_layouts: dict[str, dict] = {}
+        self.color_theme = "blue"          # tema de color de la interfaz
         # Opciones avanzadas (compartidas con la GUI Tk)
         self.likelihood = "gauss"          # "gauss" / "poisson"
         self.robust_loss = "linear"        # "linear" / "soft_l1" / "huber"
@@ -1102,6 +1130,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._load_settings()
         self._build_ui()
         self._build_menubar()
+        self._apply_color_theme(self.color_theme, persist=False)
         self.statusBar().showMessage(tr("plot.no_file"))
 
     # ── Construcción de la UI ────────────────────────────────────────────
@@ -1116,10 +1145,29 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal); layout.addWidget(splitter)
         self._main_splitter = splitter
 
-        # ── Columna izquierda: file info + calibración + sextete ─────────
+        # ── Columna izquierda: cabecera + file info + calibración + sextete ─
         left = QtWidgets.QWidget()
         lv = QtWidgets.QVBoxLayout(left); lv.setContentsMargins(6, 6, 6, 6); lv.setSpacing(8)
         self._left_panels_layout = lv
+
+        # Módulo cabecera (igual que en Tk): banner con nombre, subtítulo y autor.
+        self.header_box = QtWidgets.QFrame()
+        self.header_box.setObjectName("AppHeader")
+        hb = QtWidgets.QVBoxLayout(self.header_box)
+        hb.setContentsMargins(12, 8, 12, 8); hb.setSpacing(1)
+        self.header_title = QtWidgets.QLabel(APP_NAME)
+        self.header_title.setObjectName("AppHeaderTitle")
+        self.header_title.setWordWrap(True)
+        self._header_sub_labels = [
+            QtWidgets.QLabel(tr("main.subtitle")),
+            QtWidgets.QLabel(APP_AUTHOR),
+            QtWidgets.QLabel(APP_DEPARTMENT),
+        ]
+        hb.addWidget(self.header_title)
+        for lbl in self._header_sub_labels:
+            lbl.setWordWrap(True)
+            hb.addWidget(lbl)
+        lv.addWidget(self.header_box)
 
         self.file_box = QtWidgets.QGroupBox(tr("controls.file_box"))
         fb = QtWidgets.QVBoxLayout(self.file_box)
@@ -1266,6 +1314,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         splitter.addWidget(self._right_column)
 
         self._layout_panel_names = {
+            "header": "Cabecera",
             "file_info": "Fichero",
             "info_display": "Info",
             "calibration": "Calibración",
@@ -1273,6 +1322,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             "sim_controls": "Simulación / ajuste",
         }
         self._layout_panel_widgets = {
+            "header": self.header_box,
             "file_info": self.file_box,
             "info_display": self.info_panel,
             "calibration": self.calib,
@@ -1565,6 +1615,17 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             act.triggered.connect(lambda _checked=False, v=value: self._set_plot_style(v))
             style_menu.addAction(act)
             self.style_action_group.addAction(act)
+
+        # Tema de color de la interfaz (paleta de la aplicación).
+        color_menu = view_menu.addMenu(tr("options.color_theme", default="Tema de color"))
+        self.color_theme_group = QtGui.QActionGroup(self)
+        for value, theme in COLOR_THEMES.items():
+            act = QtGui.QAction(theme.get("label", value), self, checkable=True)
+            if value == self.color_theme:
+                act.setChecked(True)
+            act.triggered.connect(lambda _checked=False, v=value: self._apply_color_theme(v))
+            color_menu.addAction(act)
+            self.color_theme_group.addAction(act)
         lang_menu = view_menu.addMenu(tr("menu.language"))
         self.lang_action_group = QtGui.QActionGroup(self)
         current_lang = get_language()
@@ -2009,6 +2070,54 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._save_settings()
         self._refresh_plot()
 
+    def _apply_color_theme(self, name: str, persist: bool = True) -> None:
+        """Aplica un tema de color (paleta + acentos) a toda la interfaz."""
+        if name not in COLOR_THEMES:
+            name = "blue"
+        self.color_theme = name
+        theme = COLOR_THEMES[name]
+        app = QtWidgets.QApplication.instance()
+
+        if name == "system":
+            # Aspecto nativo: paleta estándar del estilo y sin hoja de estilos.
+            if app is not None:
+                app.setPalette(QtWidgets.QApplication.style().standardPalette())
+            self.setStyleSheet("")
+            accent, accent_text, accent_sub, title = "#075985", "#ffffff", "#dff6ff", "#075985"
+        else:
+            def c(h: str) -> QtGui.QColor:
+                return QtGui.QColor(h)
+            pal = QtGui.QPalette()
+            pal.setColor(QtGui.QPalette.Window, c(theme["window"]))
+            pal.setColor(QtGui.QPalette.WindowText, c(theme["text"]))
+            pal.setColor(QtGui.QPalette.Base, c(theme["base"]))
+            pal.setColor(QtGui.QPalette.AlternateBase, c(theme["alt_base"]))
+            pal.setColor(QtGui.QPalette.Text, c(theme["text"]))
+            pal.setColor(QtGui.QPalette.Button, c(theme["button"]))
+            pal.setColor(QtGui.QPalette.ButtonText, c(theme["button_text"]))
+            pal.setColor(QtGui.QPalette.Highlight, c(theme["highlight"]))
+            pal.setColor(QtGui.QPalette.HighlightedText, c(theme["highlight_text"]))
+            pal.setColor(QtGui.QPalette.ToolTipBase, c(theme["base"]))
+            pal.setColor(QtGui.QPalette.ToolTipText, c(theme["text"]))
+            if app is not None:
+                app.setPalette(pal)
+            accent = theme["accent"]; accent_text = theme["accent_text"]
+            accent_sub = theme["accent_sub"]; title = theme["title"]
+            self.setStyleSheet(
+                "QGroupBox { font-weight: 600; margin-top: 6px; }"
+                f"QGroupBox::title {{ color: {title}; subcontrol-origin: margin; left: 8px; }}"
+            )
+
+        # La cabecera siempre con su banner de acento, acorde al tema.
+        if hasattr(self, "header_box"):
+            self.header_box.setStyleSheet(
+                f"#AppHeader {{ background: {accent}; border-radius: 4px; }}"
+                f"#AppHeader QLabel {{ background: transparent; color: {accent_sub}; font-size: 9pt; }}"
+                f"#AppHeaderTitle {{ color: {accent_text}; font-size: 16pt; font-weight: bold; }}"
+            )
+        if persist:
+            self._save_settings()
+
     # ── Persistencia mínima ──────────────────────────────────────────────
     def _load_settings(self) -> None:
         try:
@@ -2025,6 +2134,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 if isinstance(recent, list):
                     self.recent_files = [str(p) for p in recent
                                           if isinstance(p, str) and Path(p).exists()][:5]
+                ctheme = data.get("color_theme")
+                if ctheme in COLOR_THEMES:
+                    self.color_theme = ctheme
                 preset = data.get("layout_preset")
                 if isinstance(preset, str) and preset:
                     self.layout_preset = preset
@@ -2047,6 +2159,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 except Exception:
                     current = {}
             current["plot_style"] = self.plot_style_name
+            current["color_theme"] = self.color_theme
             current["recent_files"] = list(self.recent_files)
             current["layout_preset"] = self.layout_preset
             current["custom_layouts"] = dict(self.custom_layouts)
