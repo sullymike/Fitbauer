@@ -194,10 +194,16 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         self.baseline = ParamControl(tr("slider.baseline"), 1.0, 0.70, 1.30, 0.0005, 4)
         self.slope = ParamControl(tr("slider.slope"), 0.0, -0.002, 0.002, 1e-5, 6)
         self.voigt_sigma = ParamControl(tr("slider.voigt_sigma"), 0.05, 0.0, 1.0, 0.001, 4, with_fixed=False)
-        self.voigt_sigma.spin.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.voigt_sigma.spin.customContextMenuRequested.connect(self._show_sigma_menu)
         self.line_profile = "Lorentziana"
         self.fit_sigma = QtWidgets.QCheckBox(tr("checkbox.fit_sigma"))
+
+        # Menú contextual (clic derecho) para el perfil de línea: igual que en Tk,
+        # disponible sobre toda la caja de calibración, los widgets del slider
+        # voigt_sigma (etiqueta, slider, spinbox) y la casilla 'Ajustar σ'.
+        for w in (self, self.voigt_sigma, self.voigt_sigma.label,
+                  self.voigt_sigma.slider, self.voigt_sigma.spin, self.fit_sigma):
+            w.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+            w.customContextMenuRequested.connect(self._show_sigma_menu)
 
         absorber_row = QtWidgets.QHBoxLayout()
         absorber_row.addWidget(QtWidgets.QLabel(tr("absorber.model_label")))
@@ -239,7 +245,9 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         act_fit_sigma.setChecked(self.fit_sigma.isChecked())
         act_fit_sigma.setEnabled(self.line_profile == "Voigt")
         act_fit_sigma.triggered.connect(lambda checked: self.fit_sigma.setChecked(bool(checked)))
-        menu.exec(self.voigt_sigma.spin.mapToGlobal(pos))
+        sender = self.sender()
+        anchor = sender if isinstance(sender, QtWidgets.QWidget) else self.voigt_sigma.spin
+        menu.exec(anchor.mapToGlobal(pos))
 
     @property
     def absorber_model(self) -> str:
@@ -2027,15 +2035,21 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         is_dist = self.is_distribution_mode if hasattr(self, "mode_combo") else False
         if hasattr(self, "comp_tabs"):
             self.comp_tabs.setTabVisible(0, is_dist)
+        # Igual que en la versión Tk: las pestañas de componentes (sextetes)
+        # permanecen visibles también en modo distribución. Si hay un ajuste en
+        # distribución pero hay sextetes activos, los sextetes tienen que verse
+        # (se añaden como componentes "nítidas" sobre la distribución).
         for i, cp in enumerate(self.components_panels, start=1):
             visible = i <= n_components
-            cp.setVisible(visible and not is_dist)
+            cp.setVisible(visible)
             if hasattr(self, "comp_tabs"):
-                self.comp_tabs.setTabVisible(i, visible and not is_dist)
+                self.comp_tabs.setTabVisible(i, visible)
             cp.enabled.blockSignals(True)
             cp.enabled.setChecked(visible)
             cp.enabled.blockSignals(False)
         if hasattr(self, "comp_tabs"):
+            # Al entrar en modo distribución se selecciona la pestaña de
+            # distribución (índice 0), pero las de componentes siguen accesibles.
             self.comp_tabs.setCurrentIndex(0 if is_dist else 1)
 
     # ── Cambio de modo ───────────────────────────────────────────────────
