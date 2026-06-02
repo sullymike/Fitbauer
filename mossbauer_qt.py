@@ -1251,13 +1251,16 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         action_grid.setVerticalSpacing(4)
         self.btn_sim_fit = QtWidgets.QPushButton(tr("fit.run"))
         self.btn_sim_free_all = QtWidgets.QPushButton(tr("fit.free_all"))
+        self.btn_sim_fix_all = QtWidgets.QPushButton(tr("fit.fix_all"))
         self.btn_sim_auto_min = QtWidgets.QPushButton(tr("fit.auto_from_minima"))
         self.btn_sim_ai = QtWidgets.QPushButton(tr("fit.ollama_start"))
         for pos, btn in enumerate((self.btn_sim_fit, self.btn_sim_free_all,
-                                   self.btn_sim_auto_min, self.btn_sim_ai)):
+                                   self.btn_sim_fix_all, self.btn_sim_auto_min,
+                                   self.btn_sim_ai)):
             action_grid.addWidget(btn, pos // 2, pos % 2)
         self.btn_sim_fit.clicked.connect(self.on_fit)
         self.btn_sim_free_all.clicked.connect(lambda: self._set_all_fixed(False))
+        self.btn_sim_fix_all.clicked.connect(lambda: self._set_all_fixed(True))
         self.btn_sim_auto_min.clicked.connect(self.on_auto_fit_from_minima)
         self.btn_sim_ai.clicked.connect(self.on_ai_summary)
         self._set_quick_action_buttons_enabled(False)
@@ -4610,11 +4613,30 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         try:
             Path(path).write_text("\n".join(lines), encoding="utf-8")
             self.statusBar().showMessage(f"Informe guardado: {path}", 5000)
-            # Genera PDF acompañante con el plot actual.
+            # Genera PDF acompañante: páginas con el texto del informe
+            # (monoespaciado) y, al final, la gráfica actual, igual que en Tk.
             try:
                 pdf_path = Path(path).with_suffix(".pdf")
                 from matplotlib.backends.backend_pdf import PdfPages
+                from matplotlib.figure import Figure as _PdfFigure
+                import textwrap as _tw
+
+                def _text_page(pdf, text_lines):
+                    fig = _PdfFigure(figsize=(8.27, 11.69), dpi=100, facecolor="white")
+                    ax = fig.add_subplot(111); ax.axis("off")
+                    ax.text(0.04, 0.97, "\n".join(text_lines), va="top", ha="left",
+                            family="monospace", fontsize=8.5)
+                    pdf.savefig(fig, bbox_inches="tight")
+
                 with PdfPages(pdf_path) as pdf:
+                    page_lines: list[str] = []
+                    for line in "\n".join(lines).splitlines():
+                        for w in (_tw.wrap(line, width=95) or [""]):
+                            page_lines.append(w)
+                            if len(page_lines) >= 46:
+                                _text_page(pdf, page_lines); page_lines = []
+                    if page_lines:
+                        _text_page(pdf, page_lines)
                     pdf.savefig(self.canvas.fig, bbox_inches="tight")
                 self.statusBar().showMessage(f"Informe + PDF guardados: {path}", 5000)
             except Exception:
