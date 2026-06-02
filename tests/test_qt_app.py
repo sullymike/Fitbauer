@@ -122,6 +122,24 @@ def test_init_from_minima_proposes_sextet(win):
     assert -0.3 < delta < 0.1
 
 
+def test_init_from_minima_action_shows_detected_message(win, monkeypatch):
+    """El QAction de Init from minima conserva el diálogo informativo."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    captured = {}
+
+    def fake_information(parent, title, text, *args, **kwargs):
+        captured["title"] = title
+        captured["text"] = text
+        return QtWidgets.QMessageBox.StandardButton.Ok
+
+    monkeypatch.setattr(QtWidgets.QMessageBox, "information", staticmethod(fake_information))
+    win.act_init.trigger()
+
+    assert "Auto" in captured["title"]
+    assert "Detected" in captured["text"] or "Detectados" in captured["text"]
+    assert "Comp. 1" in captured["text"]
+
+
 def test_mode_switch_to_pbhf_and_fit(win):
     """Cambio a modo P(BHF) y ajuste produce un pico cercano a 33 T."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
