@@ -174,7 +174,11 @@ class ParamControl(QtWidgets.QWidget):
 
 
 class CalibrationPanel(QtWidgets.QGroupBox):
-    """vmax / center / baseline / slope / voigt_sigma + fit-velocity/center/sigma."""
+    """Panel de calibración equivalente al de Tk.
+
+    Incluye vmax/center/baseline/slope/σ-Voigt, las casillas de ajuste y el
+    selector de modelo de absorbente con ``sat_scale``.
+    """
 
     paramChanged = QtCore.Signal()
 
@@ -195,14 +199,26 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         self.line_profile = "Lorentziana"
         self.fit_sigma = QtWidgets.QCheckBox(tr("checkbox.fit_sigma"))
 
+        absorber_row = QtWidgets.QHBoxLayout()
+        absorber_row.addWidget(QtWidgets.QLabel(tr("absorber.model_label")))
+        self.absorber_combo = QtWidgets.QComboBox()
+        for value, key in (("thin", "absorber.thin"), ("thickness", "absorber.thickness")):
+            self.absorber_combo.addItem(tr(key), value)
+        absorber_row.addWidget(self.absorber_combo, stretch=1)
+        self.sat_scale = ParamControl(tr("slider.sat_scale"), 5.0, 0.05, 50.0, 0.01, 3)
+
         for w in (self.vmax, self.fit_velocity, self.center, self.fit_center,
                   self.baseline, self.slope, self.voigt_sigma, self.fit_sigma):
             v.addWidget(w)
+        v.addLayout(absorber_row)
+        v.addWidget(self.sat_scale)
+        self._refresh_absorber_widgets()
         v.addStretch(1)
 
-        for w in (self.vmax, self.center, self.baseline, self.slope, self.voigt_sigma):
+        for w in (self.vmax, self.center, self.baseline, self.slope, self.voigt_sigma, self.sat_scale):
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
             w.fixedChanged.connect(lambda *_: self.paramChanged.emit())
+        self.absorber_combo.currentIndexChanged.connect(lambda *_: (self._refresh_absorber_widgets(), self.paramChanged.emit()))
         for cb in (self.fit_velocity, self.fit_center, self.fit_sigma):
             cb.toggled.connect(lambda *_: self.paramChanged.emit())
 
@@ -224,6 +240,19 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         act_fit_sigma.setEnabled(self.line_profile == "Voigt")
         act_fit_sigma.triggered.connect(lambda checked: self.fit_sigma.setChecked(bool(checked)))
         menu.exec(self.voigt_sigma.spin.mapToGlobal(pos))
+
+    @property
+    def absorber_model(self) -> str:
+        return self.absorber_combo.currentData() or "thin"
+
+    def set_absorber_model(self, model: str) -> None:
+        idx = self.absorber_combo.findData(model)
+        if idx >= 0:
+            self.absorber_combo.setCurrentIndex(idx)
+        self._refresh_absorber_widgets()
+
+    def _refresh_absorber_widgets(self) -> None:
+        self.sat_scale.setEnabled(self.absorber_model == "thickness")
 
     def _set_line_profile(self, kind: str) -> None:
         self.line_profile = kind
@@ -268,6 +297,18 @@ class ComponentPanel(QtWidgets.QWidget):
         row.addWidget(QtWidgets.QLabel(tr("component.shape_label")))
         row.addWidget(self.type_combo)
         v.addLayout(row)
+
+        mode_row = QtWidgets.QHBoxLayout()
+        mode_row.addWidget(QtWidgets.QLabel(tr("component.intensity_label")))
+        self.intensity_combo = QtWidgets.QComboBox()
+        self.intensity_combo.addItems(["free", "texture"])
+        mode_row.addWidget(self.intensity_combo)
+        mode_row.addWidget(QtWidgets.QLabel(tr("component.quad_treatment_label")))
+        self.quad_combo = QtWidgets.QComboBox()
+        self.quad_combo.addItems(["1st_order", "kundig_fixed", "kundig_powder"])
+        mode_row.addWidget(self.quad_combo)
+        mode_row.addStretch(1)
+        v.addLayout(mode_row)
 
         # Orden del GUI Tk clásico, repartido en dos columnas:
         # δ · ΔEQ · BHF · Γ1-Γ3 | profundidad · intensidades · textura · β.
@@ -314,9 +355,11 @@ class ComponentPanel(QtWidgets.QWidget):
         self.enabled.toggled.connect(lambda *_: self.paramChanged.emit())
         self.type_combo.currentTextChanged.connect(self._on_type_changed)
 
-        # Estado para menús contextuales
+        # Estado para menús contextuales y comboboxes (igual que Tk, con clic derecho adicional).
         self.intensity_mode = "free"       # "free" / "texture"
         self.quad_treatment = "1st_order"  # 1st_order / kundig_fixed / kundig_powder
+        self.intensity_combo.currentTextChanged.connect(self._set_intensity_mode)
+        self.quad_combo.currentTextChanged.connect(self._set_quad_treatment)
 
         # Clic derecho sobre intensidades → menú Intensity mode
         for k in ("int1", "int2", "texture"):
@@ -352,13 +395,20 @@ class ComponentPanel(QtWidgets.QWidget):
         menu.exec(ctl.spin.mapToGlobal(pos))
 
     def _set_intensity_mode(self, mode: str) -> None:
+        if mode not in ("free", "texture"):
+            return
         self.intensity_mode = mode
+        if self.intensity_combo.currentText() != mode:
+            self.intensity_combo.blockSignals(True)
+            self.intensity_combo.setCurrentText(mode)
+            self.intensity_combo.blockSignals(False)
         # En modo textura, fija int1=3 / int2 (configurable via t implícito) /
         # int3=1 manteniéndolos como referencia 3:4t/(2-t):1 (t≈2/3 por defecto).
         if mode == "texture":
             self._update_texture_intensities()
             for k in ("int1", "int2", "int3"):
                 self.params[k].set_fixed(True)
+        self._on_type_changed(self.kind)
         self.paramChanged.emit()
 
     def _update_texture_intensities(self) -> None:
@@ -387,7 +437,14 @@ class ComponentPanel(QtWidgets.QWidget):
         menu.exec(ctl.spin.mapToGlobal(pos))
 
     def _set_quad_treatment(self, treatment: str) -> None:
+        if treatment not in ("1st_order", "kundig_fixed", "kundig_powder"):
+            return
         self.quad_treatment = treatment
+        if self.quad_combo.currentText() != treatment:
+            self.quad_combo.blockSignals(True)
+            self.quad_combo.setCurrentText(treatment)
+            self.quad_combo.blockSignals(False)
+        self._on_type_changed(self.kind)
         self.paramChanged.emit()
 
     @property
@@ -395,7 +452,20 @@ class ComponentPanel(QtWidgets.QWidget):
         return self.type_combo.currentText()
 
     def _on_type_changed(self, kind: str) -> None:
-        used = self._USED_BY.get(kind, set())
+        used = set(self._USED_BY.get(kind, set()))
+        if kind == "Sextete":
+            if self.intensity_mode == "texture":
+                used.discard("int1")
+                used.discard("int2")
+            else:
+                used.discard("texture")
+            if self.quad_treatment != "kundig_fixed":
+                used.discard("beta")
+        else:
+            used.discard("texture")
+            used.discard("beta")
+        self.intensity_combo.setEnabled(kind == "Sextete")
+        self.quad_combo.setEnabled(kind == "Sextete")
         for name, ctl in self.params.items():
             ctl.setEnabled(name in used)
         self.paramChanged.emit()
@@ -1024,6 +1094,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.propagate_calib = False
         self.global_opt = False
         self.absorber_model = "thin"       # "thin" / "thickness"
+        self._simulate_enabled = False      # igual que Tk: al cargar solo se dibujan datos
         self.dist_use_sharp = False
         self.dist_refine_global = False
         self._edge_trim = 1
@@ -1117,35 +1188,24 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.calib = CalibrationPanel()
         lv.addWidget(self.calib)
 
-        # Componentes apilados: el 2º y sucesivos aparecen debajo del 1º
-        # independientemente de si el bloque de simulación está a la izquierda,
-        # bajo la gráfica o en la columna derecha.
-        self.comp_stack_area = QtWidgets.QScrollArea()
-        self.comp_stack_area.setWidgetResizable(True)
-        self.comp_stack_area.setFrameShape(QtWidgets.QFrame.NoFrame)
-        self.comp_stack_widget = QtWidgets.QWidget()
-        self.comp_stack_layout = QtWidgets.QVBoxLayout(self.comp_stack_widget)
-        self.comp_stack_layout.setContentsMargins(0, 0, 0, 0)
-        self.comp_stack_layout.setSpacing(8)
+        # Notebook de simulación igual al de Tk: pestaña de distribución +
+        # pestañas de componentes. El combo superior conserva la mejora Qt para
+        # elegir directamente Discreto / P(BHF) / P(ΔEQ).
+        self.comp_tabs = QtWidgets.QTabWidget()
+        self.dist_panel = DistributionPanel()
+        self.comp_tabs.addTab(self.dist_panel, tr("tab.distribution_bhf"))
         self.components_panels: list[ComponentPanel] = []
         for i in range(1, MAX_QT_COMPONENTS + 1):
             cp = ComponentPanel(idx=i)
             self.components_panels.append(cp)
-            self.comp_stack_layout.addWidget(cp)
-        self.comp_stack_layout.addStretch(1)
-        self.comp_stack_area.setWidget(self.comp_stack_widget)
-        sim_lay.addWidget(self.comp_stack_area)
-        self._sync_component_count(1)
-
-        # Panel de distribución (oculto en modo discreto).
-        self.dist_panel = DistributionPanel()
-        self.dist_panel.setVisible(False)
-        self.dist_panel.paramChanged.connect(self._refresh_plot)
+            self.comp_tabs.addTab(cp, tr("tab.component", idx=i))
+        sim_lay.addWidget(self.comp_tabs)
+        self.dist_panel.paramChanged.connect(self._on_model_param_changed)
         self.dist_panel.loadFixedRequested.connect(self._on_load_fixed_distribution)
         self.dist_panel.lcurve_link.clicked.connect(self.on_lcurve)
         self.dist_panel.use_sharp.toggled.connect(self._set_dist_use_sharp)
         self.dist_panel.refine_global.toggled.connect(self._set_dist_refine_global)
-        sim_lay.addWidget(self.dist_panel)
+        self._sync_component_count(1)
         lv.addWidget(self.sim_controls_box)
         lv.addStretch(1)
 
@@ -1199,10 +1259,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._apply_layout_preset(self._layout_preset_with_available_space(self.layout_preset))
 
         # Conectar señales de cambio para refrescar el plot en vivo
-        self.calib.paramChanged.connect(self._refresh_plot)
+        self.calib.paramChanged.connect(self._on_model_param_changed)
         self.calib.center.valueChanged.connect(self._on_center_value_changed)
+        self.calib.absorber_combo.currentIndexChanged.connect(self._sync_absorber_model_from_panel)
         for cp in self.components_panels:
-            cp.paramChanged.connect(self._refresh_plot)
+            cp.paramChanged.connect(self._on_model_param_changed)
 
     # ── Menubar (orden igual al de la GUI Tk) ────────────────────────────
     def _build_menubar(self) -> None:
@@ -1390,15 +1451,68 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_lcurve.setEnabled(False)
         fit_menu.addAction(self.act_lcurve)
 
+        # ── Opciones (menú clásico Tk) ───────────────────────────────────
+        options_menu = mb.addMenu(tr("menu.options"))
+        opt_discrete = QtGui.QAction(tr("options.discrete_sextets"), self, checkable=True)
+        opt_discrete.setChecked(True)
+        opt_discrete.triggered.connect(lambda _c=False: self.mode_combo.setCurrentIndex(0))
+        options_menu.addAction(opt_discrete)
+        self.mode_action_group.addAction(opt_discrete)
+        opt_pbhf = QtGui.QAction(tr("options.distribution_bhf"), self, checkable=True)
+        opt_pbhf.triggered.connect(lambda _c=False: self.mode_combo.setCurrentIndex(1))
+        options_menu.addAction(opt_pbhf)
+        self.mode_action_group.addAction(opt_pbhf)
+        self._mode_menu_actions.extend([opt_discrete, opt_pbhf])
+        options_menu.addSeparator()
+        self.act_opt_show_residual = QtGui.QAction(tr("options.show_residual"), self, checkable=True, checked=True)
+        self.act_opt_show_residual.toggled.connect(lambda checked: getattr(self, "act_show_residual", self.act_opt_show_residual).setChecked(checked))
+        options_menu.addAction(self.act_opt_show_residual)
+        self.act_opt_show_legend = QtGui.QAction(tr("options.show_legend"), self, checkable=True, checked=True)
+        self.act_opt_show_legend.toggled.connect(lambda checked: getattr(self, "act_show_legend", self.act_opt_show_legend).setChecked(checked))
+        options_menu.addAction(self.act_opt_show_legend)
+        options_menu.addSeparator()
+        opt_profile_menu = options_menu.addMenu(tr("options.line_profile"))
+        for kind, key in (("Lorentziana", "options.profile_lorentzian"), ("Voigt", "options.profile_voigt")):
+            a = QtGui.QAction(tr(key), self, checkable=True)
+            if kind == self.calib.line_profile:
+                a.setChecked(True)
+            a.triggered.connect(lambda _c=False, k=kind: self.calib._set_line_profile(k))
+            opt_profile_menu.addAction(a)
+            self.profile_action_group.addAction(a)
+        options_menu.addSeparator()
+        self.act_opt_add_sharp = QtGui.QAction(tr("options.add_sharp"), self, checkable=True)
+        self.act_opt_add_sharp.toggled.connect(self._set_dist_use_sharp)
+        options_menu.addAction(self.act_opt_add_sharp)
+        self.act_opt_refine_global = QtGui.QAction(tr("options.refine_global"), self, checkable=True)
+        self.act_opt_refine_global.toggled.connect(self._set_dist_refine_global)
+        options_menu.addAction(self.act_opt_refine_global)
+        options_menu.addSeparator()
+        opt_constraints = QtGui.QAction(tr("options.constraints"), self)
+        opt_constraints.triggered.connect(self.on_constraints)
+        options_menu.addAction(opt_constraints)
+        opt_presets = QtGui.QAction(tr("options.physical_presets"), self)
+        opt_presets.triggered.connect(self.on_physical_presets)
+        options_menu.addAction(opt_presets)
+        options_menu.addSeparator()
+        opt_theme_menu = options_menu.addMenu(tr("options.theme"))
+        for style_name in QtWidgets.QStyleFactory.keys():
+            a = QtGui.QAction(style_name, self, checkable=True)
+            if style_name.lower() == "fusion":
+                a.setChecked(True)
+            a.triggered.connect(lambda _c=False, s=style_name: self._set_qt_style(s))
+            opt_theme_menu.addAction(a)
+
         # ── Vista ────────────────────────────────────────────────────────
         view_menu = mb.addMenu(tr("menu.view"))
         self.act_show_residual = QtGui.QAction(tr("options.show_residual"), self,
                                                 checkable=True, checked=True)
         self.act_show_residual.toggled.connect(lambda _: self._refresh_plot())
+        self.act_show_residual.toggled.connect(lambda checked: self.act_opt_show_residual.setChecked(checked) if hasattr(self, "act_opt_show_residual") and self.act_opt_show_residual.isChecked() != checked else None)
         view_menu.addAction(self.act_show_residual)
         self.act_show_legend = QtGui.QAction(tr("options.show_legend"), self,
                                               checkable=True, checked=True)
         self.act_show_legend.toggled.connect(lambda _: self._refresh_plot())
+        self.act_show_legend.toggled.connect(lambda checked: self.act_opt_show_legend.setChecked(checked) if hasattr(self, "act_opt_show_legend") and self.act_opt_show_legend.isChecked() != checked else None)
         view_menu.addAction(self.act_show_legend)
         view_menu.addSeparator()
         # Tema UI (QStyle de Qt). Por defecto Fusion.
@@ -1463,26 +1577,32 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
 
     def _set_dist_use_sharp(self, enabled: bool) -> None:
         self.dist_use_sharp = bool(enabled)
-        if hasattr(self, "act_add_sharp") and self.act_add_sharp.isChecked() != self.dist_use_sharp:
-            self.act_add_sharp.blockSignals(True)
-            self.act_add_sharp.setChecked(self.dist_use_sharp)
-            self.act_add_sharp.blockSignals(False)
+        for attr in ("act_add_sharp", "act_opt_add_sharp"):
+            act = getattr(self, attr, None)
+            if act is not None and act.isChecked() != self.dist_use_sharp:
+                act.blockSignals(True)
+                act.setChecked(self.dist_use_sharp)
+                act.blockSignals(False)
         if hasattr(self, "dist_panel") and self.dist_panel.use_sharp.isChecked() != self.dist_use_sharp:
             self.dist_panel.use_sharp.blockSignals(True)
             self.dist_panel.use_sharp.setChecked(self.dist_use_sharp)
             self.dist_panel.use_sharp.blockSignals(False)
+        self._simulate_enabled = True
         self._refresh_plot()
 
     def _set_dist_refine_global(self, enabled: bool) -> None:
         self.dist_refine_global = bool(enabled)
-        if hasattr(self, "act_refine_global") and self.act_refine_global.isChecked() != self.dist_refine_global:
-            self.act_refine_global.blockSignals(True)
-            self.act_refine_global.setChecked(self.dist_refine_global)
-            self.act_refine_global.blockSignals(False)
+        for attr in ("act_refine_global", "act_opt_refine_global"):
+            act = getattr(self, attr, None)
+            if act is not None and act.isChecked() != self.dist_refine_global:
+                act.blockSignals(True)
+                act.setChecked(self.dist_refine_global)
+                act.blockSignals(False)
         if hasattr(self, "dist_panel") and self.dist_panel.refine_global.isChecked() != self.dist_refine_global:
             self.dist_panel.refine_global.blockSignals(True)
             self.dist_panel.refine_global.setChecked(self.dist_refine_global)
             self.dist_panel.refine_global.blockSignals(False)
+        self._simulate_enabled = True
         self._refresh_plot()
 
     def _set_language(self, code: str) -> None:
@@ -1904,18 +2024,25 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             self.n_components_spin.setValue(n_components)
             self.n_components_spin.blockSignals(False)
 
+        is_dist = self.is_distribution_mode if hasattr(self, "mode_combo") else False
+        if hasattr(self, "comp_tabs"):
+            self.comp_tabs.setTabVisible(0, is_dist)
         for i, cp in enumerate(self.components_panels, start=1):
             visible = i <= n_components
-            cp.setVisible(visible)
+            cp.setVisible(visible and not is_dist)
+            if hasattr(self, "comp_tabs"):
+                self.comp_tabs.setTabVisible(i, visible and not is_dist)
             cp.enabled.blockSignals(True)
             cp.enabled.setChecked(visible)
             cp.enabled.blockSignals(False)
+        if hasattr(self, "comp_tabs"):
+            self.comp_tabs.setCurrentIndex(0 if is_dist else 1)
 
     # ── Cambio de modo ───────────────────────────────────────────────────
     def _on_mode_changed(self, idx: int) -> None:
         is_dist = (idx in (1, 2))
         is_deq = (idx == 2)
-        self.comp_stack_area.setVisible(not is_dist)
+        self._sync_component_count(self.n_components_spin.value())
         self.dist_panel.setVisible(is_dist)
         # Sincroniza el radio del menú Fit
         if hasattr(self, "_mode_menu_actions") and 0 <= idx < 2:
@@ -1943,6 +2070,16 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
     def dist_variable(self) -> str:
         return "quad" if self.mode_combo.currentIndex() == 2 else "bhf"
 
+    def _on_model_param_changed(self, *args) -> None:
+        if not self._building:
+            self._simulate_enabled = True
+        self._sync_absorber_model_from_panel()
+        self._refresh_plot()
+
+    def _sync_absorber_model_from_panel(self, *args) -> None:
+        if hasattr(self, "calib"):
+            self.absorber_model = self.calib.absorber_model
+
     def _set_quick_action_buttons_enabled(self, enabled: bool) -> None:
         for name in ("btn_sim_fit", "btn_sim_auto_min", "btn_sim_ai"):
             btn = getattr(self, name, None)
@@ -1952,6 +2089,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
     # ── Helpers UI ───────────────────────────────────────────────────────
     def _set_all_fixed(self, value: bool) -> None:
         self._building = True
+        for ctl in (self.calib.baseline, self.calib.slope, self.calib.sat_scale):
+            ctl.set_fixed(value)
         for cp in self.components_panels:
             for ctl in cp.params.values():
                 ctl.set_fixed(value)
@@ -2020,12 +2159,17 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             "baseline": self.calib.baseline.value(),
             "slope": self.calib.slope.value(),
             "voigt_sigma": self.calib.voigt_sigma.value(),
+            "sat_scale": self.calib.sat_scale.value(),
         }
         fixed: dict[str, bool] = {k: False for k in values}
         fixed.update({k: True for k in ("vmax", "center")})
+        fixed["baseline"] = self.calib.baseline.is_fixed()
+        fixed["slope"] = self.calib.slope.is_fixed()
+        fixed["sat_scale"] = self.calib.sat_scale.is_fixed()
         bounds = {
             "baseline": (0.70, 1.30), "slope": (-0.005, 0.005),
             "vmax": (1.0, 15.0), "voigt_sigma": (0.0, 1.0),
+            "sat_scale": (0.05, 50.0),
         }
         param_bounds = (
             ("delta", (-2.0, 3.0)), ("quad", (-4.0, 4.0)),
@@ -2080,6 +2224,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         counts = read_ws5_counts(path)
         center = find_best_integer_or_half_center(counts)
         self.file = FileState(path=path, counts=counts, center=center)
+        self._simulate_enabled = False
         folded, sigma, y = self._fold_counts_for_center(center)
         norm = float(np.percentile(folded, 90)) if folded.size else 1.0
         norm = norm or 1.0
@@ -2126,7 +2271,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         style = get_style(self.plot_style_name)
         show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
         show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
-        if state is None:
+        if state is None or not self._simulate_enabled:
             self.canvas.render(v, y, style=style,
                                show_residual=show_res, show_legend=show_leg)
             return
@@ -2148,8 +2293,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
 
     def on_fit(self) -> None:
         if self.is_distribution_mode:
+            self._simulate_enabled = True
             self.on_fit_distribution()
             return
+        self._simulate_enabled = True
         state = self._build_state()
         if state is None:
             return
@@ -2192,6 +2339,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             "baseline": self.calib.baseline.value(),
             "slope": self.calib.slope.value(),
             "voigt_sigma": self.calib.voigt_sigma.value(),
+            "sat_scale": self.calib.sat_scale.value(),
         }
         fixed: dict[str, bool] = {}
         sextet_enabled: dict[str, bool] = {}
@@ -2223,13 +2371,16 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             "dist_use_sharp": self.dist_use_sharp,
             "dist_refine_global": self.dist_refine_global,
             "dist_shape": self.dist_panel.shape if hasattr(self, "dist_panel") else "Histograma",
+            "dist_reg_mode": self.dist_panel.reg_mode if hasattr(self, "dist_panel") else "tikhonov",
+            "fixed_distribution_path": str(self.dist_panel.fixed_path) if hasattr(self, "dist_panel") and self.dist_panel.fixed_path else None,
             "dist_variable": "ΔEQ" if self.dist_variable == "quad" else "BHF",
             "fit_velocity": self.calib.fit_velocity.isChecked(),
             "fit_center": self.calib.fit_center.isChecked(),
             "fit_sigma": self.calib.fit_sigma.isChecked(),
-            "line_profile": "Lorentziana",
-            "likelihood": "gauss",
-            "robust_loss": "linear",
+            "show_residual": self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True,
+            "show_legend": self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True,
+            "line_profile": self.calib.line_profile,
+            "constraints": list(self.constraints),
         }
         return {
             "version": 1,
@@ -2287,6 +2438,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             self.calib.baseline.set_value(vmap.get("baseline", self.calib.baseline.value()))
             self.calib.slope.set_value(vmap.get("slope", self.calib.slope.value()))
             self.calib.voigt_sigma.set_value(vmap.get("voigt_sigma", self.calib.voigt_sigma.value()))
+            self.calib.sat_scale.set_value(vmap.get("sat_scale", self.calib.sat_scale.value()))
             n_saved = state.get("n_components")
             if n_saved is None:
                 enabled_map = state.get("sextet_enabled", {})
@@ -2315,6 +2467,13 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             self.calib.fit_velocity.setChecked(bool(state.get("fit_velocity", False)))
             self.calib.fit_center.setChecked(bool(state.get("fit_center", False)))
             self.calib.fit_sigma.setChecked(bool(state.get("fit_sigma", False)))
+            lp = state.get("line_profile")
+            if lp in ("Lorentziana", "Voigt"):
+                self.calib._set_line_profile(lp)
+            if "show_residual" in state and hasattr(self, "act_show_residual"):
+                self.act_show_residual.setChecked(bool(state["show_residual"]))
+            if "show_legend" in state and hasattr(self, "act_show_legend"):
+                self.act_show_legend.setChecked(bool(state["show_legend"]))
             # Opciones avanzadas
             lk = state.get("likelihood")
             if lk in ("gauss", "poisson"):
@@ -2329,11 +2488,20 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             am = state.get("absorber_model")
             if am in ("thin", "thickness"):
                 self.absorber_model = am
+                self.calib.set_absorber_model(am)
             if "dist_use_sharp" in state:
                 self.dist_use_sharp = bool(state["dist_use_sharp"])
             if "dist_refine_global" in state:
                 self.dist_refine_global = bool(state["dist_refine_global"])
+            if "constraints" in state:
+                self.constraints = list(state.get("constraints") or [])
             shape_saved = state.get("dist_shape")
+            reg_saved = state.get("dist_reg_mode")
+            if reg_saved in ("tikhonov", "tv") and hasattr(self, "dist_panel"):
+                self.dist_panel.reg_mode_combo.setCurrentText(reg_saved)
+            fixed_path = state.get("fixed_distribution_path")
+            if fixed_path and hasattr(self, "dist_panel"):
+                self.dist_panel.fixed_path = Path(fixed_path)
             if shape_saved in ("Histograma", "Gaussiana", "Binomial", "Fija") and hasattr(self, "dist_panel"):
                 idx_shape = self.dist_panel.shape_combo.findData(shape_saved)
                 if idx_shape >= 0:
@@ -2370,6 +2538,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 self.dist_panel.refine_global.setChecked(bool(self.dist_refine_global))
         finally:
             self._building = False
+        self._simulate_enabled = True
         self._refresh_plot()
 
     def on_save_session(self) -> None:
@@ -3156,6 +3325,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
 
     # ── Ajuste distribución P(BHF) ──────────────────────────────────────
     def on_fit_distribution(self) -> None:
+        self._simulate_enabled = True
         if self.file.velocity is None or self.file.y_data is None:
             return
         d = self.dist_panel
