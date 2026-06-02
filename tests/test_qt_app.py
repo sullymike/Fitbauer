@@ -412,3 +412,45 @@ def test_save_fit_writes_tsv(win, tmp_path):
     assert out.exists()
     head = out.read_text().splitlines()[0]
     assert "velocity_mm_s" in head and "data_norm" in head and "model" in head
+
+
+def test_qt_check_updates_uses_releaseinfo_without_tk_dict_bug(win, monkeypatch):
+    """El actualizador Qt maneja ReleaseInfo (dataclass), no un dict de GitHub."""
+    release = mq.ReleaseInfo(
+        tag="v0.0.0", name="old", html_url="https://example.invalid/releases",
+        body="", zipball_url="https://example.invalid/archive.zip", assets=[])
+    monkeypatch.setattr(mq, "latest_release", lambda **kwargs: release)
+
+    class ImmediateThread:
+        def __init__(self, target, daemon=False):
+            self.target = target
+        def start(self):
+            self.target()
+
+    messages = []
+    monkeypatch.setattr(mq.threading, "Thread", ImmediateThread)
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox, "information",
+        staticmethod(lambda *args, **kwargs: messages.append(args[2]) or QtWidgets.QMessageBox.Ok))
+
+    win.on_check_updates()
+
+    assert messages
+    assert "última versión" in messages[0]
+
+
+def test_qt_update_available_dialog_can_offer_release_download(win, monkeypatch):
+    """Qt muestra una release nueva con cuerpo largo y permite cancelar sin lanzar."""
+    release = mq.ReleaseInfo(
+        tag="v999.0.0", name="future", html_url="https://example.invalid/releases",
+        body="Notas de prueba", zipball_url="https://example.invalid/archive.zip", assets=[])
+    monkeypatch.setattr(mq.QtWidgets.QDialog, "exec", lambda self: QtWidgets.QDialog.Rejected)
+    opened = []
+    monkeypatch.setattr(mq.webbrowser, "open", lambda url: opened.append(url))
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox, "question",
+        staticmethod(lambda *args, **kwargs: QtWidgets.QMessageBox.No))
+
+    win._show_update_available_dialog(release, "solo estables", verify_checksum=True)
+
+    assert opened == []
