@@ -1281,16 +1281,13 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         action_grid.setVerticalSpacing(4)
         self.btn_sim_fit = QtWidgets.QPushButton(tr("fit.run"))
         self.btn_sim_free_all = QtWidgets.QPushButton(tr("fit.free_all"))
-        self.btn_sim_fix_all = QtWidgets.QPushButton(tr("fit.fix_all"))
         self.btn_sim_auto_min = QtWidgets.QPushButton(tr("fit.auto_from_minima"))
         self.btn_sim_ai = QtWidgets.QPushButton(tr("fit.ollama_start"))
         for pos, btn in enumerate((self.btn_sim_fit, self.btn_sim_free_all,
-                                   self.btn_sim_fix_all, self.btn_sim_auto_min,
-                                   self.btn_sim_ai)):
+                                   self.btn_sim_auto_min, self.btn_sim_ai)):
             action_grid.addWidget(btn, pos // 2, pos % 2)
         self.btn_sim_fit.clicked.connect(self.on_fit)
         self.btn_sim_free_all.clicked.connect(lambda: self._set_all_fixed(False))
-        self.btn_sim_fix_all.clicked.connect(lambda: self._set_all_fixed(True))
         self.btn_sim_auto_min.clicked.connect(lambda _checked=False: self.on_auto_fit_from_minima())
         self.btn_sim_ai.clicked.connect(self.on_ai_summary)
         self._set_quick_action_buttons_enabled(False)
