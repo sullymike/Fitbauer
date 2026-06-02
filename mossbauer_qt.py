@@ -96,15 +96,16 @@ from mossbauer_help import get_help_sections  # noqa: E402
 from core.data_io import SETTINGS_PATH, load_credentials, save_credentials  # noqa: E402
 from core.constants import (  # noqa: E402
     APP_VERSION, APP_NAME, APP_AUTHOR, APP_DEPARTMENT,
-    SEXTET_PARAM_NAMES, LINE_POS_33T, BHF_DEFAULT_T,
+    SEXTET_PARAM_NAMES, LINE_POS_33T, BHF_DEFAULT_T, GLOBAL_PARAM_NAMES,
 )
 from core.folding import (  # noqa: E402
     read_ws5_counts, find_best_integer_or_half_center, fold_integer_or_half,
 )
 from core.fit_engine import (  # noqa: E402
-    Component, FitState, fit_discrete, model_from_values,
+    Component, FitState, FitResult, fit_discrete, model_from_values,
 )
 from core.profile_likelihood import asymmetric_intervals  # noqa: E402
+from core.physics import component_absorption  # noqa: E402
 from core.plot_styles import get_style, apply_rc  # noqa: E402
 from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data  # noqa: E402
 from mossbauer_distribution import (  # noqa: E402
@@ -536,7 +537,7 @@ class ComponentPanel(QtWidgets.QWidget):
 
 
 class InfoPanel(QtWidgets.QGroupBox):
-    """Panel de resultados: estadísticos + parámetros libres con errores."""
+    """Panel de estado y parámetros, equivalente al resumen de la GUI Tk."""
 
     def __init__(self, parent=None):
         super().__init__(tr("controls.info_box"), parent)
@@ -548,7 +549,11 @@ class InfoPanel(QtWidgets.QGroupBox):
         self.text.setStyleSheet("QTextEdit { font-family: monospace; font-size: 10pt; }")
         v.addWidget(self.text)
 
+    def set_lines(self, lines: list[str]) -> None:
+        self.text.setPlainText("\n".join(lines) if lines else "—")
+
     def show_result(self, result) -> None:
+        """Compatibilidad para llamadas antiguas: muestra sólo el ajuste."""
         lines = []
         s = result.stats or {}
         if s:
@@ -573,10 +578,10 @@ class InfoPanel(QtWidgets.QGroupBox):
         pairs = corr.get("high_pairs") or []
         if pairs:
             lines.append("")
-            lines.append("Correlaciones altas (|r| ≥ 0.95):")
+            lines.append(tr("info.correlation_warning"))
             for p in pairs[:6]:
                 lines.append(f"  {p['param1']} ↔ {p['param2']}: r={float(p['corr']):.3f}")
-        self.text.setPlainText("\n".join(lines) or "—")
+        self.set_lines(lines)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -1168,6 +1173,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.global_opt = False
         self.absorber_model = "thin"       # "thin" / "thickness"
         self._simulate_enabled = False      # igual que Tk: al cargar solo se dibujan datos
+        self.last_fit_result: FitResult | None = None
         self.dist_use_sharp = False
         self.dist_refine_global = False
         self._edge_trim = 1
@@ -2530,6 +2536,236 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.statusBar().showMessage(f"Datos re-doblados con centro={float(center):.4f}", 3000)
         self._refresh_plot()
 
+    # ── Resumen de estado y parámetros (paridad con la GUI Tk) ───────────
+    def _active_components(self) -> list[ComponentPanel]:
+        return [cp for cp in self.components_panels if cp.enabled.isChecked()]
+
+    def active_param_keys(self) -> list[str]:
+        keys = list(GLOBAL_PARAM_NAMES)
+        if self.absorber_model == "thickness":
+            keys.append("sat_scale")
+        for cp in self._active_components():
+            keys.extend(f"s{cp.idx}_{name}" for name in SEXTET_PARAM_NAMES)
+            if cp.kind == "Sextete":
+                keys.extend((f"s{cp.idx}_texture", f"s{cp.idx}_beta"))
+        return keys
+
+    def _fixed_param_keys(self) -> list[str]:
+        fixed = []
+        if self.calib.baseline.is_fixed():
+            fixed.append("baseline")
+        if self.calib.slope.is_fixed():
+            fixed.append("slope")
+        if self.absorber_model == "thickness" and self.calib.sat_scale.is_fixed():
+            fixed.append("sat_scale")
+        for cp in self._active_components():
+            for name, ctl in cp.params.items():
+                if ctl.is_fixed() and name in SEXTET_PARAM_NAMES:
+                    fixed.append(f"s{cp.idx}_{name}")
+        return fixed
+
+    def _component_params_array(self, cp: ComponentPanel, values: dict[str, float] | None = None) -> np.ndarray:
+        out = []
+        for name in SEXTET_PARAM_NAMES:
+            key = f"s{cp.idx}_{name}"
+            out.append(float(values.get(key, cp.params[name].value())) if values else cp.params[name].value())
+        return np.array(out, dtype=float)
+
+    def component_area_from_params(self, kind: str, p: np.ndarray) -> float:
+        if self.file.velocity is not None and self.file.velocity.size > 1:
+            vmin = float(np.min(self.file.velocity))
+            vmax = float(np.max(self.file.velocity))
+            n = max(2000, int(self.file.velocity.size) * 8)
+            v = np.linspace(vmin, vmax, n)
+        else:
+            v = np.linspace(-12.0, 12.0, 4000)
+        return float(np.trapezoid(np.maximum(component_absorption(v, kind, p), 0.0), v))
+
+    def component_area_percentages(
+        self, values: dict[str, float] | None = None
+    ) -> tuple[list[int], np.ndarray, np.ndarray]:
+        active: list[int] = []
+        areas: list[float] = []
+        for cp in self._active_components():
+            p_arr = self._component_params_array(cp, values)
+            areas.append(max(0.0, self.component_area_from_params(cp.kind, p_arr)))
+            active.append(cp.idx)
+        area_arr = np.array(areas, dtype=float)
+        total = float(np.sum(area_arr))
+        pct = 100.0 * area_arr / total if total > 0 else np.zeros_like(area_arr)
+        return active, area_arr, pct
+
+    def component_percentage_errors(self) -> dict[int, float]:
+        result = self.last_fit_result
+        if result is None or result.cov is None or not result.free_keys:
+            return {}
+        base_values = dict(result.values)
+        active, _areas, _pct0 = self.component_area_percentages(base_values)
+        if not active:
+            return {}
+        jac = np.zeros((len(active), len(result.free_keys)), dtype=float)
+        for j, key in enumerate(result.free_keys):
+            if key not in base_values:
+                continue
+            x = float(base_values[key])
+            step = max(1e-6, abs(x) * 1e-5)
+            vals_p = base_values.copy(); vals_m = base_values.copy()
+            vals_p[key] = x + step
+            vals_m[key] = x - step
+            _a, _ar, pct_p = self.component_area_percentages(vals_p)
+            _a, _ar, pct_m = self.component_area_percentages(vals_m)
+            jac[:, j] = (pct_p - pct_m) / (2.0 * step)
+        try:
+            cov_pct = jac @ result.cov @ jac.T
+        except Exception:
+            return {}
+        errs = np.sqrt(np.maximum(np.diag(cov_pct), 0.0))
+        return {idx: float(err) for idx, err in zip(active, errs)}
+
+    def calibration_iso_ref(self) -> float | None:
+        info = self.calibration_info
+        if not info:
+            return None
+        value = info.get("isomer_shift")
+        try:
+            return float(value) if value not in (None, "") else None
+        except (TypeError, ValueError):
+            return None
+
+    def calibration_uncertainty_text(self) -> str | None:
+        if not self.calibration_info:
+            return None
+        for key in ("velocity_uncertainty", "vmax_uncertainty", "velocity_error", "vmax_error", "sigma_vmax"):
+            val = self.calibration_info.get(key)
+            if val not in (None, ""):
+                try:
+                    return tr("info.calib_uncertainty", field=key, value=f"{float(val):.4g}")
+                except (TypeError, ValueError):
+                    return tr("info.calib_uncertainty_raw", field=key, value=val)
+        return tr("info.calib_no_uncertainty")
+
+    def enabled_constraints(self) -> list[dict]:
+        keys = {"vmax", "center", "baseline", "slope", "voigt_sigma", "sat_scale"}
+        for cp in self.components_panels:
+            keys.update(f"s{cp.idx}_{name}" for name in cp.params)
+        return [
+            c for c in self.constraints
+            if c.get("enabled", True) and c.get("target") in keys and c.get("source") in keys
+        ]
+
+    def _info_rms(self) -> float:
+        if self.file.velocity is None or self.file.y_data is None or not self._simulate_enabled:
+            return float("nan")
+        state = self._build_state()
+        if state is None:
+            return float("nan")
+        try:
+            model = model_from_values(state.velocity, state.values, state.components, state.constraints,
+                                      absorber_model=state.absorber_model)
+        except Exception:
+            return float("nan")
+        return float(np.sqrt(np.mean((self.file.y_data - model) ** 2)))
+
+    def _update_info_panel(self) -> None:
+        if not hasattr(self, "info_panel"):
+            return
+        if self.file.counts is None or self.file.folded is None:
+            self.info_panel.set_lines([])
+            return
+        active = [cp.idx for cp in self._active_components()]
+        fixed = self._fixed_param_keys()
+        pct_active, areas, percentages = self.component_area_percentages()
+        pct_errors = self.component_percentage_errors()
+        center = float(self.calib.center.value())
+        lines = [
+            tr("info.file", name=self.file.path.name if self.file.path else "-"),
+            tr("info.channels_read", n=self.file.counts.size),
+            tr("info.folding_center", center=f"{center:.5f}"),
+            tr("info.folding_normos", value=f"{2.0 * center:.5f}"),
+            tr("info.folded_pairs", n=int(self.file.folded.size)),
+            tr("info.normalization", factor=f"{self.file.norm_factor:.6g}"),
+            tr("info.vmax", value=f"{self.calib.vmax.value():.6g}"),
+            tr("info.baseline", value=f"{self.calib.baseline.value():.6g}"),
+            tr("info.slope", value=f"{self.calib.slope.value():.6g}"),
+            tr("info.active_sextets", list=", ".join(map(str, active))),
+            tr("info.fit_velocity_yes") if self.calib.fit_velocity.isChecked() else tr("info.fit_velocity_no"),
+            tr("info.rms", value=f"{self._info_rms():.6g}"),
+        ]
+        result = self.last_fit_result
+        stats = result.stats if result is not None else {}
+        if stats:
+            lines.extend([
+                tr("info.chi2_line", red_chi2=f"{stats.get('red_chi2', float('nan')):.6g}",
+                   chi2=f"{stats.get('chi2', float('nan')):.6g}", dof=f"{stats.get('dof', float('nan')):.0f}"),
+                tr("info.aic_bic_line", aic=f"{stats.get('aic', float('nan')):.6g}",
+                   bic=f"{stats.get('bic', float('nan')):.6g}", n_params=f"{stats.get('n_params', len(result.free_keys)):.0f}"),
+                tr("info.residual_diag", lag1=f"{stats.get('resid_lag1', float('nan')):.3f}",
+                   z=f"{stats.get('resid_runs_z', float('nan')):.3f}",
+                   antisym=f"{stats.get('resid_antisym_corr', float('nan')):.3f}"),
+                tr("info.model_comparison"),
+                tr("info.multistart_count", n=f"{result.n_starts:.0f}"),
+            ])
+            if (abs(stats.get("resid_lag1", 0.0)) > 0.35
+                    or abs(stats.get("resid_runs_z", 0.0)) > 2.0
+                    or stats.get("resid_antisym_corr", 0.0) > 0.45):
+                lines.extend([tr("info.residual_warning_1"), tr("info.residual_warning_2")])
+        cal_unc = self.calibration_uncertainty_text()
+        if cal_unc:
+            lines.append(cal_unc)
+        corr = result.correlations if result is not None else {}
+        if corr:
+            max_pair = corr.get("max_pair") or []
+            if max_pair:
+                lines.append(tr("info.max_correlation", value=f"{float(corr.get('max_abs_corr', 0.0)):.3f}",
+                               p1=max_pair[0], p2=max_pair[1]))
+            high_pairs = corr.get("high_pairs") or []
+            if high_pairs:
+                lines.append(tr("info.correlation_warning"))
+                for pair in high_pairs[:6]:
+                    lines.append(f"  {pair['param1']} ↔ {pair['param2']}: r={float(pair['corr']):.3f}")
+                if len(high_pairs) > 6:
+                    lines.append(tr("info.correlation_more", n=len(high_pairs) - 6))
+        lines.append("")
+        if len(pct_active) > 1:
+            lines.append(tr("info.area_percent_header"))
+            for idx, area, pct in zip(pct_active, areas, percentages):
+                err = pct_errors.get(idx)
+                err_txt = f" ± {err:.3g}%" if err is not None else ""
+                cp = self.components_panels[idx - 1]
+                kind_disp = tr(f"kind.{cp.kind}", default=cp.kind)
+                lines.append(tr("info.component_percent_line", idx=idx, kind=kind_disp,
+                               pct=pct, err_txt=err_txt, area=area))
+            lines.append("")
+        iso_ref = self.calibration_iso_ref()
+        for cp in self._active_components():
+            i3_real = cp.params["int3"].value()
+            i2_real = i3_real * cp.params["int2"].value()
+            i1_real = i3_real * cp.params["int1"].value()
+            g1 = cp.params["gamma1"].value()
+            g2 = g1 * cp.params["gamma2"].value()
+            g3 = g1 * cp.params["gamma3"].value()
+            kind_disp = tr(f"kind.{cp.kind}", default=cp.kind)
+            lines.extend([
+                tr("info.component_params_line", kind=kind_disp, idx=cp.idx,
+                   bhf=cp.params["bhf"].value(), delta=cp.params["delta"].value(), quad=cp.params["quad"].value()),
+                tr("info.gamma_hwhm", g1=g1, g2=g2, g3=g3),
+                tr("info.fwhm_equiv", f1=2.0 * g1, f2=2.0 * g2, f3=2.0 * g3),
+                tr("info.gamma_rel", gamma2=cp.params["gamma2"].value(), gamma3=cp.params["gamma3"].value()),
+                tr("info.depth_intensities", depth=cp.params["depth"].value(), i1=i1_real, i2=i2_real, i3=i3_real),
+            ])
+            if iso_ref is not None:
+                lines.append(tr("info.delta_corrected",
+                               value=f"{cp.params['delta'].value() - iso_ref:.6g}", ref=f"{iso_ref:.6g}"))
+        lines.extend(["", tr("info.fixed_line", fixed=", ".join(fixed) if fixed else tr("info.none"))])
+        cons = self.enabled_constraints()
+        if cons:
+            lines.append("")
+            lines.append(tr("info.constraints_header"))
+            for c in cons:
+                lines.append(tr("info.constraint_line", target=c["target"], factor=float(c.get("factor", 1.0)),
+                               source=c["source"], offset=float(c.get("offset", 0.0))))
+        self.info_panel.set_lines(lines)
+
     # ── Construcción del FitState a partir de la UI ───────────────────────
     def _build_state(self) -> FitState | None:
         if self.file.velocity is None or self.file.y_data is None:
@@ -2636,6 +2872,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._add_recent(path)
         self.statusBar().showMessage(
             f"{path.name} · {counts.size} canales · centro={center:.3f}")
+        self.last_fit_result = None
         self._refresh_plot()
 
     def _refresh_plot(self) -> None:
@@ -2655,22 +2892,27 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         if state is None or not self._simulate_enabled:
             self.canvas.render(v, y, style=style,
                                show_residual=show_res, show_legend=show_leg)
+            self._update_info_panel()
             return
         try:
-            model = model_from_values(v, state.values, state.components)
+            model = model_from_values(v, state.values, state.components, state.constraints,
+                                      absorber_model=state.absorber_model)
         except Exception:
             self.canvas.render(v, y, style=style,
                                show_residual=show_res, show_legend=show_leg)
+            self._update_info_panel()
             return
         # Solo dibujar componentes individuales si hay más de uno activo.
         comps = []
         enabled = [c for c in state.components if c.enabled]
         if len(enabled) >= 2:
             for comp in enabled:
-                only_this = model_from_values(v, state.values, [comp])
+                only_this = model_from_values(v, state.values, [comp], state.constraints,
+                                              absorber_model=state.absorber_model)
                 comps.append((comp.idx, comp.kind, only_this))
         self.canvas.render(v, y, model=model, components=comps, style=style,
                            show_residual=show_res, show_legend=show_leg)
+        self._update_info_panel()
 
     def _open_progress_dialog(self, title: str, message: str | None = None):
         """Ventana modal de progreso (barra indeterminada), igual que la de Tk.
@@ -2750,7 +2992,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         chi2 = result.stats.get("chi2", float("nan"))
         self.statusBar().showMessage(
             f"χ²={chi2:.4g}  χ²red={red:.4g}  ·  {result.n_starts} arranques")
-        self.info_panel.show_result(result)
+        self.last_fit_result = result
         self.act_fit.setEnabled(True)
         self._refresh_plot()
 
@@ -3680,7 +3922,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         v = self.file.velocity
         y = self.file.y_data
         try:
-            model = model_from_values(v, state.values, state.components) if state else None
+            model = model_from_values(v, state.values, state.components, state.constraints,
+                                      absorber_model=state.absorber_model) if state else None
         except Exception:
             model = None
         residual = (y - model) if model is not None else np.zeros_like(y)
@@ -4226,7 +4469,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         baseline_line = baseline + slope * v
         values = {**params, "baseline": baseline, "slope": slope}
         try:
-            model = model_from_values(v, values, comps)
+            model = model_from_values(v, values, comps, self.constraints,
+                                      absorber_model=self.absorber_model)
         except Exception:
             return
         model_abs = float(np.max(baseline_line - model)) if v.size else 0.0
