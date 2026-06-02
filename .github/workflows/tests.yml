@@ -15,8 +15,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install system dependencies (Tk + Xvfb)
-        run: sudo apt-get update && sudo apt-get install -y xvfb python3-tk
+      - name: Install system dependencies (Tk + Xvfb + Qt offscreen libs)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb python3-tk \
+            libegl1 libgl1 libxkbcommon0 libdbus-1-3
 
       - name: Install Python dependencies
         run: |
@@ -25,4 +28,6 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Run tests (headless via Xvfb)
+        env:
+          QT_QPA_PLATFORM: offscreen   # PySide6 sin display real (pytest-qt)
         run: xvfb-run -a pytest -q
