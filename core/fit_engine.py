@@ -207,6 +207,8 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
     counts = state.counts
     can_refold = fit_center and counts is not None
     fallback_norm = float(state.norm_factor) if state.norm_factor else 1.0
+    # Normalización para la σ Poisson correcta (0/None → escala relativa √m).
+    norm_factor = float(state.norm_factor) if state.norm_factor else 0.0
 
     # Aplicamos el perfil globalmente (variable mutable en core.physics).
     from core import physics as _phys
@@ -245,7 +247,15 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
             y_use, sig_fold = y, sigma_data
         # 5. σ por canal.
         if likelihood == "poisson":
-            sig = np.sqrt(np.maximum(np.abs(m), 1e-12))
+            # σ Poisson del modelo (IRLS). Con norm_factor usa la forma correcta
+            # del Tk: σ = √(max(m·norm,1)/2)/norm (cuentas predichas, promedio de
+            # dos canales). Sin él, cae a √m (escala relativa correcta, χ² no
+            # normalizado), preservando el comportamiento previo del motor.
+            if norm_factor:
+                predicted_counts = np.maximum(np.abs(m) * norm_factor, 1.0)
+                sig = np.maximum(np.sqrt(predicted_counts / 2.0) / norm_factor, 1e-9)
+            else:
+                sig = np.sqrt(np.maximum(np.abs(m), 1e-12))
         else:
             sig = sig_fold
         if sig is None:

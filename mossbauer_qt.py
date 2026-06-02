@@ -1246,6 +1246,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.absorber_model = "thin"       # "thin" / "thickness"
         self._simulate_enabled = False      # igual que Tk: al cargar solo se dibujan datos
         self.last_fit_result: FitResult | None = None
+        self.last_error_source = "covarianza (1σ)"   # actualizado por bootstrap
         self.dist_use_sharp = False
         self.dist_refine_global = False
         self._edge_trim = 1
@@ -3092,6 +3093,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.statusBar().showMessage(
             f"χ²={chi2:.4g}  χ²red={red:.4g}  ·  {result.n_starts} arranques")
         self.last_fit_result = result
+        self.last_error_source = "covarianza (1σ)"
         self.act_fit.setEnabled(True)
         self._refresh_plot()
 
@@ -4006,6 +4008,15 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.information(
                 self, tr("msg.bootstrap_title"), tr("msg.bootstrap_no_free"))
             return
+        # Vuelca σ(MC) en el último ajuste para que el informe la use como
+        # incertidumbre (más fiable que la covarianza cuando hay correlaciones).
+        if self.last_fit_result is not None:
+            self.last_fit_result.errors.update(res.std)
+        else:
+            self.last_fit_result = res.base
+            self.last_fit_result.errors.update(res.std)
+        self.last_error_source = f"bootstrap Monte Carlo (n={res.n_ok})"
+        self.act_export_report.setEnabled(True)
         msg_lines = [tr("msg.bootstrap_done", ok=res.n_ok, total=res.n_rep), ""]
         for k in res.base.free_keys:
             msg_lines.append(f"  {k:14s}  σ(MC) = {res.std[k]:.4g}")
@@ -5135,6 +5146,41 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 fixed = " (fijo)" if ctl.is_fixed() else ""
                 lines.append(f"- `s{cp.idx}_{k}` = {ctl.value():.6g}{fixed}")
             lines.append("")
+        # Resultados del ajuste con incertidumbres (parámetros libres) y bondad.
+        fit = self.last_fit_result
+        if fit is not None and fit.free_keys:
+            lines.append("## Resultados del ajuste\n")
+            lines.append(f"- Incertidumbres: {self.last_error_source}")
+            st = fit.stats or {}
+            if st:
+                bits = []
+                if st.get("red_chi2") is not None:
+                    bits.append(f"χ²ᵣ = {st['red_chi2']:.4g}")
+                if st.get("chi2") is not None:
+                    bits.append(f"χ² = {st['chi2']:.4g}")
+                if st.get("aic") is not None:
+                    bits.append(f"AIC = {st['aic']:.4g}")
+                if st.get("bic") is not None:
+                    bits.append(f"BIC = {st['bic']:.4g}")
+                if bits:
+                    lines.append("- Bondad: " + ", ".join(bits))
+            lines.append("")
+            lines.append("| Parámetro | Valor | σ |")
+            lines.append("|---|---|---|")
+            for k in fit.free_keys:
+                val = fit.values.get(k)
+                err = fit.errors.get(k)
+                val_txt = f"{val:.6g}" if val is not None else "—"
+                err_txt = f"± {err:.3g}" if err is not None and err > 0 else "—"
+                lines.append(f"| `{k}` | {val_txt} | {err_txt} |")
+            lines.append("")
+            # Parejas de parámetros muy correlacionadas (|r| ≥ 0.95), si las hay.
+            high = (fit.correlations or {}).get("high_pairs") or []
+            if high:
+                lines.append("**Parámetros muy correlacionados (|r| ≥ 0.95):**\n")
+                for hp in high:
+                    lines.append(f"- `{hp['param1']}` ↔ `{hp['param2']}`: r = {hp['corr']:.3f}")
+                lines.append("")
         # Si hay último ajuste, añadir estadísticas
         info_txt = self.info_panel.text.toPlainText().strip()
         if info_txt and info_txt != "—":

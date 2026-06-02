@@ -163,6 +163,27 @@ def test_fit_center_without_counts_does_not_harm_model():
     assert abs((result.values["s1_delta"] - ISO_REF)) < 0.05
 
 
+def test_poisson_norm_factor_gives_meaningful_chi2():
+    """Con likelihood Poisson y norm_factor, χ²ᵣ es del orden de 1 (σ Poisson
+    correcta, forma del Tk). Sin norm_factor la escala relativa es la misma pero
+    el χ² absoluto no está normalizado."""
+    counts = read_ws5_counts(DATA / "hierro_metalico_alphaFe.adt")
+    c0 = find_best_integer_or_half_center(counts)
+    folded, _ = fold_integer_or_half(counts, c0)
+    v = np.linspace(-VMAX, VMAX, folded.size)
+    norm = float(np.percentile(folded, 90))
+    y = folded / norm
+    sigma = np.sqrt(np.maximum(folded / 2.0, 1.0)) / norm
+    state = _alpha_fe_state(v, y, sigma)
+    state.likelihood = "poisson"
+    state.norm_factor = norm
+    res = fit_discrete(state)
+    # χ²ᵣ con la normalización correcta cae en un rango físico razonable.
+    assert 0.2 < res.stats["red_chi2"] < 20.0
+    # Los parámetros físicos se recuperan igual (la σ no cambia el óptimo).
+    assert abs(res.values["s1_bhf"] - 33.0) < 1.0
+
+
 def test_bootstrap_errors_gauss():
     """El bootstrap converge y devuelve σ(MC) positivas para los parámetros libres."""
     v, y, sigma = _load_alpha_fe()
