@@ -409,6 +409,15 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         act_open.triggered.connect(self.on_open)
         file_menu.addAction(act_open)
         file_menu.addSeparator()
+        act_save_session = QtGui.QAction(tr("file.save_session"), self)
+        act_save_session.setShortcut("Ctrl+S")
+        act_save_session.triggered.connect(self.on_save_session)
+        file_menu.addAction(act_save_session)
+        act_load_session = QtGui.QAction(tr("file.load_session"), self)
+        act_load_session.setShortcut("Ctrl+L")
+        act_load_session.triggered.connect(self.on_load_session)
+        file_menu.addAction(act_load_session)
+        file_menu.addSeparator()
         act_exit = QtGui.QAction(tr("file.exit"), self)
         act_exit.setShortcut(QtGui.QKeySequence.Quit)
         act_exit.triggered.connect(self.close)
@@ -420,11 +429,27 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_fit.triggered.connect(self.on_fit)
         self.act_fit.setEnabled(False)
         fit_menu.addAction(self.act_fit)
+        fit_menu.addSeparator()
+        act_fix_all = QtGui.QAction(tr("fit.fix_all"), self)
+        act_fix_all.triggered.connect(lambda: self._set_all_fixed(True))
+        fit_menu.addAction(act_fix_all)
+        act_free_all = QtGui.QAction(tr("fit.free_all"), self)
+        act_free_all.triggered.connect(lambda: self._set_all_fixed(False))
+        fit_menu.addAction(act_free_all)
 
         help_menu = mb.addMenu(tr("menu.help"))
         act_about = QtGui.QAction(tr("help.about"), self)
         act_about.triggered.connect(self.on_about)
         help_menu.addAction(act_about)
+
+    # ── Helpers UI ───────────────────────────────────────────────────────
+    def _set_all_fixed(self, value: bool) -> None:
+        self._building = True
+        for cp in self.components_panels:
+            for ctl in cp.params.values():
+                ctl.set_fixed(value)
+        self._building = False
+        self._refresh_plot()
 
     # ── Construcción del FitState a partir de la UI ───────────────────────
     def _build_state(self) -> FitState | None:
@@ -564,6 +589,144 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.info_panel.show_result(result)
         self.act_fit.setEnabled(True)
         self._refresh_plot()
+
+    # ── Save / Load session (formato compatible con la GUI Tk) ──────────
+    def _session_payload(self) -> dict:
+        """Estado completo del Qt en el mismo formato que la GUI Tk."""
+        values: dict[str, float] = {
+            "vmax": self.calib.vmax.value(),
+            "center": self.calib.center.value(),
+            "baseline": self.calib.baseline.value(),
+            "slope": self.calib.slope.value(),
+            "voigt_sigma": self.calib.voigt_sigma.value(),
+        }
+        fixed: dict[str, bool] = {}
+        sextet_enabled: dict[str, bool] = {}
+        component_kind: dict[str, str] = {}
+        for cp in self.components_panels:
+            values.update(cp.values_dict())
+            fixed.update(cp.fixed_dict())
+            sextet_enabled[str(cp.idx)] = bool(cp.enabled.isChecked())
+            component_kind[str(cp.idx)] = cp.kind
+        model_state = {
+            "vars": values,
+            "fixed": fixed,
+            "sextet_enabled": sextet_enabled,
+            "component_kind": component_kind,
+            "fit_velocity": self.calib.fit_velocity.isChecked(),
+            "fit_center": self.calib.fit_center.isChecked(),
+            "fit_sigma": self.calib.fit_sigma.isChecked(),
+            "line_profile": "Lorentziana",
+            "likelihood": "gauss",
+            "robust_loss": "linear",
+        }
+        return {
+            "version": 1,
+            "program": "mossbauer_qt.py",
+            "file_path": str(self.file.path) if self.file.path else None,
+            "file_name": self.file.path.name if self.file.path else None,
+            "counts": self.file.counts.tolist() if self.file.counts is not None else None,
+            "model_state": model_state,
+        }
+
+    def _apply_session_payload(self, data: dict) -> None:
+        # 1. Datos: si trae un file_path existente o counts embebidos, los carga.
+        file_path = data.get("file_path")
+        if file_path and Path(file_path).exists():
+            try:
+                self._load_file(Path(file_path))
+            except Exception:
+                pass
+        elif data.get("counts") is not None:
+            self.file = FileState(
+                path=Path(file_path) if file_path else None,
+                counts=np.array(data["counts"], dtype=float),
+            )
+            counts = self.file.counts
+            center = find_best_integer_or_half_center(counts)
+            folded, _ = fold_integer_or_half(counts, center)
+            norm = float(np.percentile(folded, 90)) or 1.0
+            sigma = np.sqrt(np.maximum(folded / 2.0, 1.0)) / norm
+            self.file.folded = folded
+            self.file.norm_factor = norm
+            self.file.sigma = sigma
+            self.file.center = center
+            self.file.y_data = folded / norm
+            self.file.velocity = np.linspace(
+                -self.calib.vmax.value(), self.calib.vmax.value(), folded.size)
+            self.file_label.setText(
+                f"<b>{data.get('file_name') or '—'}</b><br>"
+                f"{counts.size} canales (sesión)")
+            self.act_fit.setEnabled(True)
+
+        # 2. Modelo: aplicar vars / fixed / sextet_enabled / component_kind.
+        state = data.get("model_state", {})
+        self._building = True
+        try:
+            vmap = state.get("vars", {})
+            self.calib.vmax.set_value(vmap.get("vmax", self.calib.vmax.value()))
+            self.calib.center.set_value(vmap.get("center", self.calib.center.value()))
+            self.calib.baseline.set_value(vmap.get("baseline", self.calib.baseline.value()))
+            self.calib.slope.set_value(vmap.get("slope", self.calib.slope.value()))
+            self.calib.voigt_sigma.set_value(vmap.get("voigt_sigma", self.calib.voigt_sigma.value()))
+            for cp in self.components_panels:
+                cp.apply_values(vmap)
+                ki = state.get("component_kind", {}).get(str(cp.idx))
+                if ki in ("Sextete", "Doblete", "Singlete"):
+                    cp.type_combo.setCurrentText(ki)
+                en = state.get("sextet_enabled", {}).get(str(cp.idx))
+                if en is not None:
+                    cp.enabled.setChecked(bool(en))
+                for name, ctl in cp.params.items():
+                    f = state.get("fixed", {}).get(f"s{cp.idx}_{name}")
+                    if f is not None:
+                        ctl.set_fixed(bool(f))
+            self.calib.fit_velocity.setChecked(bool(state.get("fit_velocity", False)))
+            self.calib.fit_center.setChecked(bool(state.get("fit_center", False)))
+            self.calib.fit_sigma.setChecked(bool(state.get("fit_sigma", False)))
+        finally:
+            self._building = False
+        self._refresh_plot()
+
+    def on_save_session(self) -> None:
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, tr("file.save_session"), str(ROOT),
+            "JSON (*.json);;All (*.*)")
+        if not path:
+            return
+        import json
+        try:
+            data = self._session_payload()
+            Path(path).write_text(
+                json.dumps(data, indent=2, ensure_ascii=False, default=str),
+                encoding="utf-8")
+            self.statusBar().showMessage(f"Sesión guardada: {path}", 5000)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(
+                self, tr("file.save_session"),
+                f"{type(exc).__name__}: {exc}")
+
+    def on_load_session(self) -> None:
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, tr("file.load_session"), str(ROOT),
+            "JSON (*.json);;All (*.*)")
+        if not path:
+            return
+        import json
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(
+                self, tr("file.load_session"),
+                f"{type(exc).__name__}: {exc}")
+            return
+        try:
+            self._apply_session_payload(data)
+            self.statusBar().showMessage(f"Sesión cargada: {path}", 5000)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(
+                self, tr("file.load_session"),
+                f"{type(exc).__name__}: {exc}")
 
     def on_about(self) -> None:
         dlg = QtWidgets.QDialog(self)
