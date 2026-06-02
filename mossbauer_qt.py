@@ -35,7 +35,7 @@ from mossbauer_i18n import (  # noqa: E402
     tr, get_language, set_language, available_languages,
 )
 from mossbauer_help import get_help_sections  # noqa: E402
-from core.data_io import SETTINGS_PATH  # noqa: E402
+from core.data_io import SETTINGS_PATH, load_credentials, save_credentials  # noqa: E402
 from core.constants import APP_VERSION, APP_NAME, SEXTET_PARAM_NAMES, LINE_POS_33T  # noqa: E402
 from core.folding import (  # noqa: E402
     read_ws5_counts, find_best_integer_or_half_center, fold_integer_or_half,
@@ -874,6 +874,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         act_exit.triggered.connect(self.close)
         file_menu.addAction(act_exit)
 
+        web_menu = mb.addMenu(tr("file.web"))
+        act_web_meas = QtGui.QAction(tr("file.web_measurements"), self)
+        act_web_meas.triggered.connect(lambda: self._open_web_dialog("measurements"))
+        web_menu.addAction(act_web_meas)
+        act_web_calib = QtGui.QAction(tr("file.web_calibrations"), self)
+        act_web_calib.triggered.connect(lambda: self._open_web_dialog("calibrations"))
+        web_menu.addAction(act_web_calib)
+
         fit_menu = mb.addMenu(tr("menu.fit"))
         self.act_find_center = QtGui.QAction(tr("fit.find_center"), self)
         self.act_find_center.triggered.connect(self.on_find_center)
@@ -1361,6 +1369,141 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.critical(
                 self, tr("file.load_session"),
                 f"{type(exc).__name__}: {exc}")
+
+    # ── Acceso a la API del laboratorio ──────────────────────────────────
+    def _get_api_client(self):
+        """Devuelve un MatelecLabClient autenticado o None si el usuario cancela."""
+        try:
+            from mossbauer_api_client import MatelecLabClient, DEFAULT_BASE_URL
+        except ImportError as exc:
+            QtWidgets.QMessageBox.critical(
+                self, "Web", f"Cliente API no disponible: {exc}")
+            return None
+        creds = load_credentials() or {}
+        base = creds.get("api_base") or DEFAULT_BASE_URL
+        token = creds.get("token") or ""
+        client = MatelecLabClient(base_url=base, token=token)
+        if token:
+            try:
+                if client.token_is_valid():
+                    return client
+            except Exception:
+                pass
+        # Token inválido o ausente: pedir credenciales.
+        if not self._login_dialog(client, creds):
+            return None
+        return client
+
+    def _login_dialog(self, client, creds: dict) -> bool:
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle("Login (API laboratorio)")
+        form = QtWidgets.QFormLayout(dlg)
+        e_user = QtWidgets.QLineEdit(creds.get("username", ""))
+        e_pass = QtWidgets.QLineEdit(creds.get("password", ""))
+        e_pass.setEchoMode(QtWidgets.QLineEdit.Password)
+        cb_remember = QtWidgets.QCheckBox("Recordar usuario y token")
+        cb_remember.setChecked(bool(creds.get("username") or creds.get("token")))
+        form.addRow("Usuario:", e_user)
+        form.addRow("Contraseña:", e_pass)
+        form.addRow(cb_remember)
+        bb = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        bb.accepted.connect(dlg.accept); bb.rejected.connect(dlg.reject)
+        form.addRow(bb)
+        if dlg.exec() != QtWidgets.QDialog.Accepted:
+            return False
+        user = e_user.text().strip(); pwd = e_pass.text()
+        if not user or not pwd:
+            return False
+        try:
+            client.login(user, pwd)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, "Login", f"Login fallido: {exc}")
+            return False
+        if cb_remember.isChecked():
+            creds = dict(creds); creds["username"] = user
+            creds["token"] = client.token
+            save_credentials(creds)
+        return True
+
+    def _open_web_dialog(self, kind: str) -> None:
+        """kind: 'measurements' o 'calibrations'."""
+        client = self._get_api_client()
+        if client is None:
+            return
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(tr(f"file.web_{kind}"))
+        dlg.resize(720, 460)
+        v = QtWidgets.QVBoxLayout(dlg)
+        search_row = QtWidgets.QHBoxLayout()
+        search_row.addWidget(QtWidgets.QLabel("Buscar:"))
+        e_search = QtWidgets.QLineEdit()
+        search_row.addWidget(e_search, stretch=1)
+        btn_refresh = QtWidgets.QPushButton("Buscar")
+        search_row.addWidget(btn_refresh)
+        v.addLayout(search_row)
+        table = QtWidgets.QTableWidget(0, 3)
+        table.setHorizontalHeaderLabels(["id", "fichero", "muestra"])
+        table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
+        table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        v.addWidget(table, stretch=1)
+        status = QtWidgets.QLabel("")
+        v.addWidget(status)
+
+        def refresh():
+            table.setRowCount(0)
+            try:
+                if kind == "measurements":
+                    items = list(client.iter_medidas(
+                        search=e_search.text().strip() or None, limit=200))
+                else:
+                    items = list(client.iter_calibraciones(
+                        search=e_search.text().strip() or None, limit=200))
+            except Exception as exc:
+                status.setText(f"Error: {exc}"); return
+            for it in items:
+                r = table.rowCount(); table.insertRow(r)
+                table.setItem(r, 0, QtWidgets.QTableWidgetItem(str(it.get("id", ""))))
+                table.setItem(r, 1, QtWidgets.QTableWidgetItem(
+                    str(it.get("file_name") or it.get("filename") or "")))
+                table.setItem(r, 2, QtWidgets.QTableWidgetItem(
+                    str(it.get("muestra") or it.get("sample") or "")))
+            status.setText(f"{len(items)} resultados.")
+
+        btn_refresh.clicked.connect(refresh)
+        e_search.returnPressed.connect(refresh)
+        refresh()
+
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_dl = QtWidgets.QPushButton("Descargar y cargar")
+        btn_close = QtWidgets.QPushButton(tr("button.close"))
+        btn_row.addStretch(1); btn_row.addWidget(btn_dl); btn_row.addWidget(btn_close)
+        v.addLayout(btn_row)
+
+        def download():
+            rows = sorted({i.row() for i in table.selectedIndexes()})
+            if not rows:
+                return
+            item_id = table.item(rows[0], 0).text()
+            try:
+                dest = Path.home() / "mossbauer_downloads"
+                dest.mkdir(parents=True, exist_ok=True)
+                if kind == "measurements":
+                    p = client.download_datafile(item_id, dest_dir=str(dest))
+                else:
+                    p = client.download_calibracion_datafile(item_id, dest_dir=str(dest))
+            except Exception as exc:
+                QtWidgets.QMessageBox.critical(dlg, "Descarga", f"{exc}")
+                return
+            status.setText(f"Descargado: {p}")
+            try:
+                self._load_file(Path(p))
+                dlg.accept()
+            except Exception as exc:
+                QtWidgets.QMessageBox.warning(dlg, "Cargar", f"{exc}")
+        btn_dl.clicked.connect(download)
+        btn_close.clicked.connect(dlg.reject)
+        dlg.exec()
 
     # ── Calibración rápida desde el cuadro de fichero ─────────────────────
     def _show_file_box_menu(self, pos: QtCore.QPoint) -> None:

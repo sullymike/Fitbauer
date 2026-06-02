@@ -190,6 +190,21 @@ def test_export_report_writes_markdown(win, tmp_path):
     assert "Mössbauer" in content and "Componentes" in content
 
 
+def test_login_dialog_cancel_returns_false(win, monkeypatch):
+    """Si el usuario cierra el diálogo de login sin Ok, _login_dialog devuelve False."""
+    # Fuerza credenciales vacías y simula cancelar el diálogo.
+    import mossbauer_qt as mq
+    monkeypatch.setattr(mq, "load_credentials", lambda: {})
+    monkeypatch.setattr(
+        QtWidgets.QDialog, "exec",
+        lambda self_: QtWidgets.QDialog.Rejected)
+    # Cliente dummy para no llamar al API real.
+    class DummyClient:
+        token = ""
+    ok = win._login_dialog(DummyClient(), {})
+    assert ok is False
+
+
 def test_use_as_calibration_sets_info(win):
     """'Usar como calibración' guarda vmax/iso del estado actual."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
