@@ -131,22 +131,41 @@ class CalibrationPanel(QtWidgets.QGroupBox):
             cb.toggled.connect(lambda *_: self.paramChanged.emit())
 
 
-class SextetPanel(QtWidgets.QGroupBox):
-    """10 parámetros de un sextete + casilla 'activo'."""
+class ComponentPanel(QtWidgets.QWidget):
+    """10 parámetros + selector de tipo (Sextete/Doblete/Singlete) + 'activo'.
+
+    Los parámetros que no aplican al tipo seleccionado se desactivan en gris.
+    """
 
     paramChanged = QtCore.Signal()
 
+    # Qué parámetros usa cada tipo (los demás se agrisan).
+    _USED_BY = {
+        "Sextete":  {"delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
+                     "depth", "int1", "int2", "int3"},
+        "Doblete":  {"delta", "quad", "gamma1", "gamma2", "depth", "int1", "int2"},
+        "Singlete": {"delta", "gamma1", "depth", "int1"},
+    }
+
     def __init__(self, idx: int, parent=None):
-        super().__init__(tr("tab.component", idx=idx), parent)
+        super().__init__(parent)
         self.idx = idx
         v = QtWidgets.QVBoxLayout(self)
+        v.setContentsMargins(6, 6, 6, 6)
         v.setSpacing(2)
 
+        # Cabecera: tipo + activo
+        row = QtWidgets.QHBoxLayout()
         self.enabled = QtWidgets.QCheckBox(tr("component.enable", idx=idx))
         self.enabled.setChecked(idx == 1)
-        v.addWidget(self.enabled)
+        self.type_combo = QtWidgets.QComboBox()
+        self.type_combo.addItems(["Sextete", "Doblete", "Singlete"])
+        row.addWidget(self.enabled)
+        row.addStretch(1)
+        row.addWidget(QtWidgets.QLabel(tr("component.shape_label")))
+        row.addWidget(self.type_combo)
+        v.addLayout(row)
 
-        # 10 parámetros (rangos extendidos para ajustar α-Fe a Fe2O3, etc.)
         specs = [
             ("delta",  tr("slider.s_delta"),  -0.11, -2.0, 3.0, 0.001, 4),
             ("quad",   tr("slider.s_quad"),    0.00, -4.0, 4.0, 0.001, 4),
@@ -167,11 +186,23 @@ class SextetPanel(QtWidgets.QGroupBox):
             ctl.valueChanged.connect(lambda *_: self.paramChanged.emit())
             ctl.fixedChanged.connect(lambda *_: self.paramChanged.emit())
         self.enabled.toggled.connect(lambda *_: self.paramChanged.emit())
+        self.type_combo.currentTextChanged.connect(self._on_type_changed)
 
         # Fijos típicos para α-Fe (intensidades + gammas relativas + quad).
         for k in ("int1", "int2", "int3", "gamma2", "gamma3", "quad"):
             self.params[k].set_fixed(True)
         v.addStretch(1)
+        self._on_type_changed(self.type_combo.currentText())
+
+    @property
+    def kind(self) -> str:
+        return self.type_combo.currentText()
+
+    def _on_type_changed(self, kind: str) -> None:
+        used = self._USED_BY.get(kind, set())
+        for name, ctl in self.params.items():
+            ctl.setEnabled(name in used)
+        self.paramChanged.emit()
 
     def values_dict(self) -> dict[str, float]:
         return {f"s{self.idx}_{k}": ctl.value() for k, ctl in self.params.items()}
@@ -184,6 +215,50 @@ class SextetPanel(QtWidgets.QGroupBox):
             v = values.get(f"s{self.idx}_{k}")
             if v is not None:
                 ctl.set_value(v)
+
+
+class InfoPanel(QtWidgets.QGroupBox):
+    """Panel de resultados: estadísticos + parámetros libres con errores."""
+
+    def __init__(self, parent=None):
+        super().__init__(tr("controls.info_box"), parent)
+        v = QtWidgets.QVBoxLayout(self)
+        v.setContentsMargins(8, 8, 8, 8)
+        self.text = QtWidgets.QTextEdit()
+        self.text.setReadOnly(True)
+        self.text.setMinimumHeight(120)
+        self.text.setStyleSheet("QTextEdit { font-family: monospace; font-size: 10pt; }")
+        v.addWidget(self.text)
+
+    def show_result(self, result) -> None:
+        lines = []
+        s = result.stats or {}
+        if s:
+            lines.append(
+                f"χ²={s.get('chi2', float('nan')):.6g}   "
+                f"χ²red={s.get('red_chi2', float('nan')):.4g}   "
+                f"dof={int(s.get('dof', 0))}   "
+                f"AIC={s.get('aic', float('nan')):.4g}   "
+                f"BIC={s.get('bic', float('nan')):.4g}"
+            )
+            lines.append(f"arranques: {result.n_starts}   params libres: {len(result.free_keys)}")
+            lines.append("")
+        if result.free_keys:
+            for key in result.free_keys:
+                val = result.values.get(key, float("nan"))
+                err = result.errors.get(key)
+                if err is not None and err > 0:
+                    lines.append(f"  {key:14s} = {val:.6g}  ± {err:.3g}")
+                else:
+                    lines.append(f"  {key:14s} = {val:.6g}")
+        corr = result.correlations or {}
+        pairs = corr.get("high_pairs") or []
+        if pairs:
+            lines.append("")
+            lines.append("Correlaciones altas (|r| ≥ 0.95):")
+            for p in pairs[:6]:
+                lines.append(f"  {p['param1']} ↔ {p['param2']}: r={float(p['corr']):.3f}")
+        self.text.setPlainText("\n".join(lines) or "—")
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -293,27 +368,36 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.calib = CalibrationPanel()
         lv.addWidget(self.calib)
 
-        self.sextet1 = SextetPanel(idx=1)
-        lv.addWidget(self.sextet1)
+        # Componentes 1, 2 y 3 en pestañas (solo el 1 activo por defecto).
+        self.comp_tabs = QtWidgets.QTabWidget()
+        self.components_panels: list[ComponentPanel] = []
+        for i in (1, 2, 3):
+            cp = ComponentPanel(idx=i)
+            self.components_panels.append(cp)
+            self.comp_tabs.addTab(cp, tr("tab.component", idx=i))
+        lv.addWidget(self.comp_tabs)
         lv.addStretch(1)
 
         scroll = QtWidgets.QScrollArea(); scroll.setWidget(left); scroll.setWidgetResizable(True)
-        scroll.setMinimumWidth(360); scroll.setMaximumWidth(440)
+        scroll.setMinimumWidth(380); scroll.setMaximumWidth(460)
         splitter.addWidget(scroll)
 
-        # ── Centro: canvas + toolbar ─────────────────────────────────────
-        right = QtWidgets.QWidget()
-        rv = QtWidgets.QVBoxLayout(right); rv.setContentsMargins(0, 0, 0, 0)
-        self.canvas = SpectrumCanvas(right)
-        self.toolbar = NavigationToolbar(self.canvas, right)
-        rv.addWidget(self.toolbar); rv.addWidget(self.canvas)
-        splitter.addWidget(right)
+        # ── Centro: canvas + toolbar + panel de info ─────────────────────
+        center = QtWidgets.QWidget()
+        cv = QtWidgets.QVBoxLayout(center); cv.setContentsMargins(0, 0, 0, 0)
+        self.canvas = SpectrumCanvas(center)
+        self.toolbar = NavigationToolbar(self.canvas, center)
+        self.info_panel = InfoPanel()
+        cv.addWidget(self.toolbar); cv.addWidget(self.canvas, stretch=1)
+        cv.addWidget(self.info_panel)
+        splitter.addWidget(center)
 
-        splitter.setSizes([420, 1000])
+        splitter.setSizes([430, 1000])
 
         # Conectar señales de cambio para refrescar el plot en vivo
         self.calib.paramChanged.connect(self._refresh_plot)
-        self.sextet1.paramChanged.connect(self._refresh_plot)
+        for cp in self.components_panels:
+            cp.paramChanged.connect(self._refresh_plot)
 
     # ── Menubar ──────────────────────────────────────────────────────────
     def _build_menubar(self) -> None:
@@ -353,23 +437,28 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             "slope": self.calib.slope.value(),
             "voigt_sigma": self.calib.voigt_sigma.value(),
         }
-        values.update(self.sextet1.values_dict())
         fixed: dict[str, bool] = {k: False for k in values}
         fixed.update({k: True for k in ("vmax", "center")})
-        fixed.update(self.sextet1.fixed_dict())
         bounds = {
             "baseline": (0.70, 1.30), "slope": (-0.005, 0.005),
             "vmax": (1.0, 15.0), "voigt_sigma": (0.0, 1.0),
         }
-        for name, (lo, hi) in (
+        param_bounds = (
             ("delta", (-2.0, 3.0)), ("quad", (-4.0, 4.0)),
             ("bhf", (0.0, 60.0)), ("gamma1", (0.03, 2.0)),
             ("gamma2", (0.2, 3.0)), ("gamma3", (0.2, 3.0)),
             ("depth", (0.0, 0.30)), ("int1", (0.0, 9.0)),
             ("int2", (0.0, 6.0)), ("int3", (0.0, 3.0)),
-        ):
-            bounds[f"s1_{name}"] = (lo, hi)
-        components = [Component(idx=1, enabled=self.sextet1.enabled.isChecked(), kind="Sextete")]
+        )
+        components = []
+        for cp in self.components_panels:
+            values.update(cp.values_dict())
+            fixed.update(cp.fixed_dict())
+            for name, rng in param_bounds:
+                bounds[f"s{cp.idx}_{name}"] = rng
+            components.append(Component(idx=cp.idx,
+                                        enabled=cp.enabled.isChecked(),
+                                        kind=cp.kind))
         return FitState(
             velocity=self.file.velocity, y_data=self.file.y_data,
             sigma_data=self.file.sigma, values=values, fixed=fixed,
@@ -433,9 +522,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         except Exception:
             self.canvas.render(v, y)
             return
+        # Solo dibujar componentes individuales si hay más de uno activo.
         comps = []
-        for comp in state.components:
-            if comp.enabled:
+        enabled = [c for c in state.components if c.enabled]
+        if len(enabled) >= 2:
+            for comp in enabled:
                 only_this = model_from_values(v, state.values, [comp])
                 comps.append((comp.idx, comp.kind, only_this))
         self.canvas.render(v, y, model=model, components=comps)
@@ -463,12 +554,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             self.calib.vmax.set_value(result.values.get("vmax", self.calib.vmax.value()))
         if state.fit_sigma:
             self.calib.voigt_sigma.set_value(result.values.get("voigt_sigma", self.calib.voigt_sigma.value()))
-        self.sextet1.apply_values(result.values)
+        for cp in self.components_panels:
+            cp.apply_values(result.values)
         self._building = False
         red = result.stats.get("red_chi2", float("nan"))
         chi2 = result.stats.get("chi2", float("nan"))
         self.statusBar().showMessage(
             f"χ²={chi2:.4g}  χ²red={red:.4g}  ·  {result.n_starts} arranques")
+        self.info_panel.show_result(result)
         self.act_fit.setEnabled(True)
         self._refresh_plot()
 
@@ -490,6 +583,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
 
 def main() -> int:
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
+    # Estilo Fusion (Qt nativo, plano y moderno; igual en Win/Linux/macOS).
+    try:
+        app.setStyle("Fusion")
+    except Exception:
+        pass
     win = MossbauerQtWindow(); win.show()
     return app.exec()
 
