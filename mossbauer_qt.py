@@ -2448,22 +2448,32 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             if btn is not None:
                 btn.setEnabled(bool(enabled))
 
-    def _on_fit_velocity_toggled(self, checked: bool) -> None:
-        """Al activar 'Ajustar Vmax', fija automáticamente todos los BHF.
+    def _active_bhf_controls(self) -> list[ParamControl]:
+        """Controles BHF que participan en el ajuste de Vmax.
 
-        El ajuste de velocidad solo es válido con el campo hiperfino fijo, así
-        que se marcan como fijos los BHF de todas las componentes.
+        Igual que en la GUI Tk, el ajuste de velocidad con patrón solo exige
+        fijar los BHF de los sextetes activos. Los dobletes/singletes activos
+        no tienen patrón hiperfino que fijar para este modo.
         """
+        controls: list[ParamControl] = []
+        for cp in getattr(self, "components_panels", []):
+            if cp.enabled.isChecked() and cp.kind == "Sextete":
+                ctl = cp.params.get("bhf")
+                if ctl is not None:
+                    controls.append(ctl)
+        return controls
+
+    def _on_fit_velocity_toggled(self, checked: bool) -> None:
+        """Al activar 'Ajustar Vmax', fija BHF y muestra el aviso de Tk."""
         if not checked:
             return
-        for cp in getattr(self, "components_panels", []):
-            ctl = cp.params.get("bhf")
-            if ctl is not None:
-                ctl.set_fixed(True)
-        self.statusBar().showMessage(
-            tr("msg.fit_velocity_requires_bhf_fixed",
-               default="Ajuste de Vmax: se han fijado los BHF automáticamente."),
-            5000)
+        for ctl in self._active_bhf_controls():
+            ctl.set_fixed(True)
+        QtWidgets.QMessageBox.information(
+            self,
+            tr("msg.fit_velocity_title"),
+            tr("msg.fit_velocity_info"),
+        )
 
     def _on_show_residual_toggled(self, checked: bool) -> None:
         """Reserva o libera el espacio de la diferencia y persiste la opción."""
@@ -2962,6 +2972,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             self.on_fit_distribution()
             return
         self._simulate_enabled = True
+        if (self.calib.fit_velocity.isChecked()
+                and not all(ctl.is_fixed() for ctl in self._active_bhf_controls())):
+            QtWidgets.QMessageBox.warning(
+                self,
+                tr("msg.fit_velocity_title"),
+                tr("msg.fit_velocity_requires_bhf_fixed"),
+            )
+            return
         state = self._build_state()
         if state is None:
             return

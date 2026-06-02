@@ -63,6 +63,48 @@ def test_window_starts_and_menus_exist(win):
     assert any("View" in t or "Vista" in t for t in titles)
 
 
+def test_fit_velocity_toggle_shows_tk_info_and_fixes_active_bhf(win, monkeypatch):
+    """Activar Ajustar Vmax en Qt reproduce el aviso informativo de Tk."""
+    cp = win.components_panels[0]
+    cp.params["bhf"].set_fixed(False)
+    captured = {}
+
+    def fake_information(parent, title, text, *args, **kwargs):
+        captured["title"] = title
+        captured["text"] = text
+        return QtWidgets.QMessageBox.StandardButton.Ok
+
+    monkeypatch.setattr(QtWidgets.QMessageBox, "information",
+                        staticmethod(fake_information))
+    win.calib.fit_velocity.setChecked(True)
+
+    assert cp.params["bhf"].is_fixed()
+    assert captured["title"] == mq.tr("msg.fit_velocity_title")
+    assert captured["text"] == mq.tr("msg.fit_velocity_info")
+
+
+def test_fit_velocity_requires_bhf_fixed_before_qt_fit(win, monkeypatch):
+    """Si Ajustar Vmax está activo y BHF queda libre, Qt avisa y no ajusta."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    cp = win.components_panels[0]
+    win.calib.fit_velocity.setChecked(True)
+    cp.params["bhf"].set_fixed(False)
+    captured = {}
+
+    def fake_warning(parent, title, text, *args, **kwargs):
+        captured["title"] = title
+        captured["text"] = text
+        return QtWidgets.QMessageBox.StandardButton.Ok
+
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning",
+                        staticmethod(fake_warning))
+    win.on_fit()
+
+    assert captured["title"] == mq.tr("msg.fit_velocity_title")
+    assert captured["text"] == mq.tr("msg.fit_velocity_requires_bhf_fixed")
+    assert win.last_fit_result is None
+
+
 def test_qt_component_count_selector_shows_six_components(win):
     """El selector de Qt permite activar hasta 6 componentes, igual que Tk."""
     assert len(win.components_panels) == 6
@@ -132,7 +174,8 @@ def test_init_from_minima_action_shows_detected_message(win, monkeypatch):
         captured["text"] = text
         return QtWidgets.QMessageBox.StandardButton.Ok
 
-    monkeypatch.setattr(QtWidgets.QMessageBox, "information", staticmethod(fake_information))
+    monkeypatch.setattr(QtWidgets.QMessageBox, "information",
+                        staticmethod(fake_information))
     win.act_init.trigger()
 
     assert "Auto" in captured["title"]
