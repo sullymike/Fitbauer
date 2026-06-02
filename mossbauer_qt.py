@@ -40,6 +40,8 @@ from core.fit_engine import (  # noqa: E402
     Component, FitState, fit_discrete, model_from_values,
 )
 from core.profile_likelihood import asymmetric_intervals  # noqa: E402
+from core.plot_styles import get_style, apply_rc  # noqa: E402
+from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data  # noqa: E402
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -118,6 +120,9 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         self.baseline = ParamControl(tr("slider.baseline"), 1.0, 0.70, 1.30, 0.0005, 4)
         self.slope = ParamControl(tr("slider.slope"), 0.0, -0.002, 0.002, 1e-5, 6)
         self.voigt_sigma = ParamControl(tr("slider.voigt_sigma"), 0.05, 0.0, 1.0, 0.001, 4, with_fixed=False)
+        self.voigt_sigma.spin.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.voigt_sigma.spin.customContextMenuRequested.connect(self._show_sigma_menu)
+        self.line_profile = "Lorentziana"
         self.fit_sigma = QtWidgets.QCheckBox(tr("checkbox.fit_sigma"))
 
         for w in (self.vmax, self.fit_velocity, self.center, self.fit_center,
@@ -130,6 +135,33 @@ class CalibrationPanel(QtWidgets.QGroupBox):
             w.fixedChanged.connect(lambda *_: self.paramChanged.emit())
         for cb in (self.fit_velocity, self.fit_center, self.fit_sigma):
             cb.toggled.connect(lambda *_: self.paramChanged.emit())
+
+    def _show_sigma_menu(self, pos: QtCore.QPoint) -> None:
+        """Menú contextual sobre σ: cambiar perfil Lorentziana/Voigt + Ajustar σ."""
+        menu = QtWidgets.QMenu(self)
+        title = menu.addAction(tr("context.sigma_profile_title"))
+        title.setEnabled(False)
+        menu.addSeparator()
+        for kind in ("Lorentziana", "Voigt"):
+            act = menu.addAction(tr(f"options.profile_{'voigt' if kind == 'Voigt' else 'lorentzian'}"))
+            act.setCheckable(True)
+            act.setChecked(self.line_profile == kind)
+            act.triggered.connect(lambda _checked=False, k=kind: self._set_line_profile(k))
+        menu.addSeparator()
+        act_fit_sigma = menu.addAction(tr("checkbox.fit_sigma"))
+        act_fit_sigma.setCheckable(True)
+        act_fit_sigma.setChecked(self.fit_sigma.isChecked())
+        act_fit_sigma.setEnabled(self.line_profile == "Voigt")
+        act_fit_sigma.triggered.connect(lambda checked: self.fit_sigma.setChecked(bool(checked)))
+        menu.exec(self.voigt_sigma.spin.mapToGlobal(pos))
+
+    def _set_line_profile(self, kind: str) -> None:
+        self.line_profile = kind
+        self.voigt_sigma.spin.setEnabled(kind == "Voigt")
+        self.fit_sigma.setEnabled(kind == "Voigt")
+        if kind != "Voigt":
+            self.fit_sigma.setChecked(False)
+        self.paramChanged.emit()
 
 
 class ComponentPanel(QtWidgets.QWidget):
@@ -292,32 +324,58 @@ class SpectrumCanvas(FigureCanvas):
 
     def render(self, v: np.ndarray, y: np.ndarray,
                model: np.ndarray | None = None,
-               components: list[tuple[int, str, np.ndarray]] | None = None) -> None:
+               components: list[tuple[int, str, np.ndarray]] | None = None,
+               style: dict | None = None) -> None:
+        s = style or get_style("classic")
+        self.fig.set_facecolor(s["fig_bg"])
         self.ax.clear(); self.ax_res.clear()
-        self.ax.plot(v, y, ".", color="#0f172a", ms=3.5, alpha=0.7,
+        self.ax.set_facecolor(s["ax_bg"])
+        self.ax_res.set_facecolor(s["res_bg"])
+        self.ax.plot(v, y, ".", color=s["data"],
+                     ms=s.get("data_ms", 3.5), alpha=s.get("data_alpha", 0.7),
                      label=tr("plot.legend_data"))
         if components:
-            palette = ("#10b981", "#f59e0b", "#8b5cf6")
+            palette = s.get("components_palette") or ("#10b981", "#f59e0b", "#8b5cf6")
             for idx, kind, comp in components:
-                self.ax.plot(v, comp, "--", color=palette[(idx - 1) % len(palette)],
-                             lw=1.4, alpha=0.85,
+                self.ax.plot(v, comp, "--",
+                             color=palette[(idx - 1) % len(palette)],
+                             lw=s.get("component_lw", 1.4),
+                             alpha=s.get("component_alpha", 0.85),
                              label=f"{tr(f'kind.{kind}', default=kind)} {idx}")
         if model is not None:
-            self.ax.plot(v, model, "-", color="#ef4444", lw=2.2,
+            self.ax.plot(v, model, "-", color=s["model"],
+                         lw=s.get("model_lw", 2.2),
                          label=tr("plot.legend_model"))
             residual = y - model
-            self.ax_res.axhline(0, color="#9a3412", lw=0.9, alpha=0.9)
-            self.ax_res.plot(v, residual, "-", color="#64748b", lw=1.0)
+            self.ax_res.axhline(0, color=s["res_zero"], lw=0.9, alpha=0.9)
+            self.ax_res.fill_between(v, residual, 0, color=s["res_fill"],
+                                     alpha=s.get("res_fill_alpha", 0.22))
+            self.ax_res.plot(v, residual, "-", color=s["res_line"],
+                             lw=s.get("res_line_lw", 1.0))
             lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
             self.ax_res.set_ylim(-lim, lim)
             self.ax.tick_params(labelbottom=False)
-        self.ax.set_ylabel(tr("plot.transmission_ylabel"))
-        self.ax.set_title(tr("plot.title_discrete"), pad=10, fontweight="semibold")
-        self.ax.grid(True, alpha=0.3)
-        self.ax_res.set_xlabel(tr("plot.velocity_xlabel"))
-        self.ax_res.set_ylabel(tr("plot.residual_ylabel"))
-        self.ax_res.grid(True, alpha=0.3)
-        self.ax.legend(loc="lower right", fontsize=9, framealpha=0.85)
+        self.ax.set_ylabel(tr("plot.transmission_ylabel"), color=s["lbl"])
+        self.ax.set_title(tr("plot.title_discrete"), color=s["title"], pad=10,
+                          fontweight=s.get("title_weight", "bold"))
+        self.ax.tick_params(colors=s["tick"])
+        self.ax.grid(True, color=s["grid"], alpha=s["grid_alpha"],
+                     linewidth=s.get("grid_lw", 0.8))
+        for name, sp in self.ax.spines.items():
+            sp.set_color(s["spine"])
+            if name in s.get("spines_hide", ()):
+                sp.set_visible(False)
+        self.ax_res.set_xlabel(tr("plot.velocity_xlabel"), color=s["lbl"])
+        self.ax_res.set_ylabel(tr("plot.residual_ylabel"), color=s["lbl"])
+        self.ax_res.tick_params(colors=s["res_tick"])
+        self.ax_res.grid(True, color=s["res_grid"], alpha=0.8, linewidth=0.75)
+        for name, sp in self.ax_res.spines.items():
+            sp.set_color(s["res_spine"])
+            if name in s.get("spines_hide", ()):
+                sp.set_visible(False)
+        self.ax.legend(loc="lower right", fontsize=9, framealpha=0.85,
+                       facecolor=s["leg_face"], edgecolor=s["leg_edge"],
+                       labelcolor=s["leg_text"])
         self.fig.tight_layout()
         self.draw_idle()
 
@@ -339,6 +397,222 @@ class FileState:
     y_data: np.ndarray | None = None
 
 
+class BatchFitDialog(QtWidgets.QDialog):
+    """Diálogo de ajuste en serie con warm-start secuencial.
+
+    Selecciona N ficheros .ws5/.adt y los ajusta uno tras otro usando el
+    modelo activo de la ventana principal como plantilla. El resultado de
+    cada uno es la plantilla del siguiente.
+    """
+    def __init__(self, parent: "MossbauerQtWindow"):
+        super().__init__(parent)
+        self.parent_win = parent
+        self.setWindowTitle(tr("msg.batch_title"))
+        self.resize(820, 500)
+        self.results: list[dict] = []
+        self.entries: list[dict] = []  # cada uno {path, metadata, status, result}
+
+        v = QtWidgets.QVBoxLayout(self)
+
+        # Botones de gestión
+        row = QtWidgets.QHBoxLayout()
+        btn_add = QtWidgets.QPushButton(tr("batch.add_files"))
+        btn_add.clicked.connect(self._add_files)
+        btn_rm = QtWidgets.QPushButton(tr("batch.remove"))
+        btn_rm.clicked.connect(self._remove_selected)
+        row.addWidget(btn_add); row.addWidget(btn_rm)
+        row.addStretch(1)
+        row.addWidget(QtWidgets.QLabel("<i>" + tr("batch.template_label") + "</i>"))
+        v.addLayout(row)
+
+        # Tabla
+        self.table = QtWidgets.QTableWidget(0, 3)
+        self.table.setHorizontalHeaderLabels([
+            tr("batch.col_file"), tr("batch.col_meta"), tr("batch.col_status"),
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)
+        v.addWidget(self.table, stretch=1)
+
+        # Regex
+        rrow = QtWidgets.QHBoxLayout()
+        rrow.addWidget(QtWidgets.QLabel(tr("batch.regex_label")))
+        self.regex_edit = QtWidgets.QLineEdit(r"(?P<v>[-+]?\d+(?:\.\d+)?)\s*K")
+        rrow.addWidget(self.regex_edit, stretch=1)
+        btn_apply = QtWidgets.QPushButton(tr("batch.apply_regex"))
+        btn_apply.clicked.connect(self._apply_regex)
+        rrow.addWidget(btn_apply)
+        v.addLayout(rrow)
+
+        # Progreso
+        self.progress = QtWidgets.QLabel("")
+        v.addWidget(self.progress)
+
+        # Botones de acción
+        brow = QtWidgets.QHBoxLayout()
+        self.btn_run = QtWidgets.QPushButton(tr("batch.run"))
+        self.btn_run.clicked.connect(self._run)
+        self.btn_csv = QtWidgets.QPushButton(tr("batch.save_csv"))
+        self.btn_csv.clicked.connect(self._save_csv)
+        self.btn_csv.setEnabled(False)
+        self.btn_trends = QtWidgets.QPushButton(tr("batch.show_trends"))
+        self.btn_trends.clicked.connect(self._show_trends)
+        self.btn_trends.setEnabled(False)
+        brow.addWidget(self.btn_run); brow.addStretch(1)
+        brow.addWidget(self.btn_csv); brow.addWidget(self.btn_trends)
+        btn_close = QtWidgets.QPushButton(tr("button.close"))
+        btn_close.clicked.connect(self.reject)
+        brow.addWidget(btn_close)
+        v.addLayout(brow)
+
+    def _refresh_table(self):
+        self.table.setRowCount(len(self.entries))
+        for i, e in enumerate(self.entries):
+            self.table.setItem(i, 0, QtWidgets.QTableWidgetItem(e["path"].name))
+            meta = e.get("metadata")
+            meta_txt = "" if meta is None else (f"{meta:g}" if isinstance(meta, (int, float)) else str(meta))
+            self.table.setItem(i, 1, QtWidgets.QTableWidgetItem(meta_txt))
+            self.table.setItem(i, 2, QtWidgets.QTableWidgetItem(tr(f"batch.status_{e['status']}")))
+
+    def _add_files(self):
+        paths, _ = QtWidgets.QFileDialog.getOpenFileNames(
+            self, tr("batch.add_files"), str(ROOT),
+            "WS5/ADT (*.ws5 *.adt *.WS5 *.ADT);;All (*.*)")
+        for p in paths:
+            self.entries.append({"path": Path(p), "metadata": None,
+                                  "status": "pending", "result": None})
+        self._refresh_table()
+
+    def _remove_selected(self):
+        rows = sorted({i.row() for i in self.table.selectedIndexes()}, reverse=True)
+        for r in rows:
+            if 0 <= r < len(self.entries):
+                del self.entries[r]
+        self._refresh_table()
+
+    def _apply_regex(self):
+        pat = self.regex_edit.text().strip()
+        for e in self.entries:
+            e["metadata"] = extract_metadata(e["path"].name, pat)
+        self._refresh_table()
+
+    def _run(self):
+        if not self.entries:
+            QtWidgets.QMessageBox.information(
+                self, tr("msg.batch_title"), tr("msg.batch_no_files"))
+            return
+        self.btn_run.setEnabled(False)
+        self.btn_csv.setEnabled(False); self.btn_trends.setEnabled(False)
+        # snapshot del modelo actual de la ventana principal como plantilla
+        base_values = dict(self.parent_win.calib.vmax.parent().property("_") or {})  # noop
+        ok = fail = 0
+        for i, e in enumerate(self.entries, 1):
+            self.progress.setText(
+                tr("progress.batch_step", i=i, n=len(self.entries), name=e["path"].name))
+            QtWidgets.QApplication.processEvents()
+            try:
+                # Reusar warm-start: aplicamos el estado actual del Qt y
+                # cargamos el nuevo espectro (que sobrescribe folding center).
+                counts = read_ws5_counts(e["path"])
+                center = find_best_integer_or_half_center(counts)
+                folded, _ = fold_integer_or_half(counts, center)
+                norm = float(np.percentile(folded, 90)) or 1.0
+                sigma = np.sqrt(np.maximum(folded / 2.0, 1.0)) / norm
+                y = folded / norm
+                vmax = self.parent_win.calib.vmax.value()
+                v = np.linspace(-vmax, vmax, folded.size)
+                # Construir state desde la UI parental
+                state = self.parent_win._build_state()
+                if state is None:
+                    raise RuntimeError("No hay modelo activo")
+                state.velocity = v
+                state.y_data = y
+                state.sigma_data = sigma
+                result = fit_discrete(state)
+                e["status"] = "ok"
+                e["result"] = {
+                    "file": e["path"].name,
+                    "metadata": e["metadata"],
+                    "status": "ok",
+                    "values": result.values,
+                    "errors": result.errors,
+                    "stats": result.stats,
+                    "free_keys": result.free_keys,
+                }
+                ok += 1
+                # warm-start: aplicar valores al UI para la siguiente iteración
+                self.parent_win._building = True
+                for cp in self.parent_win.components_panels:
+                    cp.apply_values(result.values)
+                self.parent_win.calib.baseline.set_value(
+                    result.values.get("baseline", self.parent_win.calib.baseline.value()))
+                self.parent_win.calib.slope.set_value(
+                    result.values.get("slope", self.parent_win.calib.slope.value()))
+                self.parent_win._building = False
+            except Exception as exc:
+                e["status"] = "failed"
+                e["result"] = {"file": e["path"].name, "metadata": e["metadata"],
+                                "status": "failed", "error": str(exc),
+                                "values": {}, "errors": {}, "stats": {}}
+                fail += 1
+            self._refresh_table()
+            QtWidgets.QApplication.processEvents()
+        self.progress.setText(tr("msg.batch_done", ok=ok, fail=fail, n=len(self.entries)))
+        self.btn_run.setEnabled(True)
+        self.btn_csv.setEnabled(True); self.btn_trends.setEnabled(True)
+
+    def _save_csv(self):
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, tr("batch.save_csv"), str(ROOT),
+            "TSV (*.tsv);;CSV (*.csv);;All (*.*)")
+        if not path:
+            return
+        results = [e["result"] for e in self.entries if e.get("result")]
+        keys: set[str] = set()
+        for r in results:
+            keys.update(r.get("free_keys", []) or r.get("values", {}).keys())
+        try:
+            write_results_csv(Path(path), sorted(keys), results)
+            self.progress.setText(f"TSV guardado: {path}")
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, tr("batch.save_csv"),
+                                            f"{type(exc).__name__}: {exc}")
+
+    def _show_trends(self):
+        results = [e["result"] for e in self.entries if e.get("result")]
+        keys: set[str] = set()
+        for r in results:
+            keys.update(r.get("values", {}).keys())
+        trend = collect_trend_data(results, sorted(keys))
+        if not trend:
+            QtWidgets.QMessageBox.information(
+                self, tr("batch.show_trends"),
+                "No hay datos numéricos para representar.")
+            return
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(tr("msg.batch_title"))
+        dlg.resize(900, 600)
+        vv = QtWidgets.QVBoxLayout(dlg)
+        vv.addWidget(QtWidgets.QLabel(tr("dialog.batch_trends_subtitle")))
+        fig = Figure(figsize=(8.5, 5.0), dpi=96)
+        cv = FigureCanvas(fig); vv.addWidget(cv, stretch=1)
+        skeys = sorted(trend.keys())
+        ncols = 2 if len(skeys) > 1 else 1
+        nrows = (len(skeys) + ncols - 1) // ncols
+        for i, k in enumerate(skeys, 1):
+            ax = fig.add_subplot(nrows, ncols, i)
+            xs = [p[0] for p in trend[k]]; ys = [p[1] for p in trend[k]]
+            es = [p[2] if p[2] is not None else 0.0 for p in trend[k]]
+            ax.errorbar(xs, ys, yerr=es, fmt="o-", color="#2563eb", ms=4)
+            ax.set_title(k, fontsize=9); ax.tick_params(labelsize=7)
+            ax.grid(alpha=0.3)
+        fig.tight_layout(); cv.draw_idle()
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
+        bb.rejected.connect(dlg.reject); vv.addWidget(bb)
+        dlg.exec()
+
+
 class MossbauerQtWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -346,6 +620,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.resize(1400, 900)
         self.file = FileState()
         self._building = False
+        self.plot_style_name = "modern"
         self._build_ui()
         self._build_menubar()
         self.statusBar().showMessage(tr("plot.no_file"))
@@ -438,6 +713,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_profile.triggered.connect(self.on_profile_likelihood)
         self.act_profile.setEnabled(False)
         fit_menu.addAction(self.act_profile)
+        self.act_batch = QtGui.QAction(tr("fit.batch_fit"), self)
+        self.act_batch.triggered.connect(self.on_batch_fit)
+        fit_menu.addAction(self.act_batch)
         fit_menu.addSeparator()
         act_fix_all = QtGui.QAction(tr("fit.fix_all"), self)
         act_fix_all.triggered.connect(lambda: self._set_all_fixed(True))
@@ -446,10 +724,31 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         act_free_all.triggered.connect(lambda: self._set_all_fixed(False))
         fit_menu.addAction(act_free_all)
 
+        view_menu = mb.addMenu(tr("menu.view"))
+        style_menu = view_menu.addMenu(tr("options.plot_style"))
+        self.style_action_group = QtGui.QActionGroup(self)
+        for value, label_key in (
+            ("classic", "plot_style.classic"),
+            ("modern", "plot_style.modern"),
+            ("publication", "plot_style.publication"),
+            ("dark", "plot_style.dark"),
+        ):
+            act = QtGui.QAction(tr(label_key), self, checkable=True)
+            if value == self.plot_style_name:
+                act.setChecked(True)
+            act.triggered.connect(lambda _checked=False, v=value: self._set_plot_style(v))
+            style_menu.addAction(act)
+            self.style_action_group.addAction(act)
+
         help_menu = mb.addMenu(tr("menu.help"))
         act_about = QtGui.QAction(tr("help.about"), self)
         act_about.triggered.connect(self.on_about)
         help_menu.addAction(act_about)
+
+    def _set_plot_style(self, name: str) -> None:
+        self.plot_style_name = name
+        apply_rc(name)
+        self._refresh_plot()
 
     # ── Helpers UI ───────────────────────────────────────────────────────
     def _set_all_fixed(self, value: bool) -> None:
@@ -501,6 +800,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             fit_center=self.calib.fit_center.isChecked(),
             fit_sigma=self.calib.fit_sigma.isChecked(),
             voigt_sigma=self.calib.voigt_sigma.value(),
+            line_profile=self.calib.line_profile,
         )
 
     # ── Acciones ─────────────────────────────────────────────────────────
@@ -550,13 +850,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             v = np.linspace(-vmax, vmax, y.size)
             self.file.velocity = v
         state = self._build_state()
+        style = get_style(self.plot_style_name)
         if state is None:
-            self.canvas.render(v, y)
+            self.canvas.render(v, y, style=style)
             return
         try:
             model = model_from_values(v, state.values, state.components)
         except Exception:
-            self.canvas.render(v, y)
+            self.canvas.render(v, y, style=style)
             return
         # Solo dibujar componentes individuales si hay más de uno activo.
         comps = []
@@ -565,7 +866,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             for comp in enabled:
                 only_this = model_from_values(v, state.values, [comp])
                 comps.append((comp.idx, comp.kind, only_this))
-        self.canvas.render(v, y, model=model, components=comps)
+        self.canvas.render(v, y, model=model, components=comps, style=style)
 
     def on_fit(self) -> None:
         state = self._build_state()
@@ -911,6 +1212,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
         bb.rejected.connect(dlg.reject)
         v.addWidget(bb)
+        dlg.exec()
+
+    # ── Ajuste en serie (batch) ─────────────────────────────────────────
+    def on_batch_fit(self) -> None:
+        dlg = BatchFitDialog(self)
         dlg.exec()
 
     def on_about(self) -> None:
