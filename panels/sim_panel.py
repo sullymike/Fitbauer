@@ -142,12 +142,8 @@ class SimPanel(BasePanel):
         d1.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
         d2.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
 
-        # Columna 1 — sliders principales + selección de variable/forma
-        self._add_slider(d1, "dist_delta",     tr("slider.dist_delta"),     0.0,          -2.5, 2.5,  0.001, fit_param=False)
-        self._add_slider(d1, "dist_quad",      tr("slider.dist_quad"),      0.0,          -4.0, 4.0,  0.001, fit_param=False)
-        self._add_slider(d1, "dist_fixed_bhf", tr("slider.dist_fixed_bhf"), BHF_DEFAULT_T, 0.0, 60.0, 0.01,  fit_param=False)
-        self._add_slider(d1, "dist_gamma",     tr("slider.dist_gamma"),     0.18,         0.03, 1.0,  0.001, fit_param=False)
-
+        # Columna 1 — selección de variable/forma y parámetros globales.
+        # Mantiene el orden del GUI Tk clásico, condensado a dos columnas.
         ttk.Label(d1, text=tr("bhf.variable_label")).pack(anchor=tk.W, pady=(4, 0))
         dv = ttk.Combobox(d1, textvariable=app.dist_variable_var,
                           values=("BHF", "ΔEQ"), width=10, state="readonly")
@@ -170,7 +166,12 @@ class SimPanel(BasePanel):
         ttk.Button(d1, text=tr("bhf.load_fixed"), command=app.load_fixed_distribution_file,
                    style="Small.TButton").pack(fill=tk.X, pady=(0, 2))
 
-        # Columna 2 — sliders de rango/bins/alfa + presets y opciones avanzadas
+        self._add_slider(d1, "dist_delta",     tr("slider.dist_delta"),     0.0,          -2.5, 2.5,  0.001, fit_param=False)
+        self._add_slider(d1, "dist_quad",      tr("slider.dist_quad"),      0.0,          -4.0, 4.0,  0.001, fit_param=False)
+        self._add_slider(d1, "dist_fixed_bhf", tr("slider.dist_fixed_bhf"), BHF_DEFAULT_T, 0.0, 60.0, 0.01,  fit_param=False)
+        self._add_slider(d1, "dist_gamma",     tr("slider.dist_gamma"),     0.18,         0.03, 1.0,  0.001, fit_param=False)
+
+        # Columna 2 — rango/bins/alfa + presets y opciones avanzadas.
         self._add_slider(d2, "dist_bmin",      tr("slider.dist_bmin"),      0.0,   0.0,  60.0,  0.1,  fit_param=False)
         self._add_slider(d2, "dist_bmax",      tr("slider.dist_bmax"),      50.0,  1.0,  60.0,  0.1,  fit_param=False)
         self._add_slider(d2, "dist_nbins",     tr("slider.dist_nbins"),     50.0, 10.0, 100.0,  1.0,  fit_param=False)
@@ -289,20 +290,20 @@ class SimPanel(BasePanel):
 
         p = f"s{idx}_"
         depth_default = 0.020 if idx == 1 else 0.005
-        # c1: profundidad · intensidades · isomershift
-        self._add_slider(c1, p + "depth",  tr("slider.s_depth"),  depth_default,  0.0,  0.07, 0.0001)
-        app._add_hidden_model_param(p + "int3", 1.0, 1.0, 1.0, 0.0, fixed=True)
-        self._add_slider(c1, p + "int2",   tr("slider.s_int2"),   2.0,            0.0,  4.0,  0.01)
-        self._add_slider(c1, p + "int1",   tr("slider.s_int1"),   3.0,            0.0,  6.0,  0.01)
-        # Parámetro de textura: t ∈ [0,1]. t=2/3 ⇒ 3:2:1 (polvo aleatorio).
-        self._add_slider(c1, p + "texture", tr("slider.s_texture"), 2.0/3.0,      0.0,  1.0,  0.001)
+        # Orden del GUI Tk clásico, repartido en dos columnas:
+        # δ · ΔEQ · BHF · Γ1-Γ3 | profundidad · intensidades · textura · β.
         self._add_slider(c1, p + "delta",  tr("slider.s_delta"),  0.0,           -2.0,  3.0,  0.001)
-        # c2: cuadrupolo · campo hiperfino · anchuras
-        self._add_slider(c2, p + "quad",   tr("slider.s_quad"),   0.0,           -4.0,  4.0,  0.001)
-        self._add_slider(c2, p + "bhf",    tr("slider.s_bhf"),    BHF_DEFAULT_T,  0.0, 60.0,  0.01)
-        self._add_slider(c2, p + "gamma1", tr("slider.s_gamma1"), 0.15,           0.03,  2.0,  0.001)
-        self._add_slider(c2, p + "gamma2", tr("slider.s_gamma2"), 1.0,            0.2,   3.0,  0.001)
-        self._add_slider(c2, p + "gamma3", tr("slider.s_gamma3"), 1.0,            0.2,   3.0,  0.001)
+        self._add_slider(c1, p + "quad",   tr("slider.s_quad"),   0.0,           -4.0,  4.0,  0.001)
+        self._add_slider(c1, p + "bhf",    tr("slider.s_bhf"),    BHF_DEFAULT_T,  0.0, 60.0,  0.01)
+        self._add_slider(c1, p + "gamma1", tr("slider.s_gamma1"), 0.15,           0.03,  2.0,  0.001)
+        self._add_slider(c1, p + "gamma2", tr("slider.s_gamma2"), 1.0,            0.2,   3.0,  0.001)
+        self._add_slider(c1, p + "gamma3", tr("slider.s_gamma3"), 1.0,            0.2,   3.0,  0.001)
+        self._add_slider(c2, p + "depth",  tr("slider.s_depth"),  depth_default,  0.0,  0.07, 0.0001)
+        self._add_slider(c2, p + "int1",   tr("slider.s_int1"),   3.0,            0.0,  6.0,  0.01)
+        self._add_slider(c2, p + "int2",   tr("slider.s_int2"),   2.0,            0.0,  4.0,  0.01)
+        app._add_hidden_model_param(p + "int3", 1.0, 1.0, 1.0, 0.0, fixed=True)
+        # Parámetro de textura: t ∈ [0,1]. t=2/3 ⇒ 3:2:1 (polvo aleatorio).
+        self._add_slider(c2, p + "texture", tr("slider.s_texture"), 2.0/3.0,      0.0,  1.0,  0.001)
         # Ángulo β entre B y V_zz, en grados (mejora 8b)
         self._add_slider(c2, p + "beta",   tr("slider.s_beta"),   0.0,            0.0,  90.0, 0.1)
 
