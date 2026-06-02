@@ -1291,7 +1291,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.btn_sim_fit.clicked.connect(self.on_fit)
         self.btn_sim_free_all.clicked.connect(lambda: self._set_all_fixed(False))
         self.btn_sim_fix_all.clicked.connect(lambda: self._set_all_fixed(True))
-        self.btn_sim_auto_min.clicked.connect(self.on_auto_fit_from_minima)
+        self.btn_sim_auto_min.clicked.connect(lambda _checked=False: self.on_auto_fit_from_minima())
         self.btn_sim_ai.clicked.connect(self.on_ai_summary)
         self._set_quick_action_buttons_enabled(False)
         sim_lay.addLayout(action_grid)
@@ -1464,11 +1464,13 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_find_center.setEnabled(False)
         fit_menu.addAction(self.act_find_center)
         self.act_init = QtGui.QAction(tr("fit.init_from_minima"), self)
-        self.act_init.triggered.connect(self.on_init_from_minima)
+        # QAction.triggered emits a checked=False argument.  Use a lambda so it
+        # does not override on_init_from_minima(show_message=True).
+        self.act_init.triggered.connect(lambda _checked=False: self.on_init_from_minima(show_message=True))
         self.act_init.setEnabled(False)
         fit_menu.addAction(self.act_init)
         self.act_auto_fit = QtGui.QAction(tr("fit.auto_from_minima"), self)
-        self.act_auto_fit.triggered.connect(self.on_auto_fit_from_minima)
+        self.act_auto_fit.triggered.connect(lambda _checked=False: self.on_auto_fit_from_minima())
         self.act_auto_fit.setEnabled(False)
         fit_menu.addAction(self.act_auto_fit)
         self.act_ai = QtGui.QAction(tr("fit.ollama_start"), self)
@@ -4643,11 +4645,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         # simulación propuesta (habilita el trazado del modelo).
         self._simulate_enabled = True
         self._refresh_plot()
-        summary = ", ".join(f"s{idx}: {kind}" for idx, kind, _g in components)
-        msg = f"Detectados {len(peaks)} mínimos · {summary}"
-        self.statusBar().showMessage(msg, 5000)
+        summary = ", ".join(
+            tr("text.component_kind_label", idx=idx, kind=tr(f"kind.{kind}", default=kind))
+            for idx, kind, _g in components
+        )
+        msg = tr("msg.auto_minima_detected", n=len(peaks), summary=summary)
+        self.statusBar().showMessage(f"{tr('msg.auto_minima_title')}: {summary}", 5000)
         if show_message:
-            QtWidgets.QMessageBox.information(self, tr("fit.init_from_minima"), msg)
+            QtWidgets.QMessageBox.information(self, tr("msg.auto_minima_title"), msg)
         return True
 
     def on_auto_fit_from_minima(self) -> None:
