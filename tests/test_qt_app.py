@@ -33,6 +33,19 @@ def app(qapp):
     return qapp
 
 
+@pytest.fixture(autouse=True)
+def _no_blocking_dialogs(monkeypatch):
+    """Evita que los QMessageBox modales bloqueen los tests headless.
+
+    En la app real estos diálogos informan al usuario y se cierran con OK; en
+    los tests (sin usuario) se sustituyen por una respuesta inmediata.
+    """
+    ok = QtWidgets.QMessageBox.StandardButton.Ok
+    for name in ("information", "warning", "critical", "question"):
+        monkeypatch.setattr(QtWidgets.QMessageBox, name,
+                            staticmethod(lambda *a, **k: ok), raising=False)
+
+
 @pytest.fixture
 def win(app):
     w = mq.MossbauerQtWindow()
