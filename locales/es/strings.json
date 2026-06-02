@@ -540,5 +540,6 @@
   "absorber.model_label": "Absorbente",
   "absorber.thin": "Delgado (lineal)",
   "absorber.thickness": "Grueso (saturación)",
-  "slider.sat_scale": "Escala saturación C"
+  "slider.sat_scale": "Escala saturación C",
+  "button.download_load": "Descargar y cargar"
 }
