@@ -2055,7 +2055,7 @@ class MossbauerFe33GUI(tk.Tk):
             else:
                 status_var.set(tr("status.web_no_items"))
 
-        def do_download() -> None:
+        def do_download(load_after: bool = True) -> None:
             if not (displayed and listbox.curselection()):
                 status_var.set(tr("status.web_select_item"))
                 return
@@ -2079,6 +2079,11 @@ class MossbauerFe33GUI(tk.Tk):
                 status_var.set(tr("status.web_download_error", error=f"{type(exc).__name__}: {exc}"))
                 debug(f"ERROR: {type(exc).__name__}: {exc}")
                 return
+            status_var.set(tr("status.web_downloaded", path=str(path)))
+            if not load_after:
+                selection.clear()
+                update_table()
+                return
             self.load_ws5(Path(path))
             if not is_calibraciones:
                 try:
@@ -2086,16 +2091,18 @@ class MossbauerFe33GUI(tk.Tk):
                                                 with_calib_var.get(), debug)
                 except Exception as exc:
                     debug(f"Aviso: no se pudo asociar la calibración: {exc}")
-            status_var.set(tr("status.web_downloaded", path=str(path)))
             dialog.destroy()
 
         buttons = ttk.Frame(frm)
         buttons.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(8, 0))
         buttons.columnconfigure(0, weight=1)
         buttons.columnconfigure(1, weight=1)
+        buttons.columnconfigure(2, weight=1)
         ttk.Button(buttons, text=tr("button.list"), command=do_list).grid(row=0, column=0, sticky="ew", padx=(0, 5))
-        ttk.Button(buttons, text=tr("button.download"), command=do_download, style="Accent.TButton").grid(
-            row=0, column=1, sticky="ew", padx=(5, 0))
+        ttk.Button(buttons, text=tr("button.download"), command=lambda: do_download(False)).grid(
+            row=0, column=1, sticky="ew", padx=5)
+        ttk.Button(buttons, text=tr("button.download_load"), command=lambda: do_download(True), style="Accent.TButton").grid(
+            row=0, column=2, sticky="ew", padx=(5, 0))
 
     def _apply_web_calibration(self, client, medida: dict, dest_dir: str,
                                download_file: bool, debug) -> None:
