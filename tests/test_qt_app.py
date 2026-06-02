@@ -190,6 +190,23 @@ def test_export_report_writes_markdown(win, tmp_path):
     assert "Mössbauer" in content and "Componentes" in content
 
 
+def test_bootstrap_returns_sigma_estimates(win):
+    """Bootstrap MC con 5 réplicas devuelve un mensaje con σ(MC) por parámetro."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    cp = win.components_panels[0]
+    cp.params["delta"].set_value(-0.11)
+    cp.params["bhf"].set_value(33.0)
+    cp.params["gamma1"].set_value(0.14)
+    cp.params["depth"].set_value(0.013)
+    # Override del input dialog para no bloquear
+    QtWidgets.QInputDialog.getInt = staticmethod(lambda *a, **k: (5, True))
+    captured = {}
+    QtWidgets.QMessageBox.information = staticmethod(
+        lambda *a, **k: captured.setdefault("msg", a[-1]))
+    win.on_bootstrap()
+    assert "σ(MC)" in captured.get("msg", "") or "MC)" in captured.get("msg", "")
+
+
 def test_save_fit_writes_tsv(win, tmp_path):
     """Save fit exporta velocidad, datos, modelo y residuo en TSV."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")

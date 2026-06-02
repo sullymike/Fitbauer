@@ -46,7 +46,9 @@ from core.fit_engine import (  # noqa: E402
 from core.profile_likelihood import asymmetric_intervals  # noqa: E402
 from core.plot_styles import get_style, apply_rc  # noqa: E402
 from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data  # noqa: E402
-from mossbauer_distribution import fit_bhf_distribution, fit_hyperfine_distribution  # noqa: E402
+from mossbauer_distribution import (  # noqa: E402
+    fit_bhf_distribution, fit_hyperfine_distribution, scan_alpha,
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -874,6 +876,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_batch = QtGui.QAction(tr("fit.batch_fit"), self)
         self.act_batch.triggered.connect(self.on_batch_fit)
         fit_menu.addAction(self.act_batch)
+        self.act_bootstrap = QtGui.QAction(tr("fit.bootstrap"), self)
+        self.act_bootstrap.triggered.connect(self.on_bootstrap)
+        self.act_bootstrap.setEnabled(False)
+        fit_menu.addAction(self.act_bootstrap)
+        self.act_lcurve = QtGui.QAction(tr("bhf.lcurve_alpha"), self)
+        self.act_lcurve.triggered.connect(self.on_lcurve)
+        self.act_lcurve.setEnabled(False)
+        fit_menu.addAction(self.act_lcurve)
         fit_menu.addSeparator()
         act_fix_all = QtGui.QAction(tr("fit.fix_all"), self)
         act_fix_all.triggered.connect(lambda: self._set_all_fixed(True))
@@ -1111,6 +1121,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_find_center.setEnabled(True)
         self.act_save_fit.setEnabled(True)
         self.act_export_report.setEnabled(True)
+        self.act_bootstrap.setEnabled(True)
+        self.act_lcurve.setEnabled(True)
         self.statusBar().showMessage(
             f"{path.name} · {counts.size} canales · centro={center:.3f}")
         self._refresh_plot()
@@ -1323,6 +1335,140 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.critical(
                 self, tr("file.load_session"),
                 f"{type(exc).__name__}: {exc}")
+
+    # ── Bootstrap MC ─────────────────────────────────────────────────────
+    def on_bootstrap(self) -> None:
+        """Estima errores por remuestreo Monte Carlo (solo modo discreto)."""
+        if self.is_distribution_mode:
+            QtWidgets.QMessageBox.information(
+                self, tr("msg.bootstrap_title"), tr("msg.bootstrap_discrete_only"))
+            return
+        state = self._build_state()
+        if state is None:
+            return
+        nrep, ok = QtWidgets.QInputDialog.getInt(
+            self, tr("msg.bootstrap_title"),
+            tr("dialog.bootstrap_prompt") if hasattr(tr, "_dummy") else "Número de réplicas:",
+            30, 5, 300, 5)
+        if not ok:
+            return
+        # Ajuste base
+        self.statusBar().showMessage("Ajuste base…")
+        QtWidgets.QApplication.processEvents()
+        try:
+            base = fit_discrete(state)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, tr("msg.bootstrap_title"),
+                                            f"{type(exc).__name__}: {exc}")
+            return
+        if not base.free_keys:
+            QtWidgets.QMessageBox.information(
+                self, tr("msg.bootstrap_title"), tr("msg.bootstrap_no_free"))
+            return
+        # Modelo base como predicción de los datos sintéticos
+        v = state.velocity
+        try:
+            model0 = model_from_values(v, base.values, state.components, state.constraints)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, tr("msg.bootstrap_title"),
+                                            f"{type(exc).__name__}: {exc}")
+            return
+        sigma = state.sigma_data if state.sigma_data is not None else np.ones_like(model0) * 0.005
+        rng = np.random.default_rng(24680)
+        samples: dict[str, list[float]] = {k: [] for k in base.free_keys}
+        for i in range(nrep):
+            self.statusBar().showMessage(f"Bootstrap {i+1}/{nrep}…")
+            QtWidgets.QApplication.processEvents()
+            y_sim = model0 + rng.normal(0.0, sigma)
+            sub = FitState(
+                velocity=v, y_data=y_sim, sigma_data=sigma,
+                values=dict(base.values), fixed=dict(state.fixed),
+                bounds=dict(state.bounds), components=state.components,
+                constraints=state.constraints,
+                likelihood=state.likelihood, robust_loss=state.robust_loss,
+                line_profile=state.line_profile, voigt_sigma=state.voigt_sigma,
+                multistart_n=1,
+            )
+            try:
+                r = fit_discrete(sub)
+                for k in base.free_keys:
+                    samples[k].append(float(r.values.get(k, float("nan"))))
+            except Exception:
+                continue
+        # Resumen
+        std = {k: float(np.std(v_list)) if len(v_list) > 1 else 0.0
+               for k, v_list in samples.items()}
+        msg_lines = [tr("msg.bootstrap_done", ok=len(samples[base.free_keys[0]]),
+                        total=nrep)]
+        msg_lines.append("")
+        for k in base.free_keys:
+            msg_lines.append(f"  {k:14s}  σ(MC) = {std[k]:.4g}")
+        QtWidgets.QMessageBox.information(
+            self, tr("msg.bootstrap_title"), "\n".join(msg_lines))
+
+    # ── L-curve α scanner (modo distribución) ────────────────────────────
+    def on_lcurve(self) -> None:
+        if not self.is_distribution_mode:
+            QtWidgets.QMessageBox.information(
+                self, tr("bhf.lcurve_alpha"),
+                "Disponible solo en modo distribución P(BHF) / P(ΔEQ).")
+            return
+        if self.file.velocity is None or self.file.y_data is None:
+            return
+        d = self.dist_panel
+        alphas = np.logspace(-6, 2, 25)
+        self.statusBar().showMessage(f"Escaneando α (n={len(alphas)})…")
+        QtWidgets.QApplication.processEvents()
+        var = self.dist_variable
+        bmin = float(d.bmin.value()); bmax = max(bmin + 0.5, float(d.bmax.value()))
+        nbins = max(5, int(round(d.nbins.value())))
+        try:
+            if var == "quad":
+                fits = [fit_hyperfine_distribution(
+                    self.file.velocity, self.file.y_data, variable="quad",
+                    delta=float(d.delta.value()), gamma=float(d.gamma.value()),
+                    pmin=bmin, pmax=bmax, nbins=nbins, alpha=float(a),
+                    sigma=self.file.sigma) for a in alphas]
+            else:
+                fits = scan_alpha(
+                    self.file.velocity, self.file.y_data, list(alphas),
+                    delta=float(d.delta.value()), quad=float(d.quad.value()),
+                    gamma=float(d.gamma.value()),
+                    bmin=bmin, bmax=bmax, nbins=nbins, sigma=self.file.sigma)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, tr("bhf.lcurve_alpha"),
+                                            f"{type(exc).__name__}: {exc}")
+            return
+        # Diálogo: residuo² vs rugosidad
+        resid_norm = np.array([float(np.linalg.norm(f.residuals)) for f in fits])
+        rough = np.array([float(np.linalg.norm(np.diff(f.weights, 2)))
+                          if f.weights.size > 2 else 0.0 for f in fits])
+        rms = np.array([f.rms for f in fits])
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(tr("bhf.lcurve_alpha"))
+        dlg.resize(820, 540)
+        v = QtWidgets.QVBoxLayout(dlg)
+        fig = Figure(figsize=(8.0, 5.0), dpi=96)
+        cv = FigureCanvas(fig); v.addWidget(cv, stretch=1)
+        ax1 = fig.add_subplot(1, 2, 1)
+        ax1.loglog(rough, resid_norm, "o-", color="#2563eb", ms=4)
+        for i, a in enumerate(alphas):
+            ax1.annotate(f"{np.log10(a):+.1f}", (rough[i], resid_norm[i]),
+                          fontsize=6, alpha=0.7)
+        ax1.set_xlabel(tr("plot.lcurve_xlabel"))
+        ax1.set_ylabel(tr("plot.lcurve_ylabel"))
+        ax1.set_title(tr("plot.lcurve_title"))
+        ax1.grid(True, alpha=0.3, which="both")
+        ax2 = fig.add_subplot(1, 2, 2)
+        ax2.semilogx(alphas, rms, "o-", color="#ef4444", ms=4)
+        ax2.set_xlabel("α")
+        ax2.set_ylabel(tr("plot.label_rms"))
+        ax2.set_title(tr("plot.alpha_scan_title"))
+        ax2.grid(True, alpha=0.3, which="both")
+        fig.tight_layout(); cv.draw_idle()
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
+        bb.rejected.connect(dlg.reject); v.addWidget(bb)
+        dlg.exec()
 
     # ── Acciones rápidas ─────────────────────────────────────────────────
     def on_find_center(self) -> None:
