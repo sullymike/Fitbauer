@@ -28,6 +28,7 @@ from core.physics import (
 )
 from core.constants import SEXTET_PARAM_NAMES
 from core.folding import fold_integer_or_half
+from core.profile_likelihood import asymmetric_intervals
 
 
 # ── Tipos públicos ────────────────────────────────────────────────────────
@@ -464,3 +465,166 @@ def _correlation_summary(cov: np.ndarray, free_keys: list[str]) -> dict[str, obj
         "max_pair": list(max_pair),
         "high_pairs": high_pairs,
     }
+
+
+# ── Análisis de errores (portado del Tk, puro y testeable) ─────────────────
+
+
+@dataclass
+class BootstrapResult:
+    """Resultado del bootstrap Monte Carlo de errores."""
+    base: FitResult
+    std: dict[str, float]                 # σ(MC) por parámetro libre
+    samples: dict[str, list[float]]       # réplicas aceptadas por parámetro
+    n_ok: int                             # nº de réplicas que convergieron
+    n_rep: int                            # nº de réplicas solicitadas
+
+
+def _replica_state(
+    state: FitState, values: dict[str, float], y_data: np.ndarray,
+    sigma_data: np.ndarray | None, *,
+    extra_fixed: dict[str, bool] | None = None, multistart_n: int = 1,
+) -> FitState:
+    """Sub-estado para una réplica (bootstrap) o un punto de perfil.
+
+    Conserva el modelo y las opciones relevantes (componentes, restricciones,
+    verosimilitud, pérdida robusta, perfil de línea, σ-Voigt y modelo de
+    absorbente) pero NO re-ajusta la calibración (vmax/center/σ) y reduce el
+    multiarranque. Copiar ``absorber_model`` corrige un descuido de la GUI Qt,
+    que dejaba las réplicas en modo fino aunque el ajuste fuese de absorbente
+    grueso.
+    """
+    fixed = dict(state.fixed)
+    if extra_fixed:
+        fixed.update(extra_fixed)
+    return FitState(
+        velocity=state.velocity, y_data=y_data, sigma_data=sigma_data,
+        values=dict(values), fixed=fixed, bounds=dict(state.bounds),
+        components=state.components, constraints=state.constraints,
+        likelihood=state.likelihood, robust_loss=state.robust_loss,
+        line_profile=state.line_profile, voigt_sigma=state.voigt_sigma,
+        absorber_model=state.absorber_model, multistart_n=multistart_n,
+    )
+
+
+def bootstrap_errors(
+    state: FitState, *, n_rep: int = 30, seed: int = 24680,
+    base: FitResult | None = None,
+    progress_cb: Callable[[str, int, int], None] | None = None,
+) -> BootstrapResult:
+    """Estima errores por remuestreo Monte Carlo (modo discreto).
+
+    Ajusta el modelo base, genera ``n_rep`` espectros sintéticos a partir de él
+    y re-ajusta cada uno; la desviación estándar (muestral, ddof=1) de los
+    parámetros libres es la incertidumbre. En verosimilitud Poisson, si se
+    dispone de ``norm_factor``, simula cuentas Poisson reales (mejora del Tk);
+    en otro caso usa ruido gaussiano con la σ de los datos.
+    """
+    if progress_cb is None:
+        progress_cb = lambda *_: None
+    if base is None:
+        base = fit_discrete(state)
+    if not base.free_keys:
+        return BootstrapResult(base=base, std={}, samples={}, n_ok=0, n_rep=n_rep)
+
+    v = state.velocity
+    model0 = model_from_values(v, base.values, state.components,
+                               state.constraints, absorber_model=state.absorber_model)
+    sigma = state.sigma_data if state.sigma_data is not None else np.ones_like(model0) * 0.005
+    rng = np.random.default_rng(seed)
+    poisson = state.likelihood == "poisson" and state.norm_factor not in (None, 0)
+    norm = float(state.norm_factor) if poisson else 1.0
+
+    samples: dict[str, list[float]] = {k: [] for k in base.free_keys}
+    for i in range(int(n_rep)):
+        progress_cb(f"Bootstrap {i + 1}/{n_rep}", i + 1, n_rep)
+        if poisson:
+            # c_sim ~ Poisson(λ = model0·norm·2) / 2  (promedio de dos canales).
+            lam = np.maximum(model0 * norm * 2.0, 0.0)
+            y_sim = (rng.poisson(lam).astype(float) / 2.0) / norm
+        else:
+            y_sim = model0 + rng.normal(0.0, sigma)
+        sub = _replica_state(state, base.values, y_sim, sigma, multistart_n=1)
+        try:
+            r = fit_discrete(sub)
+        except Exception:
+            continue
+        if r.values:
+            for k in base.free_keys:
+                samples[k].append(float(r.values.get(k, float("nan"))))
+
+    std = {
+        k: (float(np.std(vals, ddof=1)) if len(vals) > 1 else 0.0)
+        for k, vals in samples.items()
+    }
+    n_ok = len(samples[base.free_keys[0]]) if base.free_keys else 0
+    return BootstrapResult(base=base, std=std, samples=samples, n_ok=n_ok, n_rep=int(n_rep))
+
+
+def profile_likelihood(
+    state: FitState, *, base: FitResult | None = None,
+    points_per_side: int = 7, spans: tuple[float, ...] = (3.0, 5.0),
+    max_nfev: int = 2000,
+    progress_cb: Callable[[str, int, int], None] | None = None,
+) -> dict[str, dict]:
+    """Intervalos de confianza asimétricos por verosimilitud perfilada.
+
+    Para cada parámetro libre del ajuste base: lo fija en una rejilla en torno
+    al óptimo, re-ajusta el resto, calcula Δχ²(p) y localiza los cruces Δχ²=1
+    (1σ) y Δχ²=4 (2σ). El escaneo es adaptativo (portado del Tk): empieza en
+    ±``spans[0]``·σ y se amplía si Δχ²=1 no se cruza en un lado con margen
+    frente al límite físico. Devuelve ``{clave: {best, scan_values, d_chi2,
+    minus_1s, plus_1s, minus_2s, plus_2s}}``.
+    """
+    if progress_cb is None:
+        progress_cb = lambda *_: None
+    if base is None:
+        base = fit_discrete(state)
+    if not base.free_keys:
+        return {}
+    chi2_min = float(base.stats.get("chi2", 0.0))
+    free_keys = list(base.free_keys)
+
+    def _cost_with_fixed(key: str, val: float) -> float:
+        sub = _replica_state(
+            state, {**base.values, key: float(val)}, state.y_data,
+            state.sigma_data, extra_fixed={key: True}, multistart_n=2,
+        )
+        try:
+            r = fit_discrete(sub)
+            return float(r.stats.get("chi2", float("inf")))
+        except Exception:
+            return float("inf")
+
+    results: dict[str, dict] = {}
+    n = len(free_keys)
+    for i, key in enumerate(free_keys, 1):
+        progress_cb(f"Perfilando {key} ({i}/{n})", i, n)
+        best = float(base.values[key])
+        sigma_est = float(base.errors.get(key) or 0.0)
+        if sigma_est <= 0:
+            sigma_est = max(0.05 * (abs(best) + 1.0), 1e-6)
+        lo_b, hi_b = state.bounds.get(key, (best - 5 * sigma_est, best + 5 * sigma_est))
+        scan_vals = np.array([])
+        d_chi2 = np.array([])
+        for span in spans:
+            left = np.linspace(max(lo_b, best - span * sigma_est), best, points_per_side)
+            right = np.linspace(best, min(hi_b, best + span * sigma_est), points_per_side)
+            grid = np.unique(np.concatenate([left, right]))
+            costs = np.array([_cost_with_fixed(key, float(val)) for val in grid])
+            d = costs - chi2_min
+            scan_vals, d_chi2 = grid, d
+            bracket_left = any(d[j] >= 1.0 for j, val in enumerate(grid) if val < best)
+            bracket_right = any(d[j] >= 1.0 for j, val in enumerate(grid) if val > best)
+            headroom_left = (best - lo_b) > span * sigma_est * 1.05
+            headroom_right = (hi_b - best) > span * sigma_est * 1.05
+            if (bracket_left or not headroom_left) and (bracket_right or not headroom_right):
+                break
+        intervals = asymmetric_intervals(scan_vals, d_chi2, best)
+        results[key] = {
+            "best": best,
+            "scan_values": scan_vals.tolist(),
+            "d_chi2": d_chi2.tolist(),
+            **intervals,
+        }
+    return results

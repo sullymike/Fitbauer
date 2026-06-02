@@ -19,6 +19,7 @@ from core.folding import (  # noqa: E402
 )
 from core.fit_engine import (  # noqa: E402
     Component, FitState, fit_discrete, model_from_values, _refold_at_center,
+    bootstrap_errors, profile_likelihood, BootstrapResult,
 )
 
 DATA = ROOT / "data_sample"
@@ -160,6 +161,47 @@ def test_fit_center_without_counts_does_not_harm_model():
     result = fit_discrete(state)
     assert abs(result.values["s1_bhf"] - 33.0) < 1.0
     assert abs((result.values["s1_delta"] - ISO_REF)) < 0.05
+
+
+def test_bootstrap_errors_gauss():
+    """El bootstrap converge y devuelve σ(MC) positivas para los parámetros libres."""
+    v, y, sigma = _load_alpha_fe()
+    state = _alpha_fe_state(v, y, sigma)
+    res = bootstrap_errors(state, n_rep=12, seed=24680)
+    assert isinstance(res, BootstrapResult)
+    assert res.n_ok >= 8                       # la mayoría converge
+    for k in ("s1_delta", "s1_bhf", "s1_gamma1", "s1_depth"):
+        assert k in res.std and res.std[k] > 0.0
+    # σ(MC) del orden de la σ analítica del ajuste base (mismo orden de magnitud).
+    for k in ("s1_bhf", "s1_delta"):
+        if res.base.errors.get(k, 0.0) > 0:
+            ratio = res.std[k] / res.base.errors[k]
+            assert 0.1 < ratio < 10.0
+
+
+def test_bootstrap_is_deterministic_with_seed():
+    """Misma semilla → mismos resultados (reproducibilidad)."""
+    v, y, sigma = _load_alpha_fe()
+    s1 = bootstrap_errors(_alpha_fe_state(v, y, sigma), n_rep=8, seed=777)
+    s2 = bootstrap_errors(_alpha_fe_state(v, y, sigma), n_rep=8, seed=777)
+    assert s1.std == s2.std
+
+
+def test_profile_likelihood_brackets_one_sigma():
+    """La verosimilitud perfilada produce curvas Δχ² con cruces 1σ alrededor del óptimo."""
+    v, y, sigma = _load_alpha_fe()
+    state = _alpha_fe_state(v, y, sigma)
+    results = profile_likelihood(state, points_per_side=5)
+    assert results
+    for key, r in results.items():
+        d = np.array(r["d_chi2"])
+        assert np.min(d) <= 1e-6 + 0.0       # el mínimo (óptimo) es ~0
+        assert d.max() >= 0.0
+        # los valores de escaneo rodean al óptimo
+        assert min(r["scan_values"]) <= r["best"] <= max(r["scan_values"])
+    # Para BHF (bien determinado) debe existir al menos un cruce 1σ.
+    bhf = results.get("s1_bhf", {})
+    assert bhf.get("plus_1s") is not None or bhf.get("minus_1s") is not None
 
 
 def test_fit_discrete_respects_fixed():

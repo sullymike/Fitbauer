@@ -108,8 +108,8 @@ from core.folding import (  # noqa: E402
 )
 from core.fit_engine import (  # noqa: E402
     Component, FitState, FitResult, fit_discrete, model_from_values,
+    bootstrap_errors, profile_likelihood,
 )
-from core.profile_likelihood import asymmetric_intervals  # noqa: E402
 from core.physics import component_absorption  # noqa: E402
 from core.plot_styles import get_style, apply_rc  # noqa: E402
 from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data  # noqa: E402
@@ -3988,57 +3988,27 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             30, 5, 300, 5)
         if not ok:
             return
-        # Ajuste base
+        # Motor puro: ajuste base + remuestreo Monte Carlo (core.fit_engine).
         self.statusBar().showMessage("Ajuste base…")
         QtWidgets.QApplication.processEvents()
+
+        def _progress(msg: str, _i: int, _n: int) -> None:
+            self.statusBar().showMessage(f"{msg}…")
+            QtWidgets.QApplication.processEvents()
+
         try:
-            base = fit_discrete(state)
+            res = bootstrap_errors(state, n_rep=nrep, progress_cb=_progress)
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("msg.bootstrap_title"),
                                             f"{type(exc).__name__}: {exc}")
             return
-        if not base.free_keys:
+        if not res.base.free_keys:
             QtWidgets.QMessageBox.information(
                 self, tr("msg.bootstrap_title"), tr("msg.bootstrap_no_free"))
             return
-        # Modelo base como predicción de los datos sintéticos
-        v = state.velocity
-        try:
-            model0 = model_from_values(v, base.values, state.components, state.constraints)
-        except Exception as exc:
-            QtWidgets.QMessageBox.critical(self, tr("msg.bootstrap_title"),
-                                            f"{type(exc).__name__}: {exc}")
-            return
-        sigma = state.sigma_data if state.sigma_data is not None else np.ones_like(model0) * 0.005
-        rng = np.random.default_rng(24680)
-        samples: dict[str, list[float]] = {k: [] for k in base.free_keys}
-        for i in range(nrep):
-            self.statusBar().showMessage(f"Bootstrap {i+1}/{nrep}…")
-            QtWidgets.QApplication.processEvents()
-            y_sim = model0 + rng.normal(0.0, sigma)
-            sub = FitState(
-                velocity=v, y_data=y_sim, sigma_data=sigma,
-                values=dict(base.values), fixed=dict(state.fixed),
-                bounds=dict(state.bounds), components=state.components,
-                constraints=state.constraints,
-                likelihood=state.likelihood, robust_loss=state.robust_loss,
-                line_profile=state.line_profile, voigt_sigma=state.voigt_sigma,
-                multistart_n=1,
-            )
-            try:
-                r = fit_discrete(sub)
-                for k in base.free_keys:
-                    samples[k].append(float(r.values.get(k, float("nan"))))
-            except Exception:
-                continue
-        # Resumen
-        std = {k: float(np.std(v_list)) if len(v_list) > 1 else 0.0
-               for k, v_list in samples.items()}
-        msg_lines = [tr("msg.bootstrap_done", ok=len(samples[base.free_keys[0]]),
-                        total=nrep)]
-        msg_lines.append("")
-        for k in base.free_keys:
-            msg_lines.append(f"  {k:14s}  σ(MC) = {std[k]:.4g}")
+        msg_lines = [tr("msg.bootstrap_done", ok=res.n_ok, total=res.n_rep), ""]
+        for k in res.base.free_keys:
+            msg_lines.append(f"  {k:14s}  σ(MC) = {res.std[k]:.4g}")
         QtWidgets.QMessageBox.information(
             self, tr("msg.bootstrap_title"), "\n".join(msg_lines))
 
@@ -4976,55 +4946,25 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             return
         self.statusBar().showMessage("Ajustando antes de perfilar…")
         QtWidgets.QApplication.processEvents()
+
+        def _progress(msg: str, _i: int, _n: int) -> None:
+            self.statusBar().showMessage(f"{msg}…")
+            QtWidgets.QApplication.processEvents()
+
+        # Motor puro: verosimilitud perfilada con escaneo adaptativo (core.fit_engine).
         try:
-            base = fit_discrete(state)
+            results = profile_likelihood(state, progress_cb=_progress)
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("fit.profile_likelihood"),
                                             f"{type(exc).__name__}: {exc}")
             return
-        if not base.free_keys:
+        if not results:
             QtWidgets.QMessageBox.information(
                 self, tr("fit.profile_likelihood"),
                 "No hay parámetros libres para perfilar.")
             return
-        chi2_min = float(base.stats.get("chi2", 0.0))
-
-        results: dict[str, dict] = {}
-        n = len(base.free_keys)
-        for i, key in enumerate(base.free_keys, 1):
-            self.statusBar().showMessage(f"Perfilando {key} ({i}/{n})…")
-            QtWidgets.QApplication.processEvents()
-            best = float(base.values[key])
-            sigma_est = float(base.errors.get(key) or max(0.05 * (abs(best) + 1.0), 1e-6))
-            sigma_est = max(sigma_est, 1e-6)
-            lo_b, hi_b = state.bounds.get(key, (best - 5 * sigma_est, best + 5 * sigma_est))
-            grid = np.unique(np.concatenate([
-                np.linspace(max(lo_b, best - 3 * sigma_est), best, 7),
-                np.linspace(best, min(hi_b, best + 3 * sigma_est), 7),
-            ]))
-            costs = []
-            for val in grid:
-                sub = FitState(
-                    velocity=state.velocity, y_data=state.y_data,
-                    sigma_data=state.sigma_data,
-                    values={**base.values, key: float(val)},
-                    fixed={**state.fixed, key: True},
-                    bounds=state.bounds, components=state.components,
-                    constraints=state.constraints,
-                    likelihood=state.likelihood, robust_loss=state.robust_loss,
-                    line_profile=state.line_profile, voigt_sigma=state.voigt_sigma,
-                    multistart_n=2,
-                )
-                try:
-                    r = fit_discrete(sub)
-                    costs.append(float(r.stats.get("chi2", float("inf"))))
-                except Exception:
-                    costs.append(float("inf"))
-            d_chi2 = np.array(costs) - chi2_min
-            intervals = asymmetric_intervals(grid, d_chi2, best)
-            results[key] = {"best": best, "scan_values": grid.tolist(),
-                            "d_chi2": d_chi2.tolist(), **intervals}
-        self.statusBar().showMessage(f"Verosimilitud perfilada: {n} parámetros", 5000)
+        self.statusBar().showMessage(
+            f"Verosimilitud perfilada: {len(results)} parámetros", 5000)
         self._show_profile_dialog(results)
 
     def _show_profile_dialog(self, results: dict) -> None:
