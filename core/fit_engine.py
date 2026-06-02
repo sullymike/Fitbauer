@@ -448,8 +448,9 @@ def fit_discrete(state: FitState, progress_cb: Callable[[str], None] | None = No
 
     # 5. TRF desde cada candidato; nos quedamos con el de menor coste.
     ls_kwargs: dict = {}
-    if state.robust_loss in ("soft_l1", "huber"):
+    if state.robust_loss in ("soft_l1", "huber", "cauchy"):
         ls_kwargs["loss"] = state.robust_loss
+        ls_kwargs["f_scale"] = 3.0  # umbral ~3σ (residuos ya normalizados por σ)
     result = None
     n_starts = 0
     for cand in candidates:

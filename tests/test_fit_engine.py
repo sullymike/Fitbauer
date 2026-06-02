@@ -288,6 +288,38 @@ def test_fit_discrete_texture_mode_runs():
     assert 0.3 < t < 1.0
 
 
+def test_free_keys_mapping_like_tk_gui():
+    """Contrato del que depende la delegación del Tk: con TODAS las claves de los
+    3 componentes presentes en ``values`` pero solo el 1 activo, y ``fixed``
+    marcando como fijas las no libres, core deriva exactamente el mismo conjunto
+    de parámetros libres que la GUI y recupera α-Fe."""
+    v, y, sigma = _load_alpha_fe()
+    names = ["delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
+             "depth", "int1", "int2", "int3", "texture", "beta"]
+    defaults = {"bhf": 33.0, "gamma1": 0.14, "gamma2": 1.0, "gamma3": 1.0,
+                "depth": 0.013, "int1": 3.0, "int2": 2.0, "int3": 1.0,
+                "delta": -0.1, "texture": 0.667}
+    values = {"baseline": 1.0, "slope": 0.0, "vmax": VMAX, "center": 256.0,
+              "voigt_sigma": 0.05, "sat_scale": 1.0}
+    for idx in (1, 2, 3):
+        for nm in names:
+            values[f"s{idx}_{nm}"] = defaults.get(nm, 0.0)
+    tk_free = {"baseline", "slope", "s1_delta", "s1_bhf", "s1_gamma1", "s1_depth"}
+    fixed = {k: (True if k in ("vmax", "center", "voigt_sigma") else (k not in tk_free))
+             for k in values}
+    bounds = {"baseline": (0.70, 1.30), "slope": (-0.005, 0.005), "sat_scale": (0.05, 50.0)}
+    for idx in (1, 2, 3):
+        bounds.update({f"s{idx}_delta": (-2.0, 3.0), f"s{idx}_bhf": (0.0, 60.0),
+                       f"s{idx}_gamma1": (0.03, 2.0), f"s{idx}_depth": (0.0, 0.30)})
+    components = [Component(idx=1, enabled=True, kind="Sextete"),
+                 Component(idx=2, enabled=False), Component(idx=3, enabled=False)]
+    state = FitState(velocity=v, y_data=y, sigma_data=sigma, values=values,
+                     fixed=fixed, bounds=bounds, components=components)
+    result = fit_discrete(state)
+    assert set(result.free_keys) == tk_free          # ni claves de comp. 2/3 ni fijas
+    assert abs(result.values["s1_bhf"] - 33.0) < 1.0
+
+
 def test_fit_discrete_respects_fixed():
     v, y, sigma = _load_alpha_fe()
     state = _alpha_fe_state(v, y, sigma)

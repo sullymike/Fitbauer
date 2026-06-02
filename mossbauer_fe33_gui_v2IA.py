@@ -4046,6 +4046,7 @@ class MossbauerFe33GUI(tk.Tk):
         return dialog, update, close
 
     def fit_current_data(self) -> None:
+        global VOIGT_SIGMA
         self._simulate_enabled = True
         self.apply_constraints_to_vars()
         if self.fit_mode_var.get() == "bhf_distribution":
@@ -4075,44 +4076,13 @@ class MossbauerFe33GUI(tk.Tk):
             messagebox.showinfo(tr("msg.fit_title"), tr("msg.fit_all_fixed"))
             return
 
-        x0 = [values0[key] for key in free_keys]
-        lo = []
-        hi = []
-        for key in free_keys:
-            a, b = self.bounds_for_key(key)
-            lo.append(a); hi.append(b)
-        if fit_velocity:
-            x0.append(self.vars["vmax"].get())
-            lo.append(self.slider_specs["vmax"][0])
-            hi.append(self.slider_specs["vmax"][1])
-        if fit_center:
-            x0.append(self.vars["center"].get())
-            lo.append(self.slider_specs["center"][0])
-            hi.append(self.slider_specs["center"][1])
-        if fit_sigma:
-            x0.append(float(self.vars["voigt_sigma"].get()))
-            lo.append(self.slider_specs["voigt_sigma"][0])
-            hi.append(self.slider_specs["voigt_sigma"][1])
-        x0_arr = np.array(x0, dtype=float)
-        lo_arr = np.array(lo, dtype=float)
-        hi_arr = np.array(hi, dtype=float)
-        x0_arr = np.clip(x0_arr, lo_arr, hi_arr)
-
-        def unpack(x: np.ndarray) -> tuple[dict[str, float], float, float]:
-            global VOIGT_SIGMA
-            values = values0.copy()
-            for key, value in zip(free_keys, x[:len(free_keys)]):
-                values[key] = float(value)
-            values = self.apply_constraints_to_values(values)
-            pos = len(free_keys)
-            vmax = float(x[pos]) if fit_velocity else self.vars["vmax"].get()
-            pos += 1 if fit_velocity else 0
-            center_fit = float(x[pos]) if fit_center else self.vars["center"].get()
-            pos += 1 if fit_center else 0
-            if fit_sigma:
-                VOIGT_SIGMA = float(x[pos])
-                _physics.VOIGT_SIGMA = VOIGT_SIGMA  # el modelo usa core.physics
-            return values, vmax, center_fit
+        # Motor unificado: delegamos el ajuste discreto en core.fit_engine (el
+        # mismo que usa la GUI Qt). Construimos un FitState desde el estado de la
+        # GUI; core reproduce el residuo (σ Poisson/calibración), el re-folding
+        # del centro, el modo textura y las restricciones encadenadas.
+        from core.fit_engine import (
+            FitState as _FitState, Component as _Comp, fit_discrete as _fit_discrete,
+        )
 
         def data_for_center(center_value: float) -> tuple[np.ndarray, np.ndarray | None]:
             if not fit_center or self.counts is None:
@@ -4127,117 +4097,76 @@ class MossbauerFe33GUI(tk.Tk):
 
         use_poisson = self.likelihood_var.get() == "poisson"
 
-        def residual(x: np.ndarray) -> np.ndarray:
-            values, vmax, center_fit = unpack(x)
-            yy, sig = data_for_center(center_fit)
-            model_y = self.model_from_values(values, vmax)
-            if use_poisson:
-                sig_use = self.predicted_sigma(model_y)
-                if sig_use is None:
-                    sig_use = sig
-            else:
-                sig_use = sig
-            sig_use = self.augment_sigma_calibration(sig_use, model_y, vmax)
-            res = model_y - yy
-            return res / sig_use if sig_use is not None else res
-
-        def multistart_candidates() -> list[np.ndarray]:
-            candidates = [x0_arr]
-            rng = np.random.default_rng(12345)
-            span = hi_arr - lo_arr
-            for _ in range(8):
-                trial = x0_arr.copy()
-                for i, key in enumerate(free_keys + (["vmax"] if fit_velocity else []) + (["center"] if fit_center else []) + (["voigt_sigma"] if fit_sigma else [])):
-                    width = span[i]
-                    if not np.isfinite(width) or width <= 0:
-                        continue
-                    if key.endswith(("delta", "quad", "bhf", "gamma1", "depth", "vmax")):
-                        trial[i] += rng.normal(0.0, 0.12 * width)
-                    else:
-                        trial[i] += rng.normal(0.0, 0.08 * width)
-                candidates.append(np.clip(trial, lo_arr, hi_arr))
-            return candidates
+        # free_keys es el conjunto autoritativo de la GUI; forzamos a core a
+        # derivar el mismo marcando como fijas todas las demás claves de modelo.
+        tk_free = set(free_keys)
+        all_values = {k: var.get() for k, var in self.vars.items()}
+        fixed_map = {
+            k: (True if k in ("vmax", "center", "voigt_sigma") else (k not in tk_free))
+            for k in all_values
+        }
+        bounds_map = {k: self.bounds_for_key(k) for k in all_values}
+        components = [
+            _Comp(
+                idx=idx,
+                enabled=bool(self.sextet_enabled[idx].get()),
+                kind=self.component_kind[idx].get(),
+                intensity_mode=(self.intensity_mode[idx].get()
+                                if getattr(self, "intensity_mode", {}).get(idx) is not None else "free"),
+                quad_treatment=(self.quad_treatment[idx].get()
+                                if getattr(self, "quad_treatment", {}).get(idx) is not None else "1st_order"),
+            )
+            for idx in (1, 2, 3)
+        ]
+        state = _FitState(
+            velocity=self.velocity, y_data=y, sigma_data=sigma,
+            values=all_values, fixed=fixed_map, bounds=bounds_map,
+            components=components, constraints=list(self.enabled_constraints()),
+            likelihood=self.likelihood_var.get(),
+            robust_loss=self.robust_loss_var.get(),
+            line_profile=self.line_profile_var.get(),
+            voigt_sigma=float(self.vars["voigt_sigma"].get()),
+            propagate_calib=bool(self.propagate_calib_var.get()),
+            sigma_vmax=self.calibration_vmax_sigma(),
+            global_opt=bool(self.global_opt_var.get()),
+            fit_velocity=fit_velocity, fit_center=fit_center, fit_sigma=fit_sigma,
+            absorber_model=self.absorber_model_var.get(),
+            counts=self.counts, norm_factor=self.norm_factor,
+        )
 
         progress = self.open_progress_dialog(tr("progress.fitting_title"), tr("progress.fit_prepare"))
         _progress_dialog, update_progress, close_progress = progress
         try:
-            result = None
-            n_starts = 0
-            candidates = multistart_candidates()
-            # Mejora 14: pre-pasada global con differential_evolution (opt-in).
-            # Su mejor punto se añade como semilla extra; el TRF lo pule luego.
-            if self.global_opt_var.get():
-                update_progress(tr("progress.fit_global"))
-
-                def _scalar_cost(x: np.ndarray) -> float:
-                    r = residual(x)
-                    return 0.5 * float(np.dot(r, r))
-
-                try:
-                    de = differential_evolution(
-                        _scalar_cost,
-                        bounds=list(zip(lo_arr.tolist(), hi_arr.tolist())),
-                        seed=12345, maxiter=60, tol=1e-4,
-                        mutation=(0.5, 1.0), recombination=0.7,
-                        polish=False, init="sobol", updating="deferred",
-                    )
-                    candidates.insert(0, np.clip(de.x, lo_arr, hi_arr))
-                except Exception:
-                    pass
-            ls_kwargs = self._least_squares_kwargs()
-            for candidate in candidates:
-                n_starts += 1
-                update_progress(tr("progress.fit_step", i=n_starts, total=len(candidates)))
-                res_i = least_squares(residual, candidate, bounds=(lo_arr, hi_arr), max_nfev=7000, **ls_kwargs)
-                if result is None or res_i.cost < result.cost:
-                    result = res_i
-                    update_progress(tr("progress.fit_step_new_best", i=n_starts, total=len(candidates), cost=res_i.cost))
-                else:
-                    update_progress(tr("progress.fit_step_done", i=n_starts, total=len(candidates), cost=result.cost))
-            assert result is not None
+            result = _fit_discrete(state, progress_cb=update_progress)
         except Exception as exc:
             close_progress()
             messagebox.showerror(tr("msg.fit_error_title"), str(exc))
             return
 
-        # Covarianza aproximada de los parámetros libres para errores 1σ.
-        self.last_fit_free_keys = free_keys.copy()
-        self.last_fit_cov = None
-        self.last_fit_param_errors = {}
+        # Errores 1σ y correlaciones (covarianza calculada por core).
+        self.last_fit_free_keys = list(result.free_keys)
+        self.last_fit_cov = result.cov
+        self.last_fit_param_errors = dict(result.errors)
         self.last_fit_profile_errors = {}
-        self.last_fit_stats = {}
-        self.last_fit_correlations = {}
-        try:
-            n_obs = y.size
-            n_par = len(result.x)
-            if n_obs > n_par and result.jac.size:
-                _, svals, vt = np.linalg.svd(result.jac, full_matrices=False)
-                threshold = np.finfo(float).eps * max(result.jac.shape) * svals[0]
-                svals = svals[svals > threshold]
-                vt = vt[:svals.size]
-                cov_all = (vt.T / (svals ** 2)) @ vt
-                cov_all *= 2.0 * result.cost / max(1, n_obs - n_par)
-                self.last_fit_cov = cov_all[:len(free_keys), :len(free_keys)]
-                for key, err in zip(free_keys, np.sqrt(np.maximum(np.diag(self.last_fit_cov), 0.0))):
-                    self.last_fit_param_errors[key] = float(err)
-                self.last_fit_correlations = self.fit_correlation_summary(self.last_fit_cov, free_keys)
-        except Exception:
-            self.last_fit_cov = None
-            self.last_fit_param_errors = {}
-            self.last_fit_correlations = {}
+        self.last_fit_correlations = self.fit_correlation_summary(result.cov, list(result.free_keys))
 
         update_progress(tr("progress.fit_finalize"))
-        values_final, vmax_final, center_final = unpack(result.x)
+        values_final = dict(result.values)
+        vmax_final = float(values_final.get("vmax", self.vars["vmax"].get()))
+        center_final = float(values_final.get("center", self.vars["center"].get()))
         y_final, sigma_final = data_for_center(center_final)
         model_final = self.model_from_values(values_final, vmax_final)
         final_residual = model_final - y_final
         sigma_for_stats = self.predicted_sigma(model_final) if use_poisson else sigma_final
         sigma_for_stats = self.augment_sigma_calibration(sigma_for_stats, model_final, vmax_final)
-        self.last_fit_stats = self.fit_statistics(final_residual, sigma_for_stats, len(result.x))
+        n_par = len(result.free_keys) + (1 if fit_velocity else 0) + (1 if fit_center else 0) + (1 if fit_sigma else 0)
+        self.last_fit_stats = self.fit_statistics(final_residual, sigma_for_stats, n_par)
         self.last_fit_stats["likelihood"] = self.likelihood_var.get()
         self.last_fit_stats["robust_loss"] = self.robust_loss_var.get()
-        self.last_fit_stats["n_starts"] = float(n_starts)
-        self.set_params(values_final)
+        self.last_fit_stats["n_starts"] = float(result.n_starts)
+        # Aplica los parámetros de modelo (vmax/center/voigt_sigma se fijan aparte).
+        self.set_params({k: v for k, v in values_final.items()
+                         if k not in ("vmax", "center", "voigt_sigma")})
         if fit_velocity:
             self.vars["vmax"].set(vmax_final)
             self.entry_vars["vmax"].set(self._format_value("vmax", vmax_final))
@@ -4245,8 +4174,9 @@ class MossbauerFe33GUI(tk.Tk):
             self.vars["center"].set(center_final)
             self.entry_vars["center"].set(self._format_value("center", center_final))
         if fit_sigma:
-            pos = len(free_keys) + (1 if fit_velocity else 0) + (1 if fit_center else 0)
-            sigma_final_val = float(result.x[pos])
+            sigma_final_val = float(values_final.get("voigt_sigma", self.vars["voigt_sigma"].get()))
+            VOIGT_SIGMA = sigma_final_val
+            _physics.VOIGT_SIGMA = sigma_final_val
             self.vars["voigt_sigma"].set(sigma_final_val)
             self.entry_vars["voigt_sigma"].set(self._format_value("voigt_sigma", sigma_final_val))
         if fit_velocity or fit_center:
