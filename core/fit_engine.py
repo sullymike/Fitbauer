@@ -113,6 +113,77 @@ def apply_constraints(values: dict[str, float], constraints: list[dict]) -> dict
     return out
 
 
+def texture_to_intensities(t: float) -> tuple[float, float, float]:
+    """Textura → (i1, i2, i3) del sextete con eje aleatorio (portado del Tk).
+
+    Con ``t = sin²θ`` (θ entre B y k_γ): W₁,₆:W₂,₅:W₃,₄ = 3 : 4t/(2−t) : 1.
+    t=2/3 ⇒ 3:2:1 (polvo aleatorio); t=1 ⇒ 3:4:1; t=0 ⇒ 3:0:1.
+    """
+    t = max(0.0, min(1.0, float(t)))
+    denom = max(2.0 - t, 1e-9)
+    return 3.0, 4.0 * t / denom, 1.0
+
+
+def _apply_texture(values: dict[str, float], components: list[Component]) -> dict[str, float]:
+    """Deriva i1,i2,i3 desde ``s{idx}_texture`` para sextetes en modo textura."""
+    out = values
+    for comp in components:
+        if comp.intensity_mode != "texture" or comp.kind != "Sextete":
+            continue
+        tkey = f"s{comp.idx}_texture"
+        if tkey not in out:
+            continue
+        i1, i2, i3 = texture_to_intensities(out[tkey])
+        if out is values:
+            out = dict(values)
+        out[f"s{comp.idx}_int1"] = i1
+        out[f"s{comp.idx}_int2"] = i2
+        out[f"s{comp.idx}_int3"] = i3
+    return out
+
+
+def resolve_values(
+    values: dict[str, float], components: list[Component],
+    constraints: list[dict] | None = None,
+    bounds: dict[str, tuple[float, float]] | None = None,
+) -> dict[str, float]:
+    """Resolución completa de parámetros (equivalente al Tk).
+
+    1. Deriva intensidades de los sextetes en modo textura.
+    2. Aplica las restricciones lineales ``target = factor·source + offset`` de
+       forma encadenada (itera hasta 6 veces), recortando cada destino a sus
+       límites si se dan en ``bounds``.
+    3. Re-aplica la textura por si una restricción tocó ``s{idx}_texture``.
+    """
+    out = _apply_texture(values, components)
+    if out is values:
+        out = dict(values)
+    cons = list(constraints or [])
+    if cons:
+        for _ in range(6):  # permite cadenas cortas de dependencias
+            changed = False
+            for c in cons:
+                try:
+                    t = str(c["target"]); s = str(c["source"])
+                    factor = float(c.get("factor", 1.0))
+                    offset = float(c.get("offset", 0.0))
+                except (KeyError, TypeError, ValueError):
+                    continue
+                if s not in out or t not in out:
+                    continue
+                old = out[t]
+                new = factor * out[s] + offset
+                if bounds and t in bounds:
+                    lo, hi = bounds[t]
+                    new = max(lo, min(hi, new))
+                out[t] = new
+                changed = changed or abs(new - old) > 1e-12
+            if not changed:
+                break
+        out = _apply_texture(out, components)
+    return out
+
+
 def _refold_at_center(
     counts: np.ndarray, center: float, fallback_norm: float,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -164,9 +235,10 @@ def model_from_values(
     components: list[Component],
     constraints: list[dict] | None = None,
     absorber_model: str = "thin",
+    bounds: dict[str, tuple[float, float]] | None = None,
 ) -> np.ndarray:
     """Evalúa el modelo total dado un estado de parámetros plano."""
-    vals = apply_constraints(values, constraints or [])
+    vals = resolve_values(values, components, constraints or [], bounds)
     comps = _build_components_list(vals, components)
     baseline = float(vals.get("baseline", 1.0))
     slope = float(vals.get("slope", 0.0))
@@ -236,7 +308,7 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
         else:
             v = state.velocity
         m = model_from_values(v, vals, state.components, state.constraints,
-                              absorber_model=state.absorber_model)
+                              absorber_model=state.absorber_model, bounds=state.bounds)
         # 4. Datos: re-doblar las cuentas en el centro de prueba si procede; así
         #    el ajuste del centro es físicamente real (cambia y y σ por iteración).
         if can_refold:
@@ -421,7 +493,8 @@ def fit_discrete(state: FitState, progress_cb: Callable[[str], None] | None = No
     values_final = dict(state.values)
     for k, v in zip(free_keys, result.x[:len(free_keys)]):
         values_final[k] = float(v)
-    values_final = apply_constraints(values_final, state.constraints or [])
+    values_final = resolve_values(values_final, state.components,
+                                   state.constraints or [], state.bounds)
     pos = len(free_keys)
     if state.fit_velocity:
         values_final["vmax"] = float(result.x[pos]); pos += 1

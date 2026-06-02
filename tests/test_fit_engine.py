@@ -20,6 +20,7 @@ from core.folding import (  # noqa: E402
 from core.fit_engine import (  # noqa: E402
     Component, FitState, fit_discrete, model_from_values, _refold_at_center,
     bootstrap_errors, profile_likelihood, BootstrapResult,
+    resolve_values, texture_to_intensities,
 )
 
 DATA = ROOT / "data_sample"
@@ -223,6 +224,68 @@ def test_profile_likelihood_brackets_one_sigma():
     # Para BHF (bien determinado) debe existir al menos un cruce 1σ.
     bhf = results.get("s1_bhf", {})
     assert bhf.get("plus_1s") is not None or bhf.get("minus_1s") is not None
+
+
+def test_texture_to_intensities():
+    """Conversión textura → (3, 4t/(2−t), 1) en casos conocidos."""
+    i1, i2, i3 = texture_to_intensities(2 / 3)                     # polvo aleatorio 3:2:1
+    assert (i1, i3) == (3.0, 1.0) and abs(i2 - 2.0) < 1e-9
+    i1, i2, i3 = texture_to_intensities(1.0)                       # texturado 3:4:1
+    assert (i1, i3) == (3.0, 1.0) and abs(i2 - 4.0) < 1e-9
+    assert texture_to_intensities(0.0) == (3.0, 0.0, 1.0)          # eje paralelo 3:0:1
+
+
+def test_resolve_values_texture_mode():
+    """Un sextete en modo textura deriva i1,i2,i3 desde s{idx}_texture."""
+    comps = [Component(idx=1, enabled=True, kind="Sextete", intensity_mode="texture")]
+    out = resolve_values({"s1_texture": 2 / 3, "s1_int1": 9, "s1_int2": 9, "s1_int3": 9}, comps, [])
+    assert out["s1_int1"] == 3.0 and abs(out["s1_int2"] - 2.0) < 1e-9 and out["s1_int3"] == 1.0
+    # En modo libre NO deriva nada.
+    comps_free = [Component(idx=1, enabled=True, kind="Sextete", intensity_mode="free")]
+    out2 = resolve_values({"s1_texture": 1.0, "s1_int2": 9.0}, comps_free, [])
+    assert out2["s1_int2"] == 9.0
+
+
+def test_resolve_values_chained_constraints():
+    """Las restricciones encadenadas se resuelven (requiere iteración)."""
+    comps = [Component(idx=1, enabled=True, kind="Sextete")]
+    # s3 depende de s2, y s2 de s1; el constraint de s3 va primero a propósito.
+    cons = [
+        {"target": "s3_delta", "source": "s2_delta", "factor": 1.0, "offset": 1.0},
+        {"target": "s2_delta", "source": "s1_delta", "factor": 1.0, "offset": 1.0},
+    ]
+    out = resolve_values({"s1_delta": 0.5, "s2_delta": 0.0, "s3_delta": 0.0}, comps, cons)
+    assert abs(out["s2_delta"] - 1.5) < 1e-9
+    assert abs(out["s3_delta"] - 2.5) < 1e-9
+
+
+def test_resolve_values_clamps_constraint_to_bounds():
+    """El destino de una restricción se recorta a sus límites (como en el Tk)."""
+    comps = [Component(idx=1, enabled=True, kind="Sextete")]
+    cons = [{"target": "s2_bhf", "source": "s1_bhf", "factor": 10.0, "offset": 0.0}]
+    out = resolve_values({"s1_bhf": 33.0, "s2_bhf": 0.0}, comps, cons,
+                         bounds={"s2_bhf": (0.0, 60.0)})
+    assert out["s2_bhf"] == 60.0
+
+
+def test_fit_discrete_texture_mode_runs():
+    """Un ajuste en modo textura (s1_texture libre, int1/2/3 derivadas) converge
+    y las intensidades resultantes son consistentes con la textura ajustada."""
+    v, y, sigma = _load_alpha_fe()
+    state = _alpha_fe_state(v, y, sigma)
+    state.components = [Component(idx=1, enabled=True, kind="Sextete", intensity_mode="texture")]
+    state.values["s1_texture"] = 0.6
+    state.bounds["s1_texture"] = (0.0, 1.0)
+    # En textura, int1/2/3 son derivadas → fijas; texture libre.
+    for k in ("s1_int1", "s1_int2", "s1_int3"):
+        state.fixed[k] = True
+    state.fixed["s1_texture"] = False
+    result = fit_discrete(state)
+    t = result.values["s1_texture"]
+    assert 0.0 <= t <= 1.0
+    assert abs(result.values["s1_bhf"] - 33.0) < 1.0
+    # α-Fe en polvo ≈ aleatorio: textura cercana a 2/3 (ratio 2,5/3,4 ≈ 2).
+    assert 0.3 < t < 1.0
 
 
 def test_fit_discrete_respects_fixed():
