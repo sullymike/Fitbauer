@@ -172,7 +172,7 @@ class SimPanel(BasePanel):
 
         # Columna 2 — rango/bins/alfa + presets y opciones avanzadas.
         self._add_slider(d2, "dist_bmin",      tr("slider.dist_bmin"),      0.0,   0.0,  60.0,  0.1,  fit_param=False)
-        self._add_slider(d2, "dist_bmax",      tr("slider.dist_bmax"),      50.0,  1.0,  60.0,  0.1,  fit_param=False)
+        self._add_slider(d2, "dist_bmax",      tr("slider.dist_bmax"),      50.0,  0.0,  60.0,  0.1,  fit_param=False)
         self._add_slider(d2, "dist_nbins",     tr("slider.dist_nbins"),     50.0, 10.0, 100.0,  1.0,  fit_param=False)
         self._add_slider(d2, "dist_log_alpha", tr("slider.dist_log_alpha"), -2.0, -8.0,   4.0,  0.1,  fit_param=False)
 

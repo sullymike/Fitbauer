@@ -43,6 +43,9 @@ from matplotlib.figure import Figure
 
 # Constantes de 57Fe para calcular posiciones magneticas.
 BHF_DEFAULT_T = 33.0
+DIST_BHF_RANGE = (0.0, 60.0)
+DIST_QUAD_RANGE = (0.0, 7.0)
+DIST_RANGE_RESOLUTION = 0.1
 MU_N = 5.0507837461e-27       # J/T
 E_GAMMA = 14.4125e3 * 1.602176634e-19  # J
 C_MM_S = 299_792_458_000.0    # mm/s
@@ -874,7 +877,7 @@ class MossbauerFe33GUI(tk.Tk):
         self._add_slider(d1, "dist_fixed_bhf", tr("slider.dist_fixed_bhf"), BHF_DEFAULT_T, 0.0, 60.0, 0.01, fit_param=False)
         self._add_slider(d1, "dist_gamma", tr("slider.dist_gamma"), 0.18, 0.03, 1.0, 0.001, fit_param=False)
         self._add_slider(d2, "dist_bmin", tr("slider.dist_bmin"), 0.0, 0.0, 60.0, 0.1, fit_param=False)
-        self._add_slider(d2, "dist_bmax", tr("slider.dist_bmax"), 50.0, 1.0, 60.0, 0.1, fit_param=False)
+        self._add_slider(d2, "dist_bmax", tr("slider.dist_bmax"), 50.0, 0.0, 60.0, 0.1, fit_param=False)
         self._add_slider(d2, "dist_nbins", tr("slider.dist_nbins"), 50.0, 10.0, 100.0, 1.0, fit_param=False)
         self._add_slider(d3, "dist_log_alpha", tr("slider.dist_log_alpha"), -2.0, -8.0, 4.0, 0.1, fit_param=False)
         alpha_buttons = ttk.Frame(d3)
@@ -1645,6 +1648,33 @@ class MossbauerFe33GUI(tk.Tk):
         self.refresh_dist_slider_labels()
         self.update_plot()
 
+    def distribution_range_limits(self) -> tuple[float, float, float]:
+        """Devuelve límites/resolución para el rango de P(BHF) o P(ΔEQ)."""
+        max_value = DIST_QUAD_RANGE[1] if self.dist_variable_var.get() == "ΔEQ" else DIST_BHF_RANGE[1]
+        return 0.0, max_value, DIST_RANGE_RESOLUTION
+
+    def _set_slider_limits(self, key: str, min_value: float, max_value: float, resolution: float) -> None:
+        self.slider_specs[key] = (min_value, max_value, resolution)
+        refs = getattr(self, "slider_widget_refs", {}).get(key, {})
+        slider = refs.get("slider")
+        if slider is not None:
+            try:
+                slider.configure(from_=min_value, to=max_value, resolution=resolution)
+            except tk.TclError:
+                pass
+        var = self.vars.get(key)
+        entry_var = self.entry_vars.get(key)
+        if var is None or entry_var is None:
+            return
+        clamped = max(min_value, min(max_value, float(var.get())))
+        if resolution > 0:
+            clamped = round(clamped / resolution) * resolution
+            clamped = max(min_value, min(max_value, clamped))
+        self.updating_sliders = True
+        var.set(clamped)
+        entry_var.set(self._format_value(key, clamped))
+        self.updating_sliders = False
+
     def refresh_dist_slider_labels(self) -> None:
         is_quad = self.dist_variable_var.get() == "ΔEQ"
         mapping = {
@@ -1662,6 +1692,10 @@ class MossbauerFe33GUI(tk.Tk):
                 widget.configure(text=tr(tr_key))
             except tk.TclError:
                 pass
+        min_value, max_value, resolution = self.distribution_range_limits()
+        for key in ("dist_bmin", "dist_bmax"):
+            if key in self.slider_specs:
+                self._set_slider_limits(key, min_value, max_value, resolution)
         # Agrisar el parámetro fijo que no se usa con la variable elegida:
         # en modo BHF el ΔEQ fijo (dist_quad) sí se usa y el BHF fijo no;
         # en modo ΔEQ es al revés.
