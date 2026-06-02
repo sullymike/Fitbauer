@@ -145,7 +145,7 @@ class LayoutConfigDialog(tk.Toplevel):
                     textvariable=self._left_width, width=6
                     ).grid(row=0, column=1, padx=(4, 20))
         ttk.Label(wf, text="Ancho derecha:").grid(row=0, column=2, sticky="w")
-        ttk.Spinbox(wf, from_=200, to=700, increment=10,
+        ttk.Spinbox(wf, from_=0, to=700, increment=10,
                     textvariable=self._right_width, width=6
                     ).grid(row=0, column=3, padx=4)
         ttk.Label(wf, text="(0 = sim debajo del gráfico)",
