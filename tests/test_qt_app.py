@@ -261,6 +261,67 @@ def test_view_toggles(win):
     win._refresh_plot()
 
 
+def test_model_grid_is_denser_than_data(win):
+    """La rejilla del modelo tiene muchos más puntos que los canales."""
+    import numpy as np
+    v = np.linspace(-10.0, 10.0, 256)
+    mv = win._model_grid(v)
+    assert mv is not None
+    assert mv.size > v.size
+    assert mv.size >= 1200
+    assert mv[0] == pytest.approx(v.min())
+    assert mv[-1] == pytest.approx(v.max())
+
+
+def test_render_stores_dense_curve_for_plotly(win):
+    """El render guarda la curva densa y el residual para el gráfico Plotly."""
+    import numpy as np
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.components_panels[0].enabled.setChecked(True)
+    win._simulate_enabled = True
+    win._refresh_plot()
+    lr = win.canvas.last_render
+    assert lr is not None and lr["model"] is not None
+    # El modelo se evalúa en una rejilla más densa que los datos.
+    assert lr["model_v"].size >= lr["velocity"].size
+    assert lr["model"].size == lr["model_v"].size
+    # El residual va en la rejilla de los datos.
+    assert lr["residual"] is not None
+    assert lr["residual"].size == lr["velocity"].size
+
+
+def test_incremental_render_reuses_artists(win):
+    """Dos renders con la misma disposición reutilizan los mismos artistas."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.components_panels[0].enabled.setChecked(True)
+    win._simulate_enabled = True
+    win._refresh_plot()
+    cv = win.canvas
+    artists = cv._artists
+    assert artists is not None
+    data_line = artists["data"]
+    win._refresh_plot()
+    # Misma estructura -> no se reconstruye la figura.
+    assert cv._artists is artists
+    assert cv._artists["data"] is data_line
+
+
+def test_current_plotly_figure_builds(win):
+    """La figura Plotly se construye con la curva densa (si plotly está)."""
+    plotly = pytest.importorskip("plotly")  # noqa: F841
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.components_panels[0].enabled.setChecked(True)
+    win._simulate_enabled = True
+    win._refresh_plot()
+    fig = win._current_plotly_figure()
+    # Debe haber al menos datos + modelo.
+    assert len(fig.data) >= 2
+    # El trazo del modelo usa la rejilla densa.
+    n_data = win.canvas.last_render["velocity"].size
+    line_lengths = [len(tr.x) for tr in fig.data if tr.mode == "lines"]
+    assert line_lengths and max(line_lengths) > n_data
+
+
 def test_physical_preset_3_2_1_fixes_intensities(win):
     """Aplicar 3:2:1 fija int1=3, int2=2, int3=1 en componentes activas."""
     cp = win.components_panels[0]

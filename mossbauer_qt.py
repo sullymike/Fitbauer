@@ -654,10 +654,16 @@ class SpectrumCanvas(FigureCanvas):
         self.ax_res.set_xlabel(tr("plot.velocity_xlabel"))
         self.ax_res.set_ylabel(tr("plot.residual_ylabel"))
         self.last_render: dict | None = None
+        # Estado para la actualización incremental (evita reconstruir toda la
+        # figura en cada refresco: solo se reescriben los datos de las líneas).
+        self._artists: dict | None = None
+        self._layout_sig: tuple | None = None
         self.show_no_file()
 
     def show_no_file(self) -> None:
         self.last_render = None
+        self._artists = None
+        self._layout_sig = None
         # Reconstruye la rejilla según la preferencia: con residuos (2 filas) o
         # sin ellos (1 fila), para que el espacio coincida con la opción ya
         # desde el arranque.
@@ -684,12 +690,25 @@ class SpectrumCanvas(FigureCanvas):
                components: list[tuple[int, str, np.ndarray]] | None = None,
                style: dict | None = None,
                show_residual: bool = True,
-               show_legend: bool = True) -> None:
+               show_legend: bool = True,
+               model_v: np.ndarray | None = None,
+               residual: np.ndarray | None = None,
+               style_name: str | None = None) -> None:
         s = style or get_style("classic")
+        actual_show_residual = bool(show_residual)
+        # ``model``/``components`` pueden venir muestreados en una rejilla densa
+        # (``model_v``) para que la curva de ajuste salga suave aunque el espectro
+        # tenga pocos canales. Los datos y los residuos van en la rejilla ``v``.
+        mv = model_v if model_v is not None else v
+        if residual is None and model is not None and model_v is None:
+            residual = y - model
+        # Estado para el gráfico Plotly (y otros consumidores) y para alternar.
         self.last_render = {
             "velocity": np.asarray(v, dtype=float).copy(),
             "y_data": np.asarray(y, dtype=float).copy(),
             "model": None if model is None else np.asarray(model, dtype=float).copy(),
+            "model_v": np.asarray(mv, dtype=float).copy(),
+            "residual": None if residual is None else np.asarray(residual, dtype=float).copy(),
             "components": [
                 (int(idx), str(kind), np.asarray(comp, dtype=float).copy())
                 for idx, kind, comp in (components or [])
@@ -698,12 +717,27 @@ class SpectrumCanvas(FigureCanvas):
             "show_residual": bool(show_residual),
             "show_legend": bool(show_legend),
         }
+        n_comp = len(components or [])
+        # Firma de la disposición: si no cambia, se reutilizan los ejes/artistas
+        # y solo se reescriben los datos (mucho más rápido, sin reconstruir).
+        layout_sig = (actual_show_residual, model is not None, n_comp,
+                      bool(show_legend), style_name, int(np.asarray(v).size),
+                      int(np.asarray(mv).size))
+        if (self._artists is not None and self._layout_sig == layout_sig
+                and style_name is not None):
+            try:
+                self._update_fast(v, y, model, components, residual, mv, s,
+                                  actual_show_residual)
+                return
+            except Exception:
+                # Ante cualquier discrepancia, se cae a la reconstrucción total.
+                self._artists = None
         self.fig.set_facecolor(s["fig_bg"])
         # El espacio de residuos depende SOLO de la opción 'mostrar diferencia',
         # no de que exista un modelo: así un ajuste no altera la disposición.
-        actual_show_residual = bool(show_residual)
         self.residual_pref = actual_show_residual
         self.fig.clear()
+        self._artists = None
         if actual_show_residual:
             self._gs = self.fig.add_gridspec(2, 1, height_ratios=[4.6, 1.0], hspace=0.08)
             self.ax = self.fig.add_subplot(self._gs[0])
@@ -715,28 +749,34 @@ class SpectrumCanvas(FigureCanvas):
         self.ax.set_facecolor(s["ax_bg"])
         if self.ax_res is not None:
             self.ax_res.set_facecolor(s["res_bg"])
-        self.ax.plot(v, y, ".", color=s["data"],
-                     ms=s.get("data_ms", 3.5), alpha=s.get("data_alpha", 0.7),
-                     label=tr("plot.legend_data"))
+        data_line, = self.ax.plot(v, y, ".", color=s["data"],
+                                  ms=s.get("data_ms", 3.5),
+                                  alpha=s.get("data_alpha", 0.7),
+                                  label=tr("plot.legend_data"))
+        comp_lines: list = []
         if components:
             palette = s.get("components_palette") or ("#10b981", "#f59e0b", "#8b5cf6")
             for idx, kind, comp in components:
-                self.ax.plot(v, comp, "--",
-                             color=palette[(idx - 1) % len(palette)],
-                             lw=s.get("component_lw", 1.4),
-                             alpha=s.get("component_alpha", 0.85),
-                             label=f"{tr(f'kind.{kind}', default=kind)} {idx}")
+                ln, = self.ax.plot(mv, comp, "--",
+                                   color=palette[(idx - 1) % len(palette)],
+                                   lw=s.get("component_lw", 1.4),
+                                   alpha=s.get("component_alpha", 0.85),
+                                   label=f"{tr(f'kind.{kind}', default=kind)} {idx}")
+                comp_lines.append(ln)
+        model_line = None
+        res_line = None
+        res_fill = None
         if model is not None:
-            self.ax.plot(v, model, "-", color=s["model"],
-                         lw=s.get("model_lw", 2.2),
-                         label=tr("plot.legend_model"))
-            residual = y - model
-            if actual_show_residual and self.ax_res is not None:
+            model_line, = self.ax.plot(mv, model, "-", color=s["model"],
+                                       lw=s.get("model_lw", 2.2),
+                                       label=tr("plot.legend_model"))
+            if residual is not None and actual_show_residual and self.ax_res is not None:
                 self.ax_res.axhline(0, color=s["res_zero"], lw=0.9, alpha=0.9)
-                self.ax_res.fill_between(v, residual, 0, color=s["res_fill"],
-                                         alpha=s.get("res_fill_alpha", 0.22))
-                self.ax_res.plot(v, residual, "-", color=s["res_line"],
-                                 lw=s.get("res_line_lw", 1.0))
+                res_fill = self.ax_res.fill_between(
+                    v, residual, 0, color=s["res_fill"],
+                    alpha=s.get("res_fill_alpha", 0.22))
+                res_line, = self.ax_res.plot(v, residual, "-", color=s["res_line"],
+                                             lw=s.get("res_line_lw", 1.0))
                 lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
                 self.ax_res.set_ylim(-lim, lim)
         if not actual_show_residual:
@@ -769,6 +809,50 @@ class SpectrumCanvas(FigureCanvas):
                            facecolor=s["leg_face"], edgecolor=s["leg_edge"],
                            labelcolor=s["leg_text"])
         self.fig.tight_layout()
+        self.draw_idle()
+        # Memoriza artistas y disposición para los refrescos incrementales.
+        self._artists = {
+            "data": data_line,
+            "comps": comp_lines,
+            "model": model_line,
+            "res_line": res_line,
+            "res_fill": res_fill,
+            "res_color": s["res_fill"],
+            "res_alpha": s.get("res_fill_alpha", 0.22),
+        }
+        self._layout_sig = layout_sig
+
+    def _update_fast(self, v, y, model, components, residual, mv, s,
+                     actual_show_residual) -> None:
+        """Refresco incremental: reescribe los datos sin reconstruir la figura.
+
+        Se usa cuando la disposición (residuos, nº de componentes, leyenda,
+        estilo y tamaños) no ha cambiado respecto al render anterior. Evita el
+        coste de ``fig.clear`` + recrear ejes + ``tight_layout`` en cada cambio
+        de parámetro, que es lo que hace lento el arrastre de sliders.
+        """
+        a = self._artists
+        a["data"].set_data(v, y)
+        comps = components or []
+        for ln, (_idx, _kind, comp) in zip(a["comps"], comps):
+            ln.set_data(mv, comp)
+        if a["model"] is not None and model is not None:
+            a["model"].set_data(mv, model)
+        self.ax.relim()
+        self.ax.autoscale_view()
+        if (a["res_line"] is not None and residual is not None
+                and actual_show_residual and self.ax_res is not None):
+            a["res_line"].set_data(v, residual)
+            # ``fill_between`` no admite set_data: se sustituye la colección.
+            if a["res_fill"] is not None:
+                try:
+                    a["res_fill"].remove()
+                except Exception:
+                    pass
+            a["res_fill"] = self.ax_res.fill_between(
+                v, residual, 0, color=a["res_color"], alpha=a["res_alpha"])
+            lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
+            self.ax_res.set_ylim(-lim, lim)
         self.draw_idle()
 
 
@@ -1476,10 +1560,17 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         plotly_lay.addLayout(plotly_actions)
         self.plotly_view = None
         self._plotly_available = False
+        # Estado de la página incremental: la plantilla con plotly.js se carga
+        # una sola vez; los refrescos usan Plotly.react (no recargan el HTML).
+        self._plotly_page_ready = False
+        self._plotly_loading = False
+        self._plotly_pending: str | None = None
+        self._plotly_theme: str | None = None
         try:
             from PySide6 import QtWebEngineWidgets as _QtWebEngineWidgets
             self.plotly_view = _QtWebEngineWidgets.QWebEngineView(self.plotly_tab)
             self._plotly_available = True
+            self.plotly_view.loadFinished.connect(self._on_plotly_loaded)
             plotly_lay.addWidget(self.plotly_view, stretch=1)
         except Exception:
             self.plotly_placeholder = QtWidgets.QLabel(tr("msg.plotly_webengine_missing"))
@@ -3054,7 +3145,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
         show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
         if state is None or not self._simulate_enabled:
-            self.canvas.render(v, y, style=style,
+            self.canvas.render(v, y, style=style, style_name=self.plot_style_name,
                                show_residual=show_res, show_legend=show_leg)
             self._update_info_panel()
             self._schedule_plotly_update()
@@ -3062,24 +3153,48 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         try:
             model = model_from_values(v, state.values, state.components, state.constraints,
                                       absorber_model=state.absorber_model)
+            # Curva densa para que el ajuste no salga con pocos puntos.
+            mv = self._model_grid(v)
+            if mv is not None:
+                model_dense = model_from_values(mv, state.values, state.components,
+                                                state.constraints,
+                                                absorber_model=state.absorber_model)
+            else:
+                mv, model_dense = None, model
         except Exception:
-            self.canvas.render(v, y, style=style,
+            self.canvas.render(v, y, style=style, style_name=self.plot_style_name,
                                show_residual=show_res, show_legend=show_leg)
             self._update_info_panel()
             self._schedule_plotly_update()
             return
+        residual = y - model
         # Solo dibujar componentes individuales si hay más de uno activo.
         comps = []
         enabled = [c for c in state.components if c.enabled]
         if len(enabled) >= 2:
+            grid = mv if mv is not None else v
             for comp in enabled:
-                only_this = model_from_values(v, state.values, [comp], state.constraints,
+                only_this = model_from_values(grid, state.values, [comp], state.constraints,
                                               absorber_model=state.absorber_model)
                 comps.append((comp.idx, comp.kind, only_this))
-        self.canvas.render(v, y, model=model, components=comps, style=style,
-                           show_residual=show_res, show_legend=show_leg)
+        self.canvas.render(v, y, model=model_dense, components=comps, style=style,
+                           show_residual=show_res, show_legend=show_leg,
+                           model_v=mv, residual=residual, style_name=self.plot_style_name)
         self._update_info_panel()
         self._schedule_plotly_update()
+
+    def _model_grid(self, v: np.ndarray) -> np.ndarray | None:
+        """Rejilla densa para dibujar curvas de ajuste suaves.
+
+        El modelo se evalúa en muchos más puntos que los canales del espectro,
+        de modo que la línea de ajuste no se vea quebrada cuando hay pocos datos.
+        """
+        if v is None or v.size < 2:
+            return None
+        n = int(np.clip(v.size * 6, 1200, 6000))
+        if n <= v.size:
+            return None
+        return np.linspace(float(np.min(v)), float(np.max(v)), n)
 
     def _current_plotly_figure(self):
         """Construye una figura Plotly a partir de lo último dibujado."""
@@ -3095,9 +3210,17 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         v = render["velocity"]
         y = render["y_data"]
         model = render.get("model")
+        # Rejilla densa del modelo/componentes (curva de ajuste suave). Si no
+        # está disponible, se cae a la rejilla de los datos.
+        mv = render.get("model_v")
+        if mv is None:
+            mv = v
         components = render.get("components") or []
         style = render.get("style") or get_style(self.plot_style_name)
         show_residual = bool(render.get("show_residual", True)) and model is not None
+        residual = render.get("residual")
+        if residual is None and model is not None:
+            residual = y - model
         dist_result = self.last_distribution_result if getattr(self, "is_distribution_mode", False) else None
         show_distribution = bool(
             dist_result is not None
@@ -3114,8 +3237,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             rows=rows, cols=1, shared_xaxes=False,
             row_heights=row_heights, vertical_spacing=0.055,
         )
+        # WebGL (scattergl) para que muchos puntos se dibujen con fluidez.
         fig.add_trace(
-            go.Scatter(
+            go.Scattergl(
                 x=v, y=y, mode="markers", name=tr("plot.legend_data"),
                 marker=dict(color=style.get("data", "#2563eb"), size=6),
                 hovertemplate="v=%{x:.5g}<br>y=%{y:.6g}<extra></extra>",
@@ -3126,8 +3250,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         for idx, kind, comp in components:
             param_txt = self._plotly_component_param_text(idx)
             fig.add_trace(
-                go.Scatter(
-                    x=v, y=comp, mode="lines",
+                go.Scattergl(
+                    x=mv, y=comp, mode="lines",
                     name=f"{tr(f'kind.{kind}', default=kind)} {idx}",
                     line=dict(color=palette[(idx - 1) % len(palette)], width=1.5, dash="dash"),
                     hovertemplate=(
@@ -3139,18 +3263,17 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             )
         if model is not None:
             fig.add_trace(
-                go.Scatter(
-                    x=v, y=model, mode="lines", name=tr("plot.legend_model"),
+                go.Scattergl(
+                    x=mv, y=model, mode="lines", name=tr("plot.legend_model"),
                     line=dict(color=style.get("model", "#dc2626"), width=2.4),
                     hovertemplate="v=%{x:.5g}<br>modelo=%{y:.6g}<extra></extra>",
                 ),
                 row=1, col=1,
             )
-            if show_residual:
-                residual = y - model
+            if show_residual and residual is not None:
                 res_row = 2
                 fig.add_trace(
-                    go.Scatter(
+                    go.Scattergl(
                         x=v, y=residual, mode="lines", name=tr("plot.residual_ylabel"),
                         line=dict(color=style.get("res_line", "#7c3aed"), width=1.2),
                         fill="tozeroy", fillcolor="rgba(124,58,237,0.18)",
@@ -3291,28 +3414,88 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         if self._is_plotly_tab_active() and getattr(self, "_plotly_available", False):
             self._plotly_update_timer.start()
 
+    def _plotly_page_template(self, theme: str) -> str:
+        """HTML que se carga UNA sola vez: plotly.js + función de refresco.
+
+        Los datos se inyectan luego con ``window.__render`` (Plotly.react), de
+        modo que cada actualización no recarga la página ni vuelve a parsear
+        plotly.js — solo redibuja de forma incremental lo que cambia.
+        """
+        import plotly.offline as _poff
+        plotlyjs = _poff.get_plotlyjs()
+        bg = "#111827" if theme == "dark" else "#ffffff"
+        fg = "#e5e7eb" if theme == "dark" else "#111827"
+        border = "#374151" if theme == "dark" else "#d1d5db"
+        return (
+            "<!doctype html><html><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+            f"<title>{html.escape(tr('plotly.title'))}</title>"
+            "<style>"
+            f"body{{margin:0;background:{bg};color:{fg};font-family:system-ui,Segoe UI,sans-serif;}}"
+            "main{padding:6px 10px 18px 10px;}"
+            "#plot{width:100%;height:72vh;}"
+            f".metadata{{margin:12px 8px 4px 8px;padding:12px;border:1px solid {border};border-radius:10px;}}"
+            ".metadata h2,.metadata h3{margin:0.2rem 0 0.5rem 0;}"
+            ".metadata table{border-collapse:collapse;margin-bottom:0.75rem;}"
+            ".metadata th{text-align:left;padding:3px 12px 3px 0;}"
+            ".metadata td{padding:3px 0;}"
+            "</style>"
+            "<script>" + plotlyjs + "</script></head>"
+            "<body><main><div id='plot'></div><div id='meta'></div></main><script>"
+            "var CFG={responsive:true,displaylogo:false,"
+            "toImageButtonOptions:{format:'png',scale:2}};"
+            "window.__render=function(fig,meta){"
+            "Plotly.react('plot',fig.data,fig.layout,CFG);"
+            "if(meta!==undefined&&meta!==null){"
+            "document.getElementById('meta').innerHTML=meta;}};"
+            "</script></body></html>"
+        )
+
+    def _on_plotly_loaded(self, ok: bool) -> None:
+        self._plotly_loading = False
+        self._plotly_page_ready = bool(ok)
+        # Al terminar de cargar la plantilla, vuelca el último estado pendiente.
+        if ok and self._plotly_pending and self.plotly_view is not None:
+            self.plotly_view.page().runJavaScript(self._plotly_pending)
+            self._plotly_pending = None
+
     def _update_plotly_view(self) -> None:
         if not getattr(self, "_plotly_available", False) or self.plotly_view is None:
             if hasattr(self, "plotly_status"):
                 self.plotly_status.setText(tr("msg.plotly_webengine_missing"))
             return
         try:
-            doc = self._plotly_html_document()
-            self._cleanup_plotly_temp_files()
-            with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as fh:
-                temp_path = Path(fh.name)
-                fh.write(doc)
-            self._plotly_temp_files.append(temp_path)
-            self.plotly_view.load(QtCore.QUrl.fromLocalFile(str(temp_path)))
+            import plotly.io as _pio
+            fig = self._current_plotly_figure()
+            fig_json = _pio.to_json(fig)
+            meta_json = json.dumps(self._plotly_metadata_html())
+            payload = f"window.__render({fig_json},{meta_json});"
+            theme = "dark" if self.color_theme == "dark" else "light"
+            if self._plotly_loading and self._plotly_theme == theme:
+                # La plantilla aún se está cargando: solo se actualiza el estado
+                # pendiente (sin recargar plotly.js otra vez).
+                self._plotly_pending = payload
+            elif not self._plotly_page_ready or self._plotly_theme != theme:
+                # Primera vez (o cambio de tema): carga la plantilla y deja el
+                # estado pendiente para aplicarlo cuando termine la carga.
+                self._plotly_theme = theme
+                self._plotly_page_ready = False
+                self._plotly_loading = True
+                self._plotly_pending = payload
+                self.plotly_view.setHtml(self._plotly_page_template(theme))
+            else:
+                # Refresco incremental: solo se envían los datos nuevos.
+                self.plotly_view.page().runJavaScript(payload)
             if hasattr(self, "plotly_status"):
                 self.plotly_status.setText(tr("status.plotly_updated", default="Plotly actualizado."))
         except Exception as exc:
+            # Fuerza recargar la plantilla en el próximo intento.
+            self._plotly_page_ready = False
+            self._plotly_loading = False
+            self._plotly_theme = None
+            self._plotly_pending = None
             if hasattr(self, "plotly_status"):
                 self.plotly_status.setText(str(exc))
-            try:
-                self.plotly_view.setHtml(f"<html><body><pre>{html.escape(str(exc))}</pre></body></html>")
-            except Exception:
-                pass
 
     def on_open_plotly(self) -> None:
         if hasattr(self, "plot_tabs"):
@@ -4720,7 +4903,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
         self.canvas.render(self.file.velocity, self.file.y_data,
                            model=result.fitted_curve, style=style,
-                           show_residual=show_res, show_legend=show_leg)
+                           show_residual=show_res, show_legend=show_leg,
+                           style_name=self.plot_style_name)
         self.last_distribution_result = result
         self._schedule_plotly_update()
         msg = (f"{label}: bins={nbins}  α=10^{d.log_alpha.value():.2f}  "
