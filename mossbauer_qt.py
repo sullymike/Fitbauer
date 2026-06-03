@@ -10,9 +10,11 @@ en serie / verosimilitud perfilada / restricciones; estilos QSS; tests.
 """
 from __future__ import annotations
 
+import html
 import json
 import os
 import sys
+import tempfile
 import threading
 import webbrowser
 from pathlib import Path
@@ -651,9 +653,11 @@ class SpectrumCanvas(FigureCanvas):
         self.ax.set_ylabel(tr("plot.transmission_ylabel"))
         self.ax_res.set_xlabel(tr("plot.velocity_xlabel"))
         self.ax_res.set_ylabel(tr("plot.residual_ylabel"))
+        self.last_render: dict | None = None
         self.show_no_file()
 
     def show_no_file(self) -> None:
+        self.last_render = None
         # Reconstruye la rejilla según la preferencia: con residuos (2 filas) o
         # sin ellos (1 fila), para que el espacio coincida con la opción ya
         # desde el arranque.
@@ -682,6 +686,18 @@ class SpectrumCanvas(FigureCanvas):
                show_residual: bool = True,
                show_legend: bool = True) -> None:
         s = style or get_style("classic")
+        self.last_render = {
+            "velocity": np.asarray(v, dtype=float).copy(),
+            "y_data": np.asarray(y, dtype=float).copy(),
+            "model": None if model is None else np.asarray(model, dtype=float).copy(),
+            "components": [
+                (int(idx), str(kind), np.asarray(comp, dtype=float).copy())
+                for idx, kind, comp in (components or [])
+            ],
+            "style": dict(s),
+            "show_residual": bool(show_residual),
+            "show_legend": bool(show_legend),
+        }
         self.fig.set_facecolor(s["fig_bg"])
         # El espacio de residuos depende SOLO de la opción 'mostrar diferencia',
         # no de que exista un modelo: así un ajuste no altera la disposición.
@@ -1216,6 +1232,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         try:
             self._save_settings()
+            self._cleanup_plotly_temp_files()
         except Exception:
             pass
         super().closeEvent(event)
@@ -1246,7 +1263,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.absorber_model = "thin"       # "thin" / "thickness"
         self._simulate_enabled = False      # igual que Tk: al cargar solo se dibujan datos
         self.last_fit_result: FitResult | None = None
+        self.last_distribution_result = None
         self.last_error_source = "covarianza (1σ)"   # actualizado por bootstrap
+        self._plotly_temp_files: list[Path] = []
         self.dist_use_sharp = False
         self.dist_refine_global = False
         self._edge_trim = 1
@@ -1432,8 +1451,50 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._center_bottom_layout = QtWidgets.QVBoxLayout(self._center_bottom_widget)
         self._center_bottom_layout.setContentsMargins(6, 0, 6, 6)
         self._center_bottom_layout.setSpacing(8)
+
+        self.plot_tabs = QtWidgets.QTabWidget(center)
+        mpl_tab = QtWidgets.QWidget(self.plot_tabs)
+        mpl_lay = QtWidgets.QVBoxLayout(mpl_tab)
+        mpl_lay.setContentsMargins(0, 0, 0, 0)
+        mpl_lay.addWidget(self.toolbar)
+        mpl_lay.addWidget(self.canvas, stretch=1)
+        self.plot_tabs.addTab(mpl_tab, tr("plot.tab_matplotlib", default="Matplotlib"))
+
+        self.plotly_tab = QtWidgets.QWidget(self.plot_tabs)
+        plotly_lay = QtWidgets.QVBoxLayout(self.plotly_tab)
+        plotly_lay.setContentsMargins(6, 6, 6, 6)
+        plotly_actions = QtWidgets.QHBoxLayout()
+        self.btn_plotly_update = QtWidgets.QPushButton(tr("button.update_plotly", default="Actualizar Plotly"))
+        self.btn_plotly_update.clicked.connect(self._update_plotly_view)
+        self.btn_plotly_export = QtWidgets.QPushButton(tr("file.export_plotly_html"))
+        self.btn_plotly_export.clicked.connect(self.on_export_plotly_html)
+        self.plotly_status = QtWidgets.QLabel(tr("plotly.initial", default="Abre o actualiza el gráfico interactivo."))
+        self.plotly_status.setWordWrap(True)
+        plotly_actions.addWidget(self.btn_plotly_update)
+        plotly_actions.addWidget(self.btn_plotly_export)
+        plotly_actions.addWidget(self.plotly_status, stretch=1)
+        plotly_lay.addLayout(plotly_actions)
+        self.plotly_view = None
+        self._plotly_available = False
+        try:
+            from PySide6 import QtWebEngineWidgets as _QtWebEngineWidgets
+            self.plotly_view = _QtWebEngineWidgets.QWebEngineView(self.plotly_tab)
+            self._plotly_available = True
+            plotly_lay.addWidget(self.plotly_view, stretch=1)
+        except Exception:
+            self.plotly_placeholder = QtWidgets.QLabel(tr("msg.plotly_webengine_missing"))
+            self.plotly_placeholder.setAlignment(QtCore.Qt.AlignCenter)
+            self.plotly_placeholder.setWordWrap(True)
+            plotly_lay.addWidget(self.plotly_placeholder, stretch=1)
+        self.plot_tabs.addTab(self.plotly_tab, tr("plot.tab_plotly", default="Plotly interactivo"))
+        self._plotly_update_timer = QtCore.QTimer(self)
+        self._plotly_update_timer.setSingleShot(True)
+        self._plotly_update_timer.setInterval(300)
+        self._plotly_update_timer.timeout.connect(self._update_plotly_view)
+        self.plot_tabs.currentChanged.connect(lambda _idx: self._schedule_plotly_update() if self._is_plotly_tab_active() else None)
+
         cv.addWidget(self._center_top_widget)
-        cv.addWidget(self.toolbar); cv.addWidget(self.canvas, stretch=1)
+        cv.addWidget(self.plot_tabs, stretch=1)
         cv.addWidget(self._center_bottom_widget)
         splitter.addWidget(center)
 
@@ -1511,6 +1572,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_export_report.triggered.connect(self.on_export_report)
         self.act_export_report.setEnabled(False)
         file_menu.addAction(self.act_export_report)
+        self.act_export_plotly = QtGui.QAction(tr("file.export_plotly_html"), self)
+        self.act_export_plotly.triggered.connect(self.on_export_plotly_html)
+        self.act_export_plotly.setEnabled(False)
+        file_menu.addAction(self.act_export_plotly)
         file_menu.addSeparator()
         act_save_session = QtGui.QAction(tr("file.save_session"), self)
         act_save_session.setShortcut("Ctrl+S")
@@ -1728,6 +1793,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_show_legend.toggled.connect(lambda _: self._refresh_plot())
         self.act_show_legend.toggled.connect(lambda checked: self.act_opt_show_legend.setChecked(checked) if hasattr(self, "act_opt_show_legend") and self.act_opt_show_legend.isChecked() != checked else None)
         view_menu.addAction(self.act_show_legend)
+        self.act_open_plotly = QtGui.QAction(tr("view.open_plotly"), self)
+        self.act_open_plotly.triggered.connect(self.on_open_plotly)
+        self.act_open_plotly.setEnabled(False)
+        view_menu.addAction(self.act_open_plotly)
         view_menu.addSeparator()
         # Tema UI (QStyle de Qt). Por defecto Fusion.
         theme_menu = view_menu.addMenu(tr("options.theme"))
@@ -2958,6 +3027,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_find_center.setEnabled(True)
         self.act_save_fit.setEnabled(True)
         self.act_export_report.setEnabled(True)
+        self.act_export_plotly.setEnabled(True)
+        self.act_open_plotly.setEnabled(True)
         self.act_bootstrap.setEnabled(True)
         self.act_lcurve.setEnabled(True)
         self._set_quick_action_buttons_enabled(True)
@@ -2965,6 +3036,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.statusBar().showMessage(
             f"{path.name} · {counts.size} canales · centro={center:.3f}")
         self.last_fit_result = None
+        self.last_distribution_result = None
         self._refresh_plot()
 
     def _refresh_plot(self) -> None:
@@ -2985,6 +3057,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             self.canvas.render(v, y, style=style,
                                show_residual=show_res, show_legend=show_leg)
             self._update_info_panel()
+            self._schedule_plotly_update()
             return
         try:
             model = model_from_values(v, state.values, state.components, state.constraints,
@@ -2993,6 +3066,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             self.canvas.render(v, y, style=style,
                                show_residual=show_res, show_legend=show_leg)
             self._update_info_panel()
+            self._schedule_plotly_update()
             return
         # Solo dibujar componentes individuales si hay más de uno activo.
         comps = []
@@ -3005,6 +3079,260 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.canvas.render(v, y, model=model, components=comps, style=style,
                            show_residual=show_res, show_legend=show_leg)
         self._update_info_panel()
+        self._schedule_plotly_update()
+
+    def _current_plotly_figure(self):
+        """Construye una figura Plotly a partir de lo último dibujado."""
+        render = getattr(self.canvas, "last_render", None)
+        if not render:
+            raise RuntimeError(tr("msg.plotly_no_plot"))
+        try:
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
+        except Exception as exc:
+            raise RuntimeError(tr("msg.plotly_missing")) from exc
+
+        v = render["velocity"]
+        y = render["y_data"]
+        model = render.get("model")
+        components = render.get("components") or []
+        style = render.get("style") or get_style(self.plot_style_name)
+        show_residual = bool(render.get("show_residual", True)) and model is not None
+        dist_result = self.last_distribution_result if getattr(self, "is_distribution_mode", False) else None
+        show_distribution = bool(
+            dist_result is not None
+            and hasattr(dist_result, "bhf_centers")
+            and hasattr(dist_result, "probability")
+        )
+        rows = 1 + (1 if show_residual else 0) + (1 if show_distribution else 0)
+        row_heights = [0.62]
+        if show_residual:
+            row_heights.append(0.18)
+        if show_distribution:
+            row_heights.append(0.20)
+        fig = make_subplots(
+            rows=rows, cols=1, shared_xaxes=False,
+            row_heights=row_heights, vertical_spacing=0.055,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=v, y=y, mode="markers", name=tr("plot.legend_data"),
+                marker=dict(color=style.get("data", "#2563eb"), size=6),
+                hovertemplate="v=%{x:.5g}<br>y=%{y:.6g}<extra></extra>",
+            ),
+            row=1, col=1,
+        )
+        palette = style.get("components_palette") or ("#10b981", "#f59e0b", "#8b5cf6")
+        for idx, kind, comp in components:
+            param_txt = self._plotly_component_param_text(idx)
+            fig.add_trace(
+                go.Scatter(
+                    x=v, y=comp, mode="lines",
+                    name=f"{tr(f'kind.{kind}', default=kind)} {idx}",
+                    line=dict(color=palette[(idx - 1) % len(palette)], width=1.5, dash="dash"),
+                    hovertemplate=(
+                        f"{html.escape(param_txt)}<br>"
+                        "v=%{x:.5g}<br>y=%{y:.6g}<extra></extra>"
+                    ),
+                ),
+                row=1, col=1,
+            )
+        if model is not None:
+            fig.add_trace(
+                go.Scatter(
+                    x=v, y=model, mode="lines", name=tr("plot.legend_model"),
+                    line=dict(color=style.get("model", "#dc2626"), width=2.4),
+                    hovertemplate="v=%{x:.5g}<br>modelo=%{y:.6g}<extra></extra>",
+                ),
+                row=1, col=1,
+            )
+            if show_residual:
+                residual = y - model
+                res_row = 2
+                fig.add_trace(
+                    go.Scatter(
+                        x=v, y=residual, mode="lines", name=tr("plot.residual_ylabel"),
+                        line=dict(color=style.get("res_line", "#7c3aed"), width=1.2),
+                        fill="tozeroy", fillcolor="rgba(124,58,237,0.18)",
+                        hovertemplate="v=%{x:.5g}<br>res=%{y:.6g}<extra></extra>",
+                    ),
+                    row=res_row, col=1,
+                )
+                fig.add_hline(y=0, line_width=1, line_color=style.get("res_zero", "#64748b"), row=res_row, col=1)
+                fig.update_yaxes(title_text=tr("plot.residual_ylabel"), row=res_row, col=1)
+                fig.update_xaxes(title_text=tr("plot.velocity_xlabel"), row=res_row, col=1)
+        if show_distribution:
+            dist_row = rows
+            xdist = np.asarray(dist_result.bhf_centers, dtype=float)
+            pdist = np.asarray(dist_result.probability, dtype=float)
+            dist_name = "P(ΔEQ)" if self.dist_variable == "quad" else "P(BHF)"
+            fig.add_trace(
+                go.Scatter(
+                    x=xdist, y=pdist, mode="lines", name=dist_name,
+                    line=dict(color="#2563eb", width=2.2),
+                    fill="tozeroy", fillcolor="rgba(37,99,235,0.22)",
+                    hovertemplate="x=%{x:.5g}<br>P=%{y:.6g}<extra></extra>",
+                ),
+                row=dist_row, col=1,
+            )
+            xlabel = tr("plot.distribution_xlabel_deq") if self.dist_variable == "quad" else tr("plot.distribution_xlabel_bhf")
+            fig.update_xaxes(title_text=xlabel, row=dist_row, col=1)
+            fig.update_yaxes(title_text=dist_name, row=dist_row, col=1)
+        if not show_residual:
+            fig.update_xaxes(title_text=tr("plot.velocity_xlabel"), row=1, col=1)
+        template = "plotly_dark" if self.plot_style_name == "dark" or self.color_theme == "dark" else "plotly_white"
+        subtitle = self._plotly_subtitle()
+        title = tr("plot.title_discrete") + (f"<br><sup>{html.escape(subtitle)}</sup>" if subtitle else "")
+        fig.update_layout(
+            template=template,
+            title=title,
+            hovermode="x unified",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1.0),
+            margin=dict(l=60, r=24, t=86, b=56),
+        )
+        fig.update_yaxes(title_text=tr("plot.transmission_ylabel"), row=1, col=1)
+        return fig
+
+    def _plotly_subtitle(self) -> str:
+        parts: list[str] = []
+        if self.file.path:
+            parts.append(self.file.path.name)
+        if self.last_fit_result is not None:
+            stats = self.last_fit_result.stats
+            if "red_chi2" in stats:
+                parts.append(f"χ²red={float(stats['red_chi2']):.5g}")
+            if "aic" in stats:
+                parts.append(f"AIC={float(stats['aic']):.5g}")
+            if "bic" in stats:
+                parts.append(f"BIC={float(stats['bic']):.5g}")
+        return " · ".join(parts)
+
+    def _plotly_component_param_text(self, idx: int) -> str:
+        if idx < 1 or idx > len(self.components_panels):
+            return f"Comp. {idx}"
+        cp = self.components_panels[idx - 1]
+        fields = [f"Comp. {idx} ({tr(f'kind.{cp.kind}', default=cp.kind)})"]
+        for name, label in (("delta", "δ"), ("quad", "ΔEQ"), ("bhf", "BHF"), ("gamma1", "Γ"), ("depth", "prof")):
+            ctl = cp.params.get(name)
+            if ctl is not None:
+                fields.append(f"{label}={ctl.value():.5g}")
+        return " · ".join(fields)
+
+    def _plotly_metadata_html(self) -> str:
+        rows: list[tuple[str, str]] = [
+            (tr("report.program", default="Programa"), f"{APP_NAME} v{APP_VERSION} (Qt)"),
+        ]
+        if self.file.path:
+            rows.append((tr("report.file", default="Fichero"), self.file.path.name))
+        if self.file.velocity is not None:
+            rows.append(("Canales doblados", str(self.file.velocity.size)))
+        rows.append(("Modo", "P(ΔEQ)" if self.mode_combo.currentIndex() == 2 else ("P(BHF)" if self.mode_combo.currentIndex() == 1 else "Discreto")))
+        rows.append(("Perfil", self.calib.line_profile))
+        rows.append(("Verosimilitud", self.likelihood))
+        rows.append(("Pérdida", self.robust_loss))
+        if self.last_fit_result is not None:
+            for key in ("chi2", "red_chi2", "aic", "bic"):
+                if key in self.last_fit_result.stats:
+                    rows.append((key, f"{float(self.last_fit_result.stats[key]):.6g}"))
+        comp_lines = [self._plotly_component_param_text(cp.idx) for cp in self.components_panels if cp.enabled.isChecked()]
+        table = "".join(
+            f"<tr><th>{html.escape(str(k))}</th><td>{html.escape(str(v))}</td></tr>"
+            for k, v in rows
+        )
+        comps = "".join(f"<li>{html.escape(line)}</li>" for line in comp_lines)
+        return (
+            "<section class='metadata'>"
+            f"<h2>{html.escape(tr('plotly.metadata_title', default='Metadatos del ajuste'))}</h2>"
+            f"<table>{table}</table>"
+            f"<h3>{html.escape(tr('plotly.components_title', default='Componentes activos'))}</h3>"
+            f"<ul>{comps}</ul>"
+            "</section>"
+        )
+
+    def _plotly_html_document(self) -> str:
+        fig = self._current_plotly_figure()
+        body = fig.to_html(
+            include_plotlyjs=True,
+            full_html=False,
+            config={"responsive": True, "displaylogo": False, "toImageButtonOptions": {"format": "png", "scale": 2}},
+        )
+        bg = "#111827" if self.color_theme == "dark" else "#ffffff"
+        fg = "#e5e7eb" if self.color_theme == "dark" else "#111827"
+        border = "#374151" if self.color_theme == "dark" else "#d1d5db"
+        return (
+            "<!doctype html><html><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+            f"<title>{html.escape(tr('plotly.title'))}</title>"
+            "<style>"
+            f"body{{margin:0;background:{bg};color:{fg};font-family:system-ui,Segoe UI,sans-serif;}}"
+            "main{padding:10px 14px 24px 14px;}"
+            f".metadata{{margin:12px 8px 4px 8px;padding:12px;border:1px solid {border};border-radius:10px;}}"
+            ".metadata h2,.metadata h3{margin:0.2rem 0 0.5rem 0;}"
+            ".metadata table{border-collapse:collapse;margin-bottom:0.75rem;}"
+            ".metadata th{text-align:left;padding:3px 12px 3px 0;}"
+            ".metadata td{padding:3px 0;}"
+            "</style></head><body><main>"
+            f"{body}{self._plotly_metadata_html()}"
+            "</main></body></html>"
+        )
+
+    def _cleanup_plotly_temp_files(self) -> None:
+        for path in list(getattr(self, "_plotly_temp_files", [])):
+            try:
+                path.unlink(missing_ok=True)
+            except Exception:
+                pass
+        self._plotly_temp_files = []
+
+    def _is_plotly_tab_active(self) -> bool:
+        return hasattr(self, "plot_tabs") and self.plot_tabs.currentWidget() is getattr(self, "plotly_tab", None)
+
+    def _schedule_plotly_update(self) -> None:
+        if self._is_plotly_tab_active() and getattr(self, "_plotly_available", False):
+            self._plotly_update_timer.start()
+
+    def _update_plotly_view(self) -> None:
+        if not getattr(self, "_plotly_available", False) or self.plotly_view is None:
+            if hasattr(self, "plotly_status"):
+                self.plotly_status.setText(tr("msg.plotly_webengine_missing"))
+            return
+        try:
+            doc = self._plotly_html_document()
+            self._cleanup_plotly_temp_files()
+            with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as fh:
+                temp_path = Path(fh.name)
+                fh.write(doc)
+            self._plotly_temp_files.append(temp_path)
+            self.plotly_view.load(QtCore.QUrl.fromLocalFile(str(temp_path)))
+            if hasattr(self, "plotly_status"):
+                self.plotly_status.setText(tr("status.plotly_updated", default="Plotly actualizado."))
+        except Exception as exc:
+            if hasattr(self, "plotly_status"):
+                self.plotly_status.setText(str(exc))
+            try:
+                self.plotly_view.setHtml(f"<html><body><pre>{html.escape(str(exc))}</pre></body></html>")
+            except Exception:
+                pass
+
+    def on_open_plotly(self) -> None:
+        if hasattr(self, "plot_tabs"):
+            self.plot_tabs.setCurrentWidget(self.plotly_tab)
+        self._update_plotly_view()
+
+    def on_export_plotly_html(self) -> None:
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, tr("file.export_plotly_html"), str(ROOT / "mossbauer_plotly.html"),
+            "HTML (*.html);;All (*.*)")
+        if not path:
+            return
+        try:
+            out = Path(path)
+            if out.suffix.lower() not in (".html", ".htm"):
+                out = out.with_suffix(".html")
+            out.write_text(self._plotly_html_document(), encoding="utf-8")
+            self.statusBar().showMessage(tr("status.plotly_exported", path=str(out)), 6000)
+        except Exception as exc:
+            QtWidgets.QMessageBox.warning(self, tr("plotly.title"), str(exc))
 
     def _open_progress_dialog(self, title: str, message: str | None = None):
         """Ventana modal de progreso (barra indeterminada), igual que la de Tk.
@@ -3093,6 +3421,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.statusBar().showMessage(
             f"χ²={chi2:.4g}  χ²red={red:.4g}  ·  {result.n_starts} arranques")
         self.last_fit_result = result
+        self.last_distribution_result = None
         self.last_error_source = "covarianza (1σ)"
         self.act_fit.setEnabled(True)
         self._refresh_plot()
@@ -4392,6 +4721,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.canvas.render(self.file.velocity, self.file.y_data,
                            model=result.fitted_curve, style=style,
                            show_residual=show_res, show_legend=show_leg)
+        self.last_distribution_result = result
+        self._schedule_plotly_update()
         msg = (f"{label}: bins={nbins}  α=10^{d.log_alpha.value():.2f}  "
                f"RMS={result.rms:.5g}")
         self.statusBar().showMessage(msg)
