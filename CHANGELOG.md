@@ -1,5 +1,29 @@
 # Changelog
 
+## v3.0 — interfaz Qt y núcleo de cálculo unificado
+
+Release mayor. Incorpora una segunda interfaz gráfica (Qt/PySide6) y, sobre todo,
+unifica todo el cálculo en `core/`, compartido por la GUI Tk, la GUI Qt, el CLI y
+el ajuste en serie.
+
+### Interfaces y empaquetado
+
+- Nueva **GUI Qt (PySide6)** junto a la GUI Tk clásica; ambas sobre el mismo núcleo.
+- **Dos ejecutables**: Tk (`MossbauerFeFit.spec`, lanzadores `mossbauer`/`mossbauer.bat`)
+  y Qt (`MossbauerFeFit-Qt.spec`, lanzadores `mossbauer-qt`/`mossbauer-qt.bat`).
+- Informe (Qt) con tabla de parámetros valor ± σ, origen de la incertidumbre
+  (covarianza o bootstrap), bondad (χ²ᵣ/χ²/AIC/BIC) y correlaciones altas.
+
+### Núcleo de cálculo (`core/`) unificado
+
+- Física del modelo única en `core.physics` (el Tk la reutiliza).
+- Motor de ajuste único en `core.fit_engine`, usado por Tk, Qt, CLI y batch:
+  multistart + optimización global + pérdida robusta + covarianza, re-folding del
+  centro, σ de calibración (escala Vmax) y σ Poisson correcta, modo textura y
+  restricciones encadenadas, bootstrap (Poisson) y verosimilitud perfilada como
+  funciones puras. Eliminada la duplicación del optimizador en el Tk.
+- CI ejecuta la suite completa (GUIs Tk/Qt, CLI y batch) headless con Xvfb/offscreen.
+
 ## v2.3-beta1 — prerelease no estable
 
 Versión beta para validar cambios posteriores a v2.2 antes de una release estable.
