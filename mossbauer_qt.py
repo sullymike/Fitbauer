@@ -10,9 +10,11 @@ en serie / verosimilitud perfilada / restricciones; estilos QSS; tests.
 """
 from __future__ import annotations
 
+import html
 import json
 import os
 import sys
+import tempfile
 import threading
 import webbrowser
 from pathlib import Path
@@ -632,6 +634,26 @@ class InfoPanel(QtWidgets.QGroupBox):
 
 
 # ─────────────────────────────────────────────────────────────────────────
+#  Puente JS ↔ Python para la edición de mínimos en Plotly
+# ─────────────────────────────────────────────────────────────────────────
+
+
+class MinimaBridge(QtCore.QObject):
+    """Recibe los clics sobre los marcadores de mínimos del gráfico Plotly.
+
+    El gráfico vive en una página web (QWebEngineView); cuando el usuario clica
+    un marcador, el JavaScript llama a estos slots a través de QWebChannel, lo
+    que mantiene la lista lateral de Qt sincronizada con el gráfico.
+    """
+
+    toggled = QtCore.Signal(int)
+
+    @QtCore.Slot(int)
+    def toggle(self, index: int) -> None:
+        self.toggled.emit(int(index))
+
+
+# ─────────────────────────────────────────────────────────────────────────
 #  Canvas
 # ─────────────────────────────────────────────────────────────────────────
 
@@ -651,9 +673,17 @@ class SpectrumCanvas(FigureCanvas):
         self.ax.set_ylabel(tr("plot.transmission_ylabel"))
         self.ax_res.set_xlabel(tr("plot.velocity_xlabel"))
         self.ax_res.set_ylabel(tr("plot.residual_ylabel"))
+        self.last_render: dict | None = None
+        # Estado para la actualización incremental (evita reconstruir toda la
+        # figura en cada refresco: solo se reescriben los datos de las líneas).
+        self._artists: dict | None = None
+        self._layout_sig: tuple | None = None
         self.show_no_file()
 
     def show_no_file(self) -> None:
+        self.last_render = None
+        self._artists = None
+        self._layout_sig = None
         # Reconstruye la rejilla según la preferencia: con residuos (2 filas) o
         # sin ellos (1 fila), para que el espacio coincida con la opción ya
         # desde el arranque.
@@ -680,14 +710,54 @@ class SpectrumCanvas(FigureCanvas):
                components: list[tuple[int, str, np.ndarray]] | None = None,
                style: dict | None = None,
                show_residual: bool = True,
-               show_legend: bool = True) -> None:
+               show_legend: bool = True,
+               model_v: np.ndarray | None = None,
+               residual: np.ndarray | None = None,
+               style_name: str | None = None) -> None:
         s = style or get_style("classic")
+        actual_show_residual = bool(show_residual)
+        # ``model``/``components`` pueden venir muestreados en una rejilla densa
+        # (``model_v``) para que la curva de ajuste salga suave aunque el espectro
+        # tenga pocos canales. Los datos y los residuos van en la rejilla ``v``.
+        mv = model_v if model_v is not None else v
+        if residual is None and model is not None and model_v is None:
+            residual = y - model
+        # Estado para el gráfico Plotly (y otros consumidores) y para alternar.
+        self.last_render = {
+            "velocity": np.asarray(v, dtype=float).copy(),
+            "y_data": np.asarray(y, dtype=float).copy(),
+            "model": None if model is None else np.asarray(model, dtype=float).copy(),
+            "model_v": np.asarray(mv, dtype=float).copy(),
+            "residual": None if residual is None else np.asarray(residual, dtype=float).copy(),
+            "components": [
+                (int(idx), str(kind), np.asarray(comp, dtype=float).copy())
+                for idx, kind, comp in (components or [])
+            ],
+            "style": dict(s),
+            "show_residual": bool(show_residual),
+            "show_legend": bool(show_legend),
+        }
+        n_comp = len(components or [])
+        # Firma de la disposición: si no cambia, se reutilizan los ejes/artistas
+        # y solo se reescriben los datos (mucho más rápido, sin reconstruir).
+        layout_sig = (actual_show_residual, model is not None, n_comp,
+                      bool(show_legend), style_name, int(np.asarray(v).size),
+                      int(np.asarray(mv).size))
+        if (self._artists is not None and self._layout_sig == layout_sig
+                and style_name is not None):
+            try:
+                self._update_fast(v, y, model, components, residual, mv, s,
+                                  actual_show_residual)
+                return
+            except Exception:
+                # Ante cualquier discrepancia, se cae a la reconstrucción total.
+                self._artists = None
         self.fig.set_facecolor(s["fig_bg"])
         # El espacio de residuos depende SOLO de la opción 'mostrar diferencia',
         # no de que exista un modelo: así un ajuste no altera la disposición.
-        actual_show_residual = bool(show_residual)
         self.residual_pref = actual_show_residual
         self.fig.clear()
+        self._artists = None
         if actual_show_residual:
             self._gs = self.fig.add_gridspec(2, 1, height_ratios=[4.6, 1.0], hspace=0.08)
             self.ax = self.fig.add_subplot(self._gs[0])
@@ -699,28 +769,34 @@ class SpectrumCanvas(FigureCanvas):
         self.ax.set_facecolor(s["ax_bg"])
         if self.ax_res is not None:
             self.ax_res.set_facecolor(s["res_bg"])
-        self.ax.plot(v, y, ".", color=s["data"],
-                     ms=s.get("data_ms", 3.5), alpha=s.get("data_alpha", 0.7),
-                     label=tr("plot.legend_data"))
+        data_line, = self.ax.plot(v, y, ".", color=s["data"],
+                                  ms=s.get("data_ms", 3.5),
+                                  alpha=s.get("data_alpha", 0.7),
+                                  label=tr("plot.legend_data"))
+        comp_lines: list = []
         if components:
             palette = s.get("components_palette") or ("#10b981", "#f59e0b", "#8b5cf6")
             for idx, kind, comp in components:
-                self.ax.plot(v, comp, "--",
-                             color=palette[(idx - 1) % len(palette)],
-                             lw=s.get("component_lw", 1.4),
-                             alpha=s.get("component_alpha", 0.85),
-                             label=f"{tr(f'kind.{kind}', default=kind)} {idx}")
+                ln, = self.ax.plot(mv, comp, "--",
+                                   color=palette[(idx - 1) % len(palette)],
+                                   lw=s.get("component_lw", 1.4),
+                                   alpha=s.get("component_alpha", 0.85),
+                                   label=f"{tr(f'kind.{kind}', default=kind)} {idx}")
+                comp_lines.append(ln)
+        model_line = None
+        res_line = None
+        res_fill = None
         if model is not None:
-            self.ax.plot(v, model, "-", color=s["model"],
-                         lw=s.get("model_lw", 2.2),
-                         label=tr("plot.legend_model"))
-            residual = y - model
-            if actual_show_residual and self.ax_res is not None:
+            model_line, = self.ax.plot(mv, model, "-", color=s["model"],
+                                       lw=s.get("model_lw", 2.2),
+                                       label=tr("plot.legend_model"))
+            if residual is not None and actual_show_residual and self.ax_res is not None:
                 self.ax_res.axhline(0, color=s["res_zero"], lw=0.9, alpha=0.9)
-                self.ax_res.fill_between(v, residual, 0, color=s["res_fill"],
-                                         alpha=s.get("res_fill_alpha", 0.22))
-                self.ax_res.plot(v, residual, "-", color=s["res_line"],
-                                 lw=s.get("res_line_lw", 1.0))
+                res_fill = self.ax_res.fill_between(
+                    v, residual, 0, color=s["res_fill"],
+                    alpha=s.get("res_fill_alpha", 0.22))
+                res_line, = self.ax_res.plot(v, residual, "-", color=s["res_line"],
+                                             lw=s.get("res_line_lw", 1.0))
                 lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
                 self.ax_res.set_ylim(-lim, lim)
         if not actual_show_residual:
@@ -753,6 +829,50 @@ class SpectrumCanvas(FigureCanvas):
                            facecolor=s["leg_face"], edgecolor=s["leg_edge"],
                            labelcolor=s["leg_text"])
         self.fig.tight_layout()
+        self.draw_idle()
+        # Memoriza artistas y disposición para los refrescos incrementales.
+        self._artists = {
+            "data": data_line,
+            "comps": comp_lines,
+            "model": model_line,
+            "res_line": res_line,
+            "res_fill": res_fill,
+            "res_color": s["res_fill"],
+            "res_alpha": s.get("res_fill_alpha", 0.22),
+        }
+        self._layout_sig = layout_sig
+
+    def _update_fast(self, v, y, model, components, residual, mv, s,
+                     actual_show_residual) -> None:
+        """Refresco incremental: reescribe los datos sin reconstruir la figura.
+
+        Se usa cuando la disposición (residuos, nº de componentes, leyenda,
+        estilo y tamaños) no ha cambiado respecto al render anterior. Evita el
+        coste de ``fig.clear`` + recrear ejes + ``tight_layout`` en cada cambio
+        de parámetro, que es lo que hace lento el arrastre de sliders.
+        """
+        a = self._artists
+        a["data"].set_data(v, y)
+        comps = components or []
+        for ln, (_idx, _kind, comp) in zip(a["comps"], comps):
+            ln.set_data(mv, comp)
+        if a["model"] is not None and model is not None:
+            a["model"].set_data(mv, model)
+        self.ax.relim()
+        self.ax.autoscale_view()
+        if (a["res_line"] is not None and residual is not None
+                and actual_show_residual and self.ax_res is not None):
+            a["res_line"].set_data(v, residual)
+            # ``fill_between`` no admite set_data: se sustituye la colección.
+            if a["res_fill"] is not None:
+                try:
+                    a["res_fill"].remove()
+                except Exception:
+                    pass
+            a["res_fill"] = self.ax_res.fill_between(
+                v, residual, 0, color=a["res_color"], alpha=a["res_alpha"])
+            lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
+            self.ax_res.set_ylim(-lim, lim)
         self.draw_idle()
 
 
@@ -1216,6 +1336,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         try:
             self._save_settings()
+            self._cleanup_plotly_temp_files()
         except Exception:
             pass
         super().closeEvent(event)
@@ -1246,7 +1367,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.absorber_model = "thin"       # "thin" / "thickness"
         self._simulate_enabled = False      # igual que Tk: al cargar solo se dibujan datos
         self.last_fit_result: FitResult | None = None
+        self.last_distribution_result = None
         self.last_error_source = "covarianza (1σ)"   # actualizado por bootstrap
+        self._plotly_temp_files: list[Path] = []
         self.dist_use_sharp = False
         self.dist_refine_global = False
         self._edge_trim = 1
@@ -1432,8 +1555,71 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._center_bottom_layout = QtWidgets.QVBoxLayout(self._center_bottom_widget)
         self._center_bottom_layout.setContentsMargins(6, 0, 6, 6)
         self._center_bottom_layout.setSpacing(8)
+
+        self.plot_tabs = QtWidgets.QTabWidget(center)
+        mpl_tab = QtWidgets.QWidget(self.plot_tabs)
+        mpl_lay = QtWidgets.QVBoxLayout(mpl_tab)
+        mpl_lay.setContentsMargins(0, 0, 0, 0)
+        mpl_lay.addWidget(self.toolbar)
+        mpl_lay.addWidget(self.canvas, stretch=1)
+        self.plot_tabs.addTab(mpl_tab, tr("plot.tab_matplotlib", default="Matplotlib"))
+
+        self.plotly_tab = QtWidgets.QWidget(self.plot_tabs)
+        plotly_lay = QtWidgets.QVBoxLayout(self.plotly_tab)
+        plotly_lay.setContentsMargins(6, 6, 6, 6)
+        plotly_actions = QtWidgets.QHBoxLayout()
+        self.btn_plotly_update = QtWidgets.QPushButton(tr("button.update_plotly", default="Actualizar Plotly"))
+        self.btn_plotly_update.clicked.connect(self._update_plotly_view)
+        self.btn_plotly_export = QtWidgets.QPushButton(tr("file.export_plotly_html"))
+        self.btn_plotly_export.clicked.connect(self.on_export_plotly_html)
+        self.plotly_status = QtWidgets.QLabel(tr("plotly.initial", default="Abre o actualiza el gráfico interactivo."))
+        self.plotly_status.setWordWrap(True)
+        plotly_actions.addWidget(self.btn_plotly_update)
+        plotly_actions.addWidget(self.btn_plotly_export)
+        plotly_actions.addWidget(self.plotly_status, stretch=1)
+        plotly_lay.addLayout(plotly_actions)
+        self.plotly_view = None
+        self._plotly_available = False
+        # Estado de la página incremental: la plantilla con plotly.js se carga
+        # una sola vez; los refrescos usan Plotly.react (no recargan el HTML).
+        self._plotly_page_ready = False
+        self._plotly_loading = False
+        self._plotly_pending: str | None = None
+        self._plotly_theme: str | None = None
+        # Estado de la edición semi-manual de mínimos.
+        self._minima_edit_mode = False
+        self._minima_entries: list[dict] = []
+        self._minima_rows: list[dict] = []
+        self._minima_bridge = None
+        # La vista web y el editor de mínimos van lado a lado en un splitter.
+        self.plotly_split = QtWidgets.QSplitter(QtCore.Qt.Horizontal, self.plotly_tab)
+        self.minima_editor = self._build_minima_editor()
+        try:
+            from PySide6 import QtWebEngineWidgets as _QtWebEngineWidgets
+            self.plotly_view = _QtWebEngineWidgets.QWebEngineView(self.plotly_tab)
+            self._plotly_available = True
+            self.plotly_view.loadFinished.connect(self._on_plotly_loaded)
+            self.plotly_split.addWidget(self.plotly_view)
+            self.plotly_split.addWidget(self.minima_editor)
+            self.plotly_split.setStretchFactor(0, 1)
+            self.plotly_split.setStretchFactor(1, 0)
+            self.minima_editor.hide()
+            plotly_lay.addWidget(self.plotly_split, stretch=1)
+            self._setup_minima_webchannel()
+        except Exception:
+            self.plotly_placeholder = QtWidgets.QLabel(tr("msg.plotly_webengine_missing"))
+            self.plotly_placeholder.setAlignment(QtCore.Qt.AlignCenter)
+            self.plotly_placeholder.setWordWrap(True)
+            plotly_lay.addWidget(self.plotly_placeholder, stretch=1)
+        self.plot_tabs.addTab(self.plotly_tab, tr("plot.tab_plotly", default="Plotly interactivo"))
+        self._plotly_update_timer = QtCore.QTimer(self)
+        self._plotly_update_timer.setSingleShot(True)
+        self._plotly_update_timer.setInterval(300)
+        self._plotly_update_timer.timeout.connect(self._update_plotly_view)
+        self.plot_tabs.currentChanged.connect(lambda _idx: self._schedule_plotly_update() if self._is_plotly_tab_active() else None)
+
         cv.addWidget(self._center_top_widget)
-        cv.addWidget(self.toolbar); cv.addWidget(self.canvas, stretch=1)
+        cv.addWidget(self.plot_tabs, stretch=1)
         cv.addWidget(self._center_bottom_widget)
         splitter.addWidget(center)
 
@@ -1511,6 +1697,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_export_report.triggered.connect(self.on_export_report)
         self.act_export_report.setEnabled(False)
         file_menu.addAction(self.act_export_report)
+        self.act_export_plotly = QtGui.QAction(tr("file.export_plotly_html"), self)
+        self.act_export_plotly.triggered.connect(self.on_export_plotly_html)
+        self.act_export_plotly.setEnabled(False)
+        file_menu.addAction(self.act_export_plotly)
         file_menu.addSeparator()
         act_save_session = QtGui.QAction(tr("file.save_session"), self)
         act_save_session.setShortcut("Ctrl+S")
@@ -1544,6 +1734,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_init.triggered.connect(lambda _checked=False: self.on_init_from_minima(show_message=True))
         self.act_init.setEnabled(False)
         fit_menu.addAction(self.act_init)
+        self.act_edit_minima = QtGui.QAction(
+            tr("minima.edit_action", default="Editar mínimos (semi-manual)…"), self)
+        self.act_edit_minima.triggered.connect(lambda _checked=False: self.on_edit_minima())
+        self.act_edit_minima.setEnabled(False)
+        fit_menu.addAction(self.act_edit_minima)
         self.act_auto_fit = QtGui.QAction(tr("fit.auto_from_minima"), self)
         self.act_auto_fit.triggered.connect(lambda _checked=False: self.on_auto_fit_from_minima())
         self.act_auto_fit.setEnabled(False)
@@ -1728,6 +1923,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_show_legend.toggled.connect(lambda _: self._refresh_plot())
         self.act_show_legend.toggled.connect(lambda checked: self.act_opt_show_legend.setChecked(checked) if hasattr(self, "act_opt_show_legend") and self.act_opt_show_legend.isChecked() != checked else None)
         view_menu.addAction(self.act_show_legend)
+        self.act_open_plotly = QtGui.QAction(tr("view.open_plotly"), self)
+        self.act_open_plotly.triggered.connect(self.on_open_plotly)
+        self.act_open_plotly.setEnabled(False)
+        view_menu.addAction(self.act_open_plotly)
         view_menu.addSeparator()
         # Tema UI (QStyle de Qt). Por defecto Fusion.
         theme_menu = view_menu.addMenu(tr("options.theme"))
@@ -2950,6 +3149,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                                 f"norm={norm:.4g}")
         self.act_fit.setEnabled(True)
         self.act_init.setEnabled(True)
+        self.act_edit_minima.setEnabled(True)
         self.act_auto_fit.setEnabled(True)
         self.act_ai.setEnabled(True)
         self.act_upload_session.setEnabled(True)
@@ -2958,6 +3158,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.act_find_center.setEnabled(True)
         self.act_save_fit.setEnabled(True)
         self.act_export_report.setEnabled(True)
+        self.act_export_plotly.setEnabled(True)
+        self.act_open_plotly.setEnabled(True)
         self.act_bootstrap.setEnabled(True)
         self.act_lcurve.setEnabled(True)
         self._set_quick_action_buttons_enabled(True)
@@ -2965,6 +3167,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.statusBar().showMessage(
             f"{path.name} · {counts.size} canales · centro={center:.3f}")
         self.last_fit_result = None
+        self.last_distribution_result = None
         self._refresh_plot()
 
     def _refresh_plot(self) -> None:
@@ -2982,29 +3185,622 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
         show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
         if state is None or not self._simulate_enabled:
-            self.canvas.render(v, y, style=style,
+            self.canvas.render(v, y, style=style, style_name=self.plot_style_name,
                                show_residual=show_res, show_legend=show_leg)
             self._update_info_panel()
+            self._schedule_plotly_update()
             return
         try:
             model = model_from_values(v, state.values, state.components, state.constraints,
                                       absorber_model=state.absorber_model)
+            # Curva densa para que el ajuste no salga con pocos puntos.
+            mv = self._model_grid(v)
+            if mv is not None:
+                model_dense = model_from_values(mv, state.values, state.components,
+                                                state.constraints,
+                                                absorber_model=state.absorber_model)
+            else:
+                mv, model_dense = None, model
         except Exception:
-            self.canvas.render(v, y, style=style,
+            self.canvas.render(v, y, style=style, style_name=self.plot_style_name,
                                show_residual=show_res, show_legend=show_leg)
             self._update_info_panel()
+            self._schedule_plotly_update()
             return
+        residual = y - model
         # Solo dibujar componentes individuales si hay más de uno activo.
         comps = []
         enabled = [c for c in state.components if c.enabled]
         if len(enabled) >= 2:
+            grid = mv if mv is not None else v
             for comp in enabled:
-                only_this = model_from_values(v, state.values, [comp], state.constraints,
+                only_this = model_from_values(grid, state.values, [comp], state.constraints,
                                               absorber_model=state.absorber_model)
                 comps.append((comp.idx, comp.kind, only_this))
-        self.canvas.render(v, y, model=model, components=comps, style=style,
-                           show_residual=show_res, show_legend=show_leg)
+        self.canvas.render(v, y, model=model_dense, components=comps, style=style,
+                           show_residual=show_res, show_legend=show_leg,
+                           model_v=mv, residual=residual, style_name=self.plot_style_name)
         self._update_info_panel()
+        self._schedule_plotly_update()
+
+    def _model_grid(self, v: np.ndarray) -> np.ndarray | None:
+        """Rejilla densa para dibujar curvas de ajuste suaves.
+
+        El modelo se evalúa en muchos más puntos que los canales del espectro,
+        de modo que la línea de ajuste no se vea quebrada cuando hay pocos datos.
+        """
+        if v is None or v.size < 2:
+            return None
+        n = int(np.clip(v.size * 6, 1200, 6000))
+        if n <= v.size:
+            return None
+        return np.linspace(float(np.min(v)), float(np.max(v)), n)
+
+    def _current_plotly_figure(self):
+        """Construye una figura Plotly a partir de lo último dibujado."""
+        render = getattr(self.canvas, "last_render", None)
+        if not render:
+            raise RuntimeError(tr("msg.plotly_no_plot"))
+        try:
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
+        except Exception as exc:
+            raise RuntimeError(tr("msg.plotly_missing")) from exc
+
+        v = render["velocity"]
+        y = render["y_data"]
+        model = render.get("model")
+        # Rejilla densa del modelo/componentes (curva de ajuste suave). Si no
+        # está disponible, se cae a la rejilla de los datos.
+        mv = render.get("model_v")
+        if mv is None:
+            mv = v
+        components = render.get("components") or []
+        style = render.get("style") or get_style(self.plot_style_name)
+        show_residual = bool(render.get("show_residual", True)) and model is not None
+        residual = render.get("residual")
+        if residual is None and model is not None:
+            residual = y - model
+        dist_result = self.last_distribution_result if getattr(self, "is_distribution_mode", False) else None
+        show_distribution = bool(
+            dist_result is not None
+            and hasattr(dist_result, "bhf_centers")
+            and hasattr(dist_result, "probability")
+        )
+        rows = 1 + (1 if show_residual else 0) + (1 if show_distribution else 0)
+        row_heights = [0.62]
+        if show_residual:
+            row_heights.append(0.18)
+        if show_distribution:
+            row_heights.append(0.20)
+        fig = make_subplots(
+            rows=rows, cols=1, shared_xaxes=False,
+            row_heights=row_heights, vertical_spacing=0.055,
+        )
+        # WebGL (scattergl) para que muchos puntos se dibujen con fluidez.
+        fig.add_trace(
+            go.Scattergl(
+                x=v, y=y, mode="markers", name=tr("plot.legend_data"),
+                marker=dict(color=style.get("data", "#2563eb"), size=6),
+                hovertemplate="v=%{x:.5g}<br>y=%{y:.6g}<extra></extra>",
+            ),
+            row=1, col=1,
+        )
+        palette = style.get("components_palette") or ("#10b981", "#f59e0b", "#8b5cf6")
+        for idx, kind, comp in components:
+            param_txt = self._plotly_component_param_text(idx)
+            fig.add_trace(
+                go.Scattergl(
+                    x=mv, y=comp, mode="lines",
+                    name=f"{tr(f'kind.{kind}', default=kind)} {idx}",
+                    line=dict(color=palette[(idx - 1) % len(palette)], width=1.5, dash="dash"),
+                    hovertemplate=(
+                        f"{html.escape(param_txt)}<br>"
+                        "v=%{x:.5g}<br>y=%{y:.6g}<extra></extra>"
+                    ),
+                ),
+                row=1, col=1,
+            )
+        if model is not None:
+            fig.add_trace(
+                go.Scattergl(
+                    x=mv, y=model, mode="lines", name=tr("plot.legend_model"),
+                    line=dict(color=style.get("model", "#dc2626"), width=2.4),
+                    hovertemplate="v=%{x:.5g}<br>modelo=%{y:.6g}<extra></extra>",
+                ),
+                row=1, col=1,
+            )
+            if show_residual and residual is not None:
+                res_row = 2
+                fig.add_trace(
+                    go.Scattergl(
+                        x=v, y=residual, mode="lines", name=tr("plot.residual_ylabel"),
+                        line=dict(color=style.get("res_line", "#7c3aed"), width=1.2),
+                        fill="tozeroy", fillcolor="rgba(124,58,237,0.18)",
+                        hovertemplate="v=%{x:.5g}<br>res=%{y:.6g}<extra></extra>",
+                    ),
+                    row=res_row, col=1,
+                )
+                fig.add_hline(y=0, line_width=1, line_color=style.get("res_zero", "#64748b"), row=res_row, col=1)
+                fig.update_yaxes(title_text=tr("plot.residual_ylabel"), row=res_row, col=1)
+                fig.update_xaxes(title_text=tr("plot.velocity_xlabel"), row=res_row, col=1)
+        if show_distribution:
+            dist_row = rows
+            xdist = np.asarray(dist_result.bhf_centers, dtype=float)
+            pdist = np.asarray(dist_result.probability, dtype=float)
+            dist_name = "P(ΔEQ)" if self.dist_variable == "quad" else "P(BHF)"
+            fig.add_trace(
+                go.Scatter(
+                    x=xdist, y=pdist, mode="lines", name=dist_name,
+                    line=dict(color="#2563eb", width=2.2),
+                    fill="tozeroy", fillcolor="rgba(37,99,235,0.22)",
+                    hovertemplate="x=%{x:.5g}<br>P=%{y:.6g}<extra></extra>",
+                ),
+                row=dist_row, col=1,
+            )
+            xlabel = tr("plot.distribution_xlabel_deq") if self.dist_variable == "quad" else tr("plot.distribution_xlabel_bhf")
+            fig.update_xaxes(title_text=xlabel, row=dist_row, col=1)
+            fig.update_yaxes(title_text=dist_name, row=dist_row, col=1)
+        if not show_residual:
+            fig.update_xaxes(title_text=tr("plot.velocity_xlabel"), row=1, col=1)
+        template = "plotly_dark" if self.plot_style_name == "dark" or self.color_theme == "dark" else "plotly_white"
+        subtitle = self._plotly_subtitle()
+        title = tr("plot.title_discrete") + (f"<br><sup>{html.escape(subtitle)}</sup>" if subtitle else "")
+        fig.update_layout(
+            template=template,
+            title=title,
+            hovermode="x unified",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1.0),
+            margin=dict(l=60, r=24, t=86, b=56),
+        )
+        fig.update_yaxes(title_text=tr("plot.transmission_ylabel"), row=1, col=1)
+        if getattr(self, "_minima_edit_mode", False) and self._minima_entries:
+            self._add_minima_overlay(fig, go, v, y)
+        return fig
+
+    def _add_minima_overlay(self, fig, go, v, y) -> None:
+        """Dibuja los mínimos detectados como marcadores clicables en Plotly.
+
+        Los incluidos van resaltados; los excluidos, atenuados. El número de
+        contribuciones (>1) se muestra como una etiqueta ``×n`` sobre el marcador.
+        ``customdata`` lleva el índice de cada mínimo para identificarlo al clicar.
+        """
+        n = int(np.asarray(y).size)
+        for included in (False, True):
+            xs, ys, texts, custom = [], [], [], []
+            for k, e in enumerate(self._minima_entries):
+                if bool(e["included"]) is not included:
+                    continue
+                ch = int(e["i"])
+                yv = float(y[ch]) if 0 <= ch < n else float(np.interp(e["pos"], v, y))
+                xs.append(float(e["pos"]))
+                ys.append(yv)
+                texts.append(f"×{int(e['count'])}" if int(e["count"]) > 1 else "")
+                custom.append(k)
+            if not xs:
+                continue
+            if included:
+                marker = dict(color="#dc2626", size=13, symbol="circle",
+                              line=dict(color="#ffffff", width=1.5))
+                name = tr("minima.included", default="Mínimos (incluidos)")
+            else:
+                marker = dict(color="rgba(148,163,184,0.55)", size=11,
+                              symbol="circle-open", line=dict(color="#94a3b8", width=1.5))
+                name = tr("minima.excluded", default="Mínimos (excluidos)")
+            fig.add_trace(
+                go.Scatter(
+                    x=xs, y=ys, mode="markers+text", name=name,
+                    marker=marker, customdata=custom,
+                    text=texts, textposition="top center",
+                    textfont=dict(color="#dc2626", size=12),
+                    hovertemplate="v=%{x:.4f}<extra></extra>",
+                ),
+                row=1, col=1,
+            )
+
+    def _plotly_subtitle(self) -> str:
+        parts: list[str] = []
+        if self.file.path:
+            parts.append(self.file.path.name)
+        if self.last_fit_result is not None:
+            stats = self.last_fit_result.stats
+            if "red_chi2" in stats:
+                parts.append(f"χ²red={float(stats['red_chi2']):.5g}")
+            if "aic" in stats:
+                parts.append(f"AIC={float(stats['aic']):.5g}")
+            if "bic" in stats:
+                parts.append(f"BIC={float(stats['bic']):.5g}")
+        return " · ".join(parts)
+
+    def _plotly_component_param_text(self, idx: int) -> str:
+        if idx < 1 or idx > len(self.components_panels):
+            return f"Comp. {idx}"
+        cp = self.components_panels[idx - 1]
+        fields = [f"Comp. {idx} ({tr(f'kind.{cp.kind}', default=cp.kind)})"]
+        for name, label in (("delta", "δ"), ("quad", "ΔEQ"), ("bhf", "BHF"), ("gamma1", "Γ"), ("depth", "prof")):
+            ctl = cp.params.get(name)
+            if ctl is not None:
+                fields.append(f"{label}={ctl.value():.5g}")
+        return " · ".join(fields)
+
+    def _plotly_metadata_html(self) -> str:
+        rows: list[tuple[str, str]] = [
+            (tr("report.program", default="Programa"), f"{APP_NAME} v{APP_VERSION} (Qt)"),
+        ]
+        if self.file.path:
+            rows.append((tr("report.file", default="Fichero"), self.file.path.name))
+        if self.file.velocity is not None:
+            rows.append(("Canales doblados", str(self.file.velocity.size)))
+        rows.append(("Modo", "P(ΔEQ)" if self.mode_combo.currentIndex() == 2 else ("P(BHF)" if self.mode_combo.currentIndex() == 1 else "Discreto")))
+        rows.append(("Perfil", self.calib.line_profile))
+        rows.append(("Verosimilitud", self.likelihood))
+        rows.append(("Pérdida", self.robust_loss))
+        if self.last_fit_result is not None:
+            for key in ("chi2", "red_chi2", "aic", "bic"):
+                if key in self.last_fit_result.stats:
+                    rows.append((key, f"{float(self.last_fit_result.stats[key]):.6g}"))
+        comp_lines = [self._plotly_component_param_text(cp.idx) for cp in self.components_panels if cp.enabled.isChecked()]
+        table = "".join(
+            f"<tr><th>{html.escape(str(k))}</th><td>{html.escape(str(v))}</td></tr>"
+            for k, v in rows
+        )
+        comps = "".join(f"<li>{html.escape(line)}</li>" for line in comp_lines)
+        return (
+            "<section class='metadata'>"
+            f"<h2>{html.escape(tr('plotly.metadata_title', default='Metadatos del ajuste'))}</h2>"
+            f"<table>{table}</table>"
+            f"<h3>{html.escape(tr('plotly.components_title', default='Componentes activos'))}</h3>"
+            f"<ul>{comps}</ul>"
+            "</section>"
+        )
+
+    def _plotly_html_document(self) -> str:
+        fig = self._current_plotly_figure()
+        body = fig.to_html(
+            include_plotlyjs=True,
+            full_html=False,
+            config={"responsive": True, "displaylogo": False, "toImageButtonOptions": {"format": "png", "scale": 2}},
+        )
+        bg = "#111827" if self.color_theme == "dark" else "#ffffff"
+        fg = "#e5e7eb" if self.color_theme == "dark" else "#111827"
+        border = "#374151" if self.color_theme == "dark" else "#d1d5db"
+        return (
+            "<!doctype html><html><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+            f"<title>{html.escape(tr('plotly.title'))}</title>"
+            "<style>"
+            f"body{{margin:0;background:{bg};color:{fg};font-family:system-ui,Segoe UI,sans-serif;}}"
+            "main{padding:10px 14px 24px 14px;}"
+            f".metadata{{margin:12px 8px 4px 8px;padding:12px;border:1px solid {border};border-radius:10px;}}"
+            ".metadata h2,.metadata h3{margin:0.2rem 0 0.5rem 0;}"
+            ".metadata table{border-collapse:collapse;margin-bottom:0.75rem;}"
+            ".metadata th{text-align:left;padding:3px 12px 3px 0;}"
+            ".metadata td{padding:3px 0;}"
+            "</style></head><body><main>"
+            f"{body}{self._plotly_metadata_html()}"
+            "</main></body></html>"
+        )
+
+    def _cleanup_plotly_temp_files(self) -> None:
+        for path in list(getattr(self, "_plotly_temp_files", [])):
+            try:
+                path.unlink(missing_ok=True)
+            except Exception:
+                pass
+        self._plotly_temp_files = []
+
+    def _is_plotly_tab_active(self) -> bool:
+        return hasattr(self, "plot_tabs") and self.plot_tabs.currentWidget() is getattr(self, "plotly_tab", None)
+
+    def _schedule_plotly_update(self) -> None:
+        if self._is_plotly_tab_active() and getattr(self, "_plotly_available", False):
+            self._plotly_update_timer.start()
+
+    def _plotly_page_template(self, theme: str) -> str:
+        """HTML que se carga UNA sola vez: plotly.js + función de refresco.
+
+        Los datos se inyectan luego con ``window.__render`` (Plotly.react), de
+        modo que cada actualización no recarga la página ni vuelve a parsear
+        plotly.js — solo redibuja de forma incremental lo que cambia.
+        """
+        import plotly.offline as _poff
+        plotlyjs = _poff.get_plotlyjs()
+        bg = "#111827" if theme == "dark" else "#ffffff"
+        fg = "#e5e7eb" if theme == "dark" else "#111827"
+        border = "#374151" if theme == "dark" else "#d1d5db"
+        return (
+            "<!doctype html><html><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+            f"<title>{html.escape(tr('plotly.title'))}</title>"
+            "<style>"
+            f"body{{margin:0;background:{bg};color:{fg};font-family:system-ui,Segoe UI,sans-serif;}}"
+            "main{padding:6px 10px 18px 10px;}"
+            "#plot{width:100%;height:72vh;}"
+            f".metadata{{margin:12px 8px 4px 8px;padding:12px;border:1px solid {border};border-radius:10px;}}"
+            ".metadata h2,.metadata h3{margin:0.2rem 0 0.5rem 0;}"
+            ".metadata table{border-collapse:collapse;margin-bottom:0.75rem;}"
+            ".metadata th{text-align:left;padding:3px 12px 3px 0;}"
+            ".metadata td{padding:3px 0;}"
+            "</style>"
+            "<script src='qrc:///qtwebchannel/qwebchannel.js'></script>"
+            "<script>" + plotlyjs + "</script></head>"
+            "<body><main><div id='plot'></div><div id='meta'></div></main><script>"
+            "var CFG={responsive:true,displaylogo:false,"
+            "toImageButtonOptions:{format:'png',scale:2}};"
+            "window.__bridge=null;"
+            "if(typeof QWebChannel!=='undefined'&&typeof qt!=='undefined'){"
+            "new QWebChannel(qt.webChannelTransport,function(ch){"
+            "window.__bridge=ch.objects.minima;});}"
+            "window.__clickBound=false;"
+            "window.__render=function(fig,meta){"
+            "var gd=document.getElementById('plot');"
+            "Plotly.react(gd,fig.data,fig.layout,CFG);"
+            "if(!window.__clickBound){window.__clickBound=true;"
+            "gd.on('plotly_click',function(ev){"
+            "if(!ev||!ev.points||!ev.points.length)return;"
+            "var p=ev.points[0];"
+            "if(p.customdata!==undefined&&p.customdata!==null&&window.__bridge){"
+            "window.__bridge.toggle(p.customdata);}});}"
+            "if(meta!==undefined&&meta!==null){"
+            "document.getElementById('meta').innerHTML=meta;}};"
+            "</script></body></html>"
+        )
+
+    def _on_plotly_loaded(self, ok: bool) -> None:
+        self._plotly_loading = False
+        self._plotly_page_ready = bool(ok)
+        # Al terminar de cargar la plantilla, vuelca el último estado pendiente.
+        if ok and self._plotly_pending and self.plotly_view is not None:
+            self.plotly_view.page().runJavaScript(self._plotly_pending)
+            self._plotly_pending = None
+
+    def _update_plotly_view(self) -> None:
+        if not getattr(self, "_plotly_available", False) or self.plotly_view is None:
+            if hasattr(self, "plotly_status"):
+                self.plotly_status.setText(tr("msg.plotly_webengine_missing"))
+            return
+        try:
+            import plotly.io as _pio
+            fig = self._current_plotly_figure()
+            fig_json = _pio.to_json(fig)
+            meta_json = json.dumps(self._plotly_metadata_html())
+            payload = f"window.__render({fig_json},{meta_json});"
+            theme = "dark" if self.color_theme == "dark" else "light"
+            if self._plotly_loading and self._plotly_theme == theme:
+                # La plantilla aún se está cargando: solo se actualiza el estado
+                # pendiente (sin recargar plotly.js otra vez).
+                self._plotly_pending = payload
+            elif not self._plotly_page_ready or self._plotly_theme != theme:
+                # Primera vez (o cambio de tema): carga la plantilla y deja el
+                # estado pendiente para aplicarlo cuando termine la carga.
+                self._plotly_theme = theme
+                self._plotly_page_ready = False
+                self._plotly_loading = True
+                self._plotly_pending = payload
+                self.plotly_view.setHtml(self._plotly_page_template(theme))
+            else:
+                # Refresco incremental: solo se envían los datos nuevos.
+                self.plotly_view.page().runJavaScript(payload)
+            if hasattr(self, "plotly_status"):
+                self.plotly_status.setText(tr("status.plotly_updated", default="Plotly actualizado."))
+        except Exception as exc:
+            # Fuerza recargar la plantilla en el próximo intento.
+            self._plotly_page_ready = False
+            self._plotly_loading = False
+            self._plotly_theme = None
+            self._plotly_pending = None
+            if hasattr(self, "plotly_status"):
+                self.plotly_status.setText(str(exc))
+
+    # ── Edición semi-manual de mínimos ──────────────────────────────────
+    def _build_minima_editor(self) -> QtWidgets.QWidget:
+        """Panel lateral con la lista de mínimos detectados (editable)."""
+        box = QtWidgets.QGroupBox(tr("minima.editor_title", default="Mínimos detectados"))
+        box.setMinimumWidth(240)
+        lay = QtWidgets.QVBoxLayout(box)
+        lay.setContentsMargins(8, 8, 8, 8)
+        lay.setSpacing(6)
+        hint = QtWidgets.QLabel(tr(
+            "minima.editor_hint",
+            default="Marca/desmarca los mínimos a usar e indica cuántas "
+                    "contribuciones tiene cada uno. Puedes clicar también sobre "
+                    "los marcadores del gráfico."))
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color:#64748b;font-size:11px;")
+        lay.addWidget(hint)
+
+        self.btn_minima_detect = QtWidgets.QPushButton(
+            tr("minima.redetect", default="Volver a detectar"))
+        self.btn_minima_detect.clicked.connect(lambda _=False: self.on_edit_minima(redetect=True))
+        lay.addWidget(self.btn_minima_detect)
+
+        self._minima_list_container = QtWidgets.QWidget()
+        self._minima_list_layout = QtWidgets.QVBoxLayout(self._minima_list_container)
+        self._minima_list_layout.setContentsMargins(0, 0, 0, 0)
+        self._minima_list_layout.setSpacing(2)
+        self._minima_list_layout.addStretch(1)
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(self._minima_list_container)
+        lay.addWidget(scroll, stretch=1)
+
+        self.minima_count_label = QtWidgets.QLabel("")
+        self.minima_count_label.setStyleSheet("font-size:11px;")
+        lay.addWidget(self.minima_count_label)
+
+        btns = QtWidgets.QHBoxLayout()
+        self.btn_minima_propose = QtWidgets.QPushButton(
+            tr("minima.propose", default="Proponer ajuste"))
+        self.btn_minima_propose.clicked.connect(lambda _=False: self.on_propose_from_minima())
+        self.btn_minima_done = QtWidgets.QPushButton(
+            tr("minima.done", default="Cerrar edición"))
+        self.btn_minima_done.clicked.connect(lambda _=False: self._exit_minima_edit())
+        btns.addWidget(self.btn_minima_propose)
+        btns.addWidget(self.btn_minima_done)
+        lay.addLayout(btns)
+        return box
+
+    def _setup_minima_webchannel(self) -> None:
+        """Conecta el puente JS↔Python para clicar marcadores en Plotly."""
+        if self.plotly_view is None:
+            return
+        try:
+            from PySide6.QtWebChannel import QWebChannel
+            self._minima_bridge = MinimaBridge()
+            self._minima_bridge.toggled.connect(self._on_minima_marker_clicked)
+            channel = QWebChannel(self.plotly_view.page())
+            channel.registerObject("minima", self._minima_bridge)
+            self.plotly_view.page().setWebChannel(channel)
+        except Exception:
+            # Sin QWebChannel la lista lateral sigue siendo plenamente funcional.
+            self._minima_bridge = None
+
+    def on_edit_minima(self, redetect: bool = True) -> None:
+        """Entra en el modo de edición semi-manual de mínimos."""
+        if self.file.velocity is None or self.file.y_data is None:
+            QtWidgets.QMessageBox.information(
+                self, tr("minima.editor_title", default="Mínimos detectados"),
+                tr("msg.no_file", default="Carga primero un espectro."))
+            return
+        if not getattr(self, "_plotly_available", False):
+            # Sin la vista Plotly interactiva no hay edición visual: se recurre
+            # a la inicialización automática clásica.
+            self.on_init_from_minima(show_message=True)
+            return
+        if redetect or not self._minima_entries:
+            peaks, baseline, slope = self.detect_absorption_minima()
+            self._minima_baseline = baseline
+            self._minima_slope = slope
+            self._minima_entries = [
+                {"i": int(p["i"]), "pos": float(p["pos"]), "depth": float(p["depth"]),
+                 "width": float(p["width"]), "smooth_depth": float(p.get("smooth_depth", p["depth"])),
+                 "included": True, "count": 1}
+                for p in peaks
+            ]
+        if not self._minima_entries:
+            QtWidgets.QMessageBox.information(
+                self, tr("minima.editor_title", default="Mínimos detectados"),
+                tr("msg.auto_minima_none", default="No se detectaron mínimos."))
+            return
+        self._minima_edit_mode = True
+        self._populate_minima_list()
+        self.minima_editor.show()
+        if hasattr(self, "plot_tabs"):
+            self.plot_tabs.setCurrentWidget(self.plotly_tab)
+        self._update_plotly_view()
+
+    def _populate_minima_list(self) -> None:
+        """Reconstruye las filas de la lista a partir de ``_minima_entries``."""
+        # Limpia las filas previas (deja el stretch final).
+        while self._minima_list_layout.count() > 1:
+            item = self._minima_list_layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+        self._minima_rows = []
+        for k, e in enumerate(self._minima_entries):
+            row = QtWidgets.QWidget()
+            rl = QtWidgets.QHBoxLayout(row)
+            rl.setContentsMargins(2, 0, 2, 0)
+            rl.setSpacing(6)
+            chk = QtWidgets.QCheckBox(f"v={e['pos']:+.3f}")
+            chk.setChecked(bool(e["included"]))
+            chk.setToolTip(tr("minima.include_tip", default="Usar este mínimo en la propuesta"))
+            chk.toggled.connect(lambda state, idx=k: self._on_minima_row_changed(idx, included=state))
+            spin = QtWidgets.QSpinBox()
+            spin.setRange(1, 4)
+            spin.setValue(int(e["count"]))
+            spin.setPrefix("×")
+            spin.setToolTip(tr("minima.count_tip", default="Nº de contribuciones bajo este mínimo"))
+            spin.valueChanged.connect(lambda val, idx=k: self._on_minima_row_changed(idx, count=val))
+            depth = QtWidgets.QLabel(f"{e['depth']*100:.1f}%")
+            depth.setStyleSheet("color:#64748b;font-size:11px;")
+            rl.addWidget(chk, stretch=1)
+            rl.addWidget(depth)
+            rl.addWidget(spin)
+            self._minima_list_layout.insertWidget(self._minima_list_layout.count() - 1, row)
+            self._minima_rows.append({"check": chk, "spin": spin})
+        self._update_minima_count_label()
+
+    def _on_minima_row_changed(self, idx: int, included: bool | None = None,
+                               count: int | None = None) -> None:
+        if idx < 0 or idx >= len(self._minima_entries):
+            return
+        if included is not None:
+            self._minima_entries[idx]["included"] = bool(included)
+        if count is not None:
+            self._minima_entries[idx]["count"] = int(count)
+        self._update_minima_count_label()
+        self._update_plotly_view()
+
+    def _on_minima_marker_clicked(self, idx: int) -> None:
+        """Clic en un marcador del gráfico: alterna incluir/excluir y sincroniza."""
+        if idx < 0 or idx >= len(self._minima_entries):
+            return
+        new_state = not self._minima_entries[idx]["included"]
+        self._minima_entries[idx]["included"] = new_state
+        if idx < len(self._minima_rows):
+            chk = self._minima_rows[idx]["check"]
+            chk.blockSignals(True)
+            chk.setChecked(new_state)
+            chk.blockSignals(False)
+        self._update_minima_count_label()
+        self._update_plotly_view()
+
+    def _update_minima_count_label(self) -> None:
+        if not hasattr(self, "minima_count_label"):
+            return
+        n_inc = sum(1 for e in self._minima_entries if e["included"])
+        n_contrib = sum(int(e["count"]) for e in self._minima_entries if e["included"])
+        self.minima_count_label.setText(tr(
+            "minima.count_summary",
+            default="{inc}/{tot} mínimos · {contrib} contribuciones",
+            inc=n_inc, tot=len(self._minima_entries), contrib=n_contrib))
+
+    def _exit_minima_edit(self) -> None:
+        self._minima_edit_mode = False
+        if hasattr(self, "minima_editor"):
+            self.minima_editor.hide()
+        self._update_plotly_view()
+
+    def on_propose_from_minima(self) -> None:
+        """Construye la propuesta de componentes a partir de los mínimos curados."""
+        included = [e for e in self._minima_entries if e["included"]]
+        if not included:
+            QtWidgets.QMessageBox.information(
+                self, tr("minima.propose", default="Proponer ajuste"),
+                tr("minima.none_selected", default="Marca al menos un mínimo."))
+            return
+        peaks_override = [
+            {"i": float(e["i"]), "pos": e["pos"], "depth": e["depth"],
+             "smooth_depth": e["smooth_depth"], "width": e["width"]}
+            for e in included
+        ]
+        multiplicities = {int(e["i"]): int(e["count"]) for e in included}
+        ok = self.on_init_from_minima(show_message=True, peaks_override=peaks_override,
+                                      multiplicities=multiplicities)
+        if ok:
+            self._exit_minima_edit()
+
+    def on_open_plotly(self) -> None:
+        if hasattr(self, "plot_tabs"):
+            self.plot_tabs.setCurrentWidget(self.plotly_tab)
+        self._update_plotly_view()
+
+    def on_export_plotly_html(self) -> None:
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, tr("file.export_plotly_html"), str(ROOT / "mossbauer_plotly.html"),
+            "HTML (*.html);;All (*.*)")
+        if not path:
+            return
+        try:
+            out = Path(path)
+            if out.suffix.lower() not in (".html", ".htm"):
+                out = out.with_suffix(".html")
+            out.write_text(self._plotly_html_document(), encoding="utf-8")
+            self.statusBar().showMessage(tr("status.plotly_exported", path=str(out)), 6000)
+        except Exception as exc:
+            QtWidgets.QMessageBox.warning(self, tr("plotly.title"), str(exc))
 
     def _open_progress_dialog(self, title: str, message: str | None = None):
         """Ventana modal de progreso (barra indeterminada), igual que la de Tk.
@@ -3093,6 +3889,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.statusBar().showMessage(
             f"χ²={chi2:.4g}  χ²red={red:.4g}  ·  {result.n_starts} arranques")
         self.last_fit_result = result
+        self.last_distribution_result = None
         self.last_error_source = "covarianza (1σ)"
         self.act_fit.setEnabled(True)
         self._refresh_plot()
@@ -4391,7 +5188,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
         self.canvas.render(self.file.velocity, self.file.y_data,
                            model=result.fitted_curve, style=style,
-                           show_residual=show_res, show_legend=show_leg)
+                           show_residual=show_res, show_legend=show_leg,
+                           style_name=self.plot_style_name)
+        self.last_distribution_result = result
+        self._schedule_plotly_update()
         msg = (f"{label}: bins={nbins}  α=10^{d.log_alpha.value():.2f}  "
                f"RMS={result.rms:.5g}")
         self.statusBar().showMessage(msg)
@@ -4727,11 +5527,23 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 if key in params:
                     params[key] = float(params[key] * factor)
 
-    def on_init_from_minima(self, show_message: bool = True) -> bool:
-        """Detecta mínimos y configura componentes discretas como en Tk."""
+    def on_init_from_minima(self, show_message: bool = True,
+                            peaks_override: list[dict] | None = None,
+                            multiplicities: dict[int, int] | None = None) -> bool:
+        """Detecta mínimos y configura componentes discretas como en Tk.
+
+        Con ``peaks_override`` se usan los mínimos ya curados por el usuario en
+        el editor semi-manual (en vez de la detección automática), y
+        ``multiplicities`` indica cuántas contribuciones tiene cada mínimo
+        (``{índice_canal: nº}``) para añadir componentes solapadas extra.
+        """
         if self.file.velocity is None or self.file.y_data is None:
             return False
-        peaks, baseline, slope = self.detect_absorption_minima()
+        if peaks_override is not None:
+            peaks = list(peaks_override)
+            _, baseline, slope = self.detect_absorption_minima()
+        else:
+            peaks, baseline, slope = self.detect_absorption_minima()
         if not peaks:
             if show_message:
                 QtWidgets.QMessageBox.information(
@@ -4861,6 +5673,24 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             params["s1_delta"] = float(g["pos"])
             params["s1_gamma1"] = float(np.clip(g["width"] / 2.0, 0.04, 1.0))
             params["s1_depth"] = float(np.clip(g["depth"], 0.002, 0.25))
+
+        # Contribuciones extra señaladas por el usuario: cada mínimo marcado con
+        # n>1 añade (n-1) singletes solapados en esa posición, hasta el máximo de
+        # componentes, para que el ajuste pueda separar las contribuciones.
+        if multiplicities:
+            next_extra = max((idx for idx, _k, _g in components), default=0) + 1
+            for pk in peaks:
+                extra = int(multiplicities.get(int(pk["i"]), 1)) - 1
+                for _ in range(max(0, extra)):
+                    if next_extra > MAX_QT_COMPONENTS:
+                        break
+                    pfx = f"s{next_extra}_"
+                    components.append((next_extra, "Singlete", [pk]))
+                    params[pfx + "delta"] = float(pk["pos"])
+                    params[pfx + "gamma1"] = float(np.clip(pk["width"] / 2.0, 0.04, 1.0))
+                    params[pfx + "depth"] = float(np.clip(pk["depth"] * 0.5, 0.002, 0.25))
+                    params[pfx + "int1"] = 1.0
+                    next_extra += 1
 
         active_count = max(1, max((idx for idx, _kind, _g in components), default=1))
         self._building = True
