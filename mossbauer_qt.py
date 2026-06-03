@@ -2943,6 +2943,41 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             if c.get("enabled", True) and c.get("target") in keys and c.get("source") in keys
         ]
 
+    def texture_derived(self, cp: "ComponentPanel") -> dict | None:
+        """Magnitudes derivadas del parámetro de textura t = sin²θ.
+
+        Para un sextete en modo textura, donde I₂/I₃ = 4t/(2-t) se obtienen:
+        θ = arcsin(√t) (ángulo entre el campo hiperfino y el rayo γ),
+        R₂₃ = I₂/I₃ = 4t/(2-t),
+        S = ⟨P₂(cosθ)⟩ = 1 − 3t/2 (orden tipo Hermans: +1 alineado al γ,
+        0 isótropo, −½ perpendicular). Devuelve también las σ propagadas.
+        """
+        if cp.kind != "Sextete" or cp.intensity_mode != "texture":
+            return None
+        import math
+        t = float(cp.params["texture"].value())
+        tc = min(max(t, 0.0), 1.0)
+        denom = max(2.0 - tc, 1e-9)
+        theta_deg = math.degrees(math.asin(math.sqrt(tc)))
+        r23 = 4.0 * tc / denom
+        s_orient = 1.0 - 1.5 * tc
+        sigma_t = None
+        if self.last_fit_result is not None:
+            sigma_t = self.last_fit_result.errors.get(f"s{cp.idx}_texture")
+        sigma_theta_deg = sigma_r23 = sigma_s = None
+        if sigma_t is not None and sigma_t > 0:
+            if 1e-6 < tc < 1.0 - 1e-6:
+                sigma_theta_deg = math.degrees(
+                    sigma_t / (2.0 * math.sqrt(tc * (1.0 - tc)))
+                )
+            sigma_r23 = 8.0 / (denom * denom) * sigma_t
+            sigma_s = 1.5 * sigma_t
+        return {
+            "t": t, "theta_deg": theta_deg, "r23": r23, "s": s_orient,
+            "sigma_t": sigma_t, "sigma_theta_deg": sigma_theta_deg,
+            "sigma_r23": sigma_r23, "sigma_s": sigma_s,
+        }
+
     def _info_rms(self) -> float:
         if self.file.velocity is None or self.file.y_data is None or not self._simulate_enabled:
             return float("nan")
@@ -3043,6 +3078,20 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 tr("info.gamma_rel", gamma2=cp.params["gamma2"].value(), gamma3=cp.params["gamma3"].value()),
                 tr("info.depth_intensities", depth=cp.params["depth"].value(), i1=i1_real, i2=i2_real, i3=i3_real),
             ])
+            derived = self.texture_derived(cp)
+            if derived is not None:
+                def _fmt_err(v: float | None) -> str:
+                    return f" ± {v:.3g}" if v is not None and v > 0 else ""
+                lines.append(tr(
+                    "info.texture_derived",
+                    t=f"{derived['t']:.4g}",
+                    theta=f"{derived['theta_deg']:.4g}",
+                    theta_err=_fmt_err(derived["sigma_theta_deg"]),
+                    r23=f"{derived['r23']:.4g}",
+                    r23_err=_fmt_err(derived["sigma_r23"]),
+                    s=f"{derived['s']:.4g}",
+                    s_err=_fmt_err(derived["sigma_s"]),
+                ))
             if iso_ref is not None:
                 lines.append(tr("info.delta_corrected",
                                value=f"{cp.params['delta'].value() - iso_ref:.6g}", ref=f"{iso_ref:.6g}"))
@@ -6082,6 +6131,282 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         bb.rejected.connect(dlg.reject); v.addWidget(bb)
         dlg.exec()
 
+    def _build_report_lines(self) -> list[str]:
+        """Genera el informe en Markdown estructurado por secciones."""
+        from datetime import datetime
+        file_name = self.file.path.name if self.file.path else "—"
+        ci = self.calibration_info
+        iso_ref = self.calibration_iso_ref()
+        fit = self.last_fit_result
+
+        def _ferr(v: float | None) -> str:
+            return f"± {v:.3g}" if v is not None and v > 0 else "—"
+
+        lines: list[str] = []
+        lines.append("# 📊 Mössbauer Fe-57 — Informe de ajuste")
+        lines.append("")
+        lines.append(
+            f"**Fichero:** `{file_name}` · **Fecha:** "
+            f"{datetime.now().strftime('%Y-%m-%d %H:%M')} · **Programa:** "
+            f"{APP_NAME} v{APP_VERSION} (Qt)"
+        )
+        lines.append("")
+
+        if fit is not None and fit.stats:
+            st = fit.stats
+            bits = []
+            if st.get("red_chi2") is not None:
+                bits.append(f"χ²ᵣ = **{st['red_chi2']:.4g}**")
+            if st.get("chi2") is not None:
+                bits.append(f"χ² = {st['chi2']:.4g}")
+            if st.get("dof") is not None:
+                bits.append(f"dof = {int(st['dof'])}")
+            if st.get("aic") is not None:
+                bits.append(f"AIC = {st['aic']:.4g}")
+            if st.get("bic") is not None:
+                bits.append(f"BIC = {st['bic']:.4g}")
+            lines.append("> ### 🎯 Resumen del ajuste")
+            lines.append("> " + " · ".join(bits))
+            lines.append(
+                f"> {len(fit.free_keys)} parámetros libres · "
+                f"σ: {self.last_error_source}"
+            )
+            lines.append("")
+
+        lines.append("## 📁 Espectro")
+        lines.append("")
+        lines.append("| Campo | Valor |")
+        lines.append("|---|---|")
+        lines.append(f"| Fichero | `{file_name}` |")
+        n_chan = self.file.counts.size if self.file.counts is not None else 0
+        lines.append(f"| Canales | {n_chan} |")
+        lines.append(f"| Centro de folding | {self.file.center:.4f} |")
+        lines.append(f"| Perfil de línea | {self.calib.line_profile} |")
+        lines.append("")
+
+        lines.append("## 🎛️ Calibración")
+        lines.append("")
+        if ci:
+            sample = ci.get("calibration_sample") or ci.get("calibration_file_name") or "—"
+            lines.append("| Campo | Valor |")
+            lines.append("|---|---|")
+            lines.append(f"| Origen | {ci.get('source', '?')} |")
+            lines.append(f"| Muestra | {sample} |")
+            if ci.get("calibration_file_name"):
+                lines.append(f"| Fichero | `{ci['calibration_file_name']}` |")
+            if ci.get("velocity_calibrated") is not None:
+                lines.append(
+                    f"| Velocidad calibrada (Vmax) | "
+                    f"{float(ci['velocity_calibrated']):.6g} mm/s |"
+                )
+            if ci.get("isomer_shift") is not None:
+                lines.append(
+                    f"| δ de referencia | {float(ci['isomer_shift']):.6g} mm/s |"
+                )
+            if ci.get("calibration_date"):
+                lines.append(f"| Fecha | {ci['calibration_date']} |")
+        else:
+            lines.append("> ⚠️ Sin calibración activa; δ sin corregir.")
+        lines.append("")
+
+        lines.append("## 🧪 Componentes")
+        lines.append("")
+        for cp in self.components_panels:
+            if not cp.enabled.isChecked():
+                continue
+            kind_disp = tr(f"kind.{cp.kind}", default=cp.kind)
+            lines.append(f"### 🔹 Componente {cp.idx} — {kind_disp}")
+            lines.append("")
+            lines.append("| Parámetro | Valor | Estado |")
+            lines.append("|---|---|---|")
+            for k, ctl in cp.params.items():
+                state_lbl = "🔒 fijo" if ctl.is_fixed() else "🔓 libre"
+                lines.append(f"| `s{cp.idx}_{k}` | {ctl.value():.6g} | {state_lbl} |")
+            lines.append("")
+            derived = self.texture_derived(cp)
+            if derived is not None:
+                lines.append("**🧭 Magnitudes derivadas de la textura (t = sin²θ)**")
+                lines.append("")
+                lines.append("| Magnitud | Valor | σ |")
+                lines.append("|---|---|---|")
+                lines.append(f"| t (parámetro de textura) | {derived['t']:.4g} | {_ferr(derived['sigma_t'])} |")
+                lines.append(f"| θ (ángulo respecto a γ) | {derived['theta_deg']:.4g}° | {_ferr(derived['sigma_theta_deg'])} |")
+                lines.append(f"| R₂₃ = I₂/I₃ | {derived['r23']:.4g} | {_ferr(derived['sigma_r23'])} |")
+                lines.append(f"| S = ⟨P₂(cos θ)⟩ | {derived['s']:.4g} | {_ferr(derived['sigma_s'])} |")
+                lines.append("")
+            if iso_ref is not None:
+                d = cp.params["delta"].value()
+                lines.append(
+                    f"> δ corregido = **{d - iso_ref:.6g} mm/s** "
+                    f"(iso_ref = {iso_ref:.6g} mm/s)"
+                )
+                lines.append("")
+
+        if fit is not None and fit.free_keys:
+            lines.append("## 📈 Resultados del ajuste")
+            lines.append("")
+            lines.append(f"_Fuente de σ:_ {self.last_error_source}")
+            lines.append("")
+            lines.append("| Parámetro | Valor | σ |")
+            lines.append("|---|---|---|")
+            for k in fit.free_keys:
+                val = fit.values.get(k)
+                err = fit.errors.get(k)
+                val_txt = f"{val:.6g}" if val is not None else "—"
+                err_txt = f"± {err:.3g}" if err is not None and err > 0 else "—"
+                lines.append(f"| `{k}` | {val_txt} | {err_txt} |")
+            lines.append("")
+            high = (fit.correlations or {}).get("high_pairs") or []
+            if high:
+                lines.append("### ⚠️ Parámetros muy correlacionados (|r| ≥ 0.95)")
+                lines.append("")
+                lines.append("| Par | r |")
+                lines.append("|---|---|")
+                for hp in high:
+                    lines.append(f"| `{hp['param1']}` ↔ `{hp['param2']}` | {hp['corr']:.3f} |")
+                lines.append("")
+
+        info_txt = self.info_panel.text.toPlainText().strip()
+        if info_txt and info_txt != "—":
+            lines.append("## 🔬 Estado y parámetros (panel)")
+            lines.append("")
+            lines.append("```")
+            lines.append(info_txt)
+            lines.append("```")
+            lines.append("")
+
+        if self.constraints:
+            lines.append("## 🔗 Restricciones")
+            lines.append("")
+            lines.append("| Destino | Fórmula |")
+            lines.append("|---|---|")
+            for c in self.constraints:
+                lines.append(
+                    f"| `{c['target']}` | "
+                    f"{c.get('factor', 1.0):g} · `{c['source']}` + "
+                    f"{c.get('offset', 0.0):g} |"
+                )
+            lines.append("")
+
+        return lines
+
+    def _render_pdf_report(self, pdf_path: "Path", md_lines: list[str]) -> None:
+        """Renderiza el informe PDF con portada, secciones a color y la
+        gráfica actual al final. Solo depende de matplotlib."""
+        from datetime import datetime
+        from matplotlib.backends.backend_pdf import PdfPages
+        from matplotlib.figure import Figure as _PdfFigure
+        from matplotlib.patches import Rectangle
+        import textwrap as _tw
+
+        SECTION_COLOR = "#1e40af"
+        SECTION_COLOR_ALT = "#0f766e"
+        ACCENT = "#dbeafe"
+
+        def _open_page(title: str | None, color: str):
+            fig = _PdfFigure(figsize=(8.27, 11.69), dpi=100, facecolor="white")
+            ax = fig.add_subplot(111); ax.axis("off")
+            ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+            y_text = 0.97
+            if title:
+                ax.add_patch(Rectangle((0.0, 0.94), 1.0, 0.05,
+                                       facecolor=color, edgecolor="none"))
+                ax.text(0.03, 0.965, title, color="white", fontsize=14,
+                        fontweight="bold", va="center", ha="left")
+                y_text = 0.92
+            return fig, ax, y_text
+
+        with PdfPages(pdf_path) as pdf:
+            # — Portada con resumen en cuadros —
+            fig = _PdfFigure(figsize=(8.27, 11.69), dpi=100, facecolor="white")
+            ax = fig.add_subplot(111); ax.axis("off")
+            ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+            ax.add_patch(Rectangle((0.0, 0.78), 1.0, 0.16,
+                                   facecolor=SECTION_COLOR, edgecolor="none"))
+            ax.text(0.5, 0.88, "Mössbauer Fe-57", color="white",
+                    fontsize=22, fontweight="bold", va="center", ha="center")
+            ax.text(0.5, 0.82, "Informe de ajuste", color=ACCENT,
+                    fontsize=14, va="center", ha="center")
+            file_name = self.file.path.name if self.file.path else "—"
+            ax.text(0.5, 0.72, file_name, color="#1f2937", fontsize=12,
+                    va="center", ha="center", family="monospace")
+            ax.text(0.5, 0.685, datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    color="#475569", fontsize=10, va="center", ha="center")
+            ax.text(0.5, 0.655, f"{APP_NAME} v{APP_VERSION} (Qt)",
+                    color="#94a3b8", fontsize=9, va="center", ha="center")
+
+            boxes: list[tuple[str, str]] = []
+            fit = self.last_fit_result
+            if fit is not None and fit.stats:
+                st = fit.stats
+                if st.get("red_chi2") is not None:
+                    boxes.append(("χ² reducido", f"{st['red_chi2']:.4g}"))
+                if st.get("chi2") is not None and st.get("dof") is not None:
+                    boxes.append(("χ² · dof", f"{st['chi2']:.4g} · {int(st['dof'])}"))
+                if st.get("aic") is not None:
+                    boxes.append(("AIC", f"{st['aic']:.4g}"))
+                if st.get("bic") is not None:
+                    boxes.append(("BIC", f"{st['bic']:.4g}"))
+            n_active = sum(1 for cp in self.components_panels if cp.enabled.isChecked())
+            boxes.append(("Componentes activos", str(n_active)))
+            if fit is not None:
+                boxes.append(("Parámetros libres", str(len(fit.free_keys))))
+                boxes.append(("Fuente σ", str(self.last_error_source)))
+
+            cols = 2
+            box_w, box_h = 0.42, 0.07
+            x0, y0, gx, gy = 0.06, 0.58, 0.06, 0.025
+            for i, (lbl, val) in enumerate(boxes):
+                r, c = divmod(i, cols)
+                x = x0 + c * (box_w + gx)
+                y = y0 - r * (box_h + gy)
+                ax.add_patch(Rectangle((x, y - box_h), box_w, box_h,
+                                       facecolor="#f8fafc",
+                                       edgecolor="#cbd5e1", linewidth=1))
+                ax.text(x + 0.015, y - box_h * 0.28, lbl, fontsize=9,
+                        color="#475569", va="center", ha="left")
+                ax.text(x + box_w - 0.015, y - box_h * 0.65, val, fontsize=12,
+                        color=SECTION_COLOR, va="center", ha="right",
+                        fontweight="bold")
+            pdf.savefig(fig, bbox_inches="tight")
+
+            # — Cuerpo: una sección "## " por bloque, paginado —
+            sections: list[tuple[str | None, list[str]]] = []
+            current_title: str | None = None
+            current_body: list[str] = []
+            for ln in md_lines:
+                if ln.startswith("## "):
+                    if current_title is not None or current_body:
+                        sections.append((current_title, current_body))
+                    current_title = ln[3:].strip()
+                    current_body = []
+                elif ln.startswith("# "):
+                    continue
+                else:
+                    current_body.append(ln)
+            if current_title is not None or current_body:
+                sections.append((current_title, current_body))
+
+            for title, body in sections:
+                if not any(s.strip() for s in body):
+                    continue
+                wrapped: list[str] = []
+                for raw in body:
+                    for w in (_tw.wrap(raw, width=95) or [""]):
+                        wrapped.append(w)
+                first = True
+                while wrapped:
+                    head = title if first else f"{title} (cont.)"
+                    color = SECTION_COLOR if first else SECTION_COLOR_ALT
+                    fig, ax, y_text = _open_page(head, color)
+                    page_lines, wrapped = wrapped[:42], wrapped[42:]
+                    ax.text(0.04, y_text, "\n".join(page_lines),
+                            va="top", ha="left", family="monospace", fontsize=8.5)
+                    pdf.savefig(fig, bbox_inches="tight")
+                    first = False
+
+            pdf.savefig(self.canvas.fig, bbox_inches="tight")
+
     def on_export_report(self) -> None:
         """Exporta un informe Markdown del ajuste actual."""
         if self.file.path is None:
@@ -6094,99 +6419,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         state = self._build_state()
         if state is None:
             return
-        lines: list[str] = []
-        lines.append(f"# Mössbauer Fe-57 — Ajuste\n")
-        lines.append(f"- Fichero: `{self.file.path.name}`")
-        lines.append(f"- Canales: {self.file.counts.size if self.file.counts is not None else 0}")
-        lines.append(f"- Centro de folding: {self.file.center:.4f}")
-        lines.append(f"- Perfil de línea: {self.calib.line_profile}\n")
-        # Calibración en uso (la que se está aplicando al espectro).
-        ci = self.calibration_info
-        lines.append("## Calibración\n")
-        if ci:
-            sample = ci.get("calibration_sample") or ci.get("calibration_file_name") or "—"
-            lines.append(f"- Origen: {ci.get('source', '?')}")
-            lines.append(f"- Muestra de calibración: {sample}")
-            if ci.get("calibration_file_name"):
-                lines.append(f"- Fichero de calibración: `{ci['calibration_file_name']}`")
-            if ci.get("velocity_calibrated") is not None:
-                lines.append(f"- Velocidad calibrada (Vmax): {float(ci['velocity_calibrated']):.6g} mm/s")
-            if ci.get("isomer_shift") is not None:
-                lines.append(f"- Desplazamiento isomérico de referencia: {float(ci['isomer_shift']):.6g} mm/s")
-            if ci.get("calibration_date"):
-                lines.append(f"- Fecha de calibración: {ci['calibration_date']}")
-        else:
-            lines.append("- (Sin calibración activa; δ sin corregir)")
-        lines.append("")
-        # Componentes activos
-        lines.append("## Componentes\n")
-        for cp in self.components_panels:
-            if not cp.enabled.isChecked():
-                continue
-            lines.append(f"### Componente {cp.idx} — {cp.kind}")
-            for k, ctl in cp.params.items():
-                fixed = " (fijo)" if ctl.is_fixed() else ""
-                lines.append(f"- `s{cp.idx}_{k}` = {ctl.value():.6g}{fixed}")
-            lines.append("")
-        # Resultados del ajuste con incertidumbres (parámetros libres) y bondad.
-        fit = self.last_fit_result
-        if fit is not None and fit.free_keys:
-            lines.append("## Resultados del ajuste\n")
-            lines.append(f"- Incertidumbres: {self.last_error_source}")
-            st = fit.stats or {}
-            if st:
-                bits = []
-                if st.get("red_chi2") is not None:
-                    bits.append(f"χ²ᵣ = {st['red_chi2']:.4g}")
-                if st.get("chi2") is not None:
-                    bits.append(f"χ² = {st['chi2']:.4g}")
-                if st.get("aic") is not None:
-                    bits.append(f"AIC = {st['aic']:.4g}")
-                if st.get("bic") is not None:
-                    bits.append(f"BIC = {st['bic']:.4g}")
-                if bits:
-                    lines.append("- Bondad: " + ", ".join(bits))
-            lines.append("")
-            lines.append("| Parámetro | Valor | σ |")
-            lines.append("|---|---|---|")
-            for k in fit.free_keys:
-                val = fit.values.get(k)
-                err = fit.errors.get(k)
-                val_txt = f"{val:.6g}" if val is not None else "—"
-                err_txt = f"± {err:.3g}" if err is not None and err > 0 else "—"
-                lines.append(f"| `{k}` | {val_txt} | {err_txt} |")
-            lines.append("")
-            # Parejas de parámetros muy correlacionadas (|r| ≥ 0.95), si las hay.
-            high = (fit.correlations or {}).get("high_pairs") or []
-            if high:
-                lines.append("**Parámetros muy correlacionados (|r| ≥ 0.95):**\n")
-                for hp in high:
-                    lines.append(f"- `{hp['param1']}` ↔ `{hp['param2']}`: r = {hp['corr']:.3f}")
-                lines.append("")
-        # Si hay último ajuste, añadir estadísticas
-        info_txt = self.info_panel.text.toPlainText().strip()
-        if info_txt and info_txt != "—":
-            lines.append("## Estadísticos del último ajuste\n")
-            lines.append("```")
-            lines.append(info_txt)
-            lines.append("```\n")
-        # Restricciones
-        if self.constraints:
-            lines.append("## Restricciones\n")
-            for c in self.constraints:
-                lines.append(f"- `{c['target']}` = {c.get('factor', 1.0):g} · "
-                              f"`{c['source']}` + {c.get('offset', 0.0):g}")
-            lines.append("")
-        # Si hay calibración activa, incluye δ corregido.
-        if self.calibration_info and self.calibration_info.get("isomer_shift") is not None:
-            ref = float(self.calibration_info["isomer_shift"])
-            lines.append(f"## δ corregido (iso_ref = {ref:.6g} mm/s)\n")
-            for cp in self.components_panels:
-                if not cp.enabled.isChecked():
-                    continue
-                d = cp.params["delta"].value()
-                lines.append(f"- Componente {cp.idx}: δ corregido = {d - ref:.6g} mm/s")
-            lines.append("")
+        lines = self._build_report_lines()
         try:
             Path(path).write_text("\n".join(lines), encoding="utf-8")
             self.statusBar().showMessage(f"Informe guardado: {path}", 5000)
@@ -6195,7 +6428,6 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                                             f"{type(exc).__name__}: {exc}")
             return
 
-        # Preguntar si además se quiere un PDF (antes se generaba siempre).
         want_pdf = QtWidgets.QMessageBox.question(
             self, tr("file.export_report"),
             tr("msg.report_ask_pdf",
@@ -6204,31 +6436,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.Yes)
         if want_pdf != QtWidgets.QMessageBox.Yes:
             return
-        # PDF: páginas con el texto del informe (monoespaciado) y, al final, la
-        # gráfica actual, igual que en Tk.
         try:
             pdf_path = Path(path).with_suffix(".pdf")
-            from matplotlib.backends.backend_pdf import PdfPages
-            from matplotlib.figure import Figure as _PdfFigure
-            import textwrap as _tw
-
-            def _text_page(pdf, text_lines):
-                fig = _PdfFigure(figsize=(8.27, 11.69), dpi=100, facecolor="white")
-                ax = fig.add_subplot(111); ax.axis("off")
-                ax.text(0.04, 0.97, "\n".join(text_lines), va="top", ha="left",
-                        family="monospace", fontsize=8.5)
-                pdf.savefig(fig, bbox_inches="tight")
-
-            with PdfPages(pdf_path) as pdf:
-                page_lines: list[str] = []
-                for line in "\n".join(lines).splitlines():
-                    for w in (_tw.wrap(line, width=95) or [""]):
-                        page_lines.append(w)
-                        if len(page_lines) >= 46:
-                            _text_page(pdf, page_lines); page_lines = []
-                if page_lines:
-                    _text_page(pdf, page_lines)
-                pdf.savefig(self.canvas.fig, bbox_inches="tight")
+            self._render_pdf_report(pdf_path, lines)
             self.statusBar().showMessage(f"Informe + PDF guardados: {path}", 5000)
         except Exception as exc:
             QtWidgets.QMessageBox.warning(
