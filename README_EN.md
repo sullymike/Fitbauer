@@ -2,7 +2,7 @@
 
 Stable desktop application to load, fold, simulate and fit 57Fe Mössbauer spectra.
 
-Current stable version: **v3.5**.  
+Current stable version: **v3.6**.  
 Main Tk application: `mossbauer_fe33_gui_v2IA.py`. Qt/Plotly interface: `mossbauer_qt.py`.
 
 Author: Jorge Sánchez Marcos  

@@ -69,14 +69,19 @@ class MatelecLabClient:
 
     # ── Medidas Mössbauer ──────────────────────────────────────────
     def iter_medidas(self, search: str | None = None,
-                     filename: str | None = None):
-        """Itera todas las medidas siguiendo la paginación automáticamente."""
+                     filename: str | None = None,
+                     limit: int | None = None):
+        """Itera medidas siguiendo la paginación automáticamente.
+
+        ``limit`` limita el número máximo de elementos devueltos en cliente. Se
+        acepta para compatibilidad con la GUI Qt.
+        """
         params = {}
         if search:
             params["search"] = search
         if filename:
             params["filename"] = filename
-        yield from self._iter_paginated(f"{self.base}/medidas/", params)
+        yield from self._iter_paginated(f"{self.base}/medidas/", params, limit=limit)
 
     def get_medida(self, medida_id) -> dict:
         r = self.session.get(f"{self.base}/medidas/{medida_id}/", timeout=self.timeout)
@@ -103,13 +108,14 @@ class MatelecLabClient:
 
     # ── Calibraciones ──────────────────────────────────────────────
     def iter_calibraciones(self, search: str | None = None,
-                           filename: str | None = None):
+                           filename: str | None = None,
+                           limit: int | None = None):
         params = {}
         if search:
             params["search"] = search
         if filename:
             params["filename"] = filename
-        yield from self._iter_paginated(f"{self.base}/calibraciones/", params)
+        yield from self._iter_paginated(f"{self.base}/calibraciones/", params, limit=limit)
 
     def get_calibracion(self, calibracion_id) -> dict:
         r = self.session.get(f"{self.base}/calibraciones/{calibracion_id}/",
@@ -163,12 +169,17 @@ class MatelecLabClient:
             f"{self.base}/medidas/{medida_id}/analyses/{analysis_id}/", dest_dir)
 
     # ── Internos ───────────────────────────────────────────────────
-    def _iter_paginated(self, url: str, params: dict):
+    def _iter_paginated(self, url: str, params: dict, *, limit: int | None = None):
+        yielded = 0
         while url:
             r = self.session.get(url, params=params, timeout=self.timeout)
             r.raise_for_status()
             data = r.json()
-            yield from data["results"]
+            for item in data["results"]:
+                if limit is not None and yielded >= limit:
+                    return
+                yield item
+                yielded += 1
             url = data.get("next")
             params = {}   # 'next' ya lleva los parámetros embebidos
 

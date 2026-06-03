@@ -647,10 +647,15 @@ class MinimaBridge(QtCore.QObject):
     """
 
     toggled = QtCore.Signal(int)
+    added = QtCore.Signal(float)
 
     @QtCore.Slot(int)
     def toggle(self, index: int) -> None:
         self.toggled.emit(int(index))
+
+    @QtCore.Slot(float)
+    def add(self, x: float) -> None:
+        self.added.emit(float(x))
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -1570,11 +1575,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         plotly_actions = QtWidgets.QHBoxLayout()
         self.btn_plotly_update = QtWidgets.QPushButton(tr("button.update_plotly", default="Actualizar Plotly"))
         self.btn_plotly_update.clicked.connect(self._update_plotly_view)
+        self.btn_plotly_minima = QtWidgets.QPushButton(tr("minima.edit_action", default="Editar mínimos"))
+        self.btn_plotly_minima.clicked.connect(lambda _checked=False: self.on_edit_minima())
         self.btn_plotly_export = QtWidgets.QPushButton(tr("file.export_plotly_html"))
         self.btn_plotly_export.clicked.connect(self.on_export_plotly_html)
         self.plotly_status = QtWidgets.QLabel(tr("plotly.initial", default="Abre o actualiza el gráfico interactivo."))
         self.plotly_status.setWordWrap(True)
         plotly_actions.addWidget(self.btn_plotly_update)
+        plotly_actions.addWidget(self.btn_plotly_minima)
         plotly_actions.addWidget(self.btn_plotly_export)
         plotly_actions.addWidget(self.plotly_status, stretch=1)
         plotly_lay.addLayout(plotly_actions)
@@ -3477,7 +3485,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             ".metadata th{text-align:left;padding:3px 12px 3px 0;}"
             ".metadata td{padding:3px 0;}"
             "</style></head><body><main>"
-            f"{body}{self._plotly_metadata_html()}"
+            f"{body}"
             "</main></body></html>"
         )
 
@@ -3488,6 +3496,33 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             except Exception:
                 pass
         self._plotly_temp_files = []
+
+    def _load_plotly_html(self, html_text: str) -> None:
+        """Carga HTML de Plotly mediante fichero temporal, no con setHtml().
+
+        QWebEngineView.setHtml() convierte el contenido en una URL de datos y
+        Qt WebEngine tiene un límite práctico de tamaño. Como plotly.js embebido
+        mide varios MB, setHtml() puede terminar en una página en blanco (sin
+        datos ni ejes). Cargar un fichero local evita ese límite.
+        """
+        if self.plotly_view is None:
+            return
+        tmp_dir = CONFIG_DIR / "plotly"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        fd, name = tempfile.mkstemp(prefix="plotly_", suffix=".html", dir=str(tmp_dir))
+        path = Path(name)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(html_text)
+        self._plotly_temp_files.append(path)
+        # Mantén solo unos pocos ficheros vivos para no borrar el que se acaba
+        # de pedir al motor web, pero evita acumular muchos en sesiones largas.
+        while len(self._plotly_temp_files) > 6:
+            old = self._plotly_temp_files.pop(0)
+            try:
+                old.unlink(missing_ok=True)
+            except Exception:
+                pass
+        self.plotly_view.load(QtCore.QUrl.fromLocalFile(str(path)))
 
     def _is_plotly_tab_active(self) -> bool:
         return hasattr(self, "plot_tabs") and self.plot_tabs.currentWidget() is getattr(self, "plotly_tab", None)
@@ -3524,7 +3559,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             "</style>"
             "<script src='qrc:///qtwebchannel/qwebchannel.js'></script>"
             "<script>" + plotlyjs + "</script></head>"
-            "<body><main><div id='plot'></div><div id='meta'></div></main><script>"
+            "<body><main><div id='plot'></div></main><script>"
             "var CFG={responsive:true,displaylogo:false,"
             "toImageButtonOptions:{format:'png',scale:2}};"
             "window.__bridge=null;"
@@ -3539,10 +3574,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             "gd.on('plotly_click',function(ev){"
             "if(!ev||!ev.points||!ev.points.length)return;"
             "var p=ev.points[0];"
-            "if(p.customdata!==undefined&&p.customdata!==null&&window.__bridge){"
-            "window.__bridge.toggle(p.customdata);}});}"
-            "if(meta!==undefined&&meta!==null){"
-            "document.getElementById('meta').innerHTML=meta;}};"
+            "if(!window.__bridge)return;"
+            "if(p.customdata!==undefined&&p.customdata!==null){"
+            "window.__bridge.toggle(p.customdata);return;}"
+            "if(p.x!==undefined&&p.x!==null){window.__bridge.add(Number(p.x));}});}"
+            "};"
             "</script></body></html>"
         )
 
@@ -3563,8 +3599,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             import plotly.io as _pio
             fig = self._current_plotly_figure()
             fig_json = _pio.to_json(fig)
-            meta_json = json.dumps(self._plotly_metadata_html())
-            payload = f"window.__render({fig_json},{meta_json});"
+            payload = f"window.__render({fig_json},null);"
             theme = "dark" if self.color_theme == "dark" else "light"
             if self._plotly_loading and self._plotly_theme == theme:
                 # La plantilla aún se está cargando: solo se actualiza el estado
@@ -3577,7 +3612,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 self._plotly_page_ready = False
                 self._plotly_loading = True
                 self._plotly_pending = payload
-                self.plotly_view.setHtml(self._plotly_page_template(theme))
+                self._load_plotly_html(self._plotly_page_template(theme))
             else:
                 # Refresco incremental: solo se envían los datos nuevos.
                 self.plotly_view.page().runJavaScript(payload)
@@ -3603,8 +3638,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         hint = QtWidgets.QLabel(tr(
             "minima.editor_hint",
             default="Marca/desmarca los mínimos a usar e indica cuántas "
-                    "contribuciones tiene cada uno. Puedes clicar también sobre "
-                    "los marcadores del gráfico."))
+                    "contribuciones tiene cada uno. En Plotly, clic sobre el "
+                    "espectro añade un mínimo y clic sobre/cerca de un marcador "
+                    "lo activa o desactiva."))
         hint.setWordWrap(True)
         hint.setStyleSheet("color:#64748b;font-size:11px;")
         lay.addWidget(hint)
@@ -3648,6 +3684,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             from PySide6.QtWebChannel import QWebChannel
             self._minima_bridge = MinimaBridge()
             self._minima_bridge.toggled.connect(self._on_minima_marker_clicked)
+            self._minima_bridge.added.connect(self._on_minima_plot_clicked)
             channel = QWebChannel(self.plotly_view.page())
             channel.registerObject("minima", self._minima_bridge)
             self.plotly_view.page().setWebChannel(channel)
@@ -3745,6 +3782,46 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             chk.setChecked(new_state)
             chk.blockSignals(False)
         self._update_minima_count_label()
+        self._update_plotly_view()
+
+    def _on_minima_plot_clicked(self, x: float) -> None:
+        """Clic sobre el gráfico en modo edición: añade un mínimo manual."""
+        if not getattr(self, "_minima_edit_mode", False):
+            return
+        if self.file.velocity is None or self.file.y_data is None:
+            return
+        v = np.asarray(self.file.velocity, dtype=float)
+        y = np.asarray(self.file.y_data, dtype=float)
+        if v.size == 0 or y.size == 0:
+            return
+        idx = int(np.argmin(np.abs(v - float(x))))
+        # Si se clica sobre/cerca de un mínimo existente, alterna incluir/excluir
+        # en vez de crear un duplicado. Así basta un clic para desactivarlo.
+        if v.size > 1:
+            dv = float(np.nanmedian(np.abs(np.diff(np.sort(v)))))
+        else:
+            dv = 0.05
+        tol = max(1.5 * abs(dv), 0.05)
+        if self._minima_entries:
+            distances = [abs(float(e["pos"]) - float(x)) for e in self._minima_entries]
+            nearest = int(np.argmin(distances))
+            if distances[nearest] <= tol or abs(int(self._minima_entries[nearest]["i"]) - idx) <= 1:
+                self._on_minima_marker_clicked(nearest)
+                return
+        baseline = float(getattr(self, "_minima_baseline", self.calib.baseline.value()))
+        slope = float(getattr(self, "_minima_slope", self.calib.slope.value()))
+        depth = max(0.0, baseline + slope * float(v[idx]) - float(y[idx]))
+        self._minima_entries.append({
+            "i": idx,
+            "pos": float(v[idx]),
+            "depth": depth,
+            "width": 0.2,
+            "smooth_depth": depth,
+            "included": True,
+            "count": 1,
+        })
+        self._minima_entries.sort(key=lambda e: float(e["pos"]))
+        self._populate_minima_list()
         self._update_plotly_view()
 
     def _update_minima_count_label(self) -> None:
@@ -4271,9 +4348,16 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         btn_search = QtWidgets.QPushButton("Buscar/Refrescar")
         search_row.addWidget(btn_search)
         v.addLayout(search_row)
-        table = QtWidgets.QTableWidget(0, 3)
-        table.setHorizontalHeaderLabels(["id", "fichero", "muestra"])
-        table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
+        table = QtWidgets.QTableWidget(0, 7)
+        table.setHorizontalHeaderLabels(["id", "fichero", "muestra", "fecha", "T", "vel. display", "calib"])
+        hdr = table.horizontalHeader()
+        hdr.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(2, QtWidgets.QHeaderView.Stretch)
+        hdr.setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(4, QtWidgets.QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(5, QtWidgets.QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(6, QtWidgets.QHeaderView.ResizeToContents)
         table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         v.addWidget(table, stretch=1)
 
@@ -4300,6 +4384,57 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         btn_choose.clicked.connect(choose_dest)
 
         items: list[dict] = []
+
+        def _first_value(it: dict, *keys: str):
+            """Devuelve el primer campo no vacío, aceptando anidados comunes."""
+            nested = (it, it.get("metadata") or {}, it.get("condiciones") or {},
+                      it.get("conditions") or {}, it.get("calibracion") or {},
+                      it.get("calibration") or {})
+            for data in nested:
+                if not isinstance(data, dict):
+                    continue
+                for key in keys:
+                    val = data.get(key)
+                    if val not in (None, ""):
+                        return val
+            return ""
+
+        def _short_filename(name: str) -> str:
+            base = Path(str(name)).name
+            return base[:13]
+
+        def _date_text(it: dict) -> str:
+            val = _first_value(it, "fecha", "date", "measured_at", "measurement_date",
+                               "created", "created_at", "updated_at")
+            txt = str(val or "")
+            return txt[:10] if len(txt) >= 10 else txt
+
+        def _calibration_id_text(it: dict) -> str:
+            val = _first_value(it, "calibracion_id", "calibration_id", "calib_id",
+                               "id_calibracion", "id_calibration")
+            if val:
+                return str(val)
+            cal = it.get("calibracion") or it.get("calibration") or it.get("calibrado")
+            if isinstance(cal, dict) and cal.get("id") not in (None, ""):
+                return str(cal.get("id"))
+            if isinstance(cal, (int, str)):
+                return str(cal)
+            return ""
+
+        def _temperature_text(it: dict) -> str:
+            val = _first_value(it, "temperatura", "temperature", "temp", "temp_k",
+                               "temperature_k", "temp_c", "temperature_c")
+            return str(val) if val not in (None, "") else ""
+
+        def _velocity_text(it: dict) -> str:
+            # En el listado web queremos la velocidad *display* de la medida,
+            # no necesariamente la velocidad calibrada/ajustada usada después.
+            val = _first_value(it, "velocity_input", "velocidad_input",
+                               "velocity_display", "velocidad_display",
+                               "display_velocity", "display_vmax", "vmax_display",
+                               "velocidad", "velocity", "vmax", "v_max",
+                               "velocidad_max", "velocity_max")
+            return str(val) if val not in (None, "") else ""
 
         def build_client():
             base = e_server.text().strip() or DEFAULT_BASE_URL
@@ -4357,11 +4492,24 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             table.setRowCount(0)
             for it in items:
                 r = table.rowCount(); table.insertRow(r)
-                table.setItem(r, 0, QtWidgets.QTableWidgetItem(str(it.get("id", ""))))
-                table.setItem(r, 1, QtWidgets.QTableWidgetItem(
-                    str(it.get("file_name") or it.get("filename") or "")))
-                table.setItem(r, 2, QtWidgets.QTableWidgetItem(
-                    str(it.get("muestra") or it.get("sample") or "")))
+                filename = str(it.get("file_name") or it.get("filename") or it.get("datafile") or "")
+                sample = str(_first_value(it, "muestra", "sample", "sample_name", "nombre_muestra", "name"))
+                values = [
+                    str(it.get("id", "")),
+                    _short_filename(filename),
+                    sample,
+                    _date_text(it),
+                    _temperature_text(it),
+                    _velocity_text(it),
+                    "" if is_calib else _calibration_id_text(it),
+                ]
+                for c, value in enumerate(values):
+                    cell = QtWidgets.QTableWidgetItem(value)
+                    if c == 1 and filename:
+                        cell.setToolTip(filename)
+                    elif c == 2 and sample:
+                        cell.setToolTip(sample)
+                    table.setItem(r, c, cell)
             debug(f"{len(items)} resultados.")
 
         btn_search.clicked.connect(refresh)
@@ -4373,7 +4521,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             if not q:
                 return
             for r in range(table.rowCount()):
-                hay = " ".join(table.item(r, c).text().lower() for c in range(3))
+                hay = " ".join(
+                    table.item(r, c).text().lower()
+                    for c in range(table.columnCount())
+                    if table.item(r, c) is not None)
                 table.setRowHidden(r, q not in hay)
         e_search.textChanged.connect(local_filter)
 

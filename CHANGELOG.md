@@ -1,5 +1,24 @@
 # Changelog
 
+## v3.6 — Plotly Qt corregido y listado web mejorado
+
+Release estable con los cambios posteriores a v3.5.
+
+### Plotly en Qt
+
+- Corregida la vista Plotly en Qt cuando aparecía en blanco, sin datos ni ejes, cargando el HTML desde fichero local en vez de `setHtml()`.
+- Eliminado de nuevo el bloque de metadatos bajo el gráfico Plotly para dejar solo la figura interactiva.
+- Restaurada y mejorada la edición semi-manual de mínimos: botón visible en la pestaña Plotly, clic en el espectro para añadir mínimos y clic sobre/cerca de un marcador para activarlo o desactivarlo.
+
+### Descarga web
+
+- Corregida la consulta de medidas/calibraciones desde la GUI Qt aceptando `limit` en el cliente API.
+- Listado web más legible: fichero abreviado a 13 caracteres, muestra con más espacio, fecha, temperatura, velocidad display (`velocity_input`) e id de calibración asociada.
+
+### Versión
+
+- La versión local de la aplicación pasa a `3.6`.
+
 ## v3.5 — integración Plotly y edición semi-manual de mínimos
 
 Agrupa todos los cambios incorporados desde v3.0.
