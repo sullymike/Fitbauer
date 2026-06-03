@@ -556,5 +556,17 @@
   "absorber.thin": "Delgado (lineal)",
   "absorber.thickness": "Grueso (saturación)",
   "slider.sat_scale": "Escala saturación C",
-  "button.download_load": "Descargar y cargar"
+  "button.download_load": "Descargar y cargar",
+  "minima.edit_action": "Editar mínimos (semi-manual)…",
+  "minima.editor_title": "Mínimos detectados",
+  "minima.editor_hint": "Marca/desmarca los mínimos a usar e indica cuántas contribuciones tiene cada uno. También puedes clicar sobre los marcadores del gráfico.",
+  "minima.redetect": "Volver a detectar",
+  "minima.propose": "Proponer ajuste",
+  "minima.done": "Cerrar edición",
+  "minima.include_tip": "Usar este mínimo en la propuesta",
+  "minima.count_tip": "Nº de contribuciones (componentes solapadas) bajo este mínimo",
+  "minima.count_summary": "{inc}/{tot} mínimos · {contrib} contribuciones",
+  "minima.included": "Mínimos (incluidos)",
+  "minima.excluded": "Mínimos (excluidos)",
+  "minima.none_selected": "Marca al menos un mínimo para proponer el ajuste."
 }

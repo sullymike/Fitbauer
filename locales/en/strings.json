@@ -556,5 +556,17 @@
   "absorber.thin": "Thin (linear)",
   "absorber.thickness": "Thick (saturation)",
   "slider.sat_scale": "Saturation scale C",
-  "button.download_load": "Download and load"
+  "button.download_load": "Download and load",
+  "minima.edit_action": "Edit minima (semi-manual)…",
+  "minima.editor_title": "Detected minima",
+  "minima.editor_hint": "Check/uncheck the minima to use and set how many contributions each has. You can also click the markers on the chart.",
+  "minima.redetect": "Re-detect",
+  "minima.propose": "Propose fit",
+  "minima.done": "Close editor",
+  "minima.include_tip": "Use this minimum in the proposal",
+  "minima.count_tip": "Number of contributions (overlapping components) under this minimum",
+  "minima.count_summary": "{inc}/{tot} minima · {contrib} contributions",
+  "minima.included": "Minima (included)",
+  "minima.excluded": "Minima (excluded)",
+  "minima.none_selected": "Select at least one minimum to propose a fit."
 }

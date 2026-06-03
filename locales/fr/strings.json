@@ -556,5 +556,17 @@
   "absorber.thin": "Mince (linéaire)",
   "absorber.thickness": "Épais (saturation)",
   "slider.sat_scale": "Échelle saturation C",
-  "button.download_load": "Télécharger et charger"
+  "button.download_load": "Télécharger et charger",
+  "minima.edit_action": "Éditer les minima (semi-manuel)…",
+  "minima.editor_title": "Minima détectés",
+  "minima.editor_hint": "Cochez/décochez les minima à utiliser et indiquez le nombre de contributions de chacun. Vous pouvez aussi cliquer sur les marqueurs du graphique.",
+  "minima.redetect": "Re-détecter",
+  "minima.propose": "Proposer un ajustement",
+  "minima.done": "Fermer l'éditeur",
+  "minima.include_tip": "Utiliser ce minimum dans la proposition",
+  "minima.count_tip": "Nombre de contributions (composantes superposées) sous ce minimum",
+  "minima.count_summary": "{inc}/{tot} minima · {contrib} contributions",
+  "minima.included": "Minima (inclus)",
+  "minima.excluded": "Minima (exclus)",
+  "minima.none_selected": "Sélectionnez au moins un minimum pour proposer un ajustement."
 }
