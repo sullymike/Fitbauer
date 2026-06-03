@@ -6234,6 +6234,13 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 lines.append(f"| R₂₃ = I₂/I₃ | {derived['r23']:.4g} | {_ferr(derived['sigma_r23'])} |")
                 lines.append(f"| S = ⟨P₂(cos θ)⟩ | {derived['s']:.4g} | {_ferr(derived['sigma_s'])} |")
                 lines.append("")
+                lines.append("> 💡 **Interpretación:** *t = sin²θ* parametriza la razón de "
+                             "intensidades I₂/I₃ del sextete: t = 0 ⇒ campo paralelo al rayo γ "
+                             "(I₂ = 0), t = 2/3 ⇒ muestra random (θ ≈ 54.7°, R₂₃ = 2), "
+                             "t = 1 ⇒ campo perpendicular (R₂₃ = 4). *S* es un parámetro de "
+                             "orden tipo Hermans: **+1** alineado al γ, **0** isótropo, "
+                             "**−½** perpendicular.")
+                lines.append("")
             if iso_ref is not None:
                 d = cp.params["delta"].value()
                 lines.append(
@@ -6288,11 +6295,116 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 )
             lines.append("")
 
+        lines.append("## 📖 Glosario de parámetros")
+        lines.append("")
+        lines.append("| Símbolo | Magnitud | Unidad | Observación |")
+        lines.append("|---|---|---|---|")
+        lines.append("| δ | Desplazamiento isomérico | mm/s | Densidad de carga electrónica en el núcleo; referido a α-Fe. |")
+        lines.append("| ΔEQ (`quad`) | Desdoblamiento cuadrupolar | mm/s | Asimetría del gradiente de campo eléctrico en el núcleo. |")
+        lines.append("| BHF | Campo hiperfino magnético | T | Magnetismo local sentido por el núcleo. |")
+        lines.append("| Γ (HWHM) | Anchura de línea | mm/s | Semianchura a media altura del perfil de línea. |")
+        lines.append("| `depth` | Profundidad de absorción | (rel.) | Amplitud relativa del componente; ligada al efecto Mössbauer y al espesor. |")
+        lines.append("| `int1/2/3` | Intensidades relativas | (rel.) | Razones nominales 3 : I₂ : 1 para un sextete. |")
+        lines.append("| `texture` (t) | Parámetro de textura | (0–1) | t = sin²θ con θ = ángulo del campo respecto al γ; controla I₂/I₃. |")
+        lines.append("| `beta` (β) | Ángulo EFG–BHF | ° | Solo en tratamiento Kündig fijo del cuadrupolo. |")
+        lines.append("| `voigt_sigma` | σ gaussiana del perfil Voigt | mm/s | Anchura instrumental gaussiana convolucionada. |")
+        lines.append("| `sat_scale` | Factor de saturación | (rel.) | Solo en modelo de absorbente grueso. |")
+        lines.append("| `baseline` / `slope` | Línea base | (rel.) | Nivel y pendiente del fondo de transmisión. |")
+        lines.append("| Vmax (`vmax`) | Velocidad máxima | mm/s | Calibración de la escala de velocidades. |")
+        lines.append("")
+
         return lines
 
+    @staticmethod
+    def _md_strip_inline(text: str) -> str:
+        """Limpia marcadores Markdown y emojis para renderizado en PDF.
+
+        Elimina ``**bold**``, ``*italic*`` y `` `code` `` (se conserva el texto
+        sin los caracteres de formato) y quita los emojis fuera del BMP que
+        DejaVu (la fuente por defecto de matplotlib) no puede renderizar.
+        """
+        import re
+        out = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+        out = re.sub(r"\*(.+?)\*", r"\1", out)
+        out = re.sub(r"`([^`]+)`", r"\1", out)
+        # Quita emojis (Misc Symbols and Pictographs, Emoticons, Transport,
+        # Supplemental Symbols and Pictographs, Dingbats, etc.).
+        out = re.sub(
+            "["
+            "\U0001F300-\U0001F9FF"
+            "\U0001FA00-\U0001FAFF"
+            "\U00002600-\U000027BF"
+            "]\\s?",
+            "", out,
+        )
+        return out.strip()
+
+    def _md_to_blocks(self, md_lines: list[str]) -> list[tuple[str, object]]:
+        """Convierte líneas Markdown en bloques tipados ``(kind, data)``.
+
+        Reconoce: encabezados ``### h3``, tablas GFM ``| … |``, callouts
+        ``> …``, bloques de código `` ``` `` y párrafos consecutivos.
+        """
+        blocks: list[tuple[str, object]] = []
+        i, n = 0, len(md_lines)
+        while i < n:
+            raw = md_lines[i]
+            s = raw.strip()
+            if not s:
+                i += 1
+                continue
+            if s.startswith("### "):
+                blocks.append(("h3", s[4:].strip()))
+                i += 1
+                continue
+            if s.startswith("```"):
+                j = i + 1
+                buf: list[str] = []
+                while j < n and not md_lines[j].strip().startswith("```"):
+                    buf.append(md_lines[j])
+                    j += 1
+                blocks.append(("code", buf))
+                i = j + 1
+                continue
+            if s.startswith(">"):
+                buf = []
+                while i < n and md_lines[i].strip().startswith(">"):
+                    buf.append(md_lines[i].strip().lstrip(">").strip())
+                    i += 1
+                blocks.append(("callout", buf))
+                continue
+            if s.startswith("|") and s.endswith("|"):
+                rows: list[str] = []
+                while i < n and md_lines[i].strip().startswith("|") and md_lines[i].strip().endswith("|"):
+                    rows.append(md_lines[i].strip())
+                    i += 1
+                is_table = (
+                    len(rows) >= 2
+                    and set(rows[1].replace("|", "").replace("-", "").replace(":", "").strip()) == set()
+                )
+                if is_table:
+                    header = [c.strip() for c in rows[0].strip("|").split("|")]
+                    data = [[c.strip() for c in r.strip("|").split("|")] for r in rows[2:]]
+                    blocks.append(("table", (header, data)))
+                else:
+                    for r in rows:
+                        blocks.append(("para", r))
+                continue
+            buf = [raw.rstrip()]
+            j = i + 1
+            while j < n and md_lines[j].strip() and not (
+                md_lines[j].lstrip().startswith(("#", "|", ">", "```"))
+            ):
+                buf.append(md_lines[j].rstrip())
+                j += 1
+            blocks.append(("para", " ".join(s.strip() for s in buf).strip()))
+            i = j
+        return blocks
+
     def _render_pdf_report(self, pdf_path: "Path", md_lines: list[str]) -> None:
-        """Renderiza el informe PDF con portada, secciones a color y la
-        gráfica actual al final. Solo depende de matplotlib."""
+        """Renderiza el informe PDF con portada, banners de color, tablas
+        reales (cuadrículas en vez de texto monoespaciado) y la gráfica
+        actual al final. Solo depende de matplotlib."""
         from datetime import datetime
         from matplotlib.backends.backend_pdf import PdfPages
         from matplotlib.figure import Figure as _PdfFigure
@@ -6302,22 +6414,182 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         SECTION_COLOR = "#1e40af"
         SECTION_COLOR_ALT = "#0f766e"
         ACCENT = "#dbeafe"
+        TEXT_DARK = "#1f2937"
+        TEXT_MUTED = "#475569"
+        ZEBRA_BG = "#f8fafc"
+        TABLE_BORDER = "#e2e8f0"
+        CALLOUT_BG = "#fef3c7"
+        CALLOUT_BAR = "#f59e0b"
+        CODE_BG = "#f1f5f9"
 
-        def _open_page(title: str | None, color: str):
+        LEFT, RIGHT = 0.05, 0.95
+        WIDTH = RIGHT - LEFT
+        TOP_BODY = 0.92
+        BOTTOM = 0.06
+
+        def _open_page(title: str, color: str):
             fig = _PdfFigure(figsize=(8.27, 11.69), dpi=100, facecolor="white")
-            ax = fig.add_subplot(111); ax.axis("off")
+            ax = fig.add_subplot(111)
+            ax.axis("off")
             ax.set_xlim(0, 1); ax.set_ylim(0, 1)
-            y_text = 0.97
-            if title:
-                ax.add_patch(Rectangle((0.0, 0.94), 1.0, 0.05,
-                                       facecolor=color, edgecolor="none"))
-                ax.text(0.03, 0.965, title, color="white", fontsize=14,
-                        fontweight="bold", va="center", ha="left")
-                y_text = 0.92
-            return fig, ax, y_text
+            ax.add_patch(Rectangle((0.0, 0.94), 1.0, 0.05,
+                                   facecolor=color, edgecolor="none"))
+            ax.text(LEFT, 0.965, self._md_strip_inline(title), color="white",
+                    fontsize=14, fontweight="bold", va="center", ha="left")
+            return fig, ax
+
+        def _render_h3(ax, text, y):
+            ax.text(LEFT, y - 0.022, self._md_strip_inline(text),
+                    color=SECTION_COLOR, fontsize=11.5,
+                    fontweight="bold", va="center", ha="left")
+            ax.add_patch(Rectangle((LEFT, y - 0.038), 0.22, 0.0015,
+                                   facecolor=SECTION_COLOR, edgecolor="none"))
+            return y - 0.05
+
+        def _wrap_lines(text, width):
+            text = self._md_strip_inline(text)
+            return _tw.wrap(text, width=width) or [""]
+
+        def _render_para(ax, text, y, on_break):
+            line_h = 0.020
+            for ln in _wrap_lines(text, 110):
+                if y - line_h < BOTTOM:
+                    on_break()
+                    y = TOP_BODY
+                ax.text(LEFT, y - line_h * 0.7, ln,
+                        color=TEXT_DARK, fontsize=9.5,
+                        va="center", ha="left")
+                y -= line_h
+                ax = _current_ax()  # may have changed after on_break
+            return y - 0.006
+
+        def _render_callout(ax, lines, y, on_break):
+            line_h = 0.020
+            wrapped: list[str] = []
+            for raw in lines:
+                for w in _wrap_lines(raw, 105):
+                    wrapped.append(w)
+            if not wrapped:
+                wrapped = [""]
+            i_w = 0
+            while i_w < len(wrapped):
+                # Cuántas líneas caben antes del salto
+                avail = int(max(0, (y - BOTTOM)) / line_h)
+                if avail < 2:
+                    on_break()
+                    y = TOP_BODY
+                    ax = _current_ax()
+                    avail = int((y - BOTTOM) / line_h)
+                take = min(avail, len(wrapped) - i_w)
+                block_h = take * line_h + 0.012
+                ax.add_patch(Rectangle((LEFT, y - block_h), WIDTH, block_h,
+                                       facecolor=CALLOUT_BG, edgecolor="none"))
+                ax.add_patch(Rectangle((LEFT, y - block_h), 0.006, block_h,
+                                       facecolor=CALLOUT_BAR, edgecolor="none"))
+                for k in range(take):
+                    ax.text(LEFT + 0.015, y - 0.012 - k * line_h - line_h * 0.6,
+                            wrapped[i_w + k], color="#7c2d12", fontsize=9.5,
+                            va="center", ha="left")
+                y -= block_h + 0.006
+                i_w += take
+            return y
+
+        def _render_code(ax, lines, y, on_break):
+            line_h = 0.018
+            content = lines or [""]
+            i_l = 0
+            while i_l < len(content):
+                avail = int(max(0, (y - BOTTOM)) / line_h)
+                if avail < 2:
+                    on_break()
+                    y = TOP_BODY
+                    ax = _current_ax()
+                    avail = int((y - BOTTOM) / line_h)
+                take = min(avail, len(content) - i_l)
+                block_h = take * line_h + 0.010
+                ax.add_patch(Rectangle((LEFT, y - block_h), WIDTH, block_h,
+                                       facecolor=CODE_BG, edgecolor=TABLE_BORDER,
+                                       linewidth=0.5))
+                for k in range(take):
+                    txt = content[i_l + k][:120]
+                    ax.text(LEFT + 0.012, y - 0.008 - k * line_h - line_h * 0.6,
+                            txt, color=TEXT_DARK, fontsize=8.5,
+                            family="monospace", va="center", ha="left")
+                y -= block_h + 0.006
+                i_l += take
+            return y
+
+        def _render_table(ax, header, rows, y, on_break):
+            # Calcular anchos por longitud máxima del contenido
+            n_cols = len(header)
+            if n_cols == 0:
+                return y
+            max_len = [len(self._md_strip_inline(header[c])) for c in range(n_cols)]
+            for r in rows:
+                for c in range(min(n_cols, len(r))):
+                    max_len[c] = max(max_len[c], len(self._md_strip_inline(r[c])))
+            total = sum(max_len) or 1
+            col_w = [WIDTH * (m / total) for m in max_len]
+            col_x = [LEFT]
+            for c in range(n_cols - 1):
+                col_x.append(col_x[-1] + col_w[c])
+            row_h = 0.026
+            header_h = 0.028
+
+            def _draw_header(local_y):
+                ax.add_patch(Rectangle((LEFT, local_y - header_h), WIDTH, header_h,
+                                       facecolor=SECTION_COLOR, edgecolor="none"))
+                for c, txt in enumerate(header):
+                    ax.text(col_x[c] + col_w[c] * 0.04,
+                            local_y - header_h * 0.55,
+                            self._md_strip_inline(txt),
+                            color="white", fontsize=9.0,
+                            fontweight="bold", va="center", ha="left")
+                return local_y - header_h
+
+            # Espacio mínimo para encabezado + 1 fila
+            if y - (header_h + row_h) < BOTTOM:
+                on_break()
+                y = TOP_BODY
+                ax = _current_ax()
+            y = _draw_header(y)
+            for r_idx, row in enumerate(rows):
+                if y - row_h < BOTTOM:
+                    on_break()
+                    y = TOP_BODY
+                    ax = _current_ax()
+                    y = _draw_header(y)
+                bg = ZEBRA_BG if r_idx % 2 == 0 else "white"
+                ax.add_patch(Rectangle((LEFT, y - row_h), WIDTH, row_h,
+                                       facecolor=bg, edgecolor=TABLE_BORDER,
+                                       linewidth=0.5))
+                for c in range(n_cols):
+                    cell = row[c] if c < len(row) else ""
+                    txt = self._md_strip_inline(cell)
+                    # Truncar si excede el ancho de columna
+                    max_chars = max(4, int(col_w[c] * 95))
+                    if len(txt) > max_chars:
+                        txt = txt[: max_chars - 1] + "…"
+                    ax.text(col_x[c] + col_w[c] * 0.04,
+                            y - row_h * 0.55, txt,
+                            color=TEXT_DARK, fontsize=8.8,
+                            va="center", ha="left")
+                y -= row_h
+            return y - 0.010
+
+        # Estado mutable de página actual durante el render
+        _state = {"fig": None, "ax": None, "title": "", "color": SECTION_COLOR}
+
+        def _current_ax():
+            return _state["ax"]
+
+        def _new_section_page(title, color, *, continuation=False):
+            head = f"{title} (cont.)" if continuation else title
+            fig, ax = _open_page(head, color)
+            _state["fig"], _state["ax"] = fig, ax
 
         with PdfPages(pdf_path) as pdf:
-            # — Portada con resumen en cuadros —
+            # — Portada —
             fig = _PdfFigure(figsize=(8.27, 11.69), dpi=100, facecolor="white")
             ax = fig.add_subplot(111); ax.axis("off")
             ax.set_xlim(0, 1); ax.set_ylim(0, 1)
@@ -6328,10 +6600,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             ax.text(0.5, 0.82, "Informe de ajuste", color=ACCENT,
                     fontsize=14, va="center", ha="center")
             file_name = self.file.path.name if self.file.path else "—"
-            ax.text(0.5, 0.72, file_name, color="#1f2937", fontsize=12,
+            ax.text(0.5, 0.72, file_name, color=TEXT_DARK, fontsize=12,
                     va="center", ha="center", family="monospace")
             ax.text(0.5, 0.685, datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    color="#475569", fontsize=10, va="center", ha="center")
+                    color=TEXT_MUTED, fontsize=10, va="center", ha="center")
             ax.text(0.5, 0.655, f"{APP_NAME} v{APP_VERSION} (Qt)",
                     color="#94a3b8", fontsize=9, va="center", ha="center")
 
@@ -6361,22 +6633,22 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 x = x0 + c * (box_w + gx)
                 y = y0 - r * (box_h + gy)
                 ax.add_patch(Rectangle((x, y - box_h), box_w, box_h,
-                                       facecolor="#f8fafc",
+                                       facecolor=ZEBRA_BG,
                                        edgecolor="#cbd5e1", linewidth=1))
                 ax.text(x + 0.015, y - box_h * 0.28, lbl, fontsize=9,
-                        color="#475569", va="center", ha="left")
+                        color=TEXT_MUTED, va="center", ha="left")
                 ax.text(x + box_w - 0.015, y - box_h * 0.65, val, fontsize=12,
                         color=SECTION_COLOR, va="center", ha="right",
                         fontweight="bold")
             pdf.savefig(fig, bbox_inches="tight")
 
-            # — Cuerpo: una sección "## " por bloque, paginado —
-            sections: list[tuple[str | None, list[str]]] = []
+            # — Cuerpo: secciones ## con bloques tipados —
+            sections: list[tuple[str, list[str]]] = []
             current_title: str | None = None
             current_body: list[str] = []
             for ln in md_lines:
                 if ln.startswith("## "):
-                    if current_title is not None or current_body:
+                    if current_title is not None:
                         sections.append((current_title, current_body))
                     current_title = ln[3:].strip()
                     current_body = []
@@ -6384,26 +6656,41 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                     continue
                 else:
                     current_body.append(ln)
-            if current_title is not None or current_body:
+            if current_title is not None:
                 sections.append((current_title, current_body))
 
             for title, body in sections:
-                if not any(s.strip() for s in body):
+                blocks = self._md_to_blocks(body)
+                if not blocks:
                     continue
-                wrapped: list[str] = []
-                for raw in body:
-                    for w in (_tw.wrap(raw, width=95) or [""]):
-                        wrapped.append(w)
-                first = True
-                while wrapped:
-                    head = title if first else f"{title} (cont.)"
-                    color = SECTION_COLOR if first else SECTION_COLOR_ALT
-                    fig, ax, y_text = _open_page(head, color)
-                    page_lines, wrapped = wrapped[:42], wrapped[42:]
-                    ax.text(0.04, y_text, "\n".join(page_lines),
-                            va="top", ha="left", family="monospace", fontsize=8.5)
-                    pdf.savefig(fig, bbox_inches="tight")
-                    first = False
+                _state["title"] = title
+                _state["color"] = SECTION_COLOR
+                _new_section_page(title, SECTION_COLOR)
+                y = TOP_BODY
+
+                def _on_break():
+                    pdf.savefig(_state["fig"], bbox_inches="tight")
+                    _state["color"] = SECTION_COLOR_ALT
+                    _new_section_page(_state["title"], _state["color"],
+                                      continuation=True)
+
+                for kind, data in blocks:
+                    ax = _state["ax"]
+                    if kind == "h3":
+                        if y - 0.05 < BOTTOM:
+                            _on_break(); y = TOP_BODY
+                        y = _render_h3(_state["ax"], data, y)
+                    elif kind == "para":
+                        y = _render_para(_state["ax"], data, y, _on_break)
+                    elif kind == "callout":
+                        y = _render_callout(_state["ax"], data, y, _on_break)
+                    elif kind == "code":
+                        y = _render_code(_state["ax"], data, y, _on_break)
+                    elif kind == "table":
+                        header, rows = data
+                        y = _render_table(_state["ax"], header, rows, y,
+                                          _on_break)
+                pdf.savefig(_state["fig"], bbox_inches="tight")
 
             pdf.savefig(self.canvas.fig, bbox_inches="tight")
 
@@ -6445,6 +6732,98 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 self, tr("file.export_report"),
                 f"No se pudo generar el PDF: {type(exc).__name__}: {exc}")
 
+    @staticmethod
+    def _help_format_content(content: str) -> str:
+        """Convierte el texto plano de un capítulo de ayuda en HTML enriquecido.
+
+        Reconoce subtítulos en una línea acabada en dos puntos (``X:``) seguidos
+        de bloque sangrado, viñetas (``•``, ``-`` o ``  número.``) y aplica
+        ``**bold**``, ``*italic*`` y `` `code` `` inline. Conserva los flujos de
+        párrafo existentes para no obligar a reescribir el contenido.
+        """
+        import re
+        text = content.strip("\n")
+
+        def _inline(s: str) -> str:
+            s = html.escape(s)
+            s = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", s)
+            s = re.sub(r"(?<!\*)\*([^*\n]+?)\*(?!\*)", r"<i>\1</i>", s)
+            s = re.sub(r"`([^`]+)`",
+                       r"<code style='background:#f1f5f9;color:#0f172a;"
+                       r"padding:1px 4px;border-radius:3px;'>\1</code>", s)
+            return s
+
+        parts: list[str] = []
+        lines = text.split("\n")
+        i, n = 0, len(lines)
+        while i < n:
+            raw = lines[i]
+            stripped = raw.strip()
+            # Línea en blanco → separador de párrafos
+            if not stripped:
+                parts.append("")
+                i += 1
+                continue
+            # Subtítulo de tipo "Algo:" seguido de bloque sangrado o líneas
+            if (
+                stripped.endswith(":")
+                and not stripped.startswith(("-", "•"))
+                and len(stripped) <= 80
+                and (i + 1 >= n or not lines[i + 1].strip()
+                     or lines[i + 1].startswith((" ", "\t")))
+            ):
+                parts.append(
+                    f"<h4 style='color:#0f766e;margin:14px 0 4px 0;'>"
+                    f"{_inline(stripped[:-1])}</h4>"
+                )
+                i += 1
+                continue
+            # Viñetas y numeración con sangría
+            if re.match(r"^\s*[•\-]\s+", raw) or re.match(r"^\s*\d+\.\s+", raw):
+                items: list[str] = []
+                while i < n and (
+                    re.match(r"^\s*[•\-]\s+", lines[i])
+                    or re.match(r"^\s*\d+\.\s+", lines[i])
+                ):
+                    body = re.sub(r"^\s*(?:[•\-]\s+|\d+\.\s+)", "", lines[i])
+                    items.append(f"<li>{_inline(body)}</li>")
+                    i += 1
+                parts.append(
+                    "<ul style='margin:4px 0 8px 22px;padding:0;"
+                    "line-height:1.5;'>" + "".join(items) + "</ul>"
+                )
+                continue
+            # Párrafo normal: junta líneas hasta separador o cambio de tipo
+            buf = [raw]
+            i += 1
+            while i < n and lines[i].strip() and not (
+                re.match(r"^\s*[•\-]\s+", lines[i])
+                or re.match(r"^\s*\d+\.\s+", lines[i])
+                or lines[i].strip().endswith(":")
+            ):
+                buf.append(lines[i])
+                i += 1
+            joined = _inline(" ".join(s.strip() for s in buf))
+            parts.append(f"<p style='margin:6px 0;line-height:1.55;'>{joined}</p>")
+        return "\n".join(p for p in parts if p)
+
+    @staticmethod
+    def _help_group_for(title: str) -> str:
+        """Devuelve la categoría de agrupación de un capítulo según su título."""
+        t = title.strip()
+        low = t.lower()
+        if low.startswith("inicio"):
+            return tr("help.group_overview", default="Visión general")
+        if low.startswith(("menú", "menu", "main menu")) or "menu" in low.split()[0:1]:
+            return tr("help.group_menus", default="Menús")
+        if "p(bhf)" in low or "p(δeq)" in low or "p(deq)" in low or "distribu" in low:
+            return tr("help.group_distrib", default="Distribuciones P(BHF)")
+        if any(k in low for k in ("ajuste", "fit", "ollama", "ia ", "robust", "regular")):
+            return tr("help.group_fitting", default="Ajuste y diagnóstico")
+        if any(k in low for k in ("folding", "calibr", "archivo y web", "file ", "web")):
+            return tr("help.group_data", default="Datos y calibración")
+        return tr("help.group_concepts", default="Conceptos")
+
     def on_help(self) -> None:
         sections = get_help_sections(
             voigt_sigma=self.calib.voigt_sigma.value(),
@@ -6453,35 +6832,150 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         )
         dlg = QtWidgets.QDialog(self)
         dlg.setWindowTitle(tr("help.window_title"))
-        dlg.resize(960, 640)
+        dlg.resize(1080, 720)
         v = QtWidgets.QVBoxLayout(dlg)
         header = QtWidgets.QLabel(f"<h2>{tr('help.header_title')}</h2>")
         header.setAlignment(QtCore.Qt.AlignCenter)
         v.addWidget(header)
-        # Lista lateral + texto: usamos QListWidget + QTextBrowser
+
+        # Buscador en la cabecera
+        search_row = QtWidgets.QHBoxLayout()
+        search_lbl = QtWidgets.QLabel(tr("help.search_label", default="🔍 Buscar:"))
+        search_edit = QtWidgets.QLineEdit()
+        search_edit.setPlaceholderText(
+            tr("help.search_placeholder",
+               default="Filtra los capítulos y resalta los aciertos…")
+        )
+        search_count = QtWidgets.QLabel("")
+        search_count.setStyleSheet("color:#475569;")
+        search_row.addWidget(search_lbl)
+        search_row.addWidget(search_edit, stretch=1)
+        search_row.addWidget(search_count)
+        v.addLayout(search_row)
+
         split = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
-        list_w = QtWidgets.QListWidget()
-        for title, _heading, _content in sections:
-            list_w.addItem(title)
-        list_w.setMaximumWidth(260)
-        split.addWidget(list_w)
+        tree = QtWidgets.QTreeWidget()
+        tree.setHeaderHidden(True)
+        tree.setIndentation(14)
+        tree.setStyleSheet(
+            "QTreeWidget { font-size: 10pt; }"
+            "QTreeWidget::item { padding: 3px 2px; }"
+        )
+        tree.setMinimumWidth(280)
+        tree.setMaximumWidth(340)
+        # Agrupa por categoría preservando el orden original de capítulos.
+        group_items: dict[str, QtWidgets.QTreeWidgetItem] = {}
+        leaves: list[tuple[QtWidgets.QTreeWidgetItem, int]] = []
+        for idx, (title, _heading, _content) in enumerate(sections):
+            grp = self._help_group_for(title)
+            top = group_items.get(grp)
+            if top is None:
+                top = QtWidgets.QTreeWidgetItem(tree, [grp])
+                font = top.font(0); font.setBold(True); top.setFont(0, font)
+                group_items[grp] = top
+            leaf = QtWidgets.QTreeWidgetItem(top, [title])
+            leaf.setData(0, QtCore.Qt.UserRole, idx)
+            leaves.append((leaf, idx))
+        tree.expandAll()
+        split.addWidget(tree)
+
         text_w = QtWidgets.QTextBrowser()
         text_w.setOpenExternalLinks(True)
+        text_w.setStyleSheet(
+            "QTextBrowser { font-family: -apple-system, Segoe UI, sans-serif;"
+            " font-size: 10.5pt; padding: 8px 12px; }"
+        )
         split.addWidget(text_w)
-        split.setSizes([260, 700])
+        split.setSizes([300, 780])
         v.addWidget(split, stretch=1)
 
-        def show_section(idx: int) -> None:
-            if 0 <= idx < len(sections):
-                title, heading, content = sections[idx]
-                html = (f"<h2>{title}</h2><h3 style='color:#475569;'>{heading}</h3>"
-                        f"<pre style='white-space:pre-wrap; font-family:sans-serif;'>"
-                        f"{content}</pre>")
-                text_w.setHtml(html)
+        def _render(idx: int, highlight: str = "") -> None:
+            if not (0 <= idx < len(sections)):
+                return
+            title, heading, content = sections[idx]
+            body = self._help_format_content(content)
+            css = (
+                "h2{color:#1e40af;margin:0 0 4px 0;}"
+                "h3{color:#475569;margin:0 0 12px 0;font-weight:500;}"
+                "h4{color:#0f766e;}"
+                "p,li{color:#1f2937;}"
+                "mark{background:#fde68a;color:#7c2d12;border-radius:2px;padding:0 1px;}"
+            )
+            html_doc = (
+                f"<style>{css}</style>"
+                f"<h2>{html.escape(title)}</h2>"
+                f"<h3>{html.escape(heading)}</h3>{body}"
+            )
+            if highlight:
+                import re
+                pat = re.compile(re.escape(highlight), re.IGNORECASE)
+                # No tocamos las etiquetas: solo resalta dentro de texto plano.
+                def _highlight_outside_tags(s: str) -> str:
+                    out, depth, buf = [], 0, []
+                    i = 0
+                    n = len(s)
+                    while i < n:
+                        ch = s[i]
+                        if ch == "<":
+                            if buf:
+                                out.append(pat.sub(lambda m: f"<mark>{m.group(0)}</mark>", "".join(buf)))
+                                buf = []
+                            j = s.find(">", i)
+                            if j == -1:
+                                out.append(s[i:]); break
+                            out.append(s[i:j+1]); i = j + 1
+                        else:
+                            buf.append(ch); i += 1
+                    if buf:
+                        out.append(pat.sub(lambda m: f"<mark>{m.group(0)}</mark>", "".join(buf)))
+                    return "".join(out)
+                html_doc = _highlight_outside_tags(html_doc)
+            text_w.setHtml(html_doc)
 
-        list_w.currentRowChanged.connect(show_section)
-        if sections:
-            list_w.setCurrentRow(0)
+        def _on_tree(curr: QtWidgets.QTreeWidgetItem, _prev) -> None:
+            if curr is None:
+                return
+            data = curr.data(0, QtCore.Qt.UserRole)
+            if data is not None:
+                _render(int(data), search_edit.text().strip())
+
+        tree.currentItemChanged.connect(_on_tree)
+        # Selecciona el primer capítulo de la primera categoría
+        if leaves:
+            first = leaves[0][0]
+            tree.setCurrentItem(first)
+
+        def _apply_filter() -> None:
+            q = search_edit.text().strip().lower()
+            visible = 0
+            for grp_item in group_items.values():
+                grp_has = False
+                for ch_idx in range(grp_item.childCount()):
+                    leaf = grp_item.child(ch_idx)
+                    title, heading, content = sections[int(leaf.data(0, QtCore.Qt.UserRole))]
+                    hay = (
+                        not q
+                        or q in title.lower()
+                        or q in heading.lower()
+                        or q in content.lower()
+                    )
+                    leaf.setHidden(not hay)
+                    if hay:
+                        visible += 1
+                        grp_has = True
+                grp_item.setHidden(not grp_has)
+            if q:
+                search_count.setText(
+                    tr("help.search_count", default="{n} capítulos").format(n=visible)
+                )
+            else:
+                search_count.setText("")
+            curr = tree.currentItem()
+            if curr is not None and curr.data(0, QtCore.Qt.UserRole) is not None:
+                _render(int(curr.data(0, QtCore.Qt.UserRole)), q)
+
+        search_edit.textChanged.connect(lambda _t: _apply_filter())
+
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
         bb.rejected.connect(dlg.reject)
         v.addWidget(bb)
