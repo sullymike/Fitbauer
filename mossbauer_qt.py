@@ -1622,7 +1622,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.plot_tabs.addTab(self.plotly_tab, tr("plot.tab_plotly", default="Plotly interactivo"))
         self._plotly_update_timer = QtCore.QTimer(self)
         self._plotly_update_timer.setSingleShot(True)
-        self._plotly_update_timer.setInterval(300)
+        self._plotly_update_timer.setInterval(0)
         self._plotly_update_timer.timeout.connect(self._update_plotly_view)
         self.plot_tabs.currentChanged.connect(lambda _idx: self._schedule_plotly_update() if self._is_plotly_tab_active() else None)
 
@@ -3548,9 +3548,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             "<meta name='viewport' content='width=device-width, initial-scale=1'>"
             f"<title>{html.escape(tr('plotly.title'))}</title>"
             "<style>"
+            "html,body{height:100%;}"
             f"body{{margin:0;background:{bg};color:{fg};font-family:system-ui,Segoe UI,sans-serif;}}"
-            "main{padding:6px 10px 18px 10px;}"
-            "#plot{width:100%;height:72vh;}"
+            "main{padding:4px 8px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;}"
+            "#plot{width:100%;flex:1 1 auto;min-height:0;}"
             f".metadata{{margin:12px 8px 4px 8px;padding:12px;border:1px solid {border};border-radius:10px;}}"
             ".metadata h2,.metadata h3{margin:0.2rem 0 0.5rem 0;}"
             ".metadata table{border-collapse:collapse;margin-bottom:0.75rem;}"
