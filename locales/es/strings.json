@@ -210,6 +210,7 @@
   "info.fwhm_equiv": "  FWHM equiv. 1/2/3 = {f1:.4g} / {f2:.4g} / {f3:.4g}",
   "info.gamma_rel": "  Γ rel 2/3 = {gamma2:.4g} / {gamma3:.4g}",
   "info.depth_intensities": "  prof={depth:.6g}, I reales={i1:.4g}, {i2:.4g}, {i3:.4g}",
+  "info.texture_derived": "  Textura t={t} → θ={theta}°{theta_err}, R₂₃={r23}{r23_err}, S={s}{s_err}",
   "info.fixed_line": "Fijados: {fixed}",
   "info.none": "ninguno",
   "info.constraints_header": "Restricciones activas:",
