@@ -6132,12 +6132,20 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         dlg.exec()
 
     def _build_report_lines(self) -> list[str]:
-        """Genera el informe en Markdown estructurado por secciones."""
+        """Genera el informe en Markdown estructurado por secciones.
+
+        Recoge **toda** la información mostrada en el panel "Estado y
+        parámetros" (espectro, calibración, bondad, diagnóstico residual,
+        análisis de áreas, parámetros por componente con magnitudes físicas
+        derivadas, δ corregidos por calibración, fijados y restricciones)
+        y la presenta como tablas y bloques tipados.
+        """
         from datetime import datetime
         file_name = self.file.path.name if self.file.path else "—"
         ci = self.calibration_info
         iso_ref = self.calibration_iso_ref()
         fit = self.last_fit_result
+        active_panels = [cp for cp in self.components_panels if cp.enabled.isChecked()]
 
         def _ferr(v: float | None) -> str:
             return f"± {v:.3g}" if v is not None and v > 0 else "—"
@@ -6173,49 +6181,146 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             )
             lines.append("")
 
-        lines.append("## 📁 Espectro")
+        # ── Espectro y plegado ──────────────────────────────────────────
+        lines.append("## 📁 Espectro y plegado")
         lines.append("")
         lines.append("| Campo | Valor |")
         lines.append("|---|---|")
         lines.append(f"| Fichero | `{file_name}` |")
         n_chan = self.file.counts.size if self.file.counts is not None else 0
-        lines.append(f"| Canales | {n_chan} |")
-        lines.append(f"| Centro de folding | {self.file.center:.4f} |")
+        lines.append(f"| Canales leídos | {n_chan} |")
+        center_val = float(self.calib.center.value())
+        lines.append(f"| Folding point centro | {center_val:.5f} |")
+        lines.append(f"| Folding point Normos (≈ 2·centro) | {2.0 * center_val:.5f} |")
+        if self.file.folded is not None:
+            lines.append(f"| Pares doblados | {int(self.file.folded.size)} |")
+        norm_factor = getattr(self.file, "norm_factor", None)
+        if norm_factor is not None:
+            lines.append(f"| Normalización | / {norm_factor:.6g} |")
         lines.append(f"| Perfil de línea | {self.calib.line_profile} |")
         lines.append("")
 
-        lines.append("## 🎛️ Calibración")
+        # ── Calibración ──────────────────────────────────────────────────
+        lines.append("## 🎛️ Calibración y escala de velocidades")
         lines.append("")
+        lines.append("| Campo | Valor |")
+        lines.append("|---|---|")
+        lines.append(f"| Vmax | {self.calib.vmax.value():.6g} mm/s |")
+        lines.append(f"| Línea base | {self.calib.baseline.value():.6g} |")
+        lines.append(f"| Pendiente del fondo | {self.calib.slope.value():.6g} |")
+        lines.append(f"| Ajustar Vmax con el patrón | "
+                     f"{'sí' if self.calib.fit_velocity.isChecked() else 'no'} |")
         if ci:
             sample = ci.get("calibration_sample") or ci.get("calibration_file_name") or "—"
-            lines.append("| Campo | Valor |")
-            lines.append("|---|---|")
-            lines.append(f"| Origen | {ci.get('source', '?')} |")
+            lines.append(f"| Origen calibración | {ci.get('source', '?')} |")
             lines.append(f"| Muestra | {sample} |")
             if ci.get("calibration_file_name"):
-                lines.append(f"| Fichero | `{ci['calibration_file_name']}` |")
+                lines.append(f"| Fichero calibración | `{ci['calibration_file_name']}` |")
             if ci.get("velocity_calibrated") is not None:
                 lines.append(
-                    f"| Velocidad calibrada (Vmax) | "
-                    f"{float(ci['velocity_calibrated']):.6g} mm/s |"
+                    f"| Vmax calibrada | {float(ci['velocity_calibrated']):.6g} mm/s |"
                 )
-            if ci.get("isomer_shift") is not None:
-                lines.append(
-                    f"| δ de referencia | {float(ci['isomer_shift']):.6g} mm/s |"
-                )
+            if iso_ref is not None:
+                lines.append(f"| δ de referencia (iso_ref) | {iso_ref:.6g} mm/s |")
             if ci.get("calibration_date"):
-                lines.append(f"| Fecha | {ci['calibration_date']} |")
-        else:
-            lines.append("> ⚠️ Sin calibración activa; δ sin corregir.")
+                lines.append(f"| Fecha calibración | {ci['calibration_date']} |")
+        cal_unc = self.calibration_uncertainty_text()
+        if cal_unc:
+            lines.append("")
+            lines.append(f"> ℹ️ {cal_unc}")
+        elif not ci:
+            lines.append("")
+            lines.append("> ⚠️ Sin calibración activa; los δ no están corregidos.")
         lines.append("")
 
+        # ── Bondad y diagnóstico del ajuste ──────────────────────────────
+        stats = (fit.stats if fit is not None else {}) or {}
+        rms = self._info_rms()
+        if stats or not (rms != rms):  # rms != rms ⇒ NaN
+            lines.append("## 📐 Bondad y diagnóstico")
+            lines.append("")
+            lines.append("| Indicador | Valor |")
+            lines.append("|---|---|")
+            if stats.get("chi2") is not None:
+                lines.append(f"| χ² | {stats['chi2']:.6g} |")
+            if stats.get("red_chi2") is not None:
+                lines.append(f"| χ² reducido | {stats['red_chi2']:.6g} |")
+            if stats.get("dof") is not None:
+                lines.append(f"| dof | {int(stats['dof'])} |")
+            if stats.get("aic") is not None:
+                lines.append(f"| AIC | {stats['aic']:.6g} |")
+            if stats.get("bic") is not None:
+                lines.append(f"| BIC | {stats['bic']:.6g} |")
+            if stats.get("n_params") is not None:
+                lines.append(f"| Nº parámetros del modelo | {int(stats['n_params'])} |")
+            if rms == rms:  # not NaN
+                lines.append(f"| RMS del ajuste | {rms:.6g} |")
+            if fit is not None:
+                lines.append(f"| Autoarranques probados | {int(fit.n_starts)} |")
+            lines.append("")
+            # Diagnóstico residual
+            if any(k in stats for k in ("resid_lag1", "resid_runs_z", "resid_antisym_corr")):
+                lines.append("**Diagnóstico del residuo**")
+                lines.append("")
+                lines.append("| Estadístico | Valor | Umbral de aviso |")
+                lines.append("|---|---|---|")
+                lines.append(f"| Autocorrelación lag-1 | {stats.get('resid_lag1', float('nan')):.3f} | \\|·\\| > 0.35 |")
+                lines.append(f"| Runs test (z) | {stats.get('resid_runs_z', float('nan')):.3f} | \\|·\\| > 2.0 |")
+                lines.append(f"| Correlación antisimétrica | {stats.get('resid_antisym_corr', float('nan')):.3f} | > 0.45 |")
+                lines.append("")
+                if (abs(stats.get("resid_lag1", 0.0)) > 0.35
+                        or abs(stats.get("resid_runs_z", 0.0)) > 2.0
+                        or stats.get("resid_antisym_corr", 0.0) > 0.45):
+                    lines.append("> ⚠️ El residuo parece tener estructura no aleatoria. "
+                                 "Revisa modelo, *folding point*, calibración Vmax o si "
+                                 "faltan componentes.")
+                    lines.append("")
+            # Correlaciones
+            corr = (fit.correlations or {}) if fit is not None else {}
+            max_pair = corr.get("max_pair") or []
+            max_abs = corr.get("max_abs_corr")
+            if max_pair and max_abs is not None:
+                lines.append(
+                    f"_Correlación máxima:_ `{max_pair[0]}` ↔ `{max_pair[1]}` con "
+                    f"|r| = **{float(max_abs):.3f}**."
+                )
+                lines.append("")
+            high = corr.get("high_pairs") or []
+            if high:
+                lines.append("**⚠️ Parámetros muy correlacionados (|r| ≥ 0.95)**")
+                lines.append("")
+                lines.append("| Par | r |")
+                lines.append("|---|---|")
+                for hp in high:
+                    lines.append(f"| `{hp['param1']}` ↔ `{hp['param2']}` | {hp['corr']:.3f} |")
+                lines.append("")
+
+        # ── Análisis de áreas ───────────────────────────────────────────
+        pct_active, areas, percentages = self.component_area_percentages()
+        pct_errors = self.component_percentage_errors()
+        if pct_active:
+            lines.append("## 🥧 Análisis de áreas por componente")
+            lines.append("")
+            lines.append("| Componente | Tipo | % área | σ (%) | Área absoluta |")
+            lines.append("|---|---|---|---|---|")
+            for idx, area, pct in zip(pct_active, areas, percentages):
+                cp = self.components_panels[idx - 1]
+                kind_disp = tr(f"kind.{cp.kind}", default=cp.kind)
+                err = pct_errors.get(idx)
+                err_txt = f"± {err:.3g}" if err is not None else "—"
+                lines.append(
+                    f"| {idx} | {kind_disp} | {pct:.3f}% | {err_txt} | {area:.6g} |"
+                )
+            lines.append("")
+
+        # ── Componentes (parámetros + magnitudes físicas) ───────────────
         lines.append("## 🧪 Componentes")
         lines.append("")
-        for cp in self.components_panels:
-            if not cp.enabled.isChecked():
-                continue
+        for cp in active_panels:
             kind_disp = tr(f"kind.{cp.kind}", default=cp.kind)
             lines.append(f"### 🔹 Componente {cp.idx} — {kind_disp}")
+            lines.append("")
+            lines.append("**Parámetros**")
             lines.append("")
             lines.append("| Parámetro | Valor | Estado |")
             lines.append("|---|---|---|")
@@ -6223,6 +6328,32 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 state_lbl = "🔒 fijo" if ctl.is_fixed() else "🔓 libre"
                 lines.append(f"| `s{cp.idx}_{k}` | {ctl.value():.6g} | {state_lbl} |")
             lines.append("")
+            # Magnitudes físicas derivadas: anchuras reales e intensidades absolutas
+            g1 = cp.params["gamma1"].value()
+            g2 = g1 * cp.params["gamma2"].value()
+            g3 = g1 * cp.params["gamma3"].value()
+            i3_real = cp.params["int3"].value()
+            i2_real = i3_real * cp.params["int2"].value()
+            i1_real = i3_real * cp.params["int1"].value()
+            lines.append("**Magnitudes físicas derivadas**")
+            lines.append("")
+            lines.append("| Magnitud | Valor |")
+            lines.append("|---|---|")
+            lines.append(f"| Γ HWHM reales 1 / 2 / 3 (mm/s) | {g1:.4g} / {g2:.4g} / {g3:.4g} |")
+            lines.append(f"| FWHM equivalentes 1 / 2 / 3 (mm/s) | {2.0 * g1:.4g} / {2.0 * g2:.4g} / {2.0 * g3:.4g} |")
+            lines.append(f"| Γ relativas 2 / 3 | {cp.params['gamma2'].value():.4g} / {cp.params['gamma3'].value():.4g} |")
+            lines.append(f"| Profundidad | {cp.params['depth'].value():.6g} |")
+            lines.append(f"| Intensidades reales I₁ / I₂ / I₃ | {i1_real:.4g} / {i2_real:.4g} / {i3_real:.4g} |")
+            lines.append(f"| BHF | {cp.params['bhf'].value():.6g} T |")
+            lines.append(f"| δ (sin corregir) | {cp.params['delta'].value():.6g} mm/s |")
+            lines.append(f"| ΔEQ | {cp.params['quad'].value():.6g} mm/s |")
+            if iso_ref is not None:
+                lines.append(
+                    f"| **δ corregido** (iso_ref = {iso_ref:.6g}) | "
+                    f"**{cp.params['delta'].value() - iso_ref:.6g} mm/s** |"
+                )
+            lines.append("")
+            # Textura derivada
             derived = self.texture_derived(cp)
             if derived is not None:
                 lines.append("**🧭 Magnitudes derivadas de la textura (t = sin²θ)**")
@@ -6241,16 +6372,26 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                              "orden tipo Hermans: **+1** alineado al γ, **0** isótropo, "
                              "**−½** perpendicular.")
                 lines.append("")
-            if iso_ref is not None:
-                d = cp.params["delta"].value()
-                lines.append(
-                    f"> δ corregido = **{d - iso_ref:.6g} mm/s** "
-                    f"(iso_ref = {iso_ref:.6g} mm/s)"
-                )
-                lines.append("")
 
+        # ── δ corregidos por calibración (resumen) ──────────────────────
+        if iso_ref is not None and active_panels:
+            lines.append("## 🎯 δ corregidos por calibración")
+            lines.append("")
+            lines.append(f"_Referencia isomérica de la calibración:_ **{iso_ref:.6g} mm/s**.")
+            lines.append("")
+            lines.append("| Componente | Tipo | δ ajustado (mm/s) | δ corregido (mm/s) |")
+            lines.append("|---|---|---|---|")
+            for cp in active_panels:
+                d = cp.params["delta"].value()
+                kind_disp = tr(f"kind.{cp.kind}", default=cp.kind)
+                lines.append(
+                    f"| {cp.idx} | {kind_disp} | {d:.6g} | **{d - iso_ref:.6g}** |"
+                )
+            lines.append("")
+
+        # ── Parámetros libres (resumen rápido para tabla del ajuste) ────
         if fit is not None and fit.free_keys:
-            lines.append("## 📈 Resultados del ajuste")
+            lines.append("## 📈 Parámetros del ajuste (libres)")
             lines.append("")
             lines.append(f"_Fuente de σ:_ {self.last_error_source}")
             lines.append("")
@@ -6263,27 +6404,16 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 err_txt = f"± {err:.3g}" if err is not None and err > 0 else "—"
                 lines.append(f"| `{k}` | {val_txt} | {err_txt} |")
             lines.append("")
-            high = (fit.correlations or {}).get("high_pairs") or []
-            if high:
-                lines.append("### ⚠️ Parámetros muy correlacionados (|r| ≥ 0.95)")
-                lines.append("")
-                lines.append("| Par | r |")
-                lines.append("|---|---|")
-                for hp in high:
-                    lines.append(f"| `{hp['param1']}` ↔ `{hp['param2']}` | {hp['corr']:.3f} |")
-                lines.append("")
 
-        info_txt = self.info_panel.text.toPlainText().strip()
-        if info_txt and info_txt != "—":
-            lines.append("## 🔬 Estado y parámetros (panel)")
+        # ── Fijados y restricciones ──────────────────────────────────────
+        fixed = self._fixed_param_keys()
+        if fixed:
+            lines.append("## 🔒 Parámetros fijados")
             lines.append("")
-            lines.append("```")
-            lines.append(info_txt)
-            lines.append("```")
+            lines.append(", ".join(f"`{k}`" for k in fixed))
             lines.append("")
-
         if self.constraints:
-            lines.append("## 🔗 Restricciones")
+            lines.append("## 🔗 Restricciones entre parámetros")
             lines.append("")
             lines.append("| Destino | Fórmula |")
             lines.append("|---|---|")
@@ -6295,6 +6425,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 )
             lines.append("")
 
+        # ── Glosario ─────────────────────────────────────────────────────
         lines.append("## 📖 Glosario de parámetros")
         lines.append("")
         lines.append("| Símbolo | Magnitud | Unidad | Observación |")
@@ -6738,11 +6869,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
 
         Reconoce subtítulos en una línea acabada en dos puntos (``X:``) seguidos
         de bloque sangrado, viñetas (``•``, ``-`` o ``  número.``) y aplica
-        ``**bold**``, ``*italic*`` y `` `code` `` inline. Conserva los flujos de
-        párrafo existentes para no obligar a reescribir el contenido.
+        ``**bold**``, ``*italic*`` y `` `code` `` inline. También resalta en
+        **negrita** automáticamente las etiquetas de menús y submenús del
+        programa (Archivo, Cargar..., Ajustar, etc.) para que el lector
+        identifique a qué control se refiere cada explicación.
         """
         import re
         text = content.strip("\n")
+        menu_pattern = MossbauerQtWindow._help_menu_pattern()
 
         def _inline(s: str) -> str:
             s = html.escape(s)
@@ -6751,6 +6885,17 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             s = re.sub(r"`([^`]+)`",
                        r"<code style='background:#f1f5f9;color:#0f172a;"
                        r"padding:1px 4px;border-radius:3px;'>\1</code>", s)
+            if menu_pattern is not None:
+                s = menu_pattern.sub(
+                    lambda m: (
+                        m.group(0)
+                        if (m.string[max(0, m.start() - 4):m.start()].endswith(("<b>", "<i>"))
+                            or "<b>" in m.group(0)
+                            or "<i>" in m.group(0))
+                        else f"<b>{m.group(0)}</b>"
+                    ),
+                    s,
+                )
             return s
 
         parts: list[str] = []
@@ -6806,6 +6951,73 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             joined = _inline(" ".join(s.strip() for s in buf))
             parts.append(f"<p style='margin:6px 0;line-height:1.55;'>{joined}</p>")
         return "\n".join(p for p in parts if p)
+
+    @staticmethod
+    def _help_menu_pattern() -> "re.Pattern | None":
+        """Construye un patrón con las etiquetas de menús/submenús del programa.
+
+        Memoizado por idioma: lee los valores de las claves ``menu.*``,
+        ``file.*``, ``fit.*``, ``options.*``, ``view.*`` y un subconjunto
+        seguro de ``help.*`` del catálogo actual y los compone como un único
+        regex case-insensitive (los términos más largos antes para que
+        ``Ajustar Vmax con el patrón`` gane a ``Ajustar``).
+        """
+        import re
+        from mossbauer_i18n import CATALOGS, get_language
+        lang = get_language()
+        cache = getattr(MossbauerQtWindow, "_help_menu_pattern_cache", {})
+        if lang in cache:
+            return cache[lang]
+        catalog = CATALOGS.get(lang, {})
+        prefixes = ("menu.", "file.", "fit.", "options.", "view.")
+        help_allow = {
+            "help.open", "help.about", "help.changelog",
+            "help.check_updates", "help.configure_updates",
+        }
+        # Vocabulario común que jamás queremos en negrita aunque aparezca
+        # como traducción (por ejemplo "Idioma" o "Lengua", "Tema", "sí/no").
+        blacklist = {
+            tr("yes", default="sí"), tr("no", default="no"),
+            tr("menu.language", default="Idioma"),
+            tr("help.language_label", default="Idioma:").rstrip(":"),
+        }
+        terms: set[str] = set()
+        for k, v in catalog.items():
+            if not isinstance(v, str):
+                continue
+            if not (k.startswith(prefixes) or k in help_allow):
+                continue
+            s = v.strip()
+            # Saltar valores con placeholders ({...}) o demasiado largos
+            if "{" in s or "}" in s or len(s) > 60 or len(s) < 3:
+                continue
+            if s in blacklist:
+                continue
+            # Una palabra de longitud < 4 suele ser demasiado genérica
+            if " " not in s and len(s) < 4:
+                continue
+            terms.add(s)
+            # Para etiquetas de varias palabras, añade también la versión sin
+            # elipsis/dos-puntos para capturar referencias en el texto que
+            # omiten esos signos ("Restricciones entre parámetros").
+            stripped = s.rstrip(" .…:")
+            if stripped != s and stripped.count(" ") >= 1 and len(stripped) >= 6:
+                terms.add(stripped)
+        if not terms:
+            cache[lang] = None
+            MossbauerQtWindow._help_menu_pattern_cache = cache
+            return None
+        # Ordena por longitud descendente y construye alternancia
+        ordered = sorted(terms, key=lambda t: (-len(t), t))
+        pat = "|".join(re.escape(t) for t in ordered)
+        # Case-sensitive a propósito: las etiquetas de menú están capitalizadas
+        # (Archivo, Ajustar, Opciones), así que evitamos resaltar el sustantivo
+        # genérico en minúsculas ("ajuste", "archivo"…). El borde por delante
+        # es blando porque varias etiquetas acaban en "…", "..." o ":".
+        compiled = re.compile(rf"(?<![\w&]){pat}")
+        cache[lang] = compiled
+        MossbauerQtWindow._help_menu_pattern_cache = cache
+        return compiled
 
     @staticmethod
     def _help_group_for(title: str) -> str:
