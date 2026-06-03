@@ -322,6 +322,81 @@ def test_current_plotly_figure_builds(win):
     assert line_lengths and max(line_lengths) > n_data
 
 
+def test_edit_minima_populates_list(win):
+    """Entrar en edición semi-manual detecta mínimos y crea filas editables."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.on_edit_minima(redetect=True)
+    assert win._minima_edit_mode
+    assert len(win._minima_entries) > 0
+    assert len(win._minima_rows) == len(win._minima_entries)
+    # α-Fe (sextete) debe dar varios mínimos.
+    assert len(win._minima_entries) >= 5
+    # Por defecto todos incluidos con una contribución.
+    assert all(e["included"] and e["count"] == 1 for e in win._minima_entries)
+
+
+def test_minima_marker_click_syncs_checkbox(win):
+    """Clicar un marcador (vía puente) alterna incluir y sincroniza la casilla."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.on_edit_minima(redetect=True)
+    before = win._minima_entries[0]["included"]
+    win._on_minima_marker_clicked(0)
+    assert win._minima_entries[0]["included"] is (not before)
+    assert win._minima_rows[0]["check"].isChecked() == win._minima_entries[0]["included"]
+
+
+def test_minima_overlay_present_in_plotly_figure(win):
+    """En modo edición, la figura Plotly añade la capa de marcadores de mínimos."""
+    pytest.importorskip("plotly")
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.on_edit_minima(redetect=True)
+    fig = win._current_plotly_figure()
+    names = [t.name or "" for t in fig.data]
+    assert any("nimos" in n for n in names)  # "Mínimos (...)"
+    # Excluir uno hace aparecer la traza de excluidos.
+    win._on_minima_row_changed(0, included=False)
+    fig2 = win._current_plotly_figure()
+    names2 = [t.name or "" for t in fig2.data]
+    assert any("xcl" in n for n in names2)  # "...(excluidos)"
+
+
+def test_propose_from_minima_builds_components(win):
+    """Proponer desde mínimos curados configura componentes y simula."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.on_edit_minima(redetect=True)
+    win.on_propose_from_minima()
+    assert not win._minima_edit_mode          # se cierra la edición
+    assert win._simulate_enabled
+    active = [cp for cp in win.components_panels if cp.enabled.isChecked()]
+    assert len(active) >= 1
+
+
+def test_minima_multiplicity_adds_extra_components(win):
+    """Marcar contribuciones extra añade más componentes que sin marcarlas."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.on_edit_minima(redetect=True)
+    win.on_propose_from_minima()
+    base = sum(cp.enabled.isChecked() for cp in win.components_panels)
+    # Repite marcando todas las contribuciones como dobles.
+    win.on_edit_minima(redetect=True)
+    for k in range(len(win._minima_entries)):
+        win._on_minima_row_changed(k, count=2)
+    win.on_propose_from_minima()
+    extra = sum(cp.enabled.isChecked() for cp in win.components_panels)
+    assert extra > base
+
+
+def test_propose_with_no_selection_warns_and_keeps_mode(win):
+    """Si no hay mínimos marcados, avisa y no propone."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.on_edit_minima(redetect=True)
+    for k in range(len(win._minima_entries)):
+        win._on_minima_row_changed(k, included=False)
+    win.on_propose_from_minima()
+    # Sigue en modo edición (no se construyó propuesta).
+    assert win._minima_edit_mode
+
+
 def test_physical_preset_3_2_1_fixes_intensities(win):
     """Aplicar 3:2:1 fija int1=3, int2=2, int3=1 en componentes activas."""
     cp = win.components_panels[0]
