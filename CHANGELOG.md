@@ -1,5 +1,26 @@
 # Changelog
 
+## v3.5 — integración Plotly y edición semi-manual de mínimos
+
+Agrupa todos los cambios incorporados desde v3.0.
+
+### Interfaz Qt/Plotly
+
+- Integración de un gráfico **Plotly interactivo** en la GUI Qt para explorar espectros, ajustes, componentes y residuos con zoom/pan más fluido.
+- Refresco incremental del gráfico para reducir redibujados completos y mejorar la respuesta durante simulación y ajuste.
+- Curva de ajuste densa para una visualización más suave del modelo.
+- Uso de trazas WebGL cuando conviene para mejorar el rendimiento con muchos puntos.
+
+### Edición y ayuda
+
+- Nuevo editor **semi-manual de mínimos** en la interfaz Plotly/Qt para revisar, añadir y ajustar mínimos detectados antes de inicializar componentes.
+- Ayuda de los menús Qt ampliada y documentada en español.
+
+### Empaquetado y versión
+
+- La versión local de la aplicación pasa a `3.5`.
+- Se mantiene compatibilidad con sesiones, plantillas y datos de v3.0.
+
 ## v3.0 — interfaz Qt y núcleo de cálculo unificado
 
 Release mayor. Incorpora una segunda interfaz gráfica (Qt/PySide6) y, sobre todo,

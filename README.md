@@ -2,8 +2,8 @@
 
 Programa de escritorio estable para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
 
-Versión estable actual: **v2.2**. Prerelease de pruebas: **v2.3-beta1**.  
-Aplicación principal: `mossbauer_fe33_gui_v2IA.py`.
+Versión estable actual: **v3.5**.  
+Aplicación principal Tk: `mossbauer_fe33_gui_v2IA.py`. Interfaz Qt/Plotly: `mossbauer_qt.py`.
 
 Autor: Jorge Sánchez Marcos  
 Departamento de Química Física · UAM
