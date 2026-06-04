@@ -1,6 +1,11 @@
-# Fitbauer
+<p align="center">
+  <img src="assets/fitbauer_icon.png" alt="Fitbauer" width="140">
+</p>
 
-**Software for Mössbauer spectrum fitting and analysis.**
+<h1 align="center">Fitbauer</h1>
+
+<p align="center"><b>Software for Mössbauer spectrum fitting and analysis.</b></p>
+
 
 Programa de escritorio estable para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
 
