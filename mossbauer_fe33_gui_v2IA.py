@@ -89,19 +89,15 @@ def save_credentials(data: dict) -> None:
 
 
 def fe57_sextet_positions(bhf_t: float = BHF_DEFAULT_T) -> np.ndarray:
-    """Posiciones de las 6 líneas del sextete magnético de Fe-57.
+    """Posiciones de las 6 líneas del sextete de Fe-57.
 
-    Derivadas de primeros principios (igual que NORMOS) a partir de los momentos
-    nucleares del Fe-57 (g_n = μ/I): niveles Zeeman E(m) = -g_n·μ_N·B·m con
-    transiciones dipolares magnéticas M1 (Δm ∈ {-1, 0, +1}). A 33.0 T dan
-    ±0.840 / ±3.074 / ±5.309 mm/s.
+    Posiciones PUBLICADAS de α-Fe (patrón de velocidad estándar). Definen la
+    calibración: un α-Fe ajusta a BHF = 33.0 T, igual que NORMOS. No sustituir
+    por valores teóricos desde los momentos nucleares: darían el desdoblamiento
+    ~0,4 % menor y el BHF saldría ~0,1 T demasiado alto.
     """
-    u = MU_N * bhf_t * C_MM_S / E_GAMMA
-    mg = (0.5, -0.5)
-    me = (1.5, 0.5, -0.5, -1.5)
-    pos = [u * (G_GROUND * g - G_EXCITED * e)
-           for g in mg for e in me if abs(e - g) <= 1.0 + 1e-9]
-    return np.sort(np.array(pos, dtype=float))
+    base = np.array([-10.657, -6.167, -1.677, 1.677, 6.167, 10.657]) * 0.5
+    return base * (bhf_t / BHF_DEFAULT_T)
 
 
 LINE_POS_33T = fe57_sextet_positions(BHF_DEFAULT_T)
