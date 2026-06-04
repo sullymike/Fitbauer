@@ -63,6 +63,30 @@ def test_window_starts_and_menus_exist(win):
     assert any("View" in t or "Vista" in t for t in titles)
 
 
+def test_help_dialog_is_modeless(win, app, monkeypatch):
+    """La ayuda se abre sin bloquear la ventana principal."""
+    monkeypatch.setattr(
+        QtWidgets.QDialog, "exec",
+        lambda self_: pytest.fail("La ayuda debe abrirse con show(), no con exec()."))
+
+    win.on_help()
+    app.processEvents()
+
+    dlg = win._help_dialog
+    assert dlg is not None
+    assert dlg.isVisible()
+    assert not dlg.isModal()
+    assert dlg.windowModality() == mq.QtCore.Qt.NonModal
+    assert win.isEnabled()
+
+    win.on_help()
+    app.processEvents()
+    assert win._help_dialog is dlg
+
+    dlg.close()
+    app.processEvents()
+
+
 def test_fit_velocity_toggle_shows_tk_info_and_fixes_active_bhf(win, monkeypatch):
     """Activar Ajustar Vmax en Qt reproduce el aviso informativo de Tk."""
     cp = win.components_panels[0]

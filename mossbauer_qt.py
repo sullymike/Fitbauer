@@ -1375,6 +1375,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.last_distribution_result = None
         self.last_error_source = "covarianza (1σ)"   # actualizado por bootstrap
         self._plotly_temp_files: list[Path] = []
+        self._help_dialog: QtWidgets.QDialog | None = None
         self.dist_use_sharp = False
         self.dist_refine_global = False
         self._edge_trim = 1
@@ -7136,12 +7137,23 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         ]
 
     def on_help(self) -> None:
+        if self._help_dialog is not None:
+            self._help_dialog.show()
+            self._help_dialog.raise_()
+            self._help_dialog.activateWindow()
+            return
+
         sections = get_help_sections(
             voigt_sigma=self.calib.voigt_sigma.value(),
             settings_path=SETTINGS_PATH,
             lang=get_language(),
         )
         dlg = QtWidgets.QDialog(self)
+        dlg.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        dlg.setModal(False)
+        dlg.setWindowModality(QtCore.Qt.NonModal)
+        dlg.destroyed.connect(lambda _obj=None: setattr(self, "_help_dialog", None))
+        self._help_dialog = dlg
         dlg.setWindowTitle(tr("help.window_title"))
         dlg.resize(1180, 760)
         v = QtWidgets.QVBoxLayout(dlg)
@@ -7329,9 +7341,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         search_edit.textChanged.connect(lambda _t: _apply_filter())
 
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
-        bb.rejected.connect(dlg.reject)
+        bb.rejected.connect(dlg.close)
         v.addWidget(bb)
-        dlg.exec()
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
 
     def on_about(self) -> None:
         dlg = QtWidgets.QDialog(self)
