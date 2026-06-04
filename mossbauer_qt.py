@@ -7020,21 +7020,34 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         return compiled
 
     @staticmethod
-    def _help_group_for(title: str) -> str:
-        """Devuelve la categoría de agrupación de un capítulo según su título."""
-        t = title.strip()
-        low = t.lower()
-        if low.startswith("inicio"):
-            return tr("help.group_overview", default="Visión general")
-        if low.startswith(("menú", "menu", "main menu")) or "menu" in low.split()[0:1]:
-            return tr("help.group_menus", default="Menús")
-        if "p(bhf)" in low or "p(δeq)" in low or "p(deq)" in low or "distribu" in low:
-            return tr("help.group_distrib", default="Distribuciones P(BHF)")
-        if any(k in low for k in ("ajuste", "fit", "ollama", "ia ", "robust", "regular")):
-            return tr("help.group_fitting", default="Ajuste y diagnóstico")
-        if any(k in low for k in ("folding", "calibr", "archivo y web", "file ", "web")):
-            return tr("help.group_data", default="Datos y calibración")
-        return tr("help.group_concepts", default="Conceptos")
+    def _help_layout() -> list[tuple[str, list[int]]]:
+        """Distribución jerárquica de la ayuda según los menús del programa.
+
+        Refleja la estructura real de la barra de menús (Archivo, Ajuste,
+        Opciones, Vista, Ayuda) más grupos temáticos para los conceptos
+        físicos y las distribuciones P(BHF) / P(ΔEQ). Los índices son los
+        del orden canónico de ``help.json`` (idéntico en todos los idiomas
+        empaquetados con el programa, ver ``locales/<code>/help.json``).
+        """
+        return [
+            (tr("help.tree_overview", default="🚀 Visión general"),
+             [0, 22]),
+            (tr("help.tree_file",     default="📁 Menú Archivo"),
+             [1, 7, 18]),
+            (tr("help.tree_fit",      default="🧮 Menú Ajuste"),
+             [2, 17, 19, 24]),
+            (tr("help.tree_options",  default="🎛️ Menú Opciones"),
+             [3, 10]),
+            (tr("help.tree_view",     default="👁️ Menú Vista"),
+             [4]),
+            (tr("help.tree_help",     default="❓ Menú Ayuda"),
+             [5, 23, 25]),
+            (tr("help.tree_physics",  default="🔬 Conceptos físicos"),
+             [6, 9, 8, 20, 21]),
+            (tr("help.tree_distrib",
+                default="📊 Distribuciones P(BHF) / P(ΔEQ)"),
+             [11, 12, 13, 14, 15, 16]),
+        ]
 
     def on_help(self) -> None:
         sections = get_help_sections(
@@ -7044,9 +7057,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         )
         dlg = QtWidgets.QDialog(self)
         dlg.setWindowTitle(tr("help.window_title"))
-        dlg.resize(1080, 720)
+        dlg.resize(1180, 760)
         v = QtWidgets.QVBoxLayout(dlg)
-        header = QtWidgets.QLabel(f"<h2>{tr('help.header_title')}</h2>")
+        v.setContentsMargins(14, 12, 14, 10)
+        v.setSpacing(8)
+        header = QtWidgets.QLabel(f"<h2 style='margin:0;'>{tr('help.header_title')}</h2>")
         header.setAlignment(QtCore.Qt.AlignCenter)
         v.addWidget(header)
 
@@ -7068,26 +7083,53 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         split = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         tree = QtWidgets.QTreeWidget()
         tree.setHeaderHidden(True)
-        tree.setIndentation(14)
+        tree.setIndentation(18)
+        tree.setRootIsDecorated(True)
+        tree.setUniformRowHeights(False)
+        tree.setAnimated(True)
         tree.setStyleSheet(
-            "QTreeWidget { font-size: 10pt; }"
-            "QTreeWidget::item { padding: 3px 2px; }"
+            "QTreeWidget { font-size: 10.5pt; background:#f8fafc;"
+            " border:1px solid #e2e8f0; border-radius:6px; padding:4px; }"
+            "QTreeWidget::item { padding: 4px 4px; }"
+            "QTreeWidget::item:selected { background:#dbeafe; color:#1e40af; }"
         )
-        tree.setMinimumWidth(280)
-        tree.setMaximumWidth(340)
-        # Agrupa por categoría preservando el orden original de capítulos.
-        group_items: dict[str, QtWidgets.QTreeWidgetItem] = {}
-        leaves: list[tuple[QtWidgets.QTreeWidgetItem, int]] = []
-        for idx, (title, _heading, _content) in enumerate(sections):
-            grp = self._help_group_for(title)
-            top = group_items.get(grp)
-            if top is None:
-                top = QtWidgets.QTreeWidgetItem(tree, [grp])
-                font = top.font(0); font.setBold(True); top.setFont(0, font)
-                group_items[grp] = top
-            leaf = QtWidgets.QTreeWidgetItem(top, [title])
-            leaf.setData(0, QtCore.Qt.UserRole, idx)
-            leaves.append((leaf, idx))
+        tree.setMinimumWidth(320)
+        tree.setMaximumWidth(380)
+
+        # Construye el árbol a partir de la distribución por menús.
+        group_items: list[QtWidgets.QTreeWidgetItem] = []
+        leaves: list[QtWidgets.QTreeWidgetItem] = []
+        seen: set[int] = set()
+        n_total = len(sections)
+        for grp_label, indices in self._help_layout():
+            top = QtWidgets.QTreeWidgetItem(tree, [grp_label])
+            font = top.font(0)
+            font.setBold(True)
+            font.setPointSizeF(font.pointSizeF() + 0.5)
+            top.setFont(0, font)
+            top.setForeground(0, QtGui.QBrush(QtGui.QColor("#1e3a8a")))
+            # Las cabeceras no son seleccionables (solo los capítulos).
+            top.setFlags(top.flags() & ~QtCore.Qt.ItemIsSelectable)
+            for idx in indices:
+                if 0 <= idx < n_total and idx not in seen:
+                    seen.add(idx)
+                    leaf = QtWidgets.QTreeWidgetItem(top, [sections[idx][0]])
+                    leaf.setData(0, QtCore.Qt.UserRole, idx)
+                    leaves.append(leaf)
+            group_items.append(top)
+        # Capítulos no contemplados por la distribución (defensivo) → "Otros".
+        unassigned = [i for i in range(n_total) if i not in seen]
+        if unassigned:
+            other = QtWidgets.QTreeWidgetItem(
+                tree, [tr("help.tree_other", default="📚 Otros")]
+            )
+            font = other.font(0); font.setBold(True); other.setFont(0, font)
+            other.setFlags(other.flags() & ~QtCore.Qt.ItemIsSelectable)
+            for idx in unassigned:
+                leaf = QtWidgets.QTreeWidgetItem(other, [sections[idx][0]])
+                leaf.setData(0, QtCore.Qt.UserRole, idx)
+                leaves.append(leaf)
+            group_items.append(other)
         tree.expandAll()
         split.addWidget(tree)
 
@@ -7095,10 +7137,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         text_w.setOpenExternalLinks(True)
         text_w.setStyleSheet(
             "QTextBrowser { font-family: -apple-system, Segoe UI, sans-serif;"
-            " font-size: 10.5pt; padding: 8px 12px; }"
+            " font-size: 10.8pt; padding: 14px 18px;"
+            " border:1px solid #e2e8f0; border-radius:6px; background:white; }"
         )
         split.addWidget(text_w)
-        split.setSizes([300, 780])
+        split.setSizes([340, 840])
         v.addWidget(split, stretch=1)
 
         def _render(idx: int, highlight: str = "") -> None:
@@ -7108,8 +7151,9 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             body = self._help_format_content(content)
             css = (
                 "h2{color:#1e40af;margin:0 0 4px 0;}"
-                "h3{color:#475569;margin:0 0 12px 0;font-weight:500;}"
-                "h4{color:#0f766e;}"
+                "h3{color:#475569;margin:0 0 14px 0;font-weight:500;"
+                "border-bottom:1px solid #e2e8f0;padding-bottom:6px;}"
+                "h4{color:#0f766e;margin:14px 0 4px 0;}"
                 "p,li{color:#1f2937;}"
                 "mark{background:#fde68a;color:#7c2d12;border-radius:2px;padding:0 1px;}"
             )
@@ -7121,26 +7165,30 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             if highlight:
                 import re
                 pat = re.compile(re.escape(highlight), re.IGNORECASE)
-                # No tocamos las etiquetas: solo resalta dentro de texto plano.
+
                 def _highlight_outside_tags(s: str) -> str:
-                    out, depth, buf = [], 0, []
-                    i = 0
-                    n = len(s)
+                    out, buf = [], []
+                    i, n = 0, len(s)
                     while i < n:
                         ch = s[i]
                         if ch == "<":
                             if buf:
-                                out.append(pat.sub(lambda m: f"<mark>{m.group(0)}</mark>", "".join(buf)))
+                                out.append(pat.sub(
+                                    lambda m: f"<mark>{m.group(0)}</mark>",
+                                    "".join(buf)))
                                 buf = []
                             j = s.find(">", i)
                             if j == -1:
                                 out.append(s[i:]); break
-                            out.append(s[i:j+1]); i = j + 1
+                            out.append(s[i:j + 1]); i = j + 1
                         else:
                             buf.append(ch); i += 1
                     if buf:
-                        out.append(pat.sub(lambda m: f"<mark>{m.group(0)}</mark>", "".join(buf)))
+                        out.append(pat.sub(
+                            lambda m: f"<mark>{m.group(0)}</mark>",
+                            "".join(buf)))
                     return "".join(out)
+
                 html_doc = _highlight_outside_tags(html_doc)
             text_w.setHtml(html_doc)
 
@@ -7150,21 +7198,27 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             data = curr.data(0, QtCore.Qt.UserRole)
             if data is not None:
                 _render(int(data), search_edit.text().strip())
+            elif curr.childCount() > 0:
+                # Si el usuario pulsa una cabecera, mostramos su primer capítulo
+                child = curr.child(0)
+                tree.setCurrentItem(child)
 
         tree.currentItemChanged.connect(_on_tree)
-        # Selecciona el primer capítulo de la primera categoría
+        # Selecciona el primer capítulo asignado al primer grupo.
         if leaves:
-            first = leaves[0][0]
-            tree.setCurrentItem(first)
+            tree.setCurrentItem(leaves[0])
 
         def _apply_filter() -> None:
             q = search_edit.text().strip().lower()
             visible = 0
-            for grp_item in group_items.values():
+            for grp_item in group_items:
                 grp_has = False
                 for ch_idx in range(grp_item.childCount()):
                     leaf = grp_item.child(ch_idx)
-                    title, heading, content = sections[int(leaf.data(0, QtCore.Qt.UserRole))]
+                    data = leaf.data(0, QtCore.Qt.UserRole)
+                    if data is None:
+                        continue
+                    title, heading, content = sections[int(data)]
                     hay = (
                         not q
                         or q in title.lower()
