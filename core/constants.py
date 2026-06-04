@@ -20,13 +20,26 @@ C_MM_S = 299_792_458_000.0       # mm/s
 G_GROUND = 0.09044 / 0.5         # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5        # mu/I, estado excitado I=3/2
 
-# ── Posiciones de referencia ───────────────────────────────────────────────────
-_BASE_POSITIONS = np.array([-10.657, -6.167, -1.677, 1.677, 6.167, 10.657]) * 0.5
+# ── Posiciones del sextete magnético de Fe-57 ─────────────────────────────────
+# Derivadas de primeros principios (mismos momentos nucleares que NORMOS):
+# niveles Zeeman E(m) = -g_n·μ_N·B·m y transiciones dipolares magnéticas M1
+# (Δm ∈ {-1, 0, +1}). A 33.0 T (330 kOe) dan ±0.840 / ±3.074 / ±5.309 mm/s.
+def _fe57_magnetic_line_positions(bhf_t: float) -> np.ndarray:
+    """6 posiciones (mm/s) del sextete magnético puro de Fe-57 (δ=0, ΔEQ=0)."""
+    u = MU_N * bhf_t * C_MM_S / E_GAMMA          # mm/s por unidad de g_n
+    mg = (0.5, -0.5)                             # estado fundamental I=1/2
+    me = (1.5, 0.5, -0.5, -1.5)                  # estado excitado  I=3/2
+    pos = [u * (G_GROUND * g - G_EXCITED * e)
+           for g in mg for e in me if abs(e - g) <= 1.0 + 1e-9]
+    return np.sort(np.array(pos, dtype=float))
+
+
+_BASE_POSITIONS = _fe57_magnetic_line_positions(BHF_DEFAULT_T)
 
 
 def fe57_sextet_positions(bhf_t: float = BHF_DEFAULT_T) -> np.ndarray:
-    # Las posiciones canónicas de α-Fe (±5.329/±3.084/±0.839 mm/s) corresponden
-    # al campo hiperfino publicado de α-Fe a temperatura ambiente: 33.0 T (330 kOe).
+    # Las posiciones escalan linealmente con el campo
+    # (≡ _fe57_magnetic_line_positions(bhf_t)).
     return _BASE_POSITIONS * (bhf_t / BHF_DEFAULT_T)
 
 

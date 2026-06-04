@@ -1,10 +1,11 @@
 # Changelog
 
-## v4.0.2 — Calibración de α-Fe unificada a 33.0 T
+## v4.0.2 — Posiciones del sextete teóricas (NORMOS) y calibración a 33.0 T
 
-- Se elimina la constante interna `32.95 T` y se unifica toda la calibración al campo hiperfino **publicado de α-Fe a temperatura ambiente: 33.0 T (330 kOe)**.
-- Afecta a la fórmula de posiciones del sextete (`fe57_sextet_positions`), a `LINE_POS_33T` (núcleo y módulo de distribución) y a la autocalibración de velocidad/campo de la interfaz Tk (la Qt ya usaba `BHF_DEFAULT_T`).
-- Consecuencia: un espectro de α-Fe ideal autocalibra ahora exactamente a 33.0 T (antes ~32.95 T). El BHF informado se desplaza ≈ 0,15 % (~0,05 T) y queda consistente con NORMOS.
+- **Posiciones del sextete derivadas de primeros principios.** Se sustituye la tabla fija `10.657 / 6.167 / 1.677 mm/s` por las posiciones calculadas a partir de los momentos nucleares del Fe-57 (niveles Zeeman + transiciones M1), igual que NORMOS. A 33.0 T pasan a ser **±0.840 / ±3.074 / ±5.309 mm/s** (antes ±0.839 / ±3.084 / ±5.329). La tabla anterior era ~0,4 % alta en las líneas externas y no era coherente con los propios momentos nucleares del fichero.
+- **Fuente única.** Las tres definiciones duplicadas (`core/constants.py`, GUI Tk y `mossbauer_distribution.py`) quedan unificadas y consistentes.
+- Se elimina además la constante interna `32.95 T`: toda la calibración usa el campo hiperfino publicado de α-Fe, **33.0 T (330 kOe)**, en Tk, Qt, modelo discreto y distribución.
+- Efecto práctico: el BHF y las posiciones calculadas cambian ≈ 0,4 % en las líneas externas; los valores quedan consistentes con NORMOS.
 
 ## v4.0.1 — Logo en la interfaz
 
