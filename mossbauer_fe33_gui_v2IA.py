@@ -52,7 +52,7 @@ C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
 APP_NAME = "Fitbauer"
-APP_VERSION = "4.0.2"
+APP_VERSION = "4.0.4"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -4712,7 +4712,8 @@ class MossbauerFe33GUI(tk.Tk):
             return
         L = first_difference_matrix(nbins) if self.dist_reg_mode_var.get().lower() in ("tv", "total_variation") else second_difference_matrix(nbins)
         sigma = self.data_sigma()
-        n_raw = nbins + int(not self.fixed_vars["baseline"].get()) + int(not self.fixed_vars["slope"].get()) + (len(sharp_components or []) if self.dist_use_sharp_var.get() else 0)
+        n_free_sharp = sum(1 for c in (sharp_components or []) if not c.get("depth_fixed", False))
+        n_raw = nbins + int(not self.fixed_vars["baseline"].get()) + int(not self.fixed_vars["slope"].get()) + n_free_sharp
         rows_list = []
         gcv_list = []
         for r in scans:
@@ -4848,6 +4849,8 @@ class MossbauerFe33GUI(tk.Tk):
                 "int1": engine_int1,
                 "int2_rel": engine_int2_rel,
                 "int3_rel": engine_int3_rel,
+                "depth": self.vars[p + "depth"].get(),
+                "depth_fixed": bool(self.fixed_vars[p + "depth"].get()) if p + "depth" in self.fixed_vars else False,
             })
         return components, indices
 
@@ -5174,7 +5177,7 @@ class MossbauerFe33GUI(tk.Tk):
         self.last_bhf_sharp_indices = sharp_indices
         self.last_fit_correlations = {}
         n_outer = len(outer_specs)
-        n_sharp = len(sharp_indices) if self.dist_use_sharp_var.get() else 0
+        n_sharp = sum(1 for c in (sharp_components or []) if not c.get("depth_fixed", False)) if self.dist_use_sharp_var.get() else 0
         if self.dist_shape_var.get() == "Histograma" and getattr(result, "effective_dof", None) is not None:
             # Tikhonov: grados de libertad efectivos tr(A(α)) ya incluye baseline,
             # slope y sharps (todo lo que estaba en X). Sólo sumar los exteriores NL.

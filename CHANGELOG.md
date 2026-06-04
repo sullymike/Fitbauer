@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.0.4 — Nítidos fijos y subespectros en distribuciones
+
+- **Profundidad fija real en componentes nítidos.** En los ajustes `P(BHF)` / `P(ΔEQ)` con nítidos, si `depth` está marcada como fija, el backend la trata como contribución de absorción conocida y no como amplitud ajustable. Los nítidos libres conservan amplitud `>= 0` ajustable.
+- **Backend consistente en todas las formas de distribución.** La corrección cubre histograma/Tikhonov, gaussiana, binomial y distribución fija.
+- **Subespectros visibles.** Al ajustar distribución + nítidos se muestran la contribución de la distribución sola, cada nítido por separado y el ajuste total, facilitando diagnosticar el reparto de absorción.
+
 ## v4.0.2 — Calibración del campo unificada a 33.0 T
 
 - **Calibración unificada al patrón de velocidad de α-Fe.** Se elimina la constante interna `32.95 T` y toda la calibración (Tk, Qt, modelo discreto y distribución) usa las posiciones publicadas de α-Fe escaladas al campo de referencia **33.0 T (330 kOe)**. Un espectro de α-Fe ajusta a **33.0 T, igual que NORMOS**.

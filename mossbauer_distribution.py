@@ -359,9 +359,12 @@ def build_sharp_kernel(
     """Kernel para componentes nítidos opcionales añadidos a la distribución.
 
     Cada componente puede tener ``kind`` = ``Sextete``, ``Doblete`` o
-    ``Singlete``. Sus amplitudes se ajustan con restricción >= 0, pero no se
-    regularizan. Para sextetes se devuelve su BHF; para singletes/dobletes se
+    ``Singlete``. Para sextetes se devuelve su BHF; para singletes/dobletes se
     devuelve NaN en ``sharp_bhf_centers`` porque no tienen campo hiperfino.
+
+    La amplitud/profundidad no se incluye en el kernel: cada columna es el
+    perfil de absorción por profundidad unitaria. El ajuste decide después si
+    esa amplitud es libre o fija, según ``depth_fixed`` en el componente.
     """
     if not components:
         return None, None
@@ -401,6 +404,94 @@ def build_sharp_kernel(
                 )
             )
     return np.column_stack(cols), np.array(bhf_values, dtype=float)
+
+
+def _component_depth(component: dict[str, float], default: float = 0.0) -> float:
+    """Profundidad/amplitud de un nítido cuando se solicita que sea fija."""
+    for name in ("depth", "weight", "amplitude", "amp"):
+        if name in component:
+            return max(0.0, _component_value(component, name, default))
+    return max(0.0, float(default))
+
+
+def _component_depth_is_fixed(component: dict[str, float]) -> bool:
+    """Devuelve si la amplitud del nítido debe tratarse como fija."""
+    return bool(
+        component.get("depth_fixed", component.get("fixed_depth", component.get("amplitude_fixed", False)))
+    )
+
+
+def build_sharp_kernel_for_fit(
+    v: np.ndarray,
+    components: list[dict[str, float]] | None,
+    *,
+    default_delta: float = 0.0,
+    default_quad: float = 0.0,
+    default_gamma: float = 0.18,
+    default_gamma2_rel: float = 1.0,
+    default_gamma3_rel: float = 1.0,
+    default_int1: float = 1.0,
+    default_int2_rel: float = 1.0,
+    default_int3_rel: float = 1.0,
+) -> tuple[np.ndarray | None, np.ndarray | None, np.ndarray, np.ndarray, np.ndarray]:
+    """Kernel de nítidos separando amplitudes libres y fijas.
+
+    Returns
+    -------
+    K_free
+        Columnas de los nítidos cuya profundidad se debe ajustar. ``None`` si
+        no hay ninguna.
+    sharp_bhf_centers
+        Centros BHF/NaN de todos los nítidos, en el orden original.
+    fixed_absorption
+        Absorción positiva total de los nítidos con profundidad fija:
+        ``K_fixed @ depth_fixed``. Debe restarse del modelo de transmisión.
+    fixed_mask
+        Booleano por nítido; True si su profundidad era fija.
+    fixed_weights
+        Pesos/profundidades en el orden original; NaN en los nítidos libres.
+    """
+    K_all, sharp_bhf_centers = build_sharp_kernel(
+        v,
+        components,
+        default_delta=default_delta,
+        default_quad=default_quad,
+        default_gamma=default_gamma,
+        default_gamma2_rel=default_gamma2_rel,
+        default_gamma3_rel=default_gamma3_rel,
+        default_int1=default_int1,
+        default_int2_rel=default_int2_rel,
+        default_int3_rel=default_int3_rel,
+    )
+    if K_all is None or not components:
+        return None, None, np.zeros_like(v, dtype=float), np.zeros(0, dtype=bool), np.zeros(0, dtype=float)
+
+    fixed_mask = np.array([_component_depth_is_fixed(c) for c in components], dtype=bool)
+    fixed_weights = np.full(len(components), np.nan, dtype=float)
+    fixed_absorption = np.zeros_like(v, dtype=float)
+    if np.any(fixed_mask):
+        vals = np.array([_component_depth(c) if fixed else 0.0 for c, fixed in zip(components, fixed_mask)], dtype=float)
+        fixed_weights[fixed_mask] = vals[fixed_mask]
+        fixed_absorption = K_all[:, fixed_mask] @ vals[fixed_mask]
+    K_free = K_all[:, ~fixed_mask] if np.any(~fixed_mask) else None
+    return K_free, sharp_bhf_centers, fixed_absorption, fixed_mask, fixed_weights
+
+
+def merge_sharp_weights(
+    free_weights: np.ndarray | None,
+    fixed_mask: np.ndarray,
+    fixed_weights: np.ndarray,
+) -> np.ndarray | None:
+    """Combina pesos libres ajustados y pesos fijos en el orden original."""
+    if fixed_mask.size == 0:
+        return None
+    out = np.zeros(fixed_mask.size, dtype=float)
+    out[fixed_mask] = np.maximum(fixed_weights[fixed_mask], 0.0)
+    if np.any(~fixed_mask):
+        if free_weights is None:
+            raise ValueError("Faltan pesos libres de nítidos")
+        out[~fixed_mask] = np.maximum(np.asarray(free_weights, dtype=float), 0.0)
+    return out
 
 
 def fit_hyperfine_distribution(
@@ -471,7 +562,7 @@ def fit_hyperfine_distribution(
         int2_rel=int2_rel,
         int3_rel=int3_rel,
     )
-    K_sharp, sharp_bhf_centers = build_sharp_kernel(
+    K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
         v,
         sharp_components,
         default_delta=delta,
@@ -491,7 +582,10 @@ def fit_hyperfine_distribution(
     else:
         L = second_difference_matrix(centers.size)
 
-    y_work = y.astype(float).copy()
+    # Los nítidos con profundidad fija aportan absorción conocida al modelo:
+    # y = fondo - K_dist·P - K_sharp_free·q - fixed_sharp_abs.
+    # Se pasa al solve como y + fixed_sharp_abs para que sólo queden libres P y q.
+    y_work = y.astype(float).copy() + fixed_sharp_abs
     columns: list[np.ndarray] = []
     lower: list[float] = []
     upper: list[float] = []
@@ -589,10 +683,11 @@ def fit_hyperfine_distribution(
     baseline_fit = float(params[labels.index("baseline")]) if fit_baseline else float(baseline)
     slope_fit = float(params[labels.index("slope")]) if fit_slope else float(slope)
     weights = np.maximum(params[dist_start:dist_end], 0.0)
-    sharp_weights = np.maximum(params[sharp_start:sharp_end], 0.0) if sharp_end > sharp_start else None
-    fitted = baseline_fit + slope_fit * v - K @ weights
-    if K_sharp is not None and sharp_weights is not None:
-        fitted = fitted - K_sharp @ sharp_weights
+    sharp_weights_free = np.maximum(params[sharp_start:sharp_end], 0.0) if sharp_end > sharp_start else None
+    sharp_weights = merge_sharp_weights(sharp_weights_free, sharp_fixed_mask, fixed_sharp_weights)
+    fitted = baseline_fit + slope_fit * v - K @ weights - fixed_sharp_abs
+    if K_sharp is not None and sharp_weights_free is not None:
+        fitted = fitted - K_sharp @ sharp_weights_free
     residuals = y - fitted
     rms = float(np.sqrt(np.mean(residuals**2)))
 
@@ -655,7 +750,8 @@ def fit_gaussian_hyperfine_distribution(
     v = _finite_1d("v", v); y = _finite_1d("y", y)
     centers = parameter_grid(pmin, pmax, nbins)
     K = build_hyperfine_distribution_kernel(v, centers, variable=variable, delta=delta, quad=quad, bhf=bhf, gamma=gamma)
-    K_sharp, sharp_bhf_centers = build_sharp_kernel(v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
+    K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
+        v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
     n_sharp = K_sharp.shape[1] if K_sharp is not None else 0
     if baseline is None:
         baseline = float(np.percentile(y, 90))
@@ -674,7 +770,7 @@ def fit_gaussian_hyperfine_distribution(
     def residual(x: np.ndarray) -> np.ndarray:
         b0, sl, amp, cen, log_sig = x[:5]
         w = amp * gauss_weights(cen, np.exp(log_sig))
-        r = b0 + sl * v - K @ w - y
+        r = b0 + sl * v - K @ w - fixed_sharp_abs - y
         if K_sharp is not None and n_sharp:
             sharp_amps = np.maximum(x[5:5 + n_sharp], 0.0)
             r = r - K_sharp @ sharp_amps
@@ -686,10 +782,11 @@ def fit_gaussian_hyperfine_distribution(
     res = least_squares(residual, np.clip(x0, lo, hi), bounds=(lo, hi), max_nfev=2000)
     b0, sl, amp, cen, log_sig = res.x[:5]
     w = float(amp) * gauss_weights(float(cen), float(np.exp(log_sig)))
-    sharp_weights_arr = np.maximum(res.x[5:5 + n_sharp], 0.0) if n_sharp else None
-    fitted = float(b0) + float(sl) * v - K @ w
-    if K_sharp is not None and sharp_weights_arr is not None:
-        fitted = fitted - K_sharp @ sharp_weights_arr
+    sharp_weights_free = np.maximum(res.x[5:5 + n_sharp], 0.0) if n_sharp else None
+    sharp_weights_arr = merge_sharp_weights(sharp_weights_free, sharp_fixed_mask, fixed_sharp_weights)
+    fitted = float(b0) + float(sl) * v - K @ w - fixed_sharp_abs
+    if K_sharp is not None and sharp_weights_free is not None:
+        fitted = fitted - K_sharp @ sharp_weights_free
     residuals = y - fitted
     return BhfDistributionFit(
         bhf_centers=centers,
@@ -735,7 +832,8 @@ def fit_binomial_hyperfine_distribution(
     v = _finite_1d("v", v); y = _finite_1d("y", y)
     centers = parameter_grid(pmin, pmax, nbins)
     K = build_hyperfine_distribution_kernel(v, centers, variable=variable, delta=delta, quad=quad, bhf=bhf, gamma=gamma)
-    K_sharp, sharp_bhf_centers = build_sharp_kernel(v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
+    K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
+        v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
     n_sharp = K_sharp.shape[1] if K_sharp is not None else 0
     if baseline is None:
         baseline = float(np.percentile(y, 90))
@@ -757,7 +855,7 @@ def fit_binomial_hyperfine_distribution(
         b0, sl, amp, logit_p = x[:4]
         pval = 1.0 / (1.0 + np.exp(-logit_p))
         w = amp * binom_weights(pval)
-        r = b0 + sl * v - K @ w - y
+        r = b0 + sl * v - K @ w - fixed_sharp_abs - y
         if K_sharp is not None and n_sharp:
             sharp_amps = np.maximum(x[4:4 + n_sharp], 0.0)
             r = r - K_sharp @ sharp_amps
@@ -770,10 +868,11 @@ def fit_binomial_hyperfine_distribution(
     b0, sl, amp, logit_p = res.x[:4]
     pval = 1.0 / (1.0 + np.exp(-logit_p))
     w = float(amp) * binom_weights(float(pval))
-    sharp_weights_arr = np.maximum(res.x[4:4 + n_sharp], 0.0) if n_sharp else None
-    fitted = float(b0) + float(sl) * v - K @ w
-    if K_sharp is not None and sharp_weights_arr is not None:
-        fitted = fitted - K_sharp @ sharp_weights_arr
+    sharp_weights_free = np.maximum(res.x[4:4 + n_sharp], 0.0) if n_sharp else None
+    sharp_weights_arr = merge_sharp_weights(sharp_weights_free, sharp_fixed_mask, fixed_sharp_weights)
+    fitted = float(b0) + float(sl) * v - K @ w - fixed_sharp_abs
+    if K_sharp is not None and sharp_weights_free is not None:
+        fitted = fitted - K_sharp @ sharp_weights_free
     residuals = y - fitted
     return BhfDistributionFit(
         bhf_centers=centers,
@@ -818,7 +917,8 @@ def fit_fixed_hyperfine_distribution(
     if centers.size != fixed_weights.size:
         raise ValueError("centers y fixed_weights deben tener la misma longitud")
     K = build_hyperfine_distribution_kernel(v, centers, variable=variable, delta=delta, quad=quad, bhf=bhf, gamma=gamma)
-    K_sharp, sharp_bhf_centers = build_sharp_kernel(v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
+    K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
+        v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
     n_sharp = K_sharp.shape[1] if K_sharp is not None else 0
     w0 = np.maximum(fixed_weights, 0.0)
     if not np.any(w0 > 0):
@@ -830,7 +930,8 @@ def fit_fixed_hyperfine_distribution(
         baseline = float(np.percentile(y, 90))
     if slope is None:
         slope = 0.0
-    # Columnas: [ones, v, -profile_dist, -sharp_0, -sharp_1, ...]
+    # Columnas: [ones, v, -profile_dist, -sharp_0_libre, -sharp_1_libre, ...]
+    # Los nítidos fijos se restan como absorción conocida en el modelo.
     cols = [np.ones_like(v), v, -profile]
     lo = [0.0, -np.inf, 0.0]
     hi = [np.inf, np.inf, np.inf]
@@ -840,13 +941,14 @@ def fit_fixed_hyperfine_distribution(
             lo.append(0.0)
             hi.append(np.inf)
     X = np.column_stack(cols)
-    result = lsq_linear(X, y, bounds=(lo, hi), lsmr_tol="auto")
+    result = lsq_linear(X, y + fixed_sharp_abs, bounds=(lo, hi), lsmr_tol="auto")
     b0, sl, amp = result.x[:3]
-    sharp_weights_arr = np.maximum(result.x[3:3 + n_sharp], 0.0) if n_sharp else None
+    sharp_weights_free = np.maximum(result.x[3:3 + n_sharp], 0.0) if n_sharp else None
+    sharp_weights_arr = merge_sharp_weights(sharp_weights_free, sharp_fixed_mask, fixed_sharp_weights)
     weights = float(amp) * shape
-    fitted = float(b0) + float(sl) * v - K @ weights
-    if K_sharp is not None and sharp_weights_arr is not None:
-        fitted = fitted - K_sharp @ sharp_weights_arr
+    fitted = float(b0) + float(sl) * v - K @ weights - fixed_sharp_abs
+    if K_sharp is not None and sharp_weights_free is not None:
+        fitted = fitted - K_sharp @ sharp_weights_free
     residuals = y - fitted
     return BhfDistributionFit(
         bhf_centers=centers,

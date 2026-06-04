@@ -68,15 +68,21 @@ def test_distribution_sharp_builder_uses_components_above_three():
         "int2": 2.0,
         "int3": 1.0,
     }
+    app.fixed_vars = {}
     for idx in range(1, 7):
         for name in SEXTET_PARAM_NAMES:
             app.vars[f"s{idx}_{name}"] = DummyVar(defaults[name])
+            app.fixed_vars[f"s{idx}_{name}"] = DummyVar(False)
+    app.fixed_vars["s3_depth"] = DummyVar(True)
 
     components, indices = app.build_bhf_sharp_components_from_active_components()
 
     assert indices == [1, 3, 4]
     assert len(components) == 3
     assert components[-1]["bhf"] == 33.0
+    assert components[1]["depth"] == defaults["depth"]
+    assert components[1]["depth_fixed"] is True
+    assert components[0]["depth_fixed"] is False
 
 
 class DummyMutableVar:

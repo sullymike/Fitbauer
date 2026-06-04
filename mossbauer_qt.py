@@ -782,11 +782,13 @@ class SpectrumCanvas(FigureCanvas):
         if components:
             palette = s.get("components_palette") or ("#10b981", "#f59e0b", "#8b5cf6")
             for idx, kind, comp in components:
+                label = str(kind) if idx <= 0 else f"{tr(f'kind.{kind}', default=kind)} {idx}"
+                color = s.get("dist_line", s.get("model", "#dc2626")) if idx <= 0 else palette[(idx - 1) % len(palette)]
                 ln, = self.ax.plot(mv, comp, "--",
-                                   color=palette[(idx - 1) % len(palette)],
+                                   color=color,
                                    lw=s.get("component_lw", 1.4),
                                    alpha=s.get("component_alpha", 0.85),
-                                   label=f"{tr(f'kind.{kind}', default=kind)} {idx}")
+                                   label=label)
                 comp_lines.append(ln)
         model_line = None
         res_line = None
@@ -3353,12 +3355,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         )
         palette = style.get("components_palette") or ("#10b981", "#f59e0b", "#8b5cf6")
         for idx, kind, comp in components:
-            param_txt = self._plotly_component_param_text(idx)
+            param_txt = str(kind) if idx <= 0 else self._plotly_component_param_text(idx)
+            comp_name = str(kind) if idx <= 0 else f"{tr(f'kind.{kind}', default=kind)} {idx}"
+            comp_color = style.get("dist_line", style.get("model", "#dc2626")) if idx <= 0 else palette[(idx - 1) % len(palette)]
             fig.add_trace(
                 go.Scattergl(
                     x=mv, y=comp, mode="lines",
-                    name=f"{tr(f'kind.{kind}', default=kind)} {idx}",
-                    line=dict(color=palette[(idx - 1) % len(palette)], width=1.5, dash="dash"),
+                    name=comp_name,
+                    line=dict(color=comp_color, width=1.5, dash="dash"),
                     hovertemplate=(
                         f"{html.escape(param_txt)}<br>"
                         "v=%{x:.5g}<br>y=%{y:.6g}<extra></extra>"
@@ -5177,6 +5181,8 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 "int1": engine_int1,
                 "int2_rel": engine_int2_rel,
                 "int3_rel": engine_int3_rel,
+                "depth": float(vals.get(p + "depth", 0.0)),
+                "depth_fixed": bool(cp.params["depth"].is_fixed()) if "depth" in cp.params else False,
             }
             components.append(comp)
             indices.append(cp.idx)
@@ -5506,9 +5512,25 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         style = get_style(self.plot_style_name)
         show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
         show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
+        components_for_plot: list[tuple[int, str, np.ndarray]] = []
+        if self.dist_use_sharp and result.sharp_weights is not None and result.sharp_weights.size:
+            baseline_line = float(result.baseline) + float(result.slope) * self.file.velocity
+            sharp_abs_sum = np.zeros_like(self.file.velocity, dtype=float)
+            for idx, weight in zip(sharp_indices, result.sharp_weights):
+                cp = self.components_panels[idx - 1]
+                vals = cp.values_dict()
+                pfx = f"s{idx}_"
+                params = np.array([float(vals.get(pfx + name, 0.0)) for name in SEXTET_PARAM_NAMES], dtype=float)
+                params[6] = float(weight)
+                sharp_abs = component_absorption(self.file.velocity, cp.kind, params)
+                sharp_abs_sum += sharp_abs
+                components_for_plot.append((idx, f"Nítido {tr(f'kind.{cp.kind}', default=cp.kind)}", baseline_line - sharp_abs))
+            if np.any(sharp_abs_sum > 0):
+                dist_name = "P(ΔEQ)" if var == "quad" else "P(BHF)"
+                components_for_plot.insert(0, (0, dist_name, result.fitted_curve + sharp_abs_sum))
         self.canvas.render(self.file.velocity, self.file.y_data,
-                           model=result.fitted_curve, style=style,
-                           show_residual=show_res, show_legend=show_leg,
+                           model=result.fitted_curve, components=components_for_plot,
+                           style=style, show_residual=show_res, show_legend=show_leg,
                            style_name=self.plot_style_name)
         self.last_distribution_result = result
         self._schedule_plotly_update()
