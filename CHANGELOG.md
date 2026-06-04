@@ -1,11 +1,16 @@
 # Changelog
 
-## v4.0.2 — Calibración del campo unificada a 33.0 T
+## v4.0.3 — Corrige el BHF de calibración (regresión de v4.0.2)
 
-- **Calibración unificada al patrón de velocidad de α-Fe.** Se elimina la constante interna `32.95 T` y toda la calibración (Tk, Qt, modelo discreto y distribución) usa las posiciones publicadas de α-Fe escaladas al campo de referencia **33.0 T (330 kOe)**. Un espectro de α-Fe ajusta a **33.0 T, igual que NORMOS**.
-- **Fuente única.** `mossbauer_distribution.py` toma ahora `LINE_POS_33T` de `core.constants`, eliminando una tercera copia duplicada de las posiciones.
-- Las posiciones del sextete se mantienen en el patrón publicado (`±0.839 / ±3.084 / ±5.329 mm/s` a 33 T). Se documenta explícitamente por qué **no** deben derivarse de los momentos nucleares de libro (darían el desdoblamiento ~0,4 % menor y el BHF saldría ~0,1 T demasiado alto).
-- Limpieza: se elimina el parámetro muerto `max_nfev` de `profile_likelihood()` (se aceptaba pero no se usaba).
+- La **v4.0.2** publicada derivaba las posiciones del sextete de los momentos nucleares de libro, lo que daba un desdoblamiento ~0,4 % menor (línea externa 5.309 vs 5.328 mm/s a 33 T) y **sesgaba el BHF ~0,1 T hacia arriba** (un α-Fe leía 33.12 T en vez de 33.0).
+- Se vuelve al **patrón de velocidad publicado de α-Fe** (`±0.839 / ±3.084 / ±5.329 mm/s` a 33 T): un α-Fe ajusta a **33.0 T exacto, igual que NORMOS**. Documentado en el código para no reintroducir el sesgo.
+
+## v4.0.2 — Calibración del campo a 33.0 T
+
+- **Elimina la constante interna `32.95 T`**: la calibración de velocidad/campo (Tk, Qt, modelo discreto y distribución) usa el campo de referencia **33.0 T (330 kOe)**.
+- **Fuente única.** `mossbauer_distribution.py` toma `LINE_POS_33T` de `core.constants`, eliminando una tercera copia duplicada de las posiciones.
+- Incluyó un cálculo de las posiciones desde los momentos nucleares que resultó **sesgar el BHF ~0,1 T** (corregido en v4.0.3).
+- Limpieza: se elimina el parámetro muerto `max_nfev` de `profile_likelihood()`.
 
 ## v4.0.1 — Logo en la interfaz
 
