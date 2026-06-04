@@ -2791,7 +2791,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
 
     def _velocity_for_folded(self, n_points: int, trim_edges: bool = True) -> np.ndarray:
         """Crea el eje de velocidad y recorta sus extremos si se recortó el folding."""
-        vmax = abs(self.calib.vmax.value())
+        vmax = self.calib.vmax.value()
         if self.file.counts is None:
             return np.array([], dtype=float)
         full_n = self.file.counts.size // 2
@@ -4597,24 +4597,31 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 debug("Selecciona una fila primero.")
                 return
             item_id = table.item(rows[0], 0).text()
+            selected_item = next((it for it in items if str(it.get("id", "")) == item_id), {})
             dest = Path(e_dest.text().strip() or (Path.home() / "Mossbauer"))
+            calib: dict | None = None
+            calib_path: Path | None = None
             try:
                 dest.mkdir(parents=True, exist_ok=True)
                 client = build_client()
                 persist()
                 if is_calib:
                     p = client.download_calibracion_datafile(item_id, dest_dir=str(dest))
+                    calib = selected_item or client.get_calibracion(item_id)
+                    calib_path = Path(p)
                 else:
                     p = client.download_datafile(item_id, dest_dir=str(dest))
-                    if cb_with_calib.isChecked():
+                    try:
+                        calib = client.get_calibracion_de_medida(item_id)
+                    except Exception as exc:
+                        debug(f"(sin metadatos de calibración asociada: {exc})")
+                    if cb_with_calib.isChecked() and calib and "id" in calib:
                         try:
-                            calib = client.get_calibracion_de_medida(item_id)
-                            if calib and "id" in calib:
-                                pc = client.download_calibracion_datafile(
-                                    calib["id"], dest_dir=str(dest))
-                                debug(f"Calibración asociada → {pc}")
+                            calib_path = client.download_calibracion_datafile(
+                                calib["id"], dest_dir=str(dest))
+                            debug(f"Calibración asociada → {calib_path}")
                         except Exception as exc:
-                            debug(f"(sin calibración asociada: {exc})")
+                            debug(f"(no se descargó el fichero de calibración: {exc})")
             except Exception as exc:
                 QtWidgets.QMessageBox.critical(dlg, "Descarga", str(exc))
                 return
@@ -4624,6 +4631,21 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 return
             try:
                 self._load_file(Path(p))
+                if is_calib:
+                    self._apply_web_calibration_metadata(
+                        calibration=calib or selected_item,
+                        calibration_path=calib_path or Path(p),
+                        debug=debug,
+                    )
+                elif calib:
+                    self._apply_web_calibration_metadata(
+                        measurement=selected_item or {"id": item_id},
+                        calibration=calib,
+                        calibration_path=calib_path,
+                        debug=debug,
+                    )
+                else:
+                    debug("La medida cargada no trae calibración asociada aplicable.")
                 dlg.accept()
             except Exception as exc:
                 QtWidgets.QMessageBox.warning(dlg, "Cargar", str(exc))
@@ -4633,6 +4655,84 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         btn_dl.clicked.connect(lambda: download(True))
         btn_close.clicked.connect(dlg.reject)
         dlg.exec()
+
+    def _apply_web_calibration_metadata(self, *, calibration: dict | None,
+                                        measurement: dict | None = None,
+                                        calibration_path: Path | None = None,
+                                        debug=None) -> None:
+        """Guarda en la GUI los metadatos de una calibración web y aplica Vmax.
+
+        La API devuelve ``velocity_calibrated`` e ``isomer_shift`` como
+        metadatos de la calibración. Al cargar una medida desde la web, estos
+        valores deben quedar en ``self.calibration_info`` igual que una
+        calibración local, y ``velocity_calibrated`` debe reescalar el eje de
+        velocidad del fichero activo.
+        """
+        if not calibration:
+            if debug is not None:
+                debug("La API no devolvió metadatos de calibración.")
+            return
+
+        def first_value(data: dict, *keys: str):
+            nested = (data, data.get("metadata") or {}, data.get("condiciones") or {},
+                      data.get("conditions") or {})
+            for item in nested:
+                if not isinstance(item, dict):
+                    continue
+                for key in keys:
+                    value = item.get(key)
+                    if value not in (None, ""):
+                        return value
+            return None
+
+        velocity = first_value(calibration, "velocity_calibrated", "vmax_calibrated",
+                               "velocity", "velocidad", "vmax", "v_max")
+        iso = first_value(calibration, "isomer_shift", "isomershift",
+                          "isomer", "iso", "delta")
+        info = {
+            "source": "web_api",
+            "medida_id": (measurement or {}).get("id"),
+            "calibration_id": calibration.get("id") or first_value(
+                measurement or {}, "calibration_id", "calibracion_id", "calib_id"),
+            "calibration_sample": first_value(
+                calibration, "sample", "muestra", "sample_name",
+                "nombre_muestra", "name"),
+            "calibration_date": first_value(
+                calibration, "date", "fecha", "measured_at", "created_at", "created"),
+            "velocity_calibrated": velocity,
+            "isomer_shift": iso,
+            "calibration_file_name": Path(calibration_path).name if calibration_path else None,
+            "calibration_file_path": str(calibration_path) if calibration_path else None,
+        }
+        for key in ("velocity_uncertainty", "vmax_uncertainty", "velocity_error",
+                    "vmax_error", "sigma_vmax"):
+            value = first_value(calibration, key)
+            if value not in (None, ""):
+                info[key] = value
+
+        self.calibration_info = info
+        self._refresh_calib_label()
+        if debug is not None:
+            debug(f"Calibración web aplicada: id={info.get('calibration_id') or '—'} "
+                  f"Vmax={velocity if velocity not in (None, '') else '—'} "
+                  f"IS={iso if iso not in (None, '') else '—'}")
+
+        if velocity in (None, ""):
+            if debug is not None:
+                debug("La calibración no trae velocity_calibrated; no se aplica Vmax.")
+            return
+        try:
+            vmax = float(velocity)
+        except (TypeError, ValueError):
+            if debug is not None:
+                debug(f"velocity_calibrated no numérico: {velocity!r}")
+            return
+
+        self.calib.vmax.set_value(vmax)
+        if self.file.counts is not None:
+            center = float(self.calib.center.value())
+            self._refold_current_data(center)
+        self._refresh_plot()
 
     # ── Subir sesión al API ──────────────────────────────────────────────
     def on_upload_session(self) -> None:
@@ -4970,7 +5070,18 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         iso = info.get("isomer_shift")
         txt = f"Calibración [{src}] {sample}<br>"
         if vmax is not None:
-            txt += f"Vmax = {vmax:.4f} mm/s · IS = {iso:.4f} mm/s"
+            try:
+                vmax_txt = f"{float(vmax):.4f}"
+            except (TypeError, ValueError):
+                vmax_txt = str(vmax)
+            if iso not in (None, ""):
+                try:
+                    iso_txt = f"{float(iso):.4f}"
+                except (TypeError, ValueError):
+                    iso_txt = str(iso)
+            else:
+                iso_txt = "—"
+            txt += f"Vmax = {vmax_txt} mm/s · IS = {iso_txt} mm/s"
         self.calib_label.setText(txt)
 
     # ── Bootstrap MC ─────────────────────────────────────────────────────

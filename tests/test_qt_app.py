@@ -540,6 +540,50 @@ def test_session_save_load_roundtrip_keeps_calibration(win, tmp_path):
         win2.close(); win2.deleteLater()
 
 
+def test_apply_web_calibration_metadata_sets_info_and_vmax(win, tmp_path):
+    """La calibración web asociada actualiza la GUI y reescala el eje."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    calibration_file = tmp_path / "calibration.adt"
+    calibration_file.write_text("dummy", encoding="utf-8")
+    messages = []
+
+    win._apply_web_calibration_metadata(
+        measurement={"id": 1357, "calibration_id": 2468},
+        calibration={
+            "id": 2468,
+            "sample": "alpha-Fe",
+            "date": "2026-06-04",
+            "velocity_calibrated": "11.966",
+            "isomer_shift": "-0.1084",
+        },
+        calibration_path=calibration_file,
+        debug=messages.append,
+    )
+
+    assert win.calibration_info is not None
+    assert win.calibration_info["source"] == "web_api"
+    assert win.calibration_info["medida_id"] == 1357
+    assert win.calibration_info["calibration_id"] == 2468
+    assert abs(float(win.calibration_info["velocity_calibrated"]) - 11.966) < 1e-6
+    assert abs(float(win.calibration_info["isomer_shift"]) - (-0.1084)) < 1e-6
+    assert win.calibration_info["calibration_file_name"] == "calibration.adt"
+    assert abs(win.calib.vmax.value() - 11.966) < 1e-6
+    assert win.file.velocity is not None
+    assert abs(float(max(abs(win.file.velocity))) - 11.966) < 1e-3
+    assert any("Calibración web aplicada" in msg for msg in messages)
+
+
+def test_apply_web_calibration_metadata_handles_missing_isomer_shift(win):
+    """El label no falla si la API no envía isomer_shift."""
+    win._apply_web_calibration_metadata(
+        calibration={"id": 1, "sample": "alpha-Fe", "velocity_calibrated": "12.0"},
+    )
+
+    assert win.calibration_info is not None
+    assert win.calibration_info["isomer_shift"] is None
+    assert "IS = —" in win.calib_label.text()
+
+
 def test_bootstrap_returns_sigma_estimates(win):
     """Bootstrap MC con 5 réplicas devuelve un mensaje con σ(MC) por parámetro."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
