@@ -648,7 +648,6 @@ def bootstrap_errors(
 def profile_likelihood(
     state: FitState, *, base: FitResult | None = None,
     points_per_side: int = 7, spans: tuple[float, ...] = (3.0, 5.0),
-    max_nfev: int = 2000,
     progress_cb: Callable[[str, int, int], None] | None = None,
 ) -> dict[str, dict]:
     """Intervalos de confianza asimétricos por verosimilitud perfilada.
