@@ -6901,6 +6901,87 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         parts: list[str] = []
         lines = text.split("\n")
         i, n = 0, len(lines)
+
+        def _indent(raw_line: str) -> int:
+            return len(raw_line) - len(raw_line.lstrip(" \t"))
+
+        def _is_bullet(raw_line: str) -> bool:
+            return (
+                re.match(r"^\s*[•\-]\s+", raw_line) is not None
+                or re.match(r"^\s*\d+\.\s+", raw_line) is not None
+            )
+
+        def _is_menu_item_start(pos: int) -> bool:
+            """Detecta bloques sangrados de tipo ``Submenú`` + ``Campo: texto``.
+
+            Gran parte de la ayuda replica la estructura de los menús como::
+
+                Cargar...
+                  Qué es: ...
+                  Para qué sirve: ...
+
+            Si se tratan como párrafos normales, Qt los fusiona en una línea
+            larga. Este detector conserva la jerarquía visual del texto fuente.
+            """
+            if pos + 1 >= n:
+                return False
+            current = lines[pos]
+            stripped_current = current.strip()
+            if (
+                not stripped_current
+                or stripped_current.endswith(":")
+                or _is_bullet(current)
+                or _indent(current) == 0
+                or len(stripped_current) > 90
+            ):
+                return False
+            nxt = lines[pos + 1]
+            stripped_next = nxt.strip()
+            if not stripped_next or _indent(nxt) <= _indent(current):
+                return False
+            return re.match(r"^[^:]{2,36}:\s+.+", stripped_next) is not None
+
+        def _render_menu_item(pos: int) -> tuple[str, int]:
+            base_indent = _indent(lines[pos])
+            title = lines[pos].strip()
+            rows: list[tuple[str, str]] = []
+            j = pos + 1
+            while j < n:
+                raw_line = lines[j]
+                stripped_line = raw_line.strip()
+                if not stripped_line:
+                    break
+                if _indent(raw_line) <= base_indent:
+                    break
+                match = re.match(r"^([^:]{2,36}):\s*(.*)$", stripped_line)
+                if match:
+                    rows.append((match.group(1).strip(), match.group(2).strip()))
+                elif rows:
+                    key, value = rows[-1]
+                    rows[-1] = (key, f"{value} {stripped_line}".strip())
+                else:
+                    rows.append(("", stripped_line))
+                j += 1
+            if rows:
+                body = "".join(
+                    "<li style='margin:3px 0;'>"
+                    + (f"<b>{_inline(key)}:</b> " if key else "")
+                    + f"{_inline(value)}</li>"
+                    for key, value in rows
+                )
+            else:
+                body = ""
+            html_block = (
+                "<div style='margin:10px 0 12px 18px;padding:10px 12px;"
+                "border-left:4px solid #38bdf8;background:#f8fafc;"
+                "border-radius:6px;'>"
+                f"<h5 style='color:#075985;font-size:1.02em;margin:0 0 6px 0;'>"
+                f"{_inline(title)}</h5>"
+                "<ul style='margin:0 0 0 20px;padding:0;line-height:1.45;'>"
+                f"{body}</ul></div>"
+            )
+            return html_block, j
+
         while i < n:
             raw = lines[i]
             stripped = raw.strip()
@@ -6908,6 +6989,12 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             if not stripped:
                 parts.append("")
                 i += 1
+                continue
+            # Bloque de submenú/opción con campos descriptivos. Debe evaluarse
+            # antes de los párrafos para no perder la sangría del help.json.
+            if _is_menu_item_start(i):
+                html_block, i = _render_menu_item(i)
+                parts.append(html_block)
                 continue
             # Subtítulo de tipo "Algo:" seguido de bloque sangrado o líneas
             if (
@@ -6924,26 +7011,25 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 i += 1
                 continue
             # Viñetas y numeración con sangría
-            if re.match(r"^\s*[•\-]\s+", raw) or re.match(r"^\s*\d+\.\s+", raw):
+            if _is_bullet(raw):
+                numbered = re.match(r"^\s*\d+\.\s+", raw) is not None
+                tag = "ol" if numbered else "ul"
                 items: list[str] = []
-                while i < n and (
-                    re.match(r"^\s*[•\-]\s+", lines[i])
-                    or re.match(r"^\s*\d+\.\s+", lines[i])
-                ):
+                while i < n and _is_bullet(lines[i]):
                     body = re.sub(r"^\s*(?:[•\-]\s+|\d+\.\s+)", "", lines[i])
                     items.append(f"<li>{_inline(body)}</li>")
                     i += 1
                 parts.append(
-                    "<ul style='margin:4px 0 8px 22px;padding:0;"
-                    "line-height:1.5;'>" + "".join(items) + "</ul>"
+                    f"<{tag} style='margin:4px 0 8px 22px;padding:0;"
+                    "line-height:1.5;'>" + "".join(items) + f"</{tag}>"
                 )
                 continue
             # Párrafo normal: junta líneas hasta separador o cambio de tipo
             buf = [raw]
             i += 1
             while i < n and lines[i].strip() and not (
-                re.match(r"^\s*[•\-]\s+", lines[i])
-                or re.match(r"^\s*\d+\.\s+", lines[i])
+                _is_bullet(lines[i])
+                or _is_menu_item_start(i)
                 or lines[i].strip().endswith(":")
             ):
                 buf.append(lines[i])
