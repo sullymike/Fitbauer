@@ -6,6 +6,7 @@
 - **Fuente única.** Las tres definiciones duplicadas (`core/constants.py`, GUI Tk y `mossbauer_distribution.py`) quedan unificadas y consistentes.
 - Se elimina además la constante interna `32.95 T`: toda la calibración usa el campo hiperfino publicado de α-Fe, **33.0 T (330 kOe)**, en Tk, Qt, modelo discreto y distribución.
 - Efecto práctico: el BHF y las posiciones calculadas cambian ≈ 0,4 % en las líneas externas; los valores quedan consistentes con NORMOS.
+- Limpieza menor: los momentos nucleares `G_GROUND`/`G_EXCITED`, antes definidos pero sin usar, pasan a ser la fuente de las posiciones; se elimina el parámetro muerto `max_nfev` de `profile_likelihood()` (se aceptaba pero no se usaba).
 
 ## v4.0.1 — Logo en la interfaz
 
