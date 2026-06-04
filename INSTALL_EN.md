@@ -35,7 +35,7 @@ pip install -r requirements.txt
 Run the application:
 
 ```bash
-python mossbauer_fe33_gui_v2IA.py
+python fitbauer.py        # Qt by default, falls back to Tk
 ```
 
 ## Alternative installer script

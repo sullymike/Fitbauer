@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Instalador simple para Mössbauer Fe-57.
+"""Instalador simple para Fitbauer.
 
 Uso:
     python install.py
 
 Crea un entorno virtual local, instala dependencias y genera un lanzador:
-- Linux/macOS: ./mossbauer
-- Windows: mossbauer.bat
+- Linux/macOS: ./fitbauer
+- Windows: fitbauer.bat
+
+El lanzador abre la interfaz Qt y, si PySide6 no está disponible, la Tk.
 """
 from __future__ import annotations
 
@@ -21,6 +23,7 @@ ROOT = Path(__file__).resolve().parent
 VENV_DIR = ROOT / ".venv"
 REQUIREMENTS = ROOT / "requirements.txt"
 MAIN_GUI = "mossbauer_fe33_gui_v2IA.py"
+LAUNCHER_ENTRY = "fitbauer.py"
 
 
 def run(cmd: list[str], **kwargs) -> None:
@@ -76,8 +79,8 @@ def make_windows_launcher(name: str, script: str) -> None:
 
 
 def create_launchers() -> None:
-    make_posix_launcher("mossbauer", MAIN_GUI)
-    make_windows_launcher("mossbauer.bat", MAIN_GUI)
+    make_posix_launcher("fitbauer", LAUNCHER_ENTRY)
+    make_windows_launcher("fitbauer.bat", LAUNCHER_ENTRY)
 
 
 def smoke_test() -> None:
@@ -87,6 +90,7 @@ def smoke_test() -> None:
         "-m",
         "py_compile",
         str(ROOT / MAIN_GUI),
+        str(ROOT / LAUNCHER_ENTRY),
         str(ROOT / "mossbauer_app.py"),
         str(ROOT / "mossbauer_updater.py"),
         str(ROOT / "mossbauer_updater_ui.py"),
@@ -105,9 +109,9 @@ def main() -> int:
     smoke_test()
     print("\nInstalación terminada.")
     if os.name == "nt":
-        print("Ejecuta: mossbauer.bat")
+        print("Ejecuta: fitbauer.bat")
     else:
-        print("Ejecuta: ./mossbauer")
+        print("Ejecuta: ./fitbauer")
     return 0
 
 

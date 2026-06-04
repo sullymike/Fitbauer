@@ -38,3 +38,6 @@ env/
 *.bak
 *~
 .DS_Store
+
+# Estado de runtime de la app (disposición de paneles guardada por el usuario)
+layout.json

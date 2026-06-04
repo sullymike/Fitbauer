@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Ejecutable de la GUI Qt (PySide6). Equivalente al de Tk (MossbauerFeFit.spec)
-# pero con entrada mossbauer_qt.py. Construir con:  pyinstaller MossbauerFeFit-Qt.spec
+# Ejecutable de la GUI Qt (PySide6). Equivalente al de Tk (Fitbauer-Tk.spec)
+# pero con entrada mossbauer_qt.py. Construir con:  pyinstaller Fitbauer.spec
 
 
 a = Analysis(
@@ -34,7 +34,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='MossbauerFeFit-Qt',
+    name='Fitbauer',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -53,5 +53,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='MossbauerFeFit-Qt',
+    name='Fitbauer',
 )

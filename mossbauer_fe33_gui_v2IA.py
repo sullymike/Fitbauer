@@ -51,8 +51,8 @@ E_GAMMA = 14.4125e3 * 1.602176634e-19  # J
 C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
-APP_NAME = "Mössbauer Fe-57 v2IA"
-APP_VERSION = "3.7"
+APP_NAME = "Fitbauer"
+APP_VERSION = "4.0"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -62,8 +62,8 @@ SETTINGS_PATH = CONFIG_DIR / "settings.json"
 CREDENTIALS_PATH = CONFIG_DIR / "credentials.json"
 README_PATH = Path(__file__).with_name("README.md")
 CHANGELOG_PATH = Path(__file__).with_name("CHANGELOG.md")
-APP_ICON_PNG = Path(__file__).with_name("assets") / "mossbauer_icon.png"
-APP_ICON_ICO = Path(__file__).with_name("assets") / "mossbauer_icon.ico"
+APP_ICON_PNG = Path(__file__).with_name("assets") / "fitbauer_icon.png"
+APP_ICON_ICO = Path(__file__).with_name("assets") / "fitbauer_icon.ico"
 OLLAMA_REQUEST_TIMEOUT = 120
 OLLAMA_LIST_TIMEOUT = 15
 
@@ -215,7 +215,7 @@ def _log_warning(context: str, exc: BaseException) -> None:
 class MossbauerFe33GUI(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("Ajuste Mössbauer Fe-57 v2IA")
+        self.title("Fitbauer")
         self._set_application_icon()
         self.geometry("1350x930")
         self.minsize(1150, 840)
