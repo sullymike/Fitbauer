@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.0.1 — Logo en la interfaz
+
+- El logo de Fitbauer se muestra ahora dentro del programa: tarjeta de cabecera, pantalla de inicio (splash) y diálogo «Acerca de», tanto en la interfaz Qt como en la Tk.
+- Carga robusta del logo: si la imagen no está disponible se conserva el comportamiento anterior (texto / dibujo vectorial).
+
 ## v4.0 — Fitbauer
 
 Cambio de marca y preparación para producción.
