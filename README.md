@@ -1,9 +1,12 @@
-# Mössbauer Fe-57 GUI
+# Fitbauer
+
+**Software for Mössbauer spectrum fitting and analysis.**
 
 Programa de escritorio estable para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
 
-Versión estable actual: **v3.6**.  
-Aplicación principal Tk: `mossbauer_fe33_gui_v2IA.py`. Interfaz Qt/Plotly: `mossbauer_qt.py`.
+Versión estable actual: **v4.0**.  
+Arranque recomendado: `python fitbauer.py` (abre la interfaz Qt y, si no está disponible, la Tk).  
+Interfaz Qt/Plotly: `mossbauer_qt.py`. Interfaz Tk: `mossbauer_app.py`.
 
 Autor: Jorge Sánchez Marcos  
 Departamento de Química Física · UAM
@@ -40,11 +43,6 @@ Datos de ejemplo incluidos:
 
 Para probarlos, abre primero el `.adt` desde **Archivo → Cargar...** y después carga la sesión correspondiente desde **Archivo → Cargar sesión...**.
 
-Documentos de propuestas y comparación futura:
-
-- [`PROPUESTAS_SYNCMOSS.md`](PROPUESTAS_SYNCMOSS.md): mejoras pendientes tras la comparación con SyncMoss.
-- [`PROPUESTAS_NORMOS.md`](PROPUESTAS_NORMOS.md): mejoras pendientes para compatibilidad, validación y reproducibilidad frente a NORMOS.
-
 
 ## 2. Capturas del programa
 
@@ -52,23 +50,23 @@ Las imágenes siguientes muestran el aspecto general de la aplicación y de algu
 
 ### Pantalla principal
 
-<img src="captura-pantalla-principal.png" alt="Pantalla principal de Mössbauer Fe-57 GUI" width="900">
+<img src="docs/img/captura-pantalla-principal.png" alt="Pantalla principal de Mössbauer Fe-57 GUI" width="900">
 
 ### Ajuste discreto
 
-<img src="captura-ajuste-discreto.png" alt="Ajuste discreto con componentes, áreas y residuos" width="900">
+<img src="docs/img/captura-ajuste-discreto.png" alt="Ajuste discreto con componentes, áreas y residuos" width="900">
 
 ### Distribución P(BHF)
 
-<img src="captura-distribucion-bhf.png" alt="Distribución de campo hiperfino P(BHF)" width="900">
+<img src="docs/img/captura-distribucion-bhf.png" alt="Distribución de campo hiperfino P(BHF)" width="900">
 
 ### L-curve de regularización
 
-<img src="captura-lcurve.png" alt="L-curve para elegir el parámetro de regularización alpha" width="900">
+<img src="docs/img/captura-lcurve.png" alt="L-curve para elegir el parámetro de regularización alpha" width="900">
 
 ### Informe Markdown/PDF
 
-<img src="captura-informe-markdown-pdf.png" alt="Informe Markdown y PDF exportado" width="900">
+<img src="docs/img/captura-informe-markdown-pdf.png" alt="Informe Markdown y PDF exportado" width="900">
 
 ## 3. Datos, folding y velocidad
 
@@ -177,7 +175,7 @@ Ayuda → Buscar actualizaciones...
 
 La versión local está definida en `APP_VERSION`. Si existe una release con un tag superior, por ejemplo `v2.3`, el programa ofrece descargarla en `Descargas`/`Downloads`. Si la descarga es un ZIP de GitHub, puede descomprimirlo automáticamente en la misma carpeta del programa; después basta con reiniciar.
 
-Las instrucciones para publicar versiones están en `RELEASES.md`.
+El historial de versiones está en `CHANGELOG.md`.
 
 ## 7. Instalación desde código
 
@@ -185,16 +183,16 @@ Se puede instalar sin `.exe` con Python:
 
 ```bash
 python3 install.py
-./mossbauer        # interfaz Tk (clásica)
-./mossbauer-qt     # interfaz Qt (PySide6)
+./fitbauer         # Qt por defecto; cae a Tk si PySide6 no está disponible
+./fitbauer --tk    # fuerza la interfaz Tk
 ```
 
 En Windows:
 
 ```bat
 py install.py
-mossbauer.bat
-mossbauer-qt.bat
+fitbauer.bat
+fitbauer.bat --tk
 ```
 
 Ambas interfaces comparten el mismo núcleo de cálculo (`core/`): física,
@@ -203,8 +201,8 @@ ajuste, bootstrap y verosimilitud perfilada. Elige la que prefieras.
 ### Construir ejecutables (PyInstaller)
 
 ```bash
-pyinstaller MossbauerFeFit.spec       # ejecutable Tk  -> dist/MossbauerFeFit/
-pyinstaller MossbauerFeFit-Qt.spec    # ejecutable Qt  -> dist/MossbauerFeFit-Qt/
+pyinstaller Fitbauer.spec       # ejecutable Qt (principal)  -> dist/Fitbauer/
+pyinstaller Fitbauer-Tk.spec    # ejecutable Tk (respaldo)   -> dist/Fitbauer-Tk/
 ```
 
 Más detalles en `INSTALL.md`.

@@ -1350,7 +1350,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         super().__init__()
         self.setWindowTitle(f"{APP_NAME}  v{APP_VERSION}  (Qt)")
         # Icono de la app (mismo que la GUI Tk)
-        icon_png = ROOT / "assets" / "mossbauer_icon.png"
+        icon_png = ROOT / "assets" / "fitbauer_icon.png"
         if icon_png.exists():
             self.setWindowIcon(QtGui.QIcon(str(icon_png)))
         self.resize(1400, 900)
@@ -7502,7 +7502,7 @@ def _show_splash(app: QtWidgets.QApplication, duration_ms: int = 1800) -> None:
 def main() -> int:
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
     # Icono global (taskbar / dock)
-    icon_png = ROOT / "assets" / "mossbauer_icon.png"
+    icon_png = ROOT / "assets" / "fitbauer_icon.png"
     if icon_png.exists():
         app.setWindowIcon(QtGui.QIcon(str(icon_png)))
     # Estilo Fusion (Qt nativo, plano y moderno; igual en Win/Linux/macOS).

@@ -19,9 +19,12 @@ jobs:
       - name: Crear ZIP
         run: |
           TAG="${{ github.ref_name }}"
-          ZIP="Mossbauer-${TAG}.zip"
+          ZIP="Fitbauer-${TAG}.zip"
           NOTES="RELEASE_NOTES_${TAG}.md"
           zip -r "$ZIP" \
+            fitbauer.py \
+            fitbauer \
+            fitbauer.bat \
             mossbauer_fe33_gui_v2IA.py \
             mossbauer_app.py \
             mossbauer_qt.py \
@@ -32,38 +35,26 @@ jobs:
             mossbauer_updater_ui.py \
             mossbauer_distribution.py \
             mossbauer_ws5.py \
+            mossbauer_fit_cli.py \
             fold_mossbauer.py \
             fit_bhf_distribution_cli.py \
             mossbauer_bhf_pipeline.py \
-            download_and_fit_calibrations.py \
             install.py \
-            mossbauer \
-            mossbauer.bat \
-            mossbauer-qt \
-            mossbauer-qt.bat \
-            MossbauerFeFit.spec \
-            MossbauerFeFit-Qt.spec \
+            Fitbauer.spec \
+            Fitbauer-Tk.spec \
             requirements.txt \
             README.md \
             README_EN.md \
             CHANGELOG.md \
             INSTALL.md \
             INSTALL_EN.md \
-            RELEASES.md \
             BHF_DISTRIBUTION.md \
-            PROPUESTAS_SYNCMOSS.md \
-            PROPUESTAS_NORMOS.md \
-            NORMOS_comparison_improvements.md \
             core \
             layout \
             panels \
             assets \
             locales \
-            captura-pantalla-principal.png \
-            captura-ajuste-discreto.png \
-            captura-distribucion-bhf.png \
-            captura-lcurve.png \
-            captura-informe-markdown-pdf.png \
+            docs/img \
             LICENSE \
             data_sample
           echo "ZIP=$ZIP" >> "$GITHUB_ENV"
@@ -89,11 +80,11 @@ jobs:
             *alpha*|*beta*|*rc*|*pre*|*dev*) PRERELEASE_FLAG="--prerelease" ;;
           esac
           if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
-            gh release edit "${{ github.ref_name }}" --title "Mossbauer ${{ github.ref_name }}" $PRERELEASE_FLAG $NOTES_ARG
+            gh release edit "${{ github.ref_name }}" --title "Fitbauer ${{ github.ref_name }}" $PRERELEASE_FLAG $NOTES_ARG
             gh release upload "${{ github.ref_name }}" "$ZIP" sha256sums.txt --clobber
           else
             gh release create "${{ github.ref_name }}" "$ZIP" sha256sums.txt \
-              --title "Mossbauer ${{ github.ref_name }}" \
+              --title "Fitbauer ${{ github.ref_name }}" \
               $PRERELEASE_FLAG \
               $NOTES_ARG
           fi

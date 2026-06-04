@@ -1,11 +1,11 @@
-"""Constantes físicas y metadatos de la aplicación Mössbauer Fe-57."""
+"""Constantes físicas y metadatos de la aplicación Fitbauer (Mössbauer Fe-57)."""
 from __future__ import annotations
 
 import numpy as np
 
 # ── Metadatos de la aplicación ────────────────────────────────────────────────
-APP_NAME = "Mössbauer Fe-57 v2IA"
-APP_VERSION = "3.7"
+APP_NAME = "Fitbauer"
+APP_VERSION = "4.0"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 

@@ -1,5 +1,26 @@
 # Changelog
 
+## v4.0 — Fitbauer
+
+Cambio de marca y preparación para producción.
+
+### Identidad
+
+- La aplicación pasa a llamarse **Fitbauer** — *Software for Mössbauer spectrum fitting and analysis*.
+- Nuevo logo/icono (`assets/fitbauer_icon.*`, fuente vectorial `assets/fitbauer_logo.svg` generada por `assets/make_logo.py`): firma de un sextete Mössbauer con su curva de ajuste sobre insignia azul→cian.
+
+### Arranque unificado
+
+- Nuevo punto de entrada único `fitbauer.py` (y lanzadores `fitbauer` / `fitbauer.bat`): abre la interfaz Qt por defecto y cae automáticamente a la Tk si PySide6 no está disponible o falla. Opciones `--tk` / `--qt`.
+- Los ejecutables PyInstaller pasan a `Fitbauer.spec` (Qt, principal) y `Fitbauer-Tk.spec` (Tk, respaldo).
+
+### Limpieza del repositorio
+
+- `layout.json` deja de versionarse (es estado de runtime) y se añade a `.gitignore`.
+- Eliminado `download_and_fit_calibrations.py` (roto e inutilizado: importaba un módulo inexistente).
+- Retiradas notas de versión sueltas (`RELEASE_NOTES_v*.md`, `RELEASES.md`) — el historial vive en este `CHANGELOG.md` — y documentos internos de roadmap (`PROPUESTAS_*.md`, `NORMOS_comparison_improvements.md`).
+- Capturas movidas a `docs/img/`.
+
 ## v3.7 — Informe completo, ayuda jerárquica y textura interpretada
 
 Release estable. Foco en el informe Markdown/PDF y en el diálogo de Ayuda.

@@ -1,9 +1,12 @@
-# Mössbauer Fe-57 GUI
+# Fitbauer
+
+**Software for Mössbauer spectrum fitting and analysis.**
 
 Stable desktop application to load, fold, simulate and fit 57Fe Mössbauer spectra.
 
-Current stable version: **v3.6**.  
-Main Tk application: `mossbauer_fe33_gui_v2IA.py`. Qt/Plotly interface: `mossbauer_qt.py`.
+Current stable version: **v4.0**.  
+Recommended launch: `python fitbauer.py` (opens the Qt interface, falling back to Tk if PySide6 is unavailable).  
+Qt/Plotly interface: `mossbauer_qt.py`. Tk interface: `mossbauer_app.py`.
 
 Author: Jorge Sánchez Marcos  
 Department of Physical Chemistry · UAM
@@ -44,32 +47,27 @@ Included sample data:
 
 To try them, first open the `.adt` file from **File → Open...** and then load the corresponding session from **File → Load session...**.
 
-Future-comparison documents:
-
-- [`PROPUESTAS_SYNCMOSS.md`](PROPUESTAS_SYNCMOSS.md): proposed future improvements after comparison with SyncMoss.
-- [`PROPUESTAS_NORMOS.md`](PROPUESTAS_NORMOS.md): proposed compatibility and validation work against NORMOS.
-
 ## 2. Screenshots
 
 ### Main window
 
-<img src="captura-pantalla-principal.png" alt="Main window" width="900">
+<img src="docs/img/captura-pantalla-principal.png" alt="Main window" width="900">
 
 ### Discrete fit
 
-<img src="captura-ajuste-discreto.png" alt="Discrete fit" width="900">
+<img src="docs/img/captura-ajuste-discreto.png" alt="Discrete fit" width="900">
 
 ### Hyperfine-field distribution P(BHF)
 
-<img src="captura-distribucion-bhf.png" alt="P(BHF) distribution" width="900">
+<img src="docs/img/captura-distribucion-bhf.png" alt="P(BHF) distribution" width="900">
 
 ### Regularization L-curve
 
-<img src="captura-lcurve.png" alt="L-curve" width="900">
+<img src="docs/img/captura-lcurve.png" alt="L-curve" width="900">
 
 ### Markdown/PDF report
 
-<img src="captura-informe-markdown-pdf.png" alt="Markdown/PDF report" width="900">
+<img src="docs/img/captura-informe-markdown-pdf.png" alt="Markdown/PDF report" width="900">
 
 ## 3. Data, folding and velocity
 
@@ -124,14 +122,14 @@ Quick start from source:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python mossbauer_app.py     # Tk GUI (classic)
-python mossbauer_qt.py      # Qt GUI (PySide6)
+python fitbauer.py          # Qt by default, falls back to Tk
+python fitbauer.py --tk     # force the Tk GUI
 ```
 
 Both GUIs share the same computation core (`core/`): physics, fitting,
 bootstrap and profile-likelihood. Build standalone executables with PyInstaller:
 
 ```bash
-pyinstaller MossbauerFeFit.spec       # Tk  -> dist/MossbauerFeFit/
-pyinstaller MossbauerFeFit-Qt.spec    # Qt  -> dist/MossbauerFeFit-Qt/
+pyinstaller Fitbauer.spec       # Qt executable (main)    -> dist/Fitbauer/
+pyinstaller Fitbauer-Tk.spec    # Tk executable (fallback) -> dist/Fitbauer-Tk/
 ```
