@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.0.2 — Calibración de α-Fe unificada a 33.0 T
+
+- Se elimina la constante interna `32.95 T` y se unifica toda la calibración al campo hiperfino **publicado de α-Fe a temperatura ambiente: 33.0 T (330 kOe)**.
+- Afecta a la fórmula de posiciones del sextete (`fe57_sextet_positions`), a `LINE_POS_33T` (núcleo y módulo de distribución) y a la autocalibración de velocidad/campo de la interfaz Tk (la Qt ya usaba `BHF_DEFAULT_T`).
+- Consecuencia: un espectro de α-Fe ideal autocalibra ahora exactamente a 33.0 T (antes ~32.95 T). El BHF informado se desplaza ≈ 0,15 % (~0,05 T) y queda consistente con NORMOS.
+
 ## v4.0.1 — Logo en la interfaz
 
 - El logo de Fitbauer se muestra ahora dentro del programa: tarjeta de cabecera, pantalla de inicio (splash) y diálogo «Acerca de», tanto en la interfaz Qt como en la Tk.

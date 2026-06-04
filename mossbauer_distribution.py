@@ -21,8 +21,8 @@ from scipy.optimize import lsq_linear, nnls
 
 
 BHF_DEFAULT_T = 33.0
-# Posiciones usadas en el ajuste existente de la GUI/web, escaladas a 32.95 T.
-LINE_POS_33T = np.array([-10.657, -6.167, -1.677, 1.677, 6.167, 10.657], dtype=float) * 0.5 * (BHF_DEFAULT_T / 32.95)
+# Posiciones canónicas de α-Fe a 33.0 T (330 kOe, valor hiperfino publicado).
+LINE_POS_33T = np.array([-10.657, -6.167, -1.677, 1.677, 6.167, 10.657], dtype=float) * 0.5
 LINE_QUAD_PATTERN = np.array([0.5, -0.5, -0.5, -0.5, -0.5, 0.5], dtype=float)
 
 
