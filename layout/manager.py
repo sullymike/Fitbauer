@@ -6,7 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import TYPE_CHECKING
 
-from core.data_io import CONFIG_DIR
+from core.data_io import CONFIG_DIR, load_credentials, save_credentials
 from .presets import PRESETS, DEFAULT_PRESET
 
 if TYPE_CHECKING:
@@ -14,6 +14,13 @@ if TYPE_CHECKING:
 
 LAYOUT_PATH       = CONFIG_DIR / "layout.json"
 USER_PRESETS_PATH = CONFIG_DIR / "user_presets.json"
+
+# Desde v3.7+, el layout activo y los presets de usuario se guardan dentro
+# del mismo fichero externo que las credenciales web.  Se conservan las rutas
+# antiguas solo como migración/compatibilidad de lectura para no perder las
+# configuraciones existentes de usuarios que actualizan desde versiones previas.
+LAYOUT_CONFIG_KEY = "layout"
+USER_PRESETS_KEY = "user_presets"
 
 USER_PRESET_NAMES = ["Usuario 1", "Usuario 2"]
 
@@ -56,20 +63,37 @@ class LayoutManager:
     # ── Config I/O ────────────────────────────────────────────────────────────
 
     def load_config(self) -> dict:
-        if LAYOUT_PATH.exists():
-            try:
-                data = json.loads(LAYOUT_PATH.read_text(encoding="utf-8"))
-                if isinstance(data, dict) and "left" in data:
-                    return data
-            except Exception:
-                pass
+        creds = load_credentials()
+        data = creds.get(LAYOUT_CONFIG_KEY)
+        if isinstance(data, dict) and "left" in data:
+            return data
+
+        legacy = self._load_json_file(LAYOUT_PATH)
+        if isinstance(legacy, dict) and "left" in legacy:
+            self._save_external_config_value(LAYOUT_CONFIG_KEY, legacy)
+            return legacy
+
         return dict(PRESETS[DEFAULT_PRESET])
 
     def save_config(self, config: dict) -> None:
-        LAYOUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        LAYOUT_PATH.write_text(
-            json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        self._save_external_config_value(LAYOUT_CONFIG_KEY, config)
+
+    @staticmethod
+    def _load_json_file(path) -> dict:
+        if path.exists():
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    return data
+            except Exception:
+                pass
+        return {}
+
+    @staticmethod
+    def _save_external_config_value(key: str, value: dict) -> None:
+        data = load_credentials()
+        data[key] = value
+        save_credentials(data)
 
     # ── Construcción de la UI ─────────────────────────────────────────────────
 
@@ -194,22 +218,22 @@ class LayoutManager:
     # ── Presets de usuario ────────────────────────────────────────────────────
 
     def load_user_presets(self) -> dict[str, dict]:
-        if USER_PRESETS_PATH.exists():
-            try:
-                data = json.loads(USER_PRESETS_PATH.read_text(encoding="utf-8"))
-                if isinstance(data, dict):
-                    return data
-            except Exception:
-                pass
+        creds = load_credentials()
+        data = creds.get(USER_PRESETS_KEY)
+        if isinstance(data, dict):
+            return data
+
+        legacy = self._load_json_file(USER_PRESETS_PATH)
+        if legacy:
+            self._save_external_config_value(USER_PRESETS_KEY, legacy)
+            return legacy
+
         return {}
 
     def save_user_preset(self, slot: str, config: dict) -> None:
         presets = self.load_user_presets()
         presets[slot] = config
-        USER_PRESETS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        USER_PRESETS_PATH.write_text(
-            json.dumps(presets, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        self._save_external_config_value(USER_PRESETS_KEY, presets)
 
     # ── Configurador ─────────────────────────────────────────────────────────
 
