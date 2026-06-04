@@ -52,7 +52,7 @@ C_MM_S = 299_792_458_000.0    # mm/s
 G_GROUND = 0.09044 / 0.5      # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5     # mu/I, estado excitado I=3/2
 APP_NAME = "Fitbauer"
-APP_VERSION = "4.0.1"
+APP_VERSION = "4.0.2"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 LINE_PROFILE_KIND = "Lorentziana"
@@ -89,12 +89,14 @@ def save_credentials(data: dict) -> None:
 
 
 def fe57_sextet_positions(bhf_t: float = BHF_DEFAULT_T) -> np.ndarray:
-    """Posiciones de las 6 líneas del sextete Fe-57 según las constantes del
-    simulador web (≡ 10.657, 6.167, 1.677 mm/s a 32.95 T). Coincide con la
-    fórmula usada por _fit_calibration_fefoil en lab/views.py.
+    """Posiciones de las 6 líneas del sextete Fe-57.
+
+    Las constantes 10.657 / 6.167 / 1.677 mm/s son las posiciones canónicas de
+    α-Fe a temperatura ambiente, asociadas al campo hiperfino publicado de
+    33.0 T (330 kOe). Coincide con la fórmula de _fit_calibration_fefoil.
     """
     base = np.array([-10.657, -6.167, -1.677, 1.677, 6.167, 10.657]) * 0.5
-    return base * (bhf_t / 32.95)
+    return base * (bhf_t / BHF_DEFAULT_T)
 
 
 LINE_POS_33T = fe57_sextet_positions(BHF_DEFAULT_T)
@@ -2635,7 +2637,7 @@ class MossbauerFe33GUI(tk.Tk):
         spacing_ref = b1 - b0  # idéntico a b5 - b4 por simetría
 
         scale = obs_spacing / spacing_ref
-        bhf = scale * 32.95
+        bhf = scale * BHF_DEFAULT_T
         if not (25.0 <= bhf <= 60.0):
             return None
 

@@ -5,7 +5,7 @@ import numpy as np
 
 # ── Metadatos de la aplicación ────────────────────────────────────────────────
 APP_NAME = "Fitbauer"
-APP_VERSION = "4.0.1"
+APP_VERSION = "4.0.2"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 
@@ -25,7 +25,9 @@ _BASE_POSITIONS = np.array([-10.657, -6.167, -1.677, 1.677, 6.167, 10.657]) * 0.
 
 
 def fe57_sextet_positions(bhf_t: float = BHF_DEFAULT_T) -> np.ndarray:
-    return _BASE_POSITIONS * (bhf_t / 32.95)
+    # Las posiciones canónicas de α-Fe (±5.329/±3.084/±0.839 mm/s) corresponden
+    # al campo hiperfino publicado de α-Fe a temperatura ambiente: 33.0 T (330 kOe).
+    return _BASE_POSITIONS * (bhf_t / BHF_DEFAULT_T)
 
 
 LINE_POS_33T = fe57_sextet_positions(BHF_DEFAULT_T)
