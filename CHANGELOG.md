@@ -1,12 +1,11 @@
 # Changelog
 
-## v4.0.2 — Posiciones del sextete teóricas (NORMOS) y calibración a 33.0 T
+## v4.0.2 — Calibración del campo unificada a 33.0 T
 
-- **Posiciones del sextete derivadas de primeros principios.** Se sustituye la tabla fija `10.657 / 6.167 / 1.677 mm/s` por las posiciones calculadas a partir de los momentos nucleares del Fe-57 (niveles Zeeman + transiciones M1), igual que NORMOS. A 33.0 T pasan a ser **±0.840 / ±3.074 / ±5.309 mm/s** (antes ±0.839 / ±3.084 / ±5.329). La tabla anterior era ~0,4 % alta en las líneas externas y no era coherente con los propios momentos nucleares del fichero.
-- **Fuente única.** Las tres definiciones duplicadas (`core/constants.py`, GUI Tk y `mossbauer_distribution.py`) quedan unificadas y consistentes.
-- Se elimina además la constante interna `32.95 T`: toda la calibración usa el campo hiperfino publicado de α-Fe, **33.0 T (330 kOe)**, en Tk, Qt, modelo discreto y distribución.
-- Efecto práctico: el BHF y las posiciones calculadas cambian ≈ 0,4 % en las líneas externas; los valores quedan consistentes con NORMOS.
-- Limpieza menor: los momentos nucleares `G_GROUND`/`G_EXCITED`, antes definidos pero sin usar, pasan a ser la fuente de las posiciones; se elimina el parámetro muerto `max_nfev` de `profile_likelihood()` (se aceptaba pero no se usaba).
+- **Calibración unificada al patrón de velocidad de α-Fe.** Se elimina la constante interna `32.95 T` y toda la calibración (Tk, Qt, modelo discreto y distribución) usa las posiciones publicadas de α-Fe escaladas al campo de referencia **33.0 T (330 kOe)**. Un espectro de α-Fe ajusta a **33.0 T, igual que NORMOS**.
+- **Fuente única.** `mossbauer_distribution.py` toma ahora `LINE_POS_33T` de `core.constants`, eliminando una tercera copia duplicada de las posiciones.
+- Las posiciones del sextete se mantienen en el patrón publicado (`±0.839 / ±3.084 / ±5.329 mm/s` a 33 T). Se documenta explícitamente por qué **no** deben derivarse de los momentos nucleares de libro (darían el desdoblamiento ~0,4 % menor y el BHF saldría ~0,1 T demasiado alto).
+- Limpieza: se elimina el parámetro muerto `max_nfev` de `profile_likelihood()` (se aceptaba pero no se usaba).
 
 ## v4.0.1 — Logo en la interfaz
 
