@@ -1414,8 +1414,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         # Módulo cabecera (igual que en Tk): banner con nombre, subtítulo y autor.
         self.header_box = QtWidgets.QFrame()
         self.header_box.setObjectName("AppHeader")
-        hb = QtWidgets.QVBoxLayout(self.header_box)
-        hb.setContentsMargins(12, 8, 12, 8); hb.setSpacing(1)
+        hb = QtWidgets.QHBoxLayout(self.header_box)
+        hb.setContentsMargins(12, 8, 12, 8); hb.setSpacing(10)
+        self.header_logo = QtWidgets.QLabel()
+        _hpix = _logo_pixmap(54)
+        if _hpix is not None:
+            self.header_logo.setPixmap(_hpix)
+            hb.addWidget(self.header_logo, 0, QtCore.Qt.AlignVCenter)
+        _header_text = QtWidgets.QVBoxLayout(); _header_text.setSpacing(1)
         self.header_title = QtWidgets.QLabel(APP_NAME)
         self.header_title.setObjectName("AppHeaderTitle")
         self.header_title.setWordWrap(True)
@@ -1424,10 +1430,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             QtWidgets.QLabel(APP_AUTHOR),
             QtWidgets.QLabel(APP_DEPARTMENT),
         ]
-        hb.addWidget(self.header_title)
+        _header_text.addWidget(self.header_title)
         for lbl in self._header_sub_labels:
             lbl.setWordWrap(True)
-            hb.addWidget(lbl)
+            _header_text.addWidget(lbl)
+        hb.addLayout(_header_text, 1)
         lv.addWidget(self.header_box)
 
         self.file_box = QtWidgets.QGroupBox(tr("controls.file_box"))
@@ -7462,6 +7469,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         dlg = QtWidgets.QDialog(self)
         dlg.setWindowTitle(tr("help.about_title", version=APP_VERSION))
         v = QtWidgets.QVBoxLayout(dlg); v.setContentsMargins(24, 20, 24, 20)
+        _pix = _logo_pixmap(110)
+        if _pix is not None:
+            logo = QtWidgets.QLabel(); logo.setPixmap(_pix)
+            logo.setAlignment(QtCore.Qt.AlignCenter)
+            v.addWidget(logo)
         title = QtWidgets.QLabel(f"<h2>{APP_NAME}</h2>"); title.setAlignment(QtCore.Qt.AlignCenter)
         v.addWidget(title)
         v.addWidget(QtWidgets.QLabel(
@@ -7474,14 +7486,31 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         dlg.exec()
 
 
+def _logo_pixmap(size: int = 96) -> "QtGui.QPixmap | None":
+    """Devuelve el logo de Fitbauer escalado a ``size`` px, o None si falta."""
+    path = ROOT / "assets" / "fitbauer_icon.png"
+    if not path.exists():
+        return None
+    pix = QtGui.QPixmap(str(path))
+    if pix.isNull():
+        return None
+    return pix.scaled(size, size, QtCore.Qt.KeepAspectRatio,
+                      QtCore.Qt.SmoothTransformation)
+
+
 def _show_splash(app: QtWidgets.QApplication, duration_ms: int = 1800) -> None:
-    """Splash sencillo con nombre/versión; se cierra al pulsar o al expirar."""
+    """Splash sencillo con logo, nombre/versión; se cierra al pulsar o al expirar."""
     splash = QtWidgets.QDialog(None, QtCore.Qt.SplashScreen | QtCore.Qt.FramelessWindowHint)
     splash.setStyleSheet(
         "QDialog { background-color: #075985; }"
         "QLabel { color: white; }")
-    splash.setFixedSize(440, 220)
-    v = QtWidgets.QVBoxLayout(splash); v.setContentsMargins(36, 28, 36, 28)
+    splash.setFixedSize(440, 260)
+    v = QtWidgets.QVBoxLayout(splash); v.setContentsMargins(36, 24, 36, 24)
+    _pix = _logo_pixmap(96)
+    if _pix is not None:
+        logo = QtWidgets.QLabel(); logo.setPixmap(_pix)
+        logo.setAlignment(QtCore.Qt.AlignCenter)
+        v.addWidget(logo)
     title = QtWidgets.QLabel(f"<h1 style='margin:0;'>{APP_NAME}</h1>")
     title.setAlignment(QtCore.Qt.AlignCenter)
     v.addWidget(title)

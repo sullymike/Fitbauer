@@ -1324,8 +1324,22 @@ class MossbauerFe33GUI(tk.Tk):
             text = tr("help.changelog_unavailable")
         self.show_text_window(tr("help.changelog"), text)
 
-    def _create_logo(self, parent: tk.Widget, scale: float = 1.0) -> tk.Canvas:
-        """Logo vectorial: sextete Mössbauer sobre átomo/campo magnético."""
+    def _create_logo(self, parent: tk.Widget, scale: float = 1.0) -> tk.Widget:
+        """Logo de Fitbauer (imagen PNG). Si no se puede cargar, dibujo vectorial."""
+        try:
+            if APP_ICON_PNG.exists():
+                img = tk.PhotoImage(file=str(APP_ICON_PNG))
+                target = max(48, int(64 * scale))
+                factor = max(1, round(img.width() / target))
+                if factor > 1:
+                    img = img.subsample(factor, factor)
+                label = tk.Label(parent, image=img, bg="#075985", bd=0,
+                                 highlightthickness=0)
+                label.image = img  # conservar referencia para evitar GC
+                return label
+        except Exception:
+            pass
+        # Respaldo: logo vectorial (sextete Mössbauer sobre átomo/campo magnético)
         s = scale
         canvas = tk.Canvas(parent, width=int(118 * s), height=int(82 * s), bg="#075985", highlightthickness=0, bd=0)
         def xy(*vals: float) -> tuple[int, ...]:
