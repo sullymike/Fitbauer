@@ -19,10 +19,11 @@ from typing import Any
 import numpy as np
 from scipy.optimize import lsq_linear, nnls
 
+# Fuente única de las posiciones del sextete (derivadas de los momentos
+# nucleares del Fe-57, equivalentes a NORMOS): ±0.840 / ±3.074 / ±5.309 mm/s a 33 T.
+from core.constants import LINE_POS_33T
 
 BHF_DEFAULT_T = 33.0
-# Posiciones canónicas de α-Fe a 33.0 T (330 kOe, valor hiperfino publicado).
-LINE_POS_33T = np.array([-10.657, -6.167, -1.677, 1.677, 6.167, 10.657], dtype=float) * 0.5
 LINE_QUAD_PATTERN = np.array([0.5, -0.5, -0.5, -0.5, -0.5, 0.5], dtype=float)
 
 
