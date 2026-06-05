@@ -21,9 +21,10 @@ import numpy as np
 from core.fit_engine import Component, FitState, fit_discrete
 from core.folding import (
     find_best_integer_or_half_center,
-    fold_integer_or_half,
+    fold_and_normalize,
     read_normos_folding_point,
     read_ws5_counts,
+    velocity_axis,
 )
 
 # Recorte de borde del espectro doblado, idéntico a la GUI Tk modular
@@ -296,14 +297,7 @@ class HeadlessSession:
             half = 0.5 * counts.size
             center = find_best_integer_or_half_center(
                 counts, max(1.5, half - 20.0), min(counts.size - 0.5, half + 20.0))
-        folded, _pairs = fold_integer_or_half(counts, float(center))
-        n = _EDGE_TRIM
-        if n > 0 and folded.size > 2 * n + 2:
-            folded = folded[n:-n]
-        norm = float(np.percentile(folded, 90)) if folded.size else 1.0
-        norm = norm or 1.0
-        sigma = np.sqrt(np.maximum(folded / 2.0, 1.0)) / norm
-        y = folded / norm
+        folded, sigma, y, norm = fold_and_normalize(counts, center, _EDGE_TRIM)
         self.spectrum = LoadedSpectrum(
             path=path, counts=counts, center=float(center),
             folded=folded, y_data=y, sigma=sigma, norm_factor=norm)
@@ -321,14 +315,7 @@ class HeadlessSession:
         """Eje de velocidad con el mismo recorte de borde que el folding (espejo Qt)."""
         sp = self._require_spectrum()
         vmax = float(self.model.vars.get("vmax", 12.0))
-        full_n = sp.counts.size // 2
-        velocity = np.linspace(-vmax, vmax, full_n)
-        n = _EDGE_TRIM
-        if n > 0 and velocity.size > 2 * n + 2 and sp.y_data.size == velocity.size - 2 * n:
-            velocity = velocity[n:-n]
-        elif velocity.size != sp.y_data.size:
-            velocity = np.linspace(-vmax, vmax, sp.y_data.size)
-        return velocity
+        return velocity_axis(sp.counts.size, vmax, sp.y_data.size, _EDGE_TRIM)
 
     def build_fit_state(self) -> FitState:
         sp = self._require_spectrum()

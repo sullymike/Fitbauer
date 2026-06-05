@@ -107,6 +107,7 @@ from core.constants import (  # noqa: E402
 )
 from core.folding import (  # noqa: E402
     read_ws5_counts, find_best_integer_or_half_center, fold_integer_or_half,
+    fold_and_normalize, velocity_axis,
 )
 from core.fit_engine import (  # noqa: E402
     Component, FitState, FitResult, fit_discrete, model_from_values,
@@ -2784,32 +2785,19 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self._refresh_plot()
 
     def _fold_counts_for_center(self, center: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Dobla las cuentas con el mismo recorte de borde que la GUI Tk modular."""
+        """Dobla las cuentas con el mismo recorte de borde que el controlador headless."""
         if self.file.counts is None:
             raise ValueError("No hay cuentas cargadas")
-        folded, _pairs = fold_integer_or_half(self.file.counts, float(center))
-        n = int(getattr(self, "_edge_trim", 0))
-        if n > 0 and folded.size > 2 * n + 2:
-            folded = folded[n:-n]
-        norm = float(np.percentile(folded, 90)) if folded.size else 1.0
-        norm = norm or 1.0
-        sigma = np.sqrt(np.maximum(folded / 2.0, 1.0)) / norm
-        y = folded / norm
+        folded, sigma, y, _norm = fold_and_normalize(
+            self.file.counts, center, int(getattr(self, "_edge_trim", 0)))
         return folded, sigma, y
 
     def _velocity_for_folded(self, n_points: int, trim_edges: bool = True) -> np.ndarray:
         """Crea el eje de velocidad y recorta sus extremos si se recortó el folding."""
-        vmax = self.calib.vmax.value()
         if self.file.counts is None:
             return np.array([], dtype=float)
-        full_n = self.file.counts.size // 2
-        velocity = np.linspace(-vmax, vmax, full_n)
-        n = int(getattr(self, "_edge_trim", 0)) if trim_edges else 0
-        if n > 0 and velocity.size > 2 * n + 2 and n_points == velocity.size - 2 * n:
-            velocity = velocity[n:-n]
-        elif velocity.size != n_points:
-            velocity = np.linspace(-vmax, vmax, n_points)
-        return velocity
+        return velocity_axis(self.file.counts.size, self.calib.vmax.value(),
+                             n_points, int(getattr(self, "_edge_trim", 0)), trim_edges)
 
     def _refold_current_data(self, center: float) -> None:
         """Recalcula datos normalizados/sigma/eje cuando cambia el folding point."""
