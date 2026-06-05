@@ -9,7 +9,7 @@
 
 Programa de escritorio estable para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
 
-Versión estable actual: **v4.0.4**.  
+Versión estable actual: **v4.1.0**.  
 Arranque recomendado: `python fitbauer.py` (interfaz Qt).  
 Interfaz Qt/Plotly: `mossbauer_qt.py`. Ajuste por línea de comandos (headless): `mossbauer_fit_cli.py`.
 
