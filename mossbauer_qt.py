@@ -112,6 +112,7 @@ from core.fit_engine import (  # noqa: E402
     Component, FitState, FitResult, fit_discrete, model_from_values,
     bootstrap_errors, profile_likelihood,
 )
+from core.session import ModelState  # noqa: E402
 from core.physics import component_absorption  # noqa: E402
 from core.plot_styles import get_style, apply_rc  # noqa: E402
 from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data  # noqa: E402
@@ -3114,71 +3115,54 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.info_panel.set_lines(lines)
 
     # ── Construcción del FitState a partir de la UI ───────────────────────
-    def _build_state(self) -> FitState | None:
-        if self.file.velocity is None or self.file.y_data is None:
-            return None
-        values: dict[str, float] = {
+    def _model_state(self) -> ModelState:
+        """Vuelca el estado de los widgets en un ``core.session.ModelState``.
+
+        Fuente única del estado del modelo: a partir de aquí, la construcción del
+        ``FitState`` y el ``model_state`` de la sesión se delegan en el
+        controlador headless (``core.session``), sin lógica duplicada en la GUI.
+        """
+        ms = ModelState.defaults(n_components=max(1, len(self.components_panels)))
+        ms.vars.update({
             "vmax": self.calib.vmax.value(),
             "center": self.calib.center.value(),
             "baseline": self.calib.baseline.value(),
             "slope": self.calib.slope.value(),
             "voigt_sigma": self.calib.voigt_sigma.value(),
             "sat_scale": self.calib.sat_scale.value(),
-        }
-        fixed: dict[str, bool] = {k: False for k in values}
-        fixed.update({k: True for k in ("vmax", "center")})
-        fixed["baseline"] = self.calib.baseline.is_fixed()
-        fixed["slope"] = self.calib.slope.is_fixed()
-        fixed["sat_scale"] = self.calib.sat_scale.is_fixed()
-        bounds = {
-            "baseline": (0.70, 1.30), "slope": (-0.005, 0.005),
-            "vmax": (1.0, 15.0), "voigt_sigma": (0.0, 1.0),
-            "sat_scale": (0.05, 50.0),
-        }
-        param_bounds = (
-            ("delta", (-2.0, 3.0)), ("quad", (-4.0, 4.0)),
-            ("bhf", (0.0, 60.0)), ("gamma1", (0.03, 2.0)),
-            ("gamma2", (0.2, 3.0)), ("gamma3", (0.2, 3.0)),
-            ("depth", (0.0, 0.30)), ("int1", (0.0, 9.0)),
-            ("int2", (0.0, 6.0)), ("int3", (0.0, 3.0)),
-            ("texture", (0.0, 1.0)), ("beta", (0.0, 90.0)),
-        )
-        components = []
+        })
+        ms.fixed.update({
+            "vmax": True, "center": True,
+            "baseline": self.calib.baseline.is_fixed(),
+            "slope": self.calib.slope.is_fixed(),
+            "sat_scale": self.calib.sat_scale.is_fixed(),
+        })
         for cp in self.components_panels:
-            values.update(cp.values_dict())
-            fixed.update(cp.fixed_dict())
-            # Los parámetros no relevantes para el tipo/modo del componente
-            # (p. ej. 'texture' en modo libre, int3, 'beta' salvo Kundig fijo)
-            # nunca se ajustan, aunque su casilla 'fijo' esté desmarcada.
-            relevant = cp.relevant_params()
-            for name in cp.params:
-                if name not in relevant:
-                    fixed[f"s{cp.idx}_{name}"] = True
-            for name, rng in param_bounds:
-                bounds[f"s{cp.idx}_{name}"] = rng
-            components.append(Component(idx=cp.idx,
-                                        enabled=cp.enabled.isChecked(),
-                                        kind=cp.kind,
-                                        intensity_mode=cp.intensity_mode,
-                                        quad_treatment=cp.quad_treatment))
-        return FitState(
+            ms.vars.update(cp.values_dict())
+            ms.fixed.update(cp.fixed_dict())
+            ms.sextet_enabled[cp.idx] = cp.enabled.isChecked()
+            ms.component_kind[cp.idx] = cp.kind
+            ms.intensity_mode[cp.idx] = cp.intensity_mode
+            ms.quad_treatment[cp.idx] = cp.quad_treatment
+        ms.line_profile = self.calib.line_profile
+        ms.likelihood = self.likelihood
+        ms.robust_loss = self.robust_loss
+        ms.absorber_model = self.absorber_model
+        ms.propagate_calib = self.propagate_calib
+        ms.global_opt = self.global_opt
+        ms.fit_velocity = self.calib.fit_velocity.isChecked()
+        ms.fit_center = self.calib.fit_center.isChecked()
+        ms.fit_sigma = self.calib.fit_sigma.isChecked()
+        ms.constraints = list(self.constraints)
+        return ms
+
+    def _build_state(self) -> FitState | None:
+        if self.file.velocity is None or self.file.y_data is None:
+            return None
+        return self._model_state().build_fit_state(
             velocity=self.file.velocity, y_data=self.file.y_data,
-            sigma_data=self.file.sigma, values=values, fixed=fixed,
-            bounds=bounds, components=components,
-            fit_velocity=self.calib.fit_velocity.isChecked(),
-            fit_center=self.calib.fit_center.isChecked(),
-            fit_sigma=self.calib.fit_sigma.isChecked(),
-            voigt_sigma=self.calib.voigt_sigma.value(),
-            line_profile=self.calib.line_profile,
-            constraints=list(self.constraints),
-            likelihood=self.likelihood,
-            robust_loss=self.robust_loss,
-            propagate_calib=self.propagate_calib,
-            global_opt=self.global_opt,
-            absorber_model=self.absorber_model,
-            counts=self.file.counts,
-            norm_factor=self.file.norm_factor,
-        )
+            sigma_data=self.file.sigma, counts=self.file.counts,
+            norm_factor=self.file.norm_factor)
 
     # ── Acciones ─────────────────────────────────────────────────────────
     def on_open(self) -> None:
