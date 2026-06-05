@@ -4017,56 +4017,29 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
 
     # ── Save / Load session (formato compatible con la GUI Tk) ──────────
     def _session_payload(self) -> dict:
-        """Estado completo del Qt en el mismo formato que la GUI Tk."""
-        values: dict[str, float] = {
-            "vmax": self.calib.vmax.value(),
-            "center": self.calib.center.value(),
-            "baseline": self.calib.baseline.value(),
-            "slope": self.calib.slope.value(),
-            "voigt_sigma": self.calib.voigt_sigma.value(),
-            "sat_scale": self.calib.sat_scale.value(),
-        }
-        fixed: dict[str, bool] = {}
-        sextet_enabled: dict[str, bool] = {}
-        component_kind: dict[str, str] = {}
-        intensity_mode: dict[str, str] = {}
-        quad_treatment: dict[str, str] = {}
-        for cp in self.components_panels:
-            values.update(cp.values_dict())
-            fixed.update(cp.fixed_dict())
-            sextet_enabled[str(cp.idx)] = bool(cp.enabled.isChecked())
-            component_kind[str(cp.idx)] = cp.kind
-            intensity_mode[str(cp.idx)] = cp.intensity_mode
-            quad_treatment[str(cp.idx)] = cp.quad_treatment
-        model_state = {
-            "vars": values,
-            "fixed": fixed,
-            "sextet_enabled": sextet_enabled,
-            "component_kind": component_kind,
-            "intensity_mode": intensity_mode,
-            "quad_treatment": quad_treatment,
-            "n_components": (
-                self.n_components_spin.value() if hasattr(self, "n_components_spin") else 1
-            ),
-            "likelihood": self.likelihood,
-            "robust_loss": self.robust_loss,
-            "propagate_calib": self.propagate_calib,
-            "global_opt": self.global_opt,
-            "absorber_model": self.absorber_model,
-            "dist_use_sharp": self.dist_use_sharp,
-            "dist_refine_global": self.dist_refine_global,
-            "dist_shape": self.dist_panel.shape if hasattr(self, "dist_panel") else "Histograma",
-            "dist_reg_mode": self.dist_panel.reg_mode if hasattr(self, "dist_panel") else "tikhonov",
-            "fixed_distribution_path": str(self.dist_panel.fixed_path) if hasattr(self, "dist_panel") and self.dist_panel.fixed_path else None,
-            "dist_variable": "ΔEQ" if self.dist_variable == "quad" else "BHF",
-            "fit_velocity": self.calib.fit_velocity.isChecked(),
-            "fit_center": self.calib.fit_center.isChecked(),
-            "fit_sigma": self.calib.fit_sigma.isChecked(),
-            "show_residual": self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True,
-            "show_legend": self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True,
-            "line_profile": self.calib.line_profile,
-            "constraints": list(self.constraints),
-        }
+        """Estado completo del Qt en el mismo formato que la GUI Tk.
+
+        El bloque ``model_state`` común (vars/fixed/componentes/opciones de
+        ajuste) lo produce el controlador headless ``core.session`` vía
+        ``ModelState.to_model_state_dict()``; aquí solo se añaden los campos
+        propios de la vista Qt (distribución y conmutadores de gráfico).
+        """
+        model_state = self._model_state().to_model_state_dict()
+        model_state.pop("fit_mode", None)  # lo gestiona la GUI (discreto/distrib.)
+        model_state["n_components"] = (
+            self.n_components_spin.value() if hasattr(self, "n_components_spin") else 1
+        )
+        model_state["dist_use_sharp"] = self.dist_use_sharp
+        model_state["dist_refine_global"] = self.dist_refine_global
+        model_state["dist_shape"] = self.dist_panel.shape if hasattr(self, "dist_panel") else "Histograma"
+        model_state["dist_reg_mode"] = self.dist_panel.reg_mode if hasattr(self, "dist_panel") else "tikhonov"
+        model_state["fixed_distribution_path"] = (
+            str(self.dist_panel.fixed_path)
+            if hasattr(self, "dist_panel") and self.dist_panel.fixed_path else None
+        )
+        model_state["dist_variable"] = "ΔEQ" if self.dist_variable == "quad" else "BHF"
+        model_state["show_residual"] = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
+        model_state["show_legend"] = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
         return {
             "version": 1,
             "program": "mossbauer_qt.py",
