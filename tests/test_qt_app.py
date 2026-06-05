@@ -47,11 +47,43 @@ def _no_blocking_dialogs(monkeypatch):
 
 
 @pytest.fixture
-def win(app):
-    w = mq.MossbauerQtWindow()
-    yield w
-    w.close()
-    w.deleteLater()
+def make_window(app):
+    """Crea ventanas Qt y las destruye de forma segura para QtWebEngine.
+
+    Cada ``MossbauerQtWindow`` crea una ``QWebEngineView``. Si la vista/página no
+    se eliminan y se procesan ANTES de que se libere el perfil global de
+    WebEngine, PySide6 segfaultea al cerrar el proceso ("Release of profile
+    requested but WebEnginePage still not deleted"). La factoría rastrea todas
+    las ventanas creadas en el test y las limpia en orden.
+    """
+    created: list = []
+
+    def _make():
+        w = mq.MossbauerQtWindow()
+        created.append(w)
+        return w
+
+    yield _make
+
+    for w in created:
+        view = getattr(w, "plotly_view", None)
+        if view is not None:
+            try:
+                view.stop()
+            except Exception:
+                pass
+            view.setParent(None)
+            view.deleteLater()
+        w.close()
+        w.deleteLater()
+    # Procesa las eliminaciones diferidas (DeferredDelete) mientras el perfil
+    # de WebEngine sigue vivo, evitando el segfault de cierre.
+    app.processEvents()
+
+
+@pytest.fixture
+def win(make_window):
+    return make_window()
 
 
 def test_window_starts_and_menus_exist(win):
@@ -223,7 +255,7 @@ def test_mode_switch_to_pbhf_and_fit(win):
     assert 28.0 < bhf_peak < 38.0
 
 
-def test_session_save_load_roundtrip(win, tmp_path):
+def test_session_save_load_roundtrip(win, make_window, tmp_path):
     """Guardar y cargar una sesión reproduce los mismos parámetros."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
     cp = win.components_panels[0]
@@ -235,16 +267,12 @@ def test_session_save_load_roundtrip(win, tmp_path):
     p = tmp_path / "sess.json"
     p.write_text(json.dumps(payload, default=str))
 
-    win2 = mq.MossbauerQtWindow()
-    try:
-        win2._apply_session_payload(json.loads(p.read_text()))
-        cp2 = win2.components_panels[0]
-        assert abs(cp2.params["delta"].value() - 0.123) < 1e-6
-        assert abs(cp2.params["bhf"].value() - 42.0) < 1e-6
-        assert abs(cp2.params["depth"].value() - 0.025) < 1e-6
-    finally:
-        win2.close()
-        win2.deleteLater()
+    win2 = make_window()
+    win2._apply_session_payload(json.loads(p.read_text()))
+    cp2 = win2.components_panels[0]
+    assert abs(cp2.params["delta"].value() - 0.123) < 1e-6
+    assert abs(cp2.params["bhf"].value() - 42.0) < 1e-6
+    assert abs(cp2.params["depth"].value() - 0.025) < 1e-6
 
 
 def test_plot_styles_apply(win):
@@ -523,7 +551,7 @@ def test_use_as_calibration_sets_info(win):
     assert win.calibration_info["source"] == "local"
 
 
-def test_session_save_load_roundtrip_keeps_calibration(win, tmp_path):
+def test_session_save_load_roundtrip_keeps_calibration(win, make_window, tmp_path):
     """Save→Load preserva calibration_info."""
     import json
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
@@ -531,13 +559,10 @@ def test_session_save_load_roundtrip_keeps_calibration(win, tmp_path):
                              "velocity_calibrated": 12.0, "isomer_shift": -0.11}
     p = tmp_path / "s.json"
     p.write_text(json.dumps(win._session_payload(), default=str))
-    win2 = mq.MossbauerQtWindow()
-    try:
-        win2._apply_session_payload(json.loads(p.read_text()))
-        assert win2.calibration_info is not None
-        assert win2.calibration_info["calibration_sample"] == "X"
-    finally:
-        win2.close(); win2.deleteLater()
+    win2 = make_window()
+    win2._apply_session_payload(json.loads(p.read_text()))
+    assert win2.calibration_info is not None
+    assert win2.calibration_info["calibration_sample"] == "X"
 
 
 def test_apply_web_calibration_metadata_sets_info_and_vmax(win, tmp_path):
@@ -569,7 +594,12 @@ def test_apply_web_calibration_metadata_sets_info_and_vmax(win, tmp_path):
     assert win.calibration_info["calibration_file_name"] == "calibration.adt"
     assert abs(win.calib.vmax.value() - 11.966) < 1e-6
     assert win.file.velocity is not None
-    assert abs(float(max(abs(win.file.velocity))) - 11.966) < 1e-3
+    # El eje de velocidad recorta el primer y último canal (igual que la GUI Tk
+    # modular), así que su máximo queda ~un canal por debajo de vmax. Se
+    # comprueba que el eje se reconstruyó con el nuevo vmax con esa tolerancia.
+    vmax_axis = float(max(abs(win.file.velocity)))
+    channel = 2.0 * win.calib.vmax.value() / max(1, win.file.counts.size // 2 - 1)
+    assert 0.0 <= win.calib.vmax.value() - vmax_axis < 1.5 * channel
     assert any("Calibración web aplicada" in msg for msg in messages)
 
 
