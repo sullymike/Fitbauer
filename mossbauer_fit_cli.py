@@ -21,10 +21,11 @@ proceso, por ejemplo::
             --out "results/$(basename "$f" .adt).fit.json"
     done
 
-El proceso necesita un display para instanciar Tk. En servidores sin display,
-usa ``xvfb-run``::
+El proceso es completamente headless: no necesita ningún display ni Tk. Se
+apoya en ``core.session.HeadlessSession`` (la misma numérica que usan ambas
+GUIs a través de ``core.fit_engine``)::
 
-    xvfb-run -a python mossbauer_fit_cli.py --template T.json --spectrum a.adt --out a.fit.json
+    python mossbauer_fit_cli.py --template T.json --spectrum a.adt --out a.fit.json
 
 Salida: el .json escrito contiene la misma estructura que una sesión guardada
 desde la GUI (``session_payload``) más una sección ``batch_fit_result`` con
@@ -50,9 +51,6 @@ def fit_spectrum(template_path: Path, spectrum_path: Path,
     import numpy as np
     if not hasattr(np, "trapezoid"):
         np.trapezoid = np.trapz  # type: ignore[attr-defined]
-    # Silencia los messageboxes del GUI durante el ajuste.
-    import tkinter.messagebox as mb
-    mb.showinfo = mb.showwarning = mb.showerror = lambda *a, **k: None
 
     if not template_path.exists():
         raise FileNotFoundError(f"Plantilla no encontrada: {template_path}")
@@ -63,35 +61,28 @@ def fit_spectrum(template_path: Path, spectrum_path: Path,
         template = json.load(fh)
     state = template.get("model_state", template)
 
-    from mossbauer_app import MossbauerApp
-    app = MossbauerApp()
-    try:
-        app.load_ws5(spectrum_path)
-        app.apply_template_model_state(state)
-        if vmax is not None and "vmax" in app.vars:
-            app.vars["vmax"].set(float(vmax))
-            app.refold_data()
-        app._simulate_enabled = True
-        fit_result = app._run_silent_fit()
-        session = app.session_payload()
-        session["batch_fit_result"] = {
-            "spectrum": str(spectrum_path),
-            "template": str(template_path),
-            "values": fit_result["values"],
-            "errors": fit_result["errors"],
-            "stats": fit_result["stats"],
-            "free_keys": fit_result["free_keys"],
-        }
-        if output_path is not None:
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            with output_path.open("w", encoding="utf-8") as fh:
-                json.dump(session, fh, indent=2, default=str, ensure_ascii=False)
-        return session
-    finally:
-        try:
-            app.destroy()
-        except Exception:
-            pass
+    from core.session import HeadlessSession
+    session_engine = HeadlessSession()
+    session_engine.load_ws5(spectrum_path)
+    session_engine.apply_template_model_state(state)
+    # --vmax sobrescribe el de la plantilla (útil si la calibración varía).
+    if vmax is not None:
+        session_engine.set_vmax(vmax)
+    fit_result = session_engine.run_fit()
+    session = session_engine.session_payload()
+    session["batch_fit_result"] = {
+        "spectrum": str(spectrum_path),
+        "template": str(template_path),
+        "values": fit_result["values"],
+        "errors": fit_result["errors"],
+        "stats": fit_result["stats"],
+        "free_keys": fit_result["free_keys"],
+    }
+    if output_path is not None:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("w", encoding="utf-8") as fh:
+            json.dump(session, fh, indent=2, default=str, ensure_ascii=False)
+    return session
 
 
 def _build_parser() -> argparse.ArgumentParser:

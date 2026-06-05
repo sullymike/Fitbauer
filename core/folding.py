@@ -190,3 +190,49 @@ def find_best_integer_or_half_center(counts: np.ndarray, cmin: float = 250.5, cm
             if xm <= xv <= xp:
                 return float(xv)
     return values[best_i][0]
+
+
+# ── Doblado + normalización + eje de velocidad (compartido GUI/headless) ──────
+# Fuente única usada por la GUI Qt y por core.session (controlador headless),
+# para que ambos doblen, normalicen y construyan el eje exactamente igual.
+
+EDGE_TRIM_DEFAULT = 1
+
+
+def fold_and_normalize(counts: np.ndarray, center: float,
+                       edge_trim: int = EDGE_TRIM_DEFAULT
+                       ) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
+    """Dobla, recorta los bordes y normaliza el espectro.
+
+    Devuelve ``(folded, sigma, y, norm)`` con la línea base normalizada a ~1 y
+    ``sigma`` el ruido Poisson normalizado. ``edge_trim`` recorta el primer y
+    último canal del espectro doblado (canales de borde menos fiables).
+    """
+    folded, _pairs = fold_integer_or_half(counts, float(center))
+    n = int(edge_trim)
+    if n > 0 and folded.size > 2 * n + 2:
+        folded = folded[n:-n]
+    norm = float(np.percentile(folded, 90)) if folded.size else 1.0
+    norm = norm or 1.0
+    sigma = np.sqrt(np.maximum(folded / 2.0, 1.0)) / norm
+    y = folded / norm
+    return folded, sigma, y, norm
+
+
+def velocity_axis(counts_size: int, vmax: float, n_points: int,
+                  edge_trim: int = EDGE_TRIM_DEFAULT,
+                  trim_edges: bool = True) -> np.ndarray:
+    """Construye el eje de velocidad ``-vmax..vmax`` recortando bordes igual que el folding.
+
+    Se crea el eje completo ``linspace(-vmax, vmax, counts_size // 2)`` y se
+    recortan las mismas posiciones ``[edge_trim:-edge_trim]`` que en los datos,
+    de modo que no se estira la escala (lo que sesgaría el BHF).
+    """
+    full_n = int(counts_size) // 2
+    velocity = np.linspace(-float(vmax), float(vmax), full_n)
+    n = int(edge_trim) if trim_edges else 0
+    if n > 0 and velocity.size > 2 * n + 2 and n_points == velocity.size - 2 * n:
+        velocity = velocity[n:-n]
+    elif velocity.size != n_points:
+        velocity = np.linspace(-float(vmax), float(vmax), n_points)
+    return velocity

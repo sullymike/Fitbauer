@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Ejecutable de la GUI Qt (PySide6). Equivalente al de Tk (Fitbauer-Tk.spec)
-# pero con entrada mossbauer_qt.py. Construir con:  pyinstaller Fitbauer.spec
+# Ejecutable de la GUI Qt (PySide6), entrada mossbauer_qt.py.
+# Construir con:  pyinstaller Fitbauer.spec
 
 
 a = Analysis(
@@ -11,14 +11,13 @@ a = Analysis(
     hiddenimports=[
         'core', 'core.constants', 'core.physics', 'core.data_io',
         'core.folding', 'core.fit_engine', 'core.plot_styles', 'core.batch_fit',
+        'core.session', 'layout.presets',
         'mossbauer_i18n', 'mossbauer_help', 'mossbauer_distribution',
-        'mossbauer_updater', 'mossbauer_updater_ui',
+        'mossbauer_updater',
         # Plotly se importa de forma diferida al abrir/exportar el gráfico HTML.
         'plotly', 'plotly.graph_objects', 'plotly.subplots',
         # Visor HTML Plotly embebido en la propia aplicación Qt.
         'PySide6.QtWebEngineWidgets', 'PySide6.QtWebEngineCore',
-        # Importado de forma diferida por la GUI Qt (CHANGELOG_PATH).
-        'mossbauer_fe33_gui_v2IA',
     ],
     hookspath=[],
     hooksconfig={},

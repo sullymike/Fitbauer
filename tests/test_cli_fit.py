@@ -1,45 +1,45 @@
-"""Tests del CLI de ajuste por fichero (mossbauer_fit_cli.py)."""
+"""Tests del CLI de ajuste por fichero (mossbauer_fit_cli.py).
+
+El CLI es completamente headless (core.session.HeadlessSession); no requiere Tk.
+"""
 from __future__ import annotations
 
 import json
 import sys
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-try:
-    import tkinter as tk
-    import mossbauer_fe33_gui_v2IA  # noqa: F401
-    from mossbauer_app import MossbauerApp
-    from mossbauer_fit_cli import fit_spectrum, main
-except Exception as exc:  # pragma: no cover
-    pytest.skip(f"GUI/Tk no disponible: {exc}", allow_module_level=True)
-
-import tkinter.messagebox as mb  # noqa: E402
+from mossbauer_fit_cli import fit_spectrum, main  # noqa: E402
 
 DATA = ROOT / "data_sample"
 
 
 def _make_alpha_fe_template(tmp_path: Path) -> Path:
-    """Crea una sesión .json con parámetros iniciales razonables para α-Fe."""
-    mb.showinfo = mb.showwarning = mb.showerror = lambda *a, **k: None
-    tk.Menu.tk_popup = lambda self, *a, **k: None
-    app = MossbauerApp()
-    try:
-        app.load_ws5(DATA / "hierro_metalico_alphaFe.adt")
-        app.vars["s1_delta"].set(-0.1)
-        app.vars["s1_quad"].set(0.0)
-        app.vars["s1_bhf"].set(33.0)
-        app.vars["s1_gamma1"].set(0.14)
-        app.vars["s1_depth"].set(0.013)
-        for k in ("s1_int1", "s1_int2", "s1_int3", "s1_gamma2", "s1_gamma3", "s1_quad"):
-            app.fixed_vars[k].set(True)
-        template = app.session_payload()
-    finally:
-        app.destroy()
+    """Escribe una plantilla .json con parámetros iniciales razonables para α-Fe."""
+    template = {
+        "model_state": {
+            "vars": {
+                "vmax": 12.007, "voigt_sigma": 0.05,
+                "baseline": 1.0, "slope": 0.0,
+                "s1_delta": -0.1, "s1_quad": 0.0, "s1_bhf": 33.0,
+                "s1_gamma1": 0.14, "s1_gamma2": 1.0, "s1_gamma3": 1.0,
+                "s1_depth": 0.013, "s1_int1": 3.0, "s1_int2": 2.0, "s1_int3": 1.0,
+            },
+            "fixed": {
+                "s1_int1": True, "s1_int2": True, "s1_int3": True,
+                "s1_gamma2": True, "s1_gamma3": True, "s1_quad": True,
+            },
+            "sextet_enabled": {"1": True, "2": False, "3": False},
+            "component_kind": {"1": "Sextete", "2": "Sextete", "3": "Sextete"},
+            "intensity_mode": {"1": "free"},
+            "quad_treatment": {"1": "1st_order"},
+            "fit_velocity": False, "fit_center": False,
+            "line_profile": "Lorentziana", "likelihood": "gauss",
+            "robust_loss": "linear", "constraints": [],
+        }
+    }
     path = tmp_path / "alpha_fe_template.json"
     with path.open("w", encoding="utf-8") as fh:
         json.dump(template, fh, ensure_ascii=False)

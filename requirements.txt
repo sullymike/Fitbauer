@@ -2,6 +2,5 @@ numpy>=2.0
 scipy
 matplotlib
 requests
-sv_ttk
 PySide6>=6.5
 plotly

@@ -10,8 +10,8 @@
 Stable desktop application to load, fold, simulate and fit 57Fe Mössbauer spectra.
 
 Current stable version: **v4.0.4**.  
-Recommended launch: `python fitbauer.py` (opens the Qt interface, falling back to Tk if PySide6 is unavailable).  
-Qt/Plotly interface: `mossbauer_qt.py`. Tk interface: `mossbauer_app.py`.
+Recommended launch: `python fitbauer.py` (Qt interface).  
+Qt/Plotly interface: `mossbauer_qt.py`. Headless command-line fitting: `mossbauer_fit_cli.py`.
 
 Author: Jorge Sánchez Marcos  
 Department of Physical Chemistry · UAM
@@ -127,14 +127,14 @@ Quick start from source:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python fitbauer.py          # Qt by default, falls back to Tk
-python fitbauer.py --tk     # force the Tk GUI
+python fitbauer.py          # Qt interface
 ```
 
-Both GUIs share the same computation core (`core/`): physics, fitting,
-bootstrap and profile-likelihood. Build standalone executables with PyInstaller:
+The Qt interface and the headless fitting layer (`core/session.py`, used by
+`mossbauer_fit_cli.py`) share the same computation core (`core/`): physics,
+fitting, bootstrap and profile-likelihood. Build a standalone executable with
+PyInstaller:
 
 ```bash
-pyinstaller Fitbauer.spec       # Qt executable (main)    -> dist/Fitbauer/
-pyinstaller Fitbauer-Tk.spec    # Tk executable (fallback) -> dist/Fitbauer-Tk/
+pyinstaller Fitbauer.spec       # Qt executable -> dist/Fitbauer/
 ```
