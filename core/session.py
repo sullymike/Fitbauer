@@ -26,76 +26,24 @@ from core.folding import (
     read_ws5_counts,
     velocity_axis,
 )
+from core.params import (
+    ACTIVE_PARAM_ORDER as _ACTIVE_PARAM_ORDER,
+    COMPONENT_FIT_BOUNDS as _PARAM_BOUNDS,
+    GLOBAL_FIT_BOUNDS as _GLOBAL_BOUNDS,
+    PARAM_ORDER as _PARAM_ORDER,
+    BHF_DEFAULT_T,
+    component_defaults as _component_defaults,
+    relevant_params as _relevant_params,
+)
 
 # Recorte de borde del espectro doblado, idéntico a la GUI Tk modular
 # (``MossbauerApp._N_EDGE_TRIM``) y a Qt (``_edge_trim``).
 _EDGE_TRIM = 1
 MAX_COMPONENTS_DEFAULT = 3
-BHF_DEFAULT_T = 33.0
-
-# Orden canónico de parámetros de componente (incluye los ocultos int3/texture/beta).
-_PARAM_ORDER = (
-    "delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
-    "depth", "int1", "int2", "int3", "texture", "beta",
-)
-# Parámetros "clásicos" que el ajuste por lotes reporta por componente activo.
-_ACTIVE_PARAM_ORDER = (
-    "delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
-    "depth", "int1", "int2", "int3",
-)
-
-# Conjunto de parámetros realmente usados por cada tipo de componente
-# (idéntico a ``ComponentPanel._USED_BY`` en mossbauer_qt.py).
-_USED_BY = {
-    "Sextete": {"delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
-                "depth", "int1", "int2", "texture", "beta"},
-    "Doblete": {"delta", "quad", "gamma1", "gamma2", "depth", "int1", "int2"},
-    "Singlete": {"delta", "gamma1", "depth", "int1"},
-}
-
-# Límites idénticos a ``_build_state`` de Qt.
-_GLOBAL_BOUNDS = {
-    "baseline": (0.70, 1.30), "slope": (-0.005, 0.005),
-    "vmax": (1.0, 15.0), "voigt_sigma": (0.0, 1.0),
-    "sat_scale": (0.05, 50.0),
-}
-_PARAM_BOUNDS = {
-    "delta": (-2.0, 3.0), "quad": (-4.0, 4.0), "bhf": (0.0, 60.0),
-    "gamma1": (0.03, 2.0), "gamma2": (0.2, 3.0), "gamma3": (0.2, 3.0),
-    "depth": (0.0, 0.30), "int1": (0.0, 9.0), "int2": (0.0, 6.0),
-    "int3": (0.0, 3.0), "texture": (0.0, 1.0), "beta": (0.0, 90.0),
-}
 
 _KINDS = {"Sextete", "Doblete", "Singlete"}
 _INTENSITY_MODES = {"free", "texture"}
 _QUAD_TREATMENTS = {"1st_order", "kundig_fixed", "kundig_powder"}
-
-
-def _component_defaults(idx: int) -> dict[str, float]:
-    return {
-        "delta": 0.0, "quad": 0.0, "bhf": BHF_DEFAULT_T,
-        "gamma1": 0.15, "gamma2": 1.0, "gamma3": 1.0,
-        "depth": 0.020 if idx == 1 else 0.005,
-        "int1": 3.0, "int2": 2.0, "texture": 2.0 / 3.0,
-        "beta": 0.0, "int3": 1.0,
-    }
-
-
-def _relevant_params(kind: str, intensity_mode: str, quad_treatment: str) -> set[str]:
-    """Parámetros realmente ajustables según tipo/modo (espejo de Qt.relevant_params)."""
-    used = set(_USED_BY.get(kind, set()))
-    if kind == "Sextete":
-        if intensity_mode == "texture":
-            used.discard("int1")
-            used.discard("int2")
-        else:
-            used.discard("texture")
-        if quad_treatment != "kundig_fixed":
-            used.discard("beta")
-    else:
-        used.discard("texture")
-        used.discard("beta")
-    return used
 
 
 @dataclass

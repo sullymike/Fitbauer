@@ -114,6 +114,10 @@ from core.fit_engine import (  # noqa: E402
     bootstrap_errors, profile_likelihood,
 )
 from core.session import ModelState  # noqa: E402
+from core.params import (  # noqa: E402
+    COMPONENT_PARAM_LAYOUT, COMPONENT_PARAM_SPECS, USED_BY,
+    component_default_value, relevant_params as _relevant_params,
+)
 from core.physics import component_absorption  # noqa: E402
 from core.plot_styles import get_style, apply_rc  # noqa: E402
 from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data  # noqa: E402
@@ -379,12 +383,8 @@ class ComponentPanel(QtWidgets.QWidget):
     # Qué parámetros usa cada tipo (los demás se agrisan).
     # 'int3' es la intensidad de referencia (=1, oculta y siempre fija, igual
     # que en Tk): no se incluye aquí para que nunca se libere ni se ajuste.
-    _USED_BY = {
-        "Sextete":  {"delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
-                     "depth", "int1", "int2", "texture", "beta"},
-        "Doblete":  {"delta", "quad", "gamma1", "gamma2", "depth", "int1", "int2"},
-        "Singlete": {"delta", "gamma1", "depth", "int1"},
-    }
+    # Conjuntos por tipo: fuente única en core.params (compartida con core.session).
+    _USED_BY = USED_BY
 
     def __init__(self, idx: int, parent=None):
         super().__init__(parent)
@@ -405,27 +405,20 @@ class ComponentPanel(QtWidgets.QWidget):
         row.addWidget(self.type_combo)
         v.addLayout(row)
 
-        # Orden del GUI Tk clásico, repartido en dos columnas:
-        # δ · ΔEQ · BHF · Γ1-Γ3 | profundidad · intensidades · textura · β.
-        left_specs = [
-            ("delta",  tr("slider.s_delta"),  0.00, -2.0, 3.0, 0.001, 4),
-            ("quad",   tr("slider.s_quad"),   0.00, -4.0, 4.0, 0.001, 4),
-            ("bhf",    tr("slider.s_bhf"),    BHF_DEFAULT_T, 0.0, 60.0, 0.01, 3),
-            ("gamma1", tr("slider.s_gamma1"), 0.15, 0.03, 2.0, 0.001, 4),
-            ("gamma2", tr("slider.s_gamma2"), 1.00, 0.2, 3.0, 0.001, 4),
-            ("gamma3", tr("slider.s_gamma3"), 1.00, 0.2, 3.0, 0.001, 4),
-        ]
-        depth_default = 0.020 if idx == 1 else 0.005
-        right_specs = [
-            ("depth",   tr("slider.s_depth"),   depth_default, 0.0, 0.07, 0.0001, 5),
-            ("int1",    tr("slider.s_int1"),    3.0, 0.0, 6.0, 0.01, 3),
-            ("int2",    tr("slider.s_int2"),    2.0, 0.0, 4.0, 0.01, 3),
-            ("texture", tr("slider.s_texture"), 2.0 / 3.0, 0.0, 1.0, 0.001, 4),
-            ("beta",    tr("slider.s_beta"),    0.0, 0.0, 90.0, 0.1, 2),
-        ]
-        hidden_specs = [
-            ("int3", tr("slider.s_int3"), 1.0, 1.0, 1.0, 0.0, 3),
-        ]
+        # Orden y rangos de los controles: fuente única en core.params
+        # (δ · ΔEQ · BHF · Γ1-Γ3 | profundidad · intensidades · textura · β).
+        def _spec_rows(names):
+            rows = []
+            for name in names:
+                s = COMPONENT_PARAM_SPECS[name]
+                rows.append((name, tr(f"slider.s_{name}"),
+                             component_default_value(name, idx),
+                             s.lo, s.hi, s.step, s.decimals))
+            return rows
+
+        left_specs = _spec_rows(COMPONENT_PARAM_LAYOUT["left"])
+        right_specs = _spec_rows(COMPONENT_PARAM_LAYOUT["right"])
+        hidden_specs = _spec_rows(COMPONENT_PARAM_LAYOUT["hidden"])
         self.params: dict[str, ParamControl] = {}
         params_grid = QtWidgets.QGridLayout()
         params_grid.setContentsMargins(0, 0, 0, 0)
@@ -547,24 +540,8 @@ class ComponentPanel(QtWidgets.QWidget):
         return self.type_combo.currentText()
 
     def relevant_params(self) -> set[str]:
-        """Parámetros realmente usados por el tipo y modo actuales.
-
-        Los no incluidos (p. ej. 'texture' en modo libre, 'beta' salvo Kundig
-        fijo, int1/int2 en modo textura, int3 siempre) no deben ajustarse.
-        """
-        used = set(self._USED_BY.get(self.kind, set()))
-        if self.kind == "Sextete":
-            if self.intensity_mode == "texture":
-                used.discard("int1")
-                used.discard("int2")
-            else:
-                used.discard("texture")
-            if self.quad_treatment != "kundig_fixed":
-                used.discard("beta")
-        else:
-            used.discard("texture")
-            used.discard("beta")
-        return used
+        """Parámetros realmente usados por el tipo y modo actuales (core.params)."""
+        return _relevant_params(self.kind, self.intensity_mode, self.quad_treatment)
 
     def _on_type_changed(self, kind: str) -> None:
         used = self.relevant_params()
