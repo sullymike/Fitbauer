@@ -9,14 +9,16 @@
 
 Programa de escritorio estable para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
 
-Versión estable actual: **v4.1.0**.  
+Versión estable actual: **v4.5**.  
 Arranque recomendado: `python fitbauer.py` (interfaz Qt).  
-Interfaz Qt/Plotly: `mossbauer_qt.py`. Ajuste por línea de comandos (headless): `mossbauer_fit_cli.py`.
+Interfaz Qt/Plotly: `mossbauer_qt.py` como punto de entrada fino, con implementación modular en `gui/`. Ajuste por línea de comandos (headless): `mossbauer_fit_cli.py`.
 
 Autor: Jorge Sánchez Marcos  
 Departamento de Química Física · UAM
 
 English version: [`README_EN.md`](README_EN.md) · Installation in English: [`INSTALL_EN.md`](INSTALL_EN.md)
+
+Documentación adicional: [`docs/user-flows.md`](docs/user-flows.md) para recorridos de usuario y [`docs/architecture.md`](docs/architecture.md) para la arquitectura interna.
 
 ## 1. Objetivo
 
@@ -47,6 +49,16 @@ Datos de ejemplo incluidos:
 - `data_sample/Fe3O4_session.json`: sesión asociada a la muestra Fe₃O₄.
 
 Para probarlos, abre primero el `.adt` desde **Archivo → Cargar...** y después carga la sesión correspondiente desde **Archivo → Cargar sesión...**.
+
+### Flujo rápido de trabajo
+
+```text
+Cargar espectro → revisar folding/Vmax → elegir modelo → ajustar → revisar residuos/áreas → exportar sesión/informe
+```
+
+- Para ajuste discreto, configura singletes/dobletes/sextetes y pulsa **Ajuste**.
+- Para distribución, cambia a `P(BHF)` o `P(ΔEQ)`, define rango/bins/α y usa **L-curve α** si necesitas estimar la regularización.
+- Antes de ajustar, Fitbauer valida parámetros y rangos para evitar ejecuciones con estados incoherentes.
 
 
 ## 2. Capturas del programa
