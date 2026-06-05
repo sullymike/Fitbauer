@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.1.0 — Subespectros en modo distribución (Qt)
+
+- En el modo **distribución P(BHF)/P(ΔEQ) con componentes nítidos**, la interfaz Qt dibuja ahora **todos los subespectros**: cada componente nítido (sextete/doblete/singlete) por separado y la envolvente de la distribución, además del modelo total. Antes solo se dibujaba el modelo total (la Tk ya lo hacía).
+- Los subespectros se reconstruyen con el mismo kernel del ajuste (`build_sharp_kernel`), de modo que coinciden exactamente con lo ajustado. También aparecen en el gráfico interactivo Plotly.
+
 ## v4.0.3 — Corrige el BHF de calibración (regresión de v4.0.2)
 
 - La **v4.0.2** publicada derivaba las posiciones del sextete de los momentos nucleares de libro, lo que daba un desdoblamiento ~0,4 % menor (línea externa 5.309 vs 5.328 mm/s a 33 T) y **sesgaba el BHF ~0,1 T hacia arriba** (un α-Fe leía 33.12 T en vez de 33.0).

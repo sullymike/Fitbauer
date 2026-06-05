@@ -5,7 +5,7 @@ import numpy as np
 
 # ── Metadatos de la aplicación ────────────────────────────────────────────────
 APP_NAME = "Fitbauer"
-APP_VERSION = "4.0.3"
+APP_VERSION = "4.1.0"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 

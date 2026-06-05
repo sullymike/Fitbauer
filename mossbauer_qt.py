@@ -120,6 +120,7 @@ from mossbauer_distribution import (  # noqa: E402
     fit_gaussian_hyperfine_distribution,
     fit_binomial_hyperfine_distribution,
     fit_fixed_hyperfine_distribution,
+    build_sharp_kernel,
 )
 from mossbauer_updater import (  # noqa: E402
     ReleaseInfo, choose_download, download_file, find_release_checksum,
@@ -782,11 +783,20 @@ class SpectrumCanvas(FigureCanvas):
         if components:
             palette = s.get("components_palette") or ("#10b981", "#f59e0b", "#8b5cf6")
             for idx, kind, comp in components:
+                if idx > 0:
+                    comp_color = palette[(idx - 1) % len(palette)]
+                    comp_label = f"{tr(f'kind.{kind}', default=kind)} {idx}"
+                    comp_lw = s.get("component_lw", 1.4)
+                else:
+                    # Envolvente de la distribución (idx<=0): color/estilo propios.
+                    comp_color = s.get("dist_line", s.get("model", "#ef4444"))
+                    comp_label = tr(f"kind.{kind}", default=kind)
+                    comp_lw = s.get("component_lw", 1.4) + 0.3
                 ln, = self.ax.plot(mv, comp, "--",
-                                   color=palette[(idx - 1) % len(palette)],
-                                   lw=s.get("component_lw", 1.4),
+                                   color=comp_color,
+                                   lw=comp_lw,
                                    alpha=s.get("component_alpha", 0.85),
-                                   label=f"{tr(f'kind.{kind}', default=kind)} {idx}")
+                                   label=comp_label)
                 comp_lines.append(ln)
         model_line = None
         res_line = None
@@ -3353,12 +3363,20 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         )
         palette = style.get("components_palette") or ("#10b981", "#f59e0b", "#8b5cf6")
         for idx, kind, comp in components:
-            param_txt = self._plotly_component_param_text(idx)
+            if idx > 0:
+                comp_name = f"{tr(f'kind.{kind}', default=kind)} {idx}"
+                comp_color = palette[(idx - 1) % len(palette)]
+                param_txt = self._plotly_component_param_text(idx)
+            else:
+                # Envolvente de la distribución (idx<=0).
+                comp_name = tr(f"kind.{kind}", default=kind)
+                comp_color = style.get("dist_line", style.get("model", "#ef4444"))
+                param_txt = comp_name
             fig.add_trace(
                 go.Scattergl(
                     x=mv, y=comp, mode="lines",
-                    name=f"{tr(f'kind.{kind}', default=kind)} {idx}",
-                    line=dict(color=palette[(idx - 1) % len(palette)], width=1.5, dash="dash"),
+                    name=comp_name,
+                    line=dict(color=comp_color, width=1.5, dash="dash"),
                     hovertemplate=(
                         f"{html.escape(param_txt)}<br>"
                         "v=%{x:.5g}<br>y=%{y:.6g}<extra></extra>"
@@ -5458,6 +5476,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             return delta_value, gamma_value, local_sharp
 
         fitted_x = None
+        sharp_used = sharp_components
         try:
             if outer_specs:
                 update_progress(tr("progress.distribution_refine",
@@ -5470,6 +5489,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 opt = least_squares(residual_outer, x0, bounds=(lo, hi), max_nfev=60)
                 fitted_x = opt.x
                 delta_final, gamma_final, sharp_final = expand(fitted_x)
+                sharp_used = sharp_final
                 update_progress(tr("progress.distribution_compute_final",
                                    default="Calculando distribución final…"))
                 result = run_fit(delta_final, gamma_final, sharp_final)
@@ -5506,8 +5526,38 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         style = get_style(self.plot_style_name)
         show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
         show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
+
+        # Subespectros para el gráfico: cada componente nítido por separado más la
+        # envolvente de la distribución (modelo total menos los nítidos). Se
+        # reconstruyen con el mismo kernel del ajuste para que coincidan exactamente.
+        components_plot: list[tuple[int, str, np.ndarray]] = []
+        try:
+            v_plot = np.asarray(self.file.velocity, dtype=float)
+            baseline_line = float(result.baseline) + float(result.slope) * v_plot
+            sharp_abs_sum = np.zeros_like(v_plot)
+            if (self.dist_use_sharp and result.sharp_weights is not None
+                    and len(result.sharp_weights) and sharp_indices and sharp_used):
+                K_sharp, _centers = build_sharp_kernel(
+                    v_plot, sharp_used,
+                    default_delta=base_delta, default_gamma=base_gamma,
+                    default_quad=(0.0 if var == "quad" else float(d.quad.value())),
+                )
+                if K_sharp is not None:
+                    for col, (idx, weight) in enumerate(zip(sharp_indices, result.sharp_weights)):
+                        comp_abs = K_sharp[:, col] * float(weight)
+                        sharp_abs_sum = sharp_abs_sum + comp_abs
+                        kind = self.components_panels[idx - 1].kind
+                        components_plot.append((int(idx), str(kind), baseline_line - comp_abs))
+            if np.any(sharp_abs_sum > 0):
+                # idx<=0 marca la envolvente de la distribución (estilo propio).
+                dist_curve = np.asarray(result.fitted_curve, dtype=float) + sharp_abs_sum
+                components_plot.append((0, label, dist_curve))
+        except Exception:
+            components_plot = []
+
         self.canvas.render(self.file.velocity, self.file.y_data,
-                           model=result.fitted_curve, style=style,
+                           model=result.fitted_curve,
+                           components=components_plot or None, style=style,
                            show_residual=show_res, show_legend=show_leg,
                            style_name=self.plot_style_name)
         self.last_distribution_result = result
