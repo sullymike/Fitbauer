@@ -9,7 +9,7 @@
 
 Stable desktop application to load, fold, simulate and fit 57Fe Mössbauer spectra.
 
-Current stable version: **v4.0.4**.  
+Current stable version: **v4.1.0**.  
 Recommended launch: `python fitbauer.py` (Qt interface).  
 Qt/Plotly interface: `mossbauer_qt.py`. Headless command-line fitting: `mossbauer_fit_cli.py`.
 
