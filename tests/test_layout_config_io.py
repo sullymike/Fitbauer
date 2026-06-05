@@ -1,8 +1,14 @@
 import json
 
+import pytest
+
 import core.data_io as data_io
-import layout.manager as layout_manager
-from layout.manager import LayoutManager
+
+try:
+    import layout.manager as layout_manager
+    from layout.manager import LayoutManager
+except Exception as exc:  # pragma: no cover - layout es Tk-only
+    pytest.skip(f"layout (Tk) no disponible: {exc}", allow_module_level=True)
 
 
 def _manager_without_tk() -> LayoutManager:

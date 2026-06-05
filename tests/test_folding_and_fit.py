@@ -1,7 +1,7 @@
 """Integración: folding de ADT + recuperación de parámetros por ajuste.
 
-Importa el módulo GUI (que carga Tk/matplotlib). Si no hay Tk/display
-disponible, el módulo entero se omite en vez de fallar.
+Usa exclusivamente ``core`` (folding + physics); no depende de ninguna GUI ni
+de Tk.
 """
 from __future__ import annotations
 
@@ -9,17 +9,17 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import pytest
 from scipy.optimize import curve_fit
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-try:
-    import mossbauer_fe33_gui_v2IA as gui
-except Exception as exc:  # pragma: no cover - depende del entorno
-    pytest.skip(f"El módulo GUI requiere Tk/display: {exc}",
-                allow_module_level=True)
+import core.physics as physics  # noqa: E402
+from core.folding import (  # noqa: E402
+    find_best_integer_or_half_center,
+    fold_integer_or_half,
+    read_ws5_counts,
+)
 
 DATA = ROOT / "data_sample"
 VMAX = 12.007
@@ -27,16 +27,16 @@ ISO_REF = -0.1092
 
 
 def _load_folded(name: str):
-    counts = gui.read_ws5_counts(DATA / name)
-    center = gui.find_best_integer_or_half_center(counts)
-    folded, _pairs = gui.fold_integer_or_half(counts, center)
+    counts = read_ws5_counts(DATA / name)
+    center = find_best_integer_or_half_center(counts)
+    folded, _pairs = fold_integer_or_half(counts, center)
     v = np.linspace(-VMAX, VMAX, folded.size)
     y = folded / np.percentile(folded, 90)
     return v, y, center, counts
 
 
 def test_adt_has_512_channels():
-    counts = gui.read_ws5_counts(DATA / "hierro_metalico_alphaFe.adt")
+    counts = read_ws5_counts(DATA / "hierro_metalico_alphaFe.adt")
     assert counts.size == 512
 
 
@@ -48,10 +48,10 @@ def test_folding_center_near_256_5():
 
 def test_fit_alpha_fe_recovers_bhf_and_corrected_iso():
     v, y, _c, _ = _load_folded("hierro_metalico_alphaFe.adt")
-    gui.LINE_PROFILE_KIND = "Lorentziana"
+    physics.LINE_PROFILE_KIND = "Lorentziana"
 
     def model(v, base, delta, bhf, gamma, depth):
-        return base - gui.sextet_absorption(
+        return base - physics.sextet_absorption(
             v, delta, 0.0, bhf, gamma, 1.0, 1.0, depth, 3.0, 2.0, 1.0)
 
     p0 = [1.0, -0.1, 33.0, 0.15, 0.013]
@@ -64,10 +64,10 @@ def test_fit_alpha_fe_recovers_bhf_and_corrected_iso():
 
 def test_fit_hematite_allows_high_bhf_and_negative_quad():
     v, y, _c, _ = _load_folded("hematita_Fe2O3.adt")
-    gui.LINE_PROFILE_KIND = "Lorentziana"
+    physics.LINE_PROFILE_KIND = "Lorentziana"
 
     def model(v, base, delta, quad, bhf, gamma, depth):
-        return base - gui.sextet_absorption(
+        return base - physics.sextet_absorption(
             v, delta, quad, bhf, gamma, 1.0, 1.0, depth, 3.0, 2.0, 1.0)
 
     p0 = [1.0, 0.26, -0.2, 50.0, 0.16, 0.012]
@@ -83,11 +83,11 @@ def test_fit_hematite_allows_high_bhf_and_negative_quad():
 def test_voigt_sigma_fit_drives_sigma_small_on_lorentzian_data():
     # Datos sintéticos lorentzianos puros → el σ gaussiano debe quedar pequeño.
     v, y, _c, _ = _load_folded("hematita_Fe2O3.adt")
-    gui.LINE_PROFILE_KIND = "Voigt"
+    physics.LINE_PROFILE_KIND = "Voigt"
 
     def model(v, base, delta, quad, bhf, gamma, depth, sigma):
-        gui.VOIGT_SIGMA = max(sigma, 1e-9)
-        return base - gui.sextet_absorption(
+        physics.VOIGT_SIGMA = max(sigma, 1e-9)
+        return base - physics.sextet_absorption(
             v, delta, quad, bhf, gamma, 1.0, 1.0, depth, 3.0, 2.0, 1.0)
 
     p0 = [1.0, 0.26, -0.2, 51.0, 0.12, 0.012, 0.10]
@@ -96,4 +96,4 @@ def test_voigt_sigma_fit_drives_sigma_small_on_lorentzian_data():
     popt, _ = curve_fit(model, v, y, p0=p0, bounds=bounds, maxfev=20000)
     sigma = popt[6]
     assert sigma < 0.10
-    gui.LINE_PROFILE_KIND = "Lorentziana"
+    physics.LINE_PROFILE_KIND = "Lorentziana"
