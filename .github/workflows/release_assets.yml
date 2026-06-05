@@ -25,14 +25,11 @@ jobs:
             fitbauer.py \
             fitbauer \
             fitbauer.bat \
-            mossbauer_fe33_gui_v2IA.py \
-            mossbauer_app.py \
             mossbauer_qt.py \
             mossbauer_api_client.py \
             mossbauer_help.py \
             mossbauer_i18n.py \
             mossbauer_updater.py \
-            mossbauer_updater_ui.py \
             mossbauer_distribution.py \
             mossbauer_ws5.py \
             mossbauer_fit_cli.py \
@@ -41,7 +38,6 @@ jobs:
             mossbauer_bhf_pipeline.py \
             install.py \
             Fitbauer.spec \
-            Fitbauer-Tk.spec \
             requirements.txt \
             README.md \
             README_EN.md \
@@ -51,7 +47,6 @@ jobs:
             BHF_DISTRIBUTION.md \
             core \
             layout \
-            panels \
             assets \
             locales \
             docs/img \

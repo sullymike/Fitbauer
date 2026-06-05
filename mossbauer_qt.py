@@ -124,8 +124,6 @@ from mossbauer_distribution import (  # noqa: E402
 from mossbauer_updater import (  # noqa: E402
     ReleaseInfo, choose_download, download_file, find_release_checksum,
     install_zip_update, is_newer, is_zip_update, latest_release,
-)
-from mossbauer_updater_ui import (  # noqa: E402
     _pip_install_requirements, _update_pip_stamp, check_requirements_if_needed,
     load_update_settings, save_update_settings,
 )
@@ -5314,7 +5312,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                                             f"{type(exc).__name__}: {exc}")
 
     def on_changelog(self) -> None:
-        from mossbauer_fe33_gui_v2IA import CHANGELOG_PATH
+        from core.constants import CHANGELOG_PATH
         dlg = QtWidgets.QDialog(self)
         dlg.setWindowTitle(tr("help.changelog"))
         dlg.resize(820, 600)

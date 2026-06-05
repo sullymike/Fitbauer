@@ -10,8 +10,8 @@
 Programa de escritorio estable para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
 
 Versión estable actual: **v4.0.4**.  
-Arranque recomendado: `python fitbauer.py` (abre la interfaz Qt y, si no está disponible, la Tk).  
-Interfaz Qt/Plotly: `mossbauer_qt.py`. Interfaz Tk: `mossbauer_app.py`.
+Arranque recomendado: `python fitbauer.py` (interfaz Qt).  
+Interfaz Qt/Plotly: `mossbauer_qt.py`. Ajuste por línea de comandos (headless): `mossbauer_fit_cli.py`.
 
 Autor: Jorge Sánchez Marcos  
 Departamento de Química Física · UAM
@@ -188,8 +188,7 @@ Se puede instalar sin `.exe` con Python:
 
 ```bash
 python3 install.py
-./fitbauer         # Qt por defecto; cae a Tk si PySide6 no está disponible
-./fitbauer --tk    # fuerza la interfaz Tk
+./fitbauer         # interfaz Qt
 ```
 
 En Windows:
@@ -197,17 +196,16 @@ En Windows:
 ```bat
 py install.py
 fitbauer.bat
-fitbauer.bat --tk
 ```
 
-Ambas interfaces comparten el mismo núcleo de cálculo (`core/`): física,
-ajuste, bootstrap y verosimilitud perfilada. Elige la que prefieras.
+La interfaz Qt y la capa de ajuste headless (`core/session.py`, usada por
+`mossbauer_fit_cli.py`) comparten el mismo núcleo de cálculo (`core/`): física,
+ajuste, bootstrap y verosimilitud perfilada.
 
 ### Construir ejecutables (PyInstaller)
 
 ```bash
-pyinstaller Fitbauer.spec       # ejecutable Qt (principal)  -> dist/Fitbauer/
-pyinstaller Fitbauer-Tk.spec    # ejecutable Tk (respaldo)   -> dist/Fitbauer-Tk/
+pyinstaller Fitbauer.spec       # ejecutable Qt  -> dist/Fitbauer/
 ```
 
 Más detalles en `INSTALL.md`.

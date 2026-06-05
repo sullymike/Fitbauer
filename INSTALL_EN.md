@@ -35,7 +35,7 @@ pip install -r requirements.txt
 Run the application:
 
 ```bash
-python fitbauer.py        # Qt by default, falls back to Tk
+python fitbauer.py        # Qt interface
 ```
 
 ## Alternative installer script
@@ -60,7 +60,8 @@ The update channel can be configured as stable or beta if this option is enabled
 
 ## Main files
 
-- `mossbauer_fe33_gui_v2IA.py`: main GUI.
+- `mossbauer_qt.py`: main GUI (Qt/PySide6).
+- `mossbauer_fit_cli.py` + `core/session.py`: headless command-line fitting.
 - `mossbauer_help.py`: built-in help in Spanish and English.
 - `mossbauer_distribution.py`: distribution-fitting tools.
 - `mossbauer_updater.py`: update logic.
@@ -73,7 +74,7 @@ If the GUI does not start, first check that the virtual environment is active an
 ```bash
 source .venv/bin/activate
 pip install -r requirements.txt
-python -m py_compile mossbauer_fe33_gui_v2IA.py mossbauer_help.py
+python -m py_compile mossbauer_qt.py mossbauer_help.py
 ```
 
 If PDF report generation fails, the Markdown report is still saved. PDF export may require optional rendering libraries depending on the system.

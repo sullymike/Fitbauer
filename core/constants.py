@@ -1,5 +1,11 @@
-"""Constantes físicas y metadatos de la aplicación Fitbauer (Mössbauer Fe-57)."""
+"""Constantes físicas y metadatos de la aplicación Fitbauer (Mössbauer Fe-57).
+
+Fuente única de constantes/metadatos/paths compartidos por la interfaz Qt, la
+capa headless (core.session) y las utilidades. No importa ninguna GUI.
+"""
 from __future__ import annotations
+
+from pathlib import Path
 
 import numpy as np
 
@@ -8,6 +14,14 @@ APP_NAME = "Fitbauer"
 APP_VERSION = "4.0.4"
 APP_AUTHOR = "Jorge Sánchez Marcos"
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
+
+# ── Rutas del proyecto ────────────────────────────────────────────────────────
+# Raíz del repositorio (carpeta padre de core/).
+APP_ROOT = Path(__file__).resolve().parent.parent
+README_PATH = APP_ROOT / "README.md"
+CHANGELOG_PATH = APP_ROOT / "CHANGELOG.md"
+APP_ICON_PNG = APP_ROOT / "assets" / "fitbauer_icon.png"
+APP_ICON_ICO = APP_ROOT / "assets" / "fitbauer_icon.ico"
 
 # ── Constantes físicas Fe-57 ───────────────────────────────────────────────────
 BHF_DEFAULT_T = 33.0

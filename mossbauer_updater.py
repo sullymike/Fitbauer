@@ -5,7 +5,10 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
+import sys
 import tempfile
+import threading
 import urllib.request
 import zipfile
 from dataclasses import dataclass
@@ -260,3 +263,99 @@ def install_zip_update(archive_path: Path, app_dir: Path) -> None:
         if launcher.exists():
             import stat as _stat
             launcher.chmod(launcher.stat().st_mode | _stat.S_IXUSR | _stat.S_IXGRP | _stat.S_IXOTH)
+
+
+# ── Ajustes de actualización y refresco de dependencias (sin GUI) ─────────────
+# Lógica headless usada por la interfaz Qt; antes vivía en mossbauer_updater_ui
+# (Tk). Aquí no hay ningún diálogo: solo ficheros de configuración y pip.
+
+
+def _pip_install_requirements(install_dir: Path) -> str:
+    """Ejecuta pip install -r requirements.txt del directorio dado.
+
+    Devuelve una cadena con el resultado (vacía si no hay requirements.txt).
+    Nunca lanza excepción.
+    """
+    req_file = install_dir / "requirements.txt"
+    if not req_file.exists():
+        return ""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-r", str(req_file),
+             "--quiet", "--disable-pip-version-check"],
+            capture_output=True, text=True, timeout=120,
+        )
+        if result.returncode == 0:
+            return "Dependencias actualizadas correctamente (pip)."
+        err = (result.stderr or result.stdout or "").strip()
+        return f"Aviso de pip:\n{err[:300]}"
+    except subprocess.TimeoutExpired:
+        return "pip tardó demasiado y se canceló."
+    except Exception as exc:
+        return f"No se pudo ejecutar pip: {exc}"
+
+
+def _update_pip_stamp(install_dir: Path, config_dir: Path) -> None:
+    req_file = install_dir / "requirements.txt"
+    if not req_file.exists():
+        return
+    try:
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "last_pip_check").write_text(
+            str(req_file.stat().st_mtime), encoding="utf-8"
+        )
+    except Exception:
+        pass
+
+
+def check_requirements_if_needed(install_dir: Path, config_dir: Path) -> None:
+    """Lanza pip en background si requirements.txt es más nuevo que el último chequeo."""
+    req_file = install_dir / "requirements.txt"
+    if not req_file.exists():
+        return
+    stamp_file = config_dir / "last_pip_check"
+    req_mtime = req_file.stat().st_mtime
+    if stamp_file.exists():
+        try:
+            last = float(stamp_file.read_text(encoding="utf-8").strip())
+            if req_mtime <= last:
+                return
+        except Exception:
+            pass
+
+    def _worker() -> None:
+        _pip_install_requirements(install_dir)
+        try:
+            config_dir.mkdir(parents=True, exist_ok=True)
+            stamp_file.write_text(str(req_mtime), encoding="utf-8")
+        except Exception:
+            pass
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+
+def load_update_settings(config_dir: Path) -> dict:
+    path = config_dir / "update_settings.json"
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+    return {"channel": "stable"}
+
+
+def save_update_settings(config_dir: Path, data: dict, parent=None) -> None:
+    """Guarda los ajustes de actualización. Mejor esfuerzo: no lanza si falla.
+
+    ``parent`` se mantiene por compatibilidad de firma con la llamada de la GUI,
+    pero ya no se usa (no hay diálogo Tk).
+    """
+    try:
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "update_settings.json").write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    except Exception:
+        pass

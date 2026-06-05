@@ -22,7 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 VENV_DIR = ROOT / ".venv"
 REQUIREMENTS = ROOT / "requirements.txt"
-MAIN_GUI = "mossbauer_fe33_gui_v2IA.py"
+MAIN_GUI = "mossbauer_qt.py"
 LAUNCHER_ENTRY = "fitbauer.py"
 
 
@@ -91,11 +91,10 @@ def smoke_test() -> None:
         "py_compile",
         str(ROOT / MAIN_GUI),
         str(ROOT / LAUNCHER_ENTRY),
-        str(ROOT / "mossbauer_app.py"),
         str(ROOT / "mossbauer_updater.py"),
-        str(ROOT / "mossbauer_updater_ui.py"),
         str(ROOT / "mossbauer_api_client.py"),
         str(ROOT / "mossbauer_help.py"),
+        str(ROOT / "core" / "session.py"),
     ])
 
 
