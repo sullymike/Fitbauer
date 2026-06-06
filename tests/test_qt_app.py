@@ -707,3 +707,27 @@ def test_qt_distribution_range_limits_follow_mode(win):
     assert win.dist_panel.bmin.value() == 7.0
     assert win.dist_panel.bmax.value() == 7.0
     assert win.dist_panel.fixed_bhf.isEnabled()
+
+
+def test_qt_distribution_2d_mode_is_exposed_and_persisted(win):
+    """La opción P(BHF, ΔEQ) 2D aparece en el desplegable principal y en sesiones."""
+    mode_items = [win.mode_combo.itemText(i) for i in range(win.mode_combo.count())]
+    assert any("2D" in item and "BHF" in item for item in mode_items)
+    shape_items = [win.dist_panel.shape_combo.itemData(i) for i in range(win.dist_panel.shape_combo.count())]
+    assert "2D" in shape_items
+
+    win.mode_combo.setCurrentIndex(3)
+    assert win.is_distribution_mode
+    assert win.dist_panel.shape == "2D"
+    assert not win.dist_panel.qmin.isHidden()
+    assert not win.dist_panel.quad.isEnabled()
+
+    payload = win._session_payload()
+    assert payload["model_state"]["dist_shape"] == "2D"
+    assert payload["model_state"]["dist_variable"] == "BHF-ΔEQ"
+
+    win.mode_combo.setCurrentIndex(0)
+    win.dist_panel.shape_combo.setCurrentIndex(win.dist_panel.shape_combo.findData("Histograma"))
+    win._apply_session_payload(payload)
+    assert win.mode_combo.currentIndex() == 3
+    assert win.dist_panel.shape == "2D"

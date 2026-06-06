@@ -629,7 +629,6 @@
     "dist_shape": "Histograma",
     "fixed_distribution_path": null,
     "dist_use_sharp": false,
-    "dist_refine_global": true,
     "info_text": "Fichero: calibration.ADT\nCanales leídos: 512\nFolding point centro: 257.23265\nFolding point Normos aprox.: 514.46529\nPares doblados: 256\nNormalización: / 452915\nVmax = 12.0302 mm/s\nBase = 0.999514\nPendiente = -6.44918e-05\nSextetes activos: 1\nAjuste velocidad: sí, con patrón\nRMS ajuste: 0.00434714\nχ² reducido: 18.836  (χ²=4671.34, gl=248)\nAIC = 759.43    BIC = 787.791    parámetros = 8\nDiagnóstico residuo: lag1=0.070, runs z=-7.751, antisim=-0.051\nComparación de modelos: menor AIC/BIC es mejor si se ajustan los mismos datos.\nAutoarranques probados: 9\nAviso residuo: parece tener estructura no aleatoria.\n  Revisa modelo, folding point, calibración Vmax o componentes faltantes.\nCalibración asociada sin incertidumbre explícita de Vmax. Considera error sistemático adicional.\nCorrelación máxima: |r|=1.000 entre s1_depth y s1_int1\nAviso: parámetros muy correlacionados (|r| ≥ 0.95):\n  s1_depth ↔ s1_int1: r=-1.000\n\nSextete 1: BHF=33 T, δ=-0.10959, ΔEQ=0.00338408\n  Γ HWHM reales 1/2/3 = 0.1453 / 0.1453 / 0.1453\n  FWHM equiv. 1/2/3 = 0.2906 / 0.2906 / 0.2906\n  Γ rel 2/3 = 1 / 1\n  prof=0.0784831, I reales=1.217, 0.8112, 0.4056\n\nFijados: s1_bhf, s1_gamma2, s1_gamma3, s1_int2, s1_int3",
     "constraints": []
   },

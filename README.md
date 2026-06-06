@@ -111,6 +111,21 @@ Seis líneas magnéticas. Parámetros principales:
 - `I1`/`int1` ≈ `D13` e `I2`/`int2` ≈ `D23`: intensidades relativas respecto a las líneas 3,4.
 - `int3`: no aparece en la GUI; queda fijo internamente a `1` siguiendo la convención NORMOS.
 
+### Relajación magnética / superparamagnética
+
+El tipo **Relajacion** es una primera aproximación fenomenológica para nanopartículas o fases con relajación rápida/intermedia. No sustituye a un modelo dinámico Blume–Tjon: mezcla una fracción bloqueada tipo sextete con una fracción superparamagnética tipo doblete, conservando de forma aproximada el área total.
+
+Parámetros específicos:
+
+- `f bloqueada`: fracción bloqueada máxima; la fracción superparamagnética reportada es `1 - f bloqueada`.
+- `log10 ν`: tasa de relajación fenomenológica en s⁻¹. Valores bajos (`≈5`) tienden al sextete bloqueado; valores intermedios (`≈8–9`) ensanchan/colapsan parcialmente; valores altos (`≈11`) tienden al doblete superparamagnético.
+
+El tipo **BlumeTjon** implementa una primera versión dinámica de dos estados `+BHF ↔ -BHF`: `log10 ν` controla el intercambio, sin fracción bloqueada explícita. Es más físico que la interpolación fenomenológica, pero sigue siendo el modelo inicial simplificado de dos estados.
+
+El tipo **NeelSize** añade Néel–Arrhenius con distribución lognormal de tamaños: `T`, `log10 Keff`, `d50`, `σ`, `log10 τ0` y bins de tamaño determinan una suma de espectros Blume–Tjon con tasas `ν(d,T)`. Para estimar `Keff` y tamaños de forma fiable se recomienda usar varios espectros a distintas temperaturas; hay backend de ajuste global multi-T en `core.relaxation`.
+
+> **Pendiente de GUI:** el ajuste global multi-temperatura ya existe como backend, pero todavía no tiene diálogo propio en la interfaz gráfica. Por ahora `NeelSize` puede usarse en la GUI para un espectro individual; la integración GUI multi-T queda explícitamente pendiente.
+
 El botón **Ajuste** optimiza todos los parámetros no fijados. Si hay varios componentes activos, el panel de estado muestra el porcentaje de área integrada de cada uno y, si se puede calcular la covarianza, su error 1σ.
 
 ## 5. Distribución P(BHF)
@@ -158,9 +173,13 @@ En ese modo:
 - Los componentes activos se suman como singlete/doblete/sextete nítidos.
 - Sus amplitudes se ajustan, pero no forman parte de la regularización.
 
-### Refinar δ y Γ globales
+### Parámetros globales libres/fijos
 
-La opción **refinar δ y Γ globales** intenta optimizar también el desplazamiento isomérico y la anchura global de la distribución. Es útil, pero puede aumentar correlaciones; conviene usarla después de elegir un rango BHF y un `α` razonables.
+En distribuciones, los controles globales se refinan directamente según su casilla **fijo**: si `δ`, `ΔEQ` o `Γ` están libres, el ajuste los optimiza; si están fijos, se mantienen. En `P(BHF)`, `ΔEQ` actúa como valor global común y puede refinarse. En `P(ΔEQ)`, `ΔEQ` es la variable distribuida y no se usa como parámetro global.
+
+### Distribución P(BHF, ΔEQ) 2D
+
+Hay un backend avanzado para distribuciones bidimensionales `P(BHF, ΔEQ)` en `mossbauer_distribution.fit_bhf_quad_distribution()` e integración en la GUI como modo **P(BHF, ΔEQ) 2D** / forma **2D BHF-ΔEQ**. Incluye mapa de calor, marginales, heatmap Plotly, exportación TSV, L-surface `αB/αQ`, componentes nítidos simultáneos e informe PDF con mapa 2D. Este modelo puede representar correlaciones campo–cuadrupolo, pero es muy subdeterminado: una malla 30×30 implica 900 pesos. Puede ajustar muy bien y aun así carecer de sentido físico si absorbe ruido, folding, calibración, anchuras mal fijadas o componentes omitidas. Usarlo por ahora como herramienta exploratoria y comprobar estabilidad frente a `αB`, `αQ` y número de bins.
 
 ### Consejos prácticos
 

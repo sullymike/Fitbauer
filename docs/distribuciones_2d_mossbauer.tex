@@ -1,0 +1,199 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\geometry{margin=2.5cm}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+
+\newcommand{\BHF}{B_{\mathrm{HF}}}
+\newcommand{\DEQ}{\Delta E_Q}
+\newcommand{\dd}{\mathrm{d}}
+
+\title{Distribuciones bidimensionales $P(\BHF,\DEQ)$ en espectros Mössbauer}
+\author{Fitbauer -- nota matemática de implementación}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Motivación}
+
+Las distribuciones unidimensionales $P(\BHF)$ y $P(\DEQ)$ son adecuadas cuando
+la fuente dominante de desorden es, respectivamente, magnética o cuadrupolar. En
+materiales amorfos, ferritas desordenadas, vidrios, nanopartículas o fases con
+múltiples entornos locales puede ocurrir que ambos parámetros cambien a la vez.
+En ese caso se puede plantear una distribución bidimensional:
+\begin{equation}
+  P(\BHF,\DEQ)\ge 0.
+\end{equation}
+Su interés principal es poder estudiar no sólo las marginales $P(\BHF)$ y
+$P(\DEQ)$, sino también la posible correlación entre campo hiperfino y
+cuadrupolo.
+
+\section{Modelo espectral}
+
+Sea $v_k$ el canal de velocidad y sea $S(v;B,Q,\delta,\Gamma)$ el sextete de
+absorción de profundidad unitaria para campo $B$ y cuadrupolo $Q$. En una malla
+$B_i$, $Q_j$ el modelo lineal en los pesos es
+\begin{equation}
+  T_k = b_0 + b_1 v_k - \sum_{i=1}^{N_B}\sum_{j=1}^{N_Q}
+  P_{ij}\,S(v_k;B_i,Q_j,\delta,\Gamma).
+\end{equation}
+En forma matricial,
+\begin{equation}
+  \bm y \simeq X\bm z,
+\end{equation}
+donde $\bm z$ contiene fondo, pendiente y los pesos $P_{ij}$ aplanados. Las
+columnas asociadas a la distribución son $-S(v_k;B_i,Q_j)$ porque la absorción
+resta transmisión.
+
+\section{Regularización 2D}
+
+El problema inverso es fuertemente subdeterminado. Por ello se penaliza la
+curvatura de la distribución en las dos direcciones:
+\begin{equation}
+  \Phi(\bm z)=\|W(\bm y-X\bm z)\|^2
+  +\alpha_B\|D_B^2 P\|^2
+  +\alpha_Q\|D_Q^2 P\|^2,
+\end{equation}
+con la restricción
+\begin{equation}
+  P_{ij}\ge 0.
+\end{equation}
+Aquí $W$ es el peso estadístico de los canales, $D_B^2$ aplica segundas
+diferencias a lo largo de $\BHF$, y $D_Q^2$ aplica segundas diferencias a lo
+largo de $\DEQ$. En la implementación inicial se usa una malla rectangular y los
+operadores se escriben mediante productos de Kronecker:
+\begin{align}
+  L_B &= D_B^2\otimes I_Q,\\
+  L_Q &= I_B\otimes D_Q^2.
+\end{align}
+El problema aumentado resuelto por mínimos cuadrados acotados es
+\begin{equation}
+  \begin{bmatrix}
+    WX\\
+    \sqrt{\alpha_B}\,L_B\\
+    \sqrt{\alpha_Q}\,L_Q
+  \end{bmatrix}\bm z
+  \simeq
+  \begin{bmatrix}
+    W\bm y\\
+    \bm 0\\
+    \bm 0
+  \end{bmatrix},
+  \qquad P_{ij}\ge 0.
+\end{equation}
+
+\section{Marginales, momentos y correlación}
+
+Una vez ajustada $P_{ij}$, las distribuciones marginales son
+\begin{align}
+  P_B(B_i) &= \int P(B_i,Q)\,\dd Q \simeq \sum_j P_{ij}\,\Delta Q_j,\\
+  P_Q(Q_j) &= \int P(B,Q_j)\,\dd B \simeq \sum_i P_{ij}\,\Delta B_i.
+\end{align}
+En una malla no uniforme deben usarse pesos de integración adecuados. La
+probabilidad bidimensional normalizada se define por
+\begin{equation}
+  p_{ij}=\frac{P_{ij}}{\int\!\int P(B,Q)\,\dd B\,\dd Q}.
+\end{equation}
+Con $p_{ij}$ se calculan los momentos diagnósticos
+\begin{align}
+  \langle B\rangle &= \sum_{ij} p_{ij} B_i\,\Delta B_i\Delta Q_j, &
+  \langle Q\rangle &= \sum_{ij} p_{ij} Q_j\,\Delta B_i\Delta Q_j,\\
+  \sigma_B^2 &= \sum_{ij} p_{ij}(B_i-\langle B\rangle)^2\Delta B_i\Delta Q_j, &
+  \sigma_Q^2 &= \sum_{ij} p_{ij}(Q_j-\langle Q\rangle)^2\Delta B_i\Delta Q_j,
+\end{align}
+y la correlación aparente
+\begin{equation}
+  \rho_{BQ}=\frac{\sum_{ij}p_{ij}(B_i-\langle B\rangle)(Q_j-\langle Q\rangle)
+  \Delta B_i\Delta Q_j}{\sigma_B\sigma_Q}.
+\end{equation}
+Una nube inclinada en el mapa $B$--$Q$ puede sugerir correlación entre campo y
+cuadrupolo, pero esa interpretación sólo es válida si la solución es estable.
+
+\section{Componentes nítidas simultáneas}
+
+La implementación permite añadir componentes nítidas al problema 2D. El modelo
+se extiende a
+\begin{equation}
+  T_k=b_0+b_1v_k-\sum_{ij}P_{ij}S_{ij}(v_k)-\sum_m a_m C_m(v_k)-F_k,
+\end{equation}
+donde $C_m$ son componentes discretas con amplitud libre $a_m\ge0$ y $F_k$ es
+la absorción conocida de componentes con profundidad fijada. Las columnas nítidas
+no se regularizan; compiten con la distribución sólo a través del residuo. Esto
+es útil para separar una fase discreta conocida de un fondo desordenado, pero
+también puede transferir peso artificialmente entre mapa y nítidos si solapan.
+
+\section{L-surface de regularización 2D}
+
+En 1D se usa una curva L. En 2D hay dos regularizaciones, por lo que el análogo
+es una superficie en $(\alpha_B,\alpha_Q)$. Para cada pareja se calculan
+\begin{align}
+  R(\alpha_B,\alpha_Q)&=\|W(\bm y-X\bm z)\|,\\
+  G(\alpha_B,\alpha_Q)&=\sqrt{\|D_B^2P\|^2+\|D_Q^2P\|^2},\\
+  \mathrm{RMS}(\alpha_B,\alpha_Q)&=\sqrt{\langle r_k^2\rangle}.
+\end{align}
+La GUI muestra un mapa de RMS frente a $\log_{10}\alpha_B$ y
+$\log_{10}\alpha_Q$ y una proyección $R$ frente a $G$. Se proponen dos puntos:
+el mínimo de RMS y un compromiso geométrico entre residuo y rugosidad. Ninguno
+es una respuesta automática; debe verificarse visualmente la estabilidad del
+mapa.
+
+\section{Riesgo de sobreajuste}
+
+\textbf{Advertencia esencial:} una distribución 2D puede ajustar aparentemente
+muy bien y no tener significado físico. Por ejemplo, una malla $30\times30$
+contiene 900 pesos, a menudo más que el número efectivo de puntos independientes
+del espectro. Con regularización débil, el mapa puede absorber:
+\begin{itemize}
+  \item ruido estadístico,
+  \item errores de folding o de escala de velocidad,
+  \item anchuras de línea mal elegidas,
+  \item fondo instrumental,
+  \item componentes discretas omitidas,
+  \item relajación dinámica que debería modelarse de otro modo.
+\end{itemize}
+Por tanto, un residuo bajo o un mapa visualmente atractivo no demuestran por sí
+solos la existencia de una distribución física $P(\BHF,\DEQ)$.
+
+\section{Buenas prácticas}
+
+Antes de interpretar el mapa se recomienda:
+\begin{enumerate}
+  \item comparar con modelos más simples: sextetes discretos, $P(\BHF)$,
+  $P(\DEQ)$ y componentes nítidas;
+  \item variar $\alpha_B$ y $\alpha_Q$ en varios órdenes de magnitud;
+  \item repetir con distinto número de bins;
+  \item verificar que las marginales y rasgos principales son estables;
+  \item fijar $\delta$ y $\Gamma$ si se conocen independientemente;
+  \item comprobar que el residuo no conserva estructura sistemática;
+  \item contrastar con información externa: TEM, magnetometría, estructura,
+  química o literatura.
+\end{enumerate}
+Para publicación, el modelo 2D debería justificarse mostrando que un modelo 1D o
+discreto no explica los datos de forma satisfactoria y que la distribución 2D es
+robusta frente a cambios razonables de regularización.
+
+\section{Estado de implementación}
+
+La implementación de Fitbauer incluye el backend:
+\begin{center}
+\texttt{mossbauer\_distribution.fit\_bhf\_quad\_distribution()}
+\end{center}
+y una integración en la GUI como modo \textbf{P(BHF,$\DEQ$) 2D} / forma
+\textbf{2D BHF--$\DEQ$}. El backend devuelve centros de $\BHF$, centros de
+$\DEQ$, matriz de pesos, probabilidad normalizada, curva ajustada, residuo,
+fondo, pendiente, valores de $\alpha_B$, $\alpha_Q$, marginales, momentos,
+correlación aparente y avisos de identificabilidad. La GUI muestra un mapa de
+calor con marginales, permite exportar el mapa a TSV, incluye una L-surface
+$\alpha_B$--$\alpha_Q$, dibuja el heatmap en Plotly y añade el mapa 2D al PDF del
+informe. También se admiten componentes nítidas simultáneas. Quedan para fases
+posteriores mejoras de rendimiento para mallas muy grandes y validaciones
+avanzadas específicas por tipo de muestra.
+
+\end{document}

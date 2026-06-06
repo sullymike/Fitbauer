@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Callable
+import time
 
 import numpy as np
 from scipy.optimize import least_squares, differential_evolution
@@ -39,7 +40,7 @@ class Component:
     """Configuración de una componente del modelo discreto."""
     idx: int
     enabled: bool = False
-    kind: str = "Sextete"            # "Sextete" / "Doblete" / "Singlete"
+    kind: str = "Sextete"            # "Sextete" / "Doblete" / "Singlete" / "Relajacion" / "BlumeTjon" / "NeelSize"
     intensity_mode: str = "free"     # "free" / "texture"
     quad_treatment: str = "1st_order"
     # "1st_order" / "kundig_fixed" / "kundig_powder"
@@ -216,7 +217,28 @@ def _build_components_list(values: dict[str, float], components: list[Component]
         params = np.array(
             [values.get(p + name, 0.0) for name in SEXTET_PARAM_NAMES], dtype=float
         )
-        if comp.kind == "Sextete" and comp.quad_treatment != "1st_order":
+        if comp.kind == "Relajacion":
+            extras = {
+                "blocked_fraction": float(values.get(f"s{comp.idx}_relax_fraction", 1.0)),
+                "log10_nu": float(values.get(f"s{comp.idx}_relax_log_nu", 5.0)),
+            }
+            out.append((comp.kind, params, extras))
+        elif comp.kind == "BlumeTjon":
+            extras = {
+                "log10_nu": float(values.get(f"s{comp.idx}_relax_log_nu", 5.0)),
+            }
+            out.append((comp.kind, params, extras))
+        elif comp.kind == "NeelSize":
+            extras = {
+                "temperature_k": float(values.get(f"s{comp.idx}_neel_temp_k", 300.0)),
+                "log10_keff": float(values.get(f"s{comp.idx}_neel_log10_keff", 4.0)),
+                "mean_d_nm": float(values.get(f"s{comp.idx}_neel_mean_d_nm", 8.0)),
+                "sigma_lognormal": float(values.get(f"s{comp.idx}_neel_sigma", 0.25)),
+                "log10_tau0": float(values.get(f"s{comp.idx}_neel_log10_tau0", -9.0)),
+                "n_bins": int(round(float(values.get(f"s{comp.idx}_neel_bins", 20.0)))),
+            }
+            out.append((comp.kind, params, extras))
+        elif comp.kind == "Sextete" and comp.quad_treatment != "1st_order":
             beta_deg = float(values.get(f"s{comp.idx}_beta", 0.0))
             extras = {
                 "treatment": comp.quad_treatment,
@@ -363,7 +385,7 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
 # ── Ajuste discreto ───────────────────────────────────────────────────────
 
 
-def fit_discrete(state: FitState, progress_cb: Callable[[str], None] | None = None) -> FitResult:
+def fit_discrete(state: FitState, progress_cb: Callable[[object], None] | None = None) -> FitResult:
     """Ejecuta el ajuste discreto y devuelve los resultados.
 
     No tiene side effects sobre ``state``: la copia interna de valores se
@@ -419,7 +441,49 @@ def fit_discrete(state: FitState, progress_cb: Callable[[str], None] | None = No
         return FitResult(values=dict(state.values), errors={}, free_keys=free_keys,
                          cov=None, stats={}, correlations={}, n_starts=0, success=False)
 
-    residual = _make_residual(state, free_keys)
+    raw_residual = _make_residual(state, free_keys)
+
+    progress_keys = list(free_keys)
+    if state.fit_velocity and "vmax" in state.values:
+        progress_keys.append("vmax")
+    if state.fit_center and "center" in state.values:
+        progress_keys.append("center")
+    if state.fit_sigma and state.line_profile == "Voigt" and "voigt_sigma" in state.values:
+        progress_keys.append("voigt_sigma")
+    progress_state = {
+        "phase": "",
+        "detail": "",
+        "eval": 0,
+        "max_eval": None,
+        "last": 0.0,
+    }
+
+    def _progress_params(x: np.ndarray, limit: int = 14) -> dict[str, float | str]:
+        params: dict[str, float | str] = {}
+        for k, v in zip(progress_keys[:limit], x[:limit]):
+            params[k] = float(v)
+        if len(progress_keys) > limit:
+            params["…"] = f"+{len(progress_keys) - limit}"
+        return params
+
+    def residual(x: np.ndarray) -> np.ndarray:
+        r = raw_residual(x)
+        progress_state["eval"] = int(progress_state.get("eval", 0)) + 1
+        now = time.monotonic()
+        if (int(progress_state["eval"]) == 1
+                or now - float(progress_state.get("last", 0.0)) >= 0.25):
+            progress_state["last"] = now
+            payload: dict[str, object] = {
+                "phase": progress_state.get("phase") or "Ajuste",
+                "detail": progress_state.get("detail") or "",
+                "iteration": int(progress_state["eval"]),
+                "rms": float(np.sqrt(np.mean(r ** 2))) if r.size else 0.0,
+                "params": _progress_params(x),
+            }
+            if progress_state.get("max_eval") is not None:
+                payload["max_iter"] = int(progress_state["max_eval"])  # type: ignore[arg-type]
+            progress_cb(payload)
+        return r
 
     # 3. Multistart determinista.
     rng = np.random.default_rng(12345)
@@ -434,10 +498,23 @@ def fit_discrete(state: FitState, progress_cb: Callable[[str], None] | None = No
 
     # 4. Opcional: pre-pasada Differential Evolution.
     if state.global_opt:
-        progress_cb("Optimización global (DE)...")
+        progress_state.update({
+            "phase": "Optimización global (DE)...",
+            "detail": "Búsqueda global previa al ajuste local",
+            "eval": 0,
+            "max_eval": None,
+            "last": 0.0,
+        })
+        progress_cb({"phase": "Optimización global (DE)...",
+                     "detail": "Búsqueda global previa al ajuste local",
+                     "params": _progress_params(x0_arr)})
         try:
+            def _de_objective(x: np.ndarray) -> float:
+                r = residual(x)
+                return 0.5 * float(np.dot(r, r))
+
             de = differential_evolution(
-                lambda x: 0.5 * float(np.dot(residual(x), residual(x))),
+                _de_objective,
                 bounds=list(zip(lo_arr.tolist(), hi_arr.tolist())),
                 seed=12345, maxiter=60, tol=1e-4, polish=False, init="sobol",
                 updating="deferred",
@@ -455,7 +532,20 @@ def fit_discrete(state: FitState, progress_cb: Callable[[str], None] | None = No
     n_starts = 0
     for cand in candidates:
         n_starts += 1
-        progress_cb(f"Ajuste {n_starts}/{len(candidates)}...")
+        progress_state.update({
+            "phase": f"Ajuste {n_starts}/{len(candidates)}...",
+            "detail": "Optimizando parámetros libres",
+            "eval": 0,
+            "max_eval": 7000,
+            "last": 0.0,
+        })
+        progress_cb({
+            "phase": f"Ajuste {n_starts}/{len(candidates)}...",
+            "detail": "Optimizando parámetros libres",
+            "iteration": 0,
+            "max_iter": 7000,
+            "params": _progress_params(cand),
+        })
         try:
             res_i = least_squares(residual, cand, bounds=(lo_arr, hi_arr),
                                    max_nfev=7000, **ls_kwargs)

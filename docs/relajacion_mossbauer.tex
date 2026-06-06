@@ -1,0 +1,324 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{tcolorbox}
+
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!60!black}
+
+\newcommand{\BHF}{B_{\mathrm{hf}}}
+\newcommand{\dEQ}{\Delta E_Q}
+\newcommand{\nuR}{\nu}
+\newcommand{\code}[1]{\texttt{\small #1}}
+
+\newtcolorbox{nota}[1][Nota]{colback=blue!4, colframe=blue!45!black,
+  fonttitle=\bfseries, title={#1}, left=4pt, right=4pt, top=3pt, bottom=3pt}
+\newtcolorbox{aviso}[1][Advertencia]{colback=orange!7, colframe=orange!70!black,
+  fonttitle=\bfseries, title={#1}, left=4pt, right=4pt, top=3pt, bottom=3pt}
+
+\title{\textbf{Modelos de relajación magnética en Fitbauer}\\[3pt]
+\large Componente fenomenológica y modelo dinámico Blume--Tjon de dos estados}
+\author{Departamento de Química Física · UAM}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}\noindent
+Este documento describe la primera implementación de relajación magnética en
+Fitbauer. Se añaden dos modelos nuevos sin modificar los modelos matemáticos
+preexistentes de singlete, doblete, sextete ni distribuciones Hesse--Rübartsch:
+(1) una componente fenomenológica \code{Relajacion}, que mezcla un sextete
+bloqueado con un doblete superparamagnético aparente, y (2) una componente
+\code{BlumeTjon}, que aproxima la relajación dinámica mediante intercambio
+simétrico de dos estados $+\BHF \leftrightarrow -\BHF$.
+\end{abstract}
+
+\tableofcontents
+\bigskip
+
+%======================================================================
+\section{Motivación física}
+
+En nanopartículas magnéticas, ferritas u óxidos de hierro parcialmente
+superparamagnéticos, el momento magnético puede fluctuar durante la ventana de
+observación Mössbauer. Si las fluctuaciones son lentas, el núcleo observa un
+campo hiperfino casi estático y el espectro es un sextete. Si son rápidas, el
+campo magnético se promedia y aparece un doblete o singlete superparamagnético.
+En el régimen intermedio las líneas se ensanchan y coalescen.
+
+La implementación pretende evitar una interpretación automática de tipo
+``sextete + doblete = dos fases químicas''. Una fracción tipo doblete puede ser
+la manifestación espectral de relajación rápida.
+
+\begin{aviso}
+Los modelos descritos aquí son complementarios. Si no se seleccionan las
+componentes \code{Relajacion} o \code{BlumeTjon}, los modelos anteriores se
+evalúan exactamente por las mismas ramas de código que antes.
+\end{aviso}
+
+%======================================================================
+\section{Notación común}
+
+La transmisión se escribe, en el límite de absorbente delgado, como
+\begin{equation}
+  T(v)=b+s\,v-A(v),
+\end{equation}
+donde $b$ es la base, $s$ la pendiente y $A(v)$ la absorción positiva de la
+componente. Para un sextete convencional:
+\begin{equation}
+  A_{6}(v)=D\sum_{j=1}^{6} I_j L\bigl(v; v_j,\Gamma_j\bigr),
+\end{equation}
+con profundidad $D$, intensidades $I_j$ y perfil lorentziano
+\begin{equation}
+  L(v;v_0,\Gamma)=\frac{\Gamma^2}{(v-v_0)^2+\Gamma^2}.
+\end{equation}
+Las posiciones de primer orden son
+\begin{equation}
+  v_j = \delta + q_j\,\dEQ + m_j\,\frac{\BHF}{33\,\mathrm{T}},
+\end{equation}
+donde $m_j$ son las posiciones patrón de $\alpha$-Fe a $33$ T y $q_j$ el patrón
+cuadrupolar de primer orden.
+
+%======================================================================
+\section{Modelo fenomenológico \code{Relajacion}}
+
+\subsection{Definición}
+
+La componente \code{Relajacion} interpola entre un sextete bloqueado y un
+doblete superparamagnético aparente:
+\begin{equation}
+  A_{\mathrm{rel}}(v)=D\left[
+  f_{\mathrm{b,ef}}\,S_6(v)
+  +\bigl(1-f_{\mathrm{b,ef}}\bigr)\,D_2^{\ast}(v)
+  \right].
+  \label{eq:rel-phen}
+\end{equation}
+$S_6(v)$ es el perfil de sextete por profundidad unitaria y $D_2^{\ast}(v)$ es
+el doblete escalado para que su área integrada sea comparable a la del sextete:
+\begin{equation}
+  D_2^{\ast}(v)=D_2(v)\,
+  \frac{\int S_6(v)\,dv}{\int D_2(v)\,dv}.
+\end{equation}
+Así, $D$ conserva aproximadamente el significado de área/profundidad total.
+
+\subsection{Fracción bloqueada y tasa fenomenológica}
+
+El usuario ve dos parámetros específicos:
+\begin{itemize}[leftmargin=*]
+  \item $f_{\mathrm{bloq}}$: fracción bloqueada máxima.
+  \item $\log_{10}\nu$: tasa de relajación fenomenológica en s$^{-1}$.
+\end{itemize}
+La fracción que entra realmente en \eqref{eq:rel-phen} es
+\begin{equation}
+  f_{\mathrm{b,ef}}=f_{\mathrm{bloq}}\,F(\log_{10}\nu),
+  \label{eq:fb-eff}
+\end{equation}
+con
+\begin{equation}
+  F(x)=\frac{1}{1+\exp\left(\frac{x-x_c}{w}\right)},
+  \qquad x_c=8.5,\quad w=0.55.
+\end{equation}
+Por tanto, tasas lentas ($x\ll x_c$) dejan $F\simeq 1$, mientras que tasas
+rápidas ($x\gg x_c$) fuerzan $F\simeq 0$.
+
+Además se aplica un ensanchamiento fenomenológico máximo en el régimen
+intermedio:
+\begin{equation}
+  \Gamma_{\mathrm{ef}}=\Gamma\left[1+1.6\exp\left(-\frac{1}{2}
+  \left(\frac{x-x_c}{0.75}\right)^2\right)\right].
+\end{equation}
+
+\begin{aviso}[Correlación importante]
+$f_{\mathrm{bloq}}$ y $\log_{10}\nu$ no son parámetros completamente
+independientes: ambos reducen la parte de sextete observada. En la práctica,
+conviene fijar uno de los dos salvo que el espectro tenga información suficiente.
+Para estimar fracciones, fijar $\log_{10}\nu$ y liberar $f_{\mathrm{bloq}}$; para
+estudiar dinámica, fijar $f_{\mathrm{bloq}}=1$ y liberar $\log_{10}\nu$.
+\end{aviso}
+
+%======================================================================
+\section{Modelo dinámico \code{BlumeTjon}: dos estados}
+
+\subsection{Matriz de intercambio}
+
+La componente \code{BlumeTjon} implementa una primera versión dinámica con dos
+orientaciones opuestas del campo:
+\begin{equation}
+  +\BHF \leftrightarrow -\BHF,
+\end{equation}
+con matriz de transición simétrica
+\begin{equation}
+  W=\begin{pmatrix}-\nu & \nu\\ \nu & -\nu\end{pmatrix}.
+\end{equation}
+No hay fracción bloqueada explícita: la dinámica está controlada por $\nu$.
+
+\subsection{Perfil de intercambio para una transición}
+
+Para cada línea del sextete se calculan dos frecuencias/velocidades, una para
+$+\BHF$ y otra para $-\BHF$, denotadas $v_a$ y $v_b$. Se usa una forma de
+intercambio simétrico tipo Bloch--McConnell/Kubo. Definimos
+\begin{equation}
+  z_a = \Gamma + i(v-v_a),\qquad z_b = \Gamma + i(v-v_b),
+\end{equation}
+y una tasa de intercambio en unidades de velocidad
+\begin{equation}
+  k_v = \frac{\nu}{\mathcal{C}_{\nu\to v}},
+\end{equation}
+donde
+\begin{equation}
+  \mathcal{C}_{\nu\to v}=\frac{E_\gamma}{h c_{\mathrm{mm/s}}}.
+\end{equation}
+Aquí $E_\gamma$ es la energía de la transición de $^{57}$Fe y
+$c_{\mathrm{mm/s}}$ la velocidad de la luz en mm/s. El perfil de absorción usado
+es la parte real de
+\begin{equation}
+  R(v)=\frac{1}{2}\,\Gamma\,
+  \frac{z_a+z_b+4k_v}{z_a z_b+k_v(z_a+z_b)}.
+  \label{eq:exchange}
+\end{equation}
+La contribución total es
+\begin{equation}
+  A_{\mathrm{BT}}(v)=D\sum_{j=1}^{6} I_j\,\Re\left[R_j(v)\right]_+,
+\end{equation}
+donde $[\cdot]_+$ recorta pequeñas contribuciones negativas numéricas.
+
+\subsection{Límites}
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Límite lento}: $k_v\to0$. La ecuación \eqref{eq:exchange}
+  tiende a la media de dos lorentzianas estáticas. En el patrón simétrico
+  $+\BHF/-\BHF$ reproduce el sextete bloqueado.
+  \item \textbf{Intermedio}: $k_v$ comparable a la separación de líneas. Aparece
+  ensanchamiento y coalescencia.
+  \item \textbf{Rápido}: $k_v$ grande. Las posiciones magnéticas se promedian y
+  el espectro tiende a un doblete o singlete según $\dEQ$.
+\end{itemize}
+
+%======================================================================
+\section{Néel--Arrhenius y distribución de tamaños}
+
+La componente \code{NeelSize} usa el modelo de Néel--Arrhenius para convertir el
+volumen de partícula en tasa de relajación. Para partículas esféricas de diámetro
+$d$,
+\begin{equation}
+  V(d)=\frac{\pi d^3}{6},
+\end{equation}
+y
+\begin{equation}
+  \tau_N(d,T)=\tau_0\exp\left(\frac{K_{\mathrm{eff}}V(d)}{k_B T}\right),
+  \qquad
+  \nu(d,T)=\tau_0^{-1}\exp\left(-\frac{K_{\mathrm{eff}}V(d)}{k_B T}\right).
+\end{equation}
+En la GUI se ajusta $\log_{10}K_{\mathrm{eff}}$ y $\log_{10}\tau_0$ para mantener
+rangos numéricos razonables:
+\begin{equation}
+  \log_{10}\nu_i=-\log_{10}\tau_0
+  -\frac{K_{\mathrm{eff}}V(d_i)}{k_BT\ln 10}.
+\end{equation}
+
+La distribución de tamaños se modela inicialmente como lognormal. Si $d_{50}$ es
+la mediana y $\sigma_d$ la anchura lognormal,
+\begin{equation}
+  f(d)=\frac{1}{d\sigma_d\sqrt{2\pi}}
+  \exp\left[-\frac{(\ln d-\ln d_{50})^2}{2\sigma_d^2}\right].
+\end{equation}
+El espectro total se discretiza como
+\begin{equation}
+  A_{\mathrm{Neel}}(v)=D\sum_i w_i\,
+  A_{\mathrm{BT}}\bigl(v;\log_{10}\nu_i,T,K_{\mathrm{eff}},d_i\bigr),
+\end{equation}
+donde $A_{\mathrm{BT}}$ es el perfil de intercambio de dos estados de la sección
+anterior. Las partículas grandes tienen barrera $K_{\mathrm{eff}}V$ mayor y por
+tanto relajan más despacio; las pequeñas relajan rápido y aportan señal
+superparamagnética.
+
+La temperatura de bloqueo aproximada para un diámetro dado se estima con
+\begin{equation}
+  T_B(d)=\frac{K_{\mathrm{eff}}V(d)}{k_B\ln(\tau_M/\tau_0)},
+\end{equation}
+siendo $\tau_M$ el tiempo de observación Mössbauer (por defecto se usa
+$10^{-8}$ s para el resumen de la GUI).
+
+\begin{aviso}[Identificabilidad]
+En un único espectro, $K_{\mathrm{eff}}$, $d_{50}$, $\sigma_d$, $\tau_0$, $\Gamma$
+y una posible distribución estática $P(\BHF)$ pueden estar fuertemente
+correlacionados. Por eso conviene fijar parámetros con información externa
+(TEM, magnetometría, literatura) o usar ajuste global multi-temperatura.
+\end{aviso}
+
+%======================================================================
+\section{Ajuste global multi-temperatura}
+
+La fase 5 añade un backend puro para ajustar simultáneamente varios espectros a
+distintas temperaturas. Para cada espectro $r$ se tiene $T_r(v)$ y temperatura
+$T_r$. El modelo comparte los parámetros físicos
+\begin{equation}
+  \theta_{\mathrm{shared}}=\{\delta,\dEQ,\BHF,\Gamma,K_{\mathrm{eff}},d_{50},
+  \sigma_d,\tau_0\},
+\end{equation}
+y mantiene parámetros locales por espectro, por defecto
+\begin{equation}
+  \theta_r=\{b_r,s_r,D_r\}.
+\end{equation}
+La función objetivo es
+\begin{equation}
+  \chi^2=\sum_r\sum_k
+  \left(\frac{T_{r,\mathrm{model}}(v_k;\theta_{\mathrm{shared}},\theta_r,T_r)
+  -T_{r,\mathrm{data}}(v_k)}{\sigma_{rk}}\right)^2.
+\end{equation}
+Esto reduce la degeneración frente a un ajuste de un único espectro: la misma
+distribución de tamaños debe explicar simultáneamente el bloqueo a baja
+$T$ y el colapso superparamagnético a alta $T$.
+
+%======================================================================
+\section{Relación con el ajuste y los informes}
+
+Los parámetros ajustables son los mismos que en un sextete ($\delta$, $\dEQ$,
+$\BHF$, anchuras, profundidad e intensidades) más $\log_{10}\nu$ y, sólo en el
+modelo fenomenológico, $f_{\mathrm{bloq}}$. En \code{NeelSize} se añaden $T$,
+$\log_{10}K_{\mathrm{eff}}$, $d_{50}$, $\sigma_d$, $\log_{10}\tau_0$ y el número
+de bins. La GUI muestra también
+\begin{equation}
+  \tau=\frac{1}{\nu}=10^{-\log_{10}\nu}\;\mathrm{s}
+\end{equation}
+y, para \code{NeelSize}, una $T_B$ aproximada.
+
+En los informes, la componente \code{Relajacion} debe interpretarse como
+``fracción bloqueada / superparamagnética aparente'', no como fases químicas
+separadas. La componente \code{BlumeTjon} se reporta como modelo dinámico de dos
+estados y \code{NeelSize} como modelo Néel--Arrhenius con distribución de tamaños.
+
+%======================================================================
+\section{Validación implementada}
+
+Se añadieron pruebas sintéticas para verificar:
+\begin{enumerate}[leftmargin=*]
+  \item \code{Relajacion} con $f_{\mathrm{bloq}}=1$ reproduce un sextete.
+  \item \code{Relajacion} con $f_{\mathrm{bloq}}=0$ reproduce un doblete escalado
+  al área del sextete.
+  \item $\log_{10}\nu$ controla los límites lento/rápido del modelo
+  fenomenológico.
+  \item \code{BlumeTjon} reproduce límites lento e intercambio rápido de forma
+  cualitativa.
+  \item La distribución lognormal de tamaños se normaliza correctamente y la tasa
+  Néel disminuye al aumentar el diámetro.
+  \item \code{NeelSize} cambia con la temperatura y el backend global recupera
+  un diámetro sintético compartido en un par de espectros.
+\end{enumerate}
+
+\begin{nota}[Alcance]
+La implementación actual no incluye todavía Néel--Arrhenius, distribución de
+tamaños ni ajuste global multi-temperatura. Esas extensiones requieren modelos y
+datos adicionales para evitar sobreinterpretar un único espectro.
+\end{nota}
+
+\end{document}

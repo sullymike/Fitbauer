@@ -41,7 +41,7 @@ from core.params import (
 _EDGE_TRIM = 1
 MAX_COMPONENTS_DEFAULT = 3
 
-_KINDS = {"Sextete", "Doblete", "Singlete"}
+_KINDS = {"Sextete", "Doblete", "Singlete", "Relajacion", "BlumeTjon", "NeelSize"}
 _INTENSITY_MODES = {"free", "texture"}
 _QUAD_TREATMENTS = {"1st_order", "kundig_fixed", "kundig_powder"}
 
@@ -178,9 +178,13 @@ class ModelState:
         for idx in sorted(self.sextet_enabled):
             if not self.sextet_enabled.get(idx):
                 continue
+            kind = self.component_kind.get(idx, "Sextete")
+            imode = self.intensity_mode.get(idx, "free")
+            qtreat = self.quad_treatment.get(idx, "1st_order")
+            relevant = _relevant_params(kind, imode, qtreat)
             for name in _ACTIVE_PARAM_ORDER:
                 key = f"s{idx}_{name}"
-                if key in self.vars:
+                if key in self.vars and name in relevant:
                     keys.append(key)
         return keys
 
