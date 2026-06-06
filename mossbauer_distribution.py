@@ -47,6 +47,8 @@ class BhfQuadDistribution2DFit:
     rms: float
     success: bool
     message: str
+    x_variable: str = "bhf"
+    y_variable: str = "quad"
     effective_dof: float | None = None
     marginal_bhf: np.ndarray | None = None
     marginal_quad: np.ndarray | None = None
@@ -72,6 +74,8 @@ class BhfQuadDistribution2DFit:
             "alpha_bhf": self.alpha_bhf,
             "alpha_quad": self.alpha_quad,
             "rms": self.rms,
+            "x_variable": self.x_variable,
+            "y_variable": self.y_variable,
             "success": self.success,
             "message": self.message,
             "effective_dof": self.effective_dof,
@@ -400,7 +404,11 @@ def build_bhf_quad_distribution_kernel(
     bhf_centers: np.ndarray,
     quad_centers: np.ndarray,
     *,
+    variable_x: str = "bhf",
+    variable_y: str = "quad",
     delta: float = 0.0,
+    quad: float = 0.0,
+    bhf: float = BHF_DEFAULT_T,
     gamma: float = 0.18,
     gamma2_rel: float = 1.0,
     gamma3_rel: float = 1.0,
@@ -408,20 +416,33 @@ def build_bhf_quad_distribution_kernel(
     int2_rel: float = 1.0,
     int3_rel: float = 1.0,
 ) -> np.ndarray:
-    """Kernel para una distribución 2D P(BHF, ΔEQ).
+    """Kernel para una distribución 2D de dos parámetros hiperfinos.
 
-    Las columnas se ordenan como ``weights.reshape(n_bhf, n_quad)``: BHF es el
-    primer índice y ΔEQ el segundo. Cada columna contiene un sextete de
-    profundidad unitaria para una pareja (BHF_i, ΔEQ_j).
+    Por compatibilidad histórica los ejes se llaman ``bhf_centers`` y
+    ``quad_centers``. Pueden representar otras variables con ``variable_x`` /
+    ``variable_y``: ``bhf``, ``quad`` o ``delta`` (IS). Las columnas se ordenan
+    como ``weights.reshape(nx, ny)``.
     """
     v = np.asarray(v, dtype=float)
-    b_arr = np.asarray(bhf_centers, dtype=float).reshape(-1)
-    q_arr = np.asarray(quad_centers, dtype=float).reshape(-1)
+    x_arr = np.asarray(bhf_centers, dtype=float).reshape(-1)
+    y_arr = np.asarray(quad_centers, dtype=float).reshape(-1)
+    aliases = {"is": "delta", "isomer": "delta", "isomer_shift": "delta",
+               "deq": "quad", "deltaeq": "quad", "qs": "quad",
+               "b": "bhf", "field": "bhf"}
+    vx = aliases.get(variable_x.lower(), variable_x.lower())
+    vy = aliases.get(variable_y.lower(), variable_y.lower())
+    if vx == vy:
+        raise ValueError("Los dos ejes 2D deben ser variables distintas")
+    if vx not in {"bhf", "quad", "delta"} or vy not in {"bhf", "quad", "delta"}:
+        raise ValueError("Variables 2D válidas: 'bhf', 'quad' o 'delta'")
     cols: list[np.ndarray] = []
-    for b in b_arr:
-        for q in q_arr:
+    for x in x_arr:
+        for y in y_arr:
+            vals = {"delta": float(delta), "quad": float(quad), "bhf": float(bhf)}
+            vals[vx] = float(x)
+            vals[vy] = float(y)
             cols.append(sextet_absorption(
-                v, delta=delta, quad=float(q), bhf=float(b), gamma=gamma,
+                v, delta=vals["delta"], quad=vals["quad"], bhf=vals["bhf"], gamma=gamma,
                 gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel,
                 int1=int1, int2_rel=int2_rel, int3_rel=int3_rel,
             ))
@@ -511,7 +532,11 @@ def fit_bhf_quad_distribution(
     v: np.ndarray,
     y: np.ndarray,
     *,
+    variable_x: str = "bhf",
+    variable_y: str = "quad",
     delta: float = 0.0,
+    quad: float = 0.0,
+    bhf: float = BHF_DEFAULT_T,
     gamma: float = 0.18,
     gamma2_rel: float = 1.0,
     gamma3_rel: float = 1.0,
@@ -572,7 +597,9 @@ def fit_bhf_quad_distribution(
     n_b = bhf_centers.size
     n_q = quad_centers.size
     K = build_bhf_quad_distribution_kernel(
-        v, bhf_centers, quad_centers, delta=delta, gamma=gamma,
+        v, bhf_centers, quad_centers,
+        variable_x=variable_x, variable_y=variable_y,
+        delta=delta, quad=quad, bhf=bhf, gamma=gamma,
         gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel,
         int1=int1, int2_rel=int2_rel, int3_rel=int3_rel,
     )
@@ -681,6 +708,8 @@ def fit_bhf_quad_distribution(
         rms=rms,
         success=bool(result.success),
         message=str(result.message),
+        x_variable=str(variable_x),
+        y_variable=str(variable_y),
         effective_dof=eff_dof,
         marginal_bhf=np.asarray(diag["marginal_bhf"], dtype=float),
         marginal_quad=np.asarray(diag["marginal_quad"], dtype=float),
@@ -718,12 +747,17 @@ def build_hyperfine_distribution_kernel(
     variable = variable.lower()
     if variable in {"bhf", "b", "field"}:
         return build_bhf_kernel(v, centers, delta=delta, quad=quad, gamma=gamma, gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel, int1=int1, int2_rel=int2_rel, int3_rel=int3_rel)
-    if variable in {"quad", "deq", "deltaeq", "Δeq"}:
+    if variable in {"quad", "deq", "deltaeq", "qs", "Δeq"}:
         return np.column_stack([
             sextet_absorption(v, delta=delta, quad=float(q), bhf=bhf, gamma=gamma, gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel, int1=int1, int2_rel=int2_rel, int3_rel=int3_rel)
             for q in np.asarray(centers, dtype=float)
         ])
-    raise ValueError("variable de distribución no reconocida: usa 'bhf' o 'quad'")
+    if variable in {"delta", "is", "isomer", "isomer_shift"}:
+        return np.column_stack([
+            sextet_absorption(v, delta=float(d), quad=quad, bhf=bhf, gamma=gamma, gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel, int1=int1, int2_rel=int2_rel, int3_rel=int3_rel)
+            for d in np.asarray(centers, dtype=float)
+        ])
+    raise ValueError("variable de distribución no reconocida: usa 'bhf', 'quad' o 'delta'")
 
 
 def second_difference_matrix(n: int) -> np.ndarray:

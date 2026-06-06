@@ -716,7 +716,10 @@ def test_qt_distribution_2d_mode_is_exposed_and_persisted(win):
     shape_items = [win.dist_panel.shape_combo.itemData(i) for i in range(win.dist_panel.shape_combo.count())]
     assert "2D" in shape_items
 
-    win.mode_combo.setCurrentIndex(3)
+    assert any("P(IS)" in item for item in mode_items)
+    assert any("IS" in item and "ΔEQ" in item for item in mode_items)
+
+    win.mode_combo.setCurrentIndex(4)
     assert win.is_distribution_mode
     assert win.dist_panel.shape == "2D"
     assert not win.dist_panel.qmin.isHidden()
@@ -729,5 +732,9 @@ def test_qt_distribution_2d_mode_is_exposed_and_persisted(win):
     win.mode_combo.setCurrentIndex(0)
     win.dist_panel.shape_combo.setCurrentIndex(win.dist_panel.shape_combo.findData("Histograma"))
     win._apply_session_payload(payload)
-    assert win.mode_combo.currentIndex() == 3
+    assert win.mode_combo.currentIndex() == 4
     assert win.dist_panel.shape == "2D"
+
+    win.mode_combo.setCurrentIndex(5)
+    assert win.dist_pair == ("delta", "quad")
+    assert win._session_payload()["model_state"]["dist_variable"] == "IS-ΔEQ"

@@ -124,7 +124,7 @@
   "component.intensity_label": "Intensities:",
   "component.quad_treatment_label": "Quadrupole:",
   "slider.s_texture": "t (texture)",
-  "slider.s_beta": "β (B↔V_zz, °)",
+  "slider.s_beta": "β Kündig (BHF↔Vzz, °)",
   "slider.s_relax_fraction": "blocked f",
   "slider.s_relax_log_nu": "log10 ν (s⁻¹)",
   "slider.s_neel_temp_k": "T (K)",

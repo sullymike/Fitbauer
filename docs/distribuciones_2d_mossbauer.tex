@@ -23,27 +23,33 @@
 
 \section{Motivación}
 
-Las distribuciones unidimensionales $P(\BHF)$ y $P(\DEQ)$ son adecuadas cuando
-la fuente dominante de desorden es, respectivamente, magnética o cuadrupolar. En
-materiales amorfos, ferritas desordenadas, vidrios, nanopartículas o fases con
-múltiples entornos locales puede ocurrir que ambos parámetros cambien a la vez.
-En ese caso se puede plantear una distribución bidimensional:
+Las distribuciones unidimensionales $P(\BHF)$, $P(\DEQ)$ y $P(\delta)$ son
+adecuadas cuando la fuente dominante de desorden es, respectivamente, magnética,
+cuadrupolar o de desplazamiento isomérico. En materiales amorfos, ferritas
+desordenadas, vidrios, nanopartículas o fases con múltiples entornos locales
+puede ocurrir que dos parámetros cambien a la vez. En ese caso se puede plantear
+una distribución bidimensional:
 \begin{equation}
-  P(\BHF,\DEQ)\ge 0.
+  P(x,y)\ge 0,\qquad x,y\in\{\BHF,\DEQ,\delta\}.
 \end{equation}
-Su interés principal es poder estudiar no sólo las marginales $P(\BHF)$ y
-$P(\DEQ)$, sino también la posible correlación entre campo hiperfino y
-cuadrupolo.
+Los casos implementados en la GUI son $P(\BHF,\DEQ)$, $P(\delta,\DEQ)$ y
+$P(\BHF,\delta)$. El interés principal es poder estudiar no sólo las marginales,
+sino también la posible correlación entre las dos magnitudes distribuidas. El
+caso $P(\delta,\DEQ)$ es especialmente relevante para dobletes paramagnéticos
+anchos en vidrios, silicatos y fases amorfas.
 
 \section{Modelo espectral}
 
 Sea $v_k$ el canal de velocidad y sea $S(v;B,Q,\delta,\Gamma)$ el sextete de
-absorción de profundidad unitaria para campo $B$ y cuadrupolo $Q$. En una malla
-$B_i$, $Q_j$ el modelo lineal en los pesos es
+absorción de profundidad unitaria. En una malla $x_i$, $y_j$ el modelo lineal en
+los pesos es
 \begin{equation}
-  T_k = b_0 + b_1 v_k - \sum_{i=1}^{N_B}\sum_{j=1}^{N_Q}
-  P_{ij}\,S(v_k;B_i,Q_j,\delta,\Gamma).
+  T_k = b_0 + b_1 v_k - \sum_{i=1}^{N_x}\sum_{j=1}^{N_y}
+  P_{ij}\,S(v_k;B_{ij},Q_{ij},\delta_{ij},\Gamma).
 \end{equation}
+Los parámetros no distribuidos se mantienen globales. Por ejemplo, en
+$P(\delta,\DEQ)$ se fija o ajusta un $B$ global; si $B=0$ el patrón representa un
+conjunto de dobletes colapsados magnéticamente.
 En forma matricial,
 \begin{equation}
   \bm y \simeq X\bm z,
@@ -185,15 +191,16 @@ La implementación de Fitbauer incluye el backend:
 \begin{center}
 \texttt{mossbauer\_distribution.fit\_bhf\_quad\_distribution()}
 \end{center}
-y una integración en la GUI como modo \textbf{P(BHF,$\DEQ$) 2D} / forma
-\textbf{2D BHF--$\DEQ$}. El backend devuelve centros de $\BHF$, centros de
-$\DEQ$, matriz de pesos, probabilidad normalizada, curva ajustada, residuo,
-fondo, pendiente, valores de $\alpha_B$, $\alpha_Q$, marginales, momentos,
-correlación aparente y avisos de identificabilidad. La GUI muestra un mapa de
-calor con marginales, permite exportar el mapa a TSV, incluye una L-surface
-$\alpha_B$--$\alpha_Q$, dibuja el heatmap en Plotly y añade el mapa 2D al PDF del
-informe. También se admiten componentes nítidas simultáneas. Quedan para fases
-posteriores mejoras de rendimiento para mallas muy grandes y validaciones
-avanzadas específicas por tipo de muestra.
+y una integración en la GUI como modos \textbf{P(BHF,$\DEQ$) 2D},
+\textbf{P($\delta$,$\DEQ$) 2D}, \textbf{P(BHF,$\delta$) 2D} y como distribución
+1D \textbf{P($\delta$)}. El backend devuelve centros de los dos ejes, matriz de
+pesos, probabilidad normalizada, curva ajustada, residuo, fondo, pendiente,
+valores de $\alpha_x$, $\alpha_y$, marginales, momentos, correlación aparente y
+avisos de identificabilidad. La GUI muestra un mapa de calor con marginales,
+permite exportar el mapa a TSV, incluye una L-surface $\alpha_x$--$\alpha_y$,
+dibuja el heatmap en Plotly y añade el mapa 2D al PDF del informe. También se
+admiten componentes nítidas simultáneas. Quedan para fases posteriores mejoras
+de rendimiento para mallas muy grandes y validaciones avanzadas específicas por
+tipo de muestra.
 
 \end{document}

@@ -10,7 +10,8 @@
 - Tercera fase de relajación: nuevo tipo `BlumeTjon` con intercambio dinámico de dos estados `+BHF ↔ -BHF`; reproduce límites lento/intermedio/rápido mediante un perfil de intercambio convertido desde ν(s⁻¹) a unidades de velocidad.
 - Cuarta fase de relajación: nuevo tipo `NeelSize`, con Néel–Arrhenius y distribución lognormal de diámetros (`T`, `log10 Keff`, `d50`, `σ`, `log10 τ0`, bins).
 - Quinta fase de relajación: backend puro `core.relaxation.fit_neel_size_global()` para ajuste global multi-temperatura compartiendo parámetros físicos de `NeelSize` y dejando base/pendiente/profundidad locales.
-- Distribuciones 2D: backend `mossbauer_distribution.fit_bhf_quad_distribution()` para `P(BHF, ΔEQ)` con regularización independiente en ambas direcciones; integración en la GUI como modo **P(BHF, ΔEQ) 2D** y forma **2D BHF-ΔEQ**, con mapa de calor, marginales, heatmap Plotly, exportación TSV, L-surface `αB/αQ`, componentes nítidos simultáneos, diagnósticos (medias, sigmas, correlación aparente, dof efectivo) e informe PDF con mapa 2D; advertencias de sobreajuste/identificabilidad en ayuda y documentación matemática.
+- Distribuciones 2D: backend `mossbauer_distribution.fit_bhf_quad_distribution()` generalizado para pares `BHF`, `ΔEQ/QS` e `IS`; integración en la GUI como modos **P(BHF, ΔEQ) 2D**, **P(IS, ΔEQ) 2D**, **P(BHF, IS) 2D** y distribución 1D **P(IS)**, con mapa de calor, marginales, heatmap Plotly, exportación TSV, L-surface `αx/αy`, componentes nítidos simultáneos, diagnósticos (medias, sigmas, correlación aparente, dof efectivo) e informe PDF con mapa 2D; advertencias de sobreajuste/identificabilidad en ayuda y documentación matemática.
+- El parámetro `β` del sextete se oculta salvo en el tratamiento cuadrupolar **Kündig fijo** y se renombra a `β Kündig (BHF↔Vzz, °)` para evitar confundirlo con versiones beta.
 
 ## v4.1.0 — Interfaz única Qt y ajuste headless en core
 

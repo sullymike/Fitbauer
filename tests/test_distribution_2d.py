@@ -10,6 +10,7 @@ from mossbauer_distribution import (  # noqa: E402
     bhf_quad_distribution_diagnostics,
     build_bhf_quad_distribution_kernel,
     fit_bhf_quad_distribution,
+    fit_hyperfine_distribution,
     normalize_probability_2d,
     parameter_grid,
     sextet_absorption,
@@ -74,6 +75,64 @@ def test_bhf_quad_diagnostics_detect_positive_correlation():
     p = normalize_probability_2d(ridge, b, q)
     diag = bhf_quad_distribution_diagnostics(p, b, q)
     assert diag["corr_bhf_quad"] > 0.75
+
+
+def test_fit_delta_distribution_1d_recovers_isomer_shift():
+    v = np.linspace(-5.0, 5.0, 160)
+    baseline = 1.0
+    true_delta = 0.35
+    y = baseline - 0.02 * sextet_absorption(v, delta=true_delta, quad=0.8, bhf=0.0, gamma=0.16)
+    res = fit_hyperfine_distribution(
+        v, y, variable="delta", delta=0.0, quad=0.8, bhf=0.0, gamma=0.16,
+        pmin=-0.2, pmax=0.8, nbins=21, alpha=1e-8,
+        fit_slope=False, baseline=baseline,
+    )
+    assert res.success
+    assert res.rms < 5e-4
+    peak = res.bhf_centers[int(np.argmax(res.weights))]
+    assert abs(peak - true_delta) <= 0.06
+
+
+def test_fit_is_qs_distribution_2d_recovers_synthetic_peak():
+    v = np.linspace(-5.0, 5.0, 180)
+    baseline = 1.0
+    true_delta = 0.32
+    true_q = 0.9
+    y = baseline - 0.018 * sextet_absorption(v, delta=true_delta, quad=true_q, bhf=0.0, gamma=0.16)
+    res = fit_bhf_quad_distribution(
+        v, y, variable_x="delta", variable_y="quad",
+        delta=0.0, quad=0.0, bhf=0.0, gamma=0.16,
+        bmin=0.0, bmax=0.6, nbins_bhf=13,
+        qmin=0.4, qmax=1.2, nbins_quad=9,
+        alpha_bhf=1e-8, alpha_quad=1e-8,
+        fit_slope=False, baseline=baseline,
+    )
+    assert res.success
+    ix, iy = np.unravel_index(np.argmax(res.weights), res.weights.shape)
+    assert abs(res.bhf_centers[ix] - true_delta) <= 0.06
+    assert abs(res.quad_centers[iy] - true_q) <= 0.11
+    assert res.x_variable == "delta"
+    assert res.y_variable == "quad"
+
+
+def test_fit_bhf_is_distribution_2d_uses_fixed_quadrupole():
+    v = np.linspace(-8.0, 8.0, 180)
+    baseline = 1.0
+    true_b = 32.0
+    true_delta = 0.25
+    y = baseline - 0.018 * sextet_absorption(v, delta=true_delta, quad=0.2, bhf=true_b, gamma=0.16)
+    res = fit_bhf_quad_distribution(
+        v, y, variable_x="bhf", variable_y="delta",
+        delta=0.0, quad=0.2, bhf=33.0, gamma=0.16,
+        bmin=28.0, bmax=36.0, nbins_bhf=9,
+        qmin=0.0, qmax=0.5, nbins_quad=11,
+        alpha_bhf=1e-8, alpha_quad=1e-8,
+        fit_slope=False, baseline=baseline,
+    )
+    assert res.success
+    ix, iy = np.unravel_index(np.argmax(res.weights), res.weights.shape)
+    assert abs(res.bhf_centers[ix] - true_b) <= 1.1
+    assert abs(res.quad_centers[iy] - true_delta) <= 0.06
 
 
 def test_fit_bhf_quad_distribution_accepts_fixed_sharp_component():

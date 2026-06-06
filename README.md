@@ -179,7 +179,7 @@ En distribuciones, los controles globales se refinan directamente según su casi
 
 ### Distribución P(BHF, ΔEQ) 2D
 
-Hay un backend avanzado para distribuciones bidimensionales `P(BHF, ΔEQ)` en `mossbauer_distribution.fit_bhf_quad_distribution()` e integración en la GUI como modo **P(BHF, ΔEQ) 2D** / forma **2D BHF-ΔEQ**. Incluye mapa de calor, marginales, heatmap Plotly, exportación TSV, L-surface `αB/αQ`, componentes nítidos simultáneos e informe PDF con mapa 2D. Este modelo puede representar correlaciones campo–cuadrupolo, pero es muy subdeterminado: una malla 30×30 implica 900 pesos. Puede ajustar muy bien y aun así carecer de sentido físico si absorbe ruido, folding, calibración, anchuras mal fijadas o componentes omitidas. Usarlo por ahora como herramienta exploratoria y comprobar estabilidad frente a `αB`, `αQ` y número de bins.
+Hay un backend avanzado para distribuciones bidimensionales de dos parámetros (`BHF`, `ΔEQ/QS` e `IS`) en `mossbauer_distribution.fit_bhf_quad_distribution()` e integración en la GUI como modos **P(BHF, ΔEQ) 2D**, **P(IS, ΔEQ) 2D** y **P(BHF, IS) 2D**. También hay distribución 1D **P(IS)**. Incluye mapa de calor, marginales, heatmap Plotly, exportación TSV, L-surface `αx/αy`, componentes nítidos simultáneos e informe PDF con mapa 2D. Estos modelos pueden representar correlaciones campo–cuadrupolo o IS–QS, pero son muy subdeterminados: una malla 30×30 implica 900 pesos. Pueden ajustar muy bien y aun así carecer de sentido físico si absorben ruido, folding, calibración, anchuras mal fijadas o componentes omitidas. Usarlos por ahora como herramienta exploratoria y comprobar estabilidad frente a regularización y número de bins.
 
 ### Consejos prácticos
 

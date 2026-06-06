@@ -549,7 +549,7 @@ class ComponentPanel(QtWidgets.QWidget):
         used = self.relevant_params()
         for name, ctl in self.params.items():
             ctl.setEnabled(name in used)
-            if name.startswith("neel_") or name in ("relax_fraction", "relax_log_nu"):
+            if name.startswith("neel_") or name in ("relax_fraction", "relax_log_nu", "beta"):
                 ctl.setVisible(name in used)
         self.paramChanged.emit()
 
@@ -987,7 +987,22 @@ class DistributionPanel(QtWidgets.QGroupBox):
         v.addStretch(1)
         self.fixed_path: Path | None = None
         self._distribution_variable = "bhf"
+        self._distribution_pair = ("bhf", "quad")
         self._sync_2d_controls()
+
+    def _dist_var_label(self, var: str, role: str) -> str:
+        if var == "delta":
+            return tr(f"slider.dist_{role}_delta", default=f"IS {'mín' if role == 'bmin' else 'máx'}")
+        if var == "quad":
+            return tr(f"slider.dist_{role}_quad")
+        return tr(f"slider.dist_{role}_bhf")
+
+    def _dist_var_range(self, var: str) -> tuple[float, float]:
+        if var == "delta":
+            return (-2.5, 2.5)
+        if var == "quad":
+            return (DIST_QUAD_RANGE[0], DIST_QUAD_RANGE[1])
+        return (DIST_BHF_RANGE[0], DIST_BHF_RANGE[1])
 
     def _sync_2d_controls(self) -> None:
         is_2d = self.shape == "2D"
@@ -998,44 +1013,49 @@ class DistributionPanel(QtWidgets.QGroupBox):
         self.lcurve_link.setEnabled(True)
         self.use_sharp.setEnabled(True)
         if is_2d:
-            self.bmin.label.setText(tr("slider.dist_bmin_bhf"))
-            self.bmax.label.setText(tr("slider.dist_bmax_bhf"))
-            self.quad.label.setText(tr("slider.dist_quad_inactive_2d", default="ΔEQ global (no usado: eje 2D)"))
-            self.quad.setEnabled(False)
-            self.fixed_bhf.setEnabled(False)
+            x_var, y_var = getattr(self, "_distribution_pair", ("bhf", "quad"))
+            self.bmin.label.setText(self._dist_var_label(x_var, "bmin"))
+            self.bmax.label.setText(self._dist_var_label(x_var, "bmax"))
+            self.qmin.label.setText(tr("slider.dist2d_qmin", default="Eje Y mín 2D") if y_var == "quad" else self._dist_var_label(y_var, "bmin"))
+            self.qmax.label.setText(tr("slider.dist2d_qmax", default="Eje Y máx 2D") if y_var == "quad" else self._dist_var_label(y_var, "bmax"))
+            self.qbins.label.setText(tr("slider.dist2d_qbins", default="Bins eje Y 2D"))
+            self.quad.label.setText(tr("slider.dist_quad_inactive_2d", default="ΔEQ global (no usado: eje 2D)") if "quad" in (x_var, y_var) else tr("slider.dist_quad"))
+            self.quad.setEnabled("quad" not in (x_var, y_var))
+            self.fixed_bhf.setEnabled(("bhf" not in (x_var, y_var)))
+            lo, hi = self._dist_var_range(x_var)
             for ctl in (self.bmin, self.bmax):
-                ctl.set_range(0.0, DIST_BHF_RANGE[1], DIST_RANGE_RESOLUTION)
+                ctl.set_range(lo, hi, DIST_RANGE_RESOLUTION)
+            lo_y, hi_y = self._dist_var_range(y_var)
+            for ctl in (self.qmin, self.qmax):
+                ctl.set_range(lo_y, hi_y, DIST_RANGE_RESOLUTION)
         else:
             # Al salir de 2D, restaurar etiquetas/estados según BHF vs ΔEQ.
             var = getattr(self, "_distribution_variable", "bhf")
             is_quad = var == "quad"
-            self.bmin.label.setText(tr("slider.dist_bmin_quad") if is_quad else tr("slider.dist_bmin_bhf"))
-            self.bmax.label.setText(tr("slider.dist_bmax_quad") if is_quad else tr("slider.dist_bmax_bhf"))
+            is_delta = var == "delta"
+            self.bmin.label.setText(self._dist_var_label(var, "bmin"))
+            self.bmax.label.setText(self._dist_var_label(var, "bmax"))
             self.fixed_bhf.label.setText(
-                tr("slider.dist_fixed_bhf_active", default="BHF fijo (T)") if is_quad
+                tr("slider.dist_fixed_bhf_active", default="BHF fijo (T)") if (is_quad or is_delta)
                 else tr("slider.dist_fixed_bhf_inactive", default="BHF fijo (no usado en modo BHF)"))
-            self.fixed_bhf.setEnabled(is_quad)
+            self.fixed_bhf.setEnabled(is_quad or is_delta)
             self.quad.label.setText(tr("slider.dist_quad_inactive", default="ΔEQ global (no usado: distribuido)") if is_quad else tr("slider.dist_quad"))
             self.quad.setEnabled(not is_quad)
-            max_value = DIST_QUAD_RANGE[1] if is_quad else DIST_BHF_RANGE[1]
+            lo, hi = self._dist_var_range(var)
             for ctl in (self.bmin, self.bmax):
-                ctl.set_range(0.0, max_value, DIST_RANGE_RESOLUTION)
+                ctl.set_range(lo, hi, DIST_RANGE_RESOLUTION)
 
     def _set_log_alpha(self, value: float) -> None:
         self.log_alpha.set_value(float(value))
         self.paramChanged.emit()
 
+    def set_distribution_pair(self, variable_x: str, variable_y: str) -> None:
+        self._distribution_pair = (variable_x, variable_y)
+        self._sync_2d_controls()
+
     def set_distribution_variable(self, variable: str) -> None:
         self._distribution_variable = variable
         if self.shape == "2D":
-            self.bmin.label.setText(tr("slider.dist_bmin_bhf"))
-            self.bmax.label.setText(tr("slider.dist_bmax_bhf"))
-            self.fixed_bhf.label.setText(tr("slider.dist_fixed_bhf_inactive", default="BHF fijo (no usado en modo BHF)"))
-            self.fixed_bhf.setEnabled(False)
-            self.quad.label.setText(tr("slider.dist_quad_inactive_2d", default="ΔEQ global (no usado: eje 2D)"))
-            self.quad.setEnabled(False)
-            for ctl in (self.bmin, self.bmax):
-                ctl.set_range(0.0, DIST_BHF_RANGE[1], DIST_RANGE_RESOLUTION)
             self._sync_2d_controls()
             return
         is_quad = variable == "quad"
@@ -1506,7 +1526,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             tr("options.discrete_sextets"),
             tr("options.distribution_bhf"),
             "P(ΔEQ)",
+            "P(IS)",
             "P(BHF, ΔEQ) 2D",
+            "P(IS, ΔEQ) 2D",
+            "P(BHF, IS) 2D",
         ])
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_row.addWidget(self.mode_combo, stretch=1)
@@ -2702,9 +2725,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
 
     # ── Cambio de modo ───────────────────────────────────────────────────
     def _on_mode_changed(self, idx: int) -> None:
-        is_dist = (idx in (1, 2, 3))
+        is_dist = (idx in (1, 2, 3, 4, 5, 6))
         is_deq = (idx == 2)
-        is_2d = (idx == 3)
+        is_delta = (idx == 3)
+        is_2d = (idx in (4, 5, 6))
         self._sync_component_count(self.n_components_spin.value())
         # La visibilidad de dist_panel/sextetes la fija _sync_component_count
         # según el modo y el contenedor (apilado o pestañas).
@@ -2718,21 +2742,37 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 idx_shape = self.dist_panel.shape_combo.findData("2D")
                 if idx_shape >= 0 and self.dist_panel.shape_combo.currentIndex() != idx_shape:
                     self.dist_panel.shape_combo.setCurrentIndex(idx_shape)
-            elif self.dist_panel.shape == "2D":
-                idx_shape = self.dist_panel.shape_combo.findData("Histograma")
-                if idx_shape >= 0:
-                    self.dist_panel.shape_combo.setCurrentIndex(idx_shape)
-            self.dist_panel.set_distribution_variable("quad" if is_deq else "bhf")
+                self.dist_panel.set_distribution_pair(*self.dist_pair)
+            else:
+                if self.dist_panel.shape == "2D":
+                    idx_shape = self.dist_panel.shape_combo.findData("Histograma")
+                    if idx_shape >= 0:
+                        self.dist_panel.shape_combo.setCurrentIndex(idx_shape)
+                self.dist_panel.set_distribution_variable("delta" if is_delta else ("quad" if is_deq else "bhf"))
         self._check_layout()
         self._refresh_plot()
 
     @property
     def is_distribution_mode(self) -> bool:
-        return self.mode_combo.currentIndex() in (1, 2, 3)
+        return self.mode_combo.currentIndex() in (1, 2, 3, 4, 5, 6)
 
     @property
     def dist_variable(self) -> str:
-        return "quad" if self.mode_combo.currentIndex() == 2 else "bhf"
+        idx = self.mode_combo.currentIndex()
+        if idx == 2:
+            return "quad"
+        if idx == 3:
+            return "delta"
+        return "bhf"
+
+    @property
+    def dist_pair(self) -> tuple[str, str]:
+        idx = self.mode_combo.currentIndex()
+        if idx == 5:
+            return ("delta", "quad")
+        if idx == 6:
+            return ("bhf", "delta")
+        return ("bhf", "quad")
 
     def _on_model_param_changed(self, *args) -> None:
         if not self._building:
@@ -3444,19 +3484,22 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             pdist = np.asarray(dist_result.probability, dtype=float)
             if pdist.ndim == 2 and hasattr(dist_result, "quad_centers"):
                 qdist = np.asarray(dist_result.quad_centers, dtype=float)
-                dist_name = "P(BHF, ΔEQ)"
+                vx = getattr(dist_result, "x_variable", "bhf")
+                vy = getattr(dist_result, "y_variable", "quad")
+                label_map = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
+                dist_name = f"P({label_map.get(vx, vx)}, {label_map.get(vy, vy)})"
                 fig.add_trace(
                     go.Heatmap(
                         x=xdist, y=qdist, z=pdist.T, name=dist_name,
                         colorscale="Viridis", colorbar=dict(title="P"),
-                        hovertemplate="BHF=%{x:.5g} T<br>ΔEQ=%{y:.5g} mm/s<br>P=%{z:.6g}<extra></extra>",
+                        hovertemplate=f"{label_map.get(vx, vx)}=%{{x:.5g}}<br>{label_map.get(vy, vy)}=%{{y:.5g}}<br>P=%{{z:.6g}}<extra></extra>",
                     ),
                     row=dist_row, col=1,
                 )
-                fig.update_xaxes(title_text=tr("plot.distribution_xlabel_bhf"), row=dist_row, col=1)
-                fig.update_yaxes(title_text=tr("plot.distribution_xlabel_deq"), row=dist_row, col=1)
+                fig.update_xaxes(title_text=label_map.get(vx, vx), row=dist_row, col=1)
+                fig.update_yaxes(title_text=label_map.get(vy, vy), row=dist_row, col=1)
             else:
-                dist_name = "P(ΔEQ)" if self.dist_variable == "quad" else "P(BHF)"
+                dist_name = "P(ΔEQ)" if self.dist_variable == "quad" else ("P(IS)" if self.dist_variable == "delta" else "P(BHF)")
                 fig.add_trace(
                     go.Scatter(
                         x=xdist, y=pdist, mode="lines", name=dist_name,
@@ -3466,7 +3509,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                     ),
                     row=dist_row, col=1,
                 )
-                xlabel = tr("plot.distribution_xlabel_deq") if self.dist_variable == "quad" else tr("plot.distribution_xlabel_bhf")
+                xlabel = tr("plot.distribution_xlabel_deq") if self.dist_variable == "quad" else ("IS (mm/s)" if self.dist_variable == "delta" else tr("plot.distribution_xlabel_bhf"))
                 fig.update_xaxes(title_text=xlabel, row=dist_row, col=1)
                 fig.update_yaxes(title_text=dist_name, row=dist_row, col=1)
         if not show_residual:
@@ -4218,9 +4261,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             if hasattr(self, "dist_panel") and self.dist_panel.fixed_path else None
         )
         if hasattr(self, "dist_panel") and self.dist_panel.shape == "2D":
-            model_state["dist_variable"] = "BHF-ΔEQ"
+            label_map = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
+            x_var, y_var = self.dist_pair
+            model_state["dist_variable"] = f"{label_map.get(x_var, x_var)}-{label_map.get(y_var, y_var)}"
         else:
-            model_state["dist_variable"] = "ΔEQ" if self.dist_variable == "quad" else "BHF"
+            model_state["dist_variable"] = "ΔEQ" if self.dist_variable == "quad" else ("IS" if self.dist_variable == "delta" else "BHF")
         model_state["show_residual"] = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
         model_state["show_legend"] = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
         return {
@@ -4346,12 +4391,19 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 if idx_shape >= 0:
                     self.dist_panel.shape_combo.setCurrentIndex(idx_shape)
             var_saved = state.get("dist_variable")
-            if shape_saved == "2D" or var_saved in ("BHF-ΔEQ", "2D", "bhf_quad"):
-                self.mode_combo.setCurrentIndex(3)
+            if shape_saved == "2D" or var_saved in ("BHF-ΔEQ", "2D", "bhf_quad", "BHF-IS", "IS-ΔEQ"):
+                if var_saved in ("IS-ΔEQ", "delta-quad", "IS-QS"):
+                    self.mode_combo.setCurrentIndex(5)
+                elif var_saved in ("BHF-IS", "bhf-delta"):
+                    self.mode_combo.setCurrentIndex(6)
+                else:
+                    self.mode_combo.setCurrentIndex(4)
             elif var_saved in ("BHF", "bhf"):
                 self.mode_combo.setCurrentIndex(1)
             elif var_saved in ("ΔEQ", "quad"):
                 self.mode_combo.setCurrentIndex(2)
+            elif var_saved in ("IS", "delta"):
+                self.mode_combo.setCurrentIndex(3)
             if hasattr(self, "dist_panel"):
                 d = self.dist_panel
                 for key, ctl in (
@@ -5389,6 +5441,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         fit_slope = not self.calib.slope.is_fixed()
         try:
             if d.shape == "2D":
+                pair = self.dist_pair
                 qmin = float(d.qmin.value())
                 qmax = max(qmin + 0.05, float(d.qmax.value()))
                 qbins = max(5, int(round(d.qbins.value())))
@@ -5409,7 +5462,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                         })
                         fits2d.append(fit_bhf_quad_distribution(
                             self.file.velocity, self.file.y_data,
-                            delta=float(d.delta.value()), gamma=float(d.gamma.value()),
+                            variable_x=pair[0], variable_y=pair[1],
+                            delta=float(d.delta.value()), quad=float(d.quad.value()),
+                            bhf=(float(d.fixed_bhf.value()) if "bhf" not in pair else BHF_DEFAULT_T),
+                            gamma=float(d.gamma.value()),
                             bmin=bmin, bmax=bmax, nbins_bhf=nbins,
                             qmin=qmin, qmax=qmax, nbins_quad=qbins,
                             alpha_bhf=float(ab), alpha_quad=float(aq),
@@ -5633,8 +5689,11 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         qbins = max(5, int(round(d.qbins.value())))
         alpha_q = 10.0 ** float(d.log_alpha_q.value())
         var = self.dist_variable
+        pair = self.dist_pair
         shape = d.shape
-        label = "P(BHF, ΔEQ)" if shape == "2D" else ("P(ΔEQ)" if var == "quad" else "P(BHF)")
+        label_map = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
+        label = (f"P({label_map.get(pair[0], pair[0])}, {label_map.get(pair[1], pair[1])})"
+                 if shape == "2D" else f"P({label_map.get(var, var)})")
         self.statusBar().showMessage(f"Ajustando {label} [{shape}]…")
         _dlg, update_progress, close_progress = self._open_progress_dialog(
             tr("progress.distribution_title", default="Distribución hiperfina"),
@@ -5655,7 +5714,10 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             if shape == "2D":
                 return fit_bhf_quad_distribution(
                     v_arr, y_arr,
-                    delta=delta_value, gamma=gamma_value,
+                    variable_x=pair[0], variable_y=pair[1],
+                    delta=delta_value, quad=quad_value,
+                    bhf=(float(d.fixed_bhf.value()) if "bhf" not in pair else BHF_DEFAULT_T),
+                    gamma=gamma_value,
                     bmin=bmin, bmax=bmax, nbins_bhf=nbins,
                     qmin=qmin, qmax=qmax, nbins_quad=qbins,
                     alpha_bhf=alpha, alpha_quad=alpha_q,
@@ -5669,7 +5731,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             common = dict(
                 variable=var, delta=delta_value, gamma=gamma_value,
                 quad=(0.0 if var == "quad" else quad_value),
-                bhf=(float(d.fixed_bhf.value()) if var == "quad" else BHF_DEFAULT_T),
+                bhf=(float(d.fixed_bhf.value()) if var in ("quad", "delta") else BHF_DEFAULT_T),
                 baseline=float(self.calib.baseline.value()), slope=float(self.calib.slope.value()),
                 sharp_components=sharp_for_fit,
             )
@@ -5693,10 +5755,12 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             raise RuntimeError(f"Forma desconocida: {shape}")
 
         outer_specs: list[tuple[str, str, float, float]] = []
-        if not d.delta.is_fixed():
+        if var != "delta" and not d.delta.is_fixed():
             outer_specs.append(("dist_delta", "lin", d.delta._lo, d.delta._hi))
-        if shape != "2D" and var == "bhf" and not d.quad.is_fixed():
-            outer_specs.append(("dist_quad", "lin", d.quad._lo, d.quad._hi))
+        if ((shape != "2D" and var in ("bhf", "delta"))
+                or (shape == "2D" and "quad" not in pair)):
+            if not d.quad.is_fixed():
+                outer_specs.append(("dist_quad", "lin", d.quad._lo, d.quad._hi))
         if not d.gamma.is_fixed():
             outer_specs.append(("dist_gamma", "loggamma", d.gamma._lo, d.gamma._hi))
         if sharp_components:
@@ -5903,7 +5967,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 sharp_abs_sum += sharp_abs
                 components_for_plot.append((idx, f"Nítido {tr(f'kind.{cp.kind}', default=cp.kind)}", baseline_line - sharp_abs))
             if np.any(sharp_abs_sum > 0):
-                dist_name = "P(BHF, ΔEQ)" if shape == "2D" else ("P(ΔEQ)" if var == "quad" else "P(BHF)")
+                dist_name = label if shape == "2D" else ("P(ΔEQ)" if var == "quad" else ("P(IS)" if var == "delta" else "P(BHF)"))
                 components_for_plot.insert(0, (0, dist_name, result.fitted_curve + sharp_abs_sum))
         self.canvas.render(self.file.velocity, self.file.y_data,
                            model=result.fitted_curve, components=components_for_plot,
@@ -5943,12 +6007,15 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             b = np.asarray(result.bhf_centers, dtype=float)
             q = np.asarray(result.quad_centers, dtype=float)
             w = np.asarray(result.weights, dtype=float)
+            vx = getattr(result, "x_variable", "bhf")
+            vy = getattr(result, "y_variable", "quad")
+            label_map = {"bhf": "BHF", "quad": "DeltaEQ", "delta": "IS"}
             lines = [
-                "# P(BHF,DeltaEQ) 2D",
-                f"# alpha_bhf\t{getattr(result, 'alpha_bhf', '')}",
-                f"# alpha_quad\t{getattr(result, 'alpha_quad', '')}",
+                f"# P({label_map.get(vx, vx)},{label_map.get(vy, vy)}) 2D",
+                f"# alpha_x\t{getattr(result, 'alpha_bhf', '')}",
+                f"# alpha_y\t{getattr(result, 'alpha_quad', '')}",
                 f"# rms\t{getattr(result, 'rms', '')}",
-                "BHF_T\tDeltaEQ_mm_s\tweight\tprobability",
+                f"{label_map.get(vx, vx)}\t{label_map.get(vy, vy)}\tweight\tprobability",
             ]
             for i, bv in enumerate(b):
                 for j, qv in enumerate(q):
@@ -5983,9 +6050,14 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         var = self.dist_variable
         prob = np.asarray(result.probability, dtype=float)
         is_2d = prob.ndim == 2 and hasattr(result, "quad_centers")
-        title = "P(BHF, ΔEQ)" if is_2d else ("P(ΔEQ)" if var == "quad" else "P(BHF)")
-        xlabel = (tr("plot.distribution_xlabel_deq") if var == "quad" and not is_2d
-                  else tr("plot.distribution_xlabel_bhf"))
+        label_map = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
+        vx = getattr(result, "x_variable", "bhf")
+        vy = getattr(result, "y_variable", "quad")
+        title = (f"P({label_map.get(vx, vx)}, {label_map.get(vy, vy)})" if is_2d
+                 else ("P(ΔEQ)" if var == "quad" else ("P(IS)" if var == "delta" else "P(BHF)")))
+        xlabel = ("IS" if var == "delta" and not is_2d else
+                  (tr("plot.distribution_xlabel_deq") if var == "quad" and not is_2d
+                   else tr("plot.distribution_xlabel_bhf")))
         dlg = QtWidgets.QDialog(self)
         dlg.setWindowTitle(title)
         dlg.resize(860 if is_2d else 720, 620 if is_2d else 480)
@@ -6008,21 +6080,21 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 extent=[float(b[0]), float(b[-1]), float(q[0]), float(q[-1])],
                 cmap="viridis",
             )
-            ax_map.set_xlabel(tr("plot.distribution_xlabel_bhf"))
-            ax_map.set_ylabel(tr("plot.distribution_xlabel_deq"))
+            ax_map.set_xlabel(label_map.get(vx, vx))
+            ax_map.set_ylabel(label_map.get(vy, vy))
             ax_map.set_title(title)
             fig.colorbar(im, ax=ax_map, label="P")
             ax_b = fig.add_subplot(2, 2, 2)
             marg_b = np.trapezoid(prob, q, axis=1) if q.size > 1 else prob[:, 0]
             ax_b.plot(b, marg_b, color="#2563eb", lw=2.0)
             ax_b.fill_between(b, marg_b, 0, color="#93c5fd", alpha=0.35)
-            ax_b.set_xlabel("BHF (T)"); ax_b.set_ylabel("P(BHF)")
+            ax_b.set_xlabel(label_map.get(vx, vx)); ax_b.set_ylabel(f"P({label_map.get(vx, vx)})")
             ax_b.grid(True, alpha=0.3)
             ax_q = fig.add_subplot(2, 2, 4)
             marg_q = np.trapezoid(prob, b, axis=0) if b.size > 1 else prob[0, :]
             ax_q.plot(q, marg_q, color="#dc2626", lw=2.0)
             ax_q.fill_between(q, marg_q, 0, color="#fecaca", alpha=0.35)
-            ax_q.set_xlabel("ΔEQ (mm/s)"); ax_q.set_ylabel("P(ΔEQ)")
+            ax_q.set_xlabel(label_map.get(vy, vy)); ax_q.set_ylabel(f"P({label_map.get(vy, vy)})")
             ax_q.grid(True, alpha=0.3)
         else:
             ax = fig.add_subplot(111)
@@ -7073,16 +7145,23 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 lines.append("")
                 lines.append("| Magnitud | Valor |")
                 lines.append("|---|---|")
-                lines.append(f"| Tipo | P(BHF, ΔEQ) 2D |")
+                vx = getattr(dist, "x_variable", "bhf")
+                vy = getattr(dist, "y_variable", "quad")
+                label_map2 = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
+                lines.append(f"| Tipo | P({label_map2.get(vx, vx)}, {label_map2.get(vy, vy)}) 2D |")
                 lines.append(f"| Bins BHF × ΔEQ | {prob.shape[0]} × {prob.shape[1]} |")
                 lines.append(f"| αB / αQ | {getattr(dist, 'alpha_bhf', float('nan')):.6g} / {getattr(dist, 'alpha_quad', float('nan')):.6g} |")
                 lines.append(f"| RMS | {getattr(dist, 'rms', float('nan')):.6g} |")
                 eff = getattr(dist, "effective_dof", None)
                 if eff is not None:
                     lines.append(f"| dof efectivo aprox. | {float(eff):.6g} |")
-                for label_, attr, unit in (("⟨BHF⟩", "mean_bhf", "T"), ("σ(BHF)", "sigma_bhf", "T"),
-                                           ("⟨ΔEQ⟩", "mean_quad", "mm/s"), ("σ(ΔEQ)", "sigma_quad", "mm/s"),
-                                           ("corr(BHF,ΔEQ)", "corr_bhf_quad", "")):
+                unit_x = "T" if vx == "bhf" else "mm/s"
+                unit_y = "T" if vy == "bhf" else "mm/s"
+                xlbl = label_map2.get(vx, vx)
+                ylbl = label_map2.get(vy, vy)
+                for label_, attr, unit in ((f"⟨{xlbl}⟩", "mean_bhf", unit_x), (f"σ({xlbl})", "sigma_bhf", unit_x),
+                                           (f"⟨{ylbl}⟩", "mean_quad", unit_y), (f"σ({ylbl})", "sigma_quad", unit_y),
+                                           (f"corr({xlbl},{ylbl})", "corr_bhf_quad", "")):
                     val = getattr(dist, attr, None)
                     if val is not None and np.isfinite(float(val)):
                         lines.append(f"| {label_} | {float(val):.6g} {unit} |")
@@ -7094,7 +7173,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 lines.append("_El PDF del informe incluye una página con el mapa 2D y las marginales P(BHF) y P(ΔEQ)._")
                 lines.append("")
             else:
-                dist_name = "P(ΔEQ)" if self.dist_variable == "quad" else "P(BHF)"
+                dist_name = "P(ΔEQ)" if self.dist_variable == "quad" else ("P(IS)" if self.dist_variable == "delta" else "P(BHF)")
                 lines.append("| Magnitud | Valor |")
                 lines.append("|---|---|")
                 lines.append(f"| Tipo | {dist_name} |")
@@ -7508,7 +7587,12 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                 if prob.ndim == 2 and hasattr(dist, "quad_centers"):
                     fig = _PdfFigure(figsize=(8.27, 11.69), dpi=100, facecolor="white")
                     ax_title = fig.add_axes([0.05, 0.93, 0.9, 0.04]); ax_title.axis("off")
-                    ax_title.text(0.0, 0.5, "Mapa P(BHF, ΔEQ)", fontsize=15, fontweight="bold",
+                    vx = getattr(dist, "x_variable", "bhf")
+                    vy = getattr(dist, "y_variable", "quad")
+                    label_map2 = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
+                    xlbl = label_map2.get(vx, vx)
+                    ylbl = label_map2.get(vy, vy)
+                    ax_title.text(0.0, 0.5, f"Mapa P({xlbl}, {ylbl})", fontsize=15, fontweight="bold",
                                   color=SECTION_COLOR, va="center", ha="left")
                     b = np.asarray(dist.bhf_centers, dtype=float)
                     q = np.asarray(dist.quad_centers, dtype=float)
@@ -7516,7 +7600,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                     im = ax_map.imshow(prob.T, origin="lower", aspect="auto",
                                        extent=[float(b[0]), float(b[-1]), float(q[0]), float(q[-1])],
                                        cmap="viridis")
-                    ax_map.set_xlabel("BHF (T)"); ax_map.set_ylabel("ΔEQ (mm/s)")
+                    ax_map.set_xlabel(xlbl); ax_map.set_ylabel(ylbl)
                     cax = fig.add_axes([0.65, 0.32, 0.025, 0.58])
                     fig.colorbar(im, cax=cax, label="P")
                     ax_b = fig.add_axes([0.73, 0.62, 0.22, 0.28])
@@ -7524,20 +7608,22 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
                     if marg_b is None:
                         marg_b = np.trapezoid(prob, q, axis=1) if q.size > 1 else prob[:, 0]
                     ax_b.plot(b, marg_b, color="#2563eb", lw=1.8)
-                    ax_b.set_title("P(BHF)", fontsize=10); ax_b.grid(True, alpha=0.3)
+                    ax_b.set_title(f"P({xlbl})", fontsize=10); ax_b.grid(True, alpha=0.3)
                     ax_q = fig.add_axes([0.73, 0.32, 0.22, 0.22])
                     marg_q = getattr(dist, "marginal_quad", None)
                     if marg_q is None:
                         marg_q = np.trapezoid(prob, b, axis=0) if b.size > 1 else prob[0, :]
                     ax_q.plot(q, marg_q, color="#dc2626", lw=1.8)
-                    ax_q.set_title("P(ΔEQ)", fontsize=10); ax_q.grid(True, alpha=0.3)
+                    ax_q.set_title(f"P({ylbl})", fontsize=10); ax_q.grid(True, alpha=0.3)
                     ax_stats = fig.add_axes([0.08, 0.08, 0.87, 0.20]); ax_stats.axis("off")
                     stats_lines = [
                         f"RMS = {getattr(dist, 'rms', float('nan')):.6g}",
                         f"αB = {getattr(dist, 'alpha_bhf', float('nan')):.6g}    αQ = {getattr(dist, 'alpha_quad', float('nan')):.6g}",
                     ]
-                    for label_, attr, unit in (("<BHF>", "mean_bhf", "T"), ("σB", "sigma_bhf", "T"),
-                                               ("<ΔEQ>", "mean_quad", "mm/s"), ("σQ", "sigma_quad", "mm/s"),
+                    unit_x = "T" if vx == "bhf" else "mm/s"
+                    unit_y = "T" if vy == "bhf" else "mm/s"
+                    for label_, attr, unit in ((f"<{xlbl}>", "mean_bhf", unit_x), (f"σ({xlbl})", "sigma_bhf", unit_x),
+                                               (f"<{ylbl}>", "mean_quad", unit_y), (f"σ({ylbl})", "sigma_quad", unit_y),
                                                ("corr", "corr_bhf_quad", "")):
                         val = getattr(dist, attr, None)
                         if val is not None and np.isfinite(float(val)):
