@@ -45,31 +45,7 @@ del código de la GUI.**
 
 ### Front-ends y módulos de nivel superior
 - `fitbauer.py` — **punto de entrada único**; lanza la GUI Qt.
-- `mossbauer_qt.py` — wrapper/ensamblador de la ventana principal Qt. Debe permanecer fino:
-  importa mixins de `gui/`, define `MossbauerQtWindow`, `main()` y mantiene algunos reexports
-  históricos usados por tests/extensiones (`ReleaseInfo`, `latest_release`, `threading`,
-  `webbrowser`, `load_credentials`, `save_credentials`). No volver a concentrar aquí lógica
-  de paneles, menús, fitting o Plotly.
-- `gui/` — implementación modular de la GUI Qt. Es código de presentación/controlador; puede
-  orquestar `core/`, pero la física y los motores de ajuste siguen viviendo en `core/`.
-  - `window_mixins.py` — composición ordenada de mixins de `MossbauerQtWindow`.
-  - `main_layout.py`, `menu_builder.py`, `layout_manager.py` — construcción visual, menús,
-    presets de layout, temas y settings.
-  - `panels.py`, `controls.py`, `distribution_panel.py`, `canvas.py` — widgets reutilizables
-    (`ParamControl`, paneles, canvas Matplotlib).
-  - `model_workflow.py` — carga de datos, folding/refolding, `ModelState`/`FitState`, refresh
-    del plot y panel de información.
-  - `discrete_fit.py`, `distribution_fit.py`, `minima_analysis.py`, `fit_tools.py` — acciones
-    de ajuste discreto/distribución, bootstrap, perfil likelihood, detección de mínimos,
-    presets físicos y batch.
-  - `plotly_tools.py` — figura Plotly, HTML incremental y editor semi-manual de mínimos.
-  - `state.py` — estados runtime (`FileState`, `RuntimeResultState`) y snapshots
-    serializables (`ComponentViewState`, `SpectrumState`, `CalibrationState`, `FitOptionsState`,
-    `DistributionViewState`, `PlotViewState`, `UiPreferencesState`, `ProjectState`); es el
-    inicio de la capa formal de estado para reducir lecturas directas de widgets.
-  - `session_io.py`, `reports.py`, `web_api.py`, `updates.py`, `help.py`,
-    `calibration_actions.py`, `file_actions.py` — persistencia, informes, API web,
-    actualizaciones, ayuda y acciones auxiliares.
+- `mossbauer_qt.py` — la GUI Qt (PySide6 + Plotly). Archivo grande; delega los cálculos en `core/`.
 - `mossbauer_distribution.py` — ajuste de distribución `P(BHF)`/`P(ΔEQ)` (Hesse-Rübartsch,
   regularización, L-curve, componentes nítidos). Aquí vive `build_sharp_kernel`.
 - `mossbauer_fit_cli.py` — ajuste headless (plantilla + espectro → fichero); usa `core.session`.
@@ -87,9 +63,8 @@ del código de la GUI.**
   regularización por segunda diferencia (α), L-curve, y **componentes "nítidos"** simultáneos.
   - En modo distribución + nítidos, la GUI dibuja **todos los subespectros**: cada nítido por
     separado y la **envolvente de la distribución** (índice `idx=0` con estilo propio), además
-    del modelo total. Esto vive en `DistributionFitMixin.on_fit_distribution`
-    (`gui/distribution_fit.py`) y se refleja en `SpectrumCanvas.render` (`gui/canvas.py`) y
-    en la figura Plotly (`gui/plotly_tools.py`).
+    del modelo total. Esto vive en `MainWindow.on_fit_distribution` (`mossbauer_qt.py`) y se
+    refleja en `SpectrumCanvas.render` y en la figura Plotly.
   - Nota: la reconstrucción actual de los nítidos usa `component_absorption` con los valores de
     los widgets + el peso ajustado. Existe un enfoque alternativo (reconstruir con el propio
     kernel del ajuste, `build_sharp_kernel`) que sería más fiel si el ajuste refina δ/Γ globales;

@@ -46,11 +46,10 @@ jobs:
             INSTALL_EN.md \
             BHF_DISTRIBUTION.md \
             core \
-            gui \
             layout \
             assets \
             locales \
-            docs \
+            docs/img \
             LICENSE \
             data_sample
           echo "ZIP=$ZIP" >> "$GITHUB_ENV"
