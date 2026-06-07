@@ -1,16 +1,12 @@
 # Changelog
 
-## En desarrollo
+## v4.6 — Distribuciones generalizadas y relajación magnética
 
+- Distribuciones 2D: backend `mossbauer_distribution.fit_bhf_quad_distribution()` generalizado para pares `BHF`, `ΔEQ/QS` e `IS`; integración en la GUI como modos **P(BHF, ΔEQ) 2D**, **P(IS, ΔEQ) 2D**, **P(BHF, IS) 2D** y distribución 1D **P(IS)**, con mapa de calor, marginales, heatmap Plotly, exportación TSV, L-surface `αx/αy`, componentes nítidos simultáneos, diagnósticos (medias, sigmas, correlación aparente, dof efectivo) e informe PDF con mapa 2D; advertencias de sobreajuste/identificabilidad en ayuda y documentación matemática. Nuevo documento `docs/distribuciones_is_mossbauer.pdf` para `P(IS)` y `P(IS, ΔEQ)`.
+- Relajación magnética: implementación completa desde el modelo fenomenológico y dinámico (Blume-Tjon) hasta la distribución de tamaños Néel-Arrhenius y ajuste global multi-temperatura.
 - En distribuciones `P(BHF)`, `δ`, `ΔEQ` y `Γ` se refinan directamente si su casilla **fijo** está desmarcada; se elimina el interruptor extra “refinar δ y Γ globales”. En `P(ΔEQ)`, `ΔEQ` sigue siendo la variable distribuida y no se refina como parámetro global.
 - Las sesiones guardan y restauran los parámetros propios del panel de distribución y sus estados fijo/libre.
 - La ventana de progreso del ajuste muestra ahora fase, evaluaciones, RMS actual/mejor y tabla de parámetros libres durante el refinamiento de distribuciones.
-- Primera fase de relajación magnética: nuevo tipo de componente `Relajacion`, fenomenológico, que conserva el área aproximada e interpola entre sextete bloqueado y doblete superparamagnético mediante una fracción bloqueada ajustable.
-- Segunda fase de relajación: se añade `log10 ν` (ν en s⁻¹) para controlar una transición fenomenológica lento/intermedio/rápido, con ensanchamiento máximo en el régimen intermedio.
-- Tercera fase de relajación: nuevo tipo `BlumeTjon` con intercambio dinámico de dos estados `+BHF ↔ -BHF`; reproduce límites lento/intermedio/rápido mediante un perfil de intercambio convertido desde ν(s⁻¹) a unidades de velocidad.
-- Cuarta fase de relajación: nuevo tipo `NeelSize`, con Néel–Arrhenius y distribución lognormal de diámetros (`T`, `log10 Keff`, `d50`, `σ`, `log10 τ0`, bins).
-- Quinta fase de relajación: backend puro `core.relaxation.fit_neel_size_global()` para ajuste global multi-temperatura compartiendo parámetros físicos de `NeelSize` y dejando base/pendiente/profundidad locales.
-- Distribuciones 2D: backend `mossbauer_distribution.fit_bhf_quad_distribution()` generalizado para pares `BHF`, `ΔEQ/QS` e `IS`; integración en la GUI como modos **P(BHF, ΔEQ) 2D**, **P(IS, ΔEQ) 2D**, **P(BHF, IS) 2D** y distribución 1D **P(IS)**, con mapa de calor, marginales, heatmap Plotly, exportación TSV, L-surface `αx/αy`, componentes nítidos simultáneos, diagnósticos (medias, sigmas, correlación aparente, dof efectivo) e informe PDF con mapa 2D; advertencias de sobreajuste/identificabilidad en ayuda y documentación matemática. Nuevo documento `docs/distribuciones_is_mossbauer.pdf` para `P(IS)` y `P(IS, ΔEQ)`.
 - El parámetro `β` del sextete se oculta salvo en el tratamiento cuadrupolar **Kündig fijo** y se renombra a `β Kündig (BHF↔Vzz, °)` para evitar confundirlo con versiones beta.
 
 ## v4.1.0 — Interfaz única Qt y ajuste headless en core
