@@ -9,14 +9,16 @@
 
 Stable desktop application to load, fold, simulate and fit 57Fe Mössbauer spectra.
 
-Current stable version: **v4.1.0**.  
+Current stable version: **v4.5**.  
 Recommended launch: `python fitbauer.py` (Qt interface).  
-Qt/Plotly interface: `mossbauer_qt.py`. Headless command-line fitting: `mossbauer_fit_cli.py`.
+Qt/Plotly interface: `mossbauer_qt.py` as a thin entry point, with modular implementation in `gui/`. Headless command-line fitting: `mossbauer_fit_cli.py`.
 
 Author: Jorge Sánchez Marcos  
 Department of Physical Chemistry · UAM
 
 Spanish README: [`README.md`](README.md)
+
+Additional documentation: [`docs/user-flows.md`](docs/user-flows.md) for user workflows and [`docs/architecture.md`](docs/architecture.md) for the internal architecture.
 
 ## 1. Purpose
 
@@ -51,6 +53,16 @@ Included sample data:
 - `data_sample/Fe3O4_session.json`: session associated with the Fe₃O₄ sample.
 
 To try them, first open the `.adt` file from **File → Open...** and then load the corresponding session from **File → Load session...**.
+
+### Quick workflow
+
+```text
+Open spectrum → check folding/Vmax → choose model → fit → inspect residuals/areas → export session/report
+```
+
+- For discrete fitting, configure singlets/doublets/sextets and press **Fit**.
+- For distribution fitting, switch to `P(BHF)` or `P(ΔEQ)`, set range/bins/α and use **L-curve α** if needed.
+- Before fitting, Fitbauer validates parameters and ranges to avoid inconsistent runs.
 
 ## 2. Screenshots
 

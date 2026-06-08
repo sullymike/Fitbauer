@@ -9,6 +9,17 @@
 - La ventana de progreso del ajuste muestra ahora fase, evaluaciones, RMS actual/mejor y tabla de parámetros libres durante el refinamiento de distribuciones.
 - El parámetro `β` del sextete se oculta salvo en el tratamiento cuadrupolar **Kündig fijo** y se renombra a `β Kündig (BHF↔Vzz, °)` para evitar confundirlo con versiones beta.
 
+## v4.5 — Arquitectura Qt modular, estado formal y core más puro
+
+- **Refactorización completa de la GUI Qt.** `mossbauer_qt.py` queda como punto de entrada fino y la lógica se organiza en módulos `gui/` especializados: layout, menús, sesiones, ajustes, distribución, Plotly, informes, actualización, API web y compatibilidad.
+- **Snapshots de estado GUI.** Se introducen `ComponentViewState`, `CalibrationViewState`, `DistributionViewState`, `UiActionState`, `ProjectState` y otros estados para reducir el acoplamiento widget→lógica.
+- **Flujo común de ajuste.** Los modos discreto y distribución comparten progreso, manejo de errores, render y `GuiFitResult` mediante `gui.fit_workflow` y `RuntimeResultState`.
+- **Reconstrucción física fuera de la GUI.** `core.reconstruction` centraliza reconstrucción de modelos, residuos, curvas densas, áreas, porcentajes y subespectros de distribuciones con componentes nítidas.
+- **Validación de parámetros en core.** `core.validation` comprueba límites, finitud, rangos de distribución, tamaños de arrays y coherencia antes de lanzar ajustes.
+- **API interna de resultados.** `core.result_views` proporciona vistas de solo lectura para estadísticas, parámetros, errores, curvas de distribución y métricas, usadas por informes, Plotly y paneles.
+- **Compatibilidad histórica centralizada.** `gui.compat` agrupa los puentes para símbolos parcheables de `mossbauer_qt.py` y propiedades legacy.
+- **Documentación y tests.** Nuevos documentos `docs/architecture.md` y `docs/user-flows.md`; más tests específicos para snapshots, flujo de ajuste, reconstrucción, validación, vistas de resultado y compatibilidad.
+
 ## v4.1.0 — Interfaz única Qt y ajuste headless en core
 
 - **Se elimina por completo la interfaz Tk.** La aplicación tiene ahora una sola interfaz gráfica, la Qt (`mossbauer_qt.py`). Se retiran el monolito `mossbauer_fe33_gui_v2IA.py`, `mossbauer_app.py`, el paquete `panels/`, el gestor/configurador Tk de `layout/`, el diálogo Tk de actualizaciones (`mossbauer_updater_ui.py`), `Fitbauer-Tk.spec` y la dependencia `sv_ttk`.

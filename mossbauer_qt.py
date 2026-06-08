@@ -1,40 +1,26 @@
 #!/usr/bin/env python3
-"""Mössbauer Fe-57 — front-end Qt (PySide6).
+"""Front-end Qt de Fitbauer.
 
-Estado tras sesión 2: ventana principal con paneles de Calibración y Sextete
-en la columna izquierda, plot principal embebido (matplotlib QtAgg),
-acción Fit ▸ Run conectada al motor puro core.fit_engine.fit_discrete().
-
-Pendiente: paneles file_info, info_display y reference; diálogos de ajuste
-en serie / verosimilitud perfilada / restricciones; estilos QSS; tests.
+Este módulo queda como punto de entrada y ensamblador de la ventana principal.
+La implementación de paneles, menús, layout y acciones vive en ``gui/``.
 """
 from __future__ import annotations
 
-import html
-import json
-import os
 import sys
 import tempfile
 import threading
 import time
 import webbrowser
 from pathlib import Path
-from dataclasses import dataclass, field
 
 import numpy as np
-if not hasattr(np, "trapezoid"):
-    np.trapezoid = np.trapz  # type: ignore[attr-defined]
-
 from PySide6 import QtCore, QtGui, QtWidgets
 import matplotlib
 
+if not hasattr(np, "trapezoid"):
+    np.trapezoid = np.trapz  # type: ignore[attr-defined]
+
 matplotlib.use("QtAgg")
-from matplotlib.backends.backend_qtagg import (
-    FigureCanvasQTAgg as FigureCanvas,
-    NavigationToolbar2QT as NavigationToolbar,
-)
-from matplotlib.figure import Figure
-from scipy.optimize import least_squares
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -136,12 +122,11 @@ from mossbauer_updater import (  # noqa: E402
     load_update_settings, save_update_settings,
 )
 
+from gui.branding import _show_splash  # noqa: E402
+from gui.bridges import _UiCallBridge  # noqa: E402
+from gui.state import FileState, RuntimeResultState  # noqa: E402
+from gui.window_mixins import WindowMixins  # noqa: E402
 
-# ─────────────────────────────────────────────────────────────────────────
-#  Puente thread -> UI para tareas de actualización
-# ─────────────────────────────────────────────────────────────────────────
-class _UiCallBridge(QtCore.QObject):
-    call = QtCore.Signal(object)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -1427,9 +1412,7 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
         self.global_opt = False
         self.absorber_model = "thin"       # "thin" / "thickness"
         self._simulate_enabled = False      # igual que Tk: al cargar solo se dibujan datos
-        self.last_fit_result: FitResult | None = None
-        self.last_distribution_result = None
-        self.last_error_source = "covarianza (1σ)"   # actualizado por bootstrap
+        self.runtime_results = RuntimeResultState()
         self._plotly_temp_files: list[Path] = []
         self._help_dialog: QtWidgets.QDialog | None = None
         self.dist_use_sharp = False
@@ -1449,17 +1432,6 @@ class MossbauerQtWindow(QtWidgets.QMainWindow):
             QtCore.QTimer.singleShot(2500, lambda: self.check_for_updates(silent=True))
         QtCore.QTimer.singleShot(4000, self._check_requirements_background)
 
-    # ── Construcción de la UI ────────────────────────────────────────────
-    def _build_ui(self) -> None:
-        central = QtWidgets.QWidget(self); self.setCentralWidget(central)
-        layout = QtWidgets.QHBoxLayout(central); layout.setContentsMargins(4, 4, 4, 4)
-        # El layout central NO debe redimensionar la ventana según su contenido:
-        # al añadir/quitar componentes (apilado) el tamaño global se mantiene.
-        layout.setSizeConstraint(QtWidgets.QLayout.SetNoConstraint)
-        # Mínimo de ventana fijo e independiente del contenido.
-        self.setMinimumSize(900, 520)
-        splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal); layout.addWidget(splitter)
-        self._main_splitter = splitter
 
         # ── Columna izquierda: cabecera + file info + calibración + sextete ─
         left = QtWidgets.QWidget()
