@@ -161,7 +161,7 @@ class ComponentPanel(QtWidgets.QWidget):
         self.enabled = QtWidgets.QCheckBox(tr("component.enable", idx=idx))
         self.enabled.setChecked(idx == 1)
         self.type_combo = QtWidgets.QComboBox()
-        self.type_combo.addItems(["Sextete", "Doblete", "Singlete"])
+        self.type_combo.addItems(["Sextete", "Doblete", "Singlete", "Relajacion", "BlumeTjon", "NeelSize"])
         row.addWidget(self.enabled)
         row.addStretch(1)
         row.addWidget(QtWidgets.QLabel(tr("component.shape_label")))
@@ -308,8 +308,17 @@ class ComponentPanel(QtWidgets.QWidget):
 
     def _on_type_changed(self, kind: str) -> None:
         used = self.relevant_params()
+        # Parámetros especializados que deben ocultarse (no solo desactivarse)
+        # cuando no corresponden al tipo actual, para no ocupar espacio en el panel.
+        _specialized = {
+            "relax_fraction", "relax_log_nu",
+            "neel_temp_k", "neel_log10_keff", "neel_mean_d_nm",
+            "neel_sigma", "neel_log10_tau0", "neel_bins",
+        }
         for name, ctl in self.params.items():
             ctl.setEnabled(name in used)
+            if name in _specialized:
+                ctl.setVisible(name in used)
         self.paramChanged.emit()
 
     def to_view_state(self) -> ComponentViewState:

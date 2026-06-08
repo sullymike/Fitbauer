@@ -1,6 +1,8 @@
 """Ajuste de distribuciones hiperfinas desde la GUI Qt."""
 from __future__ import annotations
 
+import time
+
 import numpy as np
 from PySide6 import QtWidgets
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -8,7 +10,9 @@ from matplotlib.figure import Figure
 from scipy.optimize import least_squares
 
 from mossbauer_i18n import tr
-from core.constants import BHF_DEFAULT_T
+from core.constants import BHF_DEFAULT_T, SEXTET_PARAM_NAMES
+from core.physics import component_absorption
+from core.plot_styles import get_style
 from core.reconstruction import reconstruct_distribution_curves
 from core.validation import format_validation_issues, validate_distribution_parameters
 from gui.fit_workflow import GuiFitRenderState, GuiFitResult
@@ -17,6 +21,7 @@ from mossbauer_distribution import (
     fit_gaussian_hyperfine_distribution,
     fit_binomial_hyperfine_distribution,
     fit_fixed_hyperfine_distribution,
+    fit_bhf_quad_distribution,
 )
 
 
@@ -45,7 +50,7 @@ class DistributionFitMixin:
                 engine_int1 = int1_gui
                 engine_int2_rel = int2_gui
                 engine_int3_rel = int3_gui
-            comp = {
+            comp: dict = {
                 "kind": comp_state.kind,
                 "delta": comp_state.value("delta", 0.0),
                 "quad": comp_state.value("quad", 0.0),
@@ -59,6 +64,16 @@ class DistributionFitMixin:
                 "depth": comp_state.value("depth", 0.0),
                 "depth_fixed": comp_state.is_fixed("depth"),
             }
+            # Parámetros de relajación/Néel para los nuevos tipos de componente
+            if comp_state.kind == "Relajacion":
+                comp["relax_fraction"] = comp_state.value("relax_fraction", 1.0)
+                comp["relax_log_nu"] = comp_state.value("relax_log_nu", 5.0)
+            elif comp_state.kind == "BlumeTjon":
+                comp["relax_log_nu"] = comp_state.value("relax_log_nu", 5.0)
+            elif comp_state.kind == "NeelSize":
+                for _p in ("neel_temp_k", "neel_log10_keff", "neel_mean_d_nm",
+                           "neel_sigma", "neel_log10_tau0", "neel_bins"):
+                    comp[_p] = comp_state.value(_p, 0.0)
             components.append(comp)
             indices.append(comp_state.idx)
         return (components or None), indices
@@ -171,7 +186,7 @@ class DistributionFitMixin:
         self.dist_panel.fixed_path = Path(path)
         self.statusBar().showMessage(f"P fija: {path}", 5000)
 
-    # ── Ajuste distribución P(BHF) ──────────────────────────────────────
+    # ── Ajuste distribución P(BHF) / P(ΔEQ) / P(IS) / 2D ───────────────────
     def on_fit_distribution(self) -> None:
         self._simulate_enabled = True
         if self.file.velocity is None or self.file.y_data is None:
@@ -187,27 +202,56 @@ class DistributionFitMixin:
                 format_validation_issues(issues),
             )
             return
+
         bmin = float(dist_state.bmin)
         bmax = max(bmin + 0.5, float(dist_state.bmax))
         nbins = max(5, int(dist_state.nbins))
         alpha = dist_state.alpha
         shape = dist_state.shape
-        label = "P(ΔEQ)" if var == "quad" else "P(BHF)"
+
+        # Parámetros 2D (disponibles tras la actualización del panel)
+        qmin: float = float(d.qmin.value()) if hasattr(d, "qmin") else -1.0
+        qmax: float = max(qmin + 0.05, float(d.qmax.value())) if hasattr(d, "qmax") else 1.0
+        qbins: int = max(5, int(round(d.qbins.value()))) if hasattr(d, "qbins") else 21
+        alpha_q: float = 10.0 ** float(d.log_alpha_q.value()) if hasattr(d, "log_alpha_q") else 1e-2
+        pair: tuple[str, str] = getattr(self, "dist_pair", ("bhf", "quad")) if shape == "2D" else ("bhf", "quad")
+
+        label_map = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
+        label = (f"P({label_map.get(pair[0], pair[0])}, {label_map.get(pair[1], pair[1])})"
+                 if shape == "2D" else f"P({label_map.get(var, var)})")
+
         self.statusBar().showMessage(f"Ajustando {label} [{shape}]…")
         sharp_components, sharp_indices = self._active_sharp_components_for_distribution()
         calib_state = self.calib.to_view_state()
         fit_baseline = not calib_state.is_fixed("baseline")
         fit_slope = not calib_state.is_fixed("slope")
         base_delta = dist_state.delta
+        base_quad = dist_state.quad
         base_gamma = dist_state.gamma
         v_arr = self.file.velocity
         y_arr = self.file.y_data
 
-        def run_fit(delta_value: float, gamma_value: float, sharp_for_fit: list[dict[str, float]] | None):
+        def run_fit(delta_value: float, quad_value: float, gamma_value: float,
+                    sharp_for_fit: list[dict] | None):
+            if shape == "2D":
+                return fit_bhf_quad_distribution(
+                    v_arr, y_arr,
+                    variable_x=pair[0], variable_y=pair[1],
+                    delta=delta_value, quad=quad_value,
+                    bhf=(dist_state.fixed_bhf if "bhf" not in pair else BHF_DEFAULT_T),
+                    gamma=gamma_value,
+                    bmin=bmin, bmax=bmax, nbins_bhf=nbins,
+                    qmin=qmin, qmax=qmax, nbins_quad=qbins,
+                    alpha_bhf=alpha, alpha_quad=alpha_q,
+                    fit_baseline=fit_baseline, fit_slope=fit_slope,
+                    baseline=calib_state.baseline, slope=calib_state.slope,
+                    sharp_components=sharp_for_fit,
+                    sigma=self.file.sigma,
+                )
             common = dict(
                 variable=var, delta=delta_value, gamma=gamma_value,
-                quad=(0.0 if var == "quad" else dist_state.quad),
-                bhf=(dist_state.fixed_bhf if var == "quad" else BHF_DEFAULT_T),
+                quad=(0.0 if var == "quad" else quad_value),
+                bhf=(dist_state.fixed_bhf if var in ("quad", "delta") else BHF_DEFAULT_T),
                 baseline=calib_state.baseline, slope=calib_state.slope,
                 sharp_components=sharp_for_fit,
             )
@@ -230,33 +274,51 @@ class DistributionFitMixin:
                     v_arr, y_arr, centers_arr, weights_arr, **common)
             raise RuntimeError(f"Forma desconocida: {shape}")
 
+        # outer_specs: parámetros globales libres a refinar en la capa exterior
         outer_specs: list[tuple[str, str, float, float]] = []
-        if dist_state.refine_global:
-            if not dist_state.is_fixed("delta"):
-                outer_specs.append(("dist_delta", "lin", -2.5, 2.5))
-            if not dist_state.is_fixed("gamma"):
-                outer_specs.append(("dist_gamma", "loggamma", 0.03, 1.0))
+        if var != "delta" and not dist_state.is_fixed("delta"):
+            outer_specs.append(("dist_delta", "lin", d.delta._lo, d.delta._hi))
+        if ((shape != "2D" and var in ("bhf", "delta"))
+                or (shape == "2D" and "quad" not in pair)):
+            if not dist_state.is_fixed("quad"):
+                outer_specs.append(("dist_quad", "lin", d.quad._lo, d.quad._hi))
+        if not dist_state.is_fixed("gamma"):
+            outer_specs.append(("dist_gamma", "loggamma", d.gamma._lo, d.gamma._hi))
         if sharp_components:
             for pos, idx in enumerate(sharp_indices):
                 cp = self.components_panels[idx - 1]
                 comp_state = cp.to_view_state()
-                for pname in ("delta", "quad", "bhf", "gamma1"):
+                sharp_names = ["delta", "quad", "bhf", "gamma1"]
+                if comp_state.kind == "Relajacion":
+                    sharp_names.extend(("relax_fraction", "relax_log_nu"))
+                elif comp_state.kind == "BlumeTjon":
+                    sharp_names.append("relax_log_nu")
+                elif comp_state.kind == "NeelSize":
+                    sharp_names.extend(("neel_temp_k", "neel_log10_keff", "neel_mean_d_nm",
+                                        "neel_sigma", "neel_log10_tau0", "neel_bins"))
+                for pname in sharp_names:
                     if pname == "quad" and comp_state.kind == "Singlete":
                         continue
-                    if pname == "bhf" and comp_state.kind != "Sextete":
+                    if pname == "bhf" and comp_state.kind not in (
+                            "Sextete", "Relajacion", "BlumeTjon", "NeelSize"):
                         continue
-                    ctl = cp.params[pname]  # widget necesario para límites y actualización posterior
-                    if comp_state.is_fixed(pname):
+                    ctl = cp.params.get(pname)
+                    if ctl is None or comp_state.is_fixed(pname):
                         continue
                     outer_specs.append((f"sharp:{pos}:{pname}",
                                         "loggamma" if pname == "gamma1" else "lin",
                                         ctl._lo, ctl._hi))
+
+        max_outer_evals = 60
+        progress_state: dict = {"eval": 0, "best_rms": np.inf, "last_update": 0.0}
 
         def x0_bounds() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
             x0, lo, hi = [], [], []
             for key, kind, lo_v, hi_v in outer_specs:
                 if key == "dist_delta":
                     cur = base_delta
+                elif key == "dist_quad":
+                    cur = base_quad
                 elif key == "dist_gamma":
                     cur = base_gamma
                 else:
@@ -268,41 +330,64 @@ class DistributionFitMixin:
                     x0.append(cur); lo.append(lo_v); hi.append(hi_v)
             return np.array(x0, dtype=float), np.array(lo, dtype=float), np.array(hi, dtype=float)
 
-        def expand(x: np.ndarray) -> tuple[float, float, list[dict[str, float]] | None]:
+        def expand(x: np.ndarray) -> tuple[float, float, float, list[dict] | None]:
             delta_value = base_delta
+            quad_value = base_quad
             gamma_value = base_gamma
             local_sharp = [dict(c) for c in sharp_components] if sharp_components else None
             for i, (key, kind, _lo, _hi) in enumerate(outer_specs):
                 value = float(np.exp(x[i])) if kind == "loggamma" else float(x[i])
                 if key == "dist_delta":
                     delta_value = value
+                elif key == "dist_quad":
+                    quad_value = value
                 elif key == "dist_gamma":
                     gamma_value = value
                 elif local_sharp is not None:
                     _sharp, pos_txt, pname = key.split(":")
                     local_sharp[int(pos_txt)]["gamma" if pname == "gamma1" else pname] = value
-            return delta_value, gamma_value, local_sharp
+            return delta_value, quad_value, gamma_value, local_sharp
 
         def compute_distribution(update_progress):
             fitted_x_local = None
             if outer_specs:
                 update_progress(tr("progress.distribution_refine",
-                                   default="Refinando δ y Γ globales…"))
+                                   default="Refinando parámetros globales libres…"))
                 x0, lo, hi = x0_bounds()
                 x0 = np.clip(x0, lo, hi)
+
                 def residual_outer(x: np.ndarray) -> np.ndarray:
-                    dd, gg, ss = expand(x)
-                    return run_fit(dd, gg, ss).residuals
-                opt = least_squares(residual_outer, x0, bounds=(lo, hi), max_nfev=60)
+                    dd, qq, gg, ss = expand(x)
+                    fit = run_fit(dd, qq, gg, ss)
+                    resid = fit.residuals
+                    rms = float(np.sqrt(np.mean(resid * resid))) if resid.size else float("nan")
+                    progress_state["eval"] = int(progress_state["eval"]) + 1
+                    if np.isfinite(rms):
+                        progress_state["best_rms"] = min(float(progress_state["best_rms"]), rms)
+                    now = time.monotonic()
+                    if (progress_state["eval"] == 1
+                            or now - float(progress_state["last_update"]) > 0.20):
+                        progress_state["last_update"] = now
+                        update_progress({
+                            "phase": tr("progress.distribution_refine",
+                                        default="Refinando parámetros globales libres…"),
+                            "iteration": int(progress_state["eval"]),
+                            "max_iter": max_outer_evals,
+                            "rms": rms,
+                            "best_rms": float(progress_state["best_rms"]),
+                        })
+                    return resid
+
+                opt = least_squares(residual_outer, x0, bounds=(lo, hi), max_nfev=max_outer_evals)
                 fitted_x_local = opt.x
-                delta_final, gamma_final, sharp_final = expand(fitted_x_local)
+                delta_final, quad_final, gamma_final, sharp_final = expand(fitted_x_local)
                 update_progress(tr("progress.distribution_compute_final",
                                    default="Calculando distribución final…"))
-                result_local = run_fit(delta_final, gamma_final, sharp_final)
+                result_local = run_fit(delta_final, quad_final, gamma_final, sharp_final)
             else:
                 update_progress(tr("progress.distribution_compute", shape=shape,
                                    default=f"Calculando distribución {shape}…"))
-                result_local = run_fit(base_delta, base_gamma, sharp_components)
+                result_local = run_fit(base_delta, base_quad, base_gamma, sharp_components)
             return result_local, fitted_x_local
 
         fit_output = self._run_with_fit_progress(
@@ -323,36 +408,72 @@ class DistributionFitMixin:
                 value = float(np.exp(fitted_x[i])) if kind == "loggamma" else float(fitted_x[i])
                 if key == "dist_delta":
                     d.delta.set_value(value)
+                elif key == "dist_quad":
+                    d.quad.set_value(value)
                 elif key == "dist_gamma":
                     d.gamma.set_value(value)
                 elif key.startswith("sharp:"):
                     _sharp, pos_txt, pname = key.split(":")
                     cp = self.components_panels[sharp_indices[int(pos_txt)] - 1]
                     cp.params[pname].set_value(value)
-        if self.dist_use_sharp and result.sharp_weights is not None:
+        if self.dist_use_sharp and hasattr(result, "sharp_weights") and result.sharp_weights is not None:
             for idx, weight in zip(sharp_indices, result.sharp_weights):
                 self.components_panels[idx - 1].params["depth"].set_value(float(weight))
         self._building = False
 
+        # Componentes para el gráfico
         components_for_plot: list[tuple[int, str, np.ndarray]] = []
-        if dist_state.use_sharp and result.sharp_weights is not None and result.sharp_weights.size:
-            sharp_for_render = expand(fitted_x)[2] if fitted_x is not None else sharp_components
-            dist_name = "P(ΔEQ)" if var == "quad" else "P(BHF)"
-            reconstructed = reconstruct_distribution_curves(
-                self.file.velocity,
-                result.fitted_curve,
-                result.baseline,
-                result.slope,
-                sharp_for_render,
-                sharp_indices,
-                result.sharp_weights,
-                distribution_kind=dist_name,
-            )
-            for curve in reconstructed:
-                label = curve.kind if curve.idx == 0 else f"Nítido {tr(f'kind.{curve.kind}', default=curve.kind)}"
-                components_for_plot.append((curve.idx, label, curve.y))
-        msg = (f"{label}: bins={nbins}  α=10^{dist_state.log_alpha:.2f}  "
-               f"RMS={result.rms:.5g}")
+        if self.dist_use_sharp and hasattr(result, "sharp_weights") and result.sharp_weights is not None and result.sharp_weights.size:
+            baseline_line = float(result.baseline) + float(result.slope) * self.file.velocity
+            sharp_abs_sum = np.zeros_like(self.file.velocity, dtype=float)
+            for idx, weight in zip(sharp_indices, result.sharp_weights):
+                cp = self.components_panels[idx - 1]
+                comp_state = cp.to_view_state()
+                vals = cp.values_dict()
+                pfx = f"s{idx}_"
+                params = np.array([float(vals.get(pfx + name, 0.0)) for name in SEXTET_PARAM_NAMES], dtype=float)
+                params[6] = float(weight)
+                extras = None
+                if comp_state.kind == "Relajacion":
+                    extras = {
+                        "blocked_fraction": float(vals.get(pfx + "relax_fraction", 1.0)),
+                        "log10_nu": float(vals.get(pfx + "relax_log_nu", 5.0)),
+                    }
+                elif comp_state.kind == "BlumeTjon":
+                    extras = {"log10_nu": float(vals.get(pfx + "relax_log_nu", 5.0))}
+                elif comp_state.kind == "NeelSize":
+                    extras = {
+                        "temperature_k": float(vals.get(pfx + "neel_temp_k", 300.0)),
+                        "log10_keff": float(vals.get(pfx + "neel_log10_keff", 4.0)),
+                        "mean_d_nm": float(vals.get(pfx + "neel_mean_d_nm", 8.0)),
+                        "sigma_lognormal": float(vals.get(pfx + "neel_sigma", 0.25)),
+                        "log10_tau0": float(vals.get(pfx + "neel_log10_tau0", -9.0)),
+                        "n_bins": int(round(float(vals.get(pfx + "neel_bins", 20.0)))),
+                    }
+                sharp_abs = component_absorption(self.file.velocity, comp_state.kind, params, extras=extras)
+                sharp_abs_sum += sharp_abs
+                components_for_plot.append((idx, f"Nítido {tr(f'kind.{comp_state.kind}', default=comp_state.kind)}", baseline_line - sharp_abs))
+            if np.any(sharp_abs_sum > 0):
+                dist_name = label if shape == "2D" else ("P(ΔEQ)" if var == "quad" else ("P(IS)" if var == "delta" else "P(BHF)"))
+                components_for_plot.insert(0, (0, dist_name, result.fitted_curve + sharp_abs_sum))
+
+        style = get_style(self.plot_style_name)
+        show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
+        show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
+        self.canvas.render(self.file.velocity, self.file.y_data,
+                           model=result.fitted_curve, components=components_for_plot,
+                           style=style, show_residual=show_res, show_legend=show_leg,
+                           style_name=self.plot_style_name)
+
+        if shape == "2D":
+            alpha_q_log = d.log_alpha_q.value() if hasattr(d, "log_alpha_q") else -2.0
+            msg = (f"{label}: bins={nbins}×{qbins}  "
+                   f"αB=10^{dist_state.log_alpha:.2f} αQ=10^{alpha_q_log:.2f}  "
+                   f"RMS={result.rms:.5g}")
+        else:
+            msg = (f"{label}: bins={nbins}  α=10^{dist_state.log_alpha:.2f}  "
+                   f"RMS={result.rms:.5g}")
+
         gui_result = GuiFitResult(
             mode="distribution",
             raw_result=result,

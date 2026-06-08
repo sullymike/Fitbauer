@@ -153,8 +153,7 @@ class SessionIOMixin:
                 self.calib.set_absorber_model(am)
             if "dist_use_sharp" in state:
                 self.dist_use_sharp = bool(state["dist_use_sharp"])
-            if "dist_refine_global" in state:
-                self.dist_refine_global = bool(state["dist_refine_global"])
+            # dist_refine_global era un campo legacy (v4.5); se ignora silenciosamente
             if "constraints" in state:
                 self.constraints = list(state.get("constraints") or [])
             shape_saved = state.get("dist_shape")
@@ -190,14 +189,12 @@ class SessionIOMixin:
                 ("act_propagate", self.propagate_calib),
                 ("act_global_opt", self.global_opt),
                 ("act_add_sharp", self.dist_use_sharp),
-                ("act_refine_global", self.dist_refine_global),
             ):
                 a = getattr(self, attr, None)
                 if a is not None:
                     a.setChecked(bool(value))
             if hasattr(self, "dist_panel"):
                 self.dist_panel.use_sharp.setChecked(bool(self.dist_use_sharp))
-                self.dist_panel.refine_global.setChecked(bool(self.dist_refine_global))
         finally:
             self._building = False
         self._simulate_enabled = True

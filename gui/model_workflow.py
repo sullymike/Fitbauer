@@ -52,28 +52,58 @@ class ModelWorkflowMixin:
 
     # ── Cambio de modo ───────────────────────────────────────────────────
     def _on_mode_changed(self, idx: int) -> None:
-        is_dist = (idx in (1, 2))
+        is_dist = (idx in (1, 2, 3, 4, 5, 6))
         is_deq = (idx == 2)
+        is_delta = (idx == 3)
+        is_2d = (idx in (4, 5, 6))
         self._sync_component_count(self._ui_action_state().n_components)
         # La visibilidad de dist_panel/sextetes la fija _sync_component_count
         # según el modo y el contenedor (apilado o pestañas).
         # Sincroniza el radio del menú Fit
         if hasattr(self, "_mode_menu_actions") and 0 <= idx < 2:
             self._mode_menu_actions[idx].setChecked(True)
-        # Etiquetas y límites según variable distribuida. P(ΔEQ) usa un BHF fijo
-        # independiente y restringe el rango de distribución a 0–7 mm/s.
         if is_dist:
-            self.dist_panel.set_distribution_variable("quad" if is_deq else "bhf")
+            if is_2d:
+                # Fuerza forma 2D y configura el par de variables
+                if hasattr(self.dist_panel, "shape_combo"):
+                    idx_shape = self.dist_panel.shape_combo.findData("2D")
+                    if idx_shape >= 0 and self.dist_panel.shape_combo.currentIndex() != idx_shape:
+                        self.dist_panel.shape_combo.setCurrentIndex(idx_shape)
+                if hasattr(self.dist_panel, "set_distribution_pair"):
+                    self.dist_panel.set_distribution_pair(*self.dist_pair)
+            else:
+                # Si veníamos de 2D, volver a Histograma
+                if hasattr(self.dist_panel, "shape_combo") and getattr(self.dist_panel, "shape", "") == "2D":
+                    idx_shape = self.dist_panel.shape_combo.findData("Histograma")
+                    if idx_shape >= 0:
+                        self.dist_panel.shape_combo.setCurrentIndex(idx_shape)
+                var = "delta" if is_delta else ("quad" if is_deq else "bhf")
+                self.dist_panel.set_distribution_variable(var)
         self._check_layout()
         self._refresh_plot()
 
     @property
     def is_distribution_mode(self) -> bool:
-        return self.mode_combo.currentIndex() in (1, 2)
+        return self.mode_combo.currentIndex() in (1, 2, 3, 4, 5, 6)
 
     @property
     def dist_variable(self) -> str:
-        return "quad" if self.mode_combo.currentIndex() == 2 else "bhf"
+        idx = self.mode_combo.currentIndex()
+        if idx == 2:
+            return "quad"
+        if idx == 3:
+            return "delta"
+        return "bhf"
+
+    @property
+    def dist_pair(self) -> tuple[str, str]:
+        """Par de variables para modos 2D (eje X, eje Y)."""
+        idx = self.mode_combo.currentIndex()
+        if idx == 5:
+            return ("delta", "quad")   # P(IS, ΔEQ) 2D
+        if idx == 6:
+            return ("bhf", "delta")    # P(BHF, IS) 2D
+        return ("bhf", "quad")         # P(BHF, ΔEQ) 2D (idx==4)
 
     def _on_model_param_changed(self, *args) -> None:
         if not self._building:
@@ -96,7 +126,7 @@ class ModelWorkflowMixin:
         controls: list[ParamControl] = []
         for cp in getattr(self, "components_panels", []):
             comp_state = cp.to_view_state()
-            if comp_state.enabled and comp_state.kind == "Sextete":
+            if comp_state.enabled and comp_state.kind in ("Sextete", "Relajacion", "BlumeTjon", "NeelSize"):
                 ctl = cp.params.get("bhf")  # widget necesario para fijarlo
                 if ctl is not None:
                     controls.append(ctl)
@@ -107,7 +137,7 @@ class ModelWorkflowMixin:
         flags: list[bool] = []
         for cp in getattr(self, "components_panels", []):
             comp_state = cp.to_view_state()
-            if comp_state.enabled and comp_state.kind == "Sextete":
+            if comp_state.enabled and comp_state.kind in ("Sextete", "Relajacion", "BlumeTjon", "NeelSize"):
                 flags.append(comp_state.is_fixed("bhf"))
         return flags
 

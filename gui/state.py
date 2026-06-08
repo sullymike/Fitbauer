@@ -262,7 +262,6 @@ class DistributionViewState:
     """Snapshot del panel de distribución P(BHF) / P(ΔEQ)."""
 
     use_sharp: bool = False
-    refine_global: bool = False
     shape: str = "Histograma"
     reg_mode: str = "tikhonov"
     fixed_distribution_path: Path | None = None
@@ -289,7 +288,6 @@ class DistributionViewState:
         fixed_path = state.get("fixed_distribution_path")
         return cls(
             use_sharp=bool(state.get("dist_use_sharp", False)),
-            refine_global=bool(state.get("dist_refine_global", False)),
             shape=str(state.get("dist_shape", "Histograma")),
             reg_mode=str(state.get("dist_reg_mode", "tikhonov")),
             fixed_distribution_path=Path(fixed_path) if fixed_path else None,
@@ -299,7 +297,6 @@ class DistributionViewState:
     def to_model_state_fragment(self) -> dict[str, Any]:
         return {
             "dist_use_sharp": bool(self.use_sharp),
-            "dist_refine_global": bool(self.refine_global),
             "dist_shape": self.shape,
             "dist_reg_mode": self.reg_mode,
             "fixed_distribution_path": (

@@ -48,7 +48,6 @@ def test_calibration_panel_to_view_state_reflects_controls(qapp):
 def test_distribution_panel_to_view_state_reflects_controls(qapp):
     panel = DistributionPanel()
     panel.use_sharp.setChecked(True)
-    panel.refine_global.setChecked(True)
     panel.delta.set_value(0.12)
     panel.quad.set_value(-0.2)
     panel.fixed_bhf.set_value(31.0)
@@ -65,7 +64,6 @@ def test_distribution_panel_to_view_state_reflects_controls(qapp):
 
     assert state.variable == "ΔEQ"
     assert state.use_sharp is True
-    assert state.refine_global is True
     assert state.shape == "Gaussiana"
     assert state.reg_mode == "tv"
     assert state.delta == 0.12

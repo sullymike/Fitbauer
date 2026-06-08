@@ -92,6 +92,10 @@ class MainLayoutMixin:
             tr("options.discrete_sextets"),
             tr("options.distribution_bhf"),
             "P(ΔEQ)",
+            "P(IS)",
+            "P(BHF, ΔEQ) 2D",
+            "P(IS, ΔEQ) 2D",
+            "P(BHF, IS) 2D",
         ])
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_row.addWidget(self.mode_combo, stretch=1)
@@ -165,7 +169,6 @@ class MainLayoutMixin:
         self.dist_panel.loadFixedRequested.connect(self._on_load_fixed_distribution)
         self.dist_panel.lcurve_link.clicked.connect(self.on_lcurve)
         self.dist_panel.use_sharp.toggled.connect(self._set_dist_use_sharp)
-        self.dist_panel.refine_global.toggled.connect(self._set_dist_refine_global)
         self._rebuild_component_area(use_tabs=False)
         self._sync_component_count(1)
         lv.addWidget(self.sim_controls_box)

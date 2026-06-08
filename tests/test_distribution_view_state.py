@@ -6,7 +6,6 @@ from gui.state import DistributionViewState
 def test_distribution_view_state_alpha_and_session_fragment():
     state = DistributionViewState(
         use_sharp=True,
-        refine_global=True,
         shape="Fija",
         reg_mode="tv",
         fixed_distribution_path=Path("p.dat"),
@@ -27,7 +26,6 @@ def test_distribution_view_state_alpha_and_session_fragment():
     assert state.is_fixed("delta") is False
     fragment = state.to_model_state_fragment()
     assert fragment["dist_use_sharp"] is True
-    assert fragment["dist_refine_global"] is True
     assert fragment["dist_shape"] == "Fija"
     assert fragment["dist_reg_mode"] == "tv"
     assert fragment["fixed_distribution_path"] == "p.dat"
@@ -35,9 +33,10 @@ def test_distribution_view_state_alpha_and_session_fragment():
 
 
 def test_distribution_view_state_from_historic_model_state():
+    # dist_refine_global es un campo legacy (v4.5); debe ignorarse silenciosamente
     restored = DistributionViewState.from_model_state({
         "dist_use_sharp": True,
-        "dist_refine_global": False,
+        "dist_refine_global": False,  # campo legacy, ignorado
         "dist_shape": "Histograma",
         "dist_reg_mode": "tikhonov",
         "fixed_distribution_path": "fixed.tsv",
@@ -45,7 +44,6 @@ def test_distribution_view_state_from_historic_model_state():
     })
 
     assert restored.use_sharp is True
-    assert restored.refine_global is False
     assert restored.shape == "Histograma"
     assert restored.fixed_distribution_path == Path("fixed.tsv")
     assert restored.variable == "BHF"

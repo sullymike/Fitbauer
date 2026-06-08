@@ -184,11 +184,6 @@ class MenuBuilderMixin:
         self.act_add_sharp.setChecked(self.dist_use_sharp)
         self.act_add_sharp.toggled.connect(self._set_dist_use_sharp)
         adv_menu.addAction(self.act_add_sharp)
-        self.act_refine_global = QtGui.QAction(tr("options.refine_global"), self,
-                                                checkable=True)
-        self.act_refine_global.setChecked(self.dist_refine_global)
-        self.act_refine_global.toggled.connect(self._set_dist_refine_global)
-        adv_menu.addAction(self.act_refine_global)
         fit_menu.addSeparator()
         act_free_all = QtGui.QAction(tr("fit.free_all"), self)
         act_free_all.triggered.connect(lambda: self._set_all_fixed(False))
@@ -242,9 +237,6 @@ class MenuBuilderMixin:
         self.act_opt_add_sharp = QtGui.QAction(tr("options.add_sharp"), self, checkable=True)
         self.act_opt_add_sharp.toggled.connect(self._set_dist_use_sharp)
         options_menu.addAction(self.act_opt_add_sharp)
-        self.act_opt_refine_global = QtGui.QAction(tr("options.refine_global"), self, checkable=True)
-        self.act_opt_refine_global.toggled.connect(self._set_dist_refine_global)
-        options_menu.addAction(self.act_opt_refine_global)
         options_menu.addSeparator()
         opt_constraints = QtGui.QAction(tr("options.constraints"), self)
         opt_constraints.triggered.connect(self.on_constraints)
@@ -369,20 +361,6 @@ class MenuBuilderMixin:
         self._simulate_enabled = True
         self._refresh_plot()
 
-    def _set_dist_refine_global(self, enabled: bool) -> None:
-        self.dist_refine_global = bool(enabled)
-        for attr in ("act_refine_global", "act_opt_refine_global"):
-            act = getattr(self, attr, None)
-            if act is not None and act.isChecked() != self.dist_refine_global:
-                act.blockSignals(True)
-                act.setChecked(self.dist_refine_global)
-                act.blockSignals(False)
-        if hasattr(self, "dist_panel") and self.dist_panel.refine_global.isChecked() != self.dist_refine_global:
-            self.dist_panel.refine_global.blockSignals(True)
-            self.dist_panel.refine_global.setChecked(self.dist_refine_global)
-            self.dist_panel.refine_global.blockSignals(False)
-        self._simulate_enabled = True
-        self._refresh_plot()
 
     def _set_language(self, code: str) -> None:
         set_language(code)
