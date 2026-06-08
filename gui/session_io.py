@@ -163,15 +163,20 @@ class SessionIOMixin:
             fixed_path = state.get("fixed_distribution_path")
             if fixed_path and hasattr(self, "dist_panel"):
                 self.dist_panel.fixed_path = Path(fixed_path)
-            if shape_saved in ("Histograma", "Gaussiana", "Binomial", "Fija") and hasattr(self, "dist_panel"):
+            if shape_saved in ("Histograma", "Gaussiana", "Binomial", "Fija", "2D") and hasattr(self, "dist_panel"):
                 idx_shape = self.dist_panel.shape_combo.findData(shape_saved)
                 if idx_shape >= 0:
                     self.dist_panel.shape_combo.setCurrentIndex(idx_shape)
             var_saved = state.get("dist_variable")
-            if var_saved in ("BHF", "bhf"):
+            _2d_var_to_idx = {"BHF-ΔEQ": 4, "IS-ΔEQ": 5, "BHF-IS": 6}
+            if var_saved in _2d_var_to_idx:
+                self.mode_combo.setCurrentIndex(_2d_var_to_idx[var_saved])
+            elif var_saved in ("BHF", "bhf"):
                 self.mode_combo.setCurrentIndex(1)
             elif var_saved in ("ΔEQ", "quad"):
                 self.mode_combo.setCurrentIndex(2)
+            elif var_saved in ("IS", "delta"):
+                self.mode_combo.setCurrentIndex(3)
             # Sincroniza las acciones del menú avanzado si ya existen
             for grp_attr, val, items in (
                 ("likelihood_action_group", self.likelihood, ("gauss", "poisson")),

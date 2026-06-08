@@ -208,7 +208,16 @@ class DistributionPanel(QtWidgets.QGroupBox):
 
     def to_view_state(self, *, variable: str = "BHF") -> DistributionViewState:
         """Snapshot del panel sin exponer widgets al resto de la GUI."""
-        variable_label = "ΔEQ" if variable in ("quad", "ΔEQ") else "BHF"
+        if self.shape == "2D":
+            _lmap = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
+            x, y = self._distribution_pair
+            variable_label = f"{_lmap.get(x, x)}-{_lmap.get(y, y)}"
+        elif variable in ("quad", "ΔEQ"):
+            variable_label = "ΔEQ"
+        elif variable in ("delta", "IS"):
+            variable_label = "IS"
+        else:
+            variable_label = "BHF"
         return DistributionViewState(
             use_sharp=self.use_sharp.isChecked(),
             shape=self.shape,
