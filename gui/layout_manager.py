@@ -623,8 +623,16 @@ class LayoutSettingsMixin:
         ui_state = self._ui_action_state()
         is_dist, vis = self._component_visibility(ui_state.n_components)
         n_visible = sum(1 for v in vis if v)
-        stacked_h = (_COMP_OVERHEAD_H + (_DIST_STACK_H if is_dist else 0)
-                     + n_visible * _COMP_STACK_H)
+        # Mide la altura real de los paneles visibles en lugar de usar una
+        # constante fija: NeelSize, Relajacion, etc. son más altos que Sextete.
+        if hasattr(self, "components_panels") and not self._using_tabs:
+            comp_h = sum(
+                cp.sizeHint().height() + 4  # 4 = spacing entre frames
+                for cp, v in zip(self.components_panels, vis) if v
+            )
+        else:
+            comp_h = n_visible * _COMP_STACK_H
+        stacked_h = (_COMP_OVERHEAD_H + (_DIST_STACK_H if is_dist else 0) + comp_h)
         self._in_layout_check = True
         try:
             if self._using_tabs:
