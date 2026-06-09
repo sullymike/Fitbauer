@@ -30,4 +30,4 @@ jobs:
       - name: Run tests (headless via Xvfb)
         env:
           QT_QPA_PLATFORM: offscreen   # PySide6 sin display real (pytest-qt)
-        run: xvfb-run -a pytest -q
+        run: xvfb-run -a pytest -v --tb=short 2>&1 | tee /tmp/pytest_output.txt; exit ${PIPESTATUS[0]}
