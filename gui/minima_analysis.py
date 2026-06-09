@@ -6,8 +6,7 @@ from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
 from core.constants import BHF_DEFAULT_T, LINE_POS_33T
-from core.fit_engine import Component
-from core.reconstruction import reconstruct_discrete_model
+from core.fit_engine import Component, model_from_values
 from gui.panels import ComponentPanel
 
 MAX_QT_COMPONENTS = 6
@@ -281,36 +280,29 @@ class MinimaAnalysisMixin:
         if self.file.velocity is None or self.file.y_data is None:
             return
         v = self.file.velocity
-        calib_state = self.calib.to_view_state()
-        baseline = float(params.get("baseline", calib_state.baseline))
-        slope = float(params.get("slope", calib_state.slope))
+        baseline = float(params.get("baseline", self.calib.baseline.value()))
+        slope = float(params.get("slope", self.calib.slope.value()))
         comps = []
         depth_keys = []
         for idx in component_indices:
-            comp_state = self.components_panels[idx - 1].to_view_state()
+            cp = self.components_panels[idx - 1]
             p = f"s{idx}_"
-            vals = {name: params.get(p + name, comp_state.value(name)) for name in comp_state.values}
+            vals = {name: params.get(p + name, cp.params[name].value()) for name in cp.params}
             params.update({p + name: float(vals[name]) for name in vals})
-            comps.append(Component(idx=idx, enabled=True, kind=comp_state.kind,
-                                   intensity_mode=comp_state.intensity_mode,
-                                   quad_treatment=comp_state.quad_treatment))
+            comps.append(Component(idx=idx, enabled=True, kind=cp.kind,
+                                   intensity_mode=cp.intensity_mode,
+                                   quad_treatment=cp.quad_treatment))
             depth_keys.append(p + "depth")
         if not comps:
             return
         baseline_line = baseline + slope * v
         values = {**params, "baseline": baseline, "slope": slope}
         try:
-            reconstruction = reconstruct_discrete_model(
-                v,
-                self.file.y_data,
-                values,
-                comps,
-                self.constraints,
-                absorber_model=self.absorber_model,
-            )
+            model = model_from_values(v, values, comps, self.constraints,
+                                      absorber_model=self.absorber_model)
         except Exception:
             return
-        model_abs = float(np.max(baseline_line - reconstruction.model)) if v.size else 0.0
+        model_abs = float(np.max(baseline_line - model)) if v.size else 0.0
         data_abs = float(np.max(baseline_line - self.file.y_data)) if v.size else 0.0
         if model_abs > 1e-6 and data_abs > 0.0 and model_abs > data_abs:
             factor = data_abs / model_abs
