@@ -48,6 +48,16 @@ USED_BY = {
                  "neel_log10_tau0", "neel_bins"},
 }
 
+# Tipos de componente discreto válidos. Fuente única para las whitelists de la
+# GUI (selector de tipo, restauración de sesión) y la validación. El orden
+# refleja el del selector de la GUI.
+COMPONENT_KINDS = (
+    "Sextete", "Doblete", "Singlete", "Relajacion", "BlumeTjon", "NeelSize",
+)
+
+# Formas válidas de distribución hiperfina (selector del panel y validación).
+DISTRIBUTION_SHAPES = ("Histograma", "Gaussiana", "Binomial", "Fija", "2D")
+
 
 @dataclass(frozen=True)
 class ParamSpec:

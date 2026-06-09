@@ -9,6 +9,7 @@ from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
 from core.folding import find_best_integer_or_half_center
+from core.params import COMPONENT_KINDS, DISTRIBUTION_SHAPES
 from gui.state import (
     CalibrationState,
     DistributionViewState,
@@ -111,7 +112,7 @@ class SessionIOMixin:
             for cp in self.components_panels:
                 cp.apply_values(vmap)
                 ki = state.get("component_kind", {}).get(str(cp.idx))
-                if ki in ("Sextete", "Doblete", "Singlete"):
+                if ki in COMPONENT_KINDS:
                     cp.type_combo.setCurrentText(ki)
                 en = state.get("sextet_enabled", {}).get(str(cp.idx))
                 if en is not None:
@@ -163,7 +164,7 @@ class SessionIOMixin:
             fixed_path = state.get("fixed_distribution_path")
             if fixed_path and hasattr(self, "dist_panel"):
                 self.dist_panel.fixed_path = Path(fixed_path)
-            if shape_saved in ("Histograma", "Gaussiana", "Binomial", "Fija", "2D") and hasattr(self, "dist_panel"):
+            if shape_saved in DISTRIBUTION_SHAPES and hasattr(self, "dist_panel"):
                 idx_shape = self.dist_panel.shape_combo.findData(shape_saved)
                 if idx_shape >= 0:
                     self.dist_panel.shape_combo.setCurrentIndex(idx_shape)

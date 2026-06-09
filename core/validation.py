@@ -10,6 +10,8 @@ from typing import Any, Iterable, Mapping
 
 import numpy as np
 
+from core.params import COMPONENT_KINDS, DISTRIBUTION_SHAPES
+
 
 @dataclass(frozen=True)
 class ValidationIssue:
@@ -83,7 +85,7 @@ def validate_fit_state(state: Any) -> list[ValidationIssue]:
     for comp in getattr(state, "components", []) or []:
         idx = getattr(comp, "idx", "?")
         kind = getattr(comp, "kind", "")
-        if kind not in {"Sextete", "Doblete", "Singlete", "Relajacion", "BlumeTjon", "NeelSize"}:
+        if kind not in COMPONENT_KINDS:
             issues.append(ValidationIssue(f"s{idx}_kind", f"Componente {idx}: tipo desconocido {kind!r}"))
     return issues
 
@@ -103,7 +105,7 @@ def validate_distribution_parameters(state: Any) -> list[ValidationIssue]:
             issues.append(ValidationIssue("range", "El máximo de la distribución debe ser mayor que el mínimo"))
     if _is_finite_number(getattr(state, "gamma", None)) and float(state.gamma) <= 0:
         issues.append(ValidationIssue("gamma", "La anchura Γ debe ser positiva"))
-    if getattr(state, "shape", "Histograma") not in {"Histograma", "Gaussiana", "Binomial", "Fija", "2D"}:
+    if getattr(state, "shape", "Histograma") not in DISTRIBUTION_SHAPES:
         issues.append(ValidationIssue("shape", f"Forma de distribución desconocida: {getattr(state, 'shape')!r}"))
     if getattr(state, "reg_mode", "tikhonov") not in {"tikhonov", "tv"}:
         issues.append(ValidationIssue("reg_mode", f"Regularización desconocida: {getattr(state, 'reg_mode')!r}"))

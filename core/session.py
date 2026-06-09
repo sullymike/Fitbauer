@@ -28,6 +28,7 @@ from core.folding import (
 )
 from core.params import (
     ACTIVE_PARAM_ORDER as _ACTIVE_PARAM_ORDER,
+    COMPONENT_KINDS as _COMPONENT_KINDS,
     COMPONENT_FIT_BOUNDS as _PARAM_BOUNDS,
     GLOBAL_FIT_BOUNDS as _GLOBAL_BOUNDS,
     PARAM_ORDER as _PARAM_ORDER,
@@ -41,7 +42,7 @@ from core.params import (
 _EDGE_TRIM = 1
 MAX_COMPONENTS_DEFAULT = 3
 
-_KINDS = {"Sextete", "Doblete", "Singlete", "Relajacion", "BlumeTjon", "NeelSize"}
+_KINDS = set(_COMPONENT_KINDS)
 _INTENSITY_MODES = {"free", "texture"}
 _QUAD_TREATMENTS = {"1st_order", "kundig_fixed", "kundig_powder"}
 

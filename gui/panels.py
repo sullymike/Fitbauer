@@ -5,7 +5,7 @@ from PySide6 import QtCore, QtWidgets
 
 from mossbauer_i18n import tr
 from core.params import (
-    COMPONENT_PARAM_LAYOUT, COMPONENT_PARAM_SPECS, USED_BY,
+    COMPONENT_KINDS, COMPONENT_PARAM_LAYOUT, COMPONENT_PARAM_SPECS, USED_BY,
     component_default_value, relevant_params as _relevant_params,
 )
 from gui.controls import ParamControl
@@ -161,7 +161,7 @@ class ComponentPanel(QtWidgets.QWidget):
         self.enabled = QtWidgets.QCheckBox(tr("component.enable", idx=idx))
         self.enabled.setChecked(idx == 1)
         self.type_combo = QtWidgets.QComboBox()
-        self.type_combo.addItems(["Sextete", "Doblete", "Singlete", "Relajacion", "BlumeTjon", "NeelSize"])
+        self.type_combo.addItems(list(COMPONENT_KINDS))
         row.addWidget(self.enabled)
         row.addStretch(1)
         row.addWidget(QtWidgets.QLabel(tr("component.shape_label")))
