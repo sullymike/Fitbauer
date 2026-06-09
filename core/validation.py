@@ -83,7 +83,7 @@ def validate_fit_state(state: Any) -> list[ValidationIssue]:
     for comp in getattr(state, "components", []) or []:
         idx = getattr(comp, "idx", "?")
         kind = getattr(comp, "kind", "")
-        if kind not in {"Sextete", "Doblete", "Singlete"}:
+        if kind not in {"Sextete", "Doblete", "Singlete", "Relajacion", "BlumeTjon", "NeelSize"}:
             issues.append(ValidationIssue(f"s{idx}_kind", f"Componente {idx}: tipo desconocido {kind!r}"))
     return issues
 
