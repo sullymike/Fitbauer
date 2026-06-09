@@ -201,6 +201,9 @@ class ComponentPanel(QtWidgets.QWidget):
         v.addLayout(self.params_grid)
         self.enabled.toggled.connect(lambda *_: self.paramChanged.emit())
         self.type_combo.currentTextChanged.connect(self._on_type_changed)
+        # No se comprime: si los componentes apilados no caben, el QScrollArea
+        # del panel izquierdo proporciona desplazamiento.
+        self.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
 
         # Estado para los menús contextuales (clic derecho). Ya no hay
         # desplegables: el modo de intensidades y el tratamiento del cuadrupolo
