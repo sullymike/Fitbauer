@@ -300,3 +300,8 @@ class MainLayoutMixin:
         self.calib.fit_velocity.toggled.connect(self._on_fit_velocity_toggled)
         for cp in self.components_panels:
             cp.paramChanged.connect(self._on_model_param_changed)
+            # Al cambiar el tipo, el panel puede crecer (p.ej. NeelSize tiene
+            # más parámetros que Sextete): revisar si sigue cabiendo apilado.
+            cp.type_combo.currentTextChanged.connect(
+                lambda _text, self=self: self._check_layout()
+            )
