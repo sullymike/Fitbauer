@@ -320,20 +320,32 @@ class ComponentPanel(QtWidgets.QWidget):
         # Saca todo del grid (los widgets siguen vivos como hijos del panel).
         for ctl in self.params.values():
             self.params_grid.removeWidget(ctl)
-        for col, order in enumerate((COMPONENT_PARAM_LAYOUT["left"],
-                                     COMPONENT_PARAM_LAYOUT["right"])):
-            row = 0
-            for name in order:
-                ctl = self.params.get(name)
-                if ctl is None:
-                    continue
-                if name in shown:
-                    self.params_grid.addWidget(ctl, row, col)
-                    ctl.setVisible(True)
-                    ctl.setEnabled(name in used)
-                    row += 1
-                else:
-                    ctl.setVisible(False)
+
+        # Filtra los visibles para cada columna respetando el orden canónico.
+        col0 = [n for n in COMPONENT_PARAM_LAYOUT["left"]  if n in shown]
+        col1 = [n for n in COMPONENT_PARAM_LAYOUT["right"] if n in shown]
+
+        # Reequilibra si una columna supera a la otra en más de 2 filas:
+        # mueve el exceso desde el final de la columna más larga al final de
+        # la más corta, manteniendo el orden relativo de cada param.
+        while len(col1) > len(col0) + 2:
+            col0.append(col1.pop(0))
+        while len(col0) > len(col1) + 2:
+            col1.append(col0.pop(0))
+
+        for col, names in enumerate((col0, col1)):
+            for row, name in enumerate(names):
+                ctl = self.params[name]
+                self.params_grid.addWidget(ctl, row, col)
+                ctl.setVisible(True)
+                ctl.setEnabled(name in used)
+
+        # Oculta los no visibles ni ocultos.
+        visible = set(col0) | set(col1)
+        for name, ctl in self.params.items():
+            if name not in visible:
+                ctl.setVisible(False)
+
         # El grupo oculto (int3) nunca se muestra ni ocupa celda.
         for name in COMPONENT_PARAM_LAYOUT["hidden"]:
             ctl = self.params.get(name)
