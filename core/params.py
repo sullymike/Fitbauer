@@ -48,6 +48,16 @@ USED_BY = {
                  "neel_log10_tau0", "neel_bins"},
 }
 
+# Tipos de componente discreto válidos. Fuente única para las whitelists de la
+# GUI (selector de tipo, restauración de sesión) y la validación. El orden
+# refleja el del selector de la GUI.
+COMPONENT_KINDS = (
+    "Sextete", "Doblete", "Singlete", "Relajacion", "BlumeTjon", "NeelSize",
+)
+
+# Formas válidas de distribución hiperfina (selector del panel y validación).
+DISTRIBUTION_SHAPES = ("Histograma", "Gaussiana", "Binomial", "Fija", "2D")
+
 
 @dataclass(frozen=True)
 class ParamSpec:
@@ -84,11 +94,16 @@ COMPONENT_PARAM_SPECS = {
     "int3":    ParamSpec(1.0, 1.0, 1.0, 0.0, 3),
 }
 # Disposición de los controles en la GUI (dos columnas + ocultos).
+# Columna izquierda: parámetros hiperfinos. Columna derecha: profundidad,
+# intensidades, textura/β y los parámetros especializados (relajación / Néel).
+# El bloque Néel se agrupa por significado: primero el tamaño (diámetro medio,
+# anchura lognormal, nº de bins) y luego la dinámica de Arrhenius (T, K_eff, τ0).
 COMPONENT_PARAM_LAYOUT = {
     "left": ("delta", "quad", "bhf", "gamma1", "gamma2", "gamma3"),
-    "right": ("depth", "int1", "int2", "texture", "beta", "relax_fraction", "relax_log_nu",
-              "neel_temp_k", "neel_log10_keff", "neel_mean_d_nm", "neel_sigma",
-              "neel_log10_tau0", "neel_bins"),
+    "right": ("depth", "int1", "int2", "texture", "beta",
+              "relax_fraction", "relax_log_nu",
+              "neel_mean_d_nm", "neel_sigma", "neel_bins",
+              "neel_temp_k", "neel_log10_keff", "neel_log10_tau0"),
     "hidden": ("int3",),
 }
 # La profundidad por defecto del primer componente es mayor que la del resto.
