@@ -622,15 +622,17 @@ class LayoutSettingsMixin:
             return
         ui_state = self._ui_action_state()
         is_dist, vis = self._component_visibility(ui_state.n_components)
-        n_visible = sum(1 for v in vis if v)
-        # Mide la altura real de los paneles visibles en lugar de usar una
-        # constante fija: NeelSize, Relajacion, etc. son más altos que Sextete.
-        if hasattr(self, "components_panels") and not self._using_tabs:
+        # Mide siempre la altura real de los paneles (SizePolicy.Fixed →
+        # sizeHint es fiable independientemente del contenedor actual).
+        # Así los umbrales tabs→apilado y apilado→tabs usan la misma métrica
+        # y no oscilan cuando hay tipos con muchos parámetros (p.ej. NeelSize).
+        if hasattr(self, "components_panels"):
             comp_h = sum(
-                cp.sizeHint().height() + 4  # 4 = spacing entre frames
+                cp.sizeHint().height() + 4
                 for cp, v in zip(self.components_panels, vis) if v
             )
         else:
+            n_visible = sum(1 for v in vis if v)
             comp_h = n_visible * _COMP_STACK_H
         stacked_h = (_COMP_OVERHEAD_H + (_DIST_STACK_H if is_dist else 0) + comp_h)
         self._in_layout_check = True
