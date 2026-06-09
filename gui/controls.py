@@ -57,6 +57,10 @@ class ParamControl(QtWidgets.QWidget):
         self.spin.valueChanged.connect(self._on_spin_changed)
         self.slider.valueChanged.connect(self._on_slider_changed)
 
+        # Altura fija: el control nunca se comprime aunque el panel tenga poco
+        # espacio — si no caben todos, la tarjeta ya tiene scroll.
+        self.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
+
     def value(self) -> float:
         return float(self.spin.value())
 
