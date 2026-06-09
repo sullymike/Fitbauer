@@ -76,9 +76,22 @@ class FitWorkflowMixin:
         dlg.show()
         QtWidgets.QApplication.processEvents()
 
-        def update(msg: str) -> None:
+        def update(msg) -> None:
             if dlg.isVisible():
-                label.setText(msg)
+                if isinstance(msg, dict):
+                    phase = msg.get("phase", "")
+                    it = msg.get("iteration")
+                    max_it = msg.get("max_iter")
+                    rms = msg.get("rms")
+                    if it is not None and max_it:
+                        bar.setRange(0, int(max_it))
+                        bar.setValue(int(it))
+                    txt = phase
+                    if rms is not None and isinstance(rms, float) and not (rms != rms):
+                        txt += f"  RMS={rms:.5g}"
+                    label.setText(txt)
+                else:
+                    label.setText(str(msg))
                 QtWidgets.QApplication.processEvents()
 
         def close() -> None:
