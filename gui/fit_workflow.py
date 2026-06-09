@@ -44,6 +44,10 @@ class GuiFitResult:
     info_result: Any | None = None
 
 
+class FitCancelledError(Exception):
+    """El usuario canceló el ajuste desde el diálogo de progreso."""
+
+
 class FitWorkflowMixin:
     """Helpers comunes de orquestación de ajustes en la ventana Qt."""
 
@@ -102,6 +106,17 @@ class FitWorkflowMixin:
         bar.setRange(0, 0)
         bar.setTextVisible(True)
         v.addWidget(bar)
+
+        btn_cancel = QtWidgets.QPushButton(tr("progress.cancel", default="Cancelar"))
+        btn_cancel.setObjectName("btn_cancel_fit")
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_row.addStretch(1)
+        btn_row.addWidget(btn_cancel)
+        v.addLayout(btn_row)
+
+        _state = {"cancelled": False}
+        btn_cancel.clicked.connect(lambda: _state.__setitem__("cancelled", True))
+
         dlg.show()
         QtWidgets.QApplication.processEvents()
 
@@ -115,6 +130,8 @@ class FitWorkflowMixin:
         def update(payload) -> None:
             if not dlg.isVisible():
                 return
+            if _state["cancelled"]:
+                raise FitCancelledError()
             if isinstance(payload, dict):
                 phase = str(payload.get("phase") or payload.get("message") or message)
                 label.setText(phase)
@@ -190,6 +207,8 @@ class FitWorkflowMixin:
         _dlg, update_progress, close_progress = self._open_progress_dialog(title, message)
         try:
             return run(update_progress)
+        except FitCancelledError:
+            return None
         except Exception as exc:
             QtWidgets.QMessageBox.critical(
                 self,
