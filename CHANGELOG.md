@@ -1,5 +1,76 @@
 # Changelog
 
+## v4.7 — Reconciliación arquitectónica y mejoras de interfaz
+
+> **Contexto histórico.** La v4.5 (refactorización modular de `gui/`) se
+> publicó y tuvo que revertirse porque la v4.6 (física nueva: relajación,
+> distribuciones 2D/IS) se había desarrollado en paralelo sobre la
+> arquitectura anterior. Esta versión fusiona definitivamente ambas líneas:
+> toda la física de la 4.6 sobre la arquitectura modular de la 4.5, más
+> los cambios descritos a continuación.
+
+### Reconciliación v4.5 + v4.6
+
+- **Arquitectura modular `gui/`** (originada en v4.5) integrada con toda la
+  física de la v4.6: los módulos `gui/discrete_fit.py`, `gui/distribution_fit.py`,
+  `gui/model_workflow.py`, `gui/fit_workflow.py`, etc. son la base definitiva.
+- **Corrección de tipos desconocidos.** `core/validation.py` y `core/session.py`
+  ahora usan `COMPONENT_KINDS` y `DISTRIBUTION_SHAPES` de `core/params.py` como
+  fuente única, eliminando los errores «tipo desconocido 'Relajacion'» y «tipo
+  desconocido '2D'» que aparecían en la versión reconciliada anterior.
+- **Restauración de sesión completa.** `gui/session_io.py` acepta todos los tipos
+  de componente (`Relajacion`, `BlumeTjon`, `NeelSize`) y todas las formas de
+  distribución (`2D`) al cargar una sesión guardada.
+
+### Mejoras de interfaz (panel de componentes)
+
+- **Reflow dinámico del panel de componentes.** Los parámetros aparecen y
+  desaparecen sin huecos al cambiar el tipo; solo se muestran los relevantes
+  para cada tipo según `USED_BY` de `core/params.py`.
+- **Columnas equilibradas automáticamente.** Si una columna supera a la otra
+  en más de dos filas, el exceso se redistribuye, evitando columnas muy cargadas
+  junto a columnas casi vacías (especialmente visible en NeelSize y Relajacion).
+- **Altura fija de controles.** `ParamControl` y `ComponentPanel` tienen política
+  de tamaño `Fixed` vertical: los campos nunca se comprimen aunque haya muchos
+  parámetros; el `QScrollArea` del panel izquierdo se encarga del desplazamiento.
+- **Conmutación apilado↔pestañas por altura real.** El umbral que decide cuándo
+  pasar de componentes apilados a pestañas usa `sizeHint()` de cada panel en
+  lugar de una constante fija, de modo que tipos con muchos parámetros (NeelSize)
+  activan el cambio al tamaño correcto y sin oscilaciones. La comprobación también
+  se dispara al cambiar el tipo en el combo, no solo al redimensionar la ventana.
+
+### Mejoras del diálogo de progreso de ajuste
+
+- **Diálogo detallado restaurado.** Durante el ajuste se muestran fase, número
+  de evaluaciones, RMS actual y mejor, y tabla de parámetros libres con sus
+  valores en curso — información que se había perdido en la reconciliación.
+- **Botón Cancelar.** Un botón en el diálogo de progreso permite abortar el
+  ajuste en cualquier momento de forma limpia (`FitCancelledError`), sin
+  mensajes de error espurios.
+
+### Calidad y tests
+
+- **Whitelists centralizadas.** `COMPONENT_KINDS` y `DISTRIBUTION_SHAPES` en
+  `core/params.py` son ahora la fuente única para validación, sesión y GUI;
+  añadir un nuevo tipo o forma ya no requiere buscar todas las listas dispersas.
+- **Tests de regresión.** Nuevos tests en `tests/test_qt_app.py` y
+  `tests/test_validation.py` cubren: tipos nuevos en validación, restauración
+  de sesión con `Relajacion`/`2D`, cancelación del ajuste, reflow sin huecos
+  por columnas y ningún campo fuera del grid.
+
+### Pendiente / trabajo en curso
+
+- **TODO (punto 3):** Centralizar las listas de `intensity_mode`
+  (`"free"`, `"texture"`) y `quad_treatment` (`"1st_order"`, `"kundig_fixed"`,
+  `"kundig_powder"`) en `core/params.py`, igual que se hizo con
+  `COMPONENT_KINDS`/`DISTRIBUTION_SHAPES`, para que añadir nuevos modos no
+  sea un bug silencioso (ver `gui/session_io.py`).
+- **TODO (punto 4):** Evaluar reconstrucción de nítidos con `build_sharp_kernel`
+  (SHA `a7c803b`) como alternativa más fiel cuando el ajuste refina δ/Γ globales
+  (ver `gui/distribution_fit.py`).
+- **Multi-ajuste con temperaturas** (Néel-Arrhenius global sobre series de
+  espectros a distintas temperaturas): pendiente de implementación.
+
 ## v4.6 — Distribuciones generalizadas y relajación magnética
 
 - Distribuciones 2D: backend `mossbauer_distribution.fit_bhf_quad_distribution()` generalizado para pares `BHF`, `ΔEQ/QS` e `IS`; integración en la GUI como modos **P(BHF, ΔEQ) 2D**, **P(IS, ΔEQ) 2D**, **P(BHF, IS) 2D** y distribución 1D **P(IS)**, con mapa de calor, marginales, heatmap Plotly, exportación TSV, L-surface `αx/αy`, componentes nítidos simultáneos, diagnósticos (medias, sigmas, correlación aparente, dof efectivo) e informe PDF con mapa 2D; advertencias de sobreajuste/identificabilidad en ayuda y documentación matemática. Nuevo documento `docs/distribuciones_is_mossbauer.pdf` para `P(IS)` y `P(IS, ΔEQ)`.
