@@ -103,7 +103,7 @@ def validate_distribution_parameters(state: Any) -> list[ValidationIssue]:
             issues.append(ValidationIssue("range", "El máximo de la distribución debe ser mayor que el mínimo"))
     if _is_finite_number(getattr(state, "gamma", None)) and float(state.gamma) <= 0:
         issues.append(ValidationIssue("gamma", "La anchura Γ debe ser positiva"))
-    if getattr(state, "shape", "Histograma") not in {"Histograma", "Gaussiana", "Binomial", "Fija"}:
+    if getattr(state, "shape", "Histograma") not in {"Histograma", "Gaussiana", "Binomial", "Fija", "2D"}:
         issues.append(ValidationIssue("shape", f"Forma de distribución desconocida: {getattr(state, 'shape')!r}"))
     if getattr(state, "reg_mode", "tikhonov") not in {"tikhonov", "tv"}:
         issues.append(ValidationIssue("reg_mode", f"Regularización desconocida: {getattr(state, 'reg_mode')!r}"))
