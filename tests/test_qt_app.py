@@ -738,3 +738,100 @@ def test_qt_distribution_2d_mode_is_exposed_and_persisted(win):
     win.mode_combo.setCurrentIndex(5)
     assert win.dist_pair == ("delta", "quad")
     assert win._session_payload()["model_state"]["dist_variable"] == "IS-ΔEQ"
+
+
+# ── Regresión: restauración de tipo Relajacion en sesión ─────────────────────
+
+def test_session_roundtrip_preserves_relajacion_type(win):
+    """Guardar y cargar una sesión con tipo Relajacion recupera el tipo correctamente.
+
+    Regresión: session_io.py filtraba ki in ('Sextete','Doblete','Singlete'),
+    descartando silenciosamente Relajacion/BlumeTjon/NeelSize.
+    """
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    cp = win.components_panels[0]
+    cp.type_combo.setCurrentText("Relajacion")
+    assert cp.kind == "Relajacion"
+
+    payload = win._session_payload()
+    assert payload["model_state"]["component_kind"]["1"] == "Relajacion"
+
+    # Restablecer a Sextete y volver a aplicar
+    cp.type_combo.setCurrentText("Sextete")
+    win._apply_session_payload(payload)
+    assert win.components_panels[0].kind == "Relajacion"
+
+
+def test_session_roundtrip_preserves_blume_tjon_and_neel_size(win):
+    """BlumeTjon y NeelSize también se restauran tras save+load."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+
+    for tipo in ("BlumeTjon", "NeelSize"):
+        win.components_panels[0].type_combo.setCurrentText(tipo)
+        payload = win._session_payload()
+        win.components_panels[0].type_combo.setCurrentText("Sextete")
+        win._apply_session_payload(payload)
+        assert win.components_panels[0].kind == tipo, f"Tipo {tipo} no se restauró"
+
+
+# ── Regresión: validación acepta los nuevos tipos de componente ───────────────
+
+def test_validate_fit_state_accepts_all_component_kinds():
+    """validate_fit_state no debe reportar error para ningún tipo de componente válido.
+
+    Regresión: la whitelist solo tenía Sextete/Doblete/Singlete.
+    """
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from core.fit_engine import Component, FitState
+    from core.params import COMPONENT_KINDS
+    from core.validation import validate_fit_state
+    import numpy as np
+
+    v = np.linspace(-6, 6, 512)
+    y = np.ones(512)
+    for kind in COMPONENT_KINDS:
+        state = FitState(
+            velocity=v, y_data=y, sigma_data=np.ones(512),
+            values={"baseline": 1.0}, fixed={}, bounds={},
+            components=[Component(idx=1, enabled=True, kind=kind)],
+            constraints=[], line_profile="Lorentziana",
+        )
+        issues = validate_fit_state(state)
+        kind_issues = [i for i in issues if i.key == "s1_kind"]
+        assert not kind_issues, f"validate_fit_state rechaza tipo válido {kind!r}"
+
+
+# ── Botón Cancelar del diálogo de progreso ────────────────────────────────────
+
+def test_cancel_button_aborts_fit_silently(win):
+    """Pulsar Cancelar durante un ajuste aborta sin mostrar error y devuelve None.
+
+    _run_with_fit_progress captura FitCancelledError en silencio y devuelve None.
+    """
+    from gui.fit_workflow import FitCancelledError
+    from unittest.mock import patch
+
+    errors = []
+    with patch("PySide6.QtWidgets.QMessageBox.critical",
+               side_effect=lambda *a, **kw: errors.append(a)):
+        result = win._run_with_fit_progress(
+            "Test", "Trabajando…",
+            lambda upd: (_ for _ in ()).throw(FitCancelledError()),
+        )
+
+    assert result is None, "Debe devolver None al cancelar"
+    assert not errors, "No debe mostrar QMessageBox de error al cancelar"
+
+
+def test_progress_dialog_has_cancel_button(win):
+    """El diálogo de progreso contiene un botón con el texto de cancelar."""
+    from PySide6.QtWidgets import QPushButton
+
+    _dlg, _update, close = win._open_progress_dialog("Test", "Trabajando…")
+    try:
+        btns = _dlg.findChildren(QPushButton)
+        assert any(b.objectName() == "btn_cancel_fit" for b in btns), \
+            "No se encontró el botón Cancelar en el diálogo de progreso"
+    finally:
+        close()

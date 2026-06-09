@@ -422,6 +422,12 @@ class DistributionFitMixin:
         self._building = False
 
         # Componentes para el gráfico
+        # TODO (punto 4): los nítidos se reconstruyen aquí con component_absorption
+        # usando los valores de los widgets + el peso ajustado. Una alternativa más
+        # fiel sería usar build_sharp_kernel (que el propio ajuste emplea internamente),
+        # de modo que si on_fit_distribution refina δ/Γ globales el gráfico sea
+        # coherente con los residuos. La rama alternativa está en SHA a7c803b y se
+        # puede recuperar cuando el multi-ajuste esté integrado.
         components_for_plot: list[tuple[int, str, np.ndarray]] = []
         if self.dist_use_sharp and hasattr(result, "sharp_weights") and result.sharp_weights is not None and result.sharp_weights.size:
             baseline_line = float(result.baseline) + float(result.slope) * self.file.velocity

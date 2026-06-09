@@ -118,6 +118,9 @@ class SessionIOMixin:
                 if en is not None:
                     cp.enabled.setChecked(bool(en))
                 im = state.get("intensity_mode", {}).get(str(cp.idx))
+                # TODO (punto 3): centralizar estas listas en core/params.py igual que
+                # COMPONENT_KINDS/DISTRIBUTION_SHAPES para evitar que añadir nuevos
+                # modos de intensidad o tratamientos cuadrupolares sea un bug silencioso.
                 if im in ("free", "texture"):
                     cp.intensity_mode = im
                 qt_v = state.get("quad_treatment", {}).get(str(cp.idx))
