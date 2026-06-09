@@ -835,3 +835,51 @@ def test_progress_dialog_has_cancel_button(win):
             "No se encontró el botón Cancelar en el diálogo de progreso"
     finally:
         close()
+
+
+# ── Reflow del panel de componentes según el tipo ─────────────────────────────
+
+def _placed_in_grid(panel):
+    """{name: (row, col)} de los controles colocados y no ocultos."""
+    g = panel.params_grid
+    out = {}
+    for name, ctl in panel.params.items():
+        idx = g.indexOf(ctl)
+        if idx >= 0 and not ctl.isHidden():
+            r, c, _rs, _cs = g.getItemPosition(idx)
+            out[name] = (r, c)
+    return out
+
+
+def test_component_panel_reflow_has_no_gaps_per_kind(win):
+    """Para cada tipo, las columnas del grid se llenan sin huecos."""
+    cp = win.components_panels[0]
+    for kind in ("Sextete", "Doblete", "Singlete", "Relajacion", "BlumeTjon", "NeelSize"):
+        cp.type_combo.setCurrentText(kind)
+        placed = _placed_in_grid(cp)
+        for col in (0, 1):
+            rows = sorted(r for _, (r, c) in placed.items() if c == col)
+            assert rows == list(range(len(rows))), \
+                f"{kind} col{col} tiene huecos: filas {rows}"
+
+
+def test_neelsize_hides_texture_beta_and_shows_neel_params(win):
+    """NeelSize oculta textura/β y muestra los parámetros Néel agrupados."""
+    cp = win.components_panels[0]
+    cp.type_combo.setCurrentText("NeelSize")
+    placed = _placed_in_grid(cp)
+    assert "texture" not in placed and "beta" not in placed
+    for p in ("neel_mean_d_nm", "neel_sigma", "neel_bins",
+              "neel_temp_k", "neel_log10_keff", "neel_log10_tau0"):
+        assert p in placed, f"falta {p} en NeelSize"
+    # El bloque de tamaño aparece antes que el de dinámica en la columna derecha.
+    assert placed["neel_mean_d_nm"][0] < placed["neel_temp_k"][0]
+
+
+def test_doblete_hides_bhf_and_gamma3(win):
+    """Un doblete no muestra BHF ni Γ3 (no greado: oculto)."""
+    cp = win.components_panels[0]
+    cp.type_combo.setCurrentText("Doblete")
+    placed = _placed_in_grid(cp)
+    assert "bhf" not in placed and "gamma3" not in placed
+    assert "delta" in placed and "quad" in placed

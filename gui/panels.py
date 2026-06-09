@@ -179,30 +179,26 @@ class ComponentPanel(QtWidgets.QWidget):
                              s.lo, s.hi, s.step, s.decimals))
             return rows
 
-        left_specs = _spec_rows(COMPONENT_PARAM_LAYOUT["left"])
-        right_specs = _spec_rows(COMPONENT_PARAM_LAYOUT["right"])
-        hidden_specs = _spec_rows(COMPONENT_PARAM_LAYOUT["hidden"])
+        # Se crean TODOS los controles una sola vez; su colocación en el grid se
+        # decide dinámicamente en _relayout_params según el tipo seleccionado, de
+        # modo que aparezcan/desaparezcan sin dejar huecos.
+        all_specs = (_spec_rows(COMPONENT_PARAM_LAYOUT["left"])
+                     + _spec_rows(COMPONENT_PARAM_LAYOUT["right"])
+                     + _spec_rows(COMPONENT_PARAM_LAYOUT["hidden"]))
         self.params: dict[str, ParamControl] = {}
-        params_grid = QtWidgets.QGridLayout()
-        params_grid.setContentsMargins(0, 0, 0, 0)
-        params_grid.setHorizontalSpacing(10)
-        params_grid.setVerticalSpacing(2)
-        params_grid.setColumnStretch(0, 1)
-        params_grid.setColumnStretch(1, 1)
-        for col, specs in enumerate((left_specs, right_specs)):
-            for row_idx, (name, label, val, lo, hi, step, dec) in enumerate(specs):
-                ctl = ParamControl(label, val, lo, hi, step, dec)
-                params_grid.addWidget(ctl, row_idx, col)
-                self.params[name] = ctl
-                ctl.valueChanged.connect(lambda *_: self.paramChanged.emit())
-                ctl.fixedChanged.connect(lambda *_: self.paramChanged.emit())
-        for name, label, val, lo, hi, step, dec in hidden_specs:
+        self.params_grid = QtWidgets.QGridLayout()
+        self.params_grid.setContentsMargins(0, 0, 0, 0)
+        self.params_grid.setHorizontalSpacing(10)
+        self.params_grid.setVerticalSpacing(2)
+        self.params_grid.setColumnStretch(0, 1)
+        self.params_grid.setColumnStretch(1, 1)
+        for name, label, val, lo, hi, step, dec in all_specs:
             ctl = ParamControl(label, val, lo, hi, step, dec)
             ctl.hide()
             self.params[name] = ctl
             ctl.valueChanged.connect(lambda *_: self.paramChanged.emit())
             ctl.fixedChanged.connect(lambda *_: self.paramChanged.emit())
-        v.addLayout(params_grid)
+        v.addLayout(self.params_grid)
         self.enabled.toggled.connect(lambda *_: self.paramChanged.emit())
         self.type_combo.currentTextChanged.connect(self._on_type_changed)
 
@@ -307,19 +303,42 @@ class ComponentPanel(QtWidgets.QWidget):
         return _relevant_params(self.kind, self.intensity_mode, self.quad_treatment)
 
     def _on_type_changed(self, kind: str) -> None:
-        used = self.relevant_params()
-        # Parámetros especializados que deben ocultarse (no solo desactivarse)
-        # cuando no corresponden al tipo actual, para no ocupar espacio en el panel.
-        _specialized = {
-            "relax_fraction", "relax_log_nu",
-            "neel_temp_k", "neel_log10_keff", "neel_mean_d_nm",
-            "neel_sigma", "neel_log10_tau0", "neel_bins",
-        }
-        for name, ctl in self.params.items():
-            ctl.setEnabled(name in used)
-            if name in _specialized:
-                ctl.setVisible(name in used)
+        self._relayout_params()
         self.paramChanged.emit()
+
+    def _relayout_params(self) -> None:
+        """Recoloca el grid mostrando solo los parámetros del tipo actual.
+
+        Visibilidad = parámetros que pertenecen al tipo (``USED_BY[kind]``); así,
+        p.ej., un componente Néel no muestra textura/β y un doblete no muestra
+        BHF/Γ3. Los visibles se recolocan sin huecos respetando la separación de
+        columnas (izquierda hiperfina · derecha intensidades/especializados) y se
+        agrisan (``setEnabled``) los que no son ajustables en el modo actual.
+        """
+        used = self.relevant_params()
+        shown = set(self._USED_BY.get(self.kind, set()))
+        # Saca todo del grid (los widgets siguen vivos como hijos del panel).
+        for ctl in self.params.values():
+            self.params_grid.removeWidget(ctl)
+        for col, order in enumerate((COMPONENT_PARAM_LAYOUT["left"],
+                                     COMPONENT_PARAM_LAYOUT["right"])):
+            row = 0
+            for name in order:
+                ctl = self.params.get(name)
+                if ctl is None:
+                    continue
+                if name in shown:
+                    self.params_grid.addWidget(ctl, row, col)
+                    ctl.setVisible(True)
+                    ctl.setEnabled(name in used)
+                    row += 1
+                else:
+                    ctl.setVisible(False)
+        # El grupo oculto (int3) nunca se muestra ni ocupa celda.
+        for name in COMPONENT_PARAM_LAYOUT["hidden"]:
+            ctl = self.params.get(name)
+            if ctl is not None:
+                ctl.setVisible(False)
 
     def to_view_state(self) -> ComponentViewState:
         """Snapshot del panel sin exponer widgets al resto de la GUI."""
