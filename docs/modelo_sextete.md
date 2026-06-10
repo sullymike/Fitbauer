@@ -179,17 +179,160 @@ activar saturación en Fitbauer).
 
 ---
 
-## 7. Folding y eje de velocidad (afecta al ajuste sobre datos reales)
+## 7. Doblado (folding), normalización y eje de velocidad — **CRÍTICO**
 
-Para que un ajuste sobre **el mismo espectro** coincida, no basta el modelo directo:
-hay que doblar igual. Fitbauer (`core/folding.py`):
+Para que un ajuste sobre **el mismo espectro** coincida, el modelo directo (§3–§6) **no
+basta**: hay que **doblar igual**, normalizar igual y construir el eje de velocidad
+igual. Si la web dobla de otra forma, el `BHF`, las posiciones y las áreas saldrán
+distintas aunque el modelo del sextete sea idéntico. La implementación canónica es
+`core/folding.py`. Esta sección es la parte que **más diverge** entre implementaciones,
+así que se especifica completa.
 
-- Construye el eje completo `linspace(−Vmax, +Vmax, N)` y **recorta el primer y último
-  punto** (`[1:-1]`) tanto en datos como en velocidad. **No** reconstruye un eje nuevo
-  con menos canales (eso estiraría la escala y sesgaría el BHF).
-- `Vmax` puede ser negativo; se conserva el signo (compatibilidad NORMOS/web con eje
+### 7.1 Qué es el folding y por qué
+
+El detector registra `N` canales (típicamente 512) que contienen el espectro **dos
+veces** (ida y vuelta del movimiento del transductor), espejados respecto a un **centro
+de simetría** (el *folding point*). Doblar = promediar cada canal con su simétrico para
+obtener `N/2` puntos (típicamente 256) con mejor relación señal/ruido. El resultado se
+ordena de velocidad negativa a positiva.
+
+### 7.2 Numeración de canales y centro
+
+- Canales numerados **1..N** (1-based), **no** 0-based. Esto importa para la fórmula.
+- El `center` (folding point interno) es el **centro de simetría** y puede ser
+  **fraccionario** (p. ej. 255.77), no solo entero/semientero.
+- **Relación con Normos**: el número que reporta Normos ("Final/Upper folding point")
+  suele estar en convención de **espectro completo** (≈ 511 para 512 canales) y es
+  **aproximadamente el doble** del centro interno de esta GUI (≈ 255.5). Conversión en
+  `read_normos_folding_point`: si el valor `≥ 400` → espectro completo → se divide por 2;
+  si `< 400` → ya es semiespecro → se usa tal cual.
+
+### 7.3 Algoritmo de doblado (`fold_integer_or_half`)
+
+Genera siempre `n_out = N // 2` puntos. Para cada punto `j = 0 .. n_out−1`:
+
+```
+distancia  = j + 0.5
+canal_izq  = center − distancia
+canal_der  = center + distancia
+folded[j]  = 0.5 · ( C(canal_izq) + C(canal_der) )
+```
+
+donde `C(canal)` es la **interpolación lineal subcanal** 1-based (`interp_channel_1based`):
+
+```
+# canales 1..N, valores counts[0..N-1]
+si canal < 1:        C = counts[0]   + (canal − 1) · (counts[1]   − counts[0])      # extrapola
+si canal ≥ N:        C = counts[N-1] + (canal − N) · (counts[N-1] − counts[N-2])    # extrapola
+si no:
+    lo   = floor(canal)
+    frac = canal − lo
+    si frac ≈ 0:     C = counts[lo−1]
+    si no:           C = (1 − frac)·counts[lo−1] + frac·counts[lo]
+```
+
+> **Clave para reproducir Normos**: el doblado NO se queda en pares de canales enteros.
+> Para centros fraccionarios usa interpolación lineal, y en los bordes
+> **extrapola** linealmente en vez de perder un canal. Así siempre salen `N/2` puntos.
+
+### 7.4 Búsqueda del folding point (`find_best_integer_or_half_center`)
+
+Si no viene dado por Normos, se busca minimizando χ² de la diferencia entre canales
+simétricos:
+
+1. Malla de candidatos en pasos de 0.5 (por defecto 250.5 .. 262.5 para 512 canales).
+2. Para cada centro, `χ²(center) = Σ (counts[izq] − counts[der])²` sobre los pares.
+3. Se toma el centro de mínimo χ² y se **interpola el mínimo** con una parábola
+   (refinamiento subcanal) usando los tres puntos alrededor del mínimo.
+
+### 7.5 Recorte de bordes y normalización (`fold_and_normalize`)
+
+```
+folded = fold_integer_or_half(counts, center)
+# Recorta edge_trim canales en cada extremo (por defecto 1), si hay tamaño suficiente:
+si edge_trim > 0 y folded.size > 2·edge_trim + 2:
+    folded = folded[edge_trim : −edge_trim]
+
+norm  = percentil_90(folded)        # ≈ línea base
+y     = folded / norm               # espectro normalizado (~1 en la base)
+sigma = sqrt( max(folded/2, 1) ) / norm   # ruido Poisson normalizado
+```
+
+- **Recorte de bordes**: los canales extremos del espectro doblado son menos fiables y
+  se descartan (`edge_trim = 1` por defecto). Nota: solo se recorta si el array es
+  suficientemente grande (`> 2·edge_trim + 2`); en espectros reales de 256 puntos siempre
+  aplica.
+- **Normalización**: por el **percentil 90** de las cuentas dobladas (estimador robusto
+  de la línea base), no por el máximo.
+- **σ de Poisson**: `sqrt(folded/2)` (el `/2` viene de promediar dos canales) con suelo a
+  1 cuenta, dividido por `norm`. Estos `sigma` son los **pesos del ajuste** (ver §8).
+
+### 7.6 Eje de velocidad (`velocity_axis`) — no estirar la escala
+
+```
+full_n   = N // 2
+velocity = linspace(−Vmax, +Vmax, full_n)        # eje COMPLETO primero
+# se recortan las MISMAS posiciones de borde que en los datos:
+si edge_trim > 0 y coincide el tamaño:
+    velocity = velocity[edge_trim : −edge_trim]
+```
+
+> ⚠️ **Error clásico a evitar**: NO reconstruir el eje como
+> `linspace(−Vmax, +Vmax, n_points_recortado)`. Hay que construir el eje completo de
+> `N/2` puntos y recortar los mismos bordes que en los datos. Reconstruirlo con menos
+> puntos **estira la escala de velocidad y sesga el BHF**.
+
+- `Vmax` puede ser **negativo**; se conserva el signo (compatibilidad NORMOS/web con eje
   invertido).
-- `folding point` fraccionario/interpolado (centro interno de simetría).
+
+### 7.7 Contrato numérico de folding (verificable)
+
+Ejemplo reproducible con `core/folding.py`. **Entrada**: 8 canales (1-based)
+
+```
+counts = [100, 90, 70, 95, 98, 60, 88, 105]
+```
+
+**Doblado a centro semientero `center = 4.5`** → pares `(4,5) (3,6) (2,7) (1,8)`:
+
+```
+folded = [ 96.5, 65.0, 89.0, 102.5 ]
+```
+
+**Doblado a centro fraccionario `center = 4.30`** (muestra la interpolación subcanal):
+
+```
+folded = [ 93.7, 70.8, 87.2, 101.8 ]
+```
+
+**`fold_and_normalize(counts, center=4.5, edge_trim=1)`** (en este array pequeño de 4
+puntos doblados, `edge_trim` no recorta porque `4 ≤ 2·1+2`):
+
+```
+norm  = 100.7                                          # percentil 90
+y     = [ 0.958292, 0.645482, 0.883813, 1.017875 ]
+sigma = [ 0.068979, 0.056612, 0.066245, 0.071091 ]
+```
+
+**`velocity_axis(N=8, Vmax=4.0, n_points=4, edge_trim=1)`**:
+
+```
+velocity = [ −4.0, −1.333333, +1.333333, +4.0 ]
+```
+
+> Si la web reproduce estos cuatro bloques (a tolerancia ~1e-6), el folding, la
+> normalización y el eje son **idénticos**. Mantener este vector como test de regresión.
+
+### 7.8 Lectura de sidecars Normos (opcional)
+
+`core/folding.py` también lee parámetros de ficheros Normos asociados para inicializar
+el ajuste (no afecta al modelo, solo a las semillas):
+
+- `.RES`: valores finales `ISO→δ`, `BHF`, `QUA→ΔE_Q`, `WID` (¡Normos da **FWHM**; la
+  lorentziana interna usa **HWHM** = FWHM/2!), `ARE→depth` (vía `ARE / (π·Γ·Σpesos)`,
+  con `Σpesos = 2·(3+2+1) = 12`).
+- `.JOB`: `VMAX`, `QUA(1)`.
+- `.PLT`: `Vmax` a partir de los bloques de 256 valores.
 
 ---
 
@@ -263,10 +406,19 @@ Solo replicarlos si la web va a ofrecer esos modos.
 4. [ ] Anchuras `gamma2/gamma3` como **multiplicadores** de `gamma1` (§4.2).
 5. [ ] Lorentziana con pico = 1 (o Voigt con normalización analítica al pico) (§5).
 6. [ ] Transmisión `baseline + slope·v − A_tot`; saturación opcional (§6).
-7. [ ] Mismo folding y manejo del eje de velocidad (§7) — solo si se compara sobre datos.
-8. [ ] Mismo esquema de pesos Poisson y límites — solo si se exige el mismo **ajuste**,
-       no solo la misma curva (§8).
-9. [ ] Reproducir el vector de referencia de §9 como test.
+7. [ ] **Folding** (§7) — solo si se compara sobre datos:
+   - [ ] Canales **1-based**; centro de simetría posiblemente fraccionario (§7.2).
+   - [ ] Conversión del folding point Normos (≈ doble del centro interno) (§7.2).
+   - [ ] Doblado `0.5·(C(center−(j+0.5)) + C(center+(j+0.5)))` con interpolación
+         lineal subcanal y extrapolación en bordes (§7.3).
+   - [ ] Recorte de bordes `edge_trim=1` (§7.5).
+   - [ ] Normalización por **percentil 90** y `σ = sqrt(max(folded/2,1))/norm` (§7.5).
+   - [ ] Eje de velocidad construido completo y recortado, **sin reconstruir** con menos
+         puntos (§7.6).
+   - [ ] Reproducir el contrato numérico de folding (§7.7).
+8. [ ] Mismo esquema de pesos Poisson (los `σ` de §7.5) y límites — solo si se exige el
+       mismo **ajuste**, no solo la misma curva (§8).
+9. [ ] Reproducir el vector de referencia del modelo directo de §9 como test.
 
 ---
 
