@@ -1,5 +1,44 @@
 # Changelog
 
+## v4.7.1 — Revisión completa de ayuda y corrección de menú
+
+### Documentación y ayuda integrada (ES/EN/FR)
+
+- **Referencias bibliográficas** añadidas en todos los idiomas: Hesse & Rübartsch
+  (1974) para P(BHF), Hansen (1992) para L-curve/GCV, Blume & Tjon (1968) para
+  relajación dinámica de dos estados, Néel (1949) y Brown (1963) para NeelSize,
+  Margulies & Ehrman (1961) para absorbente grueso, Kündig (1967) para tratamiento
+  cuadrupolar Hamiltoniano completo.
+- **FR P(ΔEQ)** expandido desde 280 a ~2200 chars: modelo, parámetros BHF fijo/
+  rangos/δ global, usos típicos y precauciones sobre correlaciones.
+- **FR L-curve** expandida: descripción de GCV (validación cruzada generalizada)
+  y referencia Hansen (1992).
+- **FR Contraintes** expandida: ejemplos con sintaxis real y sección de presets
+  físicos con los cuatro botones disponibles.
+- **ES capítulo 27** («Acceso a opciones y novedades») convertido en índice corto
+  que apunta a los capítulos temáticos propios; conserva las tres funciones sin
+  capítulo propio (comportamiento simulación, calibración por clic derecho, δ
+  corregido). Elimina duplicación con Menú Ajuste, P(BHF): método/parámetros y
+  Restricciones.
+- **ES capítulo 29** («Novedades desde v0.2») reducido de 12 804 a ~4 800 chars:
+  elimina la entrada v0.2.0 (referenciaba GUI obsoleta), condensa v0.2.1–v0.2.6
+  en lista de bullets con punteros, mantiene los how-to de bootstrap y presets,
+  resume v0.4.2–v0.4.11 en una línea por versión.
+- **EN P(ΔEQ)** ya expandido en PR anterior; **EN absorbente grueso** y **Kündig**
+  descritos con fórmula y referencia en «Accessing options».
+
+### Corrección de menú
+
+- **Bug: Tema visual duplicado en Opciones.** El submenú `Opciones → Tema visual`
+  creaba acciones sin `QActionGroup` y sin sincronización con `Vista → Tema visual`
+  (que sí usa grupo exclusivo). El checkmark de Opciones nunca reflejaba el tema
+  activo. Se elimina el submenú de Opciones; el tema sigue operativo en
+  **Vista → Tema visual**.
+- **Separador en menú Ajuste** entre herramientas pre-ajuste (Buscar centro,
+  Inicializar, IA Ollama) y post-ajuste (Bootstrap, Verosimilitud, Lote).
+
+---
+
 ## v4.7 — Reconciliación arquitectónica y mejoras de interfaz
 
 > **Contexto histórico.** La v4.5 (refactorización modular de `gui/`) se
