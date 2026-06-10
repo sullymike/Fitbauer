@@ -97,6 +97,7 @@ class MenuBuilderMixin:
         self.act_ai.triggered.connect(self.on_ai_summary)
         self.act_ai.setEnabled(False)
         fit_menu.addAction(self.act_ai)
+        fit_menu.addSeparator()
         self.act_bootstrap = QtGui.QAction(tr("fit.bootstrap"), self)
         self.act_bootstrap.triggered.connect(self.on_bootstrap)
         self.act_bootstrap.setEnabled(False)
@@ -244,14 +245,6 @@ class MenuBuilderMixin:
         opt_presets = QtGui.QAction(tr("options.physical_presets"), self)
         opt_presets.triggered.connect(self.on_physical_presets)
         options_menu.addAction(opt_presets)
-        options_menu.addSeparator()
-        opt_theme_menu = options_menu.addMenu(tr("options.theme"))
-        for style_name in QtWidgets.QStyleFactory.keys():
-            a = QtGui.QAction(style_name, self, checkable=True)
-            if style_name.lower() == "fusion":
-                a.setChecked(True)
-            a.triggered.connect(lambda _c=False, s=style_name: self._set_qt_style(s))
-            opt_theme_menu.addAction(a)
 
         # ── Vista ────────────────────────────────────────────────────────
         view_menu = mb.addMenu(tr("menu.view"))
