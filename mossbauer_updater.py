@@ -148,8 +148,12 @@ def download_file(
     name = filename or Path(urlparse(url).path).name or "Mossbauer-release"
     path = dest_dir / name
     req = urllib.request.Request(url, headers={"User-Agent": "MossbauerFe57-updater"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp, path.open("wb") as fh:
-        shutil.copyfileobj(resp, fh)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp, path.open("wb") as fh:
+            shutil.copyfileobj(resp, fh)
+    except Exception:
+        path.unlink(missing_ok=True)  # no dejar descargas parciales
+        raise
     if expected_sha256:
         actual = sha256_file(path)
         if actual.lower() != expected_sha256.strip().lower():

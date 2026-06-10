@@ -359,7 +359,6 @@ class MenuBuilderMixin:
         set_language(code)
         # Persistir
         try:
-            import json
             current = {}
             if SETTINGS_PATH.exists():
                 try:

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 from PySide6 import QtWidgets
@@ -12,6 +13,9 @@ from mossbauer_i18n import tr
 from core.folding import read_ws5_counts, find_best_integer_or_half_center, fold_integer_or_half
 from core.fit_engine import fit_discrete
 from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data
+
+if TYPE_CHECKING:
+    from mossbauer_qt import MossbauerQtWindow
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -208,8 +212,6 @@ class BatchFitDialog(QtWidgets.QDialog):
             return
         self.btn_run.setEnabled(False)
         self.btn_csv.setEnabled(False); self.btn_trends.setEnabled(False)
-        # snapshot del modelo actual de la ventana principal como plantilla
-        base_values = dict(self.parent_win.calib.vmax.parent().property("_") or {})  # noop
         ok = fail = 0
         for i, e in enumerate(self.entries, 1):
             self.progress.setText(
@@ -248,14 +250,16 @@ class BatchFitDialog(QtWidgets.QDialog):
                 ok += 1
                 # warm-start: aplicar valores al UI para la siguiente iteración
                 self.parent_win._building = True
-                for cp in self.parent_win.components_panels:
-                    cp.apply_values(result.values)
-                calib_state = self.parent_win.calib.to_view_state()
-                self.parent_win.calib.baseline.set_value(
-                    result.values.get("baseline", calib_state.baseline))
-                self.parent_win.calib.slope.set_value(
-                    result.values.get("slope", calib_state.slope))
-                self.parent_win._building = False
+                try:
+                    for cp in self.parent_win.components_panels:
+                        cp.apply_values(result.values)
+                    calib_state = self.parent_win.calib.to_view_state()
+                    self.parent_win.calib.baseline.set_value(
+                        result.values.get("baseline", calib_state.baseline))
+                    self.parent_win.calib.slope.set_value(
+                        result.values.get("slope", calib_state.slope))
+                finally:
+                    self.parent_win._building = False
             except Exception as exc:
                 e["status"] = "failed"
                 e["result"] = {"file": e["path"].name, "metadata": e["metadata"],

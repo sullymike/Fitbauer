@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import html
+import re
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
@@ -24,7 +25,6 @@ class HelpMixin:
         programa (Archivo, Cargar..., Ajustar, etc.) para que el lector
         identifique a qué control se refiere cada explicación.
         """
-        import re
         text = content.strip("\n")
         menu_pattern = HelpMixin._help_menu_pattern()
 
@@ -198,7 +198,6 @@ class HelpMixin:
         regex case-insensitive (los términos más largos antes para que
         ``Ajustar Vmax con el patrón`` gane a ``Ajustar``).
         """
-        import re
         from mossbauer_i18n import CATALOGS, get_language
         lang = get_language()
         cache = getattr(HelpMixin, "_help_menu_pattern_cache", {})
@@ -411,7 +410,6 @@ class HelpMixin:
                 f"<h3>{html.escape(heading)}</h3>{body}"
             )
             if highlight:
-                import re
                 pat = re.compile(re.escape(highlight), re.IGNORECASE)
 
                 def _highlight_outside_tags(s: str) -> str:
