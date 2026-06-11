@@ -6,6 +6,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag de la release (p. ej. v4.7.2); se crea en HEAD si no existe"
+        required: true
+        type: string
 
 jobs:
   build:
@@ -18,7 +24,7 @@ jobs:
 
       - name: Crear ZIP
         run: |
-          TAG="${{ github.ref_name }}"
+          TAG="${{ inputs.tag || github.ref_name }}"
           ZIP="Fitbauer-${TAG}.zip"
           NOTES="RELEASE_NOTES_${TAG}.md"
           zip -r "$ZIP" \
@@ -63,15 +69,20 @@ jobs:
           cat sha256sums.txt
 
       - name: Crear o actualizar release desde tag
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${{ github.ref_name }}"
+          TAG="${{ inputs.tag || github.ref_name }}"
           PRERELEASE_FLAG=""
           case "$TAG" in
             *alpha*|*beta*|*rc*|*pre*|*dev*) PRERELEASE_FLAG="--prerelease" ;;
           esac
+          # En dispatch el tag puede no existir aún: gh lo crea en el commit actual.
+          TARGET_ARGS=()
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TARGET_ARGS=(--target "$GITHUB_SHA")
+          fi
           # Construir args de notas como array para evitar word-splitting
           if [ -f "$NOTES" ]; then
             NOTES_ARGS=(--notes-file "$NOTES")
@@ -85,6 +96,7 @@ jobs:
             gh release create "$TAG" "$ZIP" sha256sums.txt \
               --title "Fitbauer $TAG" \
               ${PRERELEASE_FLAG:+"$PRERELEASE_FLAG"} \
+              "${TARGET_ARGS[@]}" \
               "${NOTES_ARGS[@]}"
           fi
 
