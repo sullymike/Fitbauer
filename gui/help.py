@@ -284,11 +284,15 @@ class HelpMixin:
              [11, 12, 13, 14, 15, 16]),
         ]
 
-    def on_help(self) -> None:
+    def on_help(self, show_shortcuts: bool = False) -> None:
         if self._help_dialog is not None:
             self._help_dialog.show()
             self._help_dialog.raise_()
             self._help_dialog.activateWindow()
+            if show_shortcuts:
+                tab_w = self._help_dialog.findChild(QtWidgets.QTabWidget)
+                if tab_w is not None:
+                    tab_w.setCurrentIndex(1)
             return
 
         calib_state = self.calib.to_view_state()
@@ -312,7 +316,20 @@ class HelpMixin:
         header.setAlignment(QtCore.Qt.AlignCenter)
         v.addWidget(header)
 
-        # Buscador en la cabecera
+        # ── Tab widget: Ayuda + Atajos ──────────────────────────────────
+        tab_widget = QtWidgets.QTabWidget()
+        tab_widget.setStyleSheet(
+            "QTabBar::tab { padding: 6px 18px; font-size: 10.5pt; }"
+            "QTabBar::tab:selected { font-weight: bold; }"
+        )
+
+        # ── Tab 1: Ayuda ────────────────────────────────────────────────
+        help_tab = QtWidgets.QWidget()
+        help_v = QtWidgets.QVBoxLayout(help_tab)
+        help_v.setContentsMargins(0, 8, 0, 0)
+        help_v.setSpacing(8)
+
+        # Buscador
         search_row = QtWidgets.QHBoxLayout()
         search_lbl = QtWidgets.QLabel(tr("help.search_label", default="🔍 Buscar:"))
         search_edit = QtWidgets.QLineEdit()
@@ -325,7 +342,7 @@ class HelpMixin:
         search_row.addWidget(search_lbl)
         search_row.addWidget(search_edit, stretch=1)
         search_row.addWidget(search_count)
-        v.addLayout(search_row)
+        help_v.addLayout(search_row)
 
         split = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         tree = QtWidgets.QTreeWidget()
@@ -343,7 +360,6 @@ class HelpMixin:
         tree.setMinimumWidth(320)
         tree.setMaximumWidth(380)
 
-        # Construye el árbol a partir de la distribución por menús.
         group_items: list[QtWidgets.QTreeWidgetItem] = []
         leaves: list[QtWidgets.QTreeWidgetItem] = []
         seen: set[int] = set()
@@ -355,7 +371,6 @@ class HelpMixin:
             font.setPointSizeF(font.pointSizeF() + 0.5)
             top.setFont(0, font)
             top.setForeground(0, QtGui.QBrush(QtGui.QColor("#1e3a8a")))
-            # Las cabeceras no son seleccionables (solo los capítulos).
             top.setFlags(top.flags() & ~QtCore.Qt.ItemIsSelectable)
             for idx in indices:
                 if 0 <= idx < n_total and idx not in seen:
@@ -364,7 +379,6 @@ class HelpMixin:
                     leaf.setData(0, QtCore.Qt.UserRole, idx)
                     leaves.append(leaf)
             group_items.append(top)
-        # Capítulos no contemplados por la distribución (defensivo) → "Otros".
         unassigned = [i for i in range(n_total) if i not in seen]
         if unassigned:
             other = QtWidgets.QTreeWidgetItem(
@@ -389,7 +403,8 @@ class HelpMixin:
         )
         split.addWidget(text_w)
         split.setSizes([340, 840])
-        v.addWidget(split, stretch=1)
+        help_v.addWidget(split, stretch=1)
+        tab_widget.addTab(help_tab, tr("help.tab_help", default="📖 Ayuda"))
 
         def _render(idx: int, highlight: str = "") -> None:
             if not (0 <= idx < len(sections)):
@@ -445,12 +460,10 @@ class HelpMixin:
             if data is not None:
                 _render(int(data), search_edit.text().strip())
             elif curr.childCount() > 0:
-                # Si el usuario pulsa una cabecera, mostramos su primer capítulo
                 child = curr.child(0)
                 tree.setCurrentItem(child)
 
         tree.currentItemChanged.connect(_on_tree)
-        # Selecciona el primer capítulo asignado al primer grupo.
         if leaves:
             tree.setCurrentItem(leaves[0])
 
@@ -488,12 +501,156 @@ class HelpMixin:
 
         search_edit.textChanged.connect(lambda _t: _apply_filter())
 
+        # ── Tab 2: Atajos de teclado ────────────────────────────────────
+        tab_widget.addTab(
+            self._build_shortcuts_editor(dlg),
+            tr("help.tab_shortcuts", default="⌨️ Atajos"),
+        )
+
+        v.addWidget(tab_widget, stretch=1)
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
         bb.rejected.connect(dlg.close)
         v.addWidget(bb)
+
+        if show_shortcuts:
+            tab_widget.setCurrentIndex(1)
+
         dlg.show()
         dlg.raise_()
         dlg.activateWindow()
+
+    def _build_shortcuts_editor(self, parent: QtWidgets.QWidget) -> QtWidgets.QWidget:
+        """Construye el panel de edición de atajos de teclado."""
+        from collections import Counter
+        from gui.menu_builder import SHORTCUT_REGISTRY
+
+        w = QtWidgets.QWidget(parent)
+        lay = QtWidgets.QVBoxLayout(w)
+        lay.setContentsMargins(12, 12, 12, 8)
+        lay.setSpacing(10)
+
+        info = QtWidgets.QLabel(
+            tr("shortcuts.info",
+               default="Haz clic en el campo de atajo y pulsa la combinación de "
+                       "teclas que quieras asignar. Pulsa Supr o Retroceso dentro "
+                       "del campo para borrar un atajo. Los cambios se aplican al "
+                       "guardar y se conservan entre sesiones.")
+        )
+        info.setWordWrap(True)
+        info.setStyleSheet("color:#475569; font-size:10pt; padding:4px 0;")
+        lay.addWidget(info)
+
+        table = QtWidgets.QTableWidget()
+        table.setColumnCount(4)
+        table.setHorizontalHeaderLabels([
+            tr("shortcuts.col_menu",     default="Menú"),
+            tr("shortcuts.col_action",   default="Acción"),
+            tr("shortcuts.col_shortcut", default="Atajo actual"),
+            tr("shortcuts.col_default",  default="Predeterminado"),
+        ])
+        table.setRowCount(len(SHORTCUT_REGISTRY))
+        hh = table.horizontalHeader()
+        hh.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeToContents)
+        hh.setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
+        hh.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)
+        hh.setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeToContents)
+        table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        table.verticalHeader().setVisible(False)
+        table.setAlternatingRowColors(True)
+        table.setStyleSheet(
+            "QTableWidget { font-size:10.5pt; border:1px solid #e2e8f0;"
+            " border-radius:6px; }"
+            "QTableWidget::item { padding:2px 6px; }"
+            "QHeaderView::section { background:#f1f5f9; font-weight:bold;"
+            " padding:6px; border:none; border-bottom:1px solid #cbd5e1; }"
+        )
+
+        current_shortcuts = dict(getattr(self, "_custom_shortcuts", {}))
+        seq_edits: list[tuple[str, QtWidgets.QKeySequenceEdit]] = []
+
+        for row, (action_id, menu_key, action_key, default) in enumerate(SHORTCUT_REGISTRY):
+            for col, text in enumerate((tr(menu_key), tr(action_key))):
+                item = QtWidgets.QTableWidgetItem(text)
+                item.setFlags(item.flags() & ~QtCore.Qt.ItemIsEditable)
+                table.setItem(row, col, item)
+
+            seq_edit = QtWidgets.QKeySequenceEdit()
+            current = current_shortcuts.get(action_id, default)
+            seq_edit.setKeySequence(QtGui.QKeySequence(current))
+            seq_edit.setToolTip(
+                tr("shortcuts.tooltip", default="Haz clic y pulsa la combinación de teclas")
+            )
+            table.setCellWidget(row, 2, seq_edit)
+            seq_edits.append((action_id, seq_edit))
+
+            def_item = QtWidgets.QTableWidgetItem(default)
+            def_item.setFlags(def_item.flags() & ~QtCore.Qt.ItemIsEditable)
+            def_item.setForeground(QtGui.QBrush(QtGui.QColor("#94a3b8")))
+            table.setItem(row, 3, def_item)
+
+        table.resizeRowsToContents()
+        lay.addWidget(table, stretch=1)
+
+        # Botones
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_reset = QtWidgets.QPushButton(
+            tr("shortcuts.reset_all", default="Restablecer todos")
+        )
+        btn_reset.setToolTip(
+            tr("shortcuts.reset_tooltip", default="Vuelve a los atajos originales de fábrica")
+        )
+        btn_save = QtWidgets.QPushButton(
+            tr("shortcuts.save", default="Guardar atajos")
+        )
+        btn_save.setDefault(True)
+        btn_save.setStyleSheet(
+            "QPushButton { background:#1d4ed8; color:white; padding:6px 18px;"
+            " border-radius:5px; font-weight:bold; }"
+            "QPushButton:hover { background:#1e40af; }"
+        )
+
+        def _reset_all() -> None:
+            for action_id, seq_edit in seq_edits:
+                dflt = next((d for a, _, _, d in SHORTCUT_REGISTRY if a == action_id), "")
+                seq_edit.setKeySequence(QtGui.QKeySequence(dflt))
+
+        def _save_shortcuts() -> None:
+            new_shortcuts: dict[str, str] = {}
+            for action_id, seq_edit in seq_edits:
+                ks = seq_edit.keySequence().toString()
+                dflt = next((d for a, _, _, d in SHORTCUT_REGISTRY if a == action_id), "")
+                if ks != dflt:
+                    new_shortcuts[action_id] = ks
+            # Detección de conflictos (solo entre atajos no vacíos)
+            non_empty = [v for v in new_shortcuts.values() if v]
+            counts = Counter(non_empty)
+            dups = [k for k, c in counts.items() if c > 1]
+            if dups:
+                QtWidgets.QMessageBox.warning(
+                    w,
+                    tr("shortcuts.conflict_title", default="Conflicto de atajos"),
+                    tr("shortcuts.conflict_msg",
+                       default="Hay atajos asignados a más de una acción: {keys}. "
+                               "Corrígelos antes de guardar.").format(keys=", ".join(dups)),
+                )
+                return
+            self._apply_custom_shortcuts(new_shortcuts)
+            self._save_settings()
+            QtWidgets.QMessageBox.information(
+                w,
+                tr("shortcuts.saved_title", default="Atajos guardados"),
+                tr("shortcuts.saved_msg",
+                   default="Los atajos de teclado se han guardado y aplicado."),
+            )
+
+        btn_reset.clicked.connect(_reset_all)
+        btn_save.clicked.connect(_save_shortcuts)
+        btn_row.addWidget(btn_reset)
+        btn_row.addStretch(1)
+        btn_row.addWidget(btn_save)
+        lay.addLayout(btn_row)
+        return w
 
     def on_about(self) -> None:
         dlg = QtWidgets.QDialog(self)

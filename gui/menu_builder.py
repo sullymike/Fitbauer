@@ -10,6 +10,18 @@ from core.data_io import SETTINGS_PATH
 from gui.main_layout import fit_mode_labels
 from gui.themes import COLOR_THEMES
 
+# Registro canónico de atajos configurables por el usuario.
+# Cada entrada: (action_id, menu_label_key, action_label_key, default_shortcut)
+SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
+    ("file.open",         "menu.file",  "file.open",         "Ctrl+O"),
+    ("file.save_session", "menu.file",  "file.save_session", "Ctrl+S"),
+    ("file.load_session", "menu.file",  "file.load_session", "Ctrl+L"),
+    ("file.exit",         "menu.file",  "file.exit",         "Ctrl+Q"),
+    ("fit.run",           "menu.fit",   "fit.run",           "Ctrl+R"),
+    ("fit.undo_fit",      "menu.fit",   "fit.undo_fit",      "Ctrl+Z"),
+    ("help.open",         "menu.help",  "help.open",         "F1"),
+]
+
 
 class MenuBuilderMixin:
     # ── Menubar ──────────────────────────────────────────────────────────
@@ -18,15 +30,30 @@ class MenuBuilderMixin:
     # Vista compartiendo los mismos QActionGroup exclusivos, con lo que sus
     # checkmarks nunca podían reflejar el estado (mismo problema que el
     # "Tema visual" duplicado retirado en v4.7.1).
+
+    def _shortcut_for(self, action_id: str, default: str = "") -> str:
+        """Devuelve el atajo personalizado para action_id, o el predeterminado."""
+        return getattr(self, "_custom_shortcuts", {}).get(action_id, default)
+
+    def _apply_custom_shortcuts(self, shortcuts: dict) -> None:
+        """Aplica un dict {action_id: shortcut_str} a los QAction registrados."""
+        self._custom_shortcuts = dict(shortcuts)
+        for action_id, action in getattr(self, "_action_registry", {}).items():
+            default = next((d for a, _, _, d in SHORTCUT_REGISTRY if a == action_id), "")
+            new_sc = shortcuts.get(action_id, default)
+            action.setShortcut(QtGui.QKeySequence(new_sc) if new_sc else QtGui.QKeySequence())
+
     def _build_menubar(self) -> None:
+        self._action_registry: dict[str, QtGui.QAction] = {}
         mb = self.menuBar()
 
         # ── Archivo ──────────────────────────────────────────────────────
         file_menu = mb.addMenu(tr("menu.file"))
         act_open = QtGui.QAction(tr("file.open"), self)
-        act_open.setShortcut(QtGui.QKeySequence.Open)
+        act_open.setShortcut(self._shortcut_for("file.open", "Ctrl+O"))
         act_open.triggered.connect(self.on_open)
         file_menu.addAction(act_open)
+        self._action_registry["file.open"] = act_open
         self.recent_menu = file_menu.addMenu(tr("file.open_recent", default="Abrir recientes"))
         self._rebuild_recent_menu()
         self.act_use_as_calib = QtGui.QAction(tr("file.use_as_calibration"), self)
@@ -60,31 +87,36 @@ class MenuBuilderMixin:
         file_menu.addAction(self.act_export_plotly)
         file_menu.addSeparator()
         act_save_session = QtGui.QAction(tr("file.save_session"), self)
-        act_save_session.setShortcut("Ctrl+S")
+        act_save_session.setShortcut(self._shortcut_for("file.save_session", "Ctrl+S"))
         act_save_session.triggered.connect(self.on_save_session)
         file_menu.addAction(act_save_session)
+        self._action_registry["file.save_session"] = act_save_session
         act_load_session = QtGui.QAction(tr("file.load_session"), self)
-        act_load_session.setShortcut("Ctrl+L")
+        act_load_session.setShortcut(self._shortcut_for("file.load_session", "Ctrl+L"))
         act_load_session.triggered.connect(self.on_load_session)
         file_menu.addAction(act_load_session)
+        self._action_registry["file.load_session"] = act_load_session
         file_menu.addSeparator()
         act_exit = QtGui.QAction(tr("file.exit"), self)
-        act_exit.setShortcut(QtGui.QKeySequence.Quit)
+        act_exit.setShortcut(self._shortcut_for("file.exit", "Ctrl+Q"))
         act_exit.triggered.connect(self.close)
         file_menu.addAction(act_exit)
+        self._action_registry["file.exit"] = act_exit
 
         # ── Ajuste ───────────────────────────────────────────────────────
         fit_menu = mb.addMenu(tr("menu.fit"))
         self.act_fit = QtGui.QAction(tr("fit.run"), self)
-        self.act_fit.setShortcut("Ctrl+R")
+        self.act_fit.setShortcut(self._shortcut_for("fit.run", "Ctrl+R"))
         self.act_fit.triggered.connect(self.on_fit)
         self.act_fit.setEnabled(False)
         fit_menu.addAction(self.act_fit)
+        self._action_registry["fit.run"] = self.act_fit
         self.act_undo_fit = QtGui.QAction(tr("fit.undo_fit"), self)
-        self.act_undo_fit.setShortcut("Ctrl+Z")
+        self.act_undo_fit.setShortcut(self._shortcut_for("fit.undo_fit", "Ctrl+Z"))
         self.act_undo_fit.triggered.connect(self._undo_fit)
         self.act_undo_fit.setEnabled(False)
         fit_menu.addAction(self.act_undo_fit)
+        self._action_registry["fit.undo_fit"] = self.act_undo_fit
         # Modo de ajuste: radios para TODOS los modos del combo lateral
         # (sincronizados en ambos sentidos vía _on_mode_changed).
         mode_menu = fit_menu.addMenu(tr("fit.mode_menu", default="Modo de ajuste"))
@@ -307,9 +339,13 @@ class MenuBuilderMixin:
         # ── Ayuda ────────────────────────────────────────────────────────
         help_menu = mb.addMenu(tr("menu.help"))
         act_help = QtGui.QAction(tr("help.open"), self)
-        act_help.setShortcut("F1")
+        act_help.setShortcut(self._shortcut_for("help.open", "F1"))
         act_help.triggered.connect(self.on_help)
         help_menu.addAction(act_help)
+        self._action_registry["help.open"] = act_help
+        act_shortcuts = QtGui.QAction(tr("help.shortcuts", default="Atajos de teclado…"), self)
+        act_shortcuts.triggered.connect(lambda: self.on_help(show_shortcuts=True))
+        help_menu.addAction(act_shortcuts)
         act_about = QtGui.QAction(tr("help.about"), self)
         act_about.triggered.connect(self.on_about)
         help_menu.addAction(act_about)

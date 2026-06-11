@@ -447,6 +447,7 @@ class LayoutSettingsMixin:
         return UiPreferencesState(
             plot_style=self.plot_style_name,
             color_theme=self.color_theme,
+            custom_shortcuts=dict(getattr(self, "_custom_shortcuts", {})),
             show_residual=ui_state.show_residual,
             recent_files=tuple(self.recent_files),
             layout_preset=self.layout_preset,
@@ -471,6 +472,10 @@ class LayoutSettingsMixin:
         }
         if prefs.qt_style:
             self.qt_style = prefs.qt_style
+        if prefs.custom_shortcuts:
+            self._custom_shortcuts = dict(prefs.custom_shortcuts)
+            if hasattr(self, "_action_registry") and self._action_registry:
+                self._apply_custom_shortcuts(prefs.custom_shortcuts)
 
     # ── Persistencia mínima ──────────────────────────────────────────────
     def _load_settings(self) -> None:
