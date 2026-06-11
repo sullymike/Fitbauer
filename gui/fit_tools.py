@@ -43,7 +43,6 @@ class FitToolsMixin:
             "detected_minima": peaks,
             "ask": "Suggest a discrete Mössbauer Fe-57 fit (sextet/doublet/singlet) with starting δ, ΔEQ, BHF, Γ, depth.",
         }
-        import json
         dlg = QtWidgets.QDialog(self)
         dlg.setWindowTitle("Resumen espectro (para IA/LLM)")
         dlg.resize(640, 480)

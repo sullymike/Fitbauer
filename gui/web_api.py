@@ -77,7 +77,7 @@ class WebApiMixin:
             from mossbauer_api_client import MatelecLabClient, DEFAULT_BASE_URL
         except Exception as exc:
             QtWidgets.QMessageBox.critical(
-                self, tr("msg.web_title") if hasattr(tr, "_d") else "Web",
+                self, tr("msg.web_title", default="Web"),
                 f"Cliente API no disponible: {exc}")
             return
         kind_key = "calibraciones" if kind == "calibrations" else "medidas"
@@ -90,40 +90,38 @@ class WebApiMixin:
         base_url = creds.get("api_base") or DEFAULT_BASE_URL
 
         dlg = QtWidgets.QDialog(self)
-        dlg.setWindowTitle(tr(f"dialog.web_download_{'calib' if is_calib else 'meas'}")
-                           if hasattr(tr, "_d") else
-                           f"{'Calibraciones' if is_calib else 'Medidas'} (web)")
+        dlg.setWindowTitle(tr(f"dialog.web_download_{'calib' if is_calib else 'meas'}",
+                              default=f"{'Calibraciones' if is_calib else 'Medidas'} (web)"))
         dlg.resize(820, 600)
 
         v = QtWidgets.QVBoxLayout(dlg)
         form = QtWidgets.QFormLayout()
         e_server = QtWidgets.QLineEdit(base_url)
-        form.addRow(tr("label.server") if hasattr(tr, "_d") else "Servidor:", e_server)
+        form.addRow(tr("label.server", default="Servidor:"), e_server)
         e_user = QtWidgets.QLineEdit(creds.get("username", ""))
-        form.addRow(tr("label.username") if hasattr(tr, "_d") else "Usuario:", e_user)
+        form.addRow(tr("label.username", default="Usuario:"), e_user)
         pw_row = QtWidgets.QHBoxLayout()
         e_pass = QtWidgets.QLineEdit(creds.get("password", ""))
         e_pass.setEchoMode(QtWidgets.QLineEdit.Password)
         pw_row.addWidget(e_pass, stretch=1)
         cb_remember = QtWidgets.QCheckBox(
-            tr("checkbox.remember_credentials") if hasattr(tr, "_d") else
-            "Recordar usuario y token")
+            tr("checkbox.remember_credentials", default="Recordar usuario y token"))
         cb_remember.setChecked(bool(creds.get("username") or creds.get("token")))
         pw_row.addWidget(cb_remember)
         pw_wrap = QtWidgets.QWidget(); pw_wrap.setLayout(pw_row)
-        form.addRow(tr("label.password") if hasattr(tr, "_d") else "Contraseña:", pw_wrap)
+        form.addRow(tr("label.password", default="Contraseña:"), pw_wrap)
         # Carpeta destino + botones
         dest_row = QtWidgets.QHBoxLayout()
         e_dest = QtWidgets.QLineEdit(effective_dir)
         dest_row.addWidget(e_dest, stretch=1)
         btn_choose = QtWidgets.QPushButton(
-            tr("button.choose") if hasattr(tr, "_d") else "Elegir...")
+            tr("button.choose", default="Elegir..."))
         dest_row.addWidget(btn_choose)
         dest_wrap = QtWidgets.QWidget(); dest_wrap.setLayout(dest_row)
-        form.addRow(tr("label.dest_folder") if hasattr(tr, "_d") else "Carpeta destino:", dest_wrap)
+        form.addRow(tr("label.dest_folder", default="Carpeta destino:"), dest_wrap)
         cb_with_calib = QtWidgets.QCheckBox(
-            tr("checkbox.download_calibration_too") if hasattr(tr, "_d") else
-            "Descargar también la calibración asociada")
+            tr("checkbox.download_calibration_too",
+               default="Descargar también la calibración asociada"))
         if not is_calib:
             cb_with_calib.setChecked(True)
             form.addRow("", cb_with_calib)
@@ -132,7 +130,7 @@ class WebApiMixin:
         # Buscador + tabla
         search_row = QtWidgets.QHBoxLayout()
         search_row.addWidget(QtWidgets.QLabel(
-            tr("label.search") if hasattr(tr, "_d") else "Buscar:"))
+            tr("label.search", default="Buscar:")))
         e_search = QtWidgets.QLineEdit()
         search_row.addWidget(e_search, stretch=1)
         btn_search = QtWidgets.QPushButton("Buscar/Refrescar")
@@ -167,7 +165,7 @@ class WebApiMixin:
         def choose_dest():
             current = e_dest.text().strip() or str(Path.home())
             folder = QtWidgets.QFileDialog.getExistingDirectory(
-                dlg, tr("dialog.select_folder") if hasattr(tr, "_d") else "Elegir carpeta",
+                dlg, tr("dialog.select_folder", default="Elegir carpeta"),
                 current)
             if folder:
                 e_dest.setText(folder)
@@ -320,11 +318,11 @@ class WebApiMixin:
 
         # Botones inferiores
         btn_row = QtWidgets.QHBoxLayout()
-        btn_list = QtWidgets.QPushButton(tr("button.list") if hasattr(tr, "_d") else "Listar")
+        btn_list = QtWidgets.QPushButton(tr("button.list", default="Listar"))
         btn_download_only = QtWidgets.QPushButton("Descargar")
         btn_dl = QtWidgets.QPushButton("Descargar y cargar")
         btn_close = QtWidgets.QPushButton(
-            tr("button.close") if hasattr(tr, "_d") else "Cerrar")
+            tr("button.close", default="Cerrar"))
         btn_row.addStretch(1)
         btn_row.addWidget(btn_list); btn_row.addWidget(btn_download_only)
         btn_row.addWidget(btn_dl); btn_row.addWidget(btn_close)
@@ -495,7 +493,6 @@ class WebApiMixin:
         note, _ = QtWidgets.QInputDialog.getText(
             self, tr("file.upload_session"), "Nota (opcional):", text="")
         try:
-            import json
             payload = self._session_payload()
             data = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
             r = client.upload_analysis(medida_id.strip(), data=data,

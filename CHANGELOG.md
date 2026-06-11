@@ -1,5 +1,49 @@
 # Changelog
 
+## v4.7.2 — Revisión de fallos latentes, batch coherente e i18n de actualizaciones
+
+### Bugs corregidos
+
+- **Cargar P fija lanzaba `NameError`.** `gui/distribution_fit.py` usaba `Path`
+  y `ROOT` sin importarlos/definirlos; la acción «Cargar P fija» fallaba siempre.
+- **Diálogos web siempre en español.** El patrón `tr(...) if hasattr(tr, "_d")
+  else "literal"` de `gui/web_api.py` era siempre falso, así que se ignoraban
+  las traducciones EN/FR existentes. Sustituido por `tr(clave, default=...)`.
+- **Duplicados divergentes en `core/data_io.py`.** Tenía copias antiguas de las
+  funciones de lectura/folding que habían divergido de `core/folding.py` (sin la
+  heurística ≥400 del folding point Normos; `weight_sum` 4 vs 12 al estimar
+  `depth` desde ARE). Ahora reexporta las canónicas de `core.folding`.
+- **Desalineación latente en `core/fit_engine.py`.** Los globales
+  `vmax`/`center`/`voigt_sigma` se añadían a `x0` solo si la clave existía en
+  `values`, pero el residuo y el desempaquetado final solo miraban el flag;
+  un flag activo sin clave desalineaba el vector de parámetros. Condiciones
+  unificadas en las tres rutas.
+- **El batch doblaba distinto que el flujo principal.** El diálogo de lote
+  (`gui/dialogs.py`) ahora usa `fold_and_normalize` (recorte de borde) y
+  `velocity_axis`, igual que la GUI e `HeadlessSession`, y el `FitState` recibe
+  `counts`/`norm_factor`/`center` del fichero del batch (antes conservaba los
+  del espectro cargado, afectando al re-folding de `fit_center` y la σ Poisson).
+  Los resultados de batch pueden variar ligeramente respecto a series antiguas
+  (se excluyen los dos canales de borde); batch e individual ahora coinciden.
+
+### Internacionalización
+
+- **Diálogos de actualización traducidos** (`gui/updates.py`): 31 claves nuevas
+  `updates.*` en los catálogos ES/EN/FR; antes todo el flujo de actualizaciones
+  aparecía en español también con la interfaz en inglés o francés.
+
+### Robustez y limpieza
+
+- `mossbauer_updater.py`: si una descarga falla a medias se borra el fichero
+  parcial en lugar de dejarlo en Descargas.
+- `gui/dialogs.py`: eliminada una línea muerta del batch y protegido el flag
+  `_building` del warm-start con `try/finally`.
+- Comentario de `LINE_POS_33T` en `mossbauer_distribution.py` corregido
+  (contradecía la convención del patrón publicado de α-Fe; ver v4.0.2/v4.0.3).
+- Docstrings que aludían a la GUI Tk eliminada e imports redundantes.
+
+---
+
 ## v4.7.1 — Revisión completa de ayuda y corrección de menú
 
 ### Documentación y ayuda integrada (ES/EN/FR)
