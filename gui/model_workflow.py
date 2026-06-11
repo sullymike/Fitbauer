@@ -540,6 +540,7 @@ class ModelWorkflowMixin:
             fit_velocity=calib_state.fit_velocity,
             fit_center=calib_state.fit_center,
             fit_sigma=calib_state.fit_sigma,
+            multistart_n=getattr(self, "multistart_n", 8),
         )
 
     def _model_state(self) -> ModelState:

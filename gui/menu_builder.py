@@ -173,6 +173,22 @@ class MenuBuilderMixin:
         self.act_global_opt.toggled.connect(
             lambda b: setattr(self, "global_opt", bool(b)))
         adv_menu.addAction(self.act_global_opt)
+        # Arranques múltiples (spinbox inline)
+        _wa = QtWidgets.QWidgetAction(self)
+        _ms_container = QtWidgets.QWidget()
+        _ms_h = QtWidgets.QHBoxLayout(_ms_container)
+        _ms_h.setContentsMargins(16, 2, 8, 2)
+        _ms_h.addWidget(QtWidgets.QLabel(tr("options.multistart_n")))
+        _ms_h.addStretch(1)
+        self._multistart_spin = QtWidgets.QSpinBox()
+        self._multistart_spin.setRange(0, 10)
+        self._multistart_spin.setValue(getattr(self, "multistart_n", 8))
+        self._multistart_spin.setFixedWidth(50)
+        self._multistart_spin.valueChanged.connect(
+            lambda v: setattr(self, "multistart_n", v))
+        _ms_h.addWidget(self._multistart_spin)
+        _wa.setDefaultWidget(_ms_container)
+        adv_menu.addAction(_wa)
         # Modelo de absorbente
         abs_menu = adv_menu.addMenu(tr("absorber.model_label"))
         self.absorber_action_group = QtGui.QActionGroup(self)

@@ -565,6 +565,7 @@
   "logo.text_sextete": "sextet",
   "bhf.reg_mode_label": "Regularization",
   "options.global_opt": "Global optimization (DE) before TRF",
+  "options.multistart_n": "Multiple starts (0–10):",
   "progress.fit_global": "Global optimization (DE)...",
   "options.advanced_fit": "Advanced fit options",
   "context.intensity_mode_title": "Intensity mode",
