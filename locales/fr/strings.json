@@ -27,6 +27,7 @@
   "fit.auto_from_minima": "Ajuster automatiquement depuis les minima",
   "fit.ollama_start": "IA locale Ollama : suggérer un départ...",
   "fit.run": "Ajuster",
+  "fit.undo_fit": "Annuler l'ajustement",
   "fit.bootstrap": "Erreurs bootstrap (MC)...",
   "fit.profile_likelihood": "Erreurs par vraisemblance profilée...",
   "fit.batch_fit": "Ajustement en série...",

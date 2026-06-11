@@ -27,6 +27,7 @@
   "fit.auto_from_minima": "Auto-fit from minima",
   "fit.ollama_start": "Local Ollama AI: suggest start...",
   "fit.run": "Fit",
+  "fit.undo_fit": "Undo fit",
   "fit.bootstrap": "Bootstrap errors (MC)...",
   "fit.profile_likelihood": "Profile-likelihood errors...",
   "fit.batch_fit": "Batch fit (series)...",

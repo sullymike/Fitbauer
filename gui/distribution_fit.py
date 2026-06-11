@@ -390,6 +390,7 @@ class DistributionFitMixin:
                 result_local = run_fit(base_delta, base_quad, base_gamma, sharp_components)
             return result_local, fitted_x_local
 
+        self._pre_fit_snapshot = self._project_state().to_session_payload()
         fit_output = self._run_with_fit_progress(
             tr("progress.distribution_title", default="Distribución hiperfina"),
             tr("progress.distribution_prepare", default="Preparando ajuste de distribución…"),
@@ -398,6 +399,8 @@ class DistributionFitMixin:
         )
         if fit_output is None:
             return
+        if hasattr(self, "act_undo_fit"):
+            self.act_undo_fit.setEnabled(True)
         result, fitted_x = fit_output
 
         self._building = True

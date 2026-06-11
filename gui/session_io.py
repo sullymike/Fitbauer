@@ -53,6 +53,16 @@ class SessionIOMixin:
         """Estado completo del Qt en el mismo formato que la GUI Tk."""
         return self._project_state().to_session_payload()
 
+    def _undo_fit(self) -> None:
+        snapshot = getattr(self, "_pre_fit_snapshot", None)
+        if snapshot is None:
+            return
+        self._apply_session_payload(snapshot)
+        self._pre_fit_snapshot = None
+        if hasattr(self, "act_undo_fit"):
+            self.act_undo_fit.setEnabled(False)
+        self._refresh_plot()
+
     def _apply_session_payload(self, data: dict) -> None:
         project = ProjectState.from_session_payload(data)
         spectrum = project.spectrum

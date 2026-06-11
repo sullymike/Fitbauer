@@ -27,6 +27,7 @@ class DiscreteFitMixin:
         state = self._build_state(validate_params=True)
         if state is None:
             return
+        self._pre_fit_snapshot = self._project_state().to_session_payload()
         result = self._run_with_fit_progress(
             tr("progress.fitting_title", default="Ajustando"),
             tr("progress.fit_prepare", default="Preparando ajuste…"),
@@ -36,6 +37,8 @@ class DiscreteFitMixin:
         )
         if result is None:
             return
+        if hasattr(self, "act_undo_fit"):
+            self.act_undo_fit.setEnabled(True)
         # Aplica resultados
         self._building = True
         calib_state = self.calib.to_view_state()
