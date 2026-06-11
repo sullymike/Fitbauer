@@ -1,5 +1,36 @@
 # Changelog
 
+## v4.7.3 — Reorganización de menús y ayuda alineada
+
+### Interfaz
+
+- **Menú «Opciones» eliminado.** Duplicaba entradas de Ajuste y Vista
+  compartiendo los mismos `QActionGroup` exclusivos, por lo que sus radios y
+  checkmarks no podían reflejar el estado real (mismo defecto que el «Tema
+  visual» duplicado retirado en v4.7.1). Desaparecen también las lambdas de
+  sincronización entre menús.
+- **Menú Ajuste reagrupado**: «Modo de ajuste» (radios con los **7 modos** del
+  combo lateral, antes solo 2, con sincronización en ambos sentidos también
+  para P(ΔEQ)/P(IS)/2D), submenús «Preparación» (centro, mínimos, IA) y
+  «Análisis de errores» (bootstrap, verosimilitud perfilada y L-curve, antes
+  desubicada al final del menú), bloque de parámetros y Opciones avanzadas.
+- **Archivo**: «Open Recent» traducido (clave `file.open_recent` ES/EN/FR) y
+  «Usar como calibración» junto a Cargar/Recientes.
+- `fit_mode_labels()` en `gui/main_layout.py` como fuente única de las
+  etiquetas de modo (combo lateral + menú).
+
+### Ayuda integrada
+
+- ES: eliminado el capítulo «Menú Opciones»; «Menú Ajuste» reescrito y
+  reordenado según el menú real, con entrada nueva para «Editar mínimos
+  (semi-manual)» (existía en el menú pero no estaba documentada); «Abrir
+  recientes» en Menú Archivo.
+- Rutas «menú → ítem» actualizadas en los tres idiomas (Buscar centro,
+  Bootstrap, Verosimilitud perfilada y L-curve apuntan a sus submenús nuevos);
+  verificado con un inventario automático sin referencias obsoletas.
+
+---
+
 ## v4.7.2 — Revisión de fallos latentes, batch coherente e i18n de actualizaciones
 
 ### Bugs corregidos

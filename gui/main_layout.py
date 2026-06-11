@@ -14,6 +14,23 @@ from gui.panels import CalibrationPanel, ComponentPanel, InfoPanel
 MAX_QT_COMPONENTS = 6
 
 
+def fit_mode_labels() -> list[str]:
+    """Etiquetas de los modos de ajuste, en el orden del índice de modo.
+
+    Fuente única para el combo lateral y el submenú Ajuste → Modo de ajuste:
+    los índices deben coincidir con los que maneja ``_on_mode_changed``.
+    """
+    return [
+        tr("options.discrete_sextets"),
+        tr("options.distribution_bhf"),
+        "P(ΔEQ)",
+        "P(IS)",
+        "P(BHF, ΔEQ) 2D",
+        "P(IS, ΔEQ) 2D",
+        "P(BHF, IS) 2D",
+    ]
+
+
 class MainLayoutMixin:
     # ── Construcción de la UI ────────────────────────────────────────────
     def _build_ui(self) -> None:
@@ -88,15 +105,7 @@ class MainLayoutMixin:
         mode_row = QtWidgets.QHBoxLayout()
         mode_row.addWidget(QtWidgets.QLabel(tr("controls.fit_mode_hint").split(":")[0] + ":"))
         self.mode_combo = QtWidgets.QComboBox()
-        self.mode_combo.addItems([
-            tr("options.discrete_sextets"),
-            tr("options.distribution_bhf"),
-            "P(ΔEQ)",
-            "P(IS)",
-            "P(BHF, ΔEQ) 2D",
-            "P(IS, ΔEQ) 2D",
-            "P(BHF, IS) 2D",
-        ])
+        self.mode_combo.addItems(fit_mode_labels())
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_row.addWidget(self.mode_combo, stretch=1)
         sim_lay.addLayout(mode_row)
