@@ -143,6 +143,7 @@
   "slider.s_depth": "Profundidad",
   "slider.s_int3": "I",
   "slider.s_int2": "I23",
+  "slider.s_int2_doblete": "I rel (L2/L1)",
   "slider.s_int1": "I13",
   "bhf.description": "Distribución regularizada 1D: P(BHF) o P(ΔEQ). Puede sumar componentes activos nítidos.",
   "bhf.variable_label": "Variable distribuida",

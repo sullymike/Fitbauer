@@ -143,6 +143,7 @@
   "slider.s_depth": "Depth",
   "slider.s_int3": "I",
   "slider.s_int2": "I23",
+  "slider.s_int2_doblete": "I rel (L2/L1)",
   "slider.s_int1": "I13",
   "bhf.description": "Regularized 1D distribution: P(BHF) or P(ΔEQ). May add active sharp components.",
   "bhf.variable_label": "Distributed variable",

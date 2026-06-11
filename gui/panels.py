@@ -306,6 +306,19 @@ class ComponentPanel(QtWidgets.QWidget):
         return _relevant_params(self.kind, self.intensity_mode, self.quad_treatment)
 
     def _on_type_changed(self, kind: str) -> None:
+        prev = getattr(self, "_last_initialized_kind", None)
+        if kind != prev:
+            self._last_initialized_kind = kind
+            if kind == "Doblete":
+                self.params["int1"].set_value(1.0)
+                self.params["int1"].set_fixed(True)
+                self.params["int2"].set_value(1.0)
+                self.params["int2"].set_fixed(True)
+            elif kind == "Singlete":
+                self.params["int1"].set_value(1.0)
+                self.params["int1"].set_fixed(True)
+            elif prev == "Doblete":
+                self.params["int2"].set_value(2.0)
         self._relayout_params()
         self.paramChanged.emit()
 
@@ -348,6 +361,14 @@ class ComponentPanel(QtWidgets.QWidget):
         for name, ctl in self.params.items():
             if name not in visible:
                 ctl.setVisible(False)
+
+        # Etiqueta de int2 adaptada al tipo (I23 para sextetes, ratio para doblete).
+        int2_ctl = self.params.get("int2")
+        if int2_ctl is not None:
+            if self.kind == "Doblete":
+                int2_ctl.label.setText(tr("slider.s_int2_doblete"))
+            else:
+                int2_ctl.label.setText(tr("slider.s_int2"))
 
         # El grupo oculto (int3) nunca se muestra ni ocupa celda.
         for name in COMPONENT_PARAM_LAYOUT["hidden"]:

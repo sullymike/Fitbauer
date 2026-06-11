@@ -34,8 +34,8 @@ ACTIVE_PARAM_ORDER = (
 USED_BY = {
     "Sextete": {"delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
                 "depth", "int1", "int2", "texture", "beta"},
-    "Doblete": {"delta", "quad", "gamma1", "gamma2", "depth", "int1", "int2"},
-    "Singlete": {"delta", "gamma1", "depth", "int1"},
+    "Doblete": {"delta", "quad", "gamma1", "gamma2", "depth", "int2"},
+    "Singlete": {"delta", "gamma1", "depth"},
     # Modelo fenomenológico de relajación: mezcla de sextete bloqueado y
     # doblete superparamagnético con conservación aproximada del área.
     "Relajacion": {"delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
