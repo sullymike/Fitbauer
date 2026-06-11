@@ -12,7 +12,7 @@ from core.folding import (
     find_best_integer_or_half_center, fold_and_normalize, read_ws5_counts,
     velocity_axis,
 )
-from core.fit_engine import FitState
+from core.fit_engine import FitState, resolve_values
 from core.result_views import discrete_result_view
 from core.reconstruction import (
     component_area_percentages as core_component_area_percentages,
@@ -109,7 +109,36 @@ class ModelWorkflowMixin:
         if not self._building:
             self._simulate_enabled = True
         self._sync_absorber_model_from_panel()
+        self._sync_constraint_targets()
         self._refresh_plot()
+
+    def _sync_constraint_targets(self) -> None:
+        """Actualiza los widgets dependientes cuando hay restricciones lineales activas.
+
+        resolve_values() ya calcula los valores correctos para el plot; este método
+        escribe esos valores de vuelta en los spinboxes de los parámetros objetivo.
+        set_value() bloquea señales, por lo que no provoca reentrada.
+        """
+        state = self._build_state()
+        if state is None or not state.constraints:
+            return
+        resolved = resolve_values(state.values, state.components, state.constraints, state.bounds)
+        target_keys = {c["target"] for c in state.constraints if "target" in c}
+        if not target_keys:
+            return
+        target_resolved = {k: v for k, v in resolved.items() if k in target_keys}
+        self._building = True
+        try:
+            for cp in getattr(self, "components_panels", []):
+                cp.apply_values(target_resolved)
+            calib = getattr(self, "calib", None)
+            if calib is not None:
+                if "baseline" in target_keys and "baseline" in resolved:
+                    calib.baseline.set_value(resolved["baseline"])
+                if "slope" in target_keys and "slope" in resolved:
+                    calib.slope.set_value(resolved["slope"])
+        finally:
+            self._building = False
 
     def _sync_absorber_model_from_panel(self, *args) -> None:
         if hasattr(self, "calib"):
