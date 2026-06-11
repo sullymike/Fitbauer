@@ -1,5 +1,51 @@
 # Changelog
 
+## v4.7.4 — Mejoras de interfaz y convención FWHM *(pre-release)*
+
+### Cambio de convención: Γ pasa a ser FWHM
+
+- **Anchura de línea en FWHM** en toda la aplicación. Hasta ahora Γ representaba
+  el semianchura a media altura (HWHM); ahora es la anchura completa (FWHM = 2·HWHM),
+  que es la convención habitual en espectroscopía Mössbauer y en los programas de
+  referencia (NORMOS, MossWinn).
+- La física es idéntica: `lorentzian()` divide γ/2 internamente. Los valores
+  visibles en la GUI son el doble de los anteriores (p. ej. α-Fe: 0.28 mm/s en
+  vez de 0.14 mm/s).
+- Importación Normos (.RES): WID ya se guardaba en FWHM; se elimina la división
+  por 2 que existía en `core/folding.py`, `core/data_io.py` y `mossbauer_ws5.py`.
+- Todos los valores por defecto, límites, plantillas JSON de `data_sample/`,
+  documentación ES/EN/FR y tests actualizados.
+
+### Render en vivo durante el ajuste discreto
+
+- La figura se actualiza en tiempo real mientras corre el optimizador (~4 fps,
+  limitado por el throttle de 0,25 s ya existente en el callback de progreso).
+- Sin impacto en velocidad: el canvas se repinta con `reconstruct_discrete_model`
+  usando los parámetros libres actuales sin tocar los widgets.
+
+### Deshacer ajuste (Ctrl+Z)
+
+- **Ajuste → Deshacer ajuste** (Ctrl+Z): recupera todos los parámetros al estado
+  previo al último ajuste (discreto o distribución).
+- La acción se habilita al completar el primer ajuste y se deshabilita tras
+  deshacer (un solo nivel de undo).
+
+### Corrección: widgets enlazados no se actualizaban visualmente
+
+- Al modificar un parámetro fuente (p. ej. δ del componente 1 enlazado al δ del
+  componente 2), el spinbox del parámetro objetivo no mostraba el valor actualizado
+  aunque la figura sí se redibujaba correctamente. Corregido en
+  `_sync_constraint_targets()` llamado desde `_on_model_param_changed`.
+
+### Arranques múltiples configurables
+
+- **Ajuste → Opciones avanzadas → Arranques múltiples (0–10)**: permite elegir
+  cuántas perturbaciones aleatorias se lanzan en el multistart (por defecto 8).
+  `0` = un único arranque desde los valores iniciales (ajuste más rápido).
+  El valor se guarda en la sesión.
+
+---
+
 ## v4.7.1 — Revisión completa de ayuda y corrección de menú
 
 ### Documentación y ayuda integrada (ES/EN/FR)
