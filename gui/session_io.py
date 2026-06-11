@@ -57,7 +57,17 @@ class SessionIOMixin:
         snapshot = getattr(self, "_pre_fit_snapshot", None)
         if snapshot is None:
             return
+        # Un ajuste no cambia el modo (discreto/distribución), así que
+        # preservamos el modo activo: _apply_session_payload lo reconstruye a
+        # partir de dist_variable (siempre "BHF" por defecto) y, sin este
+        # guardado, deshacer un ajuste discreto saltaría a P(BHF).
+        mode_idx = (
+            self.mode_combo.currentIndex()
+            if hasattr(self, "mode_combo") else None
+        )
         self._apply_session_payload(snapshot)
+        if mode_idx is not None and hasattr(self, "mode_combo"):
+            self.mode_combo.setCurrentIndex(mode_idx)
         self._pre_fit_snapshot = None
         if hasattr(self, "act_undo_fit"):
             self.act_undo_fit.setEnabled(False)

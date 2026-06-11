@@ -616,16 +616,21 @@ class HelpMixin:
                 seq_edit.setKeySequence(QtGui.QKeySequence(dflt))
 
         def _save_shortcuts() -> None:
+            # Atajo efectivo de cada acción (lo que el usuario ve ahora en su
+            # campo) y, aparte, solo las desviaciones respecto al valor de
+            # fábrica para persistirlas.
+            effective: dict[str, str] = {}
             new_shortcuts: dict[str, str] = {}
             for action_id, seq_edit in seq_edits:
                 ks = seq_edit.keySequence().toString()
                 dflt = next((d for a, _, _, d in SHORTCUT_REGISTRY if a == action_id), "")
+                effective[action_id] = ks
                 if ks != dflt:
                     new_shortcuts[action_id] = ks
-            # Detección de conflictos (solo entre atajos no vacíos)
-            non_empty = [v for v in new_shortcuts.values() if v]
-            counts = Counter(non_empty)
-            dups = [k for k, c in counts.items() if c > 1]
+            # Detección de conflictos sobre TODOS los atajos efectivos no vacíos
+            # (incluye choques con los predeterminados que no se han tocado).
+            counts = Counter(v for v in effective.values() if v)
+            dups = sorted(k for k, c in counts.items() if c > 1)
             if dups:
                 QtWidgets.QMessageBox.warning(
                     w,

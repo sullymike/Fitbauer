@@ -313,6 +313,41 @@ def test_view_toggles(win):
     win._refresh_plot()
 
 
+def test_undo_discrete_fit_keeps_mode(win):
+    """Deshacer un ajuste discreto NO debe saltar a modo P(BHF).
+
+    Regresión: _apply_session_payload reconstruye el modo desde dist_variable
+    (siempre 'BHF' por defecto), así que sin preservar el modo activo deshacer
+    un ajuste en modo discreto cambiaba indebidamente a Distribución P(BHF).
+    """
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.mode_combo.setCurrentIndex(0)
+    assert not win.is_distribution_mode
+    win._pre_fit_snapshot = win._session_payload()
+    win.act_undo_fit.setEnabled(True)
+    win._undo_fit()
+    assert win.mode_combo.currentIndex() == 0
+    assert not win.is_distribution_mode
+
+
+def test_all_registered_shortcuts_have_actions(win):
+    """Cada entrada de SHORTCUT_REGISTRY tiene su QAction en el registro."""
+    from gui.menu_builder import SHORTCUT_REGISTRY
+    for action_id, _menu, _label, _default in SHORTCUT_REGISTRY:
+        assert action_id in win._action_registry, action_id
+
+
+def test_custom_shortcut_applies_and_persists(win):
+    """Aplicar un atajo custom lo refleja en la QAction y en las preferencias."""
+    win._apply_custom_shortcuts({"fit.bootstrap": "Ctrl+B"})
+    assert win._action_registry["fit.bootstrap"].shortcut().toString() == "Ctrl+B"
+    # fit.run conserva su predeterminado al no estar en el dict custom
+    assert win._action_registry["fit.run"].shortcut().toString() == "Ctrl+R"
+    # Se serializa en las preferencias de interfaz
+    prefs = win._ui_preferences_state()
+    assert prefs.custom_shortcuts.get("fit.bootstrap") == "Ctrl+B"
+
+
 def test_model_grid_is_denser_than_data(win):
     """La rejilla del modelo tiene muchos más puntos que los canales."""
     import numpy as np
