@@ -10,7 +10,10 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 from mossbauer_i18n import tr
-from core.folding import read_ws5_counts, find_best_integer_or_half_center, fold_integer_or_half
+from core.folding import (
+    read_ws5_counts, find_best_integer_or_half_center, fold_and_normalize,
+    velocity_axis,
+)
 from core.fit_engine import fit_discrete
 from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data
 
@@ -220,15 +223,15 @@ class BatchFitDialog(QtWidgets.QDialog):
             try:
                 # Reusar warm-start: aplicamos el estado actual del Qt y
                 # cargamos el nuevo espectro (que sobrescribe folding center).
+                # Mismo doblado que el flujo principal y core.session: recorte
+                # de borde y eje de velocidad sin estirar la escala.
                 counts = read_ws5_counts(e["path"])
                 center = find_best_integer_or_half_center(counts)
-                folded, _ = fold_integer_or_half(counts, center)
-                norm = float(np.percentile(folded, 90)) or 1.0
-                sigma = np.sqrt(np.maximum(folded / 2.0, 1.0)) / norm
-                y = folded / norm
+                edge_trim = int(getattr(self.parent_win, "_edge_trim", 1))
+                folded, sigma, y, norm = fold_and_normalize(counts, center, edge_trim)
                 calib_state = self.parent_win.calib.to_view_state()
                 vmax = calib_state.vmax
-                v = np.linspace(-vmax, vmax, folded.size)
+                v = velocity_axis(counts.size, vmax, y.size, edge_trim)
                 # Construir state desde la UI parental
                 state = self.parent_win._build_state()
                 if state is None:
@@ -236,6 +239,12 @@ class BatchFitDialog(QtWidgets.QDialog):
                 state.velocity = v
                 state.y_data = y
                 state.sigma_data = sigma
+                # Cuentas crudas y normalización del fichero del batch (no las
+                # del espectro cargado en la ventana): las usan el re-folding
+                # de fit_center y la σ Poisson.
+                state.counts = counts
+                state.norm_factor = norm
+                state.values["center"] = float(center)
                 result = fit_discrete(state)
                 e["status"] = "ok"
                 e["result"] = {
