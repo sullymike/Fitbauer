@@ -58,7 +58,7 @@ class DistributionFitMixin:
                 "delta": comp_state.value("delta", 0.0),
                 "quad": comp_state.value("quad", 0.0),
                 "bhf": comp_state.value("bhf", 33.0),
-                "gamma": comp_state.value("gamma1", 0.18),
+                "gamma": comp_state.value("gamma1", 0.36),
                 "gamma2_rel": comp_state.value("gamma2", 1.0),
                 "gamma3_rel": comp_state.value("gamma3", 1.0),
                 "int1": engine_int1,
@@ -393,6 +393,7 @@ class DistributionFitMixin:
                 result_local = run_fit(base_delta, base_quad, base_gamma, sharp_components)
             return result_local, fitted_x_local
 
+        self._pre_fit_snapshot = self._project_state().to_session_payload()
         fit_output = self._run_with_fit_progress(
             tr("progress.distribution_title", default="Distribución hiperfina"),
             tr("progress.distribution_prepare", default="Preparando ajuste de distribución…"),
@@ -401,6 +402,8 @@ class DistributionFitMixin:
         )
         if fit_output is None:
             return
+        if hasattr(self, "act_undo_fit"):
+            self.act_undo_fit.setEnabled(True)
         result, fitted_x = fit_output
 
         self._building = True

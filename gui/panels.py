@@ -306,6 +306,19 @@ class ComponentPanel(QtWidgets.QWidget):
         return _relevant_params(self.kind, self.intensity_mode, self.quad_treatment)
 
     def _on_type_changed(self, kind: str) -> None:
+        prev = getattr(self, "_last_initialized_kind", None)
+        if kind != prev:
+            self._last_initialized_kind = kind
+            if kind == "Doblete":
+                self.params["int1"].set_value(1.0)
+                self.params["int1"].set_fixed(True)
+                self.params["int2"].set_value(1.0)
+                self.params["int2"].set_fixed(True)
+            elif kind == "Singlete":
+                self.params["int1"].set_value(1.0)
+                self.params["int1"].set_fixed(True)
+            elif prev == "Doblete":
+                self.params["int2"].set_value(2.0)
         self._relayout_params()
         self.paramChanged.emit()
 
@@ -348,6 +361,19 @@ class ComponentPanel(QtWidgets.QWidget):
         for name, ctl in self.params.items():
             if name not in visible:
                 ctl.setVisible(False)
+
+        # Etiquetas adaptadas al tipo. Γ1 es la anchura absoluta (global, mm/s)
+        # y Γ2/Γ3 son relativas a ella; los números de línea (1,6 / 2,5) solo
+        # tienen sentido en el sextete, así que doblete/singlete usan variantes
+        # propias. int2 pasa de I23 (sextete) a ratio entre ramas (doblete).
+        # Variante por tipo: si no existe la clave específica, se usa la base.
+        suffix = {"Doblete": "_doblete", "Singlete": "_singlete"}.get(self.kind, "")
+        for name in ("gamma1", "gamma2", "int2"):
+            ctl = self.params.get(name)
+            if ctl is None:
+                continue
+            base_key = f"slider.s_{name}"
+            ctl.label.setText(tr(f"{base_key}{suffix}", default=tr(base_key)))
 
         # El grupo oculto (int3) nunca se muestra ni ocupa celda.
         for name in COMPONENT_PARAM_LAYOUT["hidden"]:

@@ -80,6 +80,11 @@ class MenuBuilderMixin:
         self.act_fit.triggered.connect(self.on_fit)
         self.act_fit.setEnabled(False)
         fit_menu.addAction(self.act_fit)
+        self.act_undo_fit = QtGui.QAction(tr("fit.undo_fit"), self)
+        self.act_undo_fit.setShortcut("Ctrl+Z")
+        self.act_undo_fit.triggered.connect(self._undo_fit)
+        self.act_undo_fit.setEnabled(False)
+        fit_menu.addAction(self.act_undo_fit)
         # Modo de ajuste: radios para TODOS los modos del combo lateral
         # (sincronizados en ambos sentidos vía _on_mode_changed).
         mode_menu = fit_menu.addMenu(tr("fit.mode_menu", default="Modo de ajuste"))
@@ -198,6 +203,22 @@ class MenuBuilderMixin:
         self.act_global_opt.toggled.connect(
             lambda b: setattr(self, "global_opt", bool(b)))
         adv_menu.addAction(self.act_global_opt)
+        # Arranques múltiples (spinbox inline)
+        _wa = QtWidgets.QWidgetAction(self)
+        _ms_container = QtWidgets.QWidget()
+        _ms_h = QtWidgets.QHBoxLayout(_ms_container)
+        _ms_h.setContentsMargins(16, 2, 8, 2)
+        _ms_h.addWidget(QtWidgets.QLabel(tr("options.multistart_n")))
+        _ms_h.addStretch(1)
+        self._multistart_spin = QtWidgets.QSpinBox()
+        self._multistart_spin.setRange(0, 10)
+        self._multistart_spin.setValue(getattr(self, "multistart_n", 8))
+        self._multistart_spin.setFixedWidth(50)
+        self._multistart_spin.valueChanged.connect(
+            lambda v: setattr(self, "multistart_n", v))
+        _ms_h.addWidget(self._multistart_spin)
+        _wa.setDefaultWidget(_ms_container)
+        adv_menu.addAction(_wa)
         # Modelo de absorbente
         abs_menu = adv_menu.addMenu(tr("absorber.model_label"))
         self.absorber_action_group = QtGui.QActionGroup(self)
@@ -215,6 +236,7 @@ class MenuBuilderMixin:
         self.act_add_sharp.setChecked(self.dist_use_sharp)
         self.act_add_sharp.toggled.connect(self._set_dist_use_sharp)
         adv_menu.addAction(self.act_add_sharp)
+
 
         # ── Vista ────────────────────────────────────────────────────────
         view_menu = mb.addMenu(tr("menu.view"))

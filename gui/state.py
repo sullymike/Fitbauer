@@ -216,6 +216,7 @@ class FitOptionsState:
     fit_velocity: bool = False
     fit_center: bool = False
     fit_sigma: bool = False
+    multistart_n: int = 8
 
     @classmethod
     def from_model_state(cls, state: dict[str, Any]) -> "FitOptionsState":
@@ -229,6 +230,7 @@ class FitOptionsState:
             fit_velocity=bool(state.get("fit_velocity", False)),
             fit_center=bool(state.get("fit_center", False)),
             fit_sigma=bool(state.get("fit_sigma", False)),
+            multistart_n=max(0, min(10, int(state.get("multistart_n", 8)))),
         )
 
     def apply_to_model_state(self, model_state) -> None:
@@ -242,6 +244,7 @@ class FitOptionsState:
         model_state.fit_velocity = bool(self.fit_velocity)
         model_state.fit_center = bool(self.fit_center)
         model_state.fit_sigma = bool(self.fit_sigma)
+        model_state.multistart_n = self.multistart_n
 
     def to_model_state_fragment(self) -> dict[str, Any]:
         return {
@@ -254,6 +257,7 @@ class FitOptionsState:
             "fit_velocity": bool(self.fit_velocity),
             "fit_center": bool(self.fit_center),
             "fit_sigma": bool(self.fit_sigma),
+            "multistart_n": self.multistart_n,
         }
 
 
@@ -269,7 +273,7 @@ class DistributionViewState:
     delta: float = 0.0
     quad: float = 0.0
     fixed_bhf: float = 33.0
-    gamma: float = 0.18
+    gamma: float = 0.36
     bmin: float = 0.0
     bmax: float = 50.0
     nbins: int = 50

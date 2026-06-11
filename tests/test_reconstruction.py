@@ -23,7 +23,7 @@ def test_sharp_component_params_uses_distribution_mapping_and_weight():
         "delta": 0.1,
         "quad": 0.2,
         "bhf": 33.0,
-        "gamma": 0.18,
+        "gamma": 0.36,
         "gamma2_rel": 1.1,
         "gamma3_rel": 1.2,
         "depth": 0.3,
@@ -36,7 +36,7 @@ def test_sharp_component_params_uses_distribution_mapping_and_weight():
 
     assert params.shape == (10,)
     assert params[0] == 0.1
-    assert params[3] == 0.18
+    assert params[3] == 0.36
     assert params[6] == 0.42
     assert params[8] == 0.7
 
@@ -49,7 +49,7 @@ def test_reconstruct_distribution_curves_returns_envelope_and_sharp_curve():
         "delta": 0.0,
         "quad": 0.0,
         "bhf": 33.0,
-        "gamma": 0.18,
+        "gamma": 0.36,
         "gamma2_rel": 1.0,
         "gamma3_rel": 1.0,
         "depth": 0.2,
@@ -90,7 +90,7 @@ def test_dense_velocity_grid_and_discrete_reconstruction():
         "s1_delta": -0.5,
         "s1_quad": 0.0,
         "s1_bhf": 0.0,
-        "s1_gamma1": 0.2,
+        "s1_gamma1": 0.4,
         "s1_gamma2": 1.0,
         "s1_gamma3": 1.0,
         "s1_depth": 0.1,
@@ -100,7 +100,7 @@ def test_dense_velocity_grid_and_discrete_reconstruction():
         "s2_delta": 0.5,
         "s2_quad": 0.0,
         "s2_bhf": 0.0,
-        "s2_gamma1": 0.2,
+        "s2_gamma1": 0.4,
         "s2_gamma2": 1.0,
         "s2_gamma3": 1.0,
         "s2_depth": 0.1,
@@ -133,7 +133,7 @@ def test_component_area_percentages_are_normalized():
                 "delta": 0.0,
                 "quad": 0.0,
                 "bhf": 0.0,
-                "gamma1": 0.2,
+                "gamma1": 0.4,
                 "gamma2": 1.0,
                 "gamma3": 1.0,
                 "depth": 0.1,

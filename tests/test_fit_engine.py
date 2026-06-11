@@ -47,7 +47,7 @@ def _alpha_fe_state(v, y, sigma):
         "s1_delta": -0.1,
         "s1_quad": 0.0,
         "s1_bhf": 33.0,
-        "s1_gamma1": 0.14,
+        "s1_gamma1": 0.28,
         "s1_gamma2": 1.0,
         "s1_gamma3": 1.0,
         "s1_depth": 0.013,
@@ -62,8 +62,8 @@ def _alpha_fe_state(v, y, sigma):
     bounds = {
         "baseline": (0.70, 1.30), "slope": (-0.005, 0.005),
         "s1_delta": (-2.0, 3.0), "s1_quad": (-4.0, 4.0),
-        "s1_bhf": (0.0, 60.0), "s1_gamma1": (0.03, 2.0),
-        "s1_gamma2": (0.2, 3.0), "s1_gamma3": (0.2, 3.0),
+        "s1_bhf": (0.0, 60.0), "s1_gamma1": (0.06, 4.0),
+        "s1_gamma2": (0.2, 6.0), "s1_gamma3": (0.2, 6.0),
         "s1_depth": (0.0, 0.30), "s1_int1": (0.0, 9.0),
         "s1_int2": (0.0, 6.0), "s1_int3": (0.0, 3.0),
         "vmax": (1.0, 15.0), "voigt_sigma": (0.0, 1.0),
@@ -296,7 +296,7 @@ def test_free_keys_mapping_like_tk_gui():
     v, y, sigma = _load_alpha_fe()
     names = ["delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
              "depth", "int1", "int2", "int3", "texture", "beta"]
-    defaults = {"bhf": 33.0, "gamma1": 0.14, "gamma2": 1.0, "gamma3": 1.0,
+    defaults = {"bhf": 33.0, "gamma1": 0.28, "gamma2": 1.0, "gamma3": 1.0,
                 "depth": 0.013, "int1": 3.0, "int2": 2.0, "int3": 1.0,
                 "delta": -0.1, "texture": 0.667}
     values = {"baseline": 1.0, "slope": 0.0, "vmax": VMAX, "center": 256.0,
@@ -310,7 +310,7 @@ def test_free_keys_mapping_like_tk_gui():
     bounds = {"baseline": (0.70, 1.30), "slope": (-0.005, 0.005), "sat_scale": (0.05, 50.0)}
     for idx in (1, 2, 3):
         bounds.update({f"s{idx}_delta": (-2.0, 3.0), f"s{idx}_bhf": (0.0, 60.0),
-                       f"s{idx}_gamma1": (0.03, 2.0), f"s{idx}_depth": (0.0, 0.30)})
+                       f"s{idx}_gamma1": (0.06, 4.0), f"s{idx}_depth": (0.0, 0.30)})
     components = [Component(idx=1, enabled=True, kind="Sextete"),
                  Component(idx=2, enabled=False), Component(idx=3, enabled=False)]
     state = FitState(velocity=v, y_data=y, sigma_data=sigma, values=values,

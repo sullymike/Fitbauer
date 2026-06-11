@@ -17,17 +17,15 @@ VOIGT_SIGMA: float = 0.05
 
 
 def lorentzian(v: np.ndarray, center: float, gamma: float) -> np.ndarray:
+    g = gamma / 2.0
     if LINE_PROFILE_KIND == "Voigt":
         sigma = max(float(VOIGT_SIGMA), 1e-9)
         denom = sigma * np.sqrt(2.0)
         norm = sigma * np.sqrt(2.0 * np.pi)
-        prof = np.real(wofz(((v - center) + 1j * gamma) / denom)) / norm
-        # Normalización analítica al pico (v=v0): Re[w(iγ/(σ√2))]/(σ√2π).
-        # Independiente del muestreo (antes se dividía por el máximo discreto,
-        # que subestima el pico si la malla no cae justo en v0).
-        peak = float(np.real(wofz(1j * gamma / denom))) / norm
+        prof = np.real(wofz(((v - center) + 1j * g) / denom)) / norm
+        peak = float(np.real(wofz(1j * g / denom))) / norm
         return prof / max(peak, 1e-12)
-    return gamma * gamma / ((v - center) ** 2 + gamma * gamma)
+    return g * g / ((v - center) ** 2 + g * g)
 
 
 def sextet_absorption(
@@ -258,7 +256,7 @@ def two_state_exchange_profile(
     lorentzianas; en el rápido, una única línea en el centro promedio.
     """
     vv = np.asarray(v, dtype=float)
-    g = max(float(gamma), 1e-9)
+    g = max(float(gamma), 1e-9) / 2.0
     try:
         rate_v = (10.0 ** float(log10_nu)) / _RELAX_RATE_PER_MM_S
     except OverflowError:

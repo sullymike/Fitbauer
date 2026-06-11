@@ -34,18 +34,18 @@ def _fwhm(v, y):
 def test_lorentzian_peak_and_fwhm():
     physics.LINE_PROFILE_KIND = "Lorentziana"
     v = np.linspace(-5, 5, 40001)
-    y = physics.lorentzian(v, 0.0, 0.2)
+    y = physics.lorentzian(v, 0.0, 0.4)
     assert abs(y.max() - 1.0) < 1e-9
-    assert abs(_fwhm(v, y) - 0.4) < 5e-3  # FWHM = 2*gamma
+    assert abs(_fwhm(v, y) - 0.4) < 5e-3  # FWHM = gamma
 
 
 def test_voigt_peak_normalized_and_broader():
     v = np.linspace(-5, 5, 40001)
     physics.LINE_PROFILE_KIND = "Lorentziana"
-    fwhm_lor = _fwhm(v, physics.lorentzian(v, 0.0, 0.2))
+    fwhm_lor = _fwhm(v, physics.lorentzian(v, 0.0, 0.4))
     physics.LINE_PROFILE_KIND = "Voigt"
     physics.VOIGT_SIGMA = 0.15
-    yv = physics.lorentzian(v, 0.0, 0.2)
+    yv = physics.lorentzian(v, 0.0, 0.4)
     assert abs(yv.max() - 1.0) < 1e-6           # normalizado a pico 1
     assert _fwhm(v, yv) > fwhm_lor               # la gaussiana ensancha
 
@@ -54,7 +54,7 @@ def test_sextet_symmetric_when_quad_zero():
     physics.LINE_PROFILE_KIND = "Lorentziana"
     delta = 0.25
     v = delta + np.linspace(-8, 8, 20001)
-    y = physics.sextet_absorption(v, delta, 0.0, 33.0, 0.2, 1.0, 1.0,
+    y = physics.sextet_absorption(v, delta, 0.0, 33.0, 0.4, 1.0, 1.0,
                                   0.1, 3.0, 2.0, 1.0)
     assert np.allclose(y, y[::-1], atol=1e-9)    # simétrico respecto a delta
 
@@ -63,7 +63,7 @@ def test_doublet_symmetric_about_delta():
     physics.LINE_PROFILE_KIND = "Lorentziana"
     delta = 0.4
     v = delta + np.linspace(-3, 3, 20001)
-    y = physics.doublet_absorption(v, delta, 0.9, 0.2, 1.0, 0.1, 1.0, 1.0)
+    y = physics.doublet_absorption(v, delta, 0.9, 0.4, 1.0, 0.1, 1.0, 1.0)
     assert np.allclose(y, y[::-1], atol=1e-9)
 
 

@@ -12,7 +12,7 @@ from core.folding import (
     find_best_integer_or_half_center, fold_and_normalize, read_ws5_counts,
     velocity_axis,
 )
-from core.fit_engine import FitState
+from core.fit_engine import FitState, resolve_values
 from core.result_views import discrete_result_view
 from core.reconstruction import (
     component_area_percentages as core_component_area_percentages,
@@ -109,7 +109,36 @@ class ModelWorkflowMixin:
         if not self._building:
             self._simulate_enabled = True
         self._sync_absorber_model_from_panel()
+        self._sync_constraint_targets()
         self._refresh_plot()
+
+    def _sync_constraint_targets(self) -> None:
+        """Actualiza los widgets dependientes cuando hay restricciones lineales activas.
+
+        resolve_values() ya calcula los valores correctos para el plot; este método
+        escribe esos valores de vuelta en los spinboxes de los parámetros objetivo.
+        set_value() bloquea señales, por lo que no provoca reentrada.
+        """
+        state = self._build_state()
+        if state is None or not state.constraints:
+            return
+        resolved = resolve_values(state.values, state.components, state.constraints, state.bounds)
+        target_keys = {c["target"] for c in state.constraints if "target" in c}
+        if not target_keys:
+            return
+        target_resolved = {k: v for k, v in resolved.items() if k in target_keys}
+        self._building = True
+        try:
+            for cp in getattr(self, "components_panels", []):
+                cp.apply_values(target_resolved)
+            calib = getattr(self, "calib", None)
+            if calib is not None:
+                if "baseline" in target_keys and "baseline" in resolved:
+                    calib.baseline.set_value(resolved["baseline"])
+                if "slope" in target_keys and "slope" in resolved:
+                    calib.slope.set_value(resolved["slope"])
+        finally:
+            self._building = False
 
     def _sync_absorber_model_from_panel(self, *args) -> None:
         if hasattr(self, "calib"):
@@ -466,7 +495,6 @@ class ModelWorkflowMixin:
                 tr("info.component_params_line", kind=kind_disp, idx=comp_state.idx,
                    bhf=comp_state.value("bhf"), delta=comp_state.value("delta"), quad=comp_state.value("quad")),
                 tr("info.gamma_hwhm", g1=g1, g2=g2, g3=g3),
-                tr("info.fwhm_equiv", f1=2.0 * g1, f2=2.0 * g2, f3=2.0 * g3),
                 tr("info.gamma_rel", gamma2=comp_state.value("gamma2", 1.0), gamma3=comp_state.value("gamma3", 1.0)),
                 tr("info.depth_intensities", depth=comp_state.value("depth"), i1=i1_real, i2=i2_real, i3=i3_real),
             ])
@@ -511,6 +539,7 @@ class ModelWorkflowMixin:
             fit_velocity=calib_state.fit_velocity,
             fit_center=calib_state.fit_center,
             fit_sigma=calib_state.fit_sigma,
+            multistart_n=getattr(self, "multistart_n", 8),
         )
 
     def _model_state(self) -> ModelState:
@@ -653,6 +682,36 @@ class ModelWorkflowMixin:
         ))
         self._update_info_panel()
         self._schedule_plotly_update()
+
+    def _render_intermediate_fit(self, state: FitState, free_keys: list[str], free_values: list[float]) -> None:
+        """Renderiza el modelo con los parámetros intermedios del optimizador.
+
+        Se llama desde el progress_cb durante el ajuste discreto; no toca widgets
+        ni emite señales. El render se limita a superponer el modelo total sobre
+        los datos experimentales.
+        """
+        v = self.file.velocity
+        y = self.file.y_data
+        if v is None or y is None:
+            return
+        merged = dict(state.values)
+        merged.update(zip(free_keys, free_values))
+        try:
+            reconstruction = reconstruct_discrete_model(
+                v, y, merged, state.components, state.constraints,
+                absorber_model=state.absorber_model,
+            )
+        except Exception:
+            return
+        from gui.fit_workflow import GuiFitRenderState
+        self._render_fit_result(GuiFitRenderState(
+            velocity=v,
+            y_data=y,
+            model=reconstruction.model_dense,
+            components=[(c.idx, c.kind, c.y) for c in reconstruction.components],
+            residual=reconstruction.residual,
+            model_v=reconstruction.model_v,
+        ))
 
     def _model_grid(self, v: np.ndarray) -> np.ndarray | None:
         """Compatibilidad: delega la rejilla densa en ``core.reconstruction``."""

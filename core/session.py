@@ -67,6 +67,7 @@ class ModelState:
     fit_velocity: bool = False
     fit_center: bool = False
     fit_sigma: bool = False
+    multistart_n: int = 8
     n_components: int = 1
 
     @classmethod
@@ -123,6 +124,8 @@ class ModelState:
                      "propagate_calib", "global_opt"):
             if flag in state:
                 setattr(self, flag, bool(state[flag]))
+        if "multistart_n" in state:
+            self.multistart_n = max(0, min(10, int(state["multistart_n"])))
         for skey in ("line_profile", "likelihood", "robust_loss", "absorber_model"):
             if skey in state:
                 setattr(self, skey, str(state[skey]))
@@ -171,6 +174,7 @@ class ModelState:
             propagate_calib=self.propagate_calib, global_opt=self.global_opt,
             fit_velocity=self.fit_velocity, fit_center=self.fit_center,
             fit_sigma=self.fit_sigma, absorber_model=self.absorber_model,
+            multistart_n=self.multistart_n,
             counts=counts, norm_factor=norm_factor)
 
     def active_param_keys(self) -> list[str]:
@@ -208,6 +212,7 @@ class ModelState:
             "propagate_calib": self.propagate_calib,
             "global_opt": self.global_opt,
             "absorber_model": self.absorber_model,
+            "multistart_n": self.multistart_n,
             "n_components": self.n_components,
             "constraints": list(self.constraints),
         }

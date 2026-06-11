@@ -27,15 +27,27 @@ class DiscreteFitMixin:
         state = self._build_state(validate_params=True)
         if state is None:
             return
+        self._pre_fit_snapshot = self._project_state().to_session_payload()
+
+        def _progress(update_progress):
+            def cb(info):
+                update_progress(info)
+                if isinstance(info, dict) and "free_keys" in info:
+                    self._render_intermediate_fit(
+                        state, info["free_keys"], info["free_values"])
+            return fit_discrete(state, progress_cb=cb)
+
         result = self._run_with_fit_progress(
             tr("progress.fitting_title", default="Ajustando"),
             tr("progress.fit_prepare", default="Preparando ajuste…"),
-            lambda update_progress: fit_discrete(state, progress_cb=update_progress),
+            _progress,
             error_title=tr("fit.run"),
             disable_fit_action=True,
         )
         if result is None:
             return
+        if hasattr(self, "act_undo_fit"):
+            self.act_undo_fit.setEnabled(True)
         # Aplica resultados
         self._building = True
         calib_state = self.calib.to_view_state()
