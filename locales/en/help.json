@@ -55,7 +55,7 @@
   {
     "title": "Constraints",
     "heading": "Linear constraints and physical presets",
-    "content": "\nLinear constraints impose:\n\n  target = factor · source + offset\n\nThe target parameter is removed from the optimizer and updated from the source at each model evaluation.\n\nTypical uses:\n\n  • Equal line widths between components.\n  • Equal isomer shifts.\n  • Fixed intensity ratios.\n  • Reduced number of free parameters when correlations are high.\n\nPhysical presets:\n\n  Options → Physical constraint presets...\n\nThey can quickly impose powder sextet intensities 3:2:1, equal widths within components, equal δ between active components, or equal Γ1 between active components.\n"
+    "content": "\nLinear constraints impose:\n\n  target = factor · source + offset\n\nThe target parameter is removed from the optimizer and updated from the source at each model evaluation.\n\nTypical uses:\n\n  • Equal line widths between components.\n  • Equal isomer shifts.\n  • Fixed intensity ratios.\n  • Reduced number of free parameters when correlations are high.\n\nPhysical presets:\n\n  Fit → Physical constraint presets...\n\nThey can quickly impose powder sextet intensities 3:2:1, equal widths within components, equal δ between active components, or equal Γ1 between active components.\n"
   },
   {
     "title": "Statistics",
