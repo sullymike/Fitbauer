@@ -362,13 +362,18 @@ class ComponentPanel(QtWidgets.QWidget):
             if name not in visible:
                 ctl.setVisible(False)
 
-        # Etiqueta de int2 adaptada al tipo (I23 para sextetes, ratio para doblete).
-        int2_ctl = self.params.get("int2")
-        if int2_ctl is not None:
-            if self.kind == "Doblete":
-                int2_ctl.label.setText(tr("slider.s_int2_doblete"))
-            else:
-                int2_ctl.label.setText(tr("slider.s_int2"))
+        # Etiquetas adaptadas al tipo. Γ1 es la anchura absoluta (global, mm/s)
+        # y Γ2/Γ3 son relativas a ella; los números de línea (1,6 / 2,5) solo
+        # tienen sentido en el sextete, así que doblete/singlete usan variantes
+        # propias. int2 pasa de I23 (sextete) a ratio entre ramas (doblete).
+        # Variante por tipo: si no existe la clave específica, se usa la base.
+        suffix = {"Doblete": "_doblete", "Singlete": "_singlete"}.get(self.kind, "")
+        for name in ("gamma1", "gamma2", "int2"):
+            ctl = self.params.get(name)
+            if ctl is None:
+                continue
+            base_key = f"slider.s_{name}"
+            ctl.label.setText(tr(f"{base_key}{suffix}", default=tr(base_key)))
 
         # El grupo oculto (int3) nunca se muestra ni ocupa celda.
         for name in COMPONENT_PARAM_LAYOUT["hidden"]:
