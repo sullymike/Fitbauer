@@ -255,6 +255,37 @@ def test_mode_switch_to_pbhf_and_fit(win):
     assert 28.0 < bhf_peak < 38.0
 
 
+def test_2d_distribution_fit_renders_topographic_map(win):
+    """Un ajuste 2D produce un resultado con probabilidad matricial y mapa.
+
+    Cubre la regresión del AttributeError 'alpha' (el resultado 2D expone
+    alpha_bhf/alpha_quad) y verifica que el canvas crea el panel de mapa y que
+    la figura Plotly incluye un heatmap.
+    """
+    import numpy as np
+    win._load_file(DATA / "magnetita_Fe3O4.adt")
+    captured = {}
+    win._show_distribution_dialog = lambda r: captured.setdefault("r", r)
+    # Modo P(BHF, ΔEQ) 2D
+    win.mode_combo.setCurrentIndex(4)
+    assert win.is_distribution_mode
+    # Reduce el tamaño de malla para que el test sea rápido (qbins/nbins son
+    # ParamControl, con API set_value).
+    if hasattr(win.dist_panel, "qbins"):
+        win.dist_panel.qbins.set_value(9)
+    if hasattr(win.dist_panel, "nbins"):
+        win.dist_panel.nbins.set_value(15)
+    win.on_fit()  # no debe lanzar AttributeError
+    res = win.runtime_results.distribution_result
+    assert np.asarray(res.probability).ndim == 2
+    # El canvas Matplotlib añadió el panel del mapa topográfico.
+    assert win.canvas.ax_map is not None
+    assert win.canvas.last_render.get("dist_map_2d") is res
+    # La figura Plotly incluye un heatmap del mapa P(x, y).
+    fig = win._current_plotly_figure()
+    assert any(t.type == "heatmap" for t in fig.data)
+
+
 def test_session_save_load_roundtrip(win, make_window, tmp_path):
     """Guardar y cargar una sesión reproduce los mismos parámetros."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")

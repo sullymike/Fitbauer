@@ -469,6 +469,9 @@ class DistributionFitMixin:
                 dist_name = label if shape == "2D" else ("P(ΔEQ)" if var == "quad" else ("P(IS)" if var == "delta" else "P(BHF)"))
                 components_for_plot.insert(0, (0, dist_name, result.fitted_curve + sharp_abs_sum))
 
+        # Persistimos el mapa 2D para que sobreviva a los re-renders posteriores
+        # (_finish_gui_fit_result vuelve a dibujar vía _render_fit_result).
+        self._dist_map_2d = result if shape == "2D" else None
         style = get_style(self.plot_style_name)
         show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
         show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
@@ -476,7 +479,7 @@ class DistributionFitMixin:
                            model=result.fitted_curve, components=components_for_plot,
                            style=style, show_residual=show_res, show_legend=show_leg,
                            style_name=self.plot_style_name,
-                           dist_map_2d=result if shape == "2D" else None)
+                           dist_map_2d=self._dist_map_2d)
 
         if shape == "2D":
             alpha_q_log = d.log_alpha_q.value() if hasattr(d, "log_alpha_q") else -2.0
@@ -507,7 +510,11 @@ class DistributionFitMixin:
         r.stats = {"chi2": float(np.sum(result.residuals**2)), "red_chi2": float(result.rms),
                    "dof": 0.0, "aic": 0.0, "bic": 0.0}
         r.free_keys = []
-        r.values = {"baseline": result.baseline, "slope": result.slope, "alpha": result.alpha}
+        # El resultado 2D expone alpha_bhf/alpha_quad en vez de un único alpha.
+        alpha_val = getattr(result, "alpha", None)
+        if alpha_val is None:
+            alpha_val = getattr(result, "alpha_bhf", 0.0)
+        r.values = {"baseline": result.baseline, "slope": result.slope, "alpha": alpha_val}
         r.errors = {}
         r.correlations = {}
         r.n_starts = 1
@@ -547,6 +554,8 @@ class DistributionFitMixin:
         dlg.exec()
 
     def _show_distribution_dialog_2d(self, result, view) -> None:
+        import warnings
+
         import numpy as np
         from matplotlib.gridspec import GridSpec
         xc, yc, P = view.probability_2d()
@@ -631,7 +640,9 @@ class DistributionFitMixin:
                 bbox=dict(boxstyle="round,pad=0.25", fc="#00000080", ec="none"),
             )
 
-        fig.tight_layout()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*tight_layout.*")
+            fig.tight_layout()
         cv.draw_idle()
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
         bb.rejected.connect(dlg.reject); lay.addWidget(bb)

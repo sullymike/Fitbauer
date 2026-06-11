@@ -1,6 +1,8 @@
 """Canvas Matplotlib usado por la interfaz Qt de Fitbauer."""
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -88,6 +90,7 @@ class SpectrumCanvas(FigureCanvas):
             "style": dict(s),
             "show_residual": bool(show_residual),
             "show_legend": bool(show_legend),
+            "dist_map_2d": dist_map_2d,
         }
         n_comp = len(components or [])
         has_2d = dist_map_2d is not None
@@ -197,7 +200,11 @@ class SpectrumCanvas(FigureCanvas):
                            labelcolor=s["leg_text"])
         if dist_map_2d is not None and self.ax_map is not None:
             self._draw_2d_map(self.ax_map, dist_map_2d, s, style_name)
-        self.fig.tight_layout()
+        # La colorbar del mapa 2D añade un eje incompatible con tight_layout
+        # (emite un UserWarning inocuo); lo silenciamos solo en ese caso.
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*tight_layout.*")
+            self.fig.tight_layout()
         self.draw_idle()
         # Memoriza artistas y disposición para los refrescos incrementales.
         self._artists = {
@@ -210,7 +217,6 @@ class SpectrumCanvas(FigureCanvas):
             "res_alpha": s.get("res_fill_alpha", 0.22),
         }
         self._layout_sig = layout_sig
-        self.last_render["dist_map_2d"] = dist_map_2d
 
     @staticmethod
     def _draw_2d_map(ax, result, style: dict, style_name: str | None) -> None:

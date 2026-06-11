@@ -56,6 +56,9 @@ class ModelWorkflowMixin:
         is_deq = (idx == 2)
         is_delta = (idx == 3)
         is_2d = (idx in (4, 5, 6))
+        # El mapa topográfico 2D solo pertenece a un ajuste 2D vigente.
+        if not is_2d:
+            self._dist_map_2d = None
         self._sync_component_count(self._ui_action_state().n_components)
         # La visibilidad de dist_panel/sextetes la fija _sync_component_count
         # según el modo y el contenedor (apilado o pestañas).
@@ -606,6 +609,7 @@ class ModelWorkflowMixin:
         center = find_best_integer_or_half_center(counts)
         self.file = FileState(path=path, counts=counts, center=center)
         self._simulate_enabled = False
+        self._dist_map_2d = None
         folded, sigma, y = self._fold_counts_for_center(center)
         norm = float(np.percentile(folded, 90)) if folded.size else 1.0
         norm = norm or 1.0

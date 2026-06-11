@@ -15,6 +15,8 @@ class DiscreteFitMixin:
             self.on_fit_distribution()
             return
         self._simulate_enabled = True
+        # Un ajuste discreto invalida cualquier mapa topográfico 2D previo.
+        self._dist_map_2d = None
         calib_state = self.calib.to_view_state()
         if (calib_state.fit_velocity
                 and not all(self._active_bhf_fixed_flags())):
