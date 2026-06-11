@@ -1,7 +1,7 @@
-"""Motor de ajuste discreto, puro (sin Tk).
+"""Motor de ajuste discreto, puro (sin dependencias de GUI).
 
 API basada en un :class:`FitState` plano (diccionarios y arrays). El mismo
-motor puede ser invocado desde la GUI Tk legacy, la GUI Qt o un script CLI.
+motor puede ser invocado desde la GUI Qt o un script CLI.
 
 Cobertura actual: ajuste discreto (sextetes / doblete / singlete) con
 multistart determinista, pérdida robusta (linear / soft_l1 / huber),
@@ -294,9 +294,13 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
     sigma_vmax = float(state.sigma_vmax) if state.sigma_vmax is not None else 0.0
     likelihood = state.likelihood
     profile = state.line_profile
-    fit_velocity = state.fit_velocity
-    fit_center = state.fit_center
-    fit_sigma = state.fit_sigma and profile == "Voigt"
+    # Los flags solo activan un parámetro extra en x si la clave existe en
+    # values: mismas condiciones que al construir x0 en fit_discrete (si no,
+    # se desalinea el vector de parámetros).
+    fit_velocity = state.fit_velocity and "vmax" in base_values
+    fit_center = state.fit_center and "center" in base_values
+    fit_sigma = (state.fit_sigma and profile == "Voigt"
+                 and "voigt_sigma" in base_values)
     # Re-folding del centro (portado del Tk): sólo si tenemos las cuentas crudas.
     counts = state.counts
     can_refold = fit_center and counts is not None
@@ -402,10 +406,14 @@ def fit_discrete(state: FitState, progress_cb: Callable[[object], None] | None =
             continue
         # Solo claves de componente o globales del modelo (baseline/slope).
         if key.startswith("s") and "_" in key:
-            comp_idx = int(key[1:].split("_", 1)[0])
-            active = any(c.idx == comp_idx and c.enabled for c in state.components)
-            if not active:
-                continue
+            try:
+                comp_idx = int(key[1:].split("_", 1)[0])
+            except ValueError:
+                comp_idx = None  # clave global tipo "sigma_*": no es componente
+            if comp_idx is not None:
+                active = any(c.idx == comp_idx and c.enabled for c in state.components)
+                if not active:
+                    continue
         if key in target_keys:
             continue
         if state.fixed.get(key):
@@ -589,11 +597,12 @@ def fit_discrete(state: FitState, progress_cb: Callable[[object], None] | None =
     values_final = resolve_values(values_final, state.components,
                                    state.constraints or [], state.bounds)
     pos = len(free_keys)
-    if state.fit_velocity:
+    if state.fit_velocity and "vmax" in state.values:
         values_final["vmax"] = float(result.x[pos]); pos += 1
-    if state.fit_center:
+    if state.fit_center and "center" in state.values:
         values_final["center"] = float(result.x[pos]); pos += 1
-    if state.fit_sigma and state.line_profile == "Voigt":
+    if (state.fit_sigma and state.line_profile == "Voigt"
+            and "voigt_sigma" in state.values):
         values_final["voigt_sigma"] = float(result.x[pos])
 
     # 8. Estadísticos básicos.

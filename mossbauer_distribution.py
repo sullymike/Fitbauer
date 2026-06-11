@@ -19,8 +19,9 @@ from typing import Any
 import numpy as np
 from scipy.optimize import lsq_linear, nnls
 
-# Fuente única de las posiciones del sextete (derivadas de los momentos
-# nucleares del Fe-57, equivalentes a NORMOS): ±0.840 / ±3.074 / ±5.309 mm/s a 33 T.
+# Fuente única de las posiciones del sextete: patrón de velocidad PUBLICADO de
+# α-Fe (±0.839 / ±3.084 / ±5.329 mm/s a 33 T), igual que NORMOS. No derivar de
+# los momentos nucleares (sesgaría el BHF ~0.1 T; ver CHANGELOG v4.0.2/v4.0.3).
 from core.constants import LINE_POS_33T, E_GAMMA
 
 BHF_DEFAULT_T = 33.0

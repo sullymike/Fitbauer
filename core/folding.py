@@ -1,8 +1,7 @@
 """Funciones puras de carga (.ws5/.adt/Normos) y folding.
 
-Todas son ``module-level`` y no dependen de Tk ni de ningún front-end:
-pueden ser importadas tanto por la GUI Tk legacy como por la nueva GUI Qt
-o por scripts CLI.
+Todas son ``module-level`` y no dependen de ningún front-end: pueden ser
+importadas por la GUI Qt o por scripts CLI.
 """
 from __future__ import annotations
 

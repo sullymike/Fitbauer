@@ -44,6 +44,94 @@
   `0` = un único arranque desde los valores iniciales (ajuste más rápido).
   El valor se guarda en la sesión.
 
+### Intensidades de doblete y singlete
+
+- En **doblete** se oculta `I13` (redundante con la profundidad) y la intensidad
+  restante (`I23` → etiqueta «I rel (L2/L1)») pasa a representar la relación entre
+  las dos ramas, con valor inicial 1.0 (ramas simétricas) fijo por defecto.
+- En **singlete** se ocultan ambas intensidades (`I13`/`I23`): la profundidad ya
+  fija el área de la única línea.
+
+### Etiquetas de anchura: global vs relativa
+
+- Γ1 se etiqueta como anchura **absoluta (global, mm/s)** y Γ2/Γ3 como **ratios**
+  relativos a ella (`Γ 2,5 / Γ₁`, `Γ 3,4 / Γ₁`), dejando explícito que
+  Γ_real = Γ1·Γ2. Las etiquetas se adaptan al tipo de componente (los números de
+  línea 1,6 / 2,5 solo aplican al sextete; doblete y singlete usan variantes propias).
+
+## v4.7.3 — Reorganización de menús y ayuda alineada
+
+### Interfaz
+
+- **Menú «Opciones» eliminado.** Duplicaba entradas de Ajuste y Vista
+  compartiendo los mismos `QActionGroup` exclusivos, por lo que sus radios y
+  checkmarks no podían reflejar el estado real (mismo defecto que el «Tema
+  visual» duplicado retirado en v4.7.1). Desaparecen también las lambdas de
+  sincronización entre menús.
+- **Menú Ajuste reagrupado**: «Modo de ajuste» (radios con los **7 modos** del
+  combo lateral, antes solo 2, con sincronización en ambos sentidos también
+  para P(ΔEQ)/P(IS)/2D), submenús «Preparación» (centro, mínimos, IA) y
+  «Análisis de errores» (bootstrap, verosimilitud perfilada y L-curve, antes
+  desubicada al final del menú), bloque de parámetros y Opciones avanzadas.
+- **Archivo**: «Open Recent» traducido (clave `file.open_recent` ES/EN/FR) y
+  «Usar como calibración» junto a Cargar/Recientes.
+- `fit_mode_labels()` en `gui/main_layout.py` como fuente única de las
+  etiquetas de modo (combo lateral + menú).
+
+### Ayuda integrada
+
+- ES: eliminado el capítulo «Menú Opciones»; «Menú Ajuste» reescrito y
+  reordenado según el menú real, con entrada nueva para «Editar mínimos
+  (semi-manual)» (existía en el menú pero no estaba documentada); «Abrir
+  recientes» en Menú Archivo.
+- Rutas «menú → ítem» actualizadas en los tres idiomas (Buscar centro,
+  Bootstrap, Verosimilitud perfilada y L-curve apuntan a sus submenús nuevos);
+  verificado con un inventario automático sin referencias obsoletas.
+
+---
+
+## v4.7.2 — Revisión de fallos latentes, batch coherente e i18n de actualizaciones
+
+### Bugs corregidos
+
+- **Cargar P fija lanzaba `NameError`.** `gui/distribution_fit.py` usaba `Path`
+  y `ROOT` sin importarlos/definirlos; la acción «Cargar P fija» fallaba siempre.
+- **Diálogos web siempre en español.** El patrón `tr(...) if hasattr(tr, "_d")
+  else "literal"` de `gui/web_api.py` era siempre falso, así que se ignoraban
+  las traducciones EN/FR existentes. Sustituido por `tr(clave, default=...)`.
+- **Duplicados divergentes en `core/data_io.py`.** Tenía copias antiguas de las
+  funciones de lectura/folding que habían divergido de `core/folding.py` (sin la
+  heurística ≥400 del folding point Normos; `weight_sum` 4 vs 12 al estimar
+  `depth` desde ARE). Ahora reexporta las canónicas de `core.folding`.
+- **Desalineación latente en `core/fit_engine.py`.** Los globales
+  `vmax`/`center`/`voigt_sigma` se añadían a `x0` solo si la clave existía en
+  `values`, pero el residuo y el desempaquetado final solo miraban el flag;
+  un flag activo sin clave desalineaba el vector de parámetros. Condiciones
+  unificadas en las tres rutas.
+- **El batch doblaba distinto que el flujo principal.** El diálogo de lote
+  (`gui/dialogs.py`) ahora usa `fold_and_normalize` (recorte de borde) y
+  `velocity_axis`, igual que la GUI e `HeadlessSession`, y el `FitState` recibe
+  `counts`/`norm_factor`/`center` del fichero del batch (antes conservaba los
+  del espectro cargado, afectando al re-folding de `fit_center` y la σ Poisson).
+  Los resultados de batch pueden variar ligeramente respecto a series antiguas
+  (se excluyen los dos canales de borde); batch e individual ahora coinciden.
+
+### Internacionalización
+
+- **Diálogos de actualización traducidos** (`gui/updates.py`): 31 claves nuevas
+  `updates.*` en los catálogos ES/EN/FR; antes todo el flujo de actualizaciones
+  aparecía en español también con la interfaz en inglés o francés.
+
+### Robustez y limpieza
+
+- `mossbauer_updater.py`: si una descarga falla a medias se borra el fichero
+  parcial en lugar de dejarlo en Descargas.
+- `gui/dialogs.py`: eliminada una línea muerta del batch y protegido el flag
+  `_building` del warm-start con `try/finally`.
+- Comentario de `LINE_POS_33T` en `mossbauer_distribution.py` corregido
+  (contradecía la convención del patrón publicado de α-Fe; ver v4.0.2/v4.0.3).
+- Docstrings que aludían a la GUI Tk eliminada e imports redundantes.
+
 ---
 
 ## v4.7.1 — Revisión completa de ayuda y corrección de menú

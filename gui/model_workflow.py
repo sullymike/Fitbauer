@@ -59,8 +59,8 @@ class ModelWorkflowMixin:
         self._sync_component_count(self._ui_action_state().n_components)
         # La visibilidad de dist_panel/sextetes la fija _sync_component_count
         # según el modo y el contenedor (apilado o pestañas).
-        # Sincroniza el radio del menú Fit
-        if hasattr(self, "_mode_menu_actions") and 0 <= idx < 2:
+        # Sincroniza el radio del menú Ajuste → Modo de ajuste (los 7 modos).
+        if hasattr(self, "_mode_menu_actions") and 0 <= idx < len(self._mode_menu_actions):
             self._mode_menu_actions[idx].setChecked(True)
         if is_dist:
             if is_2d:

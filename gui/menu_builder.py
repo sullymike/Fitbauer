@@ -7,11 +7,17 @@ from PySide6 import QtGui, QtWidgets
 
 from mossbauer_i18n import tr, get_language, set_language, available_languages
 from core.data_io import SETTINGS_PATH
+from gui.main_layout import fit_mode_labels
 from gui.themes import COLOR_THEMES
 
 
 class MenuBuilderMixin:
-    # ── Menubar (orden igual al de la GUI Tk) ────────────────────────────
+    # ── Menubar ──────────────────────────────────────────────────────────
+    # Estructura: Archivo / Ajuste / Vista / Ayuda. El antiguo menú
+    # "Opciones" (herencia Tk) se eliminó: duplicaba entradas de Ajuste y
+    # Vista compartiendo los mismos QActionGroup exclusivos, con lo que sus
+    # checkmarks nunca podían reflejar el estado (mismo problema que el
+    # "Tema visual" duplicado retirado en v4.7.1).
     def _build_menubar(self) -> None:
         mb = self.menuBar()
 
@@ -21,8 +27,13 @@ class MenuBuilderMixin:
         act_open.setShortcut(QtGui.QKeySequence.Open)
         act_open.triggered.connect(self.on_open)
         file_menu.addAction(act_open)
-        self.recent_menu = file_menu.addMenu("Open Recent")
+        self.recent_menu = file_menu.addMenu(tr("file.open_recent", default="Abrir recientes"))
         self._rebuild_recent_menu()
+        self.act_use_as_calib = QtGui.QAction(tr("file.use_as_calibration"), self)
+        self.act_use_as_calib.triggered.connect(self._use_as_calibration_detailed)
+        self.act_use_as_calib.setEnabled(False)
+        file_menu.addAction(self.act_use_as_calib)
+        file_menu.addSeparator()
         web_menu = file_menu.addMenu(tr("file.web"))
         act_web_meas = QtGui.QAction(tr("file.web_measurements"), self)
         act_web_meas.triggered.connect(lambda: self._open_web_dialog("measurements"))
@@ -34,10 +45,6 @@ class MenuBuilderMixin:
         self.act_upload_session.triggered.connect(self.on_upload_session)
         self.act_upload_session.setEnabled(False)
         web_menu.addAction(self.act_upload_session)
-        self.act_use_as_calib = QtGui.QAction(tr("file.use_as_calibration"), self)
-        self.act_use_as_calib.triggered.connect(self._use_as_calibration_detailed)
-        self.act_use_as_calib.setEnabled(False)
-        file_menu.addAction(self.act_use_as_calib)
         file_menu.addSeparator()
         self.act_save_fit = QtGui.QAction(tr("file.save_fit"), self)
         self.act_save_fit.triggered.connect(self.on_save_fit)
@@ -78,55 +85,78 @@ class MenuBuilderMixin:
         self.act_undo_fit.triggered.connect(self._undo_fit)
         self.act_undo_fit.setEnabled(False)
         fit_menu.addAction(self.act_undo_fit)
+        # Modo de ajuste: radios para TODOS los modos del combo lateral
+        # (sincronizados en ambos sentidos vía _on_mode_changed).
+        mode_menu = fit_menu.addMenu(tr("fit.mode_menu", default="Modo de ajuste"))
+        self.mode_action_group = QtGui.QActionGroup(self)
+        self._mode_menu_actions = []
+        for idx, label in enumerate(fit_mode_labels()):
+            a = QtGui.QAction(label, self, checkable=True)
+            if idx == 0:
+                a.setChecked(True)
+            a.triggered.connect(lambda _c=False, i=idx: self.mode_combo.setCurrentIndex(i))
+            mode_menu.addAction(a)
+            self.mode_action_group.addAction(a)
+            self._mode_menu_actions.append(a)
         fit_menu.addSeparator()
+        # Preparación del ajuste (acciones pre-ajuste).
+        prep_menu = fit_menu.addMenu(tr("fit.prepare_menu", default="Preparación"))
         self.act_find_center = QtGui.QAction(tr("fit.find_center"), self)
         self.act_find_center.triggered.connect(self.on_find_center)
         self.act_find_center.setEnabled(False)
-        fit_menu.addAction(self.act_find_center)
+        prep_menu.addAction(self.act_find_center)
         self.act_init = QtGui.QAction(tr("fit.init_from_minima"), self)
         # QAction.triggered emits a checked=False argument.  Use a lambda so it
         # does not override on_init_from_minima(show_message=True).
         self.act_init.triggered.connect(lambda _checked=False: self.on_init_from_minima(show_message=True))
         self.act_init.setEnabled(False)
-        fit_menu.addAction(self.act_init)
+        prep_menu.addAction(self.act_init)
         self.act_edit_minima = QtGui.QAction(
             tr("minima.edit_action", default="Editar mínimos (semi-manual)…"), self)
         self.act_edit_minima.triggered.connect(lambda _checked=False: self.on_edit_minima())
         self.act_edit_minima.setEnabled(False)
-        fit_menu.addAction(self.act_edit_minima)
+        prep_menu.addAction(self.act_edit_minima)
         self.act_auto_fit = QtGui.QAction(tr("fit.auto_from_minima"), self)
         self.act_auto_fit.triggered.connect(lambda _checked=False: self.on_auto_fit_from_minima())
         self.act_auto_fit.setEnabled(False)
-        fit_menu.addAction(self.act_auto_fit)
+        prep_menu.addAction(self.act_auto_fit)
         self.act_ai = QtGui.QAction(tr("fit.ollama_start"), self)
         self.act_ai.triggered.connect(self.on_ai_summary)
         self.act_ai.setEnabled(False)
-        fit_menu.addAction(self.act_ai)
-        fit_menu.addSeparator()
+        prep_menu.addAction(self.act_ai)
+        # Análisis de errores post-ajuste (incluida la L-curve del modo distribución).
+        err_menu = fit_menu.addMenu(tr("fit.error_analysis_menu", default="Análisis de errores"))
         self.act_bootstrap = QtGui.QAction(tr("fit.bootstrap"), self)
         self.act_bootstrap.triggered.connect(self.on_bootstrap)
         self.act_bootstrap.setEnabled(False)
-        fit_menu.addAction(self.act_bootstrap)
+        err_menu.addAction(self.act_bootstrap)
         self.act_profile = QtGui.QAction(tr("fit.profile_likelihood"), self)
         self.act_profile.triggered.connect(self.on_profile_likelihood)
         self.act_profile.setEnabled(False)
-        fit_menu.addAction(self.act_profile)
+        err_menu.addAction(self.act_profile)
+        self.act_lcurve = QtGui.QAction(tr("bhf.lcurve_alpha"), self)
+        self.act_lcurve.triggered.connect(self.on_lcurve)
+        self.act_lcurve.setEnabled(False)
+        err_menu.addAction(self.act_lcurve)
         self.act_batch = QtGui.QAction(tr("fit.batch_fit"), self)
         self.act_batch.triggered.connect(self.on_batch_fit)
         fit_menu.addAction(self.act_batch)
         fit_menu.addSeparator()
-        # Modos (radio): Discreto / P(BHF) — coincide con el combobox lateral.
-        self.mode_action_group = QtGui.QActionGroup(self)
-        act_discrete = QtGui.QAction(tr("options.discrete_sextets"), self, checkable=True)
-        act_discrete.setChecked(True)
-        act_discrete.triggered.connect(lambda _c: self.mode_combo.setCurrentIndex(0))
-        fit_menu.addAction(act_discrete); self.mode_action_group.addAction(act_discrete)
-        act_pbhf = QtGui.QAction(tr("options.distribution_bhf"), self, checkable=True)
-        act_pbhf.triggered.connect(lambda _c: self.mode_combo.setCurrentIndex(1))
-        fit_menu.addAction(act_pbhf); self.mode_action_group.addAction(act_pbhf)
-        self._mode_menu_actions = [act_discrete, act_pbhf]
+        # Gestión de parámetros del modelo.
+        act_free_all = QtGui.QAction(tr("fit.free_all"), self)
+        act_free_all.triggered.connect(lambda: self._set_all_fixed(False))
+        fit_menu.addAction(act_free_all)
+        act_fix_all = QtGui.QAction(tr("fit.fix_all"), self)
+        act_fix_all.triggered.connect(lambda: self._set_all_fixed(True))
+        fit_menu.addAction(act_fix_all)
+        act_constraints = QtGui.QAction(tr("options.constraints"), self)
+        act_constraints.triggered.connect(self.on_constraints)
+        fit_menu.addAction(act_constraints)
+        act_presets = QtGui.QAction(tr("options.physical_presets"), self)
+        act_presets.triggered.connect(self.on_physical_presets)
+        fit_menu.addAction(act_presets)
         fit_menu.addSeparator()
-        # Submenú de opciones avanzadas (igual estructura que la GUI Tk).
+        # Submenú de opciones avanzadas.
         adv_menu = fit_menu.addMenu(tr("options.advanced_fit"))
         # Perfil de línea
         prof_menu = adv_menu.addMenu(tr("options.line_profile"))
@@ -206,66 +236,7 @@ class MenuBuilderMixin:
         self.act_add_sharp.setChecked(self.dist_use_sharp)
         self.act_add_sharp.toggled.connect(self._set_dist_use_sharp)
         adv_menu.addAction(self.act_add_sharp)
-        fit_menu.addSeparator()
-        act_free_all = QtGui.QAction(tr("fit.free_all"), self)
-        act_free_all.triggered.connect(lambda: self._set_all_fixed(False))
-        fit_menu.addAction(act_free_all)
-        act_fix_all = QtGui.QAction(tr("fit.fix_all"), self)
-        act_fix_all.triggered.connect(lambda: self._set_all_fixed(True))
-        fit_menu.addAction(act_fix_all)
-        fit_menu.addSeparator()
-        act_constraints = QtGui.QAction(tr("options.constraints"), self)
-        act_constraints.triggered.connect(self.on_constraints)
-        fit_menu.addAction(act_constraints)
-        act_presets = QtGui.QAction(tr("options.physical_presets"), self)
-        act_presets.triggered.connect(self.on_physical_presets)
-        fit_menu.addAction(act_presets)
-        self.act_lcurve = QtGui.QAction(tr("bhf.lcurve_alpha"), self)
-        self.act_lcurve.triggered.connect(self.on_lcurve)
-        self.act_lcurve.setEnabled(False)
-        fit_menu.addAction(self.act_lcurve)
 
-        # ── Opciones (menú clásico Tk) ───────────────────────────────────
-        options_menu = mb.addMenu(tr("menu.options"))
-        opt_discrete = QtGui.QAction(tr("options.discrete_sextets"), self, checkable=True)
-        opt_discrete.setChecked(True)
-        opt_discrete.triggered.connect(lambda _c=False: self.mode_combo.setCurrentIndex(0))
-        options_menu.addAction(opt_discrete)
-        self.mode_action_group.addAction(opt_discrete)
-        opt_pbhf = QtGui.QAction(tr("options.distribution_bhf"), self, checkable=True)
-        opt_pbhf.triggered.connect(lambda _c=False: self.mode_combo.setCurrentIndex(1))
-        options_menu.addAction(opt_pbhf)
-        self.mode_action_group.addAction(opt_pbhf)
-        self._mode_menu_actions.extend([opt_discrete, opt_pbhf])
-        options_menu.addSeparator()
-        self.act_opt_show_residual = QtGui.QAction(tr("options.show_residual"), self,
-                                                   checkable=True, checked=self._show_residual_pref)
-        self.act_opt_show_residual.toggled.connect(lambda checked: getattr(self, "act_show_residual", self.act_opt_show_residual).setChecked(checked))
-        options_menu.addAction(self.act_opt_show_residual)
-        self.act_opt_show_legend = QtGui.QAction(tr("options.show_legend"), self, checkable=True, checked=True)
-        self.act_opt_show_legend.toggled.connect(lambda checked: getattr(self, "act_show_legend", self.act_opt_show_legend).setChecked(checked))
-        options_menu.addAction(self.act_opt_show_legend)
-        options_menu.addSeparator()
-        opt_profile_menu = options_menu.addMenu(tr("options.line_profile"))
-        calib_state = self.calib.to_view_state()
-        for kind, key in (("Lorentziana", "options.profile_lorentzian"), ("Voigt", "options.profile_voigt")):
-            a = QtGui.QAction(tr(key), self, checkable=True)
-            if kind == calib_state.line_profile:
-                a.setChecked(True)
-            a.triggered.connect(lambda _c=False, k=kind: self.calib._set_line_profile(k))
-            opt_profile_menu.addAction(a)
-            self.profile_action_group.addAction(a)
-        options_menu.addSeparator()
-        self.act_opt_add_sharp = QtGui.QAction(tr("options.add_sharp"), self, checkable=True)
-        self.act_opt_add_sharp.toggled.connect(self._set_dist_use_sharp)
-        options_menu.addAction(self.act_opt_add_sharp)
-        options_menu.addSeparator()
-        opt_constraints = QtGui.QAction(tr("options.constraints"), self)
-        opt_constraints.triggered.connect(self.on_constraints)
-        options_menu.addAction(opt_constraints)
-        opt_presets = QtGui.QAction(tr("options.physical_presets"), self)
-        opt_presets.triggered.connect(self.on_physical_presets)
-        options_menu.addAction(opt_presets)
 
         # ── Vista ────────────────────────────────────────────────────────
         view_menu = mb.addMenu(tr("menu.view"))
@@ -273,12 +244,10 @@ class MenuBuilderMixin:
                                                 checkable=True, checked=self._show_residual_pref)
         self.act_show_residual.toggled.connect(self._on_show_residual_toggled)
         self.act_show_residual.toggled.connect(lambda _: self._refresh_plot())
-        self.act_show_residual.toggled.connect(lambda checked: self.act_opt_show_residual.setChecked(checked) if hasattr(self, "act_opt_show_residual") and self.act_opt_show_residual.isChecked() != checked else None)
         view_menu.addAction(self.act_show_residual)
         self.act_show_legend = QtGui.QAction(tr("options.show_legend"), self,
                                               checkable=True, checked=True)
         self.act_show_legend.toggled.connect(lambda _: self._refresh_plot())
-        self.act_show_legend.toggled.connect(lambda checked: self.act_opt_show_legend.setChecked(checked) if hasattr(self, "act_opt_show_legend") and self.act_opt_show_legend.isChecked() != checked else None)
         view_menu.addAction(self.act_show_legend)
         self.act_open_plotly = QtGui.QAction(tr("view.open_plotly"), self)
         self.act_open_plotly.triggered.connect(self.on_open_plotly)
@@ -358,12 +327,11 @@ class MenuBuilderMixin:
 
     def _set_dist_use_sharp(self, enabled: bool) -> None:
         self.dist_use_sharp = bool(enabled)
-        for attr in ("act_add_sharp", "act_opt_add_sharp"):
-            act = getattr(self, attr, None)
-            if act is not None and act.isChecked() != self.dist_use_sharp:
-                act.blockSignals(True)
-                act.setChecked(self.dist_use_sharp)
-                act.blockSignals(False)
+        act = getattr(self, "act_add_sharp", None)
+        if act is not None and act.isChecked() != self.dist_use_sharp:
+            act.blockSignals(True)
+            act.setChecked(self.dist_use_sharp)
+            act.blockSignals(False)
         if hasattr(self, "dist_panel") and self.dist_panel.use_sharp.isChecked() != self.dist_use_sharp:
             self.dist_panel.use_sharp.blockSignals(True)
             self.dist_panel.use_sharp.setChecked(self.dist_use_sharp)
@@ -380,7 +348,6 @@ class MenuBuilderMixin:
         set_language(code)
         # Persistir
         try:
-            import json
             current = {}
             if SETTINGS_PATH.exists():
                 try:

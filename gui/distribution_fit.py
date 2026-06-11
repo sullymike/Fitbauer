@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import numpy as np
 from PySide6 import QtWidgets
@@ -23,6 +24,8 @@ from mossbauer_distribution import (
     fit_fixed_hyperfine_distribution,
     fit_bhf_quad_distribution,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class DistributionFitMixin:

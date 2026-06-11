@@ -225,7 +225,6 @@ class SessionIOMixin:
             "JSON (*.json);;All (*.*)")
         if not path:
             return
-        import json
         try:
             data = self._session_payload()
             Path(path).write_text(
@@ -243,7 +242,6 @@ class SessionIOMixin:
             "JSON (*.json);;All (*.*)")
         if not path:
             return
-        import json
         try:
             data = json.loads(Path(path).read_text(encoding="utf-8"))
         except Exception as exc:
