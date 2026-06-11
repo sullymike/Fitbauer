@@ -683,6 +683,36 @@ class ModelWorkflowMixin:
         self._update_info_panel()
         self._schedule_plotly_update()
 
+    def _render_intermediate_fit(self, state: FitState, free_keys: list[str], free_values: list[float]) -> None:
+        """Renderiza el modelo con los parámetros intermedios del optimizador.
+
+        Se llama desde el progress_cb durante el ajuste discreto; no toca widgets
+        ni emite señales. El render se limita a superponer el modelo total sobre
+        los datos experimentales.
+        """
+        v = self.file.velocity
+        y = self.file.y_data
+        if v is None or y is None:
+            return
+        merged = dict(state.values)
+        merged.update(zip(free_keys, free_values))
+        try:
+            reconstruction = reconstruct_discrete_model(
+                v, y, merged, state.components, state.constraints,
+                absorber_model=state.absorber_model,
+            )
+        except Exception:
+            return
+        from gui.fit_workflow import GuiFitRenderState
+        self._render_fit_result(GuiFitRenderState(
+            velocity=v,
+            y_data=y,
+            model=reconstruction.model_dense,
+            components=[(c.idx, c.kind, c.y) for c in reconstruction.components],
+            residual=reconstruction.residual,
+            model_v=reconstruction.model_v,
+        ))
+
     def _model_grid(self, v: np.ndarray) -> np.ndarray | None:
         """Compatibilidad: delega la rejilla densa en ``core.reconstruction``."""
         return dense_velocity_grid(v)

@@ -479,6 +479,8 @@ def fit_discrete(state: FitState, progress_cb: Callable[[object], None] | None =
                 "iteration": int(progress_state["eval"]),
                 "rms": float(np.sqrt(np.mean(r ** 2))) if r.size else 0.0,
                 "params": _progress_params(x),
+                "free_keys": list(progress_keys),
+                "free_values": x.tolist(),
             }
             if progress_state.get("max_eval") is not None:
                 payload["max_iter"] = int(progress_state["max_eval"])  # type: ignore[arg-type]
