@@ -1,5 +1,37 @@
 # Changelog
 
+## v4.7.5 — Mapas topográficos 2D y editor de atajos
+
+Primera versión **estable** que consolida todo lo introducido en la pre-release
+v4.7.4 (convención FWHM, deshacer ajuste, previsualización en vivo, intensidades
+de doblete/singlete) y añade visualización 2D y atajos configurables.
+
+### Mapas topográficos para distribuciones 2D
+
+- Los ajustes **P(BHF, ΔEQ)**, **P(IS, ΔEQ)** y **P(BHF, IS)** muestran ahora la
+  imagen topográfica del resultado P(x, y), que antes se calculaba pero no se
+  dibujaba en ninguna parte.
+  - **Canvas Matplotlib**: panel inferior con `pcolormesh` + contornos del mapa.
+  - **Diálogo emergente**: heatmap principal con marginales P(x)/P(y) en
+    disposición *corner-plot* y anotación de medias, sigmas y correlación.
+  - **Plotly**: `go.Heatmap` interactivo con `go.Contour` superpuesto y hover
+    con los valores exactos de x, y y P.
+- El mapa persiste en los re-dibujos y se limpia al cambiar a un modo no-2D,
+  lanzar un ajuste discreto o cargar otro fichero.
+- Corrección: el ajuste 2D fallaba con `AttributeError` porque el resultado
+  expone `alpha_bhf`/`alpha_quad` en vez de un único `alpha`.
+
+### Editor de atajos de teclado
+
+- **Ayuda → Atajos de teclado…**: cuadro para ver, asignar y restablecer los
+  atajos de **32 acciones** de los menús Archivo/Ajuste/Vista/Ayuda (traigan o
+  no atajo de fábrica). Los cambios se guardan en las preferencias y se aplican
+  a los menús al instante; detección de conflictos sobre todos los atajos
+  efectivos.
+- Corrección: pulsar **Ctrl+Z** (Deshacer ajuste) tras un ajuste discreto
+  saltaba indebidamente al modo Distribución P(BHF); ahora deshacer conserva el
+  modo activo.
+
 ## v4.7.4 — Mejoras de interfaz y convención FWHM *(pre-release)*
 
 ### Cambio de convención: Γ pasa a ser FWHM
