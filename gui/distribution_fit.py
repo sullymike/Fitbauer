@@ -475,7 +475,8 @@ class DistributionFitMixin:
         self.canvas.render(self.file.velocity, self.file.y_data,
                            model=result.fitted_curve, components=components_for_plot,
                            style=style, show_residual=show_res, show_legend=show_leg,
-                           style_name=self.plot_style_name)
+                           style_name=self.plot_style_name,
+                           dist_map_2d=result if shape == "2D" else None)
 
         if shape == "2D":
             alpha_q_log = d.log_alpha_q.value() if hasattr(d, "log_alpha_q") else -2.0
@@ -514,6 +515,14 @@ class DistributionFitMixin:
         self._show_distribution_dialog(result)
 
     def _show_distribution_dialog(self, result) -> None:
+        from core.result_views import DistributionResultView
+        view = DistributionResultView(result)
+        if view.is_2d():
+            self._show_distribution_dialog_2d(result, view)
+        else:
+            self._show_distribution_dialog_1d(result)
+
+    def _show_distribution_dialog_1d(self, result) -> None:
         var = self.dist_variable
         title = "P(ΔEQ)" if var == "quad" else "P(BHF)"
         xlabel = (tr("plot.distribution_xlabel_deq") if var == "quad"
@@ -521,16 +530,109 @@ class DistributionFitMixin:
         dlg = QtWidgets.QDialog(self)
         dlg.setWindowTitle(title)
         dlg.resize(720, 480)
-        v = QtWidgets.QVBoxLayout(dlg)
+        lay = QtWidgets.QVBoxLayout(dlg)
         fig = Figure(figsize=(8.0, 4.5), dpi=96)
-        cv = FigureCanvas(fig); v.addWidget(cv, stretch=1)
+        cv = FigureCanvas(fig); lay.addWidget(cv, stretch=1)
         ax = fig.add_subplot(111)
-        ax.plot(result.bhf_centers, result.probability, "-", color="#2563eb", lw=2.0)
-        ax.fill_between(result.bhf_centers, result.probability, 0, color="#93c5fd", alpha=0.45)
+        xc = np.asarray(result.bhf_centers, dtype=float)
+        pr = np.asarray(result.probability, dtype=float)
+        ax.plot(xc, pr, "-", color="#2563eb", lw=2.0)
+        ax.fill_between(xc, pr, 0, color="#93c5fd", alpha=0.45)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(title)
         ax.grid(True, alpha=0.3)
         fig.tight_layout(); cv.draw_idle()
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
-        bb.rejected.connect(dlg.reject); v.addWidget(bb)
+        bb.rejected.connect(dlg.reject); lay.addWidget(bb)
+        dlg.exec()
+
+    def _show_distribution_dialog_2d(self, result, view) -> None:
+        import numpy as np
+        from matplotlib.gridspec import GridSpec
+        xc, yc, P = view.probability_2d()
+        xlbl, ylbl = view.var_labels_2d()
+        mx, my = view.marginals_2d()
+        xv = getattr(result, "x_variable", "bhf")
+        yv = getattr(result, "y_variable", "quad")
+        _short = {"bhf": "B_HF", "quad": "ΔEQ", "delta": "δ"}
+        title_map = f"P({_short.get(xv, xv)}, {_short.get(yv, yv)})"
+
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(title_map)
+        dlg.resize(820, 700)
+        lay = QtWidgets.QVBoxLayout(dlg)
+
+        fig = Figure(figsize=(8.5, 7.0), dpi=96)
+        cv = FigureCanvas(fig); lay.addWidget(cv, stretch=1)
+
+        # Disposición: fila superior = marginal x; columna derecha = marginal y;
+        # celda principal = heatmap 2D.
+        has_marginals = mx is not None and my is not None
+        if has_marginals:
+            gs = GridSpec(2, 2, figure=fig,
+                          width_ratios=[4, 1], height_ratios=[1, 4],
+                          hspace=0.06, wspace=0.06)
+            ax_main  = fig.add_subplot(gs[1, 0])
+            ax_top   = fig.add_subplot(gs[0, 0], sharex=ax_main)
+            ax_right = fig.add_subplot(gs[1, 1], sharey=ax_main)
+        else:
+            gs = GridSpec(1, 1, figure=fig)
+            ax_main = fig.add_subplot(gs[0, 0])
+            ax_top = ax_right = None
+
+        cmap = "viridis"
+        im = ax_main.pcolormesh(xc, yc, P.T, cmap=cmap, shading="auto")
+        if P.size >= 4:
+            try:
+                ax_main.contour(xc, yc, P.T, levels=5,
+                                colors="white", linewidths=0.6, alpha=0.5)
+            except Exception:
+                pass
+        fig.colorbar(im, ax=ax_main, fraction=0.046, pad=0.04, label="P(x, y)")
+        ax_main.set_xlabel(xlbl, fontsize=10)
+        ax_main.set_ylabel(ylbl, fontsize=10)
+        ax_main.set_title(title_map, fontsize=11, fontweight="bold")
+        ax_main.grid(False)
+
+        if has_marginals and ax_top is not None and ax_right is not None:
+            # Marginal X (superior)
+            norm_x = float(mx.max()) or 1.0
+            ax_top.fill_between(xc, mx / norm_x, 0, color="#3b82f6", alpha=0.55)
+            ax_top.plot(xc, mx / norm_x, "-", color="#1d4ed8", lw=1.5)
+            ax_top.set_ylabel("P(x)", fontsize=8)
+            ax_top.tick_params(labelbottom=False, labelsize=7)
+            ax_top.grid(True, alpha=0.25)
+            ax_top.set_title("")
+            # Marginal Y (derecha) — horizontal
+            norm_y = float(my.max()) or 1.0
+            ax_right.fill_betweenx(yc, my / norm_y, 0, color="#f59e0b", alpha=0.55)
+            ax_right.plot(my / norm_y, yc, "-", color="#d97706", lw=1.5)
+            ax_right.set_xlabel("P(y)", fontsize=8)
+            ax_right.tick_params(labelleft=False, labelsize=7)
+            ax_right.grid(True, alpha=0.25)
+
+        # Estadísticas en texto
+        lines = []
+        for attr, fmt, name in (
+            ("mean_bhf",  ".3f", f"⟨{_short.get(xv, xv)}⟩"),
+            ("sigma_bhf", ".3f", f"σ({_short.get(xv, xv)})"),
+            ("mean_quad", ".3f", f"⟨{_short.get(yv, yv)}⟩"),
+            ("sigma_quad",".3f", f"σ({_short.get(yv, yv)})"),
+            ("corr_bhf_quad", ".3f", "ρ(x,y)"),
+        ):
+            val = getattr(result, attr, None)
+            if val is not None:
+                lines.append(f"{name} = {val:{fmt}}")
+        if lines:
+            ax_main.annotate(
+                "  ".join(lines),
+                xy=(0.01, 0.01), xycoords="axes fraction",
+                fontsize=7.5, color="white",
+                bbox=dict(boxstyle="round,pad=0.25", fc="#00000080", ec="none"),
+            )
+
+        fig.tight_layout()
+        cv.draw_idle()
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
+        bb.rejected.connect(dlg.reject); lay.addWidget(bb)
         dlg.exec()

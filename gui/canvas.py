@@ -64,7 +64,8 @@ class SpectrumCanvas(FigureCanvas):
                show_legend: bool = True,
                model_v: np.ndarray | None = None,
                residual: np.ndarray | None = None,
-               style_name: str | None = None) -> None:
+               style_name: str | None = None,
+               dist_map_2d=None) -> None:
         s = style or get_style("classic")
         actual_show_residual = bool(show_residual)
         # ``model``/``components`` pueden venir muestreados en una rejilla densa
@@ -89,11 +90,12 @@ class SpectrumCanvas(FigureCanvas):
             "show_legend": bool(show_legend),
         }
         n_comp = len(components or [])
+        has_2d = dist_map_2d is not None
         # Firma de la disposición: si no cambia, se reutilizan los ejes/artistas
         # y solo se reescriben los datos (mucho más rápido, sin reconstruir).
         layout_sig = (actual_show_residual, model is not None, n_comp,
                       bool(show_legend), style_name, int(np.asarray(v).size),
-                      int(np.asarray(mv).size))
+                      int(np.asarray(mv).size), has_2d)
         if (self._artists is not None and self._layout_sig == layout_sig
                 and style_name is not None):
             try:
@@ -109,7 +111,19 @@ class SpectrumCanvas(FigureCanvas):
         self.residual_pref = actual_show_residual
         self.fig.clear()
         self._artists = None
-        if actual_show_residual:
+        self.ax_map = None
+        if has_2d and actual_show_residual:
+            self._gs = self.fig.add_gridspec(
+                3, 1, height_ratios=[3.5, 0.9, 2.5], hspace=0.08)
+            self.ax = self.fig.add_subplot(self._gs[0])
+            self.ax_res = self.fig.add_subplot(self._gs[1], sharex=self.ax)
+            self.ax_map = self.fig.add_subplot(self._gs[2])
+        elif has_2d:
+            self._gs = self.fig.add_gridspec(2, 1, height_ratios=[1.5, 1.6], hspace=0.28)
+            self.ax = self.fig.add_subplot(self._gs[0])
+            self.ax_res = None
+            self.ax_map = self.fig.add_subplot(self._gs[1])
+        elif actual_show_residual:
             self._gs = self.fig.add_gridspec(2, 1, height_ratios=[4.6, 1.0], hspace=0.08)
             self.ax = self.fig.add_subplot(self._gs[0])
             self.ax_res = self.fig.add_subplot(self._gs[1], sharex=self.ax)
@@ -181,6 +195,8 @@ class SpectrumCanvas(FigureCanvas):
             self.ax.legend(loc="lower right", fontsize=9, framealpha=0.85,
                            facecolor=s["leg_face"], edgecolor=s["leg_edge"],
                            labelcolor=s["leg_text"])
+        if dist_map_2d is not None and self.ax_map is not None:
+            self._draw_2d_map(self.ax_map, dist_map_2d, s, style_name)
         self.fig.tight_layout()
         self.draw_idle()
         # Memoriza artistas y disposición para los refrescos incrementales.
@@ -194,6 +210,45 @@ class SpectrumCanvas(FigureCanvas):
             "res_alpha": s.get("res_fill_alpha", 0.22),
         }
         self._layout_sig = layout_sig
+        self.last_render["dist_map_2d"] = dist_map_2d
+
+    @staticmethod
+    def _draw_2d_map(ax, result, style: dict, style_name: str | None) -> None:
+        """Dibuja el heatmap topográfico P(x,y) en el eje ax."""
+        from core.result_views import DistributionResultView
+        view = DistributionResultView(result)
+        try:
+            xc, yc, P = view.probability_2d()
+        except (AttributeError, Exception):
+            return
+        xlbl, ylbl = view.var_labels_2d()
+        cmap = "inferno" if style_name == "dark" else "viridis"
+        ax.set_facecolor(style.get("ax_bg", "#f8fafc"))
+        # pcolormesh: Z[j,i] = valor en (y[j], x[i]) → transponer P (n_x, n_y) → (n_y, n_x)
+        im = ax.pcolormesh(xc, yc, P.T, cmap=cmap, shading="auto")
+        try:
+            ax.get_figure().colorbar(im, ax=ax, fraction=0.046, pad=0.04,
+                                     label="P(x, y)")
+        except Exception:
+            pass
+        # Contornos suaves sobre el heatmap para resaltar la topografía
+        if P.size >= 4:
+            try:
+                ax.contour(xc, yc, P.T, levels=5, colors="white",
+                           linewidths=0.5, alpha=0.45)
+            except Exception:
+                pass
+        ax.set_xlabel(xlbl, color=style.get("lbl", "#1e293b"))
+        ax.set_ylabel(ylbl, color=style.get("lbl", "#1e293b"))
+        xv = getattr(result, "x_variable", "bhf")
+        yv = getattr(result, "y_variable", "quad")
+        _short = {"bhf": "B_HF", "quad": "ΔEQ", "delta": "δ"}
+        title = f"P({_short.get(xv, xv)}, {_short.get(yv, yv)})"
+        ax.set_title(title, fontsize=9, color=style.get("title", "#0c4a6e"),
+                     fontweight="bold")
+        ax.tick_params(colors=style.get("tick", "#64748b"))
+        for sp in ax.spines.values():
+            sp.set_color(style.get("spine", "#cbd5e1"))
 
     def _update_fast(self, v, y, model, components, residual, mv, s,
                      actual_show_residual) -> None:

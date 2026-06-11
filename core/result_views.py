@@ -133,11 +133,50 @@ class DistributionResultView:
     def __init__(self, result: Any):
         self.result = result
 
+    def is_2d(self) -> bool:
+        """True si el resultado es una distribución 2D (P(x,y))."""
+        p = getattr(self.result, "probability", None)
+        return p is not None and np.asarray(p).ndim == 2
+
     def probability_curve(self) -> tuple[np.ndarray, np.ndarray]:
-        return (
-            np.asarray(getattr(self.result, "bhf_centers"), dtype=float),
-            np.asarray(getattr(self.result, "probability"), dtype=float),
-        )
+        """Curva 1D: para 2D devuelve la marginal del eje X."""
+        x = np.asarray(getattr(self.result, "bhf_centers"), dtype=float)
+        p = np.asarray(getattr(self.result, "probability"), dtype=float)
+        if p.ndim == 2:
+            # Marginal sobre el eje X
+            marginal = getattr(self.result, "marginal_bhf", None)
+            p = np.asarray(marginal, dtype=float) if marginal is not None else p.sum(axis=1)
+            norm = float(p.max()) or 1.0
+            p = p / norm
+        return x, p
+
+    def probability_2d(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Para resultados 2D: (x_centers, y_centers, probability_matrix).
+
+        probability_matrix tiene forma (n_x, n_y); transponer para pcolormesh/imshow.
+        Lanza AttributeError si el resultado no es 2D.
+        """
+        if not self.is_2d():
+            raise AttributeError("El resultado no es 2D")
+        x = np.asarray(self.result.bhf_centers, dtype=float)
+        y = np.asarray(self.result.quad_centers, dtype=float)
+        p = np.asarray(self.result.probability, dtype=float)
+        return x, y, p
+
+    def marginals_2d(self) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
+        """Marginales 1D del resultado 2D: (marginal_x, marginal_y)."""
+        mx = getattr(self.result, "marginal_bhf", None)
+        my = getattr(self.result, "marginal_quad", None)
+        if mx is None or my is None:
+            return None, None
+        return np.asarray(mx, dtype=float), np.asarray(my, dtype=float)
+
+    def var_labels_2d(self) -> tuple[str, str]:
+        """Etiquetas de ejes (xlabel, ylabel) para un resultado 2D."""
+        _lbl = {"bhf": "B$_{HF}$ (T)", "quad": "ΔEQ (mm/s)", "delta": "δ (mm/s)"}
+        xv = getattr(self.result, "x_variable", "bhf")
+        yv = getattr(self.result, "y_variable", "quad")
+        return _lbl.get(xv, xv), _lbl.get(yv, yv)
 
     def fitted_curve(self) -> np.ndarray:
         return np.asarray(getattr(self.result, "fitted_curve"), dtype=float)

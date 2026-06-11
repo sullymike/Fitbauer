@@ -48,12 +48,13 @@ class PlotlyToolsMixin:
         dist_result = self.runtime_results.distribution_result if getattr(self, "is_distribution_mode", False) else None
         dist_view = distribution_result_view(dist_result) if dist_result is not None else None
         show_distribution = bool(dist_view is not None)
+        is_2d_dist = show_distribution and dist_view.is_2d()
         rows = 1 + (1 if show_residual else 0) + (1 if show_distribution else 0)
         row_heights = [0.62]
         if show_residual:
             row_heights.append(0.18)
         if show_distribution:
-            row_heights.append(0.20)
+            row_heights.append(0.38 if is_2d_dist else 0.20)
         fig = make_subplots(
             rows=rows, cols=1, shared_xaxes=False,
             row_heights=row_heights, vertical_spacing=0.055,
@@ -109,20 +110,67 @@ class PlotlyToolsMixin:
                 fig.update_xaxes(title_text=tr("plot.velocity_xlabel"), row=res_row, col=1)
         if show_distribution:
             dist_row = rows
-            xdist, pdist = dist_view.probability_curve()
-            dist_name = "P(ΔEQ)" if self.dist_variable == "quad" else "P(BHF)"
-            fig.add_trace(
-                go.Scatter(
-                    x=xdist, y=pdist, mode="lines", name=dist_name,
-                    line=dict(color="#2563eb", width=2.2),
-                    fill="tozeroy", fillcolor="rgba(37,99,235,0.22)",
-                    hovertemplate="x=%{x:.5g}<br>P=%{y:.6g}<extra></extra>",
-                ),
-                row=dist_row, col=1,
-            )
-            xlabel = tr("plot.distribution_xlabel_deq") if self.dist_variable == "quad" else tr("plot.distribution_xlabel_bhf")
-            fig.update_xaxes(title_text=xlabel, row=dist_row, col=1)
-            fig.update_yaxes(title_text=dist_name, row=dist_row, col=1)
+            if dist_view.is_2d():
+                xc, yc, P = dist_view.probability_2d()
+                xlbl, ylbl = dist_view.var_labels_2d()
+                xv = getattr(dist_result, "x_variable", "bhf")
+                yv = getattr(dist_result, "y_variable", "quad")
+                _short = {"bhf": "B_HF", "quad": "ΔEQ", "delta": "δ"}
+                dist_name = f"P({_short.get(xv, xv)}, {_short.get(yv, yv)})"
+                cscale = "Inferno" if (self.plot_style_name == "dark" or
+                                       self.color_theme == "dark") else "Viridis"
+                fig.add_trace(
+                    go.Heatmap(
+                        z=P.T.tolist(),     # shape (n_y, n_x) para Plotly
+                        x=xc.tolist(),
+                        y=yc.tolist(),
+                        colorscale=cscale,
+                        colorbar=dict(
+                            title="P(x,y)",
+                            len=0.35, y=0.13,
+                            thickness=14,
+                        ),
+                        name=dist_name,
+                        hovertemplate=(
+                            f"{xlbl}=%{{x:.4g}}<br>"
+                            f"{ylbl}=%{{y:.4g}}<br>"
+                            "P=%{z:.5g}<extra></extra>"
+                        ),
+                    ),
+                    row=dist_row, col=1,
+                )
+                # Contornos superpuestos en la misma celda
+                try:
+                    fig.add_trace(
+                        go.Contour(
+                            z=P.T.tolist(), x=xc.tolist(), y=yc.tolist(),
+                            contours=dict(coloring="none", showlabels=False),
+                            line=dict(color="white", width=0.6),
+                            showscale=False, opacity=0.5, name="",
+                            hoverinfo="skip",
+                        ),
+                        row=dist_row, col=1,
+                    )
+                except Exception:
+                    pass
+                fig.update_xaxes(title_text=xlbl, row=dist_row, col=1)
+                fig.update_yaxes(title_text=ylbl, row=dist_row, col=1)
+            else:
+                xdist, pdist = dist_view.probability_curve()
+                dist_name = "P(ΔEQ)" if self.dist_variable == "quad" else "P(BHF)"
+                fig.add_trace(
+                    go.Scatter(
+                        x=xdist, y=pdist, mode="lines", name=dist_name,
+                        line=dict(color="#2563eb", width=2.2),
+                        fill="tozeroy", fillcolor="rgba(37,99,235,0.22)",
+                        hovertemplate="x=%{x:.5g}<br>P=%{y:.6g}<extra></extra>",
+                    ),
+                    row=dist_row, col=1,
+                )
+                xlabel = (tr("plot.distribution_xlabel_deq") if self.dist_variable == "quad"
+                          else tr("plot.distribution_xlabel_bhf"))
+                fig.update_xaxes(title_text=xlabel, row=dist_row, col=1)
+                fig.update_yaxes(title_text=dist_name, row=dist_row, col=1)
         if not show_residual:
             fig.update_xaxes(title_text=tr("plot.velocity_xlabel"), row=1, col=1)
         template = "plotly_dark" if self.plot_style_name == "dark" or self.color_theme == "dark" else "plotly_white"
