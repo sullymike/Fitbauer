@@ -22,7 +22,7 @@ from core.relaxation import GlobalRelaxationSpectrum, fit_neel_size_global  # no
 
 def test_empirical_relaxation_limits_match_sextet_and_area_scaled_doublet():
     v = np.linspace(-12.0, 12.0, 512)
-    pars = dict(delta=0.25, quad=0.55, bhf=33.0, gamma1=0.16,
+    pars = dict(delta=0.25, quad=0.55, bhf=33.0, gamma1=0.32,
                 gamma2=1.0, gamma3=1.0, depth=0.02,
                 int1=3.0, int2=2.0, int3=1.0)
     sext = sextet_absorption(v, **pars)
@@ -39,7 +39,7 @@ def test_empirical_relaxation_limits_match_sextet_and_area_scaled_doublet():
 
 def test_log10_nu_controls_phenomenological_relaxation_limit():
     v = np.linspace(-12.0, 12.0, 512)
-    pars = dict(delta=0.25, quad=0.55, bhf=33.0, gamma1=0.16,
+    pars = dict(delta=0.25, quad=0.55, bhf=33.0, gamma1=0.32,
                 gamma2=1.0, gamma3=1.0, depth=0.02,
                 int1=3.0, int2=2.0, int3=1.0, blocked_fraction=1.0)
     slow = relaxation_empirical_absorption(v, log10_nu=5.0, **pars)
@@ -56,7 +56,7 @@ def test_log10_nu_controls_phenomenological_relaxation_limit():
 
 def test_blume_tjon_two_state_has_slow_and_fast_limits():
     v = np.linspace(-12.0, 12.0, 512)
-    pars = dict(delta=0.25, quad=0.55, bhf=33.0, gamma1=0.16,
+    pars = dict(delta=0.25, quad=0.55, bhf=33.0, gamma1=0.32,
                 gamma2=1.0, gamma3=1.0, depth=0.02,
                 int1=3.0, int2=2.0, int3=1.0)
     slow = relaxation_blume_tjon_two_state_absorption(v, log10_nu=4.0, **pars)
@@ -85,7 +85,7 @@ def test_neel_size_component_changes_with_temperature():
     values = {
         "baseline": 1.0, "slope": 0.0,
         "s1_delta": 0.0, "s1_quad": 0.6, "s1_bhf": 33.0,
-        "s1_gamma1": 0.16, "s1_gamma2": 1.0, "s1_gamma3": 1.0,
+        "s1_gamma1": 0.32, "s1_gamma2": 1.0, "s1_gamma3": 1.0,
         "s1_depth": 0.02, "s1_int1": 3.0, "s1_int2": 2.0, "s1_int3": 1.0,
         "s1_neel_temp_k": 80.0, "s1_neel_log10_keff": 4.0,
         "s1_neel_mean_d_nm": 8.0, "s1_neel_sigma": 0.25,
@@ -102,7 +102,7 @@ def test_global_neel_size_fit_recovers_shared_diameter_from_synthetic_pair():
     v = np.linspace(-12.0, 12.0, 180)
     shared = {
         "delta": 0.0, "quad": 0.6, "bhf": 33.0,
-        "gamma1": 0.16, "gamma2": 1.0, "gamma3": 1.0,
+        "gamma1": 0.32, "gamma2": 1.0, "gamma3": 1.0,
         "int1": 3.0, "int2": 2.0, "int3": 1.0,
         "neel_log10_keff": 4.0, "neel_mean_d_nm": 8.0,
         "neel_sigma": 0.25, "neel_log10_tau0": -9.0, "neel_bins": 10.0,
@@ -138,7 +138,7 @@ def test_model_from_values_uses_relaxation_fraction():
     values = {
         "baseline": 1.0, "slope": 0.0,
         "s1_delta": 0.0, "s1_quad": 0.6, "s1_bhf": 33.0,
-        "s1_gamma1": 0.16, "s1_gamma2": 1.0, "s1_gamma3": 1.0,
+        "s1_gamma1": 0.32, "s1_gamma2": 1.0, "s1_gamma3": 1.0,
         "s1_depth": 0.02, "s1_int1": 3.0, "s1_int2": 2.0, "s1_int3": 1.0,
         "s1_relax_fraction": 1.0, "s1_relax_log_nu": 5.0,
     }

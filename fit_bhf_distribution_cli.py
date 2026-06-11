@@ -32,7 +32,7 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--delta", type=float, default=None, help="CS/delta fijo. Por defecto intenta .RES o 0.")
     parser.add_argument("--quad", type=float, default=None, help="DeltaEQ fijo. Por defecto intenta .RES/.JOB o 0.")
-    parser.add_argument("--gamma", type=float, default=None, help="Gamma HWHM fija. Por defecto intenta WID/2 de .RES o 0.18.")
+    parser.add_argument("--gamma", type=float, default=None, help="Gamma FWHM fija. Por defecto intenta WID de .RES o 0.36.")
     parser.add_argument("--bmin", type=float, default=0.0, help="BHF minimo, T")
     parser.add_argument("--bmax", type=float, default=50.0, help="BHF maximo, T")
     parser.add_argument("--nbins", type=int, default=50, help="Numero de bins BHF")
@@ -163,7 +163,7 @@ def main() -> None:
     sidecar = read_normos_sidecar_params(in_path)
     delta = float(args.delta if args.delta is not None else sidecar.get("delta", 0.0))
     quad = float(args.quad if args.quad is not None else sidecar.get("quad", 0.0))
-    gamma = float(args.gamma if args.gamma is not None else sidecar.get("gamma", 0.18))
+    gamma = float(args.gamma if args.gamma is not None else sidecar.get("gamma", 0.36))
 
     v, y, folded, center, vmax, norm = folded_velocity_data(
         in_path,

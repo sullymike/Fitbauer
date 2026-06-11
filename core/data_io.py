@@ -104,7 +104,7 @@ def read_normos_sidecar_params(path: Path) -> dict[str, float]:
             if "QUA" in final:
                 params["s1_quad"] = final["QUA"]
             if "WID" in final:
-                params["s1_gamma1"] = max(0.03, final["WID"] / 2.0)
+                params["s1_gamma1"] = max(0.06, final["WID"])
                 params["s1_gamma2"] = 1.0
                 params["s1_gamma3"] = 1.0
             if "ARE" in final and "s1_gamma1" in params:

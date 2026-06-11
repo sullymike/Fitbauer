@@ -86,7 +86,7 @@ def read_normos_sidecar_params(path: str | Path) -> dict[str, float]:
         if "QUA" in final:
             params["quad"] = final["QUA"]
         if "WID" in final:
-            params["gamma"] = max(0.03, final["WID"] / 2.0)
+            params["gamma"] = max(0.06, final["WID"])
     job = path.with_suffix(".JOB")
     if not job.exists():
         job = path.with_suffix(".job")

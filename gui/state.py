@@ -273,7 +273,7 @@ class DistributionViewState:
     delta: float = 0.0
     quad: float = 0.0
     fixed_bhf: float = 33.0
-    gamma: float = 0.18
+    gamma: float = 0.36
     bmin: float = 0.0
     bmax: float = 50.0
     nbins: int = 50

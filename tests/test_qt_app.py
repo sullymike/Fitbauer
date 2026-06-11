@@ -196,7 +196,7 @@ def test_load_file_then_fit_recovers_alpha_fe(win):
     cp = win.components_panels[0]
     cp.params["delta"].set_value(-0.11)
     cp.params["bhf"].set_value(33.0)
-    cp.params["gamma1"].set_value(0.14)
+    cp.params["gamma1"].set_value(0.28)
     cp.params["depth"].set_value(0.013)
     win.on_fit()
     bhf = cp.params["bhf"].value()
@@ -620,7 +620,7 @@ def test_bootstrap_returns_sigma_estimates(win):
     cp = win.components_panels[0]
     cp.params["delta"].set_value(-0.11)
     cp.params["bhf"].set_value(33.0)
-    cp.params["gamma1"].set_value(0.14)
+    cp.params["gamma1"].set_value(0.28)
     cp.params["depth"].set_value(0.013)
     # Override del input dialog para no bloquear
     QtWidgets.QInputDialog.getInt = staticmethod(lambda *a, **k: (5, True))

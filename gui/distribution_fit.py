@@ -55,7 +55,7 @@ class DistributionFitMixin:
                 "delta": comp_state.value("delta", 0.0),
                 "quad": comp_state.value("quad", 0.0),
                 "bhf": comp_state.value("bhf", 33.0),
-                "gamma": comp_state.value("gamma1", 0.18),
+                "gamma": comp_state.value("gamma1", 0.36),
                 "gamma2_rel": comp_state.value("gamma2", 1.0),
                 "gamma3_rel": comp_state.value("gamma3", 1.0),
                 "int1": engine_int1,

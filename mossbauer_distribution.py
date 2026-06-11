@@ -140,9 +140,9 @@ class BhfDistributionFit:
 
 
 def lorentzian(v: np.ndarray, center: float, gamma: float) -> np.ndarray:
-    """Lorentziana normalizada a altura 1; gamma es HWHM."""
-    gamma = max(float(gamma), 1e-9)
-    return gamma * gamma / ((v - center) ** 2 + gamma * gamma)
+    """Lorentziana normalizada a altura 1; gamma es FWHM."""
+    g = max(float(gamma), 1e-9) / 2.0
+    return g * g / ((v - center) ** 2 + g * g)
 
 
 def sextet_absorption(

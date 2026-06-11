@@ -495,7 +495,6 @@ class ModelWorkflowMixin:
                 tr("info.component_params_line", kind=kind_disp, idx=comp_state.idx,
                    bhf=comp_state.value("bhf"), delta=comp_state.value("delta"), quad=comp_state.value("quad")),
                 tr("info.gamma_hwhm", g1=g1, g2=g2, g3=g3),
-                tr("info.fwhm_equiv", f1=2.0 * g1, f2=2.0 * g2, f3=2.0 * g3),
                 tr("info.gamma_rel", gamma2=comp_state.value("gamma2", 1.0), gamma3=comp_state.value("gamma3", 1.0)),
                 tr("info.depth_intensities", depth=comp_state.value("depth"), i1=i1_real, i2=i2_real, i3=i3_real),
             ])

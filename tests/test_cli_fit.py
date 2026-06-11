@@ -24,7 +24,7 @@ def _make_alpha_fe_template(tmp_path: Path) -> Path:
                 "vmax": 12.007, "voigt_sigma": 0.05,
                 "baseline": 1.0, "slope": 0.0,
                 "s1_delta": -0.1, "s1_quad": 0.0, "s1_bhf": 33.0,
-                "s1_gamma1": 0.14, "s1_gamma2": 1.0, "s1_gamma3": 1.0,
+                "s1_gamma1": 0.28, "s1_gamma2": 1.0, "s1_gamma3": 1.0,
                 "s1_depth": 0.013, "s1_int1": 3.0, "s1_int2": 2.0, "s1_int3": 1.0,
             },
             "fixed": {

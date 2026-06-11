@@ -78,7 +78,7 @@ class DistributionPanel(QtWidgets.QGroupBox):
         self.delta = ParamControl(tr("slider.dist_delta"), 0.0, -2.5, 2.5, 0.001, 4)
         self.quad  = ParamControl(tr("slider.dist_quad"),  0.0, -4.0, 4.0, 0.001, 4)
         self.fixed_bhf = ParamControl(tr("slider.dist_fixed_bhf"), BHF_DEFAULT_T, 0.0, 60.0, 0.01, 3, with_fixed=False)
-        self.gamma = ParamControl(tr("slider.dist_gamma"), 0.18, 0.03, 1.0, 0.001, 4)
+        self.gamma = ParamControl(tr("slider.dist_gamma"), 0.36, 0.06, 2.0, 0.001, 4)
         for w in (self.delta, self.quad, self.fixed_bhf, self.gamma):
             left_v.addWidget(w)
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())

@@ -75,9 +75,9 @@ COMPONENT_PARAM_SPECS = {
     "delta":   ParamSpec(0.0, -2.0, 3.0, 0.001, 4),
     "quad":    ParamSpec(0.0, -4.0, 4.0, 0.001, 4),
     "bhf":     ParamSpec(BHF_DEFAULT_T, 0.0, 60.0, 0.01, 3),
-    "gamma1":  ParamSpec(0.15, 0.03, 2.0, 0.001, 4),
-    "gamma2":  ParamSpec(1.0, 0.2, 3.0, 0.001, 4),
-    "gamma3":  ParamSpec(1.0, 0.2, 3.0, 0.001, 4),
+    "gamma1":  ParamSpec(0.30, 0.06, 4.0, 0.001, 4),
+    "gamma2":  ParamSpec(1.0, 0.2, 6.0, 0.001, 4),
+    "gamma3":  ParamSpec(1.0, 0.2, 6.0, 0.001, 4),
     "depth":   ParamSpec(0.020, 0.0, 0.07, 0.0001, 5),
     "int1":    ParamSpec(3.0, 0.0, 6.0, 0.01, 3),
     "int2":    ParamSpec(2.0, 0.0, 4.0, 0.01, 3),
@@ -117,7 +117,7 @@ GLOBAL_FIT_BOUNDS = {
 }
 COMPONENT_FIT_BOUNDS = {
     "delta": (-2.0, 3.0), "quad": (-4.0, 4.0), "bhf": (0.0, 60.0),
-    "gamma1": (0.03, 2.0), "gamma2": (0.2, 3.0), "gamma3": (0.2, 3.0),
+    "gamma1": (0.06, 4.0), "gamma2": (0.2, 6.0), "gamma3": (0.2, 6.0),
     "depth": (0.0, 0.30), "int1": (0.0, 9.0), "int2": (0.0, 6.0),
     "int3": (0.0, 3.0), "texture": (0.0, 1.0), "beta": (0.0, 90.0),
     "relax_fraction": (0.0, 1.0), "relax_log_nu": (3.0, 12.0),

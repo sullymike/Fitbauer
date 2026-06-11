@@ -343,7 +343,7 @@ class MinimaAnalysisMixin:
             p = f"s{idx}_"
             params.update({
                 p + "delta": 0.0, p + "quad": 0.0, p + "bhf": BHF_DEFAULT_T,
-                p + "gamma1": 0.15, p + "gamma2": 1.0, p + "gamma3": 1.0,
+                p + "gamma1": 0.30, p + "gamma2": 1.0, p + "gamma3": 1.0,
                 p + "depth": 0.005, p + "int1": 3.0, p + "int2": 2.0, p + "int3": 1.0,
             })
 
@@ -359,7 +359,7 @@ class MinimaAnalysisMixin:
                 g = group_h
                 params[pfx + "delta"] = float(np.mean([g[0]["pos"], g[1]["pos"]]))
                 params[pfx + "quad"] = float(abs(g[1]["pos"] - g[0]["pos"]))
-                params[pfx + "gamma1"] = float(np.clip(np.mean([x["width"] for x in g]) / 2.0, 0.04, 1.0))
+                params[pfx + "gamma1"] = float(np.clip(np.mean([x["width"] for x in g]), 0.08, 2.0))
                 params[pfx + "gamma2"] = 1.0
                 params[pfx + "depth"] = float(np.clip(np.mean([x["depth"] for x in g]), 0.002, 0.25))
                 params[pfx + "int1"] = 1.0
@@ -367,7 +367,7 @@ class MinimaAnalysisMixin:
             else:
                 pk = group_h[0]
                 params[pfx + "delta"] = float(pk["pos"])
-                params[pfx + "gamma1"] = float(np.clip(pk["width"] / 2.0, 0.04, 1.0))
+                params[pfx + "gamma1"] = float(np.clip(pk["width"], 0.08, 2.0))
                 params[pfx + "depth"] = float(np.clip(pk["depth"], 0.002, 0.25))
                 params[pfx + "int1"] = 1.0
             used_ids.update(int(pk["i"]) for pk in group_h)
@@ -381,7 +381,7 @@ class MinimaAnalysisMixin:
                     params[p + "delta"] = float(np.clip(delta, -2.5, 2.5))
                     params[p + "bhf"] = float(np.clip(bhf, 20.0, 60.0))
                     params[p + "quad"] = 0.0
-                    params[p + "gamma1"] = float(np.clip(width / 2.0, 0.04, 1.0))
+                    params[p + "gamma1"] = float(np.clip(width, 0.08, 2.0))
                     params[p + "depth"] = float(np.clip(depth, 0.002, 0.25))
                     used_ids.update(int(pk["i"]) for pk in sub)
 
@@ -399,7 +399,7 @@ class MinimaAnalysisMixin:
                         params[pfx + "delta"] = float(np.clip(delta_e, -2.5, 2.5))
                         params[pfx + "bhf"] = float(np.clip(bhf_e, 20.0, 60.0))
                         params[pfx + "quad"] = 0.0
-                        params[pfx + "gamma1"] = float(np.clip(width_e / 2.0, 0.04, 1.0))
+                        params[pfx + "gamma1"] = float(np.clip(width_e, 0.08, 2.0))
                         params[pfx + "depth"] = float(np.clip(depth_e, 0.002, 0.25))
                         sub_ids = {int(pk["i"]) for pk in sub_e}
                         remaining = [p for p in remaining if int(p["i"]) not in sub_ids]
@@ -413,7 +413,7 @@ class MinimaAnalysisMixin:
                 params[pfx + "delta"] = float(np.clip(delta2, -2.5, 2.5))
                 params[pfx + "bhf"] = float(np.clip(bhf2, 20.0, 60.0))
                 params[pfx + "quad"] = 0.0
-                params[pfx + "gamma1"] = float(np.clip(width2 / 2.0, 0.04, 1.0))
+                params[pfx + "gamma1"] = float(np.clip(width2, 0.08, 2.0))
                 params[pfx + "depth"] = float(np.clip(depth2, 0.002, 0.25))
                 remaining.clear()
                 next_idx += 1
@@ -437,7 +437,7 @@ class MinimaAnalysisMixin:
                 g = sorted(group, key=lambda p: p["pos"])
                 params[pfx + "delta"] = float(np.mean([g[0]["pos"], g[1]["pos"]]))
                 params[pfx + "quad"] = float(abs(g[1]["pos"] - g[0]["pos"]))
-                params[pfx + "gamma1"] = float(np.clip(np.mean([x["width"] for x in g]) / 2.0, 0.04, 1.0))
+                params[pfx + "gamma1"] = float(np.clip(np.mean([x["width"] for x in g]), 0.08, 2.0))
                 params[pfx + "gamma2"] = 1.0
                 params[pfx + "depth"] = float(np.clip(np.mean([x["depth"] for x in g]), 0.002, 0.25))
                 params[pfx + "int1"] = 1.0
@@ -445,7 +445,7 @@ class MinimaAnalysisMixin:
             else:
                 g = group[0]
                 params[pfx + "delta"] = float(g["pos"])
-                params[pfx + "gamma1"] = float(np.clip(g["width"] / 2.0, 0.04, 1.0))
+                params[pfx + "gamma1"] = float(np.clip(g["width"], 0.08, 2.0))
                 params[pfx + "depth"] = float(np.clip(g["depth"], 0.002, 0.25))
                 params[pfx + "int1"] = 1.0
             next_idx += 1
@@ -454,7 +454,7 @@ class MinimaAnalysisMixin:
             g = max(peaks, key=lambda p: p["depth"])
             components.append((1, "Singlete", [g]))
             params["s1_delta"] = float(g["pos"])
-            params["s1_gamma1"] = float(np.clip(g["width"] / 2.0, 0.04, 1.0))
+            params["s1_gamma1"] = float(np.clip(g["width"], 0.08, 2.0))
             params["s1_depth"] = float(np.clip(g["depth"], 0.002, 0.25))
 
         # Contribuciones extra señaladas por el usuario: cada mínimo marcado con
@@ -470,7 +470,7 @@ class MinimaAnalysisMixin:
                     pfx = f"s{next_extra}_"
                     components.append((next_extra, "Singlete", [pk]))
                     params[pfx + "delta"] = float(pk["pos"])
-                    params[pfx + "gamma1"] = float(np.clip(pk["width"] / 2.0, 0.04, 1.0))
+                    params[pfx + "gamma1"] = float(np.clip(pk["width"], 0.08, 2.0))
                     params[pfx + "depth"] = float(np.clip(pk["depth"] * 0.5, 0.002, 0.25))
                     params[pfx + "int1"] = 1.0
                     next_extra += 1
