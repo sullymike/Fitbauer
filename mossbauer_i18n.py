@@ -19,7 +19,7 @@ import json
 import sys
 from pathlib import Path
 
-DEFAULT_LANGUAGE = "es"
+DEFAULT_LANGUAGE = "en"
 
 
 def _resolve_locales_dir() -> Path:
