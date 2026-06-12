@@ -17,6 +17,26 @@ _COMP_STACK_H = 300
 _DIST_STACK_H = 340
 _COMP_OVERHEAD_H = 120
 
+# Claves i18n de los presets de layout integrados. La clave interna (que se
+# guarda en settings.json) sigue siendo en español; aquí solo se traduce el
+# texto mostrado en el diálogo de configuración.
+_PRESET_TR = {
+    "Estándar":      "layout.preset.standard",
+    "Tres columnas": "layout.preset.three_columns",
+    "Análisis":      "layout.preset.analysis",
+    "Compacto":      "layout.preset.compact",
+}
+
+
+def _tr_preset_name(name: str) -> str:
+    key = _PRESET_TR.get(name)
+    return tr(key, default=name) if key else name
+
+
+def _tr_preset_desc(name: str, fallback: str = "") -> str:
+    key = _PRESET_TR.get(name)
+    return tr(f"{key}.desc", default=fallback) if key else fallback
+
 
 class LayoutSettingsMixin:
     def _all_presets(self) -> dict[str, dict]:
@@ -202,11 +222,15 @@ class LayoutSettingsMixin:
             list_w.clear()
             all_presets = self._all_presets()
             for name, spec in all_presets.items():
-                kind = "(custom)" if name in self.custom_layouts else "(Tk)"
+                is_custom = name in self.custom_layouts
+                kind = "(custom)" if is_custom else "(built-in)"
                 lw = spec.get("left_width", "—")
                 rw = spec.get("right_width", "—")
-                txt = (f"{name}  {kind}  ·  left={lw}px  ·  "
-                       f"right={rw}px  ·  {spec.get('description', '')}")
+                disp_name = name if is_custom else _tr_preset_name(name)
+                desc = (spec.get("description", "") if is_custom
+                        else _tr_preset_desc(name, spec.get("description", "")))
+                txt = (f"{disp_name}  {kind}  ·  left={lw}px  ·  "
+                       f"right={rw}px  ·  {desc}")
                 item = QtWidgets.QListWidgetItem(txt)
                 item.setData(QtCore.Qt.UserRole, name)
                 list_w.addItem(item)

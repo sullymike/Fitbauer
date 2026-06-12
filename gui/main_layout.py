@@ -282,11 +282,11 @@ class MainLayoutMixin:
         splitter.addWidget(self._right_column)
 
         self._layout_panel_names = {
-            "header": "Cabecera",
-            "file_info": "Fichero",
-            "info_display": "Info",
-            "calibration": "Calibración",
-            "reference": "Referencia",
+            "header": tr("layout.panel.header", default="Cabecera"),
+            "file_info": tr("layout.panel.file", default="Fichero"),
+            "info_display": tr("layout.panel.info", default="Info"),
+            "calibration": tr("layout.panel.calibration", default="Calibración"),
+            "reference": tr("layout.panel.reference", default="Referencia"),
             "sim_controls": tr("controls.simulation_box"),
         }
         self._layout_panel_widgets = {
