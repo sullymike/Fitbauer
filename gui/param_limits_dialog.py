@@ -30,7 +30,7 @@ from core.params import (
     PEAK_DETECTION_SPECS,
     ParamSpec,
 )
-from mossbauer_i18n import tr
+from mossbauer_i18n import tr, get_language
 
 # Nombres de columna (índices)
 _COL_PARAM   = 0
@@ -40,88 +40,246 @@ _COL_HI      = 3
 _COL_STEP    = 4
 _COL_DECS    = 5
 
-_HEADERS = ["Parámetro", "Default", "Mín", "Máx", "Paso", "Decimales"]
-
-# Etiquetas amigables para los parámetros (complementan al nombre técnico)
-_PARAM_LABELS: dict[str, str] = {
-    # Componente
-    "delta":        "δ  (despl. isomérico, mm/s)",
-    "quad":         "ΔEQ  (cuadrupolo, mm/s)",
-    "bhf":          "BHF  (campo hiperfino, T)",
-    "gamma1":       "Γ₁  (líneas 1,6  mm/s)",
-    "gamma2":       "Γ₂  (relativa 2,5)",
-    "gamma3":       "Γ₃  (relativa 3,4)",
-    "depth":        "Profundidad",
-    "int1":         "I₁₃  (ratio 1,6 / 3,4)",
-    "int2":         "I₂₃  (ratio 2,5 / 3,4)",
-    "int3":         "I  (líneas 3,4)  [fijo]",
-    "texture":      "Textura",
-    "beta":         "β  (Kündig, °)",
-    "relax_fraction":"Fracción bloqueada",
-    "relax_log_nu": "log₁₀ ν  (s⁻¹)",
-    "neel_temp_k":  "T  (K)",
-    "neel_log10_keff":"log₁₀ K_eff  (J/m³)",
-    "neel_mean_d_nm":"d₅₀  (nm)",
-    "neel_sigma":   "σ lognormal",
-    "neel_log10_tau0":"log₁₀ τ₀  (s)",
-    "neel_bins":    "Bins de tamaño",
-    # Calibración
-    "vmax":         "V_max  (mm/s)",
-    "center":       "Centro  (canal)",
-    "baseline":     "Línea base",
-    "slope":        "Pendiente",
-    "voigt_sigma":  "σ Voigt  (mm/s)",
-    "sat_scale":    "Escala saturación",
-    # Distribución
-    "fixed_bhf":    "BHF fijo  (T)",
-    "gamma":        "Γ  (mm/s)",
-    "bmin":         "B mín  (eje X)",
-    "bmax":         "B máx  (eje X)",
-    "nbins":        "N bins (eje X)",
-    "log_alpha":    "log₁₀ α",
-    "qmin":         "Q mín  (eje Y)",
-    "qmax":         "Q máx  (eje Y)",
-    "qbins":        "N bins (eje Y)",
-    "log_alpha_q":  "log₁₀ α_q",
-    # Límites exteriores del eje X en modos IS y ΔEQ distribuido
-    "is_lo":        "IS mín  (límite exterior eje δ en modo IS)",
-    "is_hi":        "IS máx  (límite exterior eje δ en modo IS)",
-    "quad_lo":      "ΔEQ mín  (límite exterior eje ΔEQ distribuido)",
-    "quad_hi":      "ΔEQ máx  (límite exterior eje ΔEQ distribuido)",
-    # FIT_INIT_SPECS
-    "sextet_bhf_min":      "BHF mín  (detección de sextetes, T)",
-    "sextet_bhf_max":      "BHF máx  (detección de sextetes, T)",
-    "sextet_2pk_bhf_min":  "BHF mín  (estimación 2 picos, T)",
-    "init_bhf_min":        "BHF mín  (clip en inicialización, T)",
-    "init_gamma_min":      "Γ mín  (clip en inicialización, mm/s)",
-    "init_gamma_max":      "Γ máx  (clip en inicialización, mm/s)",
-    "init_delta_lo":       "δ mín  (clip en inicialización, mm/s)",
-    "init_delta_hi":       "δ máx  (clip en inicialización, mm/s)",
-    "init_depth_min":      "Profundidad mín  (clip en inicialización)",
-    "init_depth_max":      "Profundidad máx  (clip en inicialización)",
-    "doublet_sep_min":     "Separación mín doblete  (mm/s)",
-    "doublet_sep_max":     "Separación máx doblete  (mm/s)",
-    "lcurve_alpha_lo":     "L-curve: log₁₀ α mín del barrido",
-    "lcurve_alpha_hi":     "L-curve: log₁₀ α máx del barrido",
-    "lcurve_n_points":     "L-curve: número de puntos",
-    "bootstrap_nrep":      "Bootstrap: réplicas por defecto",
-    "multistart_n_max":    "Arranques múltiples: máximo del spinner",
-    # PEAK_DETECTION_SPECS
-    "min_dist_factor":     "Factor distancia mínima entre picos (×dv)",
-    "height_thr_factor":   "Factor umbral de altura de pico",
-    "prom_thr_factor":     "Factor umbral de prominencia de pico",
-    "min_separation":      "Separación mínima absoluta (mm/s)",
-    "score_tol":           "Tolerancia RMS sextete (mm/s)",
-    "score_tol_factor":    "Factor tolerancia RMS según BHF",
-    "narrow_tol_factor":   "Factor tolerancia estrecha (×anchura mediana)",
-    "narrow_tol_min":      "Tolerancia estrecha mínima (mm/s)",
-    "match_tol":           "Tolerancia máx. match pico-línea (mm/s)",
-    "singlet_dominance":   "Ratio d₀/d₁ para clasificar singlete",
-    "doublet_ratio_min":   "Ratio mín. d₁/d₀ para doblete",
-    "doublet_ratio_max":   "Ratio máx. d₂/d₀ para doblete",
-    "plotly_tol_factor":   "Factor tolerancia marcadores Plotly",
-    "plotly_tol_min":      "Tolerancia mínima marcadores Plotly (mm/s)",
+# Etiquetas amigables para los parámetros (complementan al nombre técnico).
+# Se mantienen aquí (en vez de en los catálogos compartidos) por ser notación
+# científica muy específica de este diálogo. Se eligen por idioma activo.
+_PARAM_LABELS_BY_LANG: dict[str, dict[str, str]] = {
+    "es": {
+        "delta":        "δ  (despl. isomérico, mm/s)",
+        "quad":         "ΔEQ  (cuadrupolo, mm/s)",
+        "bhf":          "BHF  (campo hiperfino, T)",
+        "gamma1":       "Γ₁  (líneas 1,6  mm/s)",
+        "gamma2":       "Γ₂  (relativa 2,5)",
+        "gamma3":       "Γ₃  (relativa 3,4)",
+        "depth":        "Profundidad",
+        "int1":         "I₁₃  (ratio 1,6 / 3,4)",
+        "int2":         "I₂₃  (ratio 2,5 / 3,4)",
+        "int3":         "I  (líneas 3,4)  [fijo]",
+        "texture":      "Textura",
+        "beta":         "β  (Kündig, °)",
+        "relax_fraction":"Fracción bloqueada",
+        "relax_log_nu": "log₁₀ ν  (s⁻¹)",
+        "neel_temp_k":  "T  (K)",
+        "neel_log10_keff":"log₁₀ K_eff  (J/m³)",
+        "neel_mean_d_nm":"d₅₀  (nm)",
+        "neel_sigma":   "σ lognormal",
+        "neel_log10_tau0":"log₁₀ τ₀  (s)",
+        "neel_bins":    "Bins de tamaño",
+        "vmax":         "V_max  (mm/s)",
+        "center":       "Centro  (canal)",
+        "baseline":     "Línea base",
+        "slope":        "Pendiente",
+        "voigt_sigma":  "σ Voigt  (mm/s)",
+        "sat_scale":    "Escala saturación",
+        "fixed_bhf":    "BHF fijo  (T)",
+        "gamma":        "Γ  (mm/s)",
+        "bmin":         "B mín  (eje X)",
+        "bmax":         "B máx  (eje X)",
+        "nbins":        "N bins (eje X)",
+        "log_alpha":    "log₁₀ α",
+        "qmin":         "Q mín  (eje Y)",
+        "qmax":         "Q máx  (eje Y)",
+        "qbins":        "N bins (eje Y)",
+        "log_alpha_q":  "log₁₀ α_q",
+        "is_lo":        "IS mín  (límite exterior eje δ en modo IS)",
+        "is_hi":        "IS máx  (límite exterior eje δ en modo IS)",
+        "quad_lo":      "ΔEQ mín  (límite exterior eje ΔEQ distribuido)",
+        "quad_hi":      "ΔEQ máx  (límite exterior eje ΔEQ distribuido)",
+        "sextet_bhf_min":      "BHF mín  (detección de sextetes, T)",
+        "sextet_bhf_max":      "BHF máx  (detección de sextetes, T)",
+        "sextet_2pk_bhf_min":  "BHF mín  (estimación 2 picos, T)",
+        "init_bhf_min":        "BHF mín  (clip en inicialización, T)",
+        "init_gamma_min":      "Γ mín  (clip en inicialización, mm/s)",
+        "init_gamma_max":      "Γ máx  (clip en inicialización, mm/s)",
+        "init_delta_lo":       "δ mín  (clip en inicialización, mm/s)",
+        "init_delta_hi":       "δ máx  (clip en inicialización, mm/s)",
+        "init_depth_min":      "Profundidad mín  (clip en inicialización)",
+        "init_depth_max":      "Profundidad máx  (clip en inicialización)",
+        "doublet_sep_min":     "Separación mín doblete  (mm/s)",
+        "doublet_sep_max":     "Separación máx doblete  (mm/s)",
+        "lcurve_alpha_lo":     "L-curve: log₁₀ α mín del barrido",
+        "lcurve_alpha_hi":     "L-curve: log₁₀ α máx del barrido",
+        "lcurve_n_points":     "L-curve: número de puntos",
+        "bootstrap_nrep":      "Bootstrap: réplicas por defecto",
+        "multistart_n_max":    "Arranques múltiples: máximo del spinner",
+        "min_dist_factor":     "Factor distancia mínima entre picos (×dv)",
+        "height_thr_factor":   "Factor umbral de altura de pico",
+        "prom_thr_factor":     "Factor umbral de prominencia de pico",
+        "min_separation":      "Separación mínima absoluta (mm/s)",
+        "score_tol":           "Tolerancia RMS sextete (mm/s)",
+        "score_tol_factor":    "Factor tolerancia RMS según BHF",
+        "narrow_tol_factor":   "Factor tolerancia estrecha (×anchura mediana)",
+        "narrow_tol_min":      "Tolerancia estrecha mínima (mm/s)",
+        "match_tol":           "Tolerancia máx. match pico-línea (mm/s)",
+        "singlet_dominance":   "Ratio d₀/d₁ para clasificar singlete",
+        "doublet_ratio_min":   "Ratio mín. d₁/d₀ para doblete",
+        "doublet_ratio_max":   "Ratio máx. d₂/d₀ para doblete",
+        "plotly_tol_factor":   "Factor tolerancia marcadores Plotly",
+        "plotly_tol_min":      "Tolerancia mínima marcadores Plotly (mm/s)",
+    },
+    "en": {
+        "delta":        "δ  (isomer shift, mm/s)",
+        "quad":         "ΔEQ  (quadrupole, mm/s)",
+        "bhf":          "BHF  (hyperfine field, T)",
+        "gamma1":       "Γ₁  (lines 1,6  mm/s)",
+        "gamma2":       "Γ₂  (relative 2,5)",
+        "gamma3":       "Γ₃  (relative 3,4)",
+        "depth":        "Depth",
+        "int1":         "I₁₃  (ratio 1,6 / 3,4)",
+        "int2":         "I₂₃  (ratio 2,5 / 3,4)",
+        "int3":         "I  (lines 3,4)  [fixed]",
+        "texture":      "Texture",
+        "beta":         "β  (Kündig, °)",
+        "relax_fraction":"Blocked fraction",
+        "relax_log_nu": "log₁₀ ν  (s⁻¹)",
+        "neel_temp_k":  "T  (K)",
+        "neel_log10_keff":"log₁₀ K_eff  (J/m³)",
+        "neel_mean_d_nm":"d₅₀  (nm)",
+        "neel_sigma":   "σ lognormal",
+        "neel_log10_tau0":"log₁₀ τ₀  (s)",
+        "neel_bins":    "Size bins",
+        "vmax":         "V_max  (mm/s)",
+        "center":       "Center  (channel)",
+        "baseline":     "Baseline",
+        "slope":        "Slope",
+        "voigt_sigma":  "σ Voigt  (mm/s)",
+        "sat_scale":    "Saturation scale",
+        "fixed_bhf":    "Fixed BHF  (T)",
+        "gamma":        "Γ  (mm/s)",
+        "bmin":         "B min  (X axis)",
+        "bmax":         "B max  (X axis)",
+        "nbins":        "N bins (X axis)",
+        "log_alpha":    "log₁₀ α",
+        "qmin":         "Q min  (Y axis)",
+        "qmax":         "Q max  (Y axis)",
+        "qbins":        "N bins (Y axis)",
+        "log_alpha_q":  "log₁₀ α_q",
+        "is_lo":        "IS min  (outer δ-axis bound in IS mode)",
+        "is_hi":        "IS max  (outer δ-axis bound in IS mode)",
+        "quad_lo":      "ΔEQ min  (outer bound of distributed ΔEQ axis)",
+        "quad_hi":      "ΔEQ max  (outer bound of distributed ΔEQ axis)",
+        "sextet_bhf_min":      "BHF min  (sextet detection, T)",
+        "sextet_bhf_max":      "BHF max  (sextet detection, T)",
+        "sextet_2pk_bhf_min":  "BHF min  (2-peak estimate, T)",
+        "init_bhf_min":        "BHF min  (initialization clip, T)",
+        "init_gamma_min":      "Γ min  (initialization clip, mm/s)",
+        "init_gamma_max":      "Γ max  (initialization clip, mm/s)",
+        "init_delta_lo":       "δ min  (initialization clip, mm/s)",
+        "init_delta_hi":       "δ max  (initialization clip, mm/s)",
+        "init_depth_min":      "Depth min  (initialization clip)",
+        "init_depth_max":      "Depth max  (initialization clip)",
+        "doublet_sep_min":     "Doublet min separation  (mm/s)",
+        "doublet_sep_max":     "Doublet max separation  (mm/s)",
+        "lcurve_alpha_lo":     "L-curve: log₁₀ α min of the scan",
+        "lcurve_alpha_hi":     "L-curve: log₁₀ α max of the scan",
+        "lcurve_n_points":     "L-curve: number of points",
+        "bootstrap_nrep":      "Bootstrap: default replicas",
+        "multistart_n_max":    "Multistart: spinner maximum",
+        "min_dist_factor":     "Min peak distance factor (×dv)",
+        "height_thr_factor":   "Peak height threshold factor",
+        "prom_thr_factor":     "Peak prominence threshold factor",
+        "min_separation":      "Absolute minimum separation (mm/s)",
+        "score_tol":           "Sextet RMS tolerance (mm/s)",
+        "score_tol_factor":    "RMS tolerance factor vs BHF",
+        "narrow_tol_factor":   "Narrow tolerance factor (×median width)",
+        "narrow_tol_min":      "Minimum narrow tolerance (mm/s)",
+        "match_tol":           "Max peak-line match tolerance (mm/s)",
+        "singlet_dominance":   "d₀/d₁ ratio to classify singlet",
+        "doublet_ratio_min":   "Min d₁/d₀ ratio for doublet",
+        "doublet_ratio_max":   "Max d₂/d₀ ratio for doublet",
+        "plotly_tol_factor":   "Plotly marker tolerance factor",
+        "plotly_tol_min":      "Minimum Plotly marker tolerance (mm/s)",
+    },
+    "fr": {
+        "delta":        "δ  (déplacement isomérique, mm/s)",
+        "quad":         "ΔEQ  (quadrupôle, mm/s)",
+        "bhf":          "BHF  (champ hyperfin, T)",
+        "gamma1":       "Γ₁  (raies 1,6  mm/s)",
+        "gamma2":       "Γ₂  (relative 2,5)",
+        "gamma3":       "Γ₃  (relative 3,4)",
+        "depth":        "Profondeur",
+        "int1":         "I₁₃  (rapport 1,6 / 3,4)",
+        "int2":         "I₂₃  (rapport 2,5 / 3,4)",
+        "int3":         "I  (raies 3,4)  [fixe]",
+        "texture":      "Texture",
+        "beta":         "β  (Kündig, °)",
+        "relax_fraction":"Fraction bloquée",
+        "relax_log_nu": "log₁₀ ν  (s⁻¹)",
+        "neel_temp_k":  "T  (K)",
+        "neel_log10_keff":"log₁₀ K_eff  (J/m³)",
+        "neel_mean_d_nm":"d₅₀  (nm)",
+        "neel_sigma":   "σ lognormale",
+        "neel_log10_tau0":"log₁₀ τ₀  (s)",
+        "neel_bins":    "Bins de taille",
+        "vmax":         "V_max  (mm/s)",
+        "center":       "Centre  (canal)",
+        "baseline":     "Ligne de base",
+        "slope":        "Pente",
+        "voigt_sigma":  "σ Voigt  (mm/s)",
+        "sat_scale":    "Échelle de saturation",
+        "fixed_bhf":    "BHF fixe  (T)",
+        "gamma":        "Γ  (mm/s)",
+        "bmin":         "B min  (axe X)",
+        "bmax":         "B max  (axe X)",
+        "nbins":        "N bins (axe X)",
+        "log_alpha":    "log₁₀ α",
+        "qmin":         "Q min  (axe Y)",
+        "qmax":         "Q max  (axe Y)",
+        "qbins":        "N bins (axe Y)",
+        "log_alpha_q":  "log₁₀ α_q",
+        "is_lo":        "IS min  (limite externe de l'axe δ en mode IS)",
+        "is_hi":        "IS max  (limite externe de l'axe δ en mode IS)",
+        "quad_lo":      "ΔEQ min  (limite externe de l'axe ΔEQ distribué)",
+        "quad_hi":      "ΔEQ max  (limite externe de l'axe ΔEQ distribué)",
+        "sextet_bhf_min":      "BHF min  (détection de sextets, T)",
+        "sextet_bhf_max":      "BHF max  (détection de sextets, T)",
+        "sextet_2pk_bhf_min":  "BHF min  (estimation 2 pics, T)",
+        "init_bhf_min":        "BHF min  (clip à l'initialisation, T)",
+        "init_gamma_min":      "Γ min  (clip à l'initialisation, mm/s)",
+        "init_gamma_max":      "Γ max  (clip à l'initialisation, mm/s)",
+        "init_delta_lo":       "δ min  (clip à l'initialisation, mm/s)",
+        "init_delta_hi":       "δ max  (clip à l'initialisation, mm/s)",
+        "init_depth_min":      "Profondeur min  (clip à l'initialisation)",
+        "init_depth_max":      "Profondeur max  (clip à l'initialisation)",
+        "doublet_sep_min":     "Séparation min doublet  (mm/s)",
+        "doublet_sep_max":     "Séparation max doublet  (mm/s)",
+        "lcurve_alpha_lo":     "L-curve : log₁₀ α min du balayage",
+        "lcurve_alpha_hi":     "L-curve : log₁₀ α max du balayage",
+        "lcurve_n_points":     "L-curve : nombre de points",
+        "bootstrap_nrep":      "Bootstrap : répliques par défaut",
+        "multistart_n_max":    "Multi-départs : maximum du sélecteur",
+        "min_dist_factor":     "Facteur distance min entre pics (×dv)",
+        "height_thr_factor":   "Facteur seuil de hauteur de pic",
+        "prom_thr_factor":     "Facteur seuil de proéminence de pic",
+        "min_separation":      "Séparation minimale absolue (mm/s)",
+        "score_tol":           "Tolérance RMS sextet (mm/s)",
+        "score_tol_factor":    "Facteur tolérance RMS selon BHF",
+        "narrow_tol_factor":   "Facteur tolérance étroite (×largeur médiane)",
+        "narrow_tol_min":      "Tolérance étroite minimale (mm/s)",
+        "match_tol":           "Tolérance max correspondance pic-raie (mm/s)",
+        "singlet_dominance":   "Rapport d₀/d₁ pour classer un singulet",
+        "doublet_ratio_min":   "Rapport min d₁/d₀ pour doublet",
+        "doublet_ratio_max":   "Rapport max d₂/d₀ pour doublet",
+        "plotly_tol_factor":   "Facteur tolérance marqueurs Plotly",
+        "plotly_tol_min":      "Tolérance minimale marqueurs Plotly (mm/s)",
+    },
 }
+
+
+def _param_labels() -> dict[str, str]:
+    """Etiquetas de parámetro para el idioma activo (con fallback a ES)."""
+    return _PARAM_LABELS_BY_LANG.get(get_language(), _PARAM_LABELS_BY_LANG["es"])
+
+
+def _headers() -> list[str]:
+    return [
+        tr("param_limits.col_param",   default="Parámetro"),
+        tr("param_limits.col_default", default="Default"),
+        tr("param_limits.col_min",     default="Mín"),
+        tr("param_limits.col_max",     default="Máx"),
+        tr("param_limits.col_step",    default="Paso"),
+        tr("param_limits.col_decimals",default="Decimales"),
+    ]
 
 _CATEGORY_DEFAULTS = {
     "component":      COMPONENT_PARAM_SPECS,
@@ -141,8 +299,9 @@ class _ParamTable(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
 
-        self._table = QtWidgets.QTableWidget(0, len(_HEADERS), self)
-        self._table.setHorizontalHeaderLabels(_HEADERS)
+        headers = _headers()
+        self._table = QtWidgets.QTableWidget(0, len(headers), self)
+        self._table.setHorizontalHeaderLabels(headers)
         self._table.horizontalHeader().setSectionResizeMode(
             _COL_PARAM, QtWidgets.QHeaderView.ResizeToContents
         )
@@ -157,7 +316,9 @@ class _ParamTable(QtWidgets.QWidget):
         self._table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         layout.addWidget(self._table)
 
-        btn_reset = QtWidgets.QPushButton("Restablecer pestaña a valores predeterminados")
+        btn_reset = QtWidgets.QPushButton(
+            tr("param_limits.btn_reset",
+               default="Restablecer pestaña a valores predeterminados"))
         btn_reset.clicked.connect(self._reset_to_defaults)
         layout.addWidget(btn_reset)
 
@@ -169,7 +330,7 @@ class _ParamTable(QtWidgets.QWidget):
             row = self._table.rowCount()
             self._table.insertRow(row)
 
-            label = _PARAM_LABELS.get(name, name)
+            label = _param_labels().get(name, name)
             item_name = QtWidgets.QTableWidgetItem(f"{name}  —  {label}")
             item_name.setFlags(QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable)
             self._table.setItem(row, _COL_PARAM, item_name)
@@ -246,8 +407,10 @@ class ParamLimitsDialog(QtWidgets.QDialog):
         self._tabs.addTab(self._tab_component,    tr("param_limits.tab_component",    default="Componentes"))
         self._tabs.addTab(self._tab_calibration,  tr("param_limits.tab_calibration",  default="Calibración"))
         self._tabs.addTab(self._tab_distribution, tr("param_limits.tab_distribution", default="Distribución"))
-        self._tabs.addTab(self._tab_fit_init,    "Inicialización del ajuste")
-        self._tabs.addTab(self._tab_peak_detect, "Detección de picos (avanzado)")
+        self._tabs.addTab(self._tab_fit_init,
+                          tr("param_limits.tab_fit_init", default="Inicialización del ajuste"))
+        self._tabs.addTab(self._tab_peak_detect,
+                          tr("param_limits.tab_peak_detection", default="Detección de picos (avanzado)"))
         layout.addWidget(self._tabs)
 
         btn_box = QtWidgets.QDialogButtonBox(

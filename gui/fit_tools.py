@@ -44,18 +44,20 @@ class FitToolsMixin:
             "ask": "Suggest a discrete Mössbauer Fe-57 fit (sextet/doublet/singlet) with starting δ, ΔEQ, BHF, Γ, depth.",
         }
         dlg = QtWidgets.QDialog(self)
-        dlg.setWindowTitle("Resumen espectro (para IA/LLM)")
+        dlg.setWindowTitle(tr("ai_summary.title", default="Spectrum summary (for AI/LLM)"))
         dlg.resize(640, 480)
         v_lay = QtWidgets.QVBoxLayout(dlg)
-        v_lay.addWidget(QtWidgets.QLabel(
-            "<i>Copia este JSON en cualquier LLM (Ollama, ChatGPT, Claude, …) "
-            "para que sugiera valores iniciales del ajuste.</i>"))
+        v_lay.addWidget(QtWidgets.QLabel("<i>" + tr(
+            "ai_summary.hint",
+            default=("Copy this JSON into any LLM (Ollama, ChatGPT, Claude, …) "
+                     "to get suggested starting fit values.")) + "</i>"))
         text = QtWidgets.QTextEdit()
         text.setReadOnly(True)
         text.setStyleSheet("QTextEdit { font-family: monospace; font-size: 10pt; }")
         text.setPlainText(json.dumps(summary, indent=2, ensure_ascii=False))
         v_lay.addWidget(text, stretch=1)
-        btn_copy = QtWidgets.QPushButton("Copiar al portapapeles")
+        btn_copy = QtWidgets.QPushButton(
+            tr("ai_summary.copy_clipboard", default="Copy to clipboard"))
         btn_copy.clicked.connect(
             lambda: QtWidgets.QApplication.clipboard().setText(text.toPlainText()))
         v_lay.addWidget(btn_copy)

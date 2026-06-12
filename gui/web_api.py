@@ -38,15 +38,16 @@ class WebApiMixin:
 
     def _login_dialog(self, client, creds: dict) -> bool:
         dlg = QtWidgets.QDialog(self)
-        dlg.setWindowTitle("Login (API laboratorio)")
+        dlg.setWindowTitle(tr("webapi.login_title", default="Login (lab API)"))
         form = QtWidgets.QFormLayout(dlg)
         e_user = QtWidgets.QLineEdit(creds.get("username", ""))
         e_pass = QtWidgets.QLineEdit(creds.get("password", ""))
         e_pass.setEchoMode(QtWidgets.QLineEdit.Password)
-        cb_remember = QtWidgets.QCheckBox("Recordar usuario y token")
+        cb_remember = QtWidgets.QCheckBox(
+            tr("checkbox.remember_credentials_short", default="Remember credentials and token"))
         cb_remember.setChecked(bool(creds.get("username") or creds.get("token")))
-        form.addRow("Usuario:", e_user)
-        form.addRow("Contraseña:", e_pass)
+        form.addRow(tr("webapi.username", default="Username:"), e_user)
+        form.addRow(tr("webapi.password", default="Password:"), e_pass)
         form.addRow(cb_remember)
         bb = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
@@ -60,7 +61,9 @@ class WebApiMixin:
         try:
             client.login(user, pwd)
         except Exception as exc:
-            QtWidgets.QMessageBox.critical(self, "Login", f"Login fallido: {exc}")
+            QtWidgets.QMessageBox.critical(
+                self, tr("webapi.login", default="Login"),
+                tr("webapi.login_failed", default="Login failed: {err}", err=str(exc)))
             return False
         if cb_remember.isChecked():
             creds = dict(creds); creds["username"] = user
@@ -133,7 +136,8 @@ class WebApiMixin:
             tr("label.search", default="Buscar:")))
         e_search = QtWidgets.QLineEdit()
         search_row.addWidget(e_search, stretch=1)
-        btn_search = QtWidgets.QPushButton("Buscar/Refrescar")
+        btn_search = QtWidgets.QPushButton(
+            tr("webapi.search_refresh", default="Search/Refresh"))
         search_row.addWidget(btn_search)
         v.addLayout(search_row)
         table = QtWidgets.QTableWidget(0, 7)
@@ -319,8 +323,8 @@ class WebApiMixin:
         # Botones inferiores
         btn_row = QtWidgets.QHBoxLayout()
         btn_list = QtWidgets.QPushButton(tr("button.list", default="Listar"))
-        btn_download_only = QtWidgets.QPushButton("Descargar")
-        btn_dl = QtWidgets.QPushButton("Descargar y cargar")
+        btn_download_only = QtWidgets.QPushButton(tr("button.download", default="Download"))
+        btn_dl = QtWidgets.QPushButton(tr("button.download_load", default="Download and load"))
         btn_close = QtWidgets.QPushButton(
             tr("button.close", default="Cerrar"))
         btn_row.addStretch(1)

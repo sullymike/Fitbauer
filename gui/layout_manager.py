@@ -159,18 +159,22 @@ class LayoutSettingsMixin:
         dlg.setWindowTitle(tr("view.configure_layout"))
         dlg.resize(980, 640)
         v = QtWidgets.QVBoxLayout(dlg)
-        v.addWidget(QtWidgets.QLabel(
-            "<i>Choose a preset or move panels between <b>Available</b> and the "
-            "<b>3 columns</b>. Panels left in <b>Available</b> are hidden. "
-            "The right column with width 0 is hidden and its panels anchor below the plot.</i>"))
+        v.addWidget(QtWidgets.QLabel("<i>" + tr(
+            "layout.cfg.note",
+            default=("Choose a preset or move panels between Available and the "
+                     "3 columns. Panels left in Available are hidden. The right "
+                     "column with width 0 is hidden and its panels anchor below the plot.")
+        ) + "</i>"))
 
         list_w = QtWidgets.QListWidget()
         v.addWidget(list_w, stretch=1)
 
         left_width_spin = QtWidgets.QSpinBox()
-        left_width_spin.setRange(200, 900); left_width_spin.setSuffix("  px left")
+        left_width_spin.setRange(200, 900)
+        left_width_spin.setSuffix("  " + tr("layout.cfg.px_left", default="px left"))
         right_width_spin = QtWidgets.QSpinBox()
-        right_width_spin.setRange(0, 900); right_width_spin.setSuffix("  px right")
+        right_width_spin.setRange(0, 900)
+        right_width_spin.setSuffix("  " + tr("layout.cfg.px_right", default="px right"))
 
         panel_names = dict(getattr(self, "_layout_panel_names", {}))
         panel_lists: dict[str, QtWidgets.QListWidget] = {}
@@ -239,12 +243,15 @@ class LayoutSettingsMixin:
                     list_w.setCurrentItem(item)
 
         # Editor visual de columnas.
-        edit_box = QtWidgets.QGroupBox("Column editor")
+        edit_box = QtWidgets.QGroupBox(tr("layout.cfg.column_editor", default="Column editor"))
         edit_v = QtWidgets.QVBoxLayout(edit_box)
         edit_row = QtWidgets.QHBoxLayout()
-        for key, title in (("available", "Available (unassigned)"),
-                           ("left", "Left"), ("center", "Center"),
-                           ("right", "Right")):
+        for key, title in (
+            ("available", tr("layout.col.available", default="Available (unassigned)")),
+            ("left",   tr("layout.col.left",   default="Left")),
+            ("center", tr("layout.col.center", default="Center")),
+            ("right",  tr("layout.col.right",  default="Right")),
+        ):
             col = QtWidgets.QVBoxLayout()
             col.addWidget(QtWidgets.QLabel(f"<b>{title}</b>"))
             lw_col = QtWidgets.QListWidget()
@@ -256,10 +263,12 @@ class LayoutSettingsMixin:
         edit_v.addLayout(edit_row)
 
         move_row = QtWidgets.QHBoxLayout()
-        for key, label in (("available", "Set aside"),
-                           ("left", "Move to left"),
-                           ("center", "Move to center"),
-                           ("right", "Move to right")):
+        for key, label in (
+            ("available", tr("layout.cfg.set_aside",   default="Set aside")),
+            ("left",      tr("layout.cfg.move_left",   default="Move to left")),
+            ("center",    tr("layout.cfg.move_center", default="Move to center")),
+            ("right",     tr("layout.cfg.move_right",  default="Move to right")),
+        ):
             btn = QtWidgets.QPushButton(label)
             def _move(_=False, target=key):
                 _src_key, src = selected_column()
@@ -270,8 +279,8 @@ class LayoutSettingsMixin:
                 panel_lists[target].setCurrentItem(item)
             btn.clicked.connect(_move)
             move_row.addWidget(btn)
-        btn_up = QtWidgets.QPushButton("Up")
-        btn_down = QtWidgets.QPushButton("Down")
+        btn_up = QtWidgets.QPushButton(tr("layout.cfg.up", default="Up"))
+        btn_down = QtWidgets.QPushButton(tr("layout.cfg.down", default="Down"))
         def _reorder(delta: int) -> None:
             _key, lw_col = selected_column()
             if lw_col is None:
@@ -289,7 +298,7 @@ class LayoutSettingsMixin:
         edit_v.addLayout(move_row)
 
         width_row = QtWidgets.QHBoxLayout()
-        width_row.addWidget(QtWidgets.QLabel("Widths:"))
+        width_row.addWidget(QtWidgets.QLabel(tr("layout.cfg.widths", default="Widths:")))
         width_row.addWidget(left_width_spin)
         width_row.addWidget(right_width_spin)
         width_row.addStretch(1)
@@ -312,9 +321,9 @@ class LayoutSettingsMixin:
             row.addWidget(QtWidgets.QLabel(f"<b>{slot}</b>:"))
             desc_e = QtWidgets.QLineEdit(
                 self.custom_layouts.get(slot, {}).get(
-                    "description", "User custom"))
+                    "description", tr("layout.cfg.user_custom", default="User custom")))
             row.addWidget(desc_e, stretch=1)
-            btn = QtWidgets.QPushButton("Save current layout")
+            btn = QtWidgets.QPushButton(tr("layout.cfg.save_layout", default="Save current layout"))
             def _save(_=False, _slot=slot, _desc=desc_e):
                 self.custom_layouts[_slot] = current_spec(
                     _desc.text().strip() or "Custom")
