@@ -7,7 +7,7 @@ import re
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from mossbauer_i18n import tr, get_language
-from mossbauer_help import get_help_sections
+from mossbauer_help import get_help_sections, get_help_groups
 from core.constants import APP_NAME, APP_VERSION
 from core.data_io import SETTINGS_PATH
 from gui.branding import _logo_pixmap
@@ -255,34 +255,40 @@ class HelpMixin:
         return compiled
 
     @staticmethod
-    def _help_layout() -> list[tuple[str, list[int]]]:
-        """Distribución jerárquica de la ayuda según los menús del programa.
+    def _help_groups_order() -> list[tuple[str, str]]:
+        """Orden y etiqueta de los grupos temáticos del árbol de ayuda.
 
-        Refleja la estructura real de la barra de menús (Archivo, Ajuste,
-        Opciones, Vista, Ayuda) más grupos temáticos para los conceptos
-        físicos y las distribuciones P(BHF) / P(ΔEQ). Los índices son los
-        del orden canónico de ``help.json`` (idéntico en todos los idiomas
-        empaquetados con el programa, ver ``locales/<code>/help.json``).
+        Devuelve ``[(group_code, etiqueta_traducida), ...]``. Cada capítulo de
+        ``help.json`` lleva su propio campo ``group`` con uno de estos códigos,
+        de modo que el agrupamiento es **independiente del idioma, del número
+        de capítulos y de su orden** (antes se usaban índices fijos que se
+        descolocaban al diferir las traducciones).
         """
         return [
-            (tr("help.tree_overview", default="🚀 Visión general"),
-             [0, 22]),
-            (tr("help.tree_file",     default="📁 Menú Archivo"),
-             [1, 7, 18]),
-            (tr("help.tree_fit",      default="🧮 Menú Ajuste"),
-             [2, 17, 19, 24]),
-            (tr("help.tree_options",  default="🎛️ Menú Opciones"),
-             [3, 10]),
-            (tr("help.tree_view",     default="👁️ Menú Vista"),
-             [4]),
-            (tr("help.tree_help",     default="❓ Menú Ayuda"),
-             [5, 23, 25]),
-            (tr("help.tree_physics",  default="🔬 Conceptos físicos"),
-             [6, 9, 8, 20, 21]),
-            (tr("help.tree_distrib",
-                default="📊 Distribuciones P(BHF) / P(ΔEQ)"),
-             [11, 12, 13, 14, 15, 16]),
+            ("overview",      tr("help.tree_overview", default="🚀 Overview")),
+            ("files",         tr("help.tree_files",    default="📁 Files and data")),
+            ("fitting",       tr("help.tree_fitting",  default="🧮 Fitting")),
+            ("distributions", tr("help.tree_distrib",
+                               default="📊 Distributions P(BHF) / P(ΔEQ)")),
+            ("results",       tr("help.tree_results",  default="💾 Results and reports")),
+            ("tools",         tr("help.tree_tools",    default="🧰 Tools and extras")),
         ]
+
+    def _help_layout(self) -> list[tuple[str, list[int]]]:
+        """Construye la distribución jerárquica de la ayuda agrupando por el
+        campo ``group`` de cada capítulo del idioma activo.
+
+        Cada grupo conserva los capítulos en su orden natural dentro del
+        ``help.json``. Devuelve ``[(etiqueta_grupo, [índices]), ...]`` para que
+        el constructor del árbol no dependa de un mapeo de índices fijo.
+        """
+        groups = get_help_groups(get_language())
+        layout: list[tuple[str, list[int]]] = []
+        for code, label in self._help_groups_order():
+            indices = [i for i, g in enumerate(groups) if g == code]
+            if indices:
+                layout.append((label, indices))
+        return layout
 
     def on_help(self, show_shortcuts: bool = False) -> None:
         if self._help_dialog is not None:

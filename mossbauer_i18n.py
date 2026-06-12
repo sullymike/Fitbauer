@@ -134,3 +134,27 @@ def load_help_chapters(lang: str) -> list[tuple[str, str, str]]:
         return chapters
     return []
 
+
+def load_help_groups(lang: str) -> list[str]:
+    """Return the ``group`` code of each help chapter for ``lang``.
+
+    Parallel (same order) to :func:`load_help_chapters`, so callers can map a
+    chapter index to its thematic group regardless of language, chapter count
+    or ordering. Missing ``group`` fields yield an empty string.
+    """
+    for code in (lang, DEFAULT_LANGUAGE):
+        if not code:
+            continue
+        path = LOCALES_DIR / code / "help.json"
+        if not path.is_file():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(data, list):
+            continue
+        return [str(entry.get("group", "")) if isinstance(entry, dict) else ""
+                for entry in data]
+    return []
+

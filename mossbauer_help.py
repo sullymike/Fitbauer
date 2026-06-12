@@ -6,7 +6,7 @@ settings path) into the chapter content via ``str.format`` placeholders.
 """
 from __future__ import annotations
 
-from mossbauer_i18n import DEFAULT_LANGUAGE, load_help_chapters
+from mossbauer_i18n import DEFAULT_LANGUAGE, load_help_chapters, load_help_groups
 
 _SETTINGS_DEFAULTS = {
     "es": "(configuración)",
@@ -50,3 +50,20 @@ def get_help_sections(voigt_sigma: float = 0.05,
             pass
         rendered.append((title, heading, content))
     return rendered
+
+
+def get_help_groups(lang: str = DEFAULT_LANGUAGE) -> list[str]:
+    """Return the thematic group code of each chapter, parallel to
+    :func:`get_help_sections`.
+
+    Used by the GUI help tree to group chapters by topic in a way that is
+    independent of language, chapter count or ordering.
+    """
+    code = str(lang).lower()
+    if code.startswith("en"):
+        code = "en"
+    elif code.startswith("fr"):
+        code = "fr"
+    elif code.startswith("es"):
+        code = "es"
+    return load_help_groups(code)
