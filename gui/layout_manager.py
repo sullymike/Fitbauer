@@ -41,7 +41,7 @@ class LayoutSettingsMixin:
 
     def _collect_layout_spec(self, columns: dict[str, list[str]],
                              left_width: int, right_width: int,
-                             description: str = "Personalizado") -> dict:
+                             description: str = "Custom") -> dict:
         known = set(getattr(self, "_layout_panel_widgets", {}))
         out = {
             "description": description,
@@ -140,18 +140,17 @@ class LayoutSettingsMixin:
         dlg.resize(980, 640)
         v = QtWidgets.QVBoxLayout(dlg)
         v.addWidget(QtWidgets.QLabel(
-            "<i>Elige un preset o mueve paneles entre <b>Disponibles</b> y las "
-            "<b>3 columnas</b>. Los paneles que dejes en <b>Disponibles</b> "
-            "quedan apartados (no se muestran). La columna derecha con anchura 0 "
-            "se oculta y sus paneles se anclan debajo de la gráfica.</i>"))
+            "<i>Choose a preset or move panels between <b>Available</b> and the "
+            "<b>3 columns</b>. Panels left in <b>Available</b> are hidden. "
+            "The right column with width 0 is hidden and its panels anchor below the plot.</i>"))
 
         list_w = QtWidgets.QListWidget()
         v.addWidget(list_w, stretch=1)
 
         left_width_spin = QtWidgets.QSpinBox()
-        left_width_spin.setRange(200, 900); left_width_spin.setSuffix("  px izquierda")
+        left_width_spin.setRange(200, 900); left_width_spin.setSuffix("  px left")
         right_width_spin = QtWidgets.QSpinBox()
-        right_width_spin.setRange(0, 900); right_width_spin.setSuffix("  px derecha")
+        right_width_spin.setRange(0, 900); right_width_spin.setSuffix("  px right")
 
         panel_names = dict(getattr(self, "_layout_panel_names", {}))
         panel_lists: dict[str, QtWidgets.QListWidget] = {}
@@ -193,7 +192,7 @@ class LayoutSettingsMixin:
             left_width_spin.setValue(int(spec.get("left_width", 430)))
             right_width_spin.setValue(int(spec.get("right_width", 0)))
 
-        def current_spec(description: str = "Personalizado") -> dict:
+        def current_spec(description: str = "Custom") -> dict:
             return self._collect_layout_spec(
                 columns_from_lists(), left_width_spin.value(), right_width_spin.value(),
                 description=description,
@@ -206,8 +205,8 @@ class LayoutSettingsMixin:
                 kind = "(custom)" if name in self.custom_layouts else "(Tk)"
                 lw = spec.get("left_width", "—")
                 rw = spec.get("right_width", "—")
-                txt = (f"{name}  {kind}  ·  izquierda={lw}px  ·  "
-                       f"derecha={rw}px  ·  {spec.get('description', '')}")
+                txt = (f"{name}  {kind}  ·  left={lw}px  ·  "
+                       f"right={rw}px  ·  {spec.get('description', '')}")
                 item = QtWidgets.QListWidgetItem(txt)
                 item.setData(QtCore.Qt.UserRole, name)
                 list_w.addItem(item)
@@ -216,12 +215,12 @@ class LayoutSettingsMixin:
                     list_w.setCurrentItem(item)
 
         # Editor visual de columnas.
-        edit_box = QtWidgets.QGroupBox("Editor de columnas")
+        edit_box = QtWidgets.QGroupBox("Column editor")
         edit_v = QtWidgets.QVBoxLayout(edit_box)
         edit_row = QtWidgets.QHBoxLayout()
-        for key, title in (("available", "Disponibles (sin asignar)"),
-                           ("left", "Izquierda"), ("center", "Centro"),
-                           ("right", "Derecha")):
+        for key, title in (("available", "Available (unassigned)"),
+                           ("left", "Left"), ("center", "Center"),
+                           ("right", "Right")):
             col = QtWidgets.QVBoxLayout()
             col.addWidget(QtWidgets.QLabel(f"<b>{title}</b>"))
             lw_col = QtWidgets.QListWidget()
@@ -233,10 +232,10 @@ class LayoutSettingsMixin:
         edit_v.addLayout(edit_row)
 
         move_row = QtWidgets.QHBoxLayout()
-        for key, label in (("available", "Apartar"),
-                           ("left", "Mover a izquierda"),
-                           ("center", "Mover al centro"),
-                           ("right", "Mover a derecha")):
+        for key, label in (("available", "Set aside"),
+                           ("left", "Move to left"),
+                           ("center", "Move to center"),
+                           ("right", "Move to right")):
             btn = QtWidgets.QPushButton(label)
             def _move(_=False, target=key):
                 _src_key, src = selected_column()
@@ -247,8 +246,8 @@ class LayoutSettingsMixin:
                 panel_lists[target].setCurrentItem(item)
             btn.clicked.connect(_move)
             move_row.addWidget(btn)
-        btn_up = QtWidgets.QPushButton("Subir")
-        btn_down = QtWidgets.QPushButton("Bajar")
+        btn_up = QtWidgets.QPushButton("Up")
+        btn_down = QtWidgets.QPushButton("Down")
         def _reorder(delta: int) -> None:
             _key, lw_col = selected_column()
             if lw_col is None:
@@ -266,7 +265,7 @@ class LayoutSettingsMixin:
         edit_v.addLayout(move_row)
 
         width_row = QtWidgets.QHBoxLayout()
-        width_row.addWidget(QtWidgets.QLabel("Anchos:"))
+        width_row.addWidget(QtWidgets.QLabel("Widths:"))
         width_row.addWidget(left_width_spin)
         width_row.addWidget(right_width_spin)
         width_row.addStretch(1)
@@ -289,12 +288,12 @@ class LayoutSettingsMixin:
             row.addWidget(QtWidgets.QLabel(f"<b>{slot}</b>:"))
             desc_e = QtWidgets.QLineEdit(
                 self.custom_layouts.get(slot, {}).get(
-                    "description", "Personalizado por el usuario"))
+                    "description", "User custom"))
             row.addWidget(desc_e, stretch=1)
-            btn = QtWidgets.QPushButton("Guardar diseño mostrado")
+            btn = QtWidgets.QPushButton("Save current layout")
             def _save(_=False, _slot=slot, _desc=desc_e):
                 self.custom_layouts[_slot] = current_spec(
-                    _desc.text().strip() or "Personalizado")
+                    _desc.text().strip() or "Custom")
                 self._save_settings()
                 refresh_list(_slot)
             btn.clicked.connect(_save)
@@ -311,14 +310,14 @@ class LayoutSettingsMixin:
         if item is None:
             return
         name = item.data(QtCore.Qt.UserRole)
-        shown = current_spec(self._all_presets().get(name, {}).get("description", "Personalizado"))
+        shown = current_spec(self._all_presets().get(name, {}).get("description", "Custom"))
         selected = self._all_presets().get(name, {})
         comparable = {k: selected.get(k, [] if k in ("left", "center", "right") else 0)
                       for k in ("left", "center", "right", "left_width", "right_width")}
         shown_comp = {k: shown.get(k) for k in comparable}
         if shown_comp != comparable:
             name = name if name in self.custom_layouts else "Custom 1"
-            shown["description"] = shown.get("description") or "Personalizado"
+            shown["description"] = shown.get("description") or "Custom"
             self.custom_layouts[name] = shown
             self._save_settings()
         self._apply_layout_preset(name)

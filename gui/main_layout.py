@@ -100,7 +100,7 @@ class MainLayoutMixin:
         lv.addWidget(ref_box)
 
         # Selector de modo (discreto / P(BHF)) y controles de simulación.
-        self.sim_controls_box = QtWidgets.QGroupBox("Simulación / ajuste")
+        self.sim_controls_box = QtWidgets.QGroupBox(tr("controls.simulation_box"))
         sim_lay = QtWidgets.QVBoxLayout(self.sim_controls_box)
         mode_row = QtWidgets.QHBoxLayout()
         mode_row.addWidget(QtWidgets.QLabel(tr("controls.fit_mode_hint").split(":")[0] + ":"))
@@ -287,7 +287,7 @@ class MainLayoutMixin:
             "info_display": "Info",
             "calibration": "Calibración",
             "reference": "Referencia",
-            "sim_controls": "Simulación / ajuste",
+            "sim_controls": tr("controls.simulation_box"),
         }
         self._layout_panel_widgets = {
             "header": self.header_box,
