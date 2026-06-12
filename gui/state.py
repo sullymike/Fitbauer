@@ -375,6 +375,7 @@ class UiPreferencesState:
     ui_language: str | None = None
     qt_style: str | None = None
     custom_shortcuts: dict[str, str] = field(default_factory=dict)
+    multistart_n: int = 8
 
     @classmethod
     def from_settings_dict(cls, data: dict[str, Any]) -> "UiPreferencesState":
@@ -396,6 +397,7 @@ class UiPreferencesState:
             custom_shortcuts={
                 str(k): str(v) for k, v in cs.items() if isinstance(v, str)
             } if isinstance(cs, dict) else {},
+            multistart_n=int(data.get("multistart_n", 8)),
         )
 
     def to_settings_dict(self, *, base: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -407,6 +409,7 @@ class UiPreferencesState:
             "recent_files": list(self.recent_files),
             "layout_preset": self.layout_preset,
             "custom_layouts": dict(self.custom_layouts),
+            "multistart_n": self.multistart_n,
         })
         if self.ui_language:
             out["ui_language"] = self.ui_language

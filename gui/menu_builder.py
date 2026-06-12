@@ -311,8 +311,10 @@ class MenuBuilderMixin:
         self._multistart_spin.setRange(0, int(_fi["multistart_n_max"].default))
         self._multistart_spin.setValue(getattr(self, "multistart_n", 8))
         self._multistart_spin.setFixedWidth(50)
-        self._multistart_spin.valueChanged.connect(
-            lambda v: setattr(self, "multistart_n", v))
+        def _on_multistart_changed(v: int) -> None:
+            self.multistart_n = v
+            self._save_settings()
+        self._multistart_spin.valueChanged.connect(_on_multistart_changed)
         _ms_h.addWidget(self._multistart_spin)
         _wa.setDefaultWidget(_ms_container)
         adv_menu.addAction(_wa)

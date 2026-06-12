@@ -453,6 +453,7 @@ class LayoutSettingsMixin:
             layout_preset=self.layout_preset,
             custom_layouts=dict(self.custom_layouts),
             qt_style=getattr(self, "qt_style", None),
+            multistart_n=getattr(self, "multistart_n", 8),
         )
 
     def _apply_ui_preferences_state(self, prefs: UiPreferencesState) -> None:
@@ -476,6 +477,12 @@ class LayoutSettingsMixin:
             self._custom_shortcuts = dict(prefs.custom_shortcuts)
             if hasattr(self, "_action_registry") and self._action_registry:
                 self._apply_custom_shortcuts(prefs.custom_shortcuts)
+        self.multistart_n = int(prefs.multistart_n)
+        spin = getattr(self, "_multistart_spin", None)
+        if spin is not None:
+            spin.blockSignals(True)
+            spin.setValue(self.multistart_n)
+            spin.blockSignals(False)
 
     # ── Persistencia mínima ──────────────────────────────────────────────
     def _load_settings(self) -> None:
