@@ -8,6 +8,7 @@
   "view.open_plotly": "Mostrar pestaña Plotly interactiva",
   "menu.options": "Opciones",
   "view.configure_layout": "Configurar layout de paneles…",
+  "view.param_limits": "Límites de parámetros…",
   "param_limits.title": "Límites de parámetros",
   "param_limits.note": "Los cambios se aplican al reiniciar la aplicación. Se guardan en ~/.config/mossbauer_fe33_gui/param_limits.json",
   "param_limits.tab_component": "Componentes",
