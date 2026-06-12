@@ -7,6 +7,7 @@ from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
 from core.constants import APP_NAME, APP_VERSION
+from core.params import USED_BY
 from core.result_views import discrete_result_view
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -204,60 +205,80 @@ class ReportMixin:
         lines.append("## 🧪 Componentes")
         lines.append("")
         for comp_state in active_components:
-            kind_disp = tr(f"kind.{comp_state.kind}", default=comp_state.kind)
+            kind = comp_state.kind
+            kind_disp = tr(f"kind.{kind}", default=kind)
             lines.append(f"### 🔹 Componente {comp_state.idx} — {kind_disp}")
             lines.append("")
+            used = USED_BY.get(kind, set())
+            uses_gamma2 = "gamma2" in used
+            uses_gamma3 = "gamma3" in used
+            uses_bhf = "bhf" in used
+            uses_quad = "quad" in used
+            uses_int1 = "int1" in used  # True for magnetic/relaxation kinds
             lines.append("**Parámetros**")
             lines.append("")
             lines.append("| Parámetro | Valor | Estado |")
             lines.append("|---|---|---|")
             for k, value in comp_state.values.items():
+                if k not in used:
+                    continue
                 state_lbl = "🔒 fijo" if comp_state.is_fixed(k) else "🔓 libre"
                 lines.append(f"| `s{comp_state.idx}_{k}` | {value:.6g} | {state_lbl} |")
             lines.append("")
             # Magnitudes físicas derivadas: anchuras reales e intensidades absolutas
             g1 = comp_state.value("gamma1")
-            g2 = g1 * comp_state.value("gamma2", 1.0)
-            g3 = g1 * comp_state.value("gamma3", 1.0)
-            i3_real = comp_state.value("int3", 1.0)
-            i2_real = i3_real * comp_state.value("int2", 1.0)
-            i1_real = i3_real * comp_state.value("int1", 1.0)
             lines.append("**Magnitudes físicas derivadas**")
             lines.append("")
             lines.append("| Magnitud | Valor |")
             lines.append("|---|---|")
-            lines.append(f"| Γ FWHM reales 1 / 2 / 3 (mm/s) | {g1:.4g} / {g2:.4g} / {g3:.4g} |")
-            lines.append(f"| Γ relativas 2 / 3 | {comp_state.value('gamma2', 1.0):.4g} / {comp_state.value('gamma3', 1.0):.4g} |")
+            if uses_gamma2 and uses_gamma3:
+                g2 = g1 * comp_state.value("gamma2", 1.0)
+                g3 = g1 * comp_state.value("gamma3", 1.0)
+                lines.append(f"| Γ FWHM reales 1 / 2 / 3 (mm/s) | {g1:.4g} / {g2:.4g} / {g3:.4g} |")
+                lines.append(f"| Γ relativas 2 / 3 | {comp_state.value('gamma2', 1.0):.4g} / {comp_state.value('gamma3', 1.0):.4g} |")
+            elif uses_gamma2:
+                g2 = g1 * comp_state.value("gamma2", 1.0)
+                lines.append(f"| Γ FWHM reales 1 / 2 (mm/s) | {g1:.4g} / {g2:.4g} |")
+                lines.append(f"| Γ relativa 2 | {comp_state.value('gamma2', 1.0):.4g} |")
+            else:
+                lines.append(f"| Γ FWHM (mm/s) | {g1:.4g} |")
             lines.append(f"| Profundidad | {comp_state.value('depth'):.6g} |")
-            lines.append(f"| Intensidades reales I₁ / I₂ / I₃ | {i1_real:.4g} / {i2_real:.4g} / {i3_real:.4g} |")
-            lines.append(f"| BHF | {comp_state.value('bhf'):.6g} T |")
+            if uses_bhf:
+                lines.append(f"| BHF | {comp_state.value('bhf'):.6g} T |")
             lines.append(f"| δ (sin corregir) | {comp_state.value('delta'):.6g} mm/s |")
-            lines.append(f"| ΔEQ | {comp_state.value('quad'):.6g} mm/s |")
+            if uses_quad:
+                lines.append(f"| ΔEQ | {comp_state.value('quad'):.6g} mm/s |")
             if iso_ref is not None:
                 lines.append(
                     f"| **δ corregido** (iso_ref = {iso_ref:.6g}) | "
                     f"**{comp_state.value('delta') - iso_ref:.6g} mm/s** |"
                 )
+            if uses_int1:
+                i3_real = comp_state.value("int3", 1.0)
+                i2_real = i3_real * comp_state.value("int2", 1.0)
+                i1_real = i3_real * comp_state.value("int1", 1.0)
+                lines.append(f"| Intensidades reales I₁ / I₂ / I₃ | {i1_real:.4g} / {i2_real:.4g} / {i3_real:.4g} |")
             lines.append("")
-            # Textura derivada
-            derived = self.texture_derived(comp_state)
-            if derived is not None:
-                lines.append("**🧭 Magnitudes derivadas de la textura (t = sin²θ)**")
-                lines.append("")
-                lines.append("| Magnitud | Valor | σ |")
-                lines.append("|---|---|---|")
-                lines.append(f"| t (parámetro de textura) | {derived['t']:.4g} | {_ferr(derived['sigma_t'])} |")
-                lines.append(f"| θ (ángulo respecto a γ) | {derived['theta_deg']:.4g}° | {_ferr(derived['sigma_theta_deg'])} |")
-                lines.append(f"| R₂₃ = I₂/I₃ | {derived['r23']:.4g} | {_ferr(derived['sigma_r23'])} |")
-                lines.append(f"| S = ⟨P₂(cos θ)⟩ | {derived['s']:.4g} | {_ferr(derived['sigma_s'])} |")
-                lines.append("")
-                lines.append("> 💡 **Interpretación:** *t = sin²θ* parametriza la razón de "
-                             "intensidades I₂/I₃ del sextete: t = 0 ⇒ campo paralelo al rayo γ "
-                             "(I₂ = 0), t = 2/3 ⇒ muestra random (θ ≈ 54.7°, R₂₃ = 2), "
-                             "t = 1 ⇒ campo perpendicular (R₂₃ = 4). *S* es un parámetro de "
-                             "orden tipo Hermans: **+1** alineado al γ, **0** isótropo, "
-                             "**−½** perpendicular.")
-                lines.append("")
+            # Textura derivada: solo para Sextete
+            if kind == "Sextete":
+                derived = self.texture_derived(comp_state)
+                if derived is not None:
+                    lines.append("**🧭 Magnitudes derivadas de la textura (t = sin²θ)**")
+                    lines.append("")
+                    lines.append("| Magnitud | Valor | σ |")
+                    lines.append("|---|---|---|")
+                    lines.append(f"| t (parámetro de textura) | {derived['t']:.4g} | {_ferr(derived['sigma_t'])} |")
+                    lines.append(f"| θ (ángulo respecto a γ) | {derived['theta_deg']:.4g}° | {_ferr(derived['sigma_theta_deg'])} |")
+                    lines.append(f"| R₂₃ = I₂/I₃ | {derived['r23']:.4g} | {_ferr(derived['sigma_r23'])} |")
+                    lines.append(f"| S = ⟨P₂(cos θ)⟩ | {derived['s']:.4g} | {_ferr(derived['sigma_s'])} |")
+                    lines.append("")
+                    lines.append("> 💡 **Interpretación:** *t = sin²θ* parametriza la razón de "
+                                 "intensidades I₂/I₃ del sextete: t = 0 ⇒ campo paralelo al rayo γ "
+                                 "(I₂ = 0), t = 2/3 ⇒ muestra random (θ ≈ 54.7°, R₂₃ = 2), "
+                                 "t = 1 ⇒ campo perpendicular (R₂₃ = 4). *S* es un parámetro de "
+                                 "orden tipo Hermans: **+1** alineado al γ, **0** isótropo, "
+                                 "**−½** perpendicular.")
+                    lines.append("")
 
         # ── δ corregidos por calibración (resumen) ──────────────────────
         if iso_ref is not None and active_components:
