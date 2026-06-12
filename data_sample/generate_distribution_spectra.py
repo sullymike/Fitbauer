@@ -146,7 +146,7 @@ def base_session(filename: str, mode_combo_idx: int, dist_variable: str, vars_pa
             "fit_mode": "distribution",
             "line_profile": "Lorentziana",
             "dist_variable": dist_variable,
-            "dist_shape": "Hesse-Rubartsch",
+            "dist_shape": "Histograma",
             "fixed_distribution_path": None,
             "dist_use_sharp": False,
             "info_text": "",

@@ -67,7 +67,7 @@
     "fit_mode": "distribution",
     "line_profile": "Lorentziana",
     "dist_variable": "BHF",
-    "dist_shape": "Hesse-Rubartsch",
+    "dist_shape": "Histograma",
     "fixed_distribution_path": null,
     "dist_use_sharp": false,
     "info_text": "",
