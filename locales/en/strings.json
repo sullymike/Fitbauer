@@ -37,7 +37,7 @@
   "fit.batch_fit": "Batch fit (series)...",
   "fit.fix_all": "Fix all",
   "fit.free_all": "Free all",
-  "options.discrete_sextets": "Sextet fit",
+  "options.discrete_sextets": "Discrete fit",
   "options.distribution_bhf": "P(BHF) distribution",
   "options.show_residual": "Show residual",
   "options.show_legend": "Show legend",
