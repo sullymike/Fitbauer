@@ -472,6 +472,8 @@ class DistributionFitMixin:
         # Persistimos el mapa 2D para que sobreviva a los re-renders posteriores
         # (_finish_gui_fit_result vuelve a dibujar vía _render_fit_result).
         self._dist_map_2d = result if shape == "2D" else None
+        if shape != "2D":
+            self._dist_map_2d_fig = None
         style = get_style(self.plot_style_name)
         show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
         show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
@@ -644,6 +646,36 @@ class DistributionFitMixin:
             warnings.filterwarnings("ignore", message=".*tight_layout.*")
             fig.tight_layout()
         cv.draw_idle()
+
+        # Persist for the PDF report
+        self._dist_map_2d_fig = fig
+
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_save = QtWidgets.QPushButton(tr("button.save_figure", default="Guardar figura…"))
+
+        def _save_figure() -> None:
+            stem = self.file.path.stem if self.file.path else "map2d"
+            path, _ = QtWidgets.QFileDialog.getSaveFileName(
+                dlg,
+                tr("dialog.save_2d_figure", default="Guardar mapa 2D"),
+                str(ROOT / f"{stem}_mapa2D.png"),
+                "PNG (*.png);;SVG (*.svg);;PDF (*.pdf);;All (*.*)",
+            )
+            if path:
+                try:
+                    fig.savefig(path, dpi=150, bbox_inches="tight")
+                except Exception as exc:
+                    QtWidgets.QMessageBox.warning(
+                        dlg,
+                        tr("dialog.save_2d_figure", default="Guardar mapa 2D"),
+                        f"{type(exc).__name__}: {exc}",
+                    )
+
+        btn_save.clicked.connect(_save_figure)
+        btn_row.addWidget(btn_save)
+        btn_row.addStretch()
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
-        bb.rejected.connect(dlg.reject); lay.addWidget(bb)
+        bb.rejected.connect(dlg.reject)
+        btn_row.addWidget(bb)
+        lay.addLayout(btn_row)
         dlg.exec()

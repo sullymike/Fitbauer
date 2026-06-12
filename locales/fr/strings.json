@@ -242,6 +242,8 @@
   "shape.2D": "2D BHF-ΔEQ",
   "dist2d.warning": "⚠ Mode exploratoire : un bon résidu ne garantit pas un sens physique. Vérifier la stabilité avec αB, αQ et les bins.",
   "file.export_distribution": "Exporter la distribution",
+  "dialog.save_2d_figure": "Enregistrer la carte 2D",
+  "button.save_figure": "Enregistrer la figure…",
   "yes": "oui",
   "no": "non",
   "plot.transmission_ylabel": "Transmission normalisée",
