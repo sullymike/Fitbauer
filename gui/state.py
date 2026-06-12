@@ -13,8 +13,9 @@ from typing import Any
 
 import numpy as np
 
-from core.param_overrides import effective_distribution_specs as _eff_dist_specs
+from core.param_overrides import effective_distribution_specs as _eff_dist_specs, effective_fit_init_specs as _eff_fi_specs
 _DSPEC = _eff_dist_specs()
+_FI = _eff_fi_specs()
 
 
 @dataclass
@@ -233,7 +234,7 @@ class FitOptionsState:
             fit_velocity=bool(state.get("fit_velocity", False)),
             fit_center=bool(state.get("fit_center", False)),
             fit_sigma=bool(state.get("fit_sigma", False)),
-            multistart_n=max(0, min(10, int(state.get("multistart_n", 8)))),
+            multistart_n=max(0, min(int(_FI["multistart_n_max"].default), int(state.get("multistart_n", 8)))),
         )
 
     def apply_to_model_state(self, model_state) -> None:

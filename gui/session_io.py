@@ -171,6 +171,13 @@ class SessionIOMixin:
                 self.propagate_calib = bool(state["propagate_calib"])
             if "global_opt" in state:
                 self.global_opt = bool(state["global_opt"])
+            if "multistart_n" in state:
+                self.multistart_n = int(state["multistart_n"])
+                spin = getattr(self, "_multistart_spin", None)
+                if spin is not None:
+                    spin.blockSignals(True)
+                    spin.setValue(self.multistart_n)
+                    spin.blockSignals(False)
             am = state.get("absorber_model")
             if am in ("thin", "thickness"):
                 self.absorber_model = am
