@@ -103,7 +103,7 @@ class DiscreteFitMixin:
         if not ok:
             return
         # Motor puro: ajuste base + remuestreo Monte Carlo (core.fit_engine).
-        self.statusBar().showMessage("Ajuste base…")
+        self.statusBar().showMessage(tr("status.base_fit", default="Base fit…"))
         QtWidgets.QApplication.processEvents()
 
         def _progress(msg: str, _i: int, _n: int) -> None:

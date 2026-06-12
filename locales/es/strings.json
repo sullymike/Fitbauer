@@ -728,5 +728,18 @@
   "minima.count_summary": "{inc}/{tot} mínimos · {contrib} contribuciones",
   "minima.included": "Mínimos (incluidos)",
   "minima.excluded": "Mínimos (excluidos)",
-  "minima.none_selected": "Marca al menos un mínimo para proponer el ajuste."
+  "minima.none_selected": "Marca al menos un mínimo para proponer el ajuste.",
+  "button.load": "Cargar",
+  "layout.empty_recent": "(vacío)",
+  "msg.profile_lik_no_free": "No hay parámetros libres para perfilar.",
+  "status.base_fit": "Ajuste base…",
+  "status.fitting_before_profile": "Ajustando antes de perfilar…",
+  "status.profile_lik_done": "Verosimilitud perfilada: {n} parámetros",
+  "webapi.col_id": "ID",
+  "webapi.col_file": "fichero",
+  "webapi.col_sample": "muestra",
+  "webapi.col_date": "fecha",
+  "webapi.col_temp": "T",
+  "webapi.col_vel": "vel. display",
+  "webapi.col_calib": "calib"
 }

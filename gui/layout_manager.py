@@ -358,7 +358,7 @@ class LayoutSettingsMixin:
     def _rebuild_recent_menu(self) -> None:
         self.recent_menu.clear()
         if not self.recent_files:
-            act = QtGui.QAction("(vacío)", self); act.setEnabled(False)
+            act = QtGui.QAction(tr("layout.empty_recent", default="(empty)"), self); act.setEnabled(False)
             self.recent_menu.addAction(act); return
         for p in self.recent_files:
             act = QtGui.QAction(Path(p).name, self)

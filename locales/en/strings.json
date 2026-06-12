@@ -728,5 +728,18 @@
   "minima.count_summary": "{inc}/{tot} minima · {contrib} contributions",
   "minima.included": "Minima (included)",
   "minima.excluded": "Minima (excluded)",
-  "minima.none_selected": "Select at least one minimum to propose a fit."
+  "minima.none_selected": "Select at least one minimum to propose a fit.",
+  "button.load": "Load",
+  "layout.empty_recent": "(empty)",
+  "msg.profile_lik_no_free": "No free parameters to profile.",
+  "status.base_fit": "Base fit…",
+  "status.fitting_before_profile": "Fitting before profiling…",
+  "status.profile_lik_done": "Profile likelihood: {n} parameters",
+  "webapi.col_id": "ID",
+  "webapi.col_file": "file",
+  "webapi.col_sample": "sample",
+  "webapi.col_date": "date",
+  "webapi.col_temp": "T",
+  "webapi.col_vel": "disp. vel.",
+  "webapi.col_calib": "calib"
 }

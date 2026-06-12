@@ -71,7 +71,7 @@ class FitToolsMixin:
         state = self._build_state()
         if state is None:
             return
-        self.statusBar().showMessage("Ajustando antes de perfilar…")
+        self.statusBar().showMessage(tr("status.fitting_before_profile", default="Fitting before profiling…"))
         QtWidgets.QApplication.processEvents()
 
         def _progress(msg: str, _i: int, _n: int) -> None:
@@ -88,10 +88,10 @@ class FitToolsMixin:
         if not results:
             QtWidgets.QMessageBox.information(
                 self, tr("fit.profile_likelihood"),
-                "No hay parámetros libres para perfilar.")
+                tr("msg.profile_lik_no_free", default="No free parameters to profile."))
             return
         self.statusBar().showMessage(
-            f"Verosimilitud perfilada: {len(results)} parámetros", 5000)
+            tr("status.profile_lik_done", n=len(results), default=f"Profile likelihood: {len(results)} parameters"), 5000)
         self._show_profile_dialog(results)
 
     def _show_profile_dialog(self, results: dict) -> None:

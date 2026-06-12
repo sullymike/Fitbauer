@@ -141,7 +141,15 @@ class WebApiMixin:
         search_row.addWidget(btn_search)
         v.addLayout(search_row)
         table = QtWidgets.QTableWidget(0, 7)
-        table.setHorizontalHeaderLabels(["id", "fichero", "muestra", "fecha", "T", "vel. display", "calib"])
+        table.setHorizontalHeaderLabels([
+            tr("webapi.col_id", default="ID"),
+            tr("webapi.col_file", default="file"),
+            tr("webapi.col_sample", default="sample"),
+            tr("webapi.col_date", default="date"),
+            tr("webapi.col_temp", default="T"),
+            tr("webapi.col_vel", default="disp. vel."),
+            tr("webapi.col_calib", default="calib"),
+        ])
         hdr = table.horizontalHeader()
         hdr.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeToContents)
         hdr.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
@@ -268,7 +276,7 @@ class WebApiMixin:
                 client = build_client()
             except Exception as exc:
                 debug(f"ERROR login: {exc}")
-                QtWidgets.QMessageBox.critical(dlg, "Login", str(exc))
+                QtWidgets.QMessageBox.critical(dlg, tr("webapi.login"), str(exc))
                 return
             persist()
             try:
@@ -364,7 +372,7 @@ class WebApiMixin:
                         except Exception as exc:
                             debug(f"(no se descargó el fichero de calibración: {exc})")
             except Exception as exc:
-                QtWidgets.QMessageBox.critical(dlg, "Descarga", str(exc))
+                QtWidgets.QMessageBox.critical(dlg, tr("button.download"), str(exc))
                 return
             debug(f"Descargado: {p}")
             if not load_after:
@@ -389,7 +397,7 @@ class WebApiMixin:
                     debug("La medida cargada no trae calibración asociada aplicable.")
                 dlg.accept()
             except Exception as exc:
-                QtWidgets.QMessageBox.warning(dlg, "Cargar", str(exc))
+                QtWidgets.QMessageBox.warning(dlg, tr("button.load", default="Load"), str(exc))
 
         btn_list.clicked.connect(refresh)
         btn_download_only.clicked.connect(lambda: download(False))
