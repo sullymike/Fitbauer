@@ -133,6 +133,7 @@ class DiscreteFitMixin:
                 error_source=error_source,
             )
         self.act_export_report.setEnabled(True)
+        self.act_export_short_report.setEnabled(True)
         msg_lines = [tr("msg.bootstrap_done", ok=res.n_ok, total=res.n_rep), ""]
         for k in res.base.free_keys:
             msg_lines.append(f"  {k:14s}  σ(MC) = {res.std[k]:.4g}")

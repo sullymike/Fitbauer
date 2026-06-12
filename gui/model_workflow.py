@@ -647,6 +647,7 @@ class ModelWorkflowMixin:
         self.act_find_center.setEnabled(True)
         self.act_save_fit.setEnabled(True)
         self.act_export_report.setEnabled(True)
+        self.act_export_short_report.setEnabled(True)
         self.act_export_plotly.setEnabled(True)
         self.act_open_plotly.setEnabled(True)
         self.act_bootstrap.setEnabled(True)

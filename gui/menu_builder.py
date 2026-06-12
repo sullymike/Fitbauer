@@ -20,9 +20,10 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     # ── Archivo ──
     ("file.open",              "menu.file", "file.open",              "Ctrl+O"),
     ("file.use_as_calibration","menu.file", "file.use_as_calibration",""),
-    ("file.save_fit",          "menu.file", "file.save_fit",          ""),
-    ("file.export_report",     "menu.file", "file.export_report",     ""),
-    ("file.export_plotly_html","menu.file", "file.export_plotly_html",""),
+    ("file.save_fit",             "menu.file", "file.save_fit",             ""),
+    ("file.export_report",        "menu.file", "file.export_report",        ""),
+    ("file.export_short_report",  "menu.file", "file.export_short_report",  ""),
+    ("file.export_plotly_html",   "menu.file", "file.export_plotly_html",   ""),
     ("file.save_session",      "menu.file", "file.save_session",      "Ctrl+S"),
     ("file.load_session",      "menu.file", "file.load_session",      "Ctrl+L"),
     ("file.exit",              "menu.file", "file.exit",              "Ctrl+Q"),
@@ -129,6 +130,11 @@ class MenuBuilderMixin:
         self.act_export_report.setEnabled(False)
         file_menu.addAction(self.act_export_report)
         self._reg("file.export_report", self.act_export_report)
+        self.act_export_short_report = QtGui.QAction(tr("file.export_short_report"), self)
+        self.act_export_short_report.triggered.connect(self.on_export_short_report)
+        self.act_export_short_report.setEnabled(False)
+        file_menu.addAction(self.act_export_short_report)
+        self._reg("file.export_short_report", self.act_export_short_report)
         self.act_export_plotly = QtGui.QAction(tr("file.export_plotly_html"), self)
         self.act_export_plotly.triggered.connect(self.on_export_plotly_html)
         self.act_export_plotly.setEnabled(False)

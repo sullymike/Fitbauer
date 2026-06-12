@@ -776,3 +776,400 @@ class ReportMixin:
             QtWidgets.QMessageBox.warning(
                 self, tr("file.export_report"),
                 f"No se pudo generar el PDF: {type(exc).__name__}: {exc}")
+
+    # ── Informe reducido ────────────────────────────────────────────────
+    def _build_short_report_lines(self) -> list[str]:
+        """Informe reducido: parámetros por componente, áreas y figura."""
+        from datetime import datetime
+        file_name = self.file.path.name if self.file.path else "—"
+        iso_ref = self.calibration_iso_ref()
+        fit = self.runtime_results.fit_result
+        fit_view = discrete_result_view(fit) if fit is not None else None
+        active_components = [
+            cp.to_view_state() for cp in self.components_panels
+            if cp.to_view_state().enabled
+        ]
+
+        lines: list[str] = []
+        lines.append(f"# Mössbauer Fe-57 — {file_name}")
+        lines.append(f"_{datetime.now().strftime('%Y-%m-%d %H:%M')} · {APP_NAME} v{APP_VERSION}_")
+        lines.append("")
+
+        # Métricas de bondad en una sola línea
+        if fit_view is not None and fit_view.metrics():
+            st = {m.key: m.value for m in fit_view.metrics()}
+            bits = []
+            if st.get("red_chi2") is not None:
+                bits.append(f"χ²ᵣ = {st['red_chi2']:.4g}")
+            if st.get("dof") is not None:
+                bits.append(f"dof = {int(st['dof'])}")
+            if st.get("aic") is not None:
+                bits.append(f"AIC = {st['aic']:.4g}")
+            if st.get("bic") is not None:
+                bits.append(f"BIC = {st['bic']:.4g}")
+            if bits:
+                lines.append("> " + " · ".join(bits))
+                lines.append("")
+
+        # Calibración ISO en una línea
+        if iso_ref is not None:
+            lines.append(f"_Referencia isomérica: **{iso_ref:.6g} mm/s**_")
+            lines.append("")
+
+        # ── Parámetros por componente ───────────────────────────────────
+        lines.append("## Parámetros")
+        lines.append("")
+        for comp_state in active_components:
+            kind = comp_state.kind
+            kind_disp = tr(f"kind.{kind}", default=kind)
+            lines.append(f"**Componente {comp_state.idx} — {kind_disp}**")
+            lines.append("")
+            used = USED_BY.get(kind, set())
+            uses_bhf = "bhf" in used
+            uses_quad = "quad" in used
+            uses_gamma2 = "gamma2" in used
+            uses_gamma3 = "gamma3" in used
+
+            # Tabla compacta: solo parámetros relevantes, valor + σ si disponible
+            free_vals: dict[str, tuple[float, float | None]] = {}
+            if fit_view is not None:
+                for est in fit_view.parameters():
+                    free_vals[est.key] = (est.value or 0.0, est.error)
+
+            lines.append("| Parámetro | Valor | σ | Estado |")
+            lines.append("|---|---|---|---|")
+            for k, v in comp_state.values.items():
+                if k not in used:
+                    continue
+                key = f"s{comp_state.idx}_{k}"
+                err = free_vals.get(key, (None, None))[1]
+                err_txt = f"± {err:.3g}" if err is not None and err > 0 else "—"
+                fixed_txt = "fijo" if comp_state.is_fixed(k) else "libre"
+                lines.append(f"| `{key}` | {v:.6g} | {err_txt} | {fixed_txt} |")
+
+            # Magnitudes clave derivadas
+            g1 = comp_state.value("gamma1")
+            derived_bits = [f"Γ₁ = {g1:.4g} mm/s"]
+            if uses_gamma2:
+                g2 = g1 * comp_state.value("gamma2", 1.0)
+                derived_bits.append(f"Γ₂ = {g2:.4g}")
+            if uses_gamma3:
+                g3 = g1 * comp_state.value("gamma3", 1.0)
+                derived_bits.append(f"Γ₃ = {g3:.4g}")
+            if uses_bhf:
+                derived_bits.append(f"BHF = {comp_state.value('bhf'):.5g} T")
+            if uses_quad:
+                derived_bits.append(f"ΔEQ = {comp_state.value('quad'):.5g} mm/s")
+            delta = comp_state.value("delta")
+            derived_bits.append(f"δ = {delta:.5g} mm/s")
+            if iso_ref is not None:
+                derived_bits.append(f"δ_corr = {delta - iso_ref:.5g} mm/s")
+            lines.append("")
+            lines.append("_" + " · ".join(derived_bits) + "_")
+            lines.append("")
+
+        # ── Análisis de áreas ───────────────────────────────────────────
+        pct_active, areas, percentages = self.component_area_percentages()
+        pct_errors = self.component_percentage_errors()
+        if pct_active:
+            lines.append("## Áreas")
+            lines.append("")
+            lines.append("| Comp. | Tipo | % área | σ (%) |")
+            lines.append("|---|---|---|---|")
+            for idx, area, pct in zip(pct_active, areas, percentages):
+                cs = self.components_panels[idx - 1].to_view_state()
+                kd = tr(f"kind.{cs.kind}", default=cs.kind)
+                err = pct_errors.get(idx)
+                err_txt = f"± {err:.3g}" if err is not None else "—"
+                lines.append(f"| {idx} | {kd} | {pct:.3f}% | {err_txt} |")
+            lines.append("")
+
+        return lines
+
+    def _render_odt_report(self, odt_path: Path, md_lines: list[str],
+                            fig_png_path: Path | None = None) -> None:
+        """Genera un archivo ODT mínimo desde cero (stdlib: zipfile + xml)."""
+        import io
+        import zipfile
+        from xml.sax.saxutils import escape as xe
+
+        MIME = "application/vnd.oasis.opendocument.text"
+
+        NS = {
+            "office": "urn:oasis:names:tc:opendocument:xmlns:office:1.0",
+            "style":  "urn:oasis:names:tc:opendocument:xmlns:style:1.0",
+            "text":   "urn:oasis:names:tc:opendocument:xmlns:text:1.0",
+            "table":  "urn:oasis:names:tc:opendocument:xmlns:table:1.0",
+            "draw":   "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0",
+            "fo":     "urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0",
+            "xlink":  "http://www.w3.org/1999/xlink",
+            "dc":     "http://purl.org/dc/elements/1.1/",
+            "svg":    "urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0",
+            "manifest": "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0",
+        }
+
+        def nsp(prefix: str, local: str) -> str:
+            return f"{{{NS[prefix]}}}{local}"
+
+        # ── styles.xml ──────────────────────────────────────────────────
+        styles_xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<office:document-styles'
+            ' xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+            ' xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"'
+            ' xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"'
+            ' office:version="1.3">'
+            '<office:styles>'
+            '<style:style style:name="Standard" style:family="paragraph"'
+            ' style:class="text"/>'
+            '<style:style style:name="Heading1" style:family="paragraph"'
+            ' style:parent-style-name="Standard">'
+            '<style:text-properties fo:font-size="16pt" fo:font-weight="bold"/>'
+            '</style:style>'
+            '<style:style style:name="Heading2" style:family="paragraph"'
+            ' style:parent-style-name="Standard">'
+            '<style:text-properties fo:font-size="13pt" fo:font-weight="bold"/>'
+            '</style:style>'
+            '<style:style style:name="Bold" style:family="text">'
+            '<style:text-properties fo:font-weight="bold"/>'
+            '</style:style>'
+            '<style:style style:name="Italic" style:family="text">'
+            '<style:text-properties fo:font-style="italic"/>'
+            '</style:style>'
+            '<style:style style:name="Code" style:family="text">'
+            '<style:text-properties style:font-name="Courier New" fo:font-size="9pt"/>'
+            '</style:style>'
+            '<style:style style:name="TableHeader" style:family="table-cell">'
+            '<style:text-properties fo:font-weight="bold" fo:background-color="#dbeafe"/>'
+            '</style:style>'
+            '</office:styles>'
+            '</office:document-styles>'
+        )
+
+        # ── Convertir líneas MD a bloques ───────────────────────────────
+        import re as _re
+
+        def _strip_inline(s: str) -> str:
+            s = _re.sub(r"\*\*(.+?)\*\*", r"\1", s)
+            s = _re.sub(r"\*(.+?)\*", r"\1", s)
+            s = _re.sub(r"`([^`]+)`", r"\1", s)
+            s = _re.sub(r"[\U0001F300-\U0001F9FF\U0001FA00-\U0001FAFF\U00002600-\U000027BF]\\s?", "", s)
+            return s.strip()
+
+        # Parsear bloques: ('h1'|'h2'|'h3'|'para'|'table'|'callout'), data
+        blocks: list[tuple[str, object]] = []
+        i, n = 0, len(md_lines)
+        while i < n:
+            raw = md_lines[i]
+            s = raw.strip()
+            if not s:
+                i += 1
+                continue
+            if s.startswith("# ") and not s.startswith("## "):
+                blocks.append(("h1", s[2:].strip()))
+                i += 1
+            elif s.startswith("## ") and not s.startswith("### "):
+                blocks.append(("h2", s[3:].strip()))
+                i += 1
+            elif s.startswith("### "):
+                blocks.append(("h3", s[4:].strip()))
+                i += 1
+            elif s.startswith(">"):
+                buf = []
+                while i < n and md_lines[i].strip().startswith(">"):
+                    buf.append(md_lines[i].strip().lstrip(">").strip())
+                    i += 1
+                blocks.append(("callout", " ".join(buf)))
+            elif s.startswith("_") and s.endswith("_") and "\n" not in s:
+                blocks.append(("italic_para", s[1:-1]))
+                i += 1
+            elif s.startswith("|") and s.endswith("|"):
+                rows = []
+                while i < n and md_lines[i].strip().startswith("|") and md_lines[i].strip().endswith("|"):
+                    rows.append(md_lines[i].strip())
+                    i += 1
+                if len(rows) >= 2 and set(rows[1].replace("|","").replace("-","").replace(":","").strip()) == set():
+                    hdr = [c.strip() for c in rows[0].strip("|").split("|")]
+                    data = [[c.strip() for c in r.strip("|").split("|")] for r in rows[2:]]
+                    blocks.append(("table", (hdr, data)))
+                else:
+                    for r in rows:
+                        blocks.append(("para", r))
+            else:
+                blocks.append(("para", s))
+                i += 1
+
+        # ── Construire content.xml usando strings ────────────────────────
+        import xml.etree.ElementTree as ET
+
+        def _p(parent, text: str, style: str = "Standard") -> ET.Element:
+            el = ET.SubElement(parent, nsp("text", "p"))
+            el.set(nsp("text", "style-name"), style)
+            el.text = _strip_inline(text)
+            return el
+
+        def _p_bold(parent, text: str) -> ET.Element:
+            el = ET.SubElement(parent, nsp("text", "p"))
+            el.set(nsp("text", "style-name"), "Standard")
+            span = ET.SubElement(el, nsp("text", "span"))
+            span.set(nsp("text", "style-name"), "Bold")
+            span.text = _strip_inline(text)
+            return el
+
+        def _p_italic(parent, text: str) -> ET.Element:
+            el = ET.SubElement(parent, nsp("text", "p"))
+            el.set(nsp("text", "style-name"), "Standard")
+            span = ET.SubElement(el, nsp("text", "span"))
+            span.set(nsp("text", "style-name"), "Italic")
+            span.text = _strip_inline(text)
+            return el
+
+        def _table(parent, hdr: list[str], rows: list[list[str]]) -> None:
+            tbl = ET.SubElement(parent, nsp("table", "table"))
+            n_cols = len(hdr)
+            for _ in range(n_cols):
+                ET.SubElement(tbl, nsp("table", "table-column"))
+            # Header row
+            hrow = ET.SubElement(tbl, nsp("table", "table-row"))
+            for h in hdr:
+                tc = ET.SubElement(hrow, nsp("table", "table-cell"))
+                p = ET.SubElement(tc, nsp("text", "p"))
+                span = ET.SubElement(p, nsp("text", "span"))
+                span.set(nsp("text", "style-name"), "Bold")
+                span.text = _strip_inline(h)
+            # Data rows
+            for row in rows:
+                drow = ET.SubElement(tbl, nsp("table", "table-row"))
+                for c in range(n_cols):
+                    tc = ET.SubElement(drow, nsp("table", "table-cell"))
+                    p = ET.SubElement(tc, nsp("text", "p"))
+                    p.text = _strip_inline(row[c] if c < len(row) else "")
+
+        # Root element
+        doc_el = ET.Element(nsp("office", "document-content"))
+        for prefix, uri in NS.items():
+            if prefix != "manifest":
+                doc_el.set(f"xmlns:{prefix}", uri)
+        doc_el.set(nsp("office", "version"), "1.3")
+        auto_styles = ET.SubElement(doc_el, nsp("office", "automatic-styles"))
+        body = ET.SubElement(doc_el, nsp("office", "body"))
+        text_el = ET.SubElement(body, nsp("office", "text"))
+
+        for kind, data in blocks:
+            if kind == "h1":
+                _p(text_el, data, "Heading1")
+            elif kind == "h2":
+                _p(text_el, data, "Heading2")
+            elif kind == "h3":
+                _p_bold(text_el, data)
+            elif kind in ("para", "callout"):
+                _p(text_el, data)
+            elif kind == "italic_para":
+                _p_italic(text_el, data)
+            elif kind == "table":
+                hdr, rows = data
+                _table(text_el, hdr, rows)
+                ET.SubElement(text_el, nsp("text", "p"))  # espacio tras tabla
+
+        # Figura embebida si existe
+        if fig_png_path is not None and fig_png_path.exists():
+            ET.SubElement(text_el, nsp("text", "p"))
+            frame = ET.SubElement(text_el, nsp("draw", "frame"))
+            frame.set(nsp("draw", "name"), "figura")
+            frame.set(nsp("text", "anchor-type"), "paragraph")
+            frame.set(nsp("svg", "width"), "17cm")
+            frame.set(nsp("svg", "height"), "11cm")
+            img = ET.SubElement(frame, nsp("draw", "image"))
+            img.set(nsp("xlink", "href"), f"Pictures/{fig_png_path.name}")
+            img.set(nsp("xlink", "type"), "simple")
+            img.set(nsp("xlink", "show"), "embed")
+            img.set(nsp("xlink", "actuate"), "onLoad")
+
+        content_io = io.BytesIO()
+        ET.ElementTree(doc_el).write(content_io, encoding="UTF-8", xml_declaration=True)
+        content_bytes = content_io.getvalue()
+
+        # ── manifest.xml ────────────────────────────────────────────────
+        manifest_entries = [
+            ('/', MIME),
+            ('/content.xml', 'text/xml'),
+            ('/styles.xml', 'text/xml'),
+        ]
+        if fig_png_path is not None and fig_png_path.exists():
+            manifest_entries.append((f'/Pictures/{fig_png_path.name}', 'image/png'))
+
+        mf_root = ET.Element(nsp("manifest", "manifest"))
+        mf_root.set("xmlns:manifest", NS["manifest"])
+        mf_root.set(nsp("manifest", "version"), "1.3")
+        for full_path, media_type in manifest_entries:
+            fe = ET.SubElement(mf_root, nsp("manifest", "file-entry"))
+            fe.set(nsp("manifest", "full-path"), full_path)
+            fe.set(nsp("manifest", "media-type"), media_type)
+        mf_io = io.BytesIO()
+        ET.ElementTree(mf_root).write(mf_io, encoding="UTF-8", xml_declaration=True)
+
+        # ── Empaquetar ZIP ───────────────────────────────────────────────
+        with zipfile.ZipFile(odt_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            # mimetype sin comprimir y como primer entry (requerimiento ODT)
+            zf.writestr(zipfile.ZipInfo("mimetype"), MIME)
+            zf.writestr("META-INF/manifest.xml", mf_io.getvalue())
+            zf.writestr("styles.xml", styles_xml.encode("utf-8"))
+            zf.writestr("content.xml", content_bytes)
+            if fig_png_path is not None and fig_png_path.exists():
+                zf.write(fig_png_path, f"Pictures/{fig_png_path.name}")
+
+    def on_export_short_report(self) -> None:
+        """Exporta el informe reducido (.md) y opcionalmente .odt."""
+        if self.file.path is None:
+            return
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, tr("file.export_short_report"),
+            str(ROOT / (self.file.path.stem + "_resumen")),
+            "Markdown (*.md);;All (*.*)")
+        if not path:
+            return
+        state = self._build_state()
+        if state is None:
+            return
+        lines = self._build_short_report_lines()
+        md_path = Path(path)
+        try:
+            md_path.write_text("\n".join(lines), encoding="utf-8")
+            self.statusBar().showMessage(f"Informe reducido guardado: {path}", 5000)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(
+                self, tr("file.export_short_report"),
+                f"{type(exc).__name__}: {exc}")
+            return
+
+        want_odt = QtWidgets.QMessageBox.question(
+            self, tr("file.export_short_report"),
+            tr("msg.short_report_ask_odt",
+               default="Informe Markdown guardado. ¿Generar también un ODT (Writer)?"),
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.Yes)
+        if want_odt != QtWidgets.QMessageBox.Yes:
+            return
+        import tempfile
+        fig_png = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tf:
+                fig_png = Path(tf.name)
+            self.canvas.fig.savefig(fig_png, dpi=150, bbox_inches="tight")
+        except Exception:
+            fig_png = None
+        try:
+            odt_path = md_path.with_suffix(".odt")
+            self._render_odt_report(odt_path, lines, fig_png)
+            self.statusBar().showMessage(
+                f"Informe reducido (.md + .odt) guardado: {md_path.stem}", 5000)
+        except Exception as exc:
+            QtWidgets.QMessageBox.warning(
+                self, tr("file.export_short_report"),
+                f"No se pudo generar el ODT: {type(exc).__name__}: {exc}")
+        finally:
+            if fig_png is not None:
+                try:
+                    fig_png.unlink(missing_ok=True)
+                except Exception:
+                    pass
