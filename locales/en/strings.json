@@ -163,7 +163,7 @@
   "checkbox.fit_vmax": "Fit Vmax using the line pattern (requires fixed BHF)",
   "checkbox.fit_center": "Fit folding point during the fit",
   "checkbox.fit_sigma": "Fit Gaussian σ (Voigt) during the fit",
-  "checkbox.fixed": "fixed",
+  "checkbox.fixed": "fix",
   "sim.fit": "Fit",
   "sim.ai_start": "AI start",
   "sim.auto_minima": "Auto minima",
