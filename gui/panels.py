@@ -7,10 +7,10 @@ from mossbauer_i18n import tr
 from dataclasses import astuple
 
 from core.params import (
-    CALIBRATION_PARAM_SPECS,
-    COMPONENT_KINDS, COMPONENT_PARAM_LAYOUT, COMPONENT_PARAM_SPECS, USED_BY,
+    COMPONENT_KINDS, COMPONENT_PARAM_LAYOUT, USED_BY,
     component_default_value, relevant_params as _relevant_params,
 )
+from core.param_overrides import effective_calibration_specs, effective_component_specs
 from gui.controls import ParamControl
 from core.result_views import discrete_result_view
 from gui.state import CalibrationViewState, ComponentViewState
@@ -30,7 +30,7 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         v = QtWidgets.QVBoxLayout(self)
         v.setSpacing(2)
 
-        _cs = CALIBRATION_PARAM_SPECS
+        _cs = effective_calibration_specs()
         self.vmax = ParamControl(tr("slider.vmax"), *astuple(_cs["vmax"]), with_fixed=False)
         self.fit_velocity = QtWidgets.QCheckBox(tr("checkbox.fit_vmax"))
         self.center = ParamControl(tr("slider.center"), *astuple(_cs["center"]), with_fixed=False)
@@ -174,10 +174,11 @@ class ComponentPanel(QtWidgets.QWidget):
 
         # Orden y rangos de los controles: fuente única en core.params
         # (δ · ΔEQ · BHF · Γ1-Γ3 | profundidad · intensidades · textura · β).
+        _cspecs = effective_component_specs()
         def _spec_rows(names):
             rows = []
             for name in names:
-                s = COMPONENT_PARAM_SPECS[name]
+                s = _cspecs[name]
                 rows.append((name, tr(f"slider.s_{name}"),
                              component_default_value(name, idx),
                              s.lo, s.hi, s.step, s.decimals))

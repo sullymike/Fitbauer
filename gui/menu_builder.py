@@ -396,6 +396,11 @@ class MenuBuilderMixin:
         act_configure_layout.triggered.connect(self.on_configure_layout)
         view_menu.addAction(act_configure_layout)
         self._reg("view.configure_layout", act_configure_layout)
+        act_param_limits = QtGui.QAction(
+            tr("view.param_limits", default="Límites de parámetros…"), self
+        )
+        act_param_limits.triggered.connect(self.on_param_limits)
+        view_menu.addAction(act_param_limits)
 
         # ── Ayuda ────────────────────────────────────────────────────────
         help_menu = mb.addMenu(tr("menu.help"))
@@ -424,6 +429,12 @@ class MenuBuilderMixin:
         help_menu.addAction(act_configure_updates)
         self._reg("help.configure_updates", act_configure_updates)
 
+
+    def on_param_limits(self) -> None:
+        """Abre el diálogo de edición de límites de parámetros."""
+        from gui.param_limits_dialog import ParamLimitsDialog
+        dlg = ParamLimitsDialog(self)
+        dlg.exec()
 
     def _set_dist_use_sharp(self, enabled: bool) -> None:
         self.dist_use_sharp = bool(enabled)

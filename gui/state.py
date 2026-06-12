@@ -13,7 +13,8 @@ from typing import Any
 
 import numpy as np
 
-from core.params import DISTRIBUTION_PARAM_SPECS as _DSPEC
+from core.param_overrides import effective_distribution_specs as _eff_dist_specs
+_DSPEC = _eff_dist_specs()
 
 
 @dataclass

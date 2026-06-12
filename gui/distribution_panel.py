@@ -8,9 +8,8 @@ from PySide6 import QtCore, QtWidgets
 from dataclasses import astuple
 
 from mossbauer_i18n import tr
-from core.params import (
-    DISTRIBUTION_PARAM_SPECS, DIST_VAR_RANGE, DIST_RANGE_RESOLUTION,
-)
+from core.params import DIST_VAR_RANGE, DIST_RANGE_RESOLUTION
+from core.param_overrides import effective_distribution_specs
 from gui.controls import ParamControl
 from gui.state import DistributionViewState
 
@@ -77,7 +76,7 @@ class DistributionPanel(QtWidgets.QGroupBox):
             lambda i: self.btn_load_fixed.setEnabled(self.shape == "Fija"))
         left_v.addWidget(self.btn_load_fixed)
 
-        _ds = DISTRIBUTION_PARAM_SPECS
+        _ds = effective_distribution_specs()
         self.delta     = ParamControl(tr("slider.dist_delta"),     *astuple(_ds["delta"]))
         self.quad      = ParamControl(tr("slider.dist_quad"),      *astuple(_ds["quad"]))
         self.fixed_bhf = ParamControl(tr("slider.dist_fixed_bhf"), *astuple(_ds["fixed_bhf"]), with_fixed=False)
