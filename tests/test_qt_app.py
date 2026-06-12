@@ -956,7 +956,9 @@ def test_btn_show_map_lifecycle(win):
     import numpy as np
 
     # Antes de cualquier ajuste el botón debe estar oculto.
-    assert not win.dist_panel.btn_show_map.isVisible()
+    # isHidden() refleja el estado explícito (setVisible) sin requerir que la
+    # ventana principal esté mostrada (isVisible() requeriría win.show()).
+    assert win.dist_panel.btn_show_map.isHidden()
 
     # Simular que se completa un ajuste 2D registrando un resultado falso.
     win._load_file(DATA / "magnetita_Fe3O4.adt")
@@ -970,8 +972,8 @@ def test_btn_show_map_lifecycle(win):
     win.on_fit()
     res = win.runtime_results.distribution_result
     assert np.asarray(res.probability).ndim == 2
-    # Tras el ajuste 2D el botón debe ser visible.
-    assert win.dist_panel.btn_show_map.isVisible()
+    # Tras el ajuste 2D el botón no debe estar oculto.
+    assert not win.dist_panel.btn_show_map.isHidden()
 
     # Pulsar el botón reabre el diálogo (interceptado con lambda).
     reopened = {}
@@ -981,7 +983,7 @@ def test_btn_show_map_lifecycle(win):
 
     # Cambiar a un modo no-2D debe ocultar el botón.
     win.mode_combo.setCurrentIndex(0)
-    assert not win.dist_panel.btn_show_map.isVisible()
+    assert win.dist_panel.btn_show_map.isHidden()
 
 
 def test_lorentzian_gamma_zero_returns_finite(win):
