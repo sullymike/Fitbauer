@@ -741,5 +741,9 @@
   "webapi.col_date": "date",
   "webapi.col_temp": "T",
   "webapi.col_vel": "disp. vel.",
-  "webapi.col_calib": "calib"
+  "webapi.col_calib": "calib",
+  "dialog.physical_presets_desc": "Click to apply common physical constraints to active components.",
+  "status.center_found": "Center detected: {center}",
+  "status.fit_saved": "Fit saved: {path}",
+  "status.refolded": "Refolded with center={center}"
 }

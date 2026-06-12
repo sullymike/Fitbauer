@@ -254,7 +254,7 @@ class ModelWorkflowMixin:
             self.file_label.setText(f"<b>{self.file.path.name}</b><br>"
                                     f"{self.file.counts.size} canales · centro={float(center):.3f} · "
                                     f"norm={self.file.norm_factor:.4g}")
-        self.statusBar().showMessage(f"Datos re-doblados con centro={float(center):.4f}", 3000)
+        self.statusBar().showMessage(tr("status.refolded", center=f"{float(center):.4f}", default=f"Refolded with center={float(center):.4f}"), 3000)
         self._refresh_plot()
 
     # ── Resumen de estado y parámetros (paridad con la GUI Tk) ───────────

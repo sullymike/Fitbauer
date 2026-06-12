@@ -60,9 +60,9 @@ class CalibrationActionsMixin:
         e_iso.setRange(_cp["delta"].lo, _cp["delta"].hi)
         e_iso.setDecimals(_cp["delta"].decimals)
         e_iso.setValue(float(comp_state.value("delta")))
-        form.addRow("Sample:", e_name)
-        form.addRow("Vmax (mm/s):", e_vmax)
-        form.addRow("IS (mm/s):", e_iso)
+        form.addRow(tr("label.calib_sample_name"), e_name)
+        form.addRow(tr("label.calib_vmax"), e_vmax)
+        form.addRow(tr("label.calib_is"), e_iso)
         bb = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         bb.accepted.connect(dlg.accept); bb.rejected.connect(dlg.reject)

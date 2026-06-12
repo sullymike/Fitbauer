@@ -741,5 +741,9 @@
   "webapi.col_date": "fecha",
   "webapi.col_temp": "T",
   "webapi.col_vel": "vel. display",
-  "webapi.col_calib": "calib"
+  "webapi.col_calib": "calib",
+  "dialog.physical_presets_desc": "Aplica con un clic relaciones físicas sobre las componentes activas.",
+  "status.center_found": "Centro detectado: {center}",
+  "status.fit_saved": "Ajuste guardado: {path}",
+  "status.refolded": "Datos re-doblados con centro={center}"
 }

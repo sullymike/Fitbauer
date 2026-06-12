@@ -32,7 +32,7 @@ class FileActionsMixin:
         self._building = True
         self.calib.center.set_value(center)
         self._building = False
-        self.statusBar().showMessage(f"Centro detectado: {center:.4f}", 5000)
+        self.statusBar().showMessage(tr("status.center_found", center=f"{center:.4f}", default=f"Center detected: {center:.4f}"), 5000)
         self._refresh_plot()
 
     def on_save_fit(self) -> None:
@@ -124,7 +124,7 @@ class FileActionsMixin:
                 fh.write("\t".join(cols) + "\n")
                 for i in range(v.size):
                     fh.write("\t".join(f"{rows[j][i]:.8g}" for j in range(len(rows))) + "\n")
-            self.statusBar().showMessage(f"Ajuste guardado: {path}", 5000)
+            self.statusBar().showMessage(tr("status.fit_saved", path=path, default=f"Fit saved: {path}"), 5000)
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("file.save_fit"),
                                             f"{type(exc).__name__}: {exc}")

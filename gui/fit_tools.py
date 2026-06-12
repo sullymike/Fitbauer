@@ -151,8 +151,9 @@ class FitToolsMixin:
         dlg.setWindowTitle(tr("options.physical_presets"))
         dlg.resize(520, 240)
         v = QtWidgets.QVBoxLayout(dlg)
-        v.addWidget(QtWidgets.QLabel(
-            "Aplica con un clic relaciones físicas sobre las componentes activas."))
+        v.addWidget(QtWidgets.QLabel(tr(
+            "dialog.physical_presets_desc",
+            default="Click to apply common physical constraints to active components.")))
 
         def _apply_321() -> None:
             """3:2:1 fijado en int1=3, int2=2, int3=1."""
@@ -204,10 +205,10 @@ class FitToolsMixin:
             self._refresh_plot()
 
         for label, fn in (
-            ("Sextetes polvo 3:2:1", _apply_321),
-            ("Mismas anchuras (γ2 = γ3 = 1)", _equal_widths),
-            ("Ligar δ a componente 1", _link_delta),
-            ("Ligar Γ1 a componente 1", _link_gamma),
+            (tr("button.preset_powder"), _apply_321),
+            (tr("button.preset_equal_widths"), _equal_widths),
+            (tr("button.preset_tie_delta"), _link_delta),
+            (tr("button.preset_tie_gamma"), _link_gamma),
         ):
             btn = QtWidgets.QPushButton(label)
             btn.clicked.connect(fn)
