@@ -127,6 +127,45 @@ COMPONENT_FIT_BOUNDS = {
 }
 
 
+# Especificación de los controles del panel de calibración.
+CALIBRATION_PARAM_SPECS: dict[str, ParamSpec] = {
+    "vmax":        ParamSpec(12.007, -15.0,  15.0,  0.0001, 4),
+    "center":      ParamSpec(256.5,  250.0, 263.0,  0.0001, 4),
+    "baseline":    ParamSpec(1.0,      0.70,  1.30, 0.0005, 4),
+    "slope":       ParamSpec(0.0,    -0.002, 0.002,  1e-5,  6),
+    "voigt_sigma": ParamSpec(0.05,    0.0,   1.0,    0.001, 4),
+    "sat_scale":   ParamSpec(5.0,     0.05, 50.0,    0.01,  3),
+}
+
+# Especificación de los controles del panel de distribución.
+DISTRIBUTION_PARAM_SPECS: dict[str, ParamSpec] = {
+    # Parámetros globales del perfil lineal
+    "delta":       ParamSpec(0.0,          -2.5,  2.5,   0.001, 4),
+    "quad":        ParamSpec(0.0,          -4.0,  4.0,   0.001, 4),
+    "fixed_bhf":   ParamSpec(BHF_DEFAULT_T, 0.0, 60.0,   0.01,  3),
+    "gamma":       ParamSpec(0.36,          0.06,  2.0,  0.001, 4),
+    # Malla eje X  (BHF / ΔEQ / IS según modo)
+    "bmin":        ParamSpec(0.0,    0.0,  60.0,  0.1, 2),
+    "bmax":        ParamSpec(50.0,   0.0,  60.0,  0.1, 2),
+    "nbins":       ParamSpec(50.0,  10.0, 100.0,  1.0, 0),
+    "log_alpha":   ParamSpec(-2.0,  -8.0,   4.0,  0.1, 2),
+    # Malla eje Y en modo 2D (ΔEQ o IS)
+    "qmin":        ParamSpec(-1.0,  -4.0,  4.0, 0.01, 3),
+    "qmax":        ParamSpec(1.0,   -4.0,  4.0, 0.01, 3),
+    "qbins":       ParamSpec(21.0,   5.0, 80.0,  1.0, 0),
+    "log_alpha_q": ParamSpec(-2.0,  -8.0,  4.0,  0.1, 2),
+}
+
+# Rango dinámico de la malla del histograma según la variable distribuida.
+# El panel de distribución llama a set_range() con estos valores al cambiar de modo.
+DIST_VAR_RANGE: dict[str, tuple[float, float]] = {
+    "bhf":   (0.0,  60.0),
+    "quad":  (0.0,   7.0),
+    "delta": (-2.5,  2.5),
+}
+DIST_RANGE_RESOLUTION: float = 0.1
+
+
 def component_default_value(name: str, idx: int = 1) -> float:
     """Valor por defecto de un parámetro de componente (``depth`` depende del índice)."""
     if name == "depth":

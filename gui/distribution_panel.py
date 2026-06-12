@@ -5,9 +5,11 @@ from pathlib import Path
 
 from PySide6 import QtCore, QtWidgets
 
+from dataclasses import astuple
+
 from mossbauer_i18n import tr
-from core.constants import (
-    BHF_DEFAULT_T, DIST_BHF_RANGE, DIST_QUAD_RANGE, DIST_RANGE_RESOLUTION,
+from core.params import (
+    DISTRIBUTION_PARAM_SPECS, DIST_VAR_RANGE, DIST_RANGE_RESOLUTION,
 )
 from gui.controls import ParamControl
 from gui.state import DistributionViewState
@@ -75,10 +77,11 @@ class DistributionPanel(QtWidgets.QGroupBox):
             lambda i: self.btn_load_fixed.setEnabled(self.shape == "Fija"))
         left_v.addWidget(self.btn_load_fixed)
 
-        self.delta = ParamControl(tr("slider.dist_delta"), 0.0, -2.5, 2.5, 0.001, 4)
-        self.quad  = ParamControl(tr("slider.dist_quad"),  0.0, -4.0, 4.0, 0.001, 4)
-        self.fixed_bhf = ParamControl(tr("slider.dist_fixed_bhf"), BHF_DEFAULT_T, 0.0, 60.0, 0.01, 3, with_fixed=False)
-        self.gamma = ParamControl(tr("slider.dist_gamma"), 0.36, 0.06, 2.0, 0.001, 4)
+        _ds = DISTRIBUTION_PARAM_SPECS
+        self.delta     = ParamControl(tr("slider.dist_delta"),     *astuple(_ds["delta"]))
+        self.quad      = ParamControl(tr("slider.dist_quad"),      *astuple(_ds["quad"]))
+        self.fixed_bhf = ParamControl(tr("slider.dist_fixed_bhf"), *astuple(_ds["fixed_bhf"]), with_fixed=False)
+        self.gamma     = ParamControl(tr("slider.dist_gamma"),     *astuple(_ds["gamma"]))
         for w in (self.delta, self.quad, self.fixed_bhf, self.gamma):
             left_v.addWidget(w)
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
@@ -87,19 +90,19 @@ class DistributionPanel(QtWidgets.QGroupBox):
         left_v.addStretch(1)
 
         # Columna 2 — rango/bins/alfa + controles 2D + presets y opciones.
-        self.bmin  = ParamControl(tr("slider.dist_bmin"), 0.0,  0.0, 60.0, 0.1, 2, with_fixed=False)
-        self.bmax  = ParamControl(tr("slider.dist_bmax"), 50.0, 0.0, 60.0, 0.1, 2, with_fixed=False)
-        self.nbins = ParamControl(tr("slider.dist_nbins"), 50.0, 10.0, 100.0, 1.0, 0, with_fixed=False)
-        self.log_alpha = ParamControl(tr("slider.dist_log_alpha"), -2.0, -8.0, 4.0, 0.1, 2, with_fixed=False)
+        self.bmin      = ParamControl(tr("slider.dist_bmin"),      *astuple(_ds["bmin"]),      with_fixed=False)
+        self.bmax      = ParamControl(tr("slider.dist_bmax"),      *astuple(_ds["bmax"]),      with_fixed=False)
+        self.nbins     = ParamControl(tr("slider.dist_nbins"),     *astuple(_ds["nbins"]),     with_fixed=False)
+        self.log_alpha = ParamControl(tr("slider.dist_log_alpha"), *astuple(_ds["log_alpha"]), with_fixed=False)
         for w in (self.bmin, self.bmax, self.nbins, self.log_alpha):
             right_v.addWidget(w)
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
 
         # Controles 2D (ocultos por defecto)
-        self.qmin  = ParamControl(tr("slider.dist2d_qmin",  default="ΔEQ mín 2D"), -1.0, -4.0, 4.0, 0.01, 3, with_fixed=False)
-        self.qmax  = ParamControl(tr("slider.dist2d_qmax",  default="ΔEQ máx 2D"),  1.0, -4.0, 4.0, 0.01, 3, with_fixed=False)
-        self.qbins = ParamControl(tr("slider.dist2d_qbins", default="Bins ΔEQ 2D"), 21.0, 5.0, 80.0, 1.0, 0, with_fixed=False)
-        self.log_alpha_q = ParamControl(tr("slider.dist2d_log_alpha_q", default="log10 α ΔEQ"), -2.0, -8.0, 4.0, 0.1, 2, with_fixed=False)
+        self.qmin        = ParamControl(tr("slider.dist2d_qmin",       default="ΔEQ mín 2D"),   *astuple(_ds["qmin"]),        with_fixed=False)
+        self.qmax        = ParamControl(tr("slider.dist2d_qmax",       default="ΔEQ máx 2D"),   *astuple(_ds["qmax"]),        with_fixed=False)
+        self.qbins       = ParamControl(tr("slider.dist2d_qbins",      default="Bins ΔEQ 2D"),  *astuple(_ds["qbins"]),       with_fixed=False)
+        self.log_alpha_q = ParamControl(tr("slider.dist2d_log_alpha_q", default="log10 α ΔEQ"), *astuple(_ds["log_alpha_q"]), with_fixed=False)
         for w in (self.qmin, self.qmax, self.qbins, self.log_alpha_q):
             right_v.addWidget(w)
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
@@ -144,11 +147,7 @@ class DistributionPanel(QtWidgets.QGroupBox):
         return tr(f"slider.dist_{role}_bhf")
 
     def _dist_var_range(self, var: str) -> tuple[float, float]:
-        if var == "delta":
-            return (-2.5, 2.5)
-        if var == "quad":
-            return (DIST_QUAD_RANGE[0], DIST_QUAD_RANGE[1])
-        return (DIST_BHF_RANGE[0], DIST_BHF_RANGE[1])
+        return DIST_VAR_RANGE.get(var, DIST_VAR_RANGE["bhf"])
 
     def _sync_2d_controls(self) -> None:
         is_2d = self.shape == "2D"

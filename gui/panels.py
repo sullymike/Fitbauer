@@ -4,7 +4,10 @@ from __future__ import annotations
 from PySide6 import QtCore, QtWidgets
 
 from mossbauer_i18n import tr
+from dataclasses import astuple
+
 from core.params import (
+    CALIBRATION_PARAM_SPECS,
     COMPONENT_KINDS, COMPONENT_PARAM_LAYOUT, COMPONENT_PARAM_SPECS, USED_BY,
     component_default_value, relevant_params as _relevant_params,
 )
@@ -27,13 +30,14 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         v = QtWidgets.QVBoxLayout(self)
         v.setSpacing(2)
 
-        self.vmax = ParamControl(tr("slider.vmax"), 12.007, -15.0, 15.0, 0.0001, 4, with_fixed=False)
+        _cs = CALIBRATION_PARAM_SPECS
+        self.vmax = ParamControl(tr("slider.vmax"), *astuple(_cs["vmax"]), with_fixed=False)
         self.fit_velocity = QtWidgets.QCheckBox(tr("checkbox.fit_vmax"))
-        self.center = ParamControl(tr("slider.center"), 256.5, 250.0, 263.0, 0.0001, 4, with_fixed=False)
+        self.center = ParamControl(tr("slider.center"), *astuple(_cs["center"]), with_fixed=False)
         self.fit_center = QtWidgets.QCheckBox(tr("checkbox.fit_center"))
-        self.baseline = ParamControl(tr("slider.baseline"), 1.0, 0.70, 1.30, 0.0005, 4)
-        self.slope = ParamControl(tr("slider.slope"), 0.0, -0.002, 0.002, 1e-5, 6)
-        self.voigt_sigma = ParamControl(tr("slider.voigt_sigma"), 0.05, 0.0, 1.0, 0.001, 4, with_fixed=False)
+        self.baseline = ParamControl(tr("slider.baseline"), *astuple(_cs["baseline"]))
+        self.slope = ParamControl(tr("slider.slope"), *astuple(_cs["slope"]))
+        self.voigt_sigma = ParamControl(tr("slider.voigt_sigma"), *astuple(_cs["voigt_sigma"]), with_fixed=False)
         self.line_profile = "Lorentziana"
         self.fit_sigma = QtWidgets.QCheckBox(tr("checkbox.fit_sigma"))
 
@@ -51,7 +55,7 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         for value, key in (("thin", "absorber.thin"), ("thickness", "absorber.thickness")):
             self.absorber_combo.addItem(tr(key), value)
         absorber_row.addWidget(self.absorber_combo, stretch=1)
-        self.sat_scale = ParamControl(tr("slider.sat_scale"), 5.0, 0.05, 50.0, 0.01, 3)
+        self.sat_scale = ParamControl(tr("slider.sat_scale"), *astuple(_cs["sat_scale"]))
 
         for w in (self.vmax, self.fit_velocity, self.center, self.fit_center,
                   self.baseline, self.slope, self.voigt_sigma, self.fit_sigma):

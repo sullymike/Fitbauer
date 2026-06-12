@@ -13,6 +13,8 @@ from typing import Any
 
 import numpy as np
 
+from core.params import DISTRIBUTION_PARAM_SPECS as _DSPEC
+
 
 @dataclass
 class FileState:
@@ -270,14 +272,14 @@ class DistributionViewState:
     reg_mode: str = "tikhonov"
     fixed_distribution_path: Path | None = None
     variable: str = "BHF"  # "BHF" / "ΔEQ"
-    delta: float = 0.0
-    quad: float = 0.0
-    fixed_bhf: float = 33.0
-    gamma: float = 0.36
-    bmin: float = 0.0
-    bmax: float = 50.0
-    nbins: int = 50
-    log_alpha: float = -2.0
+    delta:     float = _DSPEC["delta"].default
+    quad:      float = _DSPEC["quad"].default
+    fixed_bhf: float = _DSPEC["fixed_bhf"].default
+    gamma:     float = _DSPEC["gamma"].default
+    bmin:      float = _DSPEC["bmin"].default
+    bmax:      float = _DSPEC["bmax"].default
+    nbins:     int   = int(_DSPEC["nbins"].default)
+    log_alpha: float = _DSPEC["log_alpha"].default
     fixed: dict[str, bool] = field(default_factory=dict)
 
     @property
