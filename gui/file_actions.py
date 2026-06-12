@@ -28,7 +28,10 @@ class FileActionsMixin:
         self._refresh_plot()
 
     def on_save_fit(self) -> None:
-        """Exporta velocidad / datos / modelo / residuo en TSV."""
+        """Exporta velocidad / datos / modelo / subespectros / residuo en TSV."""
+        from datetime import datetime
+        from core.fit_engine import model_from_values
+
         if self.file.velocity is None or self.file.y_data is None:
             return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -36,34 +39,83 @@ class FileActionsMixin:
             "TSV (*.dat *.tsv);;All (*.*)")
         if not path:
             return
-        state = self._build_state()
+
         v = self.file.velocity
         y = self.file.y_data
+        file_name = self.file.path.name if self.file.path else "—"
+        is_dist = getattr(self, "is_distribution_mode", False)
+        state = self._build_state()
+
+        # ── Modelo total y residuo ──────────────────────────────────────
+        model = None
+        residual = np.zeros_like(y)
         try:
             reconstruction = reconstruct_discrete_model(
-                v,
-                y,
-                state.values,
-                state.components,
-                state.constraints,
+                v, y, state.values, state.components, state.constraints,
                 absorber_model=state.absorber_model,
             ) if state else None
+            if reconstruction is not None:
+                model = reconstruction.model
+                residual = reconstruction.residual
         except Exception:
             reconstruction = None
-        model = reconstruction.model if reconstruction is not None else None
-        residual = reconstruction.residual if reconstruction is not None else np.zeros_like(y)
-        cols = ["velocity_mm_s", "data_norm"]
-        rows = [v, y]
+
+        # En modo distribución, si hay un resultado de distribución, úsalo
+        if is_dist:
+            dist_res = getattr(self.runtime_results, "distribution_result", None)
+            if dist_res is not None and hasattr(dist_res, "model_at_v"):
+                model = np.asarray(dist_res.model_at_v, dtype=float)
+                residual = y - model
+            elif dist_res is not None and hasattr(dist_res, "model"):
+                m = np.asarray(dist_res.model, dtype=float)
+                if m.size == v.size:
+                    model = m
+                    residual = y - model
+
+        # ── Subespectros por componente (solo modo discreto) ──────────
+        comp_curves: list[tuple[int, str, np.ndarray]] = []
+        if not is_dist and state is not None:
+            enabled = [c for c in state.components if getattr(c, "enabled", False)]
+            for comp in enabled:
+                try:
+                    c_y = model_from_values(
+                        v, state.values, [comp], state.constraints or [],
+                        absorber_model=state.absorber_model,
+                    )
+                    comp_curves.append((int(comp.idx), str(comp.kind), c_y))
+                except Exception:
+                    pass
+
+        # ── Líneas de cabecera ──────────────────────────────────────────
+        mode_label = "distribution" if is_dist else "discrete"
+        header = [
+            f"# Mossbauer Fe-57 — {file_name} — {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            f"# Mode: {mode_label}",
+        ]
+        if comp_curves:
+            header.append("# Components: " + "  ".join(
+                f"comp{idx}={kind}" for idx, kind, _ in comp_curves))
+
+        # ── Columnas ────────────────────────────────────────────────────
+        cols: list[str] = ["velocity_mm_s", "data_norm"]
+        rows: list[np.ndarray] = [v, y]
         if model is not None:
             cols += ["model", "residual"]
             rows += [model, residual]
+        for idx, kind, c_y in comp_curves:
+            cols.append(f"comp{idx}_{kind}")
+            rows.append(c_y)
         if self.file.folded is not None:
-            cols.append("folded_counts"); rows.append(self.file.folded)
+            cols.append("folded_counts")
+            rows.append(self.file.folded)
+
         try:
             with open(path, "w", encoding="utf-8") as fh:
+                for hl in header:
+                    fh.write(hl + "\n")
                 fh.write("\t".join(cols) + "\n")
                 for i in range(v.size):
-                    fh.write("\t".join(f"{rows[j][i]:.8g}" for j in range(len(cols))) + "\n")
+                    fh.write("\t".join(f"{rows[j][i]:.8g}" for j in range(len(rows))) + "\n")
             self.statusBar().showMessage(f"Ajuste guardado: {path}", 5000)
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("file.save_fit"),
