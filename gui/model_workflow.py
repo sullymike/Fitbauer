@@ -59,6 +59,9 @@ class ModelWorkflowMixin:
         # El mapa topográfico 2D solo pertenece a un ajuste 2D vigente.
         if not is_2d:
             self._dist_map_2d = None
+            _prev_fig = getattr(self, "_dist_map_2d_fig", None)
+            if _prev_fig is not None:
+                _prev_fig.clf()
             self._dist_map_2d_fig = None
             if hasattr(self, "dist_panel"):
                 self.dist_panel.btn_show_map.setVisible(False)
@@ -613,6 +616,9 @@ class ModelWorkflowMixin:
         self.file = FileState(path=path, counts=counts, center=center)
         self._simulate_enabled = False
         self._dist_map_2d = None
+        _prev_fig = getattr(self, "_dist_map_2d_fig", None)
+        if _prev_fig is not None:
+            _prev_fig.clf()
         self._dist_map_2d_fig = None
         if hasattr(self, "dist_panel"):
             self.dist_panel.btn_show_map.setVisible(False)

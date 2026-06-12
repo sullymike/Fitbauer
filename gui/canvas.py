@@ -1,8 +1,7 @@
 """Canvas Matplotlib usado por la interfaz Qt de Fitbauer."""
 from __future__ import annotations
 
-import warnings
-
+import logging
 import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -13,7 +12,8 @@ from core.plot_styles import get_style
 
 class SpectrumCanvas(FigureCanvas):
     def __init__(self, parent=None):
-        self.fig = Figure(figsize=(7.0, 5.0), dpi=100, facecolor="white")
+        self.fig = Figure(figsize=(7.0, 5.0), dpi=100, facecolor="white",
+                          constrained_layout=True)
         super().__init__(self.fig)
         self.setParent(parent)
         # Preferencia de mostrar la subgráfica de diferencia (residuos). Se fija
@@ -55,7 +55,6 @@ class SpectrumCanvas(FigureCanvas):
         self.ax.set_xticks([]); self.ax.set_yticks([])
         if self.ax_res is not None:
             self.ax_res.set_xticks([]); self.ax_res.set_yticks([])
-        self.fig.tight_layout()
         self.draw_idle()
 
     def render(self, v: np.ndarray, y: np.ndarray,
@@ -105,8 +104,8 @@ class SpectrumCanvas(FigureCanvas):
                 self._update_fast(v, y, model, components, residual, mv, s,
                                   actual_show_residual)
                 return
-            except Exception:
-                # Ante cualquier discrepancia, se cae a la reconstrucción total.
+            except Exception as _exc:
+                logging.debug("Actualización incremental del canvas fallida, reconstruyendo: %s", _exc)
                 self._artists = None
         self.fig.set_facecolor(s["fig_bg"])
         # El espacio de residuos depende SOLO de la opción 'mostrar diferencia',
@@ -200,11 +199,6 @@ class SpectrumCanvas(FigureCanvas):
                            labelcolor=s["leg_text"])
         if dist_map_2d is not None and self.ax_map is not None:
             self._draw_2d_map(self.ax_map, dist_map_2d, s, style_name)
-        # La colorbar del mapa 2D añade un eje incompatible con tight_layout
-        # (emite un UserWarning inocuo); lo silenciamos solo en ese caso.
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message=".*tight_layout.*")
-            self.fig.tight_layout()
         self.draw_idle()
         # Memoriza artistas y disposición para los refrescos incrementales.
         self._artists = {
@@ -235,15 +229,15 @@ class SpectrumCanvas(FigureCanvas):
         try:
             ax.get_figure().colorbar(im, ax=ax, fraction=0.046, pad=0.04,
                                      label="P(x, y)")
-        except Exception:
-            pass
+        except Exception as _exc:
+            logging.debug("Colorbar del mapa 2D no disponible: %s", _exc)
         # Contornos suaves sobre el heatmap para resaltar la topografía
         if P.size >= 4:
             try:
                 ax.contour(xc, yc, P.T, levels=5, colors="white",
                            linewidths=0.5, alpha=0.45)
-            except Exception:
-                pass
+            except Exception as _exc:
+                logging.debug("Contornos del mapa 2D no disponibles: %s", _exc)
         ax.set_xlabel(xlbl, color=style.get("lbl", "#1e293b"))
         ax.set_ylabel(ylbl, color=style.get("lbl", "#1e293b"))
         xv = getattr(result, "x_variable", "bhf")
@@ -281,8 +275,8 @@ class SpectrumCanvas(FigureCanvas):
             if a["res_fill"] is not None:
                 try:
                     a["res_fill"].remove()
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    logging.debug("No se pudo eliminar el relleno de residuo anterior: %s", _exc)
             a["res_fill"] = self.ax_res.fill_between(
                 v, residual, 0, color=a["res_color"], alpha=a["res_alpha"])
             lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)

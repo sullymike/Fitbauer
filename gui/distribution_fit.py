@@ -131,7 +131,7 @@ class DistributionFitMixin:
         dlg.setWindowTitle(tr("bhf.lcurve_alpha"))
         dlg.resize(820, 540)
         v = QtWidgets.QVBoxLayout(dlg)
-        fig = Figure(figsize=(8.0, 5.0), dpi=96)
+        fig = Figure(figsize=(8.0, 5.0), dpi=96, constrained_layout=True)
         cv = FigureCanvas(fig); v.addWidget(cv, stretch=1)
         ax1 = fig.add_subplot(1, 2, 1)
         ax1.loglog(rough, resid_norm, "o-", color="#2563eb", ms=4)
@@ -148,7 +148,7 @@ class DistributionFitMixin:
         ax2.set_ylabel(tr("plot.label_rms"))
         ax2.set_title(tr("plot.alpha_scan_title"))
         ax2.grid(True, alpha=0.3, which="both")
-        fig.tight_layout(); cv.draw_idle()
+        cv.draw_idle()
         best_idx = int(np.nanargmin(rms)) if rms.size else 0
         suggest = float(alphas[best_idx]) if alphas.size else dist_state.alpha
         buttons = QtWidgets.QHBoxLayout()
@@ -473,6 +473,9 @@ class DistributionFitMixin:
         # (_finish_gui_fit_result vuelve a dibujar vía _render_fit_result).
         self._dist_map_2d = result if shape == "2D" else None
         if shape != "2D":
+            _prev_fig = getattr(self, "_dist_map_2d_fig", None)
+            if _prev_fig is not None:
+                _prev_fig.clf()
             self._dist_map_2d_fig = None
         if hasattr(self, "dist_panel"):
             self.dist_panel.btn_show_map.setVisible(shape == "2D")
@@ -542,7 +545,7 @@ class DistributionFitMixin:
         dlg.setWindowTitle(title)
         dlg.resize(720, 480)
         lay = QtWidgets.QVBoxLayout(dlg)
-        fig = Figure(figsize=(8.0, 4.5), dpi=96)
+        fig = Figure(figsize=(8.0, 4.5), dpi=96, constrained_layout=True)
         cv = FigureCanvas(fig); lay.addWidget(cv, stretch=1)
         ax = fig.add_subplot(111)
         xc = np.asarray(result.bhf_centers, dtype=float)
@@ -552,14 +555,12 @@ class DistributionFitMixin:
         ax.set_xlabel(xlabel)
         ax.set_ylabel(title)
         ax.grid(True, alpha=0.3)
-        fig.tight_layout(); cv.draw_idle()
+        cv.draw_idle()
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
         bb.rejected.connect(dlg.reject); lay.addWidget(bb)
         dlg.exec()
 
     def _show_distribution_dialog_2d(self, result, view) -> None:
-        import warnings
-
         import numpy as np
         from matplotlib.gridspec import GridSpec
         xc, yc, P = view.probability_2d()
@@ -575,7 +576,7 @@ class DistributionFitMixin:
         dlg.resize(820, 700)
         lay = QtWidgets.QVBoxLayout(dlg)
 
-        fig = Figure(figsize=(8.5, 7.0), dpi=96)
+        fig = Figure(figsize=(8.5, 7.0), dpi=96, constrained_layout=True)
         cv = FigureCanvas(fig); lay.addWidget(cv, stretch=1)
 
         # Disposición: fila superior = marginal x; columna derecha = marginal y;
@@ -644,9 +645,6 @@ class DistributionFitMixin:
                 bbox=dict(boxstyle="round,pad=0.25", fc="#00000080", ec="none"),
             )
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message=".*tight_layout.*")
-            fig.tight_layout()
         cv.draw_idle()
 
         # Persist for the PDF report
