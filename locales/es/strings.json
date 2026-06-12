@@ -18,7 +18,7 @@
   "file.use_as_calibration": "Usar fichero actual como calibración...",
   "file.save_fit": "Guardar ajuste...",
   "file.export_report": "Exportar informe Markdown/PDF...",
-  "file.export_short_report": "Exportar informe reducido MD/ODT...",
+  "file.export_short_report": "Exportar informe reducido MD/PDF...",
   "file.export_plotly_html": "Exportar gráfico interactivo HTML...",
   "file.save_session": "Guardar sesión...",
   "file.upload_session": "Subir sesión JSON a web...",

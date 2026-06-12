@@ -886,6 +886,10 @@ class ReportMixin:
 
         return lines
 
+    def _render_short_pdf_report(self, pdf_path: Path, md_lines: list[str]) -> None:
+        """PDF del informe reducido reutilizando el renderer existente."""
+        self._render_pdf_report(pdf_path, md_lines)
+
     def _render_odt_report(self, odt_path: Path, md_lines: list[str],
                             fig_png_path: Path | None = None) -> None:
         """Genera un archivo ODT mínimo desde cero (stdlib: zipfile + xml)."""
@@ -1119,7 +1123,7 @@ class ReportMixin:
                 zf.write(fig_png_path, f"Pictures/{fig_png_path.name}")
 
     def on_export_short_report(self) -> None:
-        """Exporta el informe reducido (.md) y opcionalmente .odt."""
+        """Exporta el informe reducido (.md) y opcionalmente .pdf."""
         if self.file.path is None:
             return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -1142,34 +1146,20 @@ class ReportMixin:
                 f"{type(exc).__name__}: {exc}")
             return
 
-        want_odt = QtWidgets.QMessageBox.question(
+        want_pdf = QtWidgets.QMessageBox.question(
             self, tr("file.export_short_report"),
-            tr("msg.short_report_ask_odt",
-               default="Informe Markdown guardado. ¿Generar también un ODT (Writer)?"),
+            tr("msg.short_report_ask_pdf",
+               default="Informe Markdown guardado. ¿Generar también un PDF?"),
             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
             QtWidgets.QMessageBox.Yes)
-        if want_odt != QtWidgets.QMessageBox.Yes:
+        if want_pdf != QtWidgets.QMessageBox.Yes:
             return
-        import tempfile
-        fig_png = None
         try:
-            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tf:
-                fig_png = Path(tf.name)
-            self.canvas.fig.savefig(fig_png, dpi=150, bbox_inches="tight")
-        except Exception:
-            fig_png = None
-        try:
-            odt_path = md_path.with_suffix(".odt")
-            self._render_odt_report(odt_path, lines, fig_png)
+            pdf_path = md_path.with_suffix(".pdf")
+            self._render_short_pdf_report(pdf_path, lines)
             self.statusBar().showMessage(
-                f"Informe reducido (.md + .odt) guardado: {md_path.stem}", 5000)
+                f"Informe reducido (.md + .pdf) guardado: {md_path.stem}", 5000)
         except Exception as exc:
             QtWidgets.QMessageBox.warning(
                 self, tr("file.export_short_report"),
-                f"No se pudo generar el ODT: {type(exc).__name__}: {exc}")
-        finally:
-            if fig_png is not None:
-                try:
-                    fig_png.unlink(missing_ok=True)
-                except Exception:
-                    pass
+                f"No se pudo generar el PDF: {type(exc).__name__}: {exc}")
