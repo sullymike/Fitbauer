@@ -886,9 +886,203 @@ class ReportMixin:
 
         return lines
 
-    def _render_short_pdf_report(self, pdf_path: Path, md_lines: list[str]) -> None:
-        """PDF del informe reducido reutilizando el renderer existente."""
-        self._render_pdf_report(pdf_path, md_lines)
+    def _render_short_pdf_report(self, pdf_path: Path) -> None:
+        """PDF compacto: todo en la menor cantidad de hojas, sin portada."""
+        from datetime import datetime
+        from matplotlib.backends.backend_pdf import PdfPages
+        from matplotlib.figure import Figure as _Fig
+        from matplotlib.patches import Rectangle
+
+        file_name = self.file.path.name if self.file.path else "—"
+        iso_ref = self.calibration_iso_ref()
+        fit = self.runtime_results.fit_result
+        fit_view = discrete_result_view(fit) if fit is not None else None
+        active_components = [
+            cp.to_view_state() for cp in self.components_panels
+            if cp.to_view_state().enabled
+        ]
+        free_vals: dict[str, tuple[float, float | None]] = {}
+        if fit_view is not None:
+            for est in fit_view.parameters():
+                free_vals[est.key] = (est.value or 0.0, est.error)
+        pct_active, areas, percentages = self.component_area_percentages()
+        pct_errors = self.component_percentage_errors()
+
+        # ── Constantes de layout ────────────────────────────────────────
+        LEFT, RIGHT = 0.04, 0.96
+        W = RIGHT - LEFT
+        TOP, BOTTOM = 0.975, 0.02
+        ROW_H   = 0.0175   # altura fila de tabla
+        LABEL_H = 0.024    # altura de cabecera de componente
+        GAP     = 0.005
+        FS_HDR  = 7.0
+        FS_LBL  = 8.5
+        FS_TBL  = 7.2
+        FS_DRV  = 7.0
+        BLUE    = "#1e40af"
+        LBLUE   = "#dbeafe"
+        ZEBRA   = "#f5f8ff"
+        DARK    = "#1f2937"
+        BORDER  = "#d1d5db"
+
+        pages: list[tuple] = []
+
+        def _new_page():
+            fig = _Fig(figsize=(8.27, 11.69), dpi=100, facecolor="white")
+            ax = fig.add_subplot(111)
+            ax.axis("off")
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
+            pages.append((fig, ax))
+            return ax
+
+        def _draw_table(ax, y, headers, rows, fracs):
+            xs = [LEFT]
+            for f in fracs[:-1]:
+                xs.append(xs[-1] + f * W)
+            ws = [f * W for f in fracs]
+            # header row
+            ax.add_patch(Rectangle((LEFT, y - ROW_H), W, ROW_H,
+                                   facecolor=BLUE, edgecolor="none"))
+            for i, h in enumerate(headers):
+                ax.text(xs[i] + 0.003, y - ROW_H * 0.52, h,
+                        color="white", fontsize=FS_TBL, fontweight="bold",
+                        va="center", ha="left")
+            y -= ROW_H
+            for ri, row in enumerate(rows):
+                bg = ZEBRA if ri % 2 == 0 else "white"
+                ax.add_patch(Rectangle((LEFT, y - ROW_H), W, ROW_H,
+                                       facecolor=bg, edgecolor=BORDER, linewidth=0.25))
+                for ci, cell in enumerate(row):
+                    ax.text(xs[ci] + 0.003, y - ROW_H * 0.52, str(cell),
+                            color=DARK, fontsize=FS_TBL, va="center", ha="left")
+                y -= ROW_H
+            return y - GAP
+
+        ax = _new_page()
+        y = TOP
+
+        # ── Cabecera ────────────────────────────────────────────────────
+        metrics_parts = []
+        if fit_view is not None and fit_view.metrics():
+            st = {m.key: m.value for m in fit_view.metrics()}
+            if st.get("red_chi2") is not None:
+                metrics_parts.append(f"χ²ᵣ={st['red_chi2']:.4g}")
+            if st.get("dof") is not None:
+                metrics_parts.append(f"dof={int(st['dof'])}")
+            if st.get("aic") is not None:
+                metrics_parts.append(f"AIC={st['aic']:.4g}")
+            if st.get("bic") is not None:
+                metrics_parts.append(f"BIC={st['bic']:.4g}")
+        hdr = f"{file_name}   {datetime.now().strftime('%Y-%m-%d %H:%M')}   {APP_NAME} v{APP_VERSION}"
+        if metrics_parts:
+            hdr += "     " + "  ·  ".join(metrics_parts)
+        if iso_ref is not None:
+            hdr += f"     δ_ref={iso_ref:.5g} mm/s"
+        HDR_H = 0.022
+        ax.add_patch(Rectangle((LEFT, y - HDR_H), W, HDR_H,
+                               facecolor=BLUE, edgecolor="none"))
+        ax.text(LEFT + 0.006, y - HDR_H * 0.52, hdr,
+                color="white", fontsize=FS_HDR, va="center", ha="left")
+        y -= HDR_H + GAP * 2
+
+        # ── Componentes activos ─────────────────────────────────────────
+        for comp_state in active_components:
+            kind = comp_state.kind
+            kind_disp = tr(f"kind.{kind}", default=kind)
+            used = USED_BY.get(kind, set())
+            uses_bhf    = "bhf"    in used
+            uses_quad   = "quad"   in used
+            uses_gamma2 = "gamma2" in used
+            uses_gamma3 = "gamma3" in used
+
+            param_rows = []
+            for k, v in comp_state.values.items():
+                if k not in used:
+                    continue
+                key = f"s{comp_state.idx}_{k}"
+                err = free_vals.get(key, (None, None))[1]
+                err_txt = f"±{err:.3g}" if err is not None and err > 0 else "—"
+                param_rows.append([key, f"{v:.6g}", err_txt,
+                                   "fijo" if comp_state.is_fixed(k) else "libre"])
+
+            needed = LABEL_H + (len(param_rows) + 1) * ROW_H + 0.018 + GAP * 2
+            if y - needed < BOTTOM + 0.05:
+                ax = _new_page()
+                y = TOP - HDR_H - GAP * 2
+
+            # Etiqueta de componente
+            ax.add_patch(Rectangle((LEFT, y - LABEL_H), W, LABEL_H,
+                                   facecolor=LBLUE, edgecolor="none"))
+            ax.text(LEFT + 0.006, y - LABEL_H * 0.52,
+                    f"Componente {comp_state.idx} — {kind_disp}",
+                    color=BLUE, fontsize=FS_LBL, fontweight="bold",
+                    va="center", ha="left")
+            y -= LABEL_H
+
+            # Tabla de parámetros
+            y = _draw_table(ax, y,
+                            ["Parámetro", "Valor", "σ", "Estado"],
+                            param_rows,
+                            [0.38, 0.22, 0.22, 0.18])
+
+            # Línea de magnitudes derivadas
+            g1 = comp_state.value("gamma1")
+            bits = [f"Γ₁={g1:.4g}"]
+            if uses_gamma2:
+                bits.append(f"Γ₂={g1 * comp_state.value('gamma2', 1.0):.4g}")
+            if uses_gamma3:
+                bits.append(f"Γ₃={g1 * comp_state.value('gamma3', 1.0):.4g}")
+            if uses_bhf:
+                bits.append(f"BHF={comp_state.value('bhf'):.5g} T")
+            if uses_quad:
+                bits.append(f"ΔEQ={comp_state.value('quad'):.5g} mm/s")
+            d = comp_state.value("delta")
+            bits.append(f"δ={d:.5g} mm/s")
+            if iso_ref is not None:
+                bits.append(f"δ_corr={d - iso_ref:.5g} mm/s")
+            ax.text(LEFT + 0.006, y - 0.001, "  ".join(bits),
+                    color="#374151", fontsize=FS_DRV, fontstyle="italic",
+                    va="top", ha="left")
+            y -= 0.016 + GAP * 2
+
+        # ── Análisis de áreas ───────────────────────────────────────────
+        if pct_active:
+            area_rows = []
+            for idx, area, pct in zip(pct_active, areas, percentages):
+                cs = self.components_panels[idx - 1].to_view_state()
+                kd = tr(f"kind.{cs.kind}", default=cs.kind)
+                err = pct_errors.get(idx)
+                area_rows.append([str(idx), kd, f"{pct:.3f}%",
+                                  f"±{err:.3g}" if err is not None else "—"])
+
+            needed = LABEL_H + (len(area_rows) + 1) * ROW_H + GAP
+            if y - needed < BOTTOM + 0.05:
+                ax = _new_page()
+                y = TOP - HDR_H - GAP * 2
+
+            ax.add_patch(Rectangle((LEFT, y - LABEL_H), W, LABEL_H,
+                                   facecolor=LBLUE, edgecolor="none"))
+            ax.text(LEFT + 0.006, y - LABEL_H * 0.52, "Análisis de áreas",
+                    color=BLUE, fontsize=FS_LBL, fontweight="bold",
+                    va="center", ha="left")
+            y -= LABEL_H
+            _draw_table(ax, y,
+                        ["Comp.", "Tipo", "% área", "σ (%)"],
+                        area_rows,
+                        [0.10, 0.45, 0.25, 0.20])
+
+        # ── Figura al final ─────────────────────────────────────────────
+        with PdfPages(pdf_path) as pdf:
+            for fig, _ in pages:
+                pdf.savefig(fig, bbox_inches="tight")
+            pdf.savefig(self.canvas.fig, bbox_inches="tight")
+            fig2d = getattr(self, "_dist_map_2d_fig", None)
+            if fig2d is not None:
+                try:
+                    pdf.savefig(fig2d, bbox_inches="tight")
+                except Exception:
+                    pass
 
     def _render_odt_report(self, odt_path: Path, md_lines: list[str],
                             fig_png_path: Path | None = None) -> None:
@@ -1156,7 +1350,7 @@ class ReportMixin:
             return
         try:
             pdf_path = md_path.with_suffix(".pdf")
-            self._render_short_pdf_report(pdf_path, lines)
+            self._render_short_pdf_report(pdf_path)
             self.statusBar().showMessage(
                 f"Informe reducido (.md + .pdf) guardado: {md_path.stem}", 5000)
         except Exception as exc:
