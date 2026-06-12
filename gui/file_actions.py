@@ -12,6 +12,14 @@ from core.reconstruction import reconstruct_discrete_model
 
 ROOT = Path(__file__).resolve().parents[1]
 
+_KIND_EN = {
+    "Sextete":   "Sextet",
+    "Doblete":   "Doublet",
+    "Singlete":  "Singlet",
+    "Relajacion":"Relaxation",
+    "BlumeTjon": "BlumeTjon",
+    "NeelSize":  "NeelSize",
+}
 
 class FileActionsMixin:
     # ── Acciones rápidas ─────────────────────────────────────────────────
@@ -82,12 +90,12 @@ class FileActionsMixin:
                         v, state.values, [comp], state.constraints or [],
                         absorber_model=state.absorber_model,
                     )
-                    comp_curves.append((int(comp.idx), str(comp.kind), c_y))
+                    comp_curves.append((int(comp.idx), _KIND_EN.get(comp.kind, comp.kind), c_y))
                 except Exception:
                     pass
 
         # ── Líneas de cabecera ──────────────────────────────────────────
-        mode_label = "distribution" if is_dist else "discrete"
+        mode_label = "distribution" if is_dist else "discrete (sextet/doublet/singlet)"
         header = [
             f"# Mossbauer Fe-57 — {file_name} — {datetime.now().strftime('%Y-%m-%d %H:%M')}",
             f"# Mode: {mode_label}",
