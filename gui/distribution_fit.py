@@ -474,6 +474,8 @@ class DistributionFitMixin:
         self._dist_map_2d = result if shape == "2D" else None
         if shape != "2D":
             self._dist_map_2d_fig = None
+        if hasattr(self, "dist_panel"):
+            self.dist_panel.btn_show_map.setVisible(shape == "2D")
         style = get_style(self.plot_style_name)
         show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
         show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
@@ -679,3 +681,8 @@ class DistributionFitMixin:
         btn_row.addWidget(bb)
         lay.addLayout(btn_row)
         dlg.exec()
+
+    def _on_reopen_map_dialog(self) -> None:
+        result = getattr(self, "_dist_map_2d", None)
+        if result is not None:
+            self._show_distribution_dialog(result)

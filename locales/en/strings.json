@@ -244,6 +244,7 @@
   "file.export_distribution": "Export distribution",
   "dialog.save_2d_figure": "Save 2D map",
   "button.save_figure": "Save figure…",
+  "button.show_map": "Show 2D map…",
   "yes": "yes",
   "no": "no",
   "plot.transmission_ylabel": "Normalized transmission",

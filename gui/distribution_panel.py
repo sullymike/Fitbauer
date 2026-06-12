@@ -120,6 +120,9 @@ class DistributionPanel(QtWidgets.QGroupBox):
         right_v.addWidget(self.use_sharp)
         self.use_sharp.toggled.connect(lambda *_: self.paramChanged.emit())
         right_v.addWidget(self.lcurve_link)
+        self.btn_show_map = QtWidgets.QPushButton(tr("button.show_map", default="Ver mapa 2D…"))
+        self.btn_show_map.setVisible(False)
+        right_v.addWidget(self.btn_show_map)
         right_v.addStretch(1)
         v.addStretch(1)
         self.fixed_path: Path | None = None
