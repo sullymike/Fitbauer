@@ -77,6 +77,7 @@ class DistributionPanel(QtWidgets.QGroupBox):
         left_v.addWidget(self.btn_load_fixed)
 
         _ds = effective_distribution_specs()
+        self._dist_eff_specs = _ds  # cache para _dist_var_range
         self.delta     = ParamControl(tr("slider.dist_delta"),     *astuple(_ds["delta"]))
         self.quad      = ParamControl(tr("slider.dist_quad"),      *astuple(_ds["quad"]))
         self.fixed_bhf = ParamControl(tr("slider.dist_fixed_bhf"), *astuple(_ds["fixed_bhf"]), with_fixed=False)
@@ -146,6 +147,11 @@ class DistributionPanel(QtWidgets.QGroupBox):
         return tr(f"slider.dist_{role}_bhf")
 
     def _dist_var_range(self, var: str) -> tuple[float, float]:
+        s = self._dist_eff_specs
+        if var == "delta":
+            return s["is_lo"].default, s["is_hi"].default
+        if var == "quad":
+            return s["quad_lo"].default, s["quad_hi"].default
         return DIST_VAR_RANGE.get(var, DIST_VAR_RANGE["bhf"])
 
     def _sync_2d_controls(self) -> None:

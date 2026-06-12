@@ -79,6 +79,11 @@ _PARAM_LABELS: dict[str, str] = {
     "qmax":         "Q máx  (eje Y)",
     "qbins":        "N bins (eje Y)",
     "log_alpha_q":  "log₁₀ α_q",
+    # Límites exteriores del eje X en modos IS y ΔEQ distribuido
+    "is_lo":        "IS mín  (límite exterior eje δ en modo IS)",
+    "is_hi":        "IS máx  (límite exterior eje δ en modo IS)",
+    "quad_lo":      "ΔEQ mín  (límite exterior eje ΔEQ distribuido)",
+    "quad_hi":      "ΔEQ máx  (límite exterior eje ΔEQ distribuido)",
 }
 
 _CATEGORY_DEFAULTS = {

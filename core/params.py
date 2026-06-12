@@ -149,6 +149,12 @@ DISTRIBUTION_PARAM_SPECS: dict[str, ParamSpec] = {
     "bmax":        ParamSpec(50.0,   0.0,  60.0,  0.1, 2),
     "nbins":       ParamSpec(50.0,  10.0, 100.0,  1.0, 0),
     "log_alpha":   ParamSpec(-2.0,  -8.0,   4.0,  0.1, 2),
+    # Límites exteriores del eje X en modo IS (δ) y ΔEQ distribuido.
+    # Controlan hasta dónde pueden llegar los sliders bmin/bmax en esos modos.
+    "is_lo":       ParamSpec(-2.5, -10.0,  0.0,  0.1, 2),
+    "is_hi":       ParamSpec( 2.5,   0.0, 10.0,  0.1, 2),
+    "quad_lo":     ParamSpec( 0.0,  -7.0,  0.0,  0.1, 2),
+    "quad_hi":     ParamSpec( 7.0,   0.0, 15.0,  0.1, 2),
     # Malla eje Y en modo 2D (ΔEQ o IS)
     "qmin":        ParamSpec(-1.0,  -4.0,  4.0, 0.01, 3),
     "qmax":        ParamSpec(1.0,   -4.0,  4.0, 0.01, 3),
