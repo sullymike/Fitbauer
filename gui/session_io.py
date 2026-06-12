@@ -33,6 +33,8 @@ class SessionIOMixin:
         """
         model_state = self._model_state().to_model_state_dict()
         model_state.pop("fit_mode", None)  # lo gestiona la GUI (discreto/distrib.)
+        if hasattr(self, "mode_combo"):
+            model_state["mode_combo_idx"] = self.mode_combo.currentIndex()
         ui_state = self._ui_action_state()
         model_state["n_components"] = ui_state.n_components
         distribution = (
@@ -198,16 +200,22 @@ class SessionIOMixin:
                 idx_shape = self.dist_panel.shape_combo.findData(shape_saved)
                 if idx_shape >= 0:
                     self.dist_panel.shape_combo.setCurrentIndex(idx_shape)
-            var_saved = state.get("dist_variable")
-            _2d_var_to_idx = {"BHF-ΔEQ": 4, "IS-ΔEQ": 5, "BHF-IS": 6}
-            if var_saved in _2d_var_to_idx:
-                self.mode_combo.setCurrentIndex(_2d_var_to_idx[var_saved])
-            elif var_saved in ("BHF", "bhf"):
-                self.mode_combo.setCurrentIndex(1)
-            elif var_saved in ("ΔEQ", "quad"):
-                self.mode_combo.setCurrentIndex(2)
-            elif var_saved in ("IS", "delta"):
-                self.mode_combo.setCurrentIndex(3)
+            mode_idx_saved = state.get("mode_combo_idx")
+            if mode_idx_saved is not None:
+                # Índice guardado explícitamente: cubre el modo discreto (0) y 2D (4/5/6)
+                self.mode_combo.setCurrentIndex(int(mode_idx_saved))
+            else:
+                # Compatibilidad con sesiones antiguas sin mode_combo_idx
+                var_saved = state.get("dist_variable")
+                _2d_var_to_idx = {"BHF-ΔEQ": 4, "IS-ΔEQ": 5, "BHF-IS": 6}
+                if var_saved in _2d_var_to_idx:
+                    self.mode_combo.setCurrentIndex(_2d_var_to_idx[var_saved])
+                elif var_saved in ("BHF", "bhf"):
+                    self.mode_combo.setCurrentIndex(1)
+                elif var_saved in ("ΔEQ", "quad"):
+                    self.mode_combo.setCurrentIndex(2)
+                elif var_saved in ("IS", "delta"):
+                    self.mode_combo.setCurrentIndex(3)
             # Sincroniza las acciones del menú avanzado si ya existen
             for grp_attr, val, items in (
                 ("likelihood_action_group", self.likelihood, ("gauss", "poisson")),
