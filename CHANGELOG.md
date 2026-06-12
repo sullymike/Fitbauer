@@ -1,5 +1,70 @@
 # Changelog
 
+## v4.8.1 — Internacionalización completa, idioma por defecto inglés e informe reducido
+
+Versión centrada en **pulido de la interfaz**: barrido exhaustivo de
+internacionalización, cambio del idioma por defecto a inglés, un nuevo informe
+reducido en PDF, y varias correcciones en sesiones, ajustes persistentes y
+exportación de datos. No toca el núcleo de física/ajuste.
+
+### Internacionalización (ES/EN/FR)
+
+- **Barrido exhaustivo de cadenas hardcodeadas**: se han eliminado prácticamente
+  todas las cadenas en español que estaban incrustadas en el código de la GUI y
+  no pasaban por el sistema `tr()`. Afecta a barras de estado, títulos de diálogo,
+  cabeceras de tabla, etiquetas de formulario y botones.
+  - **Diálogos traducidos por completo**: límites de parámetros (70+ etiquetas
+    científicas por idioma), configuración de layout (nombres de paneles y de
+    presets predeterminados: Estándar/Tres columnas/Análisis/Compacto), API web
+    (login, buscador, cabeceras de tabla, descarga), resumen para IA/LLM, y
+    presets físicos de restricciones.
+  - **Formulario de calibración local** (Sample / Vmax / IS), mensajes de barra
+    de estado («Centro detectado», «Ajuste guardado», «Datos re-doblados»,
+    «Ajuste base», verosimilitud perfilada) y el menú **Vista → Límites de
+    parámetros…** ahora se traducen.
+  - **Paridad de catálogos**: los tres idiomas mantienen exactamente el mismo
+    conjunto de claves (744 cada uno).
+- **Idioma por defecto cambiado de español a inglés** (`DEFAULT_LANGUAGE = "en"`).
+- **«Ajuste con sextetes» → «Ajuste cristalino»** (EN: *Discrete fit*; FR:
+  *Ajustement cristallin*), pues el modo admite singletes y dobletes, no solo
+  sextetes.
+- En inglés, la casilla de parámetro fijo pasa de «fixed» a **«fix»** para evitar
+  que el texto se solape con los controles de subir/bajar valor.
+
+### Informe reducido (Archivo → Exportar informe reducido MD/PDF…)
+
+- Nuevo **informe condensado** en Markdown y PDF, complementario al informe largo
+  (que se mantiene). Incluye solo los parámetros de cada componente, el análisis
+  de áreas y la figura del espectro al final.
+- **Renderer PDF propio y compacto**: cabecera y tablas reducidas, sin portada ni
+  tarjeta de metadatos, para ocupar las menos páginas posibles.
+
+### Exportación del ajuste (Archivo → Guardar ajuste…)
+
+- El fichero TSV guarda ahora **los subespectros de cada componente**, no solo el
+  modelo total.
+- **Cabecera informativa** que indica fichero, fecha, modo (discreto/distribución)
+  y el tipo de cada componente.
+- Los nombres de tipo de componente se escriben **en inglés** (Sextet, Doublet,
+  Singlet…) de forma consistente en todo el fichero de datos.
+
+### Correcciones
+
+- **Sesiones**: al cargar una sesión de ajuste discreto (p. ej. dos dobletes) ya
+  no se salta erróneamente al modo distribución P(BHF). Se guarda el índice de
+  modo explícito (`mode_combo_idx`), con compatibilidad hacia atrás para sesiones
+  antiguas.
+- **Arranques múltiples** (`multistart_n`): ahora se persiste en `settings.json` y
+  se restaura entre arranques de la aplicación; también se restaura al cargar
+  sesión, sin el límite máximo hardcodeado anterior.
+- **Informes**: las tablas muestran solo los parámetros y magnitudes derivadas
+  relevantes para cada tipo de componente (singlete/doblete/sextete), en lugar de
+  todos los parámetros aunque no se hubieran ajustado.
+
+### Créditos
+
+- Se añade a **Nieves Menéndez González** como coautora.
+
 ## v4.8.0 — Editor de límites de parámetros y consolidación de constantes
 
 ### Diálogo de límites de parámetros (Vista → Límites de parámetros…)
