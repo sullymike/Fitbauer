@@ -6,268 +6,162 @@
 
 <p align="center"><b>Software for Mössbauer spectrum fitting and analysis.</b></p>
 
+<p align="center">
+  <a href="README_ES.md">🇪🇸 Versión en español</a>
+</p>
 
-Programa de escritorio estable para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
+Stable desktop application to load, fold, simulate and fit ⁵⁷Fe Mössbauer spectra.
 
-Versión estable actual: **v4.5**.  
-Arranque recomendado: `python fitbauer.py` (interfaz Qt).  
-Interfaz Qt/Plotly: `mossbauer_qt.py` como punto de entrada fino, con implementación modular en `gui/`. Ajuste por línea de comandos (headless): `mossbauer_fit_cli.py`.
+Current stable version: **v4.8.1**  
+Launch: `python fitbauer.py`  
+Headless CLI fitting: `mossbauer_fit_cli.py`
 
-Autor: Jorge Sánchez Marcos  
-Departamento de Química Física · UAM
+**Authors:** Jorge Sánchez Marcos · Nieves Menéndez González  
+Department of Physical Chemistry · UAM
 
-English version: [`README_EN.md`](README_EN.md) · Installation in English: [`INSTALL_EN.md`](INSTALL_EN.md)
+---
 
-Documentación adicional: [`docs/user-flows.md`](docs/user-flows.md) para recorridos de usuario y [`docs/architecture.md`](docs/architecture.md) para la arquitectura interna.
+## Features
 
-## 1. Objetivo
+- Load local `.ws5` and `.adt` files; download measurements and calibrations from the laboratory web database.
+- Spectrum folding with fractional/interpolated folding point (NORMOS-compatible).
+- **Discrete fitting** — singlets, doublets and sextets; Lorentzian/Voigt profiles; Poisson or Gaussian likelihood; robust loss functions; χ²/AIC/BIC.
+- **Multi-start fitting** with configurable restarts and Monte Carlo bootstrap errors.
+- **Profile-likelihood confidence intervals** with adaptive scan.
+- **Distribution fitting** — `P(BHF)`, `P(ΔEQ)`, `P(IS)` and three 2D modes (`P(BHF,ΔEQ)`, `P(IS,ΔEQ)`, `P(BHF,IS)`); Hesse-Rübartsch regularization; L-curve α estimation; simultaneous sharp components.
+- Advanced quadrupole: first-order, fixed Kündig, powder Kündig; sextet intensity texture.
+- Physical constraint presets (3:2:1 powder, tied widths, linked δ/Γ across components).
+- Relaxation models: phenomenological, Blume–Tjon two-state, Néel–Arrhenius with lognormal size distribution.
+- Parameter limits fully configurable through the GUI (View → Parameter limits…).
+- Interactive Plotly figure with semi-manual minimum editor.
+- Batch fitting across a series of files with warm-start.
+- Fit export as TSV with **per-component subspectra** and an informative header.
+- Markdown/PDF reports: full report and condensed short report.
+- Complete JSON session save/load; persistent settings across restarts.
+- Update checking and one-click download from GitHub Releases.
+- Interface and integrated help in **English**, Spanish and French.
 
-La aplicación permite trabajar con espectros Mössbauer de Fe-57 desde la carga del fichero hasta el ajuste final. Soporta ficheros WS5 modernos y ADT antiguos sin cabecera.
+---
 
-Funciones principales:
+## Screenshots
 
-- Carga local de `.ws5` y `.adt`.
-- Descarga de espectros y calibraciones desde la web del laboratorio.
-- Búsqueda en la lista web por muestra, fecha, id, entorno o parámetros.
-- Doblado del espectro con folding point fraccionario/interpolado.
-- Ajuste con singletes, dobletes y sextetes, con pesos Poisson, autoarranques, χ²/AIC/BIC, diagnóstico de residuos y errores cuando están disponibles.
-- Ajuste con distribuciones `P(BHF)` y `P(ΔEQ)`, L-curve, regularización avanzada y componentes nítidos simultáneos.
-- Perfiles Lorentziano y Voigt.
-- Tratamiento cuadrupolar de primer orden, Kündig fijo y Kündig polvo; textura de intensidades de sextete.
-- Calibración desde la web o usando el fichero actual como calibración local.
-- Visualización de datos, modelo, componentes, fondo, residuo y distribución.
-- Porcentajes de área de componentes, correlaciones y métricas estadísticas.
-- Guardado de ajuste, guardado/carga de sesión completa e informe Markdown/PDF.
-- Comprobación de nuevas versiones desde GitHub Releases y descarga de actualizaciones.
-- Interfaz en español, inglés y francés; ayuda integrada en español, inglés y francés.
+> Screenshots below were taken with v4.8.1. The interface language is English by default.
 
-Datos de ejemplo incluidos:
+### Main window
 
-- `data_sample/calibration.adt`: ejemplo de calibración.
-- `data_sample/calibration_session.json`: sesión asociada a la calibración.
-- `data_sample/Fe3O4.adt`: ejemplo de muestra Fe₃O₄.
-- `data_sample/Fe3O4_session.json`: sesión asociada a la muestra Fe₃O₄.
+<img src="docs/img/captura-pantalla-principal.png" alt="Fitbauer main window — spectrum, fit and component panels" width="900">
 
-Para probarlos, abre primero el `.adt` desde **Archivo → Cargar...** y después carga la sesión correspondiente desde **Archivo → Cargar sesión...**.
+### Discrete fit (doublets)
 
-### Flujo rápido de trabajo
+<img src="docs/img/captura-ajuste-discreto.png" alt="Discrete fit with two doublets, area analysis and residuals" width="900">
 
-```text
-Cargar espectro → revisar folding/Vmax → elegir modelo → ajustar → revisar residuos/áreas → exportar sesión/informe
-```
+### Hyperfine-field distribution P(BHF)
 
-- Para ajuste discreto, configura singletes/dobletes/sextetes y pulsa **Ajuste**.
-- Para distribución, cambia a `P(BHF)` o `P(ΔEQ)`, define rango/bins/α y usa **L-curve α** si necesitas estimar la regularización.
-- Antes de ajustar, Fitbauer valida parámetros y rangos para evitar ejecuciones con estados incoherentes.
+<img src="docs/img/captura-distribucion-bhf.png" alt="P(BHF) hyperfine field distribution with sharp components" width="900">
 
+### Regularization L-curve
 
-## 2. Capturas del programa
+<img src="docs/img/captura-lcurve.png" alt="L-curve tool for choosing the regularization parameter α" width="900">
 
-Las imágenes siguientes muestran el aspecto general de la aplicación y de algunas ventanas de análisis. Son capturas ilustrativas generadas para la documentación del repositorio.
+### Short Markdown/PDF report
 
-### Pantalla principal
+<img src="docs/img/captura-informe-markdown-pdf.png" alt="Condensed PDF report with component parameters and spectrum figure" width="900">
 
-<img src="docs/img/captura-pantalla-principal.png" alt="Pantalla principal de Mössbauer Fe-57 GUI" width="900">
+---
 
-### Ajuste discreto
-
-<img src="docs/img/captura-ajuste-discreto.png" alt="Ajuste discreto con componentes, áreas y residuos" width="900">
-
-### Distribución P(BHF)
-
-<img src="docs/img/captura-distribucion-bhf.png" alt="Distribución de campo hiperfino P(BHF)" width="900">
-
-### L-curve de regularización
-
-<img src="docs/img/captura-lcurve.png" alt="L-curve para elegir el parámetro de regularización alpha" width="900">
-
-### Informe Markdown/PDF
-
-<img src="docs/img/captura-informe-markdown-pdf.png" alt="Informe Markdown y PDF exportado" width="900">
-
-## 3. Datos, folding y velocidad
-
-El panel **Velocidad, folding y fondo** contiene:
-
-- **Vmax**: velocidad máxima del eje, usado para construir el intervalo `-Vmax ... +Vmax`. Puede ser negativo; el signo se conserva para reproducir calibraciones web/NORMOS con eje invertido.
-- **Folding point**: centro interno de simetría usado para doblar el espectro. Puede ser fraccionario, como en Normos.
-- **Base**: transmisión/fondo normalizado, normalmente cercana a 1.
-- **Pendiente**: término lineal del fondo.
-
-El programa muestra también un **folding point Normos aproximado**, que suele ser aproximadamente el doble del centro interno de la GUI.
-
-En la GUI modular se eliminan el primer y último punto del espectro doblado, porque los canales extremos suelen ser menos fiables. El eje de velocidades se trata de forma conservadora: primero se construye el eje completo `linspace(-Vmax, +Vmax, N)` y después se recortan las mismas posiciones que en los datos (`[1:-1]`). No se reconstruye un eje nuevo entre `-Vmax` y `+Vmax` con menos canales, porque eso estiraría la escala y sesgaría `BHF`.
-
-## 4. Modelo discreto
-
-Cada una de las tres pestañas de componente puede ser:
-
-### Singlete
-
-Una línea única. Parámetros principales: `δ`, `Γ`, profundidad e intensidad.
-
-### Doblete
-
-Dos líneas separadas por `ΔEQ`. Útil para fases paramagnéticas con interacción cuadrupolar.
-
-### Sextete
-
-Seis líneas magnéticas. Parámetros principales:
-
-- `δ`: desplazamiento isomérico.
-- `ΔEQ`: cuadrupolo de primer orden.
-- `BHF`: campo hiperfino en teslas.
-- `Γ 1,6`: anchura HWHM de las líneas exteriores.
-- `Γ 2,5 rel` y `Γ 3,4 rel`: anchuras relativas.
-- `Profundidad`: escala global de absorción. Por defecto empieza en `0.02`; la barra de la GUI va de `0` a `0.07`, pero el ajuste interno permite valores mayores.
-- `I1`/`int1` ≈ `D13` e `I2`/`int2` ≈ `D23`: intensidades relativas respecto a las líneas 3,4.
-- `int3`: no aparece en la GUI; queda fijo internamente a `1` siguiendo la convención NORMOS.
-
-### Relajación magnética / superparamagnética
-
-El tipo **Relajacion** es una primera aproximación fenomenológica para nanopartículas o fases con relajación rápida/intermedia. No sustituye a un modelo dinámico Blume–Tjon: mezcla una fracción bloqueada tipo sextete con una fracción superparamagnética tipo doblete, conservando de forma aproximada el área total.
-
-Parámetros específicos:
-
-- `f bloqueada`: fracción bloqueada máxima; la fracción superparamagnética reportada es `1 - f bloqueada`.
-- `log10 ν`: tasa de relajación fenomenológica en s⁻¹. Valores bajos (`≈5`) tienden al sextete bloqueado; valores intermedios (`≈8–9`) ensanchan/colapsan parcialmente; valores altos (`≈11`) tienden al doblete superparamagnético.
-
-El tipo **BlumeTjon** implementa una primera versión dinámica de dos estados `+BHF ↔ -BHF`: `log10 ν` controla el intercambio, sin fracción bloqueada explícita. Es más físico que la interpolación fenomenológica, pero sigue siendo el modelo inicial simplificado de dos estados.
-
-El tipo **NeelSize** añade Néel–Arrhenius con distribución lognormal de tamaños: `T`, `log10 Keff`, `d50`, `σ`, `log10 τ0` y bins de tamaño determinan una suma de espectros Blume–Tjon con tasas `ν(d,T)`. Para estimar `Keff` y tamaños de forma fiable se recomienda usar varios espectros a distintas temperaturas; hay backend de ajuste global multi-T en `core.relaxation`.
-
-> **Pendiente de GUI:** el ajuste global multi-temperatura ya existe como backend, pero todavía no tiene diálogo propio en la interfaz gráfica. Por ahora `NeelSize` puede usarse en la GUI para un espectro individual; la integración GUI multi-T queda explícitamente pendiente.
-
-El botón **Ajuste** optimiza todos los parámetros no fijados. Si hay varios componentes activos, el panel de estado muestra el porcentaje de área integrada de cada uno y, si se puede calcular la covarianza, su error 1σ.
-
-## 5. Distribución P(BHF)
-
-El modo **Distribución P(BHF)** modela el espectro como una suma de muchos sextetes con distintos campos hiperfinos. El resultado es una distribución `P(BHF)`, que representa el peso espectral asociado a cada campo.
-
-### Método usado
-
-Se usa un ajuste tipo Hesse-Rübartsch:
-
-- Se define una malla de campos entre `B mín` y `B máx`.
-- Cada punto de la malla aporta un sextete con ese `BHF`.
-- Los pesos de la distribución son no negativos.
-- Se penaliza la segunda diferencia de `P(BHF)` para evitar oscilaciones no físicas.
-
-De forma esquemática se minimiza:
-
-```text
-residuo espectral² + α · rugosidad(P)²
-```
-
-### Parámetros de distribución
-
-- **δ global**: desplazamiento isomérico común para todos los sextetes de la distribución.
-- **ΔEQ global**: cuadrupolo común.
-- **Γ HWHM**: anchura común de línea.
-- **B mín / B máx**: intervalo de campos hiperfinos considerados.
-- **Bins BHF**: número de puntos de la malla. Más bins dan más resolución pero pueden introducir ruido.
-- **log10 α**: logaritmo del parámetro de regularización.
-
-Interpretación de `α`:
-
-- `α` pequeño: distribución más detallada, pero sensible al ruido.
-- `α` grande: distribución más suave, pero puede ocultar estructura real.
-
-Los botones **fino**, **medio** y **suave** son presets de `α`. El botón **L-curve α** calcula una curva de compromiso entre residuo y rugosidad para sugerir un valor razonable.
-
-### Componentes nítidos
-
-La opción **sumar componentes activos nítidos** permite mezclar una distribución con fases discretas. Por ejemplo, una fase amplia distribuida más una fase de Fe metálico con `BHF ≈ 33 T`.
-
-En ese modo:
-
-- `P(BHF)` se ajusta y regulariza.
-- Los componentes activos se suman como singlete/doblete/sextete nítidos.
-- Sus amplitudes se ajustan, pero no forman parte de la regularización.
-
-### Parámetros globales libres/fijos
-
-En distribuciones, los controles globales se refinan directamente según su casilla **fijo**: si `δ`, `ΔEQ` o `Γ` están libres, el ajuste los optimiza; si están fijos, se mantienen. En `P(BHF)`, `ΔEQ` actúa como valor global común y puede refinarse. En `P(ΔEQ)`, `ΔEQ` es la variable distribuida y no se usa como parámetro global.
-
-### Distribución P(BHF, ΔEQ) 2D
-
-Hay un backend avanzado para distribuciones bidimensionales de dos parámetros (`BHF`, `ΔEQ/QS` e `IS`) en `mossbauer_distribution.fit_bhf_quad_distribution()` e integración en la GUI como modos **P(BHF, ΔEQ) 2D**, **P(IS, ΔEQ) 2D** y **P(BHF, IS) 2D**. También hay distribución 1D **P(IS)**. Incluye mapa de calor, marginales, heatmap Plotly, exportación TSV, L-surface `αx/αy`, componentes nítidos simultáneos e informe PDF con mapa 2D. Estos modelos pueden representar correlaciones campo–cuadrupolo o IS–QS, pero son muy subdeterminados: una malla 30×30 implica 900 pesos. Pueden ajustar muy bien y aun así carecer de sentido físico si absorben ruido, folding, calibración, anchuras mal fijadas o componentes omitidas. Usarlos por ahora como herramienta exploratoria y comprobar estabilidad frente a regularización y número de bins. La matemática de `P(IS)` y `P(IS, ΔEQ)` está documentada en `docs/distribuciones_is_mossbauer.pdf`.
-
-### Consejos prácticos
-
-- Empieza con un intervalo amplio, por ejemplo `0–50 T`.
-- Si aparece peso artificial cerca de 0 T, sube `B mín`.
-- Usa `α` medio y luego revisa la L-curve.
-- No interpretes detalles muy estrechos si `α` es demasiado pequeño.
-- Si una fase es claramente discreta, añádela como componente nítido.
-
-## 6. Actualizaciones
-
-El programa comprueba nuevas versiones publicadas en GitHub Releases al arrancar y también manualmente desde:
-
-```text
-Ayuda → Buscar actualizaciones...
-```
-
-La versión local está definida en `APP_VERSION`. Si existe una release con un tag superior, por ejemplo `v2.3`, el programa ofrece descargarla en `Descargas`/`Downloads`. Si la descarga es un ZIP de GitHub, puede descomprimirlo automáticamente en la misma carpeta del programa; después basta con reiniciar.
-
-El historial de versiones está en `CHANGELOG.md`.
-
-## 7. Instalación desde código
-
-Se puede instalar sin `.exe` con Python:
+## Quick start
 
 ```bash
-python3 install.py
-./fitbauer         # interfaz Qt
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python fitbauer.py
 ```
 
-En Windows:
+Try the included sample data:
 
-```bat
-py install.py
-fitbauer.bat
+1. **File → Open…** → `data_sample/magnetita_Fe3O4.adt`
+2. **File → Load session…** → `data_sample/Fe3O4_session.json`
+
+Typical workflow:
+
+```
+Open spectrum → check folding/Vmax → choose model → fit
+  → inspect residuals/areas → export session/report
 ```
 
-La interfaz Qt y la capa de ajuste headless (`core/session.py`, usada por
-`mossbauer_fit_cli.py`) comparten el mismo núcleo de cálculo (`core/`): física,
-ajuste, bootstrap y verosimilitud perfilada.
+---
 
-### Construir ejecutables (PyInstaller)
+## Fitting modes
+
+### Discrete fit
+
+Up to three simultaneous components (singlet / doublet / sextet). Each component has independent type, parameters and fixed/free status. The **Fit** button optimises all free parameters; the status panel reports integrated areas, covariance errors or bootstrap errors (Monte Carlo), and fit statistics.
+
+For sextets the main parameters are:
+
+| Parameter | Meaning |
+|-----------|---------|
+| δ (IS) | Isomer shift (mm/s) |
+| ΔEQ | First-order quadrupole splitting (mm/s) |
+| BHF | Hyperfine field (T) |
+| Γ 1,6 | HWHM of outer lines (mm/s) |
+| Γ 2,5 rel / Γ 3,4 rel | Relative widths of lines 2,5 and 3,4 |
+| Depth | Global absorption amplitude |
+| int1 / int2 | Relative intensities (≈ D13, D23); int3 fixed to 1 |
+
+### Distribution P(BHF) / P(ΔEQ)
+
+Models the spectrum as a sum of many sextets (or doublets) on a regular grid. The Hesse-Rübartsch-style optimisation minimises:
+
+```
+weighted spectral residual² + α · roughness(P)²
+```
+
+Use **L-curve α** to find a good compromise between residual and smoothness. The **Add active sharp components** option mixes the distribution with discrete phases (e.g. a broad distribution + metallic Fe at BHF ≈ 33 T).
+
+### Relaxation models
+
+| Type | Description |
+|------|-------------|
+| Relajacion | Phenomenological blocked/superparamagnetic interpolation |
+| BlumeTjon | Dynamic two-state ±BHF exchange |
+| NeelSize | Néel–Arrhenius + lognormal size distribution |
+
+---
+
+## Installation
+
+See [`INSTALL_EN.md`](INSTALL_EN.md) for full installation instructions.
+
+Build a standalone executable with PyInstaller:
 
 ```bash
-pyinstaller Fitbauer.spec       # ejecutable Qt  -> dist/Fitbauer/
+pyinstaller Fitbauer.spec    # → dist/Fitbauer/
 ```
 
-Más detalles en `INSTALL.md`.
+---
 
-## 8. Guardado
+## Project structure
 
-### Guardar ajuste
-
-Guarda datos, curva ajustada, residuo y cuentas dobladas. En modo distribución también guarda `P(BHF)` y metadatos del ajuste.
-
-### Guardar sesión
-
-Guarda un JSON con:
-
-- ruta del fichero,
-- cuentas,
-- parámetros,
-- componentes activos,
-- parámetros fijos,
-- opciones,
-- covarianza y errores del último ajuste,
-- texto del panel **Estado y parámetros**.
-
-### Opciones automáticas
-
-Al cerrar, el programa guarda opciones persistentes en:
-
-```text
-~/.config/mossbauer_fe33_gui/settings.json
+```
+core/          Physics and fitting engine (no GUI dependency)
+gui/           Modular Qt/Plotly GUI — thin controllers only
+locales/       Translations: en / es / fr
+data_sample/   Sample spectra and sessions
+tests/         Physics, fitting, CLI and Qt tests
 ```
 
-## 9. Panel Estado y parámetros
+The physics and fitting engines live exclusively in `core/`; the GUI is a thin client. See [`docs/architecture.md`](docs/architecture.md) for details.
 
-Este panel resume el estado del ajuste: fichero, folding, normalización, Vmax, fondo, RMS, parámetros, porcentajes de área, errores y parámetros fijados. En modo distribución muestra además el rango BHF, número de bins, α, pico de P(BHF) y porcentajes de distribución/componentes nítidos.
+---
+
+## Changelog
+
+See [`CHANGELOG.md`](CHANGELOG.md).
+
+---
+
+## License
+
+© Jorge Sánchez Marcos, Nieves Menéndez González — Department of Physical Chemistry, UAM.
