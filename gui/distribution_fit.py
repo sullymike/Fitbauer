@@ -16,6 +16,7 @@ from core.physics import component_absorption
 from core.plot_styles import get_style
 from core.reconstruction import reconstruct_distribution_curves
 from core.validation import format_validation_issues, validate_distribution_parameters
+from core.param_overrides import effective_fit_init_specs as _eff_fi, effective_distribution_specs as _eff_ds
 from gui.fit_workflow import GuiFitRenderState, GuiFitResult
 from mossbauer_distribution import (
     fit_hyperfine_distribution,
@@ -93,7 +94,8 @@ class DistributionFitMixin:
         d = self.dist_panel
         var = self.dist_variable
         dist_state = d.to_view_state(variable=var)
-        alphas = np.logspace(-6, 2, 25)
+        _fi = _eff_fi()
+        alphas = np.logspace(_fi["lcurve_alpha_lo"].default, _fi["lcurve_alpha_hi"].default, int(_fi["lcurve_n_points"].default))
         self.statusBar().showMessage(f"Escaneando α (n={len(alphas)})…")
         QtWidgets.QApplication.processEvents()
         bmin = float(dist_state.bmin); bmax = max(bmin + 0.5, float(dist_state.bmax))
@@ -213,10 +215,11 @@ class DistributionFitMixin:
         shape = dist_state.shape
 
         # Parámetros 2D (disponibles tras la actualización del panel)
-        qmin: float = float(d.qmin.value()) if hasattr(d, "qmin") else -1.0
-        qmax: float = max(qmin + 0.05, float(d.qmax.value())) if hasattr(d, "qmax") else 1.0
-        qbins: int = max(5, int(round(d.qbins.value()))) if hasattr(d, "qbins") else 21
-        alpha_q: float = 10.0 ** float(d.log_alpha_q.value()) if hasattr(d, "log_alpha_q") else 1e-2
+        _ds = _eff_ds()
+        qmin: float = float(d.qmin.value()) if hasattr(d, "qmin") else _ds["qmin"].default
+        qmax: float = max(qmin + 0.05, float(d.qmax.value())) if hasattr(d, "qmax") else _ds["qmax"].default
+        qbins: int = max(5, int(round(d.qbins.value()))) if hasattr(d, "qbins") else int(_ds["qbins"].default)
+        alpha_q: float = 10.0 ** float(d.log_alpha_q.value()) if hasattr(d, "log_alpha_q") else 10.0 ** _ds["log_alpha_q"].default
         pair: tuple[str, str] = getattr(self, "dist_pair", ("bhf", "quad")) if shape == "2D" else ("bhf", "quad")
 
         label_map = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}

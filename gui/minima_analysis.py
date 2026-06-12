@@ -7,7 +7,12 @@ from PySide6 import QtWidgets
 from mossbauer_i18n import tr
 from core.constants import BHF_DEFAULT_T, LINE_POS_33T
 from core.fit_engine import Component, model_from_values
+from core.params import SEXTET_WEIGHTS
+from core.param_overrides import effective_fit_init_specs as _eff_fi, effective_peak_detection_specs as _eff_pd
 from gui.panels import ComponentPanel
+
+_FI = _eff_fi()
+_PD = _eff_pd()
 
 MAX_QT_COMPONENTS = 6
 
@@ -61,9 +66,9 @@ class MinimaAnalysisMixin:
         fine_smooth = self._smooth_1d(absorption, fine_win)
 
         dv = abs(float(v[1] - v[0])) if v.size > 1 else 0.05
-        min_dist_ch = max(3, int(0.15 / dv))
-        height_thr = max(0.06 * max_abs, 4.0 * noise, 5e-4)
-        prom_thr = max(0.05 * max_abs, 2.5 * noise, 3e-4)
+        min_dist_ch = max(3, int(_PD["min_dist_factor"].default / dv))
+        height_thr = max(_PD["height_thr_factor"].default * max_abs, 4.0 * noise, 5e-4)
+        prom_thr = max(_PD["prom_thr_factor"].default * max_abs, 2.5 * noise, 3e-4)
 
         try:
             from scipy.signal import find_peaks as _find_peaks
@@ -73,7 +78,7 @@ class MinimaAnalysisMixin:
                                    prominence=prom_thr, distance=min_dist_ch)
 
         peaks: list[dict[str, float]] = []
-        min_distance = max(0.12, 2.0 * dv)
+        min_distance = max(_PD["min_separation"].default, 2.0 * dv)
         for i in peak_idxs:
             half = 0.5 * fine_smooth[i]
             left = int(i)
@@ -125,8 +130,8 @@ class MinimaAnalysisMixin:
                     continue
                 rms, delta, scale, missing_idx = local_best
                 bhf = scale * BHF_DEFAULT_T
-                if 10.0 <= bhf <= 60.0 and (best is None or rms < best[0]):
-                    weights5 = np.delete(np.array([3.0, 2.0, 1.0, 1.0, 2.0, 3.0]), missing_idx)
+                if _FI["sextet_bhf_min"].default <= bhf <= _FI["sextet_bhf_max"].default and (best is None or rms < best[0]):
+                    weights5 = np.delete(np.array(SEXTET_WEIGHTS, dtype=float), missing_idx)
                     depths = np.array([p["depth"] for p in sub], dtype=float)
                     depth_est = float(np.median(depths / weights5))
                     best = (rms, list(sub), float(delta), float(bhf),
@@ -137,10 +142,10 @@ class MinimaAnalysisMixin:
             pred = delta + scale * ref
             rms = float(np.sqrt(np.mean((pos - pred) ** 2)))
             bhf = scale * BHF_DEFAULT_T
-            if not (10.0 <= bhf <= 60.0):
+            if not (_FI["sextet_bhf_min"].default <= bhf <= _FI["sextet_bhf_max"].default):
                 continue
             if best is None or rms < best[0]:
-                weights = np.array([3.0, 2.0, 1.0, 1.0, 2.0, 3.0], dtype=float)
+                weights = np.array(SEXTET_WEIGHTS, dtype=float)
                 depths = np.array([p["depth"] for p in sub], dtype=float)
                 depth_est = float(np.median(depths / weights))
                 best = (rms, list(sub), float(delta), float(bhf),
@@ -148,7 +153,7 @@ class MinimaAnalysisMixin:
         if best is None:
             return self._try_split_peaks_for_sextet(peaks)
         score, sub, delta, bhf, width, depth = best
-        if score > max(0.45, 0.10 * max(1.0, abs(bhf / BHF_DEFAULT_T))):
+        if score > max(_PD["score_tol"].default, _PD["score_tol_factor"].default * max(1.0, abs(bhf / BHF_DEFAULT_T))):
             return self._try_split_peaks_for_sextet(peaks)
         return sub, delta, bhf, width, depth
 
@@ -165,7 +170,7 @@ class MinimaAnalysisMixin:
         normal_peaks = [p for p in peaks if is_normal(p)]
         if len(normal_peaks) < 2:
             normal_peaks = sorted(peaks, key=lambda p: p["width"])[:2]
-        narrow_tol = max(median_width * 0.5, 0.20)
+        narrow_tol = max(median_width * _PD["narrow_tol_factor"].default, _PD["narrow_tol_min"].default)
         next_vid = max(p["i"] for p in peaks) + 1.0
         best_result = None
         best_score = -1
@@ -181,12 +186,12 @@ class MinimaAnalysisMixin:
                         continue
                     scale = span_obs / span_ref
                     bhf_est = scale * BHF_DEFAULT_T
-                    if not (10.0 <= bhf_est <= 60.0):
+                    if not (_FI["sextet_bhf_min"].default <= bhf_est <= _FI["sextet_bhf_max"].default):
                         continue
                     delta = pk_a["pos"] - scale * LINE_POS_33T[la]
                     pred_all = delta + scale * LINE_POS_33T
                     if max(abs(pk_a["pos"] - pred_all[la]),
-                           abs(pk_b["pos"] - pred_all[lb])) > 0.18:
+                           abs(pk_b["pos"] - pred_all[lb])) > _PD["match_tol"].default:
                         continue
                     key = (round(bhf_est, 1), round(delta, 2))
                     if key in seen:
@@ -242,7 +247,7 @@ class MinimaAnalysisMixin:
         spacing_ref = float(_BASE_POSITIONS[1] - _BASE_POSITIONS[0])
         scale = obs_spacing / spacing_ref
         bhf = scale * BHF_DEFAULT_T
-        if not (25.0 <= bhf <= 60.0):
+        if not (_FI["sextet_2pk_bhf_min"].default <= bhf <= _FI["sextet_bhf_max"].default):
             return None
         best: tuple | None = None
         if p[0]["pos"] < 0 and p[1]["pos"] < 0:
@@ -267,12 +272,12 @@ class MinimaAnalysisMixin:
         d0 = by_d[0]["smooth_depth"]
         d1 = by_d[1]["smooth_depth"] if len(by_d) > 1 else 0.0
         d2 = by_d[2]["smooth_depth"] if len(by_d) > 2 else 0.0
-        if d0 > 2.5 * max(d1, 1e-10) and abs(by_d[0]["pos"]) < 2.5:
+        if d0 > _PD["singlet_dominance"].default * max(d1, 1e-10) and abs(by_d[0]["pos"]) < 2.5:
             return "Singlete", [by_d[0]]
-        if len(by_d) >= 2 and d1 >= 0.40 * d0 and d2 < 0.30 * d0 and len(peaks) <= 4:
+        if len(by_d) >= 2 and d1 >= _PD["doublet_ratio_min"].default * d0 and d2 < _PD["doublet_ratio_max"].default * d0 and len(peaks) <= 4:
             pair = sorted([by_d[0], by_d[1]], key=lambda p: p["pos"])
             sep = abs(pair[1]["pos"] - pair[0]["pos"])
-            if 0.18 <= sep <= 5.0:
+            if _FI["doublet_sep_min"].default <= sep <= _FI["doublet_sep_max"].default:
                 return "Doblete", pair
         return None
 
@@ -359,16 +364,16 @@ class MinimaAnalysisMixin:
                 g = group_h
                 params[pfx + "delta"] = float(np.mean([g[0]["pos"], g[1]["pos"]]))
                 params[pfx + "quad"] = float(abs(g[1]["pos"] - g[0]["pos"]))
-                params[pfx + "gamma1"] = float(np.clip(np.mean([x["width"] for x in g]), 0.08, 2.0))
+                params[pfx + "gamma1"] = float(np.clip(np.mean([x["width"] for x in g]), _FI["init_gamma_min"].default, _FI["init_gamma_max"].default))
                 params[pfx + "gamma2"] = 1.0
-                params[pfx + "depth"] = float(np.clip(np.mean([x["depth"] for x in g]), 0.002, 0.25))
+                params[pfx + "depth"] = float(np.clip(np.mean([x["depth"] for x in g]), _FI["init_depth_min"].default, _FI["init_depth_max"].default))
                 params[pfx + "int1"] = 1.0
                 params[pfx + "int2"] = 1.0
             else:
                 pk = group_h[0]
                 params[pfx + "delta"] = float(pk["pos"])
-                params[pfx + "gamma1"] = float(np.clip(pk["width"], 0.08, 2.0))
-                params[pfx + "depth"] = float(np.clip(pk["depth"], 0.002, 0.25))
+                params[pfx + "gamma1"] = float(np.clip(pk["width"], _FI["init_gamma_min"].default, _FI["init_gamma_max"].default))
+                params[pfx + "depth"] = float(np.clip(pk["depth"], _FI["init_depth_min"].default, _FI["init_depth_max"].default))
                 params[pfx + "int1"] = 1.0
             used_ids.update(int(pk["i"]) for pk in group_h)
         else:
@@ -378,11 +383,11 @@ class MinimaAnalysisMixin:
                 if len(sub) >= 5 and abs(sub[-1]["pos"] - sub[0]["pos"]) > 3.0:
                     components.append((1, "Sextete", sub))
                     p = "s1_"
-                    params[p + "delta"] = float(np.clip(delta, -2.5, 2.5))
-                    params[p + "bhf"] = float(np.clip(bhf, 20.0, 60.0))
+                    params[p + "delta"] = float(np.clip(delta, _FI["init_delta_lo"].default, _FI["init_delta_hi"].default))
+                    params[p + "bhf"] = float(np.clip(bhf, _FI["init_bhf_min"].default, _FI["sextet_bhf_max"].default))
                     params[p + "quad"] = 0.0
-                    params[p + "gamma1"] = float(np.clip(width, 0.08, 2.0))
-                    params[p + "depth"] = float(np.clip(depth, 0.002, 0.25))
+                    params[p + "gamma1"] = float(np.clip(width, _FI["init_gamma_min"].default, _FI["init_gamma_max"].default))
+                    params[p + "depth"] = float(np.clip(depth, _FI["init_depth_min"].default, _FI["init_depth_max"].default))
                     used_ids.update(int(pk["i"]) for pk in sub)
 
         remaining = [p for p in sorted(peaks, key=lambda q: q["smooth_depth"], reverse=True)
@@ -396,11 +401,11 @@ class MinimaAnalysisMixin:
                     if len(sub_e) >= 5 and abs(sub_e[-1]["pos"] - sub_e[0]["pos"]) > 3.0:
                         pfx = f"s{next_idx}_"
                         components.append((next_idx, "Sextete", sub_e))
-                        params[pfx + "delta"] = float(np.clip(delta_e, -2.5, 2.5))
-                        params[pfx + "bhf"] = float(np.clip(bhf_e, 20.0, 60.0))
+                        params[pfx + "delta"] = float(np.clip(delta_e, _FI["init_delta_lo"].default, _FI["init_delta_hi"].default))
+                        params[pfx + "bhf"] = float(np.clip(bhf_e, _FI["init_bhf_min"].default, _FI["sextet_bhf_max"].default))
                         params[pfx + "quad"] = 0.0
-                        params[pfx + "gamma1"] = float(np.clip(width_e, 0.08, 2.0))
-                        params[pfx + "depth"] = float(np.clip(depth_e, 0.002, 0.25))
+                        params[pfx + "gamma1"] = float(np.clip(width_e, _FI["init_gamma_min"].default, _FI["init_gamma_max"].default))
+                        params[pfx + "depth"] = float(np.clip(depth_e, _FI["init_depth_min"].default, _FI["init_depth_max"].default))
                         sub_ids = {int(pk["i"]) for pk in sub_e}
                         remaining = [p for p in remaining if int(p["i"]) not in sub_ids]
                         next_idx += 1
@@ -410,18 +415,18 @@ class MinimaAnalysisMixin:
                 sub2, delta2, bhf2, width2, depth2 = two_peak_sext
                 pfx = f"s{next_idx}_"
                 components.append((next_idx, "Sextete", sub2))
-                params[pfx + "delta"] = float(np.clip(delta2, -2.5, 2.5))
-                params[pfx + "bhf"] = float(np.clip(bhf2, 20.0, 60.0))
+                params[pfx + "delta"] = float(np.clip(delta2, _FI["init_delta_lo"].default, _FI["init_delta_hi"].default))
+                params[pfx + "bhf"] = float(np.clip(bhf2, _FI["init_bhf_min"].default, _FI["sextet_bhf_max"].default))
                 params[pfx + "quad"] = 0.0
-                params[pfx + "gamma1"] = float(np.clip(width2, 0.08, 2.0))
-                params[pfx + "depth"] = float(np.clip(depth2, 0.002, 0.25))
+                params[pfx + "gamma1"] = float(np.clip(width2, _FI["init_gamma_min"].default, _FI["init_gamma_max"].default))
+                params[pfx + "depth"] = float(np.clip(depth2, _FI["init_depth_min"].default, _FI["init_depth_max"].default))
                 remaining.clear()
                 next_idx += 1
                 continue
             if len(remaining) >= 2:
                 pair = sorted(remaining[:2], key=lambda p: p["pos"])
                 sep = abs(pair[1]["pos"] - pair[0]["pos"])
-                if 0.18 <= sep <= 4.0:
+                if _FI["doublet_sep_min"].default <= sep <= _FI["doublet_sep_max"].default:
                     kind = "Doblete"
                     group = pair
                     remaining = [p for p in remaining if p not in pair]
@@ -437,16 +442,16 @@ class MinimaAnalysisMixin:
                 g = sorted(group, key=lambda p: p["pos"])
                 params[pfx + "delta"] = float(np.mean([g[0]["pos"], g[1]["pos"]]))
                 params[pfx + "quad"] = float(abs(g[1]["pos"] - g[0]["pos"]))
-                params[pfx + "gamma1"] = float(np.clip(np.mean([x["width"] for x in g]), 0.08, 2.0))
+                params[pfx + "gamma1"] = float(np.clip(np.mean([x["width"] for x in g]), _FI["init_gamma_min"].default, _FI["init_gamma_max"].default))
                 params[pfx + "gamma2"] = 1.0
-                params[pfx + "depth"] = float(np.clip(np.mean([x["depth"] for x in g]), 0.002, 0.25))
+                params[pfx + "depth"] = float(np.clip(np.mean([x["depth"] for x in g]), _FI["init_depth_min"].default, _FI["init_depth_max"].default))
                 params[pfx + "int1"] = 1.0
                 params[pfx + "int2"] = 1.0
             else:
                 g = group[0]
                 params[pfx + "delta"] = float(g["pos"])
-                params[pfx + "gamma1"] = float(np.clip(g["width"], 0.08, 2.0))
-                params[pfx + "depth"] = float(np.clip(g["depth"], 0.002, 0.25))
+                params[pfx + "gamma1"] = float(np.clip(g["width"], _FI["init_gamma_min"].default, _FI["init_gamma_max"].default))
+                params[pfx + "depth"] = float(np.clip(g["depth"], _FI["init_depth_min"].default, _FI["init_depth_max"].default))
                 params[pfx + "int1"] = 1.0
             next_idx += 1
 
@@ -454,8 +459,8 @@ class MinimaAnalysisMixin:
             g = max(peaks, key=lambda p: p["depth"])
             components.append((1, "Singlete", [g]))
             params["s1_delta"] = float(g["pos"])
-            params["s1_gamma1"] = float(np.clip(g["width"], 0.08, 2.0))
-            params["s1_depth"] = float(np.clip(g["depth"], 0.002, 0.25))
+            params["s1_gamma1"] = float(np.clip(g["width"], _FI["init_gamma_min"].default, _FI["init_gamma_max"].default))
+            params["s1_depth"] = float(np.clip(g["depth"], _FI["init_depth_min"].default, _FI["init_depth_max"].default))
 
         # Contribuciones extra señaladas por el usuario: cada mínimo marcado con
         # n>1 añade (n-1) singletes solapados en esa posición, hasta el máximo de
@@ -470,8 +475,8 @@ class MinimaAnalysisMixin:
                     pfx = f"s{next_extra}_"
                     components.append((next_extra, "Singlete", [pk]))
                     params[pfx + "delta"] = float(pk["pos"])
-                    params[pfx + "gamma1"] = float(np.clip(pk["width"], 0.08, 2.0))
-                    params[pfx + "depth"] = float(np.clip(pk["depth"] * 0.5, 0.002, 0.25))
+                    params[pfx + "gamma1"] = float(np.clip(pk["width"], _FI["init_gamma_min"].default, _FI["init_gamma_max"].default))
+                    params[pfx + "depth"] = float(np.clip(pk["depth"] * 0.5, _FI["init_depth_min"].default, _FI["init_depth_max"].default))
                     params[pfx + "int1"] = 1.0
                     next_extra += 1
 

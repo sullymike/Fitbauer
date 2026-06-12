@@ -162,6 +162,54 @@ DISTRIBUTION_PARAM_SPECS: dict[str, ParamSpec] = {
     "log_alpha_q": ParamSpec(-2.0,  -8.0,  4.0,  0.1, 2),
 }
 
+# Constante física: pesos estándar de las 6 líneas del sextete Fe-57.
+SEXTET_WEIGHTS = (3.0, 2.0, 1.0, 1.0, 2.0, 3.0)
+
+# Parámetros de inicialización automática del modelo (detección de picos → clips).
+FIT_INIT_SPECS: dict[str, ParamSpec] = {
+    # Límites BHF aceptables al ajustar sextetes a picos detectados
+    "sextet_bhf_min":      ParamSpec(10.0,  0.0, 60.0,  0.5, 1),
+    "sextet_bhf_max":      ParamSpec(60.0, 10.0, 60.0,  0.5, 1),
+    "sextet_2pk_bhf_min":  ParamSpec(25.0,  0.0, 60.0,  0.5, 1),
+    "init_bhf_min":        ParamSpec(20.0, 10.0, 60.0,  0.5, 1),
+    # Clips de anchura, isomer shift y profundidad en la inicialización
+    "init_gamma_min":      ParamSpec(0.08, 0.06,  1.0, 0.01, 3),
+    "init_gamma_max":      ParamSpec(2.0,   0.3,  4.0,  0.1, 2),
+    "init_delta_lo":       ParamSpec(-2.5, -5.0,  0.0,  0.1, 2),
+    "init_delta_hi":       ParamSpec( 2.5,  0.0,  5.0,  0.1, 2),
+    "init_depth_min":      ParamSpec(0.002, 0.0, 0.05, 0.001, 4),
+    "init_depth_max":      ParamSpec(0.25,  0.05, 0.5,  0.01, 3),
+    # Separación de picos para clasificar como doblete
+    "doublet_sep_min":     ParamSpec(0.18, 0.05, 1.0,  0.01, 3),
+    "doublet_sep_max":     ParamSpec(5.0,  1.0, 10.0,   0.1, 2),
+    # L-curve: rango del barrido de α
+    "lcurve_alpha_lo":     ParamSpec(-6.0, -10.0, -1.0,  0.5, 1),
+    "lcurve_alpha_hi":     ParamSpec( 2.0,   0.0,  6.0,  0.5, 1),
+    "lcurve_n_points":     ParamSpec(25.0,   5.0, 100.0,  1.0, 0),
+    # Bootstrap
+    "bootstrap_nrep":      ParamSpec(30.0,   5.0, 500.0,  5.0, 0),
+    # Multistart
+    "multistart_n_max":    ParamSpec(10.0,   1.0,  50.0,  1.0, 0),
+}
+
+# Umbrales de detección de picos y clasificación de componentes (avanzado).
+PEAK_DETECTION_SPECS: dict[str, ParamSpec] = {
+    "min_dist_factor":        ParamSpec(0.15, 0.05, 0.5,  0.01, 3),
+    "height_thr_factor":      ParamSpec(0.06, 0.01, 0.3,  0.01, 3),
+    "prom_thr_factor":        ParamSpec(0.05, 0.01, 0.3,  0.01, 3),
+    "min_separation":         ParamSpec(0.12, 0.05, 0.5,  0.01, 3),
+    "score_tol":              ParamSpec(0.45, 0.1,  2.0,  0.05, 3),
+    "score_tol_factor":       ParamSpec(0.10, 0.0,  0.5,  0.01, 3),
+    "narrow_tol_factor":      ParamSpec(0.50, 0.1,  1.0,  0.05, 3),
+    "narrow_tol_min":         ParamSpec(0.20, 0.05, 0.5,  0.01, 3),
+    "match_tol":              ParamSpec(0.18, 0.05, 0.5,  0.01, 3),
+    "singlet_dominance":      ParamSpec(2.5,  1.0, 10.0,   0.1, 2),
+    "doublet_ratio_min":      ParamSpec(0.40, 0.1,  0.9,  0.05, 3),
+    "doublet_ratio_max":      ParamSpec(0.30, 0.1,  0.9,  0.05, 3),
+    "plotly_tol_factor":      ParamSpec(1.5,  0.5,  5.0,   0.1, 2),
+    "plotly_tol_min":         ParamSpec(0.05, 0.01, 0.3,  0.01, 3),
+}
+
 # Rango dinámico de la malla del histograma según la variable distribuida.
 # El panel de distribución llama a set_range() con estos valores al cambiar de modo.
 DIST_VAR_RANGE: dict[str, tuple[float, float]] = {

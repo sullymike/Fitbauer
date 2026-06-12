@@ -17,6 +17,8 @@ from PySide6 import QtCore, QtWidgets
 from core.param_overrides import (
     Category,
     effective_specs,
+    effective_fit_init_specs,
+    effective_peak_detection_specs,
     load_raw,
     save_raw,
 )
@@ -24,6 +26,8 @@ from core.params import (
     CALIBRATION_PARAM_SPECS,
     COMPONENT_PARAM_SPECS,
     DISTRIBUTION_PARAM_SPECS,
+    FIT_INIT_SPECS,
+    PEAK_DETECTION_SPECS,
     ParamSpec,
 )
 from mossbauer_i18n import tr
@@ -84,12 +88,47 @@ _PARAM_LABELS: dict[str, str] = {
     "is_hi":        "IS máx  (límite exterior eje δ en modo IS)",
     "quad_lo":      "ΔEQ mín  (límite exterior eje ΔEQ distribuido)",
     "quad_hi":      "ΔEQ máx  (límite exterior eje ΔEQ distribuido)",
+    # FIT_INIT_SPECS
+    "sextet_bhf_min":      "BHF mín  (detección de sextetes, T)",
+    "sextet_bhf_max":      "BHF máx  (detección de sextetes, T)",
+    "sextet_2pk_bhf_min":  "BHF mín  (estimación 2 picos, T)",
+    "init_bhf_min":        "BHF mín  (clip en inicialización, T)",
+    "init_gamma_min":      "Γ mín  (clip en inicialización, mm/s)",
+    "init_gamma_max":      "Γ máx  (clip en inicialización, mm/s)",
+    "init_delta_lo":       "δ mín  (clip en inicialización, mm/s)",
+    "init_delta_hi":       "δ máx  (clip en inicialización, mm/s)",
+    "init_depth_min":      "Profundidad mín  (clip en inicialización)",
+    "init_depth_max":      "Profundidad máx  (clip en inicialización)",
+    "doublet_sep_min":     "Separación mín doblete  (mm/s)",
+    "doublet_sep_max":     "Separación máx doblete  (mm/s)",
+    "lcurve_alpha_lo":     "L-curve: log₁₀ α mín del barrido",
+    "lcurve_alpha_hi":     "L-curve: log₁₀ α máx del barrido",
+    "lcurve_n_points":     "L-curve: número de puntos",
+    "bootstrap_nrep":      "Bootstrap: réplicas por defecto",
+    "multistart_n_max":    "Arranques múltiples: máximo del spinner",
+    # PEAK_DETECTION_SPECS
+    "min_dist_factor":     "Factor distancia mínima entre picos (×dv)",
+    "height_thr_factor":   "Factor umbral de altura de pico",
+    "prom_thr_factor":     "Factor umbral de prominencia de pico",
+    "min_separation":      "Separación mínima absoluta (mm/s)",
+    "score_tol":           "Tolerancia RMS sextete (mm/s)",
+    "score_tol_factor":    "Factor tolerancia RMS según BHF",
+    "narrow_tol_factor":   "Factor tolerancia estrecha (×anchura mediana)",
+    "narrow_tol_min":      "Tolerancia estrecha mínima (mm/s)",
+    "match_tol":           "Tolerancia máx. match pico-línea (mm/s)",
+    "singlet_dominance":   "Ratio d₀/d₁ para clasificar singlete",
+    "doublet_ratio_min":   "Ratio mín. d₁/d₀ para doblete",
+    "doublet_ratio_max":   "Ratio máx. d₂/d₀ para doblete",
+    "plotly_tol_factor":   "Factor tolerancia marcadores Plotly",
+    "plotly_tol_min":      "Tolerancia mínima marcadores Plotly (mm/s)",
 }
 
 _CATEGORY_DEFAULTS = {
-    "component":    COMPONENT_PARAM_SPECS,
-    "calibration":  CALIBRATION_PARAM_SPECS,
-    "distribution": DISTRIBUTION_PARAM_SPECS,
+    "component":      COMPONENT_PARAM_SPECS,
+    "calibration":    CALIBRATION_PARAM_SPECS,
+    "distribution":   DISTRIBUTION_PARAM_SPECS,
+    "fit_init":       FIT_INIT_SPECS,
+    "peak_detection": PEAK_DETECTION_SPECS,
 }
 
 
@@ -201,10 +240,14 @@ class ParamLimitsDialog(QtWidgets.QDialog):
         self._tab_component    = _ParamTable("component",    self)
         self._tab_calibration  = _ParamTable("calibration",  self)
         self._tab_distribution = _ParamTable("distribution", self)
+        self._tab_fit_init      = _ParamTable("fit_init",       self)
+        self._tab_peak_detect   = _ParamTable("peak_detection", self)
 
         self._tabs.addTab(self._tab_component,    tr("param_limits.tab_component",    default="Componentes"))
         self._tabs.addTab(self._tab_calibration,  tr("param_limits.tab_calibration",  default="Calibración"))
         self._tabs.addTab(self._tab_distribution, tr("param_limits.tab_distribution", default="Distribución"))
+        self._tabs.addTab(self._tab_fit_init,    "Inicialización del ajuste")
+        self._tabs.addTab(self._tab_peak_detect, "Detección de picos (avanzado)")
         layout.addWidget(self._tabs)
 
         btn_box = QtWidgets.QDialogButtonBox(
@@ -219,9 +262,11 @@ class ParamLimitsDialog(QtWidgets.QDialog):
 
     def _save_and_accept(self) -> None:
         data = {
-            "component":    self._tab_component.collect(),
-            "calibration":  self._tab_calibration.collect(),
-            "distribution": self._tab_distribution.collect(),
+            "component":     self._tab_component.collect(),
+            "calibration":   self._tab_calibration.collect(),
+            "distribution":  self._tab_distribution.collect(),
+            "fit_init":      self._tab_fit_init.collect(),
+            "peak_detection":self._tab_peak_detect.collect(),
         }
         try:
             save_raw(data)

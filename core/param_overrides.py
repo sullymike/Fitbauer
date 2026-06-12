@@ -24,18 +24,22 @@ from core.params import (
     CALIBRATION_PARAM_SPECS,
     COMPONENT_PARAM_SPECS,
     DISTRIBUTION_PARAM_SPECS,
+    FIT_INIT_SPECS,
+    PEAK_DETECTION_SPECS,
     ParamSpec,
 )
 
 CONFIG_DIR = Path.home() / ".config" / "mossbauer_fe33_gui"
 PARAM_LIMITS_PATH = CONFIG_DIR / "param_limits.json"
 
-Category = Literal["component", "calibration", "distribution"]
+Category = Literal["component", "calibration", "distribution", "fit_init", "peak_detection"]
 
 _DEFAULTS: dict[Category, dict[str, ParamSpec]] = {
-    "component":    COMPONENT_PARAM_SPECS,
-    "calibration":  CALIBRATION_PARAM_SPECS,
-    "distribution": DISTRIBUTION_PARAM_SPECS,
+    "component":      COMPONENT_PARAM_SPECS,
+    "calibration":    CALIBRATION_PARAM_SPECS,
+    "distribution":   DISTRIBUTION_PARAM_SPECS,
+    "fit_init":       FIT_INIT_SPECS,
+    "peak_detection": PEAK_DETECTION_SPECS,
 }
 
 
@@ -89,3 +93,11 @@ def effective_calibration_specs() -> dict[str, ParamSpec]:
 
 def effective_distribution_specs() -> dict[str, ParamSpec]:
     return effective_specs("distribution")
+
+
+def effective_fit_init_specs() -> dict[str, ParamSpec]:
+    return effective_specs("fit_init")
+
+
+def effective_peak_detection_specs() -> dict[str, ParamSpec]:
+    return effective_specs("peak_detection")

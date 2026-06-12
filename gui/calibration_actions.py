@@ -43,16 +43,22 @@ class CalibrationActionsMixin:
     def _use_as_calibration_detailed(self) -> None:
         if self.file.path is None:
             return
+        from core.param_overrides import effective_calibration_specs, effective_component_specs
+        _cs = effective_calibration_specs()
+        _cp = effective_component_specs()
         dlg = QtWidgets.QDialog(self)
         dlg.setWindowTitle(tr("file.use_as_calibration"))
         form = QtWidgets.QFormLayout(dlg)
         e_name = QtWidgets.QLineEdit(self.file.path.stem)
         calib_state = self.calib.to_view_state()
         comp_state = self.components_panels[0].to_view_state()
-        e_vmax = QtWidgets.QDoubleSpinBox(); e_vmax.setRange(-30.0, 30.0)
-        e_vmax.setDecimals(4); e_vmax.setValue(float(calib_state.vmax))
-        e_iso = QtWidgets.QDoubleSpinBox(); e_iso.setRange(-5.0, 5.0)
-        e_iso.setDecimals(4)
+        e_vmax = QtWidgets.QDoubleSpinBox()
+        e_vmax.setRange(_cs["vmax"].lo, _cs["vmax"].hi)
+        e_vmax.setDecimals(_cs["vmax"].decimals)
+        e_vmax.setValue(float(calib_state.vmax))
+        e_iso = QtWidgets.QDoubleSpinBox()
+        e_iso.setRange(_cp["delta"].lo, _cp["delta"].hi)
+        e_iso.setDecimals(_cp["delta"].decimals)
         e_iso.setValue(float(comp_state.value("delta")))
         form.addRow("Sample:", e_name)
         form.addRow("Vmax (mm/s):", e_vmax)

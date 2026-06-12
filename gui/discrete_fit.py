@@ -5,6 +5,7 @@ from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
 from core.fit_engine import bootstrap_errors, fit_discrete
+from core.param_overrides import effective_fit_init_specs as _eff_fi
 from gui.fit_workflow import GuiFitResult
 
 
@@ -93,10 +94,12 @@ class DiscreteFitMixin:
         state = self._build_state(validate_params=True)
         if state is None:
             return
+        _fi = _eff_fi()
+        _bs = _fi["bootstrap_nrep"]
         nrep, ok = QtWidgets.QInputDialog.getInt(
             self, tr("msg.bootstrap_title"),
             tr("dialog.bootstrap_prompt") if hasattr(tr, "_dummy") else "Número de réplicas:",
-            30, 5, 300, 5)
+            int(_bs.default), int(_bs.lo), int(_bs.hi), int(_bs.step))
         if not ok:
             return
         # Motor puro: ajuste base + remuestreo Monte Carlo (core.fit_engine).

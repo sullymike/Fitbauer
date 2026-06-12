@@ -14,6 +14,7 @@ from core.constants import APP_NAME, APP_VERSION
 from core.result_views import discrete_result_view, distribution_result_view
 from core.data_io import CONFIG_DIR
 from core.plot_styles import get_style
+from core.param_overrides import effective_peak_detection_specs as _eff_pd
 from gui.bridges import MinimaBridge
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -629,7 +630,8 @@ class PlotlyToolsMixin:
             dv = float(np.nanmedian(np.abs(np.diff(np.sort(v)))))
         else:
             dv = 0.05
-        tol = max(1.5 * abs(dv), 0.05)
+        _pd = _eff_pd()
+        tol = max(_pd["plotly_tol_factor"].default * abs(dv), _pd["plotly_tol_min"].default)
         if self._minima_entries:
             distances = [abs(float(e["pos"]) - float(x)) for e in self._minima_entries]
             nearest = int(np.argmin(distances))

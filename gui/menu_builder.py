@@ -299,8 +299,10 @@ class MenuBuilderMixin:
         _ms_h.setContentsMargins(16, 2, 8, 2)
         _ms_h.addWidget(QtWidgets.QLabel(tr("options.multistart_n")))
         _ms_h.addStretch(1)
+        from core.param_overrides import effective_fit_init_specs as _eff_fi
+        _fi = _eff_fi()
         self._multistart_spin = QtWidgets.QSpinBox()
-        self._multistart_spin.setRange(0, 10)
+        self._multistart_spin.setRange(0, int(_fi["multistart_n_max"].default))
         self._multistart_spin.setValue(getattr(self, "multistart_n", 8))
         self._multistart_spin.setFixedWidth(50)
         self._multistart_spin.valueChanged.connect(
