@@ -16,6 +16,7 @@ from core.physics import component_absorption
 from core.plot_styles import get_style
 from core.reconstruction import reconstruct_distribution_curves
 from core.validation import format_validation_issues, validate_distribution_parameters
+from core.param_overrides import effective_fit_init_specs as _eff_fi, effective_distribution_specs as _eff_ds
 from gui.fit_workflow import GuiFitRenderState, GuiFitResult
 from mossbauer_distribution import (
     fit_hyperfine_distribution,
@@ -93,7 +94,8 @@ class DistributionFitMixin:
         d = self.dist_panel
         var = self.dist_variable
         dist_state = d.to_view_state(variable=var)
-        alphas = np.logspace(-6, 2, 25)
+        _fi = _eff_fi()
+        alphas = np.logspace(_fi["lcurve_alpha_lo"].default, _fi["lcurve_alpha_hi"].default, int(_fi["lcurve_n_points"].default))
         self.statusBar().showMessage(f"Escaneando α (n={len(alphas)})…")
         QtWidgets.QApplication.processEvents()
         bmin = float(dist_state.bmin); bmax = max(bmin + 0.5, float(dist_state.bmax))
@@ -131,7 +133,7 @@ class DistributionFitMixin:
         dlg.setWindowTitle(tr("bhf.lcurve_alpha"))
         dlg.resize(820, 540)
         v = QtWidgets.QVBoxLayout(dlg)
-        fig = Figure(figsize=(8.0, 5.0), dpi=96)
+        fig = Figure(figsize=(8.0, 5.0), dpi=96, constrained_layout=True)
         cv = FigureCanvas(fig); v.addWidget(cv, stretch=1)
         ax1 = fig.add_subplot(1, 2, 1)
         ax1.loglog(rough, resid_norm, "o-", color="#2563eb", ms=4)
@@ -148,7 +150,7 @@ class DistributionFitMixin:
         ax2.set_ylabel(tr("plot.label_rms"))
         ax2.set_title(tr("plot.alpha_scan_title"))
         ax2.grid(True, alpha=0.3, which="both")
-        fig.tight_layout(); cv.draw_idle()
+        cv.draw_idle()
         best_idx = int(np.nanargmin(rms)) if rms.size else 0
         suggest = float(alphas[best_idx]) if alphas.size else dist_state.alpha
         buttons = QtWidgets.QHBoxLayout()
@@ -213,10 +215,11 @@ class DistributionFitMixin:
         shape = dist_state.shape
 
         # Parámetros 2D (disponibles tras la actualización del panel)
-        qmin: float = float(d.qmin.value()) if hasattr(d, "qmin") else -1.0
-        qmax: float = max(qmin + 0.05, float(d.qmax.value())) if hasattr(d, "qmax") else 1.0
-        qbins: int = max(5, int(round(d.qbins.value()))) if hasattr(d, "qbins") else 21
-        alpha_q: float = 10.0 ** float(d.log_alpha_q.value()) if hasattr(d, "log_alpha_q") else 1e-2
+        _ds = _eff_ds()
+        qmin: float = float(d.qmin.value()) if hasattr(d, "qmin") else _ds["qmin"].default
+        qmax: float = max(qmin + 0.05, float(d.qmax.value())) if hasattr(d, "qmax") else _ds["qmax"].default
+        qbins: int = max(5, int(round(d.qbins.value()))) if hasattr(d, "qbins") else int(_ds["qbins"].default)
+        alpha_q: float = 10.0 ** float(d.log_alpha_q.value()) if hasattr(d, "log_alpha_q") else 10.0 ** _ds["log_alpha_q"].default
         pair: tuple[str, str] = getattr(self, "dist_pair", ("bhf", "quad")) if shape == "2D" else ("bhf", "quad")
 
         label_map = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
@@ -472,6 +475,13 @@ class DistributionFitMixin:
         # Persistimos el mapa 2D para que sobreviva a los re-renders posteriores
         # (_finish_gui_fit_result vuelve a dibujar vía _render_fit_result).
         self._dist_map_2d = result if shape == "2D" else None
+        if shape != "2D":
+            _prev_fig = getattr(self, "_dist_map_2d_fig", None)
+            if _prev_fig is not None:
+                _prev_fig.clf()
+            self._dist_map_2d_fig = None
+        if hasattr(self, "dist_panel"):
+            self.dist_panel.btn_show_map.setVisible(shape == "2D")
         style = get_style(self.plot_style_name)
         show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
         show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
@@ -538,7 +548,7 @@ class DistributionFitMixin:
         dlg.setWindowTitle(title)
         dlg.resize(720, 480)
         lay = QtWidgets.QVBoxLayout(dlg)
-        fig = Figure(figsize=(8.0, 4.5), dpi=96)
+        fig = Figure(figsize=(8.0, 4.5), dpi=96, constrained_layout=True)
         cv = FigureCanvas(fig); lay.addWidget(cv, stretch=1)
         ax = fig.add_subplot(111)
         xc = np.asarray(result.bhf_centers, dtype=float)
@@ -548,14 +558,12 @@ class DistributionFitMixin:
         ax.set_xlabel(xlabel)
         ax.set_ylabel(title)
         ax.grid(True, alpha=0.3)
-        fig.tight_layout(); cv.draw_idle()
+        cv.draw_idle()
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
         bb.rejected.connect(dlg.reject); lay.addWidget(bb)
         dlg.exec()
 
     def _show_distribution_dialog_2d(self, result, view) -> None:
-        import warnings
-
         import numpy as np
         from matplotlib.gridspec import GridSpec
         xc, yc, P = view.probability_2d()
@@ -571,7 +579,7 @@ class DistributionFitMixin:
         dlg.resize(820, 700)
         lay = QtWidgets.QVBoxLayout(dlg)
 
-        fig = Figure(figsize=(8.5, 7.0), dpi=96)
+        fig = Figure(figsize=(8.5, 7.0), dpi=96, constrained_layout=True)
         cv = FigureCanvas(fig); lay.addWidget(cv, stretch=1)
 
         # Disposición: fila superior = marginal x; columna derecha = marginal y;
@@ -640,10 +648,42 @@ class DistributionFitMixin:
                 bbox=dict(boxstyle="round,pad=0.25", fc="#00000080", ec="none"),
             )
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message=".*tight_layout.*")
-            fig.tight_layout()
         cv.draw_idle()
+
+        # Persist for the PDF report
+        self._dist_map_2d_fig = fig
+
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_save = QtWidgets.QPushButton(tr("button.save_figure", default="Guardar figura…"))
+
+        def _save_figure() -> None:
+            stem = self.file.path.stem if self.file.path else "map2d"
+            path, _ = QtWidgets.QFileDialog.getSaveFileName(
+                dlg,
+                tr("dialog.save_2d_figure", default="Guardar mapa 2D"),
+                str(ROOT / f"{stem}_mapa2D.png"),
+                "PNG (*.png);;SVG (*.svg);;PDF (*.pdf);;All (*.*)",
+            )
+            if path:
+                try:
+                    fig.savefig(path, dpi=150, bbox_inches="tight")
+                except Exception as exc:
+                    QtWidgets.QMessageBox.warning(
+                        dlg,
+                        tr("dialog.save_2d_figure", default="Guardar mapa 2D"),
+                        f"{type(exc).__name__}: {exc}",
+                    )
+
+        btn_save.clicked.connect(_save_figure)
+        btn_row.addWidget(btn_save)
+        btn_row.addStretch()
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
-        bb.rejected.connect(dlg.reject); lay.addWidget(bb)
+        bb.rejected.connect(dlg.reject)
+        btn_row.addWidget(bb)
+        lay.addLayout(btn_row)
         dlg.exec()
+
+    def _on_reopen_map_dialog(self) -> None:
+        result = getattr(self, "_dist_map_2d", None)
+        if result is not None:
+            self._show_distribution_dialog(result)

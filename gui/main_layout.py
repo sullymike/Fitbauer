@@ -178,6 +178,7 @@ class MainLayoutMixin:
         self.dist_panel.loadFixedRequested.connect(self._on_load_fixed_distribution)
         self.dist_panel.lcurve_link.clicked.connect(self.on_lcurve)
         self.dist_panel.use_sharp.toggled.connect(self._set_dist_use_sharp)
+        self.dist_panel.btn_show_map.clicked.connect(self._on_reopen_map_dialog)
         self._rebuild_component_area(use_tabs=False)
         self._sync_component_count(1)
         lv.addWidget(self.sim_controls_box)

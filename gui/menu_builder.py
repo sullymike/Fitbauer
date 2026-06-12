@@ -299,8 +299,10 @@ class MenuBuilderMixin:
         _ms_h.setContentsMargins(16, 2, 8, 2)
         _ms_h.addWidget(QtWidgets.QLabel(tr("options.multistart_n")))
         _ms_h.addStretch(1)
+        from core.param_overrides import effective_fit_init_specs as _eff_fi
+        _fi = _eff_fi()
         self._multistart_spin = QtWidgets.QSpinBox()
-        self._multistart_spin.setRange(0, 10)
+        self._multistart_spin.setRange(0, int(_fi["multistart_n_max"].default))
         self._multistart_spin.setValue(getattr(self, "multistart_n", 8))
         self._multistart_spin.setFixedWidth(50)
         self._multistart_spin.valueChanged.connect(
@@ -396,6 +398,11 @@ class MenuBuilderMixin:
         act_configure_layout.triggered.connect(self.on_configure_layout)
         view_menu.addAction(act_configure_layout)
         self._reg("view.configure_layout", act_configure_layout)
+        act_param_limits = QtGui.QAction(
+            tr("view.param_limits", default="Límites de parámetros…"), self
+        )
+        act_param_limits.triggered.connect(self.on_param_limits)
+        view_menu.addAction(act_param_limits)
 
         # ── Ayuda ────────────────────────────────────────────────────────
         help_menu = mb.addMenu(tr("menu.help"))
@@ -424,6 +431,12 @@ class MenuBuilderMixin:
         help_menu.addAction(act_configure_updates)
         self._reg("help.configure_updates", act_configure_updates)
 
+
+    def on_param_limits(self) -> None:
+        """Abre el diálogo de edición de límites de parámetros."""
+        from gui.param_limits_dialog import ParamLimitsDialog
+        dlg = ParamLimitsDialog(self)
+        dlg.exec()
 
     def _set_dist_use_sharp(self, enabled: bool) -> None:
         self.dist_use_sharp = bool(enabled)

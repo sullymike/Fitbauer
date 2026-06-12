@@ -949,3 +949,48 @@ def test_doblete_hides_bhf_and_gamma3(win):
     placed = _placed_in_grid(cp)
     assert "bhf" not in placed and "gamma3" not in placed
     assert "delta" in placed and "quad" in placed
+
+
+def test_btn_show_map_lifecycle(win):
+    """btn_show_map: oculto por defecto, visible tras ajuste 2D, oculto al cambiar modo."""
+    import numpy as np
+
+    # Antes de cualquier ajuste el botón debe estar oculto.
+    # isHidden() refleja el estado explícito (setVisible) sin requerir que la
+    # ventana principal esté mostrada (isVisible() requeriría win.show()).
+    assert win.dist_panel.btn_show_map.isHidden()
+
+    # Simular que se completa un ajuste 2D registrando un resultado falso.
+    win._load_file(DATA / "magnetita_Fe3O4.adt")
+    captured = {}
+    win._show_distribution_dialog = lambda r: captured.setdefault("r", r)
+    win.mode_combo.setCurrentIndex(4)
+    if hasattr(win.dist_panel, "qbins"):
+        win.dist_panel.qbins.set_value(9)
+    if hasattr(win.dist_panel, "nbins"):
+        win.dist_panel.nbins.set_value(15)
+    win.on_fit()
+    res = win.runtime_results.distribution_result
+    assert np.asarray(res.probability).ndim == 2
+    # Tras el ajuste 2D el botón no debe estar oculto.
+    assert not win.dist_panel.btn_show_map.isHidden()
+
+    # Pulsar el botón reabre el diálogo (interceptado con lambda).
+    reopened = {}
+    win._show_distribution_dialog = lambda r: reopened.setdefault("r", r)
+    win.dist_panel.btn_show_map.click()
+    assert "r" in reopened, "btn_show_map no llamó a _show_distribution_dialog"
+
+    # Cambiar a un modo no-2D debe ocultar el botón.
+    win.mode_combo.setCurrentIndex(0)
+    assert win.dist_panel.btn_show_map.isHidden()
+
+
+def test_lorentzian_gamma_zero_returns_finite(win):
+    """lorentzian con gamma=0 no produce NaN ni inf (guard 1e-9)."""
+    import numpy as np
+    from core.physics import lorentzian
+    v = np.linspace(-5, 5, 100)
+    result = lorentzian(v, center=0.0, gamma=0.0)
+    assert np.all(np.isfinite(result)), "lorentzian(gamma=0) produce NaN/inf"
+    assert float(result.max()) <= 1.0 + 1e-9

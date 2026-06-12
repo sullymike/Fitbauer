@@ -193,18 +193,31 @@ def kundig_sextet_positions_batch(
     Eg_minus = -omega_g / 2.0
 
     pos = np.empty((n, 6), dtype=float)
-    canonical = np.array([-3, -1, +1, +3], dtype=int)
-    for i in range(n):
-        E_me = {int(m2[i, k]): float(E_all[i, k]) for k in range(4)}
-        if len(E_me) != 4:
-            srt = np.sort(E_all[i])
-            E_me = {int(canonical[j]): float(srt[j]) for j in range(4)}
-        pos[i, 0] = E_me[-3] - Eg_minus
-        pos[i, 1] = E_me[-1] - Eg_minus
-        pos[i, 2] = E_me[+1] - Eg_minus
-        pos[i, 3] = E_me[-1] - Eg_plus
-        pos[i, 4] = E_me[+1] - Eg_plus
-        pos[i, 5] = E_me[+3] - Eg_plus
+    # Asignación vectorizada: para cada m2 objetivo (-3,-1,+1,+3), extraer
+    # el autovalor cuyo m2 dominante coincide. El fallback (orientaciones
+    # degeneradas) usa los autovalores ordenados en el orden canónico.
+    mask_m3 = (m2 == -3)  # (N, 4)
+    mask_m1 = (m2 == -1)
+    mask_p1 = (m2 == +1)
+    mask_p3 = (m2 == +3)
+    e_m3 = np.sum(np.where(mask_m3, E_all, 0.0), axis=1)  # (N,)
+    e_m1 = np.sum(np.where(mask_m1, E_all, 0.0), axis=1)
+    e_p1 = np.sum(np.where(mask_p1, E_all, 0.0), axis=1)
+    e_p3 = np.sum(np.where(mask_p3, E_all, 0.0), axis=1)
+    # Corregir orientaciones degeneradas (algún m2 repetido → len(unique)<4)
+    degenerate = ~(mask_m3.any(1) & mask_m1.any(1) & mask_p1.any(1) & mask_p3.any(1))
+    if degenerate.any():
+        E_srt = np.sort(E_all[degenerate], axis=1)
+        e_m3[degenerate] = E_srt[:, 0]
+        e_m1[degenerate] = E_srt[:, 1]
+        e_p1[degenerate] = E_srt[:, 2]
+        e_p3[degenerate] = E_srt[:, 3]
+    pos[:, 0] = e_m3 - Eg_minus
+    pos[:, 1] = e_m1 - Eg_minus
+    pos[:, 2] = e_p1 - Eg_minus
+    pos[:, 3] = e_m1 - Eg_plus
+    pos[:, 4] = e_p1 - Eg_plus
+    pos[:, 5] = e_p3 - Eg_plus
     return pos
 
 

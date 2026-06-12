@@ -711,6 +711,12 @@ class ReportMixin:
                 pdf.savefig(_state["fig"], bbox_inches="tight")
 
             pdf.savefig(self.canvas.fig, bbox_inches="tight")
+            fig2d = getattr(self, "_dist_map_2d_fig", None)
+            if fig2d is not None:
+                try:
+                    pdf.savefig(fig2d, bbox_inches="tight")
+                except Exception:
+                    pass
 
     def on_export_report(self) -> None:
         """Exporta un informe Markdown del ajuste actual."""

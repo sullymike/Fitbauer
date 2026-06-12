@@ -22,13 +22,16 @@ from scipy.optimize import lsq_linear, nnls
 # Fuente única de las posiciones del sextete: patrón de velocidad PUBLICADO de
 # α-Fe (±0.839 / ±3.084 / ±5.329 mm/s a 33 T), igual que NORMOS. No derivar de
 # los momentos nucleares (sesgaría el BHF ~0.1 T; ver CHANGELOG v4.0.2/v4.0.3).
-from core.constants import LINE_POS_33T, E_GAMMA
+from core.constants import LINE_POS_33T
+from core.physics import (
+    lorentzian,
+    lognormal_diameter_distribution,
+    neel_log10_nu,
+    two_state_exchange_profile,
+)
 
 BHF_DEFAULT_T = 33.0
 LINE_QUAD_PATTERN = np.array([0.5, -0.5, -0.5, -0.5, -0.5, 0.5], dtype=float)
-_PLANCK_H = 6.62607015e-34
-_K_BOLTZMANN = 1.380649e-23
-_RELAX_RATE_PER_MM_S = E_GAMMA / (_PLANCK_H * 299_792_458_000.0)
 
 
 @dataclass(frozen=True)
@@ -140,12 +143,6 @@ class BhfDistributionFit:
         }
 
 
-def lorentzian(v: np.ndarray, center: float, gamma: float) -> np.ndarray:
-    """Lorentziana normalizada a altura 1; gamma es FWHM."""
-    g = max(float(gamma), 1e-9) / 2.0
-    return g * g / ((v - center) ** 2 + g * g)
-
-
 def sextet_absorption(
     v: np.ndarray,
     *,
@@ -247,27 +244,6 @@ def relaxation_empirical_absorption(
     return f_blocked * sext + (1.0 - f_blocked) * doub
 
 
-def two_state_exchange_profile(
-    v: np.ndarray,
-    center_a: float,
-    center_b: float,
-    gamma: float,
-    log10_nu: float,
-) -> np.ndarray:
-    vv = np.asarray(v, dtype=float)
-    g = max(float(gamma), 1e-9)
-    rate_v = (10.0 ** float(log10_nu)) / _RELAX_RATE_PER_MM_S
-    k = max(float(rate_v), 0.0)
-    z1 = g + 1j * (vv - float(center_a))
-    z2 = g + 1j * (vv - float(center_b))
-    if k <= 0.0:
-        return 0.5 * (np.real(g / z1) + np.real(g / z2))
-    det = z1 * z2 + k * (z1 + z2)
-    det = np.where(np.abs(det) < 1e-300, 1e-300 + 0j, det)
-    resp = 0.5 * g * (z1 + z2 + 4.0 * k) / det
-    return np.maximum(np.real(resp), 0.0)
-
-
 def blume_tjon_two_state_absorption(
     v: np.ndarray,
     *,
@@ -295,27 +271,6 @@ def blume_tjon_two_state_absorption(
     for ca, cb, g, w in zip(c_plus, c_minus, gammas, weights):
         out += float(w) * two_state_exchange_profile(v, float(ca), float(cb), float(g), float(log10_nu))
     return out
-
-
-def lognormal_diameter_distribution(mean_d_nm: float, sigma_lognormal: float, n_bins: int = 20) -> tuple[np.ndarray, np.ndarray]:
-    median = max(float(mean_d_nm), 1e-6)
-    sigma = max(float(sigma_lognormal), 1e-6)
-    n = max(1, int(round(n_bins)))
-    if n == 1:
-        return np.array([median]), np.array([1.0])
-    d = np.exp(np.linspace(np.log(median * np.exp(-4.0 * sigma)), np.log(median * np.exp(4.0 * sigma)), n))
-    mu = np.log(median)
-    w = np.exp(-0.5 * ((np.log(d) - mu) / sigma) ** 2) / np.maximum(d * sigma, 1e-300)
-    w = np.maximum(w, 0.0)
-    w = w / max(float(np.sum(w)), 1e-300)
-    return d, w
-
-
-def neel_log10_nu(diameter_nm: np.ndarray, temperature_k: float, log10_keff: float, log10_tau0: float = -9.0) -> np.ndarray:
-    d_m = np.asarray(diameter_nm, dtype=float) * 1e-9
-    volume = np.pi * np.maximum(d_m, 0.0) ** 3 / 6.0
-    barrier = (10.0 ** float(log10_keff)) * volume / (_K_BOLTZMANN * max(float(temperature_k), 1e-9))
-    return -float(log10_tau0) - barrier / np.log(10.0)
 
 
 def neel_size_relaxation_absorption(

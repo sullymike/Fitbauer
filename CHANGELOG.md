@@ -1,5 +1,46 @@
 # Changelog
 
+## v4.8.0 — Editor de límites de parámetros y consolidación de constantes
+
+### Diálogo de límites de parámetros (Vista → Límites de parámetros…)
+
+- Nuevo diálogo accesible desde el menú **Vista** que permite editar todos los
+  rangos y valores por defecto de los controles de la GUI sin tocar el código.
+- Los cambios se guardan en `~/.config/mossbauer_fe33_gui/param_limits.json` y
+  se aplican al reiniciar; `core/params.py` permanece como fuente de solo lectura.
+- **Cinco pestañas**: Componentes (20 parámetros), Calibración (6), Distribución (16,
+  incluyendo los nuevos IS mín/máx y ΔEQ mín/máx), Inicialización del ajuste (17)
+  y Detección de picos (avanzado) (14).
+- Cada pestaña incluye un botón «Restablecer a valores predeterminados».
+
+### Nuevos parámetros configurables de distribución
+
+- **IS mín / IS máx** (`is_lo` / `is_hi`): controlan el rango exterior de los
+  sliders `bmin`/`bmax` cuando la distribución opera en modo IS (δ).
+- **ΔEQ mín / ΔEQ máx** (`quad_lo` / `quad_hi`): ídem para modo ΔEQ distribuido.
+- Antes estos límites eran fijos (±2.5 mm/s y 0–7 mm/s respectivamente).
+
+### Consolidación de constantes en `core/params.py`
+
+- `FIT_INIT_SPECS`: 17 parámetros de inicialización automática del modelo
+  (límites BHF de detección, clips de Γ/δ/profundidad, rango L-curve, bootstrap,
+  multistart) que antes eran literales dispersos en `gui/minima_analysis.py`,
+  `gui/distribution_fit.py`, `gui/discrete_fit.py` y `gui/menu_builder.py`.
+- `PEAK_DETECTION_SPECS`: 14 umbrales de detección y clasificación de picos
+  (factores de altura/prominencia/distancia, tolerancias de match, ratios
+  singlete/doblete, tolerancia de marcadores Plotly).
+- `SEXTET_WEIGHTS = (3, 2, 1, 1, 2, 3)`: constante exportada que sustituye el
+  literal repetido en la detección de sextetes.
+- Los rangos del diálogo de calibración detallada y del spinner de arranques
+  múltiples usan ahora los specs efectivos en lugar de valores hardcodeados.
+
+### Corrección de bug: gamma/2 en `two_state_exchange_profile`
+
+- `mossbauer_distribution.py` tenía una copia local de `two_state_exchange_profile`
+  con un bug en el guard de gamma (usaba FWHM en lugar de semianchura). Corregido
+  eliminando las funciones duplicadas e importando directamente desde `core.physics`,
+  que tiene la implementación correcta.
+
 ## v4.7.5 — Mapas topográficos 2D y editor de atajos
 
 Primera versión **estable** que consolida todo lo introducido en la pre-release

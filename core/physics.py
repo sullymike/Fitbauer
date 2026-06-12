@@ -17,7 +17,7 @@ VOIGT_SIGMA: float = 0.05
 
 
 def lorentzian(v: np.ndarray, center: float, gamma: float) -> np.ndarray:
-    g = gamma / 2.0
+    g = max(float(gamma), 1e-9) / 2.0
     if LINE_PROFILE_KIND == "Voigt":
         sigma = max(float(VOIGT_SIGMA), 1e-9)
         denom = sigma * np.sqrt(2.0)
