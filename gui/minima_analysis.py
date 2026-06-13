@@ -46,8 +46,10 @@ class MinimaAnalysisMixin:
         cwt_mat = np.zeros((scales.size, n))
         for j, a in enumerate(scales):
             a = float(a)
-            # Longitud del kernel: 10·a puntos a cada lado (análogo a scipy)
-            half = max(int(5 * a), 3)
+            # Longitud del kernel: 10·a puntos a cada lado (análogo a scipy).
+            # Clampeado a (n-1)//2 para que psi nunca supere al signal en longitud
+            # (np.convolve mode="same" devuelve max(M,N), no M).
+            half = min(max(int(5 * a), 3), (n - 1) // 2)
             x = np.arange(-half, half + 1, dtype=float)
             A = 2.0 / (np.sqrt(3.0 * a) * np.pi ** 0.25)
             psi = A * (1.0 - (x / a) ** 2) * np.exp(-0.5 * (x / a) ** 2)
