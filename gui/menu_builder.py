@@ -19,6 +19,8 @@ from gui.themes import COLOR_THEMES
 SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     # ── Archivo ──
     ("file.open",              "menu.file", "file.open",              "Ctrl+O"),
+    ("file.compare_spectrum",  "menu.file", "file.compare_spectrum",  ""),
+    ("file.clear_comparison",  "menu.file", "file.clear_comparison",  ""),
     ("file.use_as_calibration","menu.file", "file.use_as_calibration",""),
     ("file.save_fit",             "menu.file", "file.save_fit",             ""),
     ("file.export_report",        "menu.file", "file.export_report",        ""),
@@ -103,6 +105,15 @@ class MenuBuilderMixin:
         self._reg("file.open", act_open)
         self.recent_menu = file_menu.addMenu(tr("file.open_recent", default="Abrir recientes"))
         self._rebuild_recent_menu()
+        act_compare = QtGui.QAction(tr("file.compare_spectrum"), self)
+        act_compare.triggered.connect(self.on_open_comparison)
+        file_menu.addAction(act_compare)
+        self._reg("file.compare_spectrum", act_compare)
+        self.act_clear_comparison = QtGui.QAction(tr("file.clear_comparison"), self)
+        self.act_clear_comparison.triggered.connect(self.on_clear_comparison)
+        self.act_clear_comparison.setEnabled(False)
+        file_menu.addAction(self.act_clear_comparison)
+        self._reg("file.clear_comparison", self.act_clear_comparison)
         self.act_use_as_calib = QtGui.QAction(tr("file.use_as_calibration"), self)
         self.act_use_as_calib.triggered.connect(self._use_as_calibration_detailed)
         self.act_use_as_calib.setEnabled(False)
