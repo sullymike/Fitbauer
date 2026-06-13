@@ -1,0 +1,47 @@
+{
+  "_comment": "Plantilla para pirrotita Fe7S8: sextete Fe2+ (δ=0.70-0.109=0.591 mm/s, BHF=28.5 T, ε=+0.28 mm/s, Γ=0.35) + doblete Fe2+ (δ=0.60-0.109=0.491 mm/s, ΔEQ=+0.30 mm/s, Γ=0.32). Ref: Schwarz & Vaughan 1972.",
+  "model_state": {
+    "vars": {
+      "vmax": 12.007,
+      "voigt_sigma": 0.05,
+      "baseline": 1.0,
+      "slope": 0.0,
+      "s1_delta": 0.591,
+      "s1_quad": 0.28,
+      "s1_bhf": 28.5,
+      "s1_gamma1": 0.35,
+      "s1_gamma2": 1.0,
+      "s1_gamma3": 1.0,
+      "s1_depth": 0.012,
+      "s1_int1": 3.0,
+      "s1_int2": 2.0,
+      "s1_int3": 1.0,
+      "s2_delta": 0.491,
+      "s2_quad": 0.30,
+      "s2_bhf": 33.0,
+      "s2_gamma1": 0.32,
+      "s2_gamma2": 1.0,
+      "s2_gamma3": 1.0,
+      "s2_depth": 0.015,
+      "s2_int1": 1.0,
+      "s2_int2": 1.0,
+      "s2_int3": 1.0
+    },
+    "fixed": {
+      "s1_int1": true, "s1_int2": true, "s1_int3": true,
+      "s1_gamma2": true, "s1_gamma3": true,
+      "s2_int1": true, "s2_int2": true, "s2_int3": true,
+      "s2_gamma2": true, "s2_gamma3": true, "s2_bhf": true
+    },
+    "sextet_enabled": {"1": true, "2": true, "3": false},
+    "component_kind": {"1": "Sextete", "2": "Doblete", "3": "Sextete"},
+    "intensity_mode": {"1": "free", "2": "free", "3": "free"},
+    "quad_treatment": {"1": "1st_order", "2": "1st_order", "3": "1st_order"},
+    "fit_velocity": false,
+    "fit_center": false,
+    "line_profile": "Lorentziana",
+    "likelihood": "gauss",
+    "robust_loss": "linear",
+    "constraints": []
+  }
+}

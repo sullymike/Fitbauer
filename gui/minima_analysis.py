@@ -31,6 +31,175 @@ class MinimaAnalysisMixin:
         padded = np.pad(values.astype(float), pad, mode="edge")
         return np.convolve(padded, kernel, mode="valid")
 
+    @staticmethod
+    def _cwt_ricker(signal: np.ndarray, scales: np.ndarray) -> np.ndarray:
+        """CWT con ondícula Ricker (Mexican hat) implementada con np.convolve.
+
+        Réplica de scipy.signal.cwt + ricker sin depender de esas funciones
+        (eliminadas de scipy.signal en 1.12). Para cada escala a (en canales):
+          ψ(x,a) = A·(1 − (x/a)²)·exp(−x²/(2a²))   A = 2/(√(3a)·π^1/4)
+        La respuesta CWT en (escala, posición) es la correlación cruzada del
+        espectro de absorción con ψ: valores positivos grandes indican un pico
+        cuyo FWHM coincide con la escala.
+        """
+        n = signal.size
+        cwt_mat = np.zeros((scales.size, n))
+        for j, a in enumerate(scales):
+            a = float(a)
+            # Longitud del kernel: 10·a puntos a cada lado (análogo a scipy)
+            half = max(int(5 * a), 3)
+            x = np.arange(-half, half + 1, dtype=float)
+            A = 2.0 / (np.sqrt(3.0 * a) * np.pi ** 0.25)
+            psi = A * (1.0 - (x / a) ** 2) * np.exp(-0.5 * (x / a) ** 2)
+            # Ricker es simétrica → correlación == convolución
+            cwt_mat[j] = np.convolve(signal, psi, mode="same")
+        return cwt_mat
+
+    def _compute_absorption(self, v: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, float, float]:
+        """Calcula la absorción como baseline_line - y (≥ 0).
+
+        Ajusta una baseline lineal sobre el 70 % superior de los datos (o usa el
+        percentil 90 como fallback si hay menos de 4 puntos altos).
+
+        Devuelve ``(absorption, baseline0, slope)``.
+        """
+        high = y >= np.percentile(y, 70)
+        if int(np.sum(high)) >= 4:
+            slope, baseline0 = np.polyfit(v[high], y[high], 1)
+        else:
+            baseline0 = float(np.percentile(y, 90))
+            slope = 0.0
+        baseline_line = baseline0 + slope * v
+        absorption = np.maximum(baseline_line - y, 0.0)
+        return absorption, float(baseline0), float(slope)
+
+    def _noise_and_thresholds(
+        self, coarse_smooth: np.ndarray, max_abs: float, dv: float
+    ) -> tuple[float, float, float]:
+        """Calcula umbrales de altura, prominencia y separación mínima.
+
+        Estima el ruido con la MAD sobre las diferencias del suavizado grueso y
+        aplica los factores configurables de ``_PD``.
+
+        Devuelve ``(height_thr, prom_thr, min_distance)``.
+        """
+        diff_noise = np.diff(coarse_smooth)
+        noise = (1.4826 * float(np.median(np.abs(diff_noise - np.median(diff_noise))))
+                 if diff_noise.size else 0.0)
+        height_thr = max(_PD["height_thr_factor"].default * max_abs, 4.0 * noise, 5e-4)
+        prom_thr = max(_PD["prom_thr_factor"].default * max_abs, 2.5 * noise, 3e-4)
+        min_distance = max(_PD["min_separation"].default, 2.0 * dv)
+        return height_thr, prom_thr, min_distance
+
+    def _cwt_and_direct_candidates(
+        self,
+        absorption: np.ndarray,
+        dv: float,
+        height_thr: float,
+        prom_thr: float,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Detecta candidatos a pico por CWT y por suavizado fino directo.
+
+        CWT multi-escala con ondícula Ricker: detecta picos solapados y estima
+        anchuras en el rango físico Mössbauer (0.12..2.0 mm/s). Estrategia
+        híbrida: la cresta CWT (max entre escalas) es robusta para líneas anchas
+        y sextetes, pero puede fundir dobletes cercanos en un único "pico". Por
+        eso se buscan candidatos también en la absorción directamente suavizada
+        y se fusionan ambas listas antes del filtrado final.
+
+        Devuelve ``(cwt_mat, scales, fine_smooth, abs_fine, cwt_idxs, dir_idxs)``.
+        """
+        from scipy.signal import find_peaks as _find_peaks
+
+        min_sc = max(2, int(0.12 / dv))
+        max_sc = max(min_sc + 3, int(2.0 / dv))
+        scales = np.arange(min_sc, max_sc + 1, dtype=float)
+        cwt_mat = self._cwt_ricker(absorption, scales)         # (n_escalas, n_pts)
+        ridge = np.maximum(np.max(cwt_mat, axis=0), 0.0)
+        ridge_max = float(np.nanmax(ridge)) if ridge.size else 0.0
+        max_abs = float(np.nanmax(absorption)) if absorption.size else 0.0
+        fine_smooth = ridge * (max_abs / ridge_max) if ridge_max > 0.0 else ridge
+
+        # Canal 1 — picos en la cresta CWT (buen SNR para líneas anchas/sextetes)
+        cwt_idxs, _ = _find_peaks(fine_smooth, height=height_thr, prominence=prom_thr)
+        # Canal 2 — picos en la absorción con suavizado fino (rescata dobletes estrechos
+        # que el CWT fusionaría al tomar el máximo entre escalas grandes)
+        fine_win = max(3, int(0.15 / dv)) | 1   # ~0.15 mm/s, siempre impar
+        abs_fine = self._smooth_1d(absorption, fine_win)
+        abs_fine_norm = abs_fine * (max_abs / float(np.nanmax(abs_fine))) if np.nanmax(abs_fine) > 0 else abs_fine
+        dir_idxs, _ = _find_peaks(abs_fine_norm, height=height_thr, prominence=prom_thr)
+        return cwt_mat, scales, fine_smooth, abs_fine, cwt_idxs, dir_idxs
+
+    def _fuse_peak_indices(self, cwt_idxs: np.ndarray, dir_idxs: np.ndarray) -> list[int]:
+        """Fusiona índices de picos CWT y directos eliminando duplicados y artefactos.
+
+        Fusión de listas:
+        1) Los picos directos son la referencia principal (evitan falsos "picos de valle"
+           en dobletes estrechos donde el CWT a escalas grandes responde en el mínimo).
+        2) Se añaden picos CWT sólo si NO están entre dos picos directos consecutivos
+           (ese caso es síntoma del artefacto de valle CWT) y no son duplicados.
+
+        Devuelve lista ordenada de índices fusionados.
+        """
+        dir_positions = sorted(int(i) for i in dir_idxs)
+
+        def _between_direct(idx: int) -> bool:
+            for k in range(len(dir_positions) - 1):
+                lo, hi = dir_positions[k], dir_positions[k + 1]
+                if lo < idx < hi:
+                    return True
+            return False
+
+        all_idxs: set[int] = set(dir_positions)
+        for i in cwt_idxs:
+            ci = int(i)
+            if ci not in all_idxs and not any(abs(ci - q) <= 1 for q in all_idxs):
+                if not _between_direct(ci):
+                    all_idxs.add(ci)
+        return sorted(all_idxs)
+
+    def _build_peaks_list(
+        self,
+        all_idxs: list[int],
+        v: np.ndarray,
+        absorption: np.ndarray,
+        abs_fine: np.ndarray,
+        fine_smooth: np.ndarray,
+        cwt_mat: np.ndarray,
+        scales: np.ndarray,
+        dv: float,
+    ) -> list[dict[str, float]]:
+        """Construye la lista de dicts de picos con pos, depth, smooth_depth y width.
+
+        Para cada índice en ``all_idxs`` estima la anchura FWHM: si hay respuesta
+        CWT positiva, usa la escala de mayor respuesta; si no, usa FWHM directo
+        sobre ``abs_fine``.
+        """
+        max_abs = float(np.nanmax(absorption)) if absorption.size else 0.0
+        abs_fine_norm = abs_fine * (max_abs / float(np.nanmax(abs_fine))) if np.nanmax(abs_fine) > 0 else abs_fine
+        peaks: list[dict[str, float]] = []
+        for i in all_idxs:
+            # Anchura desde la escala de mayor respuesta CWT positiva en ese índice
+            best_sc = int(np.argmax(np.maximum(cwt_mat[:, i], 0.0)))
+            cwt_resp = float(np.max(np.maximum(cwt_mat[:, i], 0.0)))
+            if cwt_resp < 1e-10:
+                # Sin respuesta CWT positiva: estimar anchura por FWHM directo
+                half = float(abs_fine[i]) * 0.5
+                li, ri = i, i
+                while li > 0 and abs_fine[li] > half:
+                    li -= 1
+                while ri < abs_fine.size - 1 and abs_fine[ri] > half:
+                    ri += 1
+                width = max(abs(float(v[ri] - v[li])), 2.0 * dv)
+            else:
+                width = max(float(scales[best_sc]) * dv * 2.0, 2.0 * dv)
+            smooth_d = float(fine_smooth[i]) if fine_smooth[i] > 0 else float(abs_fine_norm[i])
+            peaks.append({"i": float(i), "pos": float(v[i]),
+                          "depth": float(absorption[i]),
+                          "smooth_depth": smooth_d,
+                          "width": width})
+        return peaks
+
     def detect_absorption_minima(self) -> tuple[list[dict[str, float]], float, float]:
         """Detecta mínimos de transmisión como máximos de absorción.
 
@@ -43,61 +212,31 @@ class MinimaAnalysisMixin:
             return [], 1.0, 0.0
         v = self.file.velocity
         y = self.file.y_data
-        high = y >= np.percentile(y, 70)
-        if int(np.sum(high)) >= 4:
-            slope, baseline0 = np.polyfit(v[high], y[high], 1)
-        else:
-            baseline0 = float(np.percentile(y, 90))
-            slope = 0.0
-        baseline_line = baseline0 + slope * v
-        absorption = np.maximum(baseline_line - y, 0.0)
+
+        absorption, baseline0, slope = self._compute_absorption(v, y)
 
         coarse_smooth = self._smooth_1d(absorption, max(5, absorption.size // 80))
         max_abs = float(np.nanmax(coarse_smooth)) if coarse_smooth.size else 0.0
         if max_abs <= 0:
-            return [], float(baseline0), float(slope)
-        diff_noise = np.diff(coarse_smooth)
-        noise = (1.4826 * float(np.median(np.abs(diff_noise - np.median(diff_noise))))
-                 if diff_noise.size else 0.0)
-
-        fine_win = max(3, absorption.size // 120)
-        if fine_win % 2 == 0:
-            fine_win += 1
-        fine_smooth = self._smooth_1d(absorption, fine_win)
+            return [], baseline0, slope
 
         dv = abs(float(v[1] - v[0])) if v.size > 1 else 0.05
-        min_dist_ch = max(3, int(_PD["min_dist_factor"].default / dv))
-        height_thr = max(_PD["height_thr_factor"].default * max_abs, 4.0 * noise, 5e-4)
-        prom_thr = max(_PD["prom_thr_factor"].default * max_abs, 2.5 * noise, 3e-4)
+        height_thr, prom_thr, min_distance = self._noise_and_thresholds(coarse_smooth, max_abs, dv)
 
         try:
-            from scipy.signal import find_peaks as _find_peaks
+            cwt_mat, scales, fine_smooth, abs_fine, cwt_idxs, dir_idxs = \
+                self._cwt_and_direct_candidates(absorption, dv, height_thr, prom_thr)
         except ImportError:
-            return [], float(baseline0), float(slope)
-        peak_idxs, _ = _find_peaks(fine_smooth, height=height_thr,
-                                   prominence=prom_thr, distance=min_dist_ch)
+            return [], baseline0, slope
 
-        peaks: list[dict[str, float]] = []
-        min_distance = max(_PD["min_separation"].default, 2.0 * dv)
-        for i in peak_idxs:
-            half = 0.5 * fine_smooth[i]
-            left = int(i)
-            while left > 0 and fine_smooth[left] > half:
-                left -= 1
-            right = int(i)
-            while right < fine_smooth.size - 1 and fine_smooth[right] > half:
-                right += 1
-            width = abs(float(v[right] - v[left])) if right > left else min_distance
-            peaks.append({"i": float(i), "pos": float(v[i]),
-                          "depth": float(absorption[i]),
-                          "smooth_depth": float(fine_smooth[i]),
-                          "width": width})
+        all_idxs = self._fuse_peak_indices(cwt_idxs, dir_idxs)
+        peaks = self._build_peaks_list(all_idxs, v, absorption, abs_fine, fine_smooth, cwt_mat, scales, dv)
 
         selected: list[dict[str, float]] = []
         for peak in sorted(peaks, key=lambda p: p["smooth_depth"], reverse=True):
             if all(abs(peak["pos"] - q["pos"]) >= min_distance for q in selected):
                 selected.append(peak)
-        return sorted(selected[:15], key=lambda p: p["pos"]), float(baseline0), float(slope)
+        return sorted(selected[:15], key=lambda p: p["pos"]), baseline0, slope
 
     def _best_sextet_from_peaks(
         self, peaks: list[dict[str, float]]

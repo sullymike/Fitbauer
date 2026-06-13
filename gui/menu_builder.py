@@ -39,6 +39,7 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     ("fit.profile_likelihood", "menu.fit",  "fit.profile_likelihood", ""),
     ("fit.lcurve",             "menu.fit",  "bhf.lcurve_alpha",       ""),
     ("fit.batch_fit",          "menu.fit",  "fit.batch_fit",          ""),
+    ("fit.global_neel_fit",    "menu.fit",  "fit.global_neel_fit",    ""),
     ("fit.free_all",           "menu.fit",  "fit.free_all",           ""),
     ("fit.fix_all",            "menu.fit",  "fit.fix_all",            ""),
     ("fit.constraints",        "menu.fit",  "options.constraints",    ""),
@@ -232,6 +233,10 @@ class MenuBuilderMixin:
         self.act_batch.triggered.connect(self.on_batch_fit)
         fit_menu.addAction(self.act_batch)
         self._reg("fit.batch_fit", self.act_batch)
+        self.act_global_neel = QtGui.QAction(tr("fit.global_neel_fit"), self)
+        self.act_global_neel.triggered.connect(self.on_global_neel_fit)
+        fit_menu.addAction(self.act_global_neel)
+        self._reg("fit.global_neel_fit", self.act_global_neel)
         fit_menu.addSeparator()
         # Gestión de parámetros del modelo.
         act_free_all = QtGui.QAction(tr("fit.free_all"), self)

@@ -540,6 +540,9 @@ def fit_discrete(state: FitState, progress_cb: Callable[[object], None] | None =
         ls_kwargs["f_scale"] = 3.0  # umbral ~3σ (residuos ya normalizados por σ)
     result = None
     n_starts = 0
+    _stagnation = 0
+    _stagnation_patience = 4
+    _stagnation_rel_tol = 1e-6
     for cand in candidates:
         n_starts += 1
         progress_state.update({
@@ -560,9 +563,21 @@ def fit_discrete(state: FitState, progress_cb: Callable[[object], None] | None =
             res_i = least_squares(residual, cand, bounds=(lo_arr, hi_arr),
                                    max_nfev=7000, **ls_kwargs)
         except Exception:
+            _stagnation += 1
             continue
+        _prev_cost = result.cost if result is not None else float("inf")
         if result is None or res_i.cost < result.cost:
             result = res_i
+        if _prev_cost == float("inf"):
+            rel_improvement = float("inf")
+        else:
+            rel_improvement = (_prev_cost - res_i.cost) / max(_prev_cost, 1e-30)
+        if rel_improvement > _stagnation_rel_tol:
+            _stagnation = 0
+        else:
+            _stagnation += 1
+        if _stagnation >= _stagnation_patience and n_starts >= 2:
+            break
 
     if result is None:
         return FitResult(values=dict(state.values), errors={}, free_keys=free_keys,

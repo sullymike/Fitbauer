@@ -31,7 +31,9 @@ from core.params import (
     COMPONENT_KINDS as _COMPONENT_KINDS,
     COMPONENT_FIT_BOUNDS as _PARAM_BOUNDS,
     GLOBAL_FIT_BOUNDS as _GLOBAL_BOUNDS,
+    INTENSITY_MODES as _INTENSITY_MODES_TUPLE,
     PARAM_ORDER as _PARAM_ORDER,
+    QUAD_TREATMENTS as _QUAD_TREATMENTS_TUPLE,
     BHF_DEFAULT_T,
     component_defaults as _component_defaults,
     relevant_params as _relevant_params,
@@ -43,8 +45,8 @@ _EDGE_TRIM = 1
 MAX_COMPONENTS_DEFAULT = 3
 
 _KINDS = set(_COMPONENT_KINDS)
-_INTENSITY_MODES = {"free", "texture"}
-_QUAD_TREATMENTS = {"1st_order", "kundig_fixed", "kundig_powder"}
+_INTENSITY_MODES = set(_INTENSITY_MODES_TUPLE)
+_QUAD_TREATMENTS = set(_QUAD_TREATMENTS_TUPLE)
 
 
 @dataclass

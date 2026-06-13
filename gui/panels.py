@@ -7,7 +7,7 @@ from mossbauer_i18n import tr
 from dataclasses import astuple
 
 from core.params import (
-    COMPONENT_KINDS, COMPONENT_PARAM_LAYOUT, USED_BY,
+    COMPONENT_KINDS, COMPONENT_PARAM_LAYOUT, INTENSITY_MODES, QUAD_TREATMENTS, USED_BY,
     component_default_value, relevant_params as _relevant_params,
 )
 from core.param_overrides import effective_calibration_specs, effective_component_specs
@@ -245,8 +245,9 @@ class ComponentPanel(QtWidgets.QWidget):
         title = menu.addAction(tr("context.intensity_mode_title"))
         title.setEnabled(False)
         menu.addSeparator()
-        for val, key in (("free", "context.intensity_mode_free"),
-                          ("texture", "context.intensity_mode_texture")):
+        for val, key in zip(INTENSITY_MODES,
+                            ("context.intensity_mode_free",
+                             "context.intensity_mode_texture")):
             act = menu.addAction(tr(key))
             act.setCheckable(True)
             act.setChecked(self.intensity_mode == val)
@@ -256,7 +257,7 @@ class ComponentPanel(QtWidgets.QWidget):
         menu.exec(anchor.mapToGlobal(pos))
 
     def _set_intensity_mode(self, mode: str) -> None:
-        if mode not in ("free", "texture"):
+        if mode not in INTENSITY_MODES:
             return
         self.intensity_mode = mode
         # En modo textura, fija int1=3 / int2 (configurable via t implícito) /
@@ -282,11 +283,10 @@ class ComponentPanel(QtWidgets.QWidget):
         title = menu.addAction(tr("context.quad_treatment_title"))
         title.setEnabled(False)
         menu.addSeparator()
-        for val, key in (
-            ("1st_order", "context.quad_treatment_1st_order"),
-            ("kundig_fixed", "context.quad_treatment_kundig_fixed"),
-            ("kundig_powder", "context.quad_treatment_kundig_powder"),
-        ):
+        for val, key in zip(QUAD_TREATMENTS,
+                            ("context.quad_treatment_1st_order",
+                             "context.quad_treatment_kundig_fixed",
+                             "context.quad_treatment_kundig_powder")):
             act = menu.addAction(tr(key))
             act.setCheckable(True)
             act.setChecked(self.quad_treatment == val)
@@ -296,7 +296,7 @@ class ComponentPanel(QtWidgets.QWidget):
         menu.exec(anchor.mapToGlobal(pos))
 
     def _set_quad_treatment(self, treatment: str) -> None:
-        if treatment not in ("1st_order", "kundig_fixed", "kundig_powder"):
+        if treatment not in QUAD_TREATMENTS:
             return
         self.quad_treatment = treatment
         self._on_type_changed(self.kind)
