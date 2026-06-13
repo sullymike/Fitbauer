@@ -557,12 +557,8 @@ class GlobalNeelFitDialog(QtWidgets.QDialog):
             "neel_log10_tau0": self.spin_log10_tau0.value(),
         }
 
-        QtWidgets.QApplication.setOverrideCursor(QtWidgets.QApplication.instance().style().standardCursor(0))  # type: ignore[attr-defined]
-        try:
-            from PySide6.QtCore import Qt
-            QtWidgets.QApplication.setOverrideCursor(Qt.WaitCursor)
-        except Exception:
-            pass
+        from PySide6.QtCore import Qt
+        QtWidgets.QApplication.setOverrideCursor(Qt.WaitCursor)
         try:
             result = fit_neel_size_global(spectra, shared_initial=shared_initial)
         except Exception as exc:
