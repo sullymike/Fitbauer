@@ -20,3 +20,21 @@ promediados). Escala de velocidades: Vmax = 12.007 mm/s, 512 canales crudos
 | pirrotita_Fe7S8 | Sextete Fe²⁺ + Doblete | 0.70/0.60 | +0.28/+0.30 | 28.5/— | 0.35/0.32 | Schwarz & Vaughan 1972 |
 
 Todos los δ están referenciados a α-Fe a temperatura ambiente.
+
+---
+
+## Espectro experimental real
+
+| Archivo | Descripción | Rango v (mm/s) | Puntos | Fuente |
+|---|---|---|---|---|
+| alphaFe_calibracion_ESRF.dat | α-Fe, espectro de calibración experimental | −5.03 a +6.28 | 512 | SYNCmoss / ESRF (Yaroslavtsev, MIT) |
+
+**Formato**: dos columnas, separadas por tabulador: velocidad (mm/s) y cuentas (crudas ~10 000–17 700).
+Cargable con el cargador CSV de Fitbauer (Archivo → Abrir, extensiones .dat/.txt/.csv).
+
+**Advertencias**:
+- Rejilla de velocidades **no uniforme** (arrastre sinusoidal, 1 024 canales, se proporciona la mitad descendente).
+- La línea más negativa de α-Fe (−5.33 mm/s) está en el borde del rango y aparece truncada;
+  las otras 5 líneas son claramente visibles.
+- Datos reales de medición experimental en el ESRF (European Synchrotron Radiation Facility).
+- Licencia MIT. Repositorio original: https://github.com/sergey-yaroslavtsev/syncmoss
