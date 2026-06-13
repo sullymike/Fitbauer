@@ -1,0 +1,401 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{tcolorbox}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  urlcolor=blue!60!black,
+  citecolor=blue!40!black
+}
+
+\newcommand{\BHF}{B_{\mathrm{hf}}}
+\newcommand{\dEQ}{\Delta E_{Q}}
+\newcommand{\veps}{\varepsilon}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\file}[1]{\textcolor{black!70}{\texttt{\small #1}}}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\newtcolorbox{mejora}[1]{
+  colback=yellow!8,
+  colframe=orange!70!black,
+  fonttitle=\bfseries,
+  title={Improvement: #1},
+  left=4pt, right=4pt, top=3pt, bottom=3pt
+}
+
+\title{\textbf{Fitting Mathematics in \emph{Mossbauer}}\\[2pt]
+\large Discrete and distribution modes, with proposed improvements}
+\author{Code analysis on branch \texttt{main}}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}\noindent
+This document formally describes the optimisation problem solved by the \emph{Fitbauer} application when fitting a transmission spectrum: (i) in \emph{discrete} mode (finite sum of sextets/doublets/singlets) and (ii) in \emph{distribution} mode (regularised continuous density $P(\BHF)$ or $P(\dEQ)$). The forward model, cost functional, minimisation algorithm, uncertainty estimation, and statistical diagnostics are detailed. Implemented and pending improvements are discussed at the end.
+
+\medskip\noindent\textbf{Update note (v4.9.0+).}
+The code was completely refactored: the fitting logic now resides in
+\file{core/fit\_engine.py}, \file{core/physics.py} and \file{gui/}. References
+to \file{mossbauer\_fe33\_gui\_v2IA.py} in this document are historical; the
+current implementation follows the same algorithms in those modules. Improvements
+incorporated since the original drafting: analytical Voigt normalisation,
+early-stop in multistart, complete Kündig Hamiltonian, and relaxation components
+(\code{Relajacion}, \code{BlumeTjon}, \code{NeelSize}); see
+\file{docs/magnetic\_relaxation.tex} for the latter.
+\end{abstract}
+
+\tableofcontents
+\bigskip
+
+%======================================================================
+\section{Forward model}\label{sec:fwd}
+
+The spectrum folds the raw data to $N$ channels with velocities $\{v_i\}_{i=1}^{N}$ and normalised transmission $\{y_i\}$, $y_i \approx 1$ outside the absorption peaks. The model is
+\begin{equation}
+  \boxed{\;
+  T(v;\bm\theta) \;=\; b + s\,v \;-\; \sum_{c=1}^{N_c} A_c(v;\bm\theta_c)
+  \;}
+  \label{eq:Tmodel}
+\end{equation}
+with \emph{baseline} $b$ and slope $s$ \emph{multiplicative} (data are already normalised by \code{norm\_factor}). This is a \emph{thin}-absorber model (linear in depth), see \file{core/physics.py:74--87}.
+
+\subsection{Line shape}
+The function \code{line\_profile} (\file{core/physics.py:14--21}) globally selects Lorentzian or pseudo-Voigt:
+\begin{align}
+  L(v;v_0,\gamma) &= \frac{\gamma^{2}}{(v-v_0)^{2}+\gamma^{2}}, \label{eq:lorentz}\\
+  V(v;v_0,\gamma,\sigma) &= \frac{1}{c_V}\;\Re\!\left[\frac{w\!\left(\frac{(v-v_0)+i\gamma}{\sigma\sqrt 2}\right)}{\sigma\sqrt{2\pi}}\right], \quad c_V = \frac{\Re\,w\!\left(\frac{i\gamma}{\sigma\sqrt 2}\right)}{\sigma\sqrt{2\pi}}, \label{eq:voigt}
+\end{align}
+with $w(z)=\exp(-z^{2})\operatorname{erfc}(-iz)$ (Faddeeva function). The factor $c_V$ normalises the peak to~1 using the \emph{analytical value} at $v=v_0$, so that the depth is comparable between Lorentzian and Voigt profiles (\emph{improvement implemented in v4.x}; see improvement~\ref{mej:voigt}).
+
+\subsection{Sextet (magnetic interaction)}\label{sec:sextet}
+The six line positions (\file{core/physics.py:38}, constants in \file{core/constants.py:21,25,28,29}) are obtained by scaling the 33\,T reference and shifting by $\delta$ and $\dEQ$:
+\begin{equation}
+  v_{0,j} \;=\; \frac{\BHF}{33}\,r_j^{(33)} \;+\; \delta \;+\; s_j\,\dEQ,
+  \qquad j=1,\dots,6,
+  \label{eq:sext_pos}
+\end{equation}
+with $r^{(33)}=\tfrac12\,[-10.657,\,-6.167,\,-1.677,\,1.677,\,6.167,\,10.657]$ and
+\begin{equation}
+  \bm s = [\,+\tfrac12,\,-\tfrac12,\,-\tfrac12,\,-\tfrac12,\,-\tfrac12,\,+\tfrac12\,].
+\end{equation}
+The linewidths (HWHM) are $\gamma_j = \gamma_1\cdot[1,\gamma_2,\gamma_3,\gamma_3,\gamma_2,1]_j$ (with $\gamma_2,\gamma_3$ \emph{relative}), and the amplitudes
+\begin{equation}
+  W_j \;=\; [\,I_1,\,I_2,\,I_3,\,I_3,\,I_2,\,I_1\,]_j,
+  \qquad
+  I_1 = i_3\,i_1,\; I_2 = i_3\,i_2,\; I_3 = i_3,
+\end{equation}
+with $i_1,i_2,i_3$ free (the 3:2:1 ratio is not enforced, see improvement~\ref{mej:321}). The component absorption is
+\begin{equation}
+  A_{\text{sext}}(v) \;=\; d\,\sum_{j=1}^{6} W_j\, L(v;v_{0,j},\gamma_j),
+  \label{eq:Asext}
+\end{equation}
+where $d$ is the depth. Equation \eqref{eq:sext_pos} is a \emph{first-order} treatment of the magnetic interaction: $\dEQ$ enters as a rigid additive pattern, without diagonalisation of the combined Hamiltonian $\mathcal H = \mathcal H_{M}+\mathcal H_{Q}$ (valid for $\dEQ\ll \mu_N g \BHF$).
+
+\subsection{Doublet and singlet (\file{core/physics.py:45--61})}
+\begin{align}
+  A_{\text{dob}}(v) &= d\bigl[\,i_1\,L(v;\delta-\tfrac{\dEQ}{2},\gamma_1) + i_1 i_2\,L(v;\delta+\tfrac{\dEQ}{2},\gamma_1\gamma_2)\,\bigr],\\
+  A_{\text{sing}}(v) &= d\,i_1\,L(v;\delta,\gamma_1).
+\end{align}
+
+%======================================================================
+\section{Discrete fitting}\label{sec:disc}
+
+\subsection{Active parameters and constraints}\label{sec:active}
+The vector $\bm x \in \mathbb R^{p}$ contains the \emph{free} parameters: globals $\{b,s,v_{\max},c_{\text{fold}}\}$ and per-component $\bm\theta_c=(\delta,\dEQ,\BHF,\gamma_1,\gamma_2,\gamma_3,d,i_1,i_2,i_3)$ filtered by (\file{mossbauer\_fe33\_gui\_v2IA.py:3050--3055, 3341--3376}):
+\begin{itemize}[leftmargin=*]
+  \item \emph{Enabled} $\code{sextet\_enabled[c]}$;
+  \item \emph{Fixed} $\code{fixed\_vars[k]}$ are removed from the active vector;
+  \item \emph{Linear constraints} $k_t = \alpha\, k_s + \beta$ applied \emph{at each evaluation} (up to six iterations for chains), \file{...:2841--2872}.
+\end{itemize}
+The hard \emph{bounds} (\file{...:3266--3282}) are, for example,
+$b\in[0{.}7,1{.}3]$, $s\in[-10^{-4},10^{-4}]$, $\delta\in[-2,3]$, $\dEQ\in[0,4]$, $\BHF\in[0,50]\,$T, $\gamma_1\in[0{.}03,2]$, $d\in[0,0{.}30]$.
+
+\subsection{Weights and residual}\label{sec:residuo}
+The per-channel uncertainty comes from folding two Poisson channels:
+\begin{equation}
+  \sigma_i \;=\; \frac{\max\!\bigl(\sqrt{c_i/2},\,1\bigr)}{f_{\text{norm}}},
+  \qquad \sigma_i \leftarrow \max(\sigma_i,\,10^{-9}),
+  \label{eq:sigma}
+\end{equation}
+where $c_i$ is the folded count and $f_{\text{norm}}$ the normalisation factor (\file{...:3171--3181}). The weighted residual, a vector of dimension $N$, is
+\begin{equation}
+  r_i(\bm x) \;=\; \frac{T(v_i;\bm x)-y_i}{\sigma_i}.
+  \label{eq:residuo}
+\end{equation}
+The cost functional is
+\begin{equation}
+  \mathcal C(\bm x) \;=\; \tfrac12 \|\bm r(\bm x)\|_{2}^{2}
+   \;\equiv\; \tfrac12\,\chi^{2}(\bm x).
+  \label{eq:cost_disc}
+\end{equation}
+
+\subsection{Optimiser}\label{sec:opt}
+\code{scipy.optimize.least\_squares} is invoked with method \emph{Trust Region Reflective} (TRF), Jacobian by finite differences (2-point), linear loss, \code{max\_nfev=7000} (\file{...:3433}):
+\begin{equation}
+  \hat{\bm x} \;=\; \argmin_{\bm x \in [\bm\ell,\bm u]}\; \tfrac12\,\|\bm r(\bm x)\|^{2}.
+\end{equation}
+TRF solves at each iteration the quadratic subproblem
+\begin{equation}
+  \min_{\bm d}\;\tfrac12\|J_k\bm d + \bm r_k\|^{2}
+  \quad\text{s.t.}\quad \|\bm D_k \bm d\|\le \Delta_k,\; \bm\ell-\bm x_k\le\bm d\le\bm u-\bm x_k,
+\end{equation}
+with adaptive scaling $\bm D_k$ and reflection at the active boundaries.
+
+\paragraph{Multistart.} Up to 8 Gaussian restarts around the user point are performed (\file{core/fit\_engine.py}):
+\begin{equation}
+  \bm x^{(s)} = \bm x^{(0)} + \bm \xi^{(s)},\quad \xi^{(s)}_k \sim \mathcal N(0,\sigma_k^{2}),\;\sigma_k=\rho_k(\bm u_k-\bm\ell_k),
+\end{equation}
+with $\rho_k=0{.}12$ for $\{\delta,\dEQ,\BHF,\gamma_1,d,v_{\max}\}$ and $\rho_k=0{.}08$ for the rest; fixed seed 12345. The one with the lowest $\mathcal C$ is retained. \textbf{Early-stop} (v4.9+): if the cost does not improve by more than $10^{-6}$ relatively in 4 consecutive starts (\code{stagnation\_patience=4}, \code{rel\_tol=1e-6}), the loop terminates early without statistical penalty.
+
+\subsection{Covariance and $1\sigma$ errors}\label{sec:cov}
+From the final Jacobian $J=U\Sigma V^{\top}$ (SVD) and truncating $\Sigma_{kk}$ below a threshold (\file{...:3451--3468}):
+\begin{equation}
+  \boxed{\;
+  \widehat{\mathrm{Cov}}(\hat{\bm x}) \;=\; V\,\Sigma^{-2}\,V^{\top}\cdot \frac{2\,\mathcal C(\hat{\bm x})}{N-p},
+  \quad
+  \hat\sigma_{x_k} = \sqrt{\widehat{\mathrm{Cov}}_{kk}}.
+  \;}
+  \label{eq:cov}
+\end{equation}
+This is the Gaussian MLE covariance using the $\chi^{2}_{\text{red}}$ \emph{of the residuals already normalised by $\sigma_i$}. Correlations $|\rho_{kl}|\ge 0{.}95$ are reported (\file{...:3194--3205}).
+
+\subsection{Statistical diagnostics (\file{...:3207--3251})}
+With $N$ data points and $p$ free parameters,
+\begin{align}
+  \chi^{2} &= \textstyle\sum_i r_i^{2}, \quad
+  \nu = N - p, \quad
+  \chi^{2}_\nu = \chi^{2}/\nu,\\
+  \mathrm{AIC} &= N\ln(\mathrm{RSS}/N) + 2p, \quad
+  \mathrm{BIC} = N\ln(\mathrm{RSS}/N) + p\ln N,\\
+  \rho_1 &= \frac{\sum_i \tilde r_i \tilde r_{i+1}}{\sum_i \tilde r_i^{2}},
+  \quad Z_{\text{runs}} = \frac{R-\mu_R}{\sigma_R}\;(\text{Wald--Wolfowitz}),\\
+  c_{\text{antisim}} &= \frac{\bm r \cdot (-\,\bm r^{\text{rev}})}{\bm r\cdot\bm r} \quad\text{(centring error detector).}
+\end{align}
+A warning is raised if $|\rho_1|>0{.}35$, $|Z|>2$, or $c_{\text{antisim}}>0{.}45$.
+
+\subsection{Parametric bootstrap (\file{...:3488--3547})}
+$M\in[5,300]$ replicates: $\tilde y^{(m)} = T(\cdot;\hat{\bm x})+\eta^{(m)},\;\eta^{(m)}_i\sim\mathcal N(0,\sigma_i^{2})$; refit from $\bm x_0$ and compute
+\(\hat\sigma_{x_k}^{\text{boot}} = \text{std}_m(\hat x_k^{(m)})\), which \emph{replaces} the $\hat\sigma$ of \eqref{eq:cov}.
+
+%======================================================================
+\section{Fitting with distribution $P(\BHF)$ or $P(\dEQ)$}\label{sec:dist}
+
+\subsection{Discretisation}
+$\BHF\in[B_{\min},B_{\max}]$ (or $\dEQ\in[\Delta_{\min},\Delta_{\max}]$) is chosen with $n$ \emph{bins} of equally-spaced centres (\file{mossbauer\_distribution.py:133--146}):
+\begin{equation}
+  \bm c \in \mathbb R^{n}, \quad c_k = B_{\min} + (k-\tfrac12)\,h,\;\; h = \frac{B_{\max}-B_{\min}}{n}.
+\end{equation}
+
+\subsection{Kernel matrix $K$ (\file{...:78--107, 149--211})}
+For variable $=\BHF$ the matrix is built as
+\begin{equation}
+  K_{ik} \;=\; A_{\text{sext}}^{(d=1)}\bigl(v_i;\;\BHF=c_k,\;\delta=\delta_g,\;\dEQ=\dEQ_g,\;\bm\gamma\bigr),
+  \label{eq:Kdef}
+\end{equation}
+i.e., the absorption at velocity $v_i$ produced by a sextet of \emph{unit depth} with $\BHF=c_k$. Analogously for variable $=\dEQ$, $\BHF$ is fixed and $\dEQ$ is swept. \textbf{Important note:} in the distribution kernel the ratio $I_1{:}I_2{:}I_3 = 3{:}2{:}1$ is structurally enforced (\file{...:97--99}), \emph{unlike discrete mode} where the $i_k$ are free. This is compensated in the ``sharp'' component constructor (\file{mossbauer\_fe33\_gui\_v2IA.py:3725--3766}).
+
+\subsection{Augmented linear system (\file{...:392--445})}
+Let $\bm p\in\mathbb R^{n}$ be the distribution weight vector, $b$ the \emph{baseline}, and $s$ the slope. The forward model is
+\begin{equation}
+  \hat y_i \;=\; b + s\,v_i \;-\; \sum_{k=1}^{n} K_{ik}\,p_k \;-\; \sum_{m=1}^{M_s} K^{(\text{sharp})}_{im}\,q_m,
+  \label{eq:fwd_dist}
+\end{equation}
+where $q_m\ge 0$ are the amplitudes of up to $M_s$ optional sharp sextets. Defining
+\[
+  X \;=\;
+  \bigl[\;\bm 1\;\bigm|\;\bm v\;\bigm|\;{-}K\;\bigm|\;{-}K^{(\text{sharp})}\;\bigr]\in\mathbb R^{N\times(2+n+M_s)},
+\]
+with \emph{bounds} $[0,\infty)$ on columns 1, $3,\dots,2+n+M_s$ and $(-\infty,\infty)$ on column 2 (slope), the regularised problem is
+\begin{equation}
+  \boxed{\;
+  \min_{\bm z\,\ge\,\bm 0\;(\text{except }s)}\quad
+  \bigl\|W^{1/2}(X\bm z - \bm y)\bigr\|_{2}^{2}
+  \;+\;\alpha\,\bigl\|L\,\bm p\bigr\|_{2}^{2}\;,
+  \quad \bm z=(b,s,\bm p^\top,\bm q^\top)^\top.
+  \;}
+  \label{eq:tikh}
+\end{equation}
+Here $W=\diag(1/\sigma_i^{2})$ (same as in \eqref{eq:sigma}) and $L\in\mathbb R^{(n-2)\times n}$ is the \emph{second difference} operator (\file{...:214--224}):
+\begin{equation}
+  L \;=\;
+  \begin{pmatrix}
+    1 & -2 & 1 & 0 & \cdots & 0\\
+    0 & 1 & -2 & 1 & \cdots & 0\\
+    \vdots & & \ddots & \ddots & \ddots & \vdots\\
+    0 & \cdots & 0 & 1 & -2 & 1
+  \end{pmatrix},
+\end{equation}
+so that $\|L\bm p\|^{2} = \sum_k (p_{k-1}-2p_k+p_{k+1})^{2}$ penalises curvature.
+
+\paragraph{Implementation.} The system $\left[\begin{smallmatrix} W^{1/2}X \\ \sqrt\alpha\,L_{\text{ext}} \end{smallmatrix}\right]\bm z = \left[\begin{smallmatrix}W^{1/2}\bm y\\ \bm 0\end{smallmatrix}\right]$ is stacked with $L_{\text{ext}}$ extended with zeros in the columns of $b,s,q$, and solved with \code{scipy.optimize.lsq\_linear(\,bounds, lsmr\_tol="auto", max\_iter=2000\,)} (\file{...:444}). The \emph{normalisation} $\sum_k p_k h = 1$ is applied \emph{a posteriori} (\file{...:227--236}), not as a hard constraint.
+
+A pure NNLS variant exists for fixed background (\file{...:747--785}) based on \code{scipy.optimize.nnls}.
+
+\subsection{Parametric distributions}\label{sec:param}
+Instead of non-parametric Tikhonov, one can use
+\begin{align}
+  p_k^{\text{Gauss}} &= A\,\exp\!\Bigl(-\tfrac12 \bigl(\tfrac{c_k-\mu}{\varsigma}\bigr)^{2}\Bigr), & \text{free } (b,s,A,\mu,\log\varsigma),\\
+  p_k^{\text{Bin}} &\propto \binom{n-1}{k-1} p^{k-1}(1-p)^{n-k},& \text{free } (b,s,A,\text{logit}\,p),\\
+  p_k^{\text{Fixed}} &= \phi_k\;\text{(pre-loaded)},& \text{free } (b,s,A,\bm q).
+\end{align}
+In all cases the $\bm q\ge0$ of sharp sextets are fitted simultaneously by non-linear (Gauss, binomial) or bounded linear (fixed) least squares.
+
+\subsection{Global refinement (simplified VARPRO scheme)}
+When \emph{refine\_global} is active (\file{mossbauer\_fe33\_gui\_v2IA.py:3858--3945}), an outer non-linear loop is introduced over $\bm\eta=(\delta_g,\log\gamma_g,\{\delta_m,\dEQ_m,\BHF_m,\log\gamma_{1,m}\}_{m=1}^{M_s})$. At each outer evaluation $K(\bm\eta)$ is recomposed and the inner problem \eqref{eq:tikh} (or the parametric one) is solved \emph{entirely}, returning the residual to \code{least\_squares}:
+\begin{equation}
+  \min_{\bm\eta}\;\bigl\|W^{1/2}\bigl[X(\bm\eta)\,\hat{\bm z}(\bm\eta) - \bm y\bigr]\bigr\|^{2},
+  \qquad
+  \hat{\bm z}(\bm\eta)=\argmin_{\bm z}\eqref{eq:tikh}.
+  \label{eq:varpro}
+\end{equation}
+This is a \emph{separable least squares} formulation (Golub--Pereyra). In the code: \code{max\_nfev=60}, Jacobian by finite differences through the internal bounded solver; no analytical Jacobian and no \emph{warm-start}.
+
+\subsection{$\alpha$ scan and L-curve (\file{...:3609--3722})}
+The inner problem is evaluated for $\alpha\in\{\alpha_k\}_{k=1}^{31}$, $\log_{10}\alpha_k\in[-8,4]$ equally spaced. Defining
+\(
+  \rho(\alpha) = \log\|W^{1/2}(X\hat z - y)\|,\;
+  \eta(\alpha) = \log\|L\hat{\bm p}\|,
+\)
+the L-curve \emph{corner} is located by maximum curvature
+\begin{equation}
+  \kappa(\alpha) \;=\; \frac{\rho'\eta'' - \eta'\rho''}{\bigl((\rho')^{2}+(\eta')^{2}\bigr)^{3/2}},
+  \qquad \hat\alpha_{\text{L}}=\argmax_\alpha\;\kappa(\alpha),
+  \label{eq:kappa}
+\end{equation}
+computed by central differences on the 31-point logarithmic grid (\file{...:3575--3591}). A $\hat\alpha_{\text{compr}}$ is also reported by minimum normalised distance to the origin in the $(\eta,\rho)$ plane (\file{...:3593--3607}).
+
+\subsection{Statistics for distribution mode (\file{...:3958--3963})}
+$\chi^{2}$ and $\chi^{2}_\nu$ are computed as in discrete mode, with $p_{\text{eff}}=n+\mathbf 1_{\text{fit }b}+\mathbf 1_{\text{fit }s}+M_s+|\bm\eta|$. This count \emph{overestimates} the effective degrees of freedom of the regularised problem (see improvement~\ref{mej:dof}).
+
+%======================================================================
+\section{Proposed improvements}\label{sec:mej}
+
+The following concrete changes are listed in order of expected impact on fitting quality and statistical honesty.
+
+\begin{mejora}{Poisson likelihood instead of Gaussian $\chi^{2}$}\label{mej:poisson}
+Counts are Poisson; the approximation $\sigma_i=\sqrt{c_i/2}$ breaks down in low-count channels (spectrum tail, scaled by thick absorbers). Replace \eqref{eq:residuo} with
+\(\;r_i = 2(\sqrt{c_i+3/8}-\sqrt{\hat c_i+3/8})\;\) (Anscombe, unit variance) or, in full maximum likelihood,
+\(\;-2\log\mathcal L = 2\sum_i\bigl[\hat c_i - c_i + c_i\log(c_i/\hat c_i)\bigr]\), valid for $c_i\ge 0$.
+\end{mejora}
+
+\begin{mejora}{Effective degrees of freedom in Tikhonov}\label{mej:dof}
+In \eqref{eq:tikh} not all $n$ bins are real degrees of freedom. Use
+\(\;p_{\text{eff}} = \tr\bigl(A(\alpha)\bigr),\;A(\alpha)=X(X^\top W X+\alpha L^\top L)^{-1}X^\top W,\)
+and redefine $\chi^{2}_\nu=\chi^{2}/(N-p_{\text{eff}})$. Without this, the $\chi^{2}_\nu$ reported in distribution mode is always either too pessimistic or too optimistic.
+\end{mejora}
+
+\begin{mejora}{Automatic selection of $\alpha$ by GCV or discrepancy}\label{mej:alpha}
+The curvature \eqref{eq:kappa} on a 31-point grid is \emph{noisy}. More stable alternatives:
+\begin{align*}
+  \mathrm{GCV}(\alpha) &= \frac{\|W^{1/2}(I-A(\alpha))\bm y\|^{2}}{[\tr(I-A(\alpha))]^{2}}\quad\text{(no additional parameters)},\\
+  \text{Morozov:}\quad &\text{choose }\alpha\text{ such that }\chi^{2}(\hat z(\alpha))\approx N-p_{\text{eff}}.
+\end{align*}
+GCV in particular does not require knowing $\sigma$ and is optimal in prediction loss.
+\end{mejora}
+
+\begin{mejora}{Global refinement with analytical Jacobian (VARPRO)}\label{mej:varpro}
+In \eqref{eq:varpro} the internal solver is evaluated for each finite perturbation. The Golub--Pereyra analytical Jacobian uses
+\(\partial\hat{\bm z}/\partial\eta_j = -(X^\top WX+\alpha L^\top L)^{-1}\,(\partial X^\top W/\partial \eta_j)\,(X\hat z-y),\)
+restricted to the \emph{active set} of bounds. This, together with \emph{warm-start} of \code{lsq\_linear}, multiplies the speed of refine\_global mode by $\times 5$--$10$ and effectively increases \code{max\_nfev}.
+\end{mejora}
+
+\begin{mejora}{TV / MaxEnt regularisation}\label{mej:tv}
+The penalty $\|L\bm p\|_2^{2}$ favours smooth distributions. For distributions with well-defined peaks (phase mixtures), use
+\[
+  \alpha\,\|D_1 \bm p\|_1 \quad\text{(Total Variation, via ADMM or PDHG)}, \quad
+  \text{or}\quad \alpha\sum_k p_k\log\!\tfrac{p_k}{m_k}\;\text{(MaxEnt)},
+\]
+both compatible with $\bm p\ge\bm 0$.
+\end{mejora}
+
+\begin{mejora}{Explicit 3:2:1 ratio in discrete mode}\label{mej:321}
+The distribution kernel enforces $I_1{:}I_2{:}I_3=3{:}2{:}1$ (\file{mossbauer\_distribution.py:97--99}), but discrete mode leaves $i_1,i_2,i_3$ free. Adding an optional constraint
+\(i_1=3,\;i_2=2,\;i_3\text{ free (depth)}\) — or exposed as a texture parameter $f$:
+\(\,(I_1,I_2,I_3) = (3,\,2,\,1)\,(1+f\,\bm t)\) — would give direct comparability between modes and reduce $p$ by $\sim 2$ per sextet.
+\end{mejora}
+
+\begin{mejora}{Analytical Voigt normalisation}\label{mej:voigt}
+In \eqref{eq:voigt} $c_V=\max$ is discrete, noisy and depends on the sampling. Use $c_V = \Re\,w(i\gamma/(\sigma\sqrt 2))/(\sigma\sqrt{2\pi})$ (analytical value at $v=v_0$). This makes \emph{depth} comparable between Lorentz and Voigt.
+\end{mejora}
+
+\begin{mejora}{Complete magnetic + quadrupolar Hamiltonian}\label{mej:ham}
+Equation \eqref{eq:sext_pos} only treats $\dEQ$ to first order. For non-small $\dEQ$ (Fe$_3$O$_4$ at low $T$, low-symmetry sites) and angle $\beta$ between the magnetic axis and EFG, the six positions are obtained by diagonalising the $4\times 4$ ground state plus excited-state mixing. Closed implementation via the exact Kündig solution or numerical diagonalisation.
+\end{mejora}
+
+\begin{mejora}{Thick-absorber transmission integral}\label{mej:thickness}
+\eqref{eq:Tmodel} is linear in the absorber. For $t \gtrsim 1$ use
+\(T(v) = 1 - f_a\bigl[1 - \exp(-t_a\,\Sigma_c A_c)\bigr]\)
+or the Margulies--Ehrman integral convolved with the source line. Adding an effective thickness parameter $t_a$ corrects systematic biases in $d$ and $\gamma$.
+\end{mejora}
+
+\begin{mejora}{Robust loss for outliers}\label{mej:robust}
+Passing \code{least\_squares(..., loss="huber", f\_scale=3)} reduces the influence of channels with cosmic-ray spikes or folding errors on $\hat{\bm x}$, without changing the result in clean regions.
+\end{mejora}
+
+\begin{mejora}{Error bars on $P(\BHF)$}\label{mej:perr}
+Currently no uncertainty is reported for the distribution. On the active set (indices $\mathcal A=\{k:\hat p_k>0\}$),
+\[
+  \widehat{\mathrm{Cov}}(\hat{\bm p}_{\mathcal A}) = (X_{\mathcal A}^\top W X_{\mathcal A}+\alpha L_{\mathcal A}^\top L_{\mathcal A})^{-1}
+  \;X_{\mathcal A}^\top W X_{\mathcal A}\;(X_{\mathcal A}^\top W X_{\mathcal A}+\alpha L_{\mathcal A}^\top L_{\mathcal A})^{-1},
+\]
+at negligible cost. Alternative: extend the parametric bootstrap (\file{...:3488--3547}) to distribution mode.
+\end{mejora}
+
+\begin{mejora}{Propagation of calibration uncertainty}\label{mej:vmax}
+$v_{\max}$ is optionally fitted but $\sigma_{v_{\max}}$ does not enter $\sigma_i$. Adding
+\(\sigma_i^{2}\leftarrow \sigma_i^{2}+(\partial T/\partial v_{\max})^{2}\sigma_{v_{\max}}^{2}\) corrects the bias in $\delta$ typical of imperfect calibrations.
+\end{mejora}
+
+\begin{mejora}{Conditioning of $K$ for small $\BHF$}\label{mej:cond}
+For $\BHF\to 0$ the six lines collapse to the centre and the corresponding columns of $K$ become nearly collinear with a singlet. This produces artefactual $P(\BHF)$ for $B\lesssim 2\,$T. Suggestions: (i) enforce $B_{\min}\gtrsim 2\,$T by default in $\BHF$ mode, (ii) rescale columns $K_{:k}\leftarrow K_{:k}/\|K_{:k}\|$ before the solver and undo the scaling afterwards, (iii) add an explicit singlet/doublet column and let the optimiser decide.
+\end{mejora}
+
+\begin{mejora}{Global optimisation in discrete mode}\label{mej:global}
+With $\ge 2$ sextets, there are local minima due to label permutations and $\BHF_1\leftrightarrow\BHF_2$ exchange. Before TRF, a \code{differential\_evolution} with a budget of $\sim 200$ evaluations followed by TRF polishing noticeably improves robustness. The current multistart structure (8 Gaussian perturbations with fixed seed) does not cover label-swap jumps.
+\end{mejora}
+
+\begin{mejora}{Active-set warm-start in the $\alpha$ scan}\label{mej:warm}
+In \file{...:3624--3647} each $\alpha_k$ is solved from scratch. \code{lsq\_linear} allows reusing the active set from $\alpha_{k-1}$ (similar by logarithmic proximity); this typically reduces the L-curve computation time by $\times 4$--$6$.
+\end{mejora}
+
+\begin{mejora}{Wider slope bounds}\label{mej:slope}
+$s\in[-10^{-4},10^{-4}]$ (\file{...:3270}) is restrictive if the detector drifts ($\sim 10^{-3}/\text{mm·s}^{-1}$). Widening to $\pm 5\cdot 10^{-3}$ and letting the weighted $\chi^{2}$ decide (the slope is already penalised by the baseline if edge biases are removed).
+\end{mejora}
+
+%======================================================================
+\section{Visual summary of the optimisation stack}
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Mode} & \textbf{Functional} & \textbf{Solver} \\
+\midrule
+Discrete & $\tfrac12\|\bm r\|^{2}$ with $r_i=(T-y_i)/\sigma_i$ & \code{least\_squares} (TRF, FD-Jac) \\
+Distribution (Tikhonov) & $\|W^{1/2}(X\bm z-\bm y)\|^{2}+\alpha\|L\bm p\|^{2}$ & \code{lsq\_linear} (bounded, LSMR) \\
+Parametric dist. & $\|W^{1/2}(X(\bm\eta)\bm z-\bm y)\|^{2}$ & \code{least\_squares} (NL, FD-Jac) \\
+Global refinement & $\|W^{1/2}(X(\bm\eta)\hat{\bm z}(\bm\eta)-\bm y)\|^{2}$ & outer NL + inner bounded \\
+L-curve & $\max_\alpha\kappa(\alpha)$ over 31 points & curvature by differences \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Conclusion}
+The fitting engine is functionally correct: it combines a physical model of Lorentzian (or Voigt) lines with a well-tested bounded least-squares solver and solid statistical diagnostics. The proposed improvements fall into three families: (a)~\textbf{statistical honesty} (Poisson, effective dof, error bars on $P(B)$, propagation of $\sigma_{v_{\max}}$); (b)~\textbf{optimum quality} (analytical VARPRO, global optimisation, warm-start, GCV); and (c)~\textbf{physical fidelity} (3:2:1, analytical Voigt, complete Hamiltonian, thickness). Any of proposals~\ref{mej:poisson}, \ref{mej:dof}, \ref{mej:alpha}, \ref{mej:perr}, and~\ref{mej:cond} are small changes with immediate benefit. \ref{mej:ham} and~\ref{mej:thickness} are the most ambitious but open applicability to thick samples and to phases with strong combined interaction.
+
+\end{document}
