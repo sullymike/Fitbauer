@@ -25,7 +25,7 @@
   fonttitle=\bfseries, title={#1}, left=4pt, right=4pt, top=3pt, bottom=3pt}
 
 \title{\textbf{Modelos de relajación magnética en Fitbauer}\\[3pt]
-\large Componente fenomenológica y modelo dinámico Blume--Tjon de dos estados}
+\large Componente fenomenológica, modelo Blume--Tjon y distribución Néel--Arrhenius}
 \author{Departamento de Química Física · UAM}
 \date{\today}
 
@@ -33,13 +33,18 @@
 \maketitle
 
 \begin{abstract}\noindent
-Este documento describe la primera implementación de relajación magnética en
-Fitbauer. Se añaden dos modelos nuevos sin modificar los modelos matemáticos
-preexistentes de singlete, doblete, sextete ni distribuciones Hesse--Rübartsch:
-(1) una componente fenomenológica \code{Relajacion}, que mezcla un sextete
-bloqueado con un doblete superparamagnético aparente, y (2) una componente
-\code{BlumeTjon}, que aproxima la relajación dinámica mediante intercambio
-simétrico de dos estados $+\BHF \leftrightarrow -\BHF$.
+Este documento describe los tres modelos de relajación magnética implementados
+en Fitbauer, complementarios a los modelos preexistentes de singlete, doblete,
+sextete y distribuciones Hesse--Rübartsch:
+(1)~\code{Relajacion}: componente fenomenológica que interpola entre un sextete
+bloqueado y un doblete superparamagnético aparente;
+(2)~\code{BlumeTjon}: modelo dinámico de dos estados ($+\BHF \leftrightarrow -\BHF$)
+con intercambio simétrico tipo Bloch--McConnell;
+(3)~\code{NeelSize}: modelo Néel--Arrhenius con distribución lognormal de tamaños
+de partícula, combinando el perfil \code{BlumeTjon} para cada diámetro.
+El ajuste global simultáneo de espectros a varias temperaturas está disponible
+mediante el diálogo \code{GlobalNeelFitDialog} (\code{gui/dialogs.py},
+\textbf{Ajuste → Global Néel (T)}).
 \end{abstract}
 
 \tableofcontents
@@ -315,10 +320,14 @@ Se añadieron pruebas sintéticas para verificar:
   un diámetro sintético compartido en un par de espectros.
 \end{enumerate}
 
-\begin{nota}[Alcance]
-La implementación actual no incluye todavía Néel--Arrhenius, distribución de
-tamaños ni ajuste global multi-temperatura. Esas extensiones requieren modelos y
-datos adicionales para evitar sobreinterpretar un único espectro.
+\begin{nota}[Alcance — v4.9.0+]
+Los tres modelos descritos en este documento (\code{Relajacion}, \code{BlumeTjon}
+y \code{NeelSize}) están completamente implementados en \code{core/physics.py}
+e integrados en la GUI. El ajuste global multi-temperatura está disponible desde
+\textbf{Ajuste → Global Néel (T)} (\code{GlobalNeelFitDialog} en
+\code{gui/dialogs.py}). Para un único espectro conviene fijar parámetros con
+información externa (TEM, magnetometría) o usar el ajuste global multi-temperatura
+para reducir la degeneración.
 \end{nota}
 
 \end{document}

@@ -1,13 +1,44 @@
-# Ajuste con distribución P(BHF)
+# Distribuciones en espectros Mössbauer
 
-Backend experimental, todavía sin integrar en GUI.
+Motor de distribución continua integrado en la GUI y disponible por CLI y API Python.
 
-## Archivos
+## Archivos principales
 
-- `mossbauer_distribution.py`: motor Hesse-Rübartsch (`P(BHF) >= 0` + regularización de segundas diferencias).
+- `mossbauer_distribution.py`: motor Hesse–Rübartsch (`P(BHF) ≥ 0` + regularización Tikhonov/TV).
 - `mossbauer_ws5.py`: lectura/doblado de `.ws5` y sidecars Normos.
-- `mossbauer_bhf_pipeline.py`: función de alto nivel lista para endpoint web.
+- `mossbauer_bhf_pipeline.py`: función de alto nivel para endpoint web.
 - `fit_bhf_distribution_cli.py`: script CLI para pruebas y generación de `.dat`/`.png`.
+
+## Modos de distribución disponibles en la GUI
+
+| Modo | Variable distribuida | Uso típico |
+|---|---|---|
+| `P(BHF)` | Campo hiperfino $B_{hf}$ | Ferritas, óxidos con desorden magnético |
+| `P(ΔEQ)` | Desdoblamiento cuadrupolar | Silicatos, vidrios, fases amorfas paramagnéticas |
+| `P(δ)` | Desplazamiento isomérico | Distribución de entornos electrónicos |
+| `P(BHF, ΔEQ) 2D` | Campo + cuadrupolo | Nanopartículas con acoplamiento $B$–$Q$ |
+| `P(δ, ΔEQ) 2D` | IS + cuadrupolo | Dobletes anchos con variación simultánea de centro y separación |
+| `P(BHF, δ) 2D` | Campo + IS | Fases magnéticas con distribución de entornos (sensible a calibración) |
+
+Todos los modos admiten componentes nítidas simultáneas (sextetes, dobletes o singletes con amplitud libre no negativa ajustada junto a la distribución).
+
+## Regularización
+
+### Tikhonov (segunda diferencia, por defecto)
+
+Penaliza la curvatura de la distribución:
+
+$$\Phi(\mathbf{p}) = \|W^{1/2}(X\mathbf{z} - \mathbf{y})\|^2 + \alpha \|L\mathbf{p}\|^2$$
+
+donde $L$ es el operador de segundas diferencias. Favorece distribuciones suaves. Selector `alpha` en la GUI; botones de preset (fino / medio / suave) y `L-curve α` para estimación automática por máxima curvatura o GCV.
+
+### Total Variation (L1, para fases discretas)
+
+Penaliza la variación total de la distribución:
+
+$$\Phi(\mathbf{p}) = \|W^{1/2}(X\mathbf{z} - \mathbf{y})\|^2 + \alpha \|D_1\mathbf{p}\|_1$$
+
+Favorece distribuciones con transiciones abruptas (mezcla de pocas fases bien definidas), a diferencia de Tikhonov que suaviza. Seleccionable en el panel de opciones del modo distribución.
 
 ## Uso CLI básico
 
@@ -24,16 +55,11 @@ Salidas:
 - `*_bhf_distribution.dat`: BHF, P, P normalizada.
 - `*_bhf_summary.json`: parámetros y métricas.
 - `*_bhf_plot.png`: espectro + residual + P(BHF).
-- `*_bhf_alpha_scan.dat/.png`: L-curve simple si se usa `--scan-alpha --plot`.
+- `*_bhf_alpha_scan.dat/.png`: L-curve si se usa `--scan-alpha --plot`.
 
-## Mezcla con subespectros nítidos
+## Mezcla con componentes nítidos
 
-En la GUI, modo `P(BHF)`, se puede activar `sumar componentes activos nítidos`.
-Entonces los componentes activos 1–3 se suman a la distribución como singlete,
-doblete o sextete según la forma elegida en cada pestaña. El ajuste recalcula
-`P(BHF)` y la amplitud/profundidad de cada subespectro nítido; los demás
-parámetros se cambian manualmente o con la opción experimental de refinar
-`δ` y `Γ` globales de la distribución.
+En la GUI, con modo `P(BHF)` activado, se puede activar _sumar componentes activos nítidos_. Los componentes activos 1–3 se suman a la distribución como singlete, doblete o sextete. El ajuste recalcula `P(BHF)` y la amplitud de cada nítido simultáneamente.
 
 Para añadir una fase tipo Fe metálico residual con BHF fijo desde CLI:
 
@@ -45,7 +71,13 @@ python3 fit_bhf_distribution_cli.py muestra.ws5 \
   --plot --scan-alpha
 ```
 
-El/los sextetes `--sharp-bhf` se ajustan con amplitud no negativa, pero no se regularizan.
+## Corrección de espesor con distribuciones
+
+Cuando la muestra es gruesa (absorción > ~15 %), se puede activar la corrección de espesor también en modo distribución. El modo distribución usa una **transformada inversa** que recupera la linealidad en los pesos:
+
+$$A_\text{obs}(v) = -C \ln\!\left(1 - \frac{b + sv - y(v)}{C}\right)$$
+
+El solver regularizado trabaja sobre $A_\text{obs}$ (lineal en $P$) y el modelo se re-satura para calcular residuos. Un lazo VARPRO externo refina $(b, s, C)$ mientras el solver interno recupera $P$ en cada iteración. Ver `docs/correccion_espesor.tex` para la derivación completa.
 
 ## Uso desde Python / endpoint
 
@@ -62,7 +94,6 @@ payload = fit_ws5_bhf_distribution(
     sharp_bhf=[33.0],   # opcional
 )
 
-# payload ya es serializable a JSON por defecto
 print(payload["BHF_centers"])
 print(payload["probability"])
 print(payload["fitted_curve"])
@@ -70,7 +101,8 @@ print(payload["fitted_curve"])
 
 ## Notas prácticas
 
-- En la GUI hay presets de `alpha`: fino, medio y suave. También hay botón `L-curve α` para estimar un valor razonable.
-- `alpha` es el parámetro crítico. Usar `--scan-alpha` para ver el compromiso residuo/suavidad.
-- Si `B_min=0`, el ajuste puede usar bajo campo para absorber contribuciones no magnéticas o fondo. Para una distribución magnética pura suele ser mejor probar `--bmin 15` o `--bmin 20`.
-- `delta`, `quad` y `gamma` son globales/fijos para toda la distribución en esta primera versión.
+- `alpha` es el parámetro crítico: usar `--scan-alpha` o el botón `L-curve α` de la GUI para elegirlo.
+- Si `B_min=0`, el ajuste puede usar bajo campo para absorber contribuciones no magnéticas. Para distribución magnética pura, probar `--bmin 15` o `--bmin 20`.
+- `delta`, `quad` y `gamma` son globales/fijos para toda la distribución en el modo 1D.
+- Para distribuciones 2D: la malla puede ser grande ($N_x \times N_y$ bins); usar regularizaciones $\alpha_x$, $\alpha_y$ independientes y verificar estabilidad variando ambas. Ver `docs/distribuciones_2d_mossbauer.tex`.
+- Distribuciones con IS (`P(δ)`, `P(δ, ΔEQ)`): muy sensibles a calibración de velocidad y folding point. Ver `docs/distribuciones_is_mossbauer.tex`.
