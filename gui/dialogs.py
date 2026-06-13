@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from PySide6 import QtWidgets
+from PySide6.QtCore import Qt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -450,11 +451,11 @@ class GlobalNeelFitDialog(QtWidgets.QDialog):
         self.table.setRowCount(len(self.entries))
         for i, e in enumerate(self.entries):
             item_file = QtWidgets.QTableWidgetItem(e["path"].name)
-            item_file.setFlags(item_file.flags() & ~QtWidgets.QTableWidgetItem.ItemFlag.ItemIsEditable)  # type: ignore[attr-defined]
+            item_file.setFlags(item_file.flags() & ~Qt.ItemFlag.ItemIsEditable)  # type: ignore[attr-defined]
             self.table.setItem(i, 0, item_file)
             temp_val = e.get("temp_k")
             item_temp = QtWidgets.QTableWidgetItem("" if temp_val is None else f"{temp_val:g}")
-            item_temp.setFlags(item_temp.flags() | QtWidgets.QTableWidgetItem.ItemFlag.ItemIsEditable)  # type: ignore[attr-defined]
+            item_temp.setFlags(item_temp.flags() | Qt.ItemFlag.ItemIsEditable)  # type: ignore[attr-defined]
             self.table.setItem(i, 1, item_temp)
             self.table.setItem(i, 2, QtWidgets.QTableWidgetItem(tr(f"batch.status_{e['status']}")))
 
@@ -557,7 +558,6 @@ class GlobalNeelFitDialog(QtWidgets.QDialog):
             "neel_log10_tau0": self.spin_log10_tau0.value(),
         }
 
-        from PySide6.QtCore import Qt
         QtWidgets.QApplication.setOverrideCursor(Qt.WaitCursor)
         try:
             result = fit_neel_size_global(spectra, shared_initial=shared_initial)
