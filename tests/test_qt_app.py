@@ -710,8 +710,11 @@ def test_save_fit_writes_tsv(win, tmp_path):
     finally:
         QtWidgets.QFileDialog.getSaveFileName = old
     assert out.exists()
-    head = out.read_text().splitlines()[0]
-    assert "velocity_mm_s" in head and "data_norm" in head and "model" in head
+    content = out.read_text()
+    # El fichero lleva líneas de cabecera comentadas (#); la línea de columnas
+    # es la primera no comentada.
+    col_line = next(l for l in content.splitlines() if not l.startswith("#"))
+    assert "velocity_mm_s" in col_line and "data_norm" in col_line and "model" in col_line
 
 
 def test_qt_check_updates_uses_releaseinfo_without_tk_dict_bug(win, monkeypatch):
