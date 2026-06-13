@@ -33,6 +33,15 @@ class FileState:
 
 
 @dataclass
+class ComparisonSpectrum:
+    """Espectro cargado solo para comparación visual (sin ajuste)."""
+    path: Path
+    velocity: np.ndarray
+    y_data: np.ndarray
+    label: str
+
+
+@dataclass
 class RuntimeResultState:
     """Resultados runtime no serializables de la ventana.
 

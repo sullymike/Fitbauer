@@ -237,6 +237,7 @@ class FitWorkflowMixin:
             residual=render_state.residual,
             style_name=self.plot_style_name,
             dist_map_2d=getattr(self, "_dist_map_2d", None),
+            comparison=getattr(self, "comparison_spectra", []),
         )
 
     def _finish_gui_fit_result(self, result: GuiFitResult) -> None:

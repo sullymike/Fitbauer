@@ -60,6 +60,20 @@ class PlotlyToolsMixin:
             rows=rows, cols=1, shared_xaxes=False,
             row_heights=row_heights, vertical_spacing=0.055,
         )
+        # Espectros de comparación (detrás de los datos principales)
+        _cmp_palette = ("#f97316", "#0d9488", "#db2777", "#65a30d", "#7c3aed", "#0284c7")
+        for ci, csp in enumerate(render.get("comparison") or []):
+            color = _cmp_palette[ci % len(_cmp_palette)]
+            fig.add_trace(
+                go.Scattergl(
+                    x=csp.velocity.tolist(), y=csp.y_data.tolist(),
+                    mode="lines", name=csp.label,
+                    line=dict(color=color, width=1.4),
+                    opacity=0.75,
+                    hovertemplate=f"{csp.label}<br>v=%{{x:.5g}}<br>y=%{{y:.6g}}<extra></extra>",
+                ),
+                row=1, col=1,
+            )
         # WebGL (scattergl) para que muchos puntos se dibujen con fluidez.
         fig.add_trace(
             go.Scattergl(

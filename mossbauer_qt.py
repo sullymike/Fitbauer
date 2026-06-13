@@ -66,6 +66,7 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
             self.setWindowIcon(QtGui.QIcon(str(icon_png)))
         self.resize(1400, 900)
         self.file = FileState()
+        self.comparison_spectra: list = []   # ComparisonSpectrum, solo display
         self._building = False
         self.plot_style_name = "modern"
         self.constraints: list[dict] = []
