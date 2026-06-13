@@ -20,6 +20,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 try:
     from PySide6 import QtWidgets  # noqa: F401
     import mossbauer_qt as mq
+    from core.constants import APP_VERSION
 except Exception as exc:  # pragma: no cover
     pytest.skip(f"PySide6 / mossbauer_qt no disponible: {exc}",
                 allow_module_level=True)
@@ -470,7 +471,7 @@ def test_minima_overlay_present_in_plotly_figure(win):
     win.on_edit_minima(redetect=True)
     fig = win._current_plotly_figure()
     names = [t.name or "" for t in fig.data]
-    assert any("nimos" in n for n in names)  # "Mínimos (...)"
+    assert any("nim" in n for n in names)  # "Mínimos" (ES) / "Minima" (EN/FR)
     # Excluir uno hace aparecer la traza de excluidos.
     win._on_minima_row_changed(0, included=False)
     fig2 = win._current_plotly_figure()
@@ -710,8 +711,11 @@ def test_save_fit_writes_tsv(win, tmp_path):
     finally:
         QtWidgets.QFileDialog.getSaveFileName = old
     assert out.exists()
-    head = out.read_text().splitlines()[0]
-    assert "velocity_mm_s" in head and "data_norm" in head and "model" in head
+    content = out.read_text()
+    # El fichero lleva líneas de cabecera comentadas (#); la línea de columnas
+    # es la primera no comentada.
+    col_line = next(l for l in content.splitlines() if not l.startswith("#"))
+    assert "velocity_mm_s" in col_line and "data_norm" in col_line and "model" in col_line
 
 
 def test_qt_check_updates_uses_releaseinfo_without_tk_dict_bug(win, monkeypatch):
@@ -736,7 +740,7 @@ def test_qt_check_updates_uses_releaseinfo_without_tk_dict_bug(win, monkeypatch)
     win.on_check_updates()
 
     assert messages
-    assert "última versión" in messages[0]
+    assert APP_VERSION in messages[0]  # versión presente en todos los idiomas
 
 
 def test_qt_update_available_dialog_can_offer_release_download(win, monkeypatch):

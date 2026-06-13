@@ -71,10 +71,17 @@ class DiscreteFitMixin:
         self._building = False
         red = result.stats.get("red_chi2", float("nan"))
         chi2 = result.stats.get("chi2", float("nan"))
+        import math
+        if math.isnan(red) or red < 1.5:
+            quality = "✓"
+        elif red < 3.0:
+            quality = "⚠"
+        else:
+            quality = "⚠ ajuste poco fiable —"
         gui_result = GuiFitResult(
             mode="discrete",
             raw_result=result,
-            message=f"χ²={chi2:.4g}  χ²red={red:.4g}  ·  {result.n_starts} arranques",
+            message=f"{quality} χ²={chi2:.4g}  χ²red={red:.4g}  ·  {result.n_starts} arranques",
         )
         self.runtime_results.set_discrete_fit(result, gui_result=gui_result)
         self._finish_gui_fit_result(gui_result)

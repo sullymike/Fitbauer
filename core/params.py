@@ -58,6 +58,12 @@ COMPONENT_KINDS = (
 # Formas válidas de distribución hiperfina (selector del panel y validación).
 DISTRIBUTION_SHAPES = ("Histograma", "Gaussiana", "Binomial", "Fija", "2D")
 
+# Modos válidos de intensidad relativa para sextetes.
+INTENSITY_MODES = ("free", "texture")
+
+# Tratamientos cuadrupolares válidos para sextetes.
+QUAD_TREATMENTS = ("1st_order", "kundig_fixed", "kundig_powder")
+
 
 @dataclass(frozen=True)
 class ParamSpec:
@@ -173,7 +179,7 @@ FIT_INIT_SPECS: dict[str, ParamSpec] = {
     "sextet_2pk_bhf_min":  ParamSpec(25.0,  0.0, 60.0,  0.5, 1),
     "init_bhf_min":        ParamSpec(20.0, 10.0, 60.0,  0.5, 1),
     # Clips de anchura, isomer shift y profundidad en la inicialización
-    "init_gamma_min":      ParamSpec(0.08, 0.06,  1.0, 0.01, 3),
+    "init_gamma_min":      ParamSpec(0.10, 0.06,  1.0, 0.01, 3),
     "init_gamma_max":      ParamSpec(2.0,   0.3,  4.0,  0.1, 2),
     "init_delta_lo":       ParamSpec(-2.5, -5.0,  0.0,  0.1, 2),
     "init_delta_hi":       ParamSpec( 2.5,  0.0,  5.0,  0.1, 2),
@@ -197,7 +203,7 @@ PEAK_DETECTION_SPECS: dict[str, ParamSpec] = {
     "min_dist_factor":        ParamSpec(0.15, 0.05, 0.5,  0.01, 3),
     "height_thr_factor":      ParamSpec(0.06, 0.01, 0.3,  0.01, 3),
     "prom_thr_factor":        ParamSpec(0.05, 0.01, 0.3,  0.01, 3),
-    "min_separation":         ParamSpec(0.12, 0.05, 0.5,  0.01, 3),
+    "min_separation":         ParamSpec(0.15, 0.05, 0.5,  0.01, 3),
     "score_tol":              ParamSpec(0.45, 0.1,  2.0,  0.05, 3),
     "score_tol_factor":       ParamSpec(0.10, 0.0,  0.5,  0.01, 3),
     "narrow_tol_factor":      ParamSpec(0.50, 0.1,  1.0,  0.05, 3),
