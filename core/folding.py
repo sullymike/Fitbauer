@@ -10,6 +10,84 @@ from pathlib import Path
 
 import numpy as np
 
+# ── Cargador de espectros ya doblados en espacio de velocidad ─────────────────
+
+#: Cuentas máximas usadas al convertir transmisión normalizada (≤1) a cuentas.
+_CSV_MAX_COUNT = 2_000_000
+
+
+def load_velocity_csv(path: str | Path) -> dict:
+    """Carga un espectro Mössbauer ya doblado en formato CSV/TXT (espacio velocidad).
+
+    Soporta:
+    - Separadores: coma, tabulador o espacio(s).
+    - Líneas de comentario o cabecera: se ignoran si empiezan por ``#`` o si
+      algún campo no es numérico.
+    - Detección automática de transmisión normalizada: si todos los valores de
+      la columna 2 son ≤ 1.0, se interpreta como transmisión y se escala a
+      ``round(_CSV_MAX_COUNT * col2)``.
+    - El eje de velocidad se devuelve ordenado de menor a mayor.
+
+    Parameters
+    ----------
+    path:
+        Ruta al fichero CSV/TXT/DAT/EXP.
+
+    Returns
+    -------
+    dict con claves:
+        ``"velocity"`` : np.ndarray — velocidades en mm/s (ordenadas ascendente).
+        ``"y"``        : np.ndarray — cuentas (float).
+        ``"source"``   : ``"csv"``.
+
+    Raises
+    ------
+    ValueError
+        Si se encuentran menos de 10 puntos de datos válidos.
+    """
+    path = Path(path)
+    text = path.read_text(encoding="utf-8", errors="replace")
+
+    velocities: list[float] = []
+    ys: list[float] = []
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        # Sustituir comas y tabuladores por espacio para facilitar el split.
+        parts = re.split(r"[,\t\s]+", stripped)
+        if len(parts) < 2:
+            continue
+        try:
+            v = float(parts[0])
+            y = float(parts[1])
+        except ValueError:
+            # Línea de cabecera con texto no numérico → ignorar.
+            continue
+        velocities.append(v)
+        ys.append(y)
+
+    if len(velocities) < 10:
+        raise ValueError(
+            f"Se encontraron solo {len(velocities)} puntos válidos en {path}; "
+            "se requieren al menos 10."
+        )
+
+    vel = np.array(velocities, dtype=float)
+    y_arr = np.array(ys, dtype=float)
+
+    # Convertir transmisión normalizada a cuentas si todos los valores son ≤ 1.
+    if float(np.max(y_arr)) <= 1.0:
+        y_arr = np.round(_CSV_MAX_COUNT * y_arr).astype(float)
+
+    # Ordenar por velocidad ascendente.
+    order = np.argsort(vel)
+    vel = vel[order]
+    y_arr = y_arr[order]
+
+    return {"velocity": vel, "y": y_arr, "source": "csv"}
+
 
 def read_ws5_counts(path: Path) -> np.ndarray:
     """Lee cuentas de ficheros WS5 XML o ADT antiguos sin cabecera.

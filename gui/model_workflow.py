@@ -9,8 +9,8 @@ from PySide6 import QtWidgets
 from mossbauer_i18n import tr
 from core.constants import GLOBAL_PARAM_NAMES, SEXTET_PARAM_NAMES
 from core.folding import (
-    find_best_integer_or_half_center, fold_and_normalize, read_ws5_counts,
-    velocity_axis,
+    find_best_integer_or_half_center, fold_and_normalize, load_velocity_csv,
+    read_ws5_counts, velocity_axis,
 )
 from core.fit_engine import FitState, resolve_values
 from core.result_views import discrete_result_view
@@ -598,14 +598,24 @@ class ModelWorkflowMixin:
         return state
 
     # ── Acciones ─────────────────────────────────────────────────────────
+    # Extensiones reconocidas como espectros ya doblados en espacio de velocidad.
+    _CSV_EXTENSIONS = frozenset({".csv", ".txt", ".dat", ".exp"})
+
     def on_open(self) -> None:
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, tr("file.open"), str(ROOT),
-            "WS5/ADT (*.ws5 *.adt *.WS5 *.ADT);;All (*.*)")
+            "Espectros Mössbauer (*.ws5 *.adt *.WS5 *.ADT *.csv *.txt *.dat *.exp);;"
+            "WS5/ADT (*.ws5 *.adt *.WS5 *.ADT);;"
+            "Velocidad CSV (*.csv *.txt *.dat *.exp);;"
+            "All (*.*)")
         if not path:
             return
+        p = Path(path)
         try:
-            self._load_file(Path(path))
+            if p.suffix.lower() in self._CSV_EXTENSIONS:
+                self._load_velocity_csv_file(p)
+            else:
+                self._load_file(p)
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("file.open"),
                                            f"{type(exc).__name__}: {exc}")
@@ -656,6 +666,88 @@ class ModelWorkflowMixin:
         self._add_recent(path)
         self.statusBar().showMessage(
             f"{path.name} · {counts.size} canales · centro={center:.3f}")
+        self.runtime_results.clear()
+        self._refresh_plot()
+
+    def _load_velocity_csv_file(self, path: Path) -> None:
+        """Carga un espectro ya doblado en espacio de velocidad (CSV/TXT/DAT/EXP).
+
+        A diferencia de ``_load_file``, no realiza folding: el eje de velocidad
+        y los valores de cuentas provienen directamente del fichero.  El estado
+        ``FileState`` se rellena con ``counts=None`` para señalar que no hay
+        cuentas en bruto disponibles (operaciones como «Detectar centro» quedan
+        deshabilitadas).
+        """
+        data = load_velocity_csv(path)
+        vel: np.ndarray = data["velocity"]
+        y_raw: np.ndarray = data["y"]
+
+        # Normalizar a línea base ~1.
+        norm = float(np.percentile(y_raw, 90)) if y_raw.size else 1.0
+        norm = norm or 1.0
+        y = y_raw / norm
+
+        # Ruido Poisson proporcional (sin cuentas en bruto, usar y_raw como proxy).
+        sigma = np.sqrt(np.maximum(y_raw / 2.0, 1.0)) / norm
+
+        # Vmax aproximado a partir del eje de velocidad.
+        vmax = float(np.max(np.abs(vel))) if vel.size else 12.0
+
+        self.file = FileState(
+            path=path,
+            counts=None,       # sin cuentas en bruto
+            folded=y_raw,      # las cuentas CSV hacen las veces de «folded»
+            sigma=sigma,
+            norm_factor=norm,
+            center=None,
+            velocity=vel,
+            y_data=y,
+        )
+        self._simulate_enabled = False
+        self._dist_map_2d = None
+        _prev_fig = getattr(self, "_dist_map_2d_fig", None)
+        if _prev_fig is not None:
+            _prev_fig.clf()
+        self._dist_map_2d_fig = None
+        if hasattr(self, "dist_panel"):
+            self.dist_panel.btn_show_map.setVisible(False)
+
+        # Actualizar controles de calibración con el Vmax detectado.
+        self._building = True
+        try:
+            if hasattr(self, "calib") and hasattr(self.calib, "vmax"):
+                self.calib.vmax.set_value(vmax)
+        finally:
+            self._building = False
+
+        n_pts = int(vel.size)
+        self.file_label.setText(
+            f"<b>{path.name}</b><br>"
+            f"{n_pts} puntos · velocidad CSV · norm={norm:.4g}"
+        )
+        # Habilitar acciones compatibles con espectros sin cuentas en bruto.
+        self.act_fit.setEnabled(True)
+        self.act_init.setEnabled(True)
+        self.act_edit_minima.setEnabled(True)
+        self.act_auto_fit.setEnabled(True)
+        self.act_ai.setEnabled(True)
+        self.act_upload_session.setEnabled(True)
+        self.act_profile.setEnabled(True)
+        self.act_save_fit.setEnabled(True)
+        self.act_export_report.setEnabled(True)
+        self.act_export_short_report.setEnabled(True)
+        self.act_export_plotly.setEnabled(True)
+        self.act_open_plotly.setEnabled(True)
+        self.act_bootstrap.setEnabled(True)
+        self.act_lcurve.setEnabled(True)
+        self._set_quick_action_buttons_enabled(True)
+        # Acciones que requieren cuentas en bruto quedan deshabilitadas.
+        self.act_find_center.setEnabled(False)
+        self.act_use_as_calib.setEnabled(False)
+        self._add_recent(path)
+        self.statusBar().showMessage(
+            f"{path.name} · {n_pts} puntos · CSV velocidad · vmax≈{vmax:.3g} mm/s"
+        )
         self.runtime_results.clear()
         self._refresh_plot()
 
