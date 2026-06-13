@@ -94,30 +94,68 @@ class MinimaAnalysisMixin:
         except ImportError:
             return [], float(baseline0), float(slope)
 
-        # CWT multi-escala con ondícula Ricker (Mexican hat): detecta picos en
-        # todo el rango físico de FWHM Mössbauer (≈0.12 mm/s mínimo natural
-        # hasta ≈2.0 mm/s para líneas anchas o con distribución de campos).
-        # La matriz (n_escalas × n_canales) permite separar picos solapados y
-        # estimar el ancho directamente desde la escala de mayor respuesta.
+        # CWT multi-escala con ondícula Ricker: detecta picos solapados y estima
+        # anchuras en el rango físico Mössbauer (0.12..2.0 mm/s). Estrategia
+        # híbrida: la cresta CWT (max entre escalas) es robusta para líneas anchas
+        # y sextetes, pero puede fundir dobletes cercanos en un único "pico". Por
+        # eso se buscan candidatos también en la absorción directamente suavizada
+        # y se fusionan ambas listas antes del filtrado final.
         min_sc = max(2, int(0.12 / dv))
         max_sc = max(min_sc + 3, int(2.0 / dv))
         scales = np.arange(min_sc, max_sc + 1, dtype=float)
         cwt_mat = self._cwt_ricker(absorption, scales)         # (n_escalas, n_pts)
-        ridge = np.maximum(np.max(cwt_mat, axis=0), 0.0)     # respuesta positiva máx
+        ridge = np.maximum(np.max(cwt_mat, axis=0), 0.0)
         ridge_max = float(np.nanmax(ridge)) if ridge.size else 0.0
-        # Normalizar al rango de absorption para que los umbrales sigan siendo válidos
         fine_smooth = ridge * (max_abs / ridge_max) if ridge_max > 0.0 else ridge
 
-        peak_idxs, _ = _find_peaks(fine_smooth, height=height_thr, prominence=prom_thr)
+        # Canal 1 — picos en la cresta CWT (buen SNR para líneas anchas/sextetes)
+        cwt_idxs, _ = _find_peaks(fine_smooth, height=height_thr, prominence=prom_thr)
+        # Canal 2 — picos en la absorción con suavizado fino (rescata dobletes estrechos
+        # que el CWT fusionaría al tomar el máximo entre escalas grandes)
+        fine_win = max(3, int(0.15 / dv)) | 1   # ~0.15 mm/s, siempre impar
+        abs_fine = self._smooth_1d(absorption, fine_win)
+        abs_fine_norm = abs_fine * (max_abs / float(np.nanmax(abs_fine))) if np.nanmax(abs_fine) > 0 else abs_fine
+        dir_idxs, _ = _find_peaks(abs_fine_norm, height=height_thr, prominence=prom_thr)
+        # Fusionar listas:
+        # 1) Los picos directos son la referencia principal (evitan falsos "picos de valle"
+        #    en dobletes estrechos donde el CWT a escalas grandes responde en el mínimo).
+        # 2) Se añaden picos CWT sólo si NO están entre dos picos directos consecutivos
+        #    (ese caso es síntoma del artefacto de valle CWT) y no son duplicados.
+        dir_positions = sorted(int(i) for i in dir_idxs)
+        def _between_direct(idx: int) -> bool:
+            for k in range(len(dir_positions) - 1):
+                lo, hi = dir_positions[k], dir_positions[k + 1]
+                if lo < idx < hi:
+                    return True
+            return False
+
+        all_idxs: set[int] = set(dir_positions)
+        for i in cwt_idxs:
+            ci = int(i)
+            if ci not in all_idxs and not any(abs(ci - q) <= 1 for q in all_idxs):
+                if not _between_direct(ci):
+                    all_idxs.add(ci)
 
         peaks: list[dict[str, float]] = []
-        for i in peak_idxs:
-            # Escala de mayor respuesta CWT positiva → FWHM ≈ 2 × escala × dv
+        for i in sorted(all_idxs):
+            # Anchura desde la escala de mayor respuesta CWT positiva en ese índice
             best_sc = int(np.argmax(np.maximum(cwt_mat[:, i], 0.0)))
-            width = max(float(scales[best_sc]) * dv * 2.0, 2.0 * dv)
+            cwt_resp = float(np.max(np.maximum(cwt_mat[:, i], 0.0)))
+            if cwt_resp < 1e-10:
+                # Sin respuesta CWT positiva: estimar anchura por FWHM directo
+                half = float(abs_fine[i]) * 0.5
+                li, ri = i, i
+                while li > 0 and abs_fine[li] > half:
+                    li -= 1
+                while ri < abs_fine.size - 1 and abs_fine[ri] > half:
+                    ri += 1
+                width = max(abs(float(v[ri] - v[li])), 2.0 * dv)
+            else:
+                width = max(float(scales[best_sc]) * dv * 2.0, 2.0 * dv)
+            smooth_d = float(fine_smooth[i]) if fine_smooth[i] > 0 else float(abs_fine_norm[i])
             peaks.append({"i": float(i), "pos": float(v[i]),
                           "depth": float(absorption[i]),
-                          "smooth_depth": float(fine_smooth[i]),
+                          "smooth_depth": smooth_d,
                           "width": width})
 
         selected: list[dict[str, float]] = []
