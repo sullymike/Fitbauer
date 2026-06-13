@@ -31,6 +31,30 @@ class MinimaAnalysisMixin:
         padded = np.pad(values.astype(float), pad, mode="edge")
         return np.convolve(padded, kernel, mode="valid")
 
+    @staticmethod
+    def _cwt_ricker(signal: np.ndarray, scales: np.ndarray) -> np.ndarray:
+        """CWT con ondícula Ricker (Mexican hat) implementada con np.convolve.
+
+        Réplica de scipy.signal.cwt + ricker sin depender de esas funciones
+        (eliminadas de scipy.signal en 1.12). Para cada escala a (en canales):
+          ψ(x,a) = A·(1 − (x/a)²)·exp(−x²/(2a²))   A = 2/(√(3a)·π^1/4)
+        La respuesta CWT en (escala, posición) es la correlación cruzada del
+        espectro de absorción con ψ: valores positivos grandes indican un pico
+        cuyo FWHM coincide con la escala.
+        """
+        n = signal.size
+        cwt_mat = np.zeros((scales.size, n))
+        for j, a in enumerate(scales):
+            a = float(a)
+            # Longitud del kernel: 10·a puntos a cada lado (análogo a scipy)
+            half = max(int(5 * a), 3)
+            x = np.arange(-half, half + 1, dtype=float)
+            A = 2.0 / (np.sqrt(3.0 * a) * np.pi ** 0.25)
+            psi = A * (1.0 - (x / a) ** 2) * np.exp(-0.5 * (x / a) ** 2)
+            # Ricker es simétrica → correlación == convolución
+            cwt_mat[j] = np.convolve(signal, psi, mode="same")
+        return cwt_mat
+
     def detect_absorption_minima(self) -> tuple[list[dict[str, float]], float, float]:
         """Detecta mínimos de transmisión como máximos de absorción.
 
@@ -60,34 +84,37 @@ class MinimaAnalysisMixin:
         noise = (1.4826 * float(np.median(np.abs(diff_noise - np.median(diff_noise))))
                  if diff_noise.size else 0.0)
 
-        fine_win = max(3, absorption.size // 120)
-        if fine_win % 2 == 0:
-            fine_win += 1
-        fine_smooth = self._smooth_1d(absorption, fine_win)
-
         dv = abs(float(v[1] - v[0])) if v.size > 1 else 0.05
-        min_dist_ch = max(3, int(_PD["min_dist_factor"].default / dv))
         height_thr = max(_PD["height_thr_factor"].default * max_abs, 4.0 * noise, 5e-4)
         prom_thr = max(_PD["prom_thr_factor"].default * max_abs, 2.5 * noise, 3e-4)
+        min_distance = max(_PD["min_separation"].default, 2.0 * dv)
 
         try:
             from scipy.signal import find_peaks as _find_peaks
         except ImportError:
             return [], float(baseline0), float(slope)
-        peak_idxs, _ = _find_peaks(fine_smooth, height=height_thr,
-                                   prominence=prom_thr, distance=min_dist_ch)
+
+        # CWT multi-escala con ondícula Ricker (Mexican hat): detecta picos en
+        # todo el rango físico de FWHM Mössbauer (≈0.12 mm/s mínimo natural
+        # hasta ≈2.0 mm/s para líneas anchas o con distribución de campos).
+        # La matriz (n_escalas × n_canales) permite separar picos solapados y
+        # estimar el ancho directamente desde la escala de mayor respuesta.
+        min_sc = max(2, int(0.12 / dv))
+        max_sc = max(min_sc + 3, int(2.0 / dv))
+        scales = np.arange(min_sc, max_sc + 1, dtype=float)
+        cwt_mat = self._cwt_ricker(absorption, scales)         # (n_escalas, n_pts)
+        ridge = np.maximum(np.max(cwt_mat, axis=0), 0.0)     # respuesta positiva máx
+        ridge_max = float(np.nanmax(ridge)) if ridge.size else 0.0
+        # Normalizar al rango de absorption para que los umbrales sigan siendo válidos
+        fine_smooth = ridge * (max_abs / ridge_max) if ridge_max > 0.0 else ridge
+
+        peak_idxs, _ = _find_peaks(fine_smooth, height=height_thr, prominence=prom_thr)
 
         peaks: list[dict[str, float]] = []
-        min_distance = max(_PD["min_separation"].default, 2.0 * dv)
         for i in peak_idxs:
-            half = 0.5 * fine_smooth[i]
-            left = int(i)
-            while left > 0 and fine_smooth[left] > half:
-                left -= 1
-            right = int(i)
-            while right < fine_smooth.size - 1 and fine_smooth[right] > half:
-                right += 1
-            width = abs(float(v[right] - v[left])) if right > left else min_distance
+            # Escala de mayor respuesta CWT positiva → FWHM ≈ 2 × escala × dv
+            best_sc = int(np.argmax(np.maximum(cwt_mat[:, i], 0.0)))
+            width = max(float(scales[best_sc]) * dv * 2.0, 2.0 * dv)
             peaks.append({"i": float(i), "pos": float(v[i]),
                           "depth": float(absorption[i]),
                           "smooth_depth": float(fine_smooth[i]),
