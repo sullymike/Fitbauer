@@ -155,7 +155,7 @@ class FileActionsMixin:
                 from core.folding import velocity_axis
                 counts = read_ws5_counts(fpath)
                 center = find_best_integer_or_half_center(counts)
-                folded, _sigma, _ = fold_and_normalize(counts, center)
+                folded, _sigma, _y, _norm = fold_and_normalize(counts, center)
                 vmax = float(self.calib.vmax.value()) if hasattr(self, "calib") else 12.007
                 edge_trim = getattr(self, "_edge_trim", 1)
                 vel = velocity_axis(counts.size, vmax, folded.size, edge_trim=edge_trim)
