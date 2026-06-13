@@ -57,6 +57,8 @@ GOLDEN = {
             "s1_gamma1": 0.339687,
             "s1_depth": 0.0448438,
         },
+        # ±ΔEQ produce espectros idénticos en un doblete sin BHF; solo verificamos |quad|.
+        "sign_invariant": {"s1_quad"},
         "red_chi2": 0.84981,
     },
     "jarosita": {
@@ -84,8 +86,12 @@ def test_cli_golden_values(name, tmp_path):
                            tmp_path / f"{name}.json")
     result = session["batch_fit_result"]
     values = result["values"]
+    sign_invariant = spec.get("sign_invariant", set())
     for key, expected in spec["values"].items():
         assert key in values, f"falta {key}"
-        assert values[key] == pytest.approx(expected, rel=2e-4, abs=2e-4), (
+        actual = values[key]
+        if key in sign_invariant:
+            actual, expected = abs(actual), abs(expected)
+        assert actual == pytest.approx(expected, rel=2e-4, abs=2e-4), (
             f"{name}.{key}: {values[key]} != {expected}")
     assert result["stats"]["red_chi2"] == pytest.approx(spec["red_chi2"], rel=5e-3)
