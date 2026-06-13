@@ -1,5 +1,30 @@
 # Changelog
 
+## v4.8.2 — Ayuda completa en tres idiomas y árbol de ayuda por grupo
+
+Versión de **pulido de documentación interna**: sin cambios en el núcleo de
+física ni en el motor de ajuste.
+
+### Ayuda integrada (ES / EN / FR)
+
+- **Paridad de capítulos**: inglés y francés pasan de 19 a **28 capítulos**,
+  igualando la versión española. Se añaden 9 capítulos nuevos por idioma:
+  - Menú Archivo / File menu / Menu Fichier
+  - Menú Ajuste / Fit menu / Menu Ajustement
+  - Perfil de línea (Voigt) / Line profile / Profil de raie
+  - P(BHF): método / P(BHF): method / P(BHF) : méthode
+  - P(BHF): parámetros / P(BHF): parameters / P(BHF) : paramètres
+  - P(BHF): componentes nítidas / P(BHF): sharp components / P(BHF) : composantes nettes
+  - Menú Vista / View menu / Menu Affichage
+  - Menú Ayuda / Help menu / Menu Aide
+  - Atajos y flujo rápido / Shortcuts and quick workflow / Raccourcis et flux rapide
+- **Árbol de ayuda agrupado por campo `group`**: el árbol lateral de la ventana
+  de Ayuda ahora agrupa los capítulos por su campo `group` (overview, files,
+  fitting, distributions, results, tools) en lugar de usar índices fijos, lo que
+  lo hace robusto ante reordenaciones o ampliaciones del JSON.
+
+---
+
 ## v4.8.1 — Internacionalización completa, idioma por defecto inglés e informe reducido
 
 Versión centrada en **pulido de la interfaz**: barrido exhaustivo de
