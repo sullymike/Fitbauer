@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT))
 from mossbauer_fit_cli import fit_spectrum  # noqa: E402
 
 DATA = ROOT / "data_sample"
+DATA_PUBLIC = ROOT / "data_sample" / "public"
 
 # Baselines registrados con la implementación headless verificada.
 GOLDEN = {
@@ -46,13 +47,40 @@ GOLDEN = {
         },
         "red_chi2": 1.03455,
     },
+    "siderita": {
+        "template": "template_siderita.json",
+        "spectrum": "siderita_FeCO3.adt",
+        "values": {
+            "baseline": 0.999557,
+            "s1_delta": 1.12156,
+            "s1_quad": 1.79830,
+            "s1_gamma1": 0.339687,
+            "s1_depth": 0.0448438,
+        },
+        "red_chi2": 0.84981,
+    },
+    "jarosita": {
+        "template": "template_jarosita.json",
+        "spectrum_dir": "public",
+        "spectrum": "jarosita_KFe3SO4.adt",
+        "values": {
+            "baseline": 0.999857,
+            "s1_delta": 0.260198,
+            "s1_bhf": 30.5965,
+            "s1_quad": -0.341154,
+            "s1_gamma1": 0.319105,
+            "s1_depth": 0.0129736,
+        },
+        "red_chi2": 0.86495,
+    },
 }
 
 
 @pytest.mark.parametrize("name", sorted(GOLDEN))
 def test_cli_golden_values(name, tmp_path):
     spec = GOLDEN[name]
-    session = fit_spectrum(DATA / spec["template"], DATA / spec["spectrum"],
+    spectrum_dir = DATA / spec.get("spectrum_dir", "")
+    session = fit_spectrum(DATA / spec["template"], spectrum_dir / spec["spectrum"],
                            tmp_path / f"{name}.json")
     result = session["batch_fit_result"]
     values = result["values"]
