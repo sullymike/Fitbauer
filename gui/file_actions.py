@@ -7,8 +7,9 @@ import numpy as np
 from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
-from core.folding import find_best_integer_or_half_center
+from core.folding import find_best_integer_or_half_center, fold_and_normalize, read_ws5_counts, load_velocity_csv
 from core.reconstruction import reconstruct_discrete_model
+from gui.state import ComparisonSpectrum
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -128,6 +129,62 @@ class FileActionsMixin:
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("file.save_fit"),
                                             f"{type(exc).__name__}: {exc}")
+
+    # ── Comparación de espectros ─────────────────────────────────────────
+    def on_open_comparison(self) -> None:
+        """Carga un espectro adicional para superponerlo al actual (solo display)."""
+        if self.file.velocity is None:
+            QtWidgets.QMessageBox.information(
+                self, tr("file.compare_spectrum"),
+                tr("msg.comparison_needs_main", default="Carga primero un espectro principal."))
+            return
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, tr("file.compare_spectrum"),
+            str(ROOT / "data_sample"),
+            "Espectros (*.ws5 *.adt *.csv *.txt *.dat *.exp);;Todos (*.*)")
+        if not path:
+            return
+        fpath = Path(path)
+        try:
+            suffix = fpath.suffix.lower()
+            if suffix in (".csv", ".txt", ".dat", ".exp"):
+                data = load_velocity_csv(fpath)
+                vel = np.asarray(data["velocity"], dtype=float)
+                y_raw = np.asarray(data["y"], dtype=float)
+            else:
+                from core.folding import velocity_axis
+                counts = read_ws5_counts(fpath)
+                center = find_best_integer_or_half_center(counts)
+                folded, _sigma, _y, _norm = fold_and_normalize(counts, center)
+                vmax = float(self.calib.vmax.value()) if hasattr(self, "calib") else 12.007
+                edge_trim = getattr(self, "_edge_trim", 1)
+                vel = velocity_axis(counts.size, vmax, folded.size, edge_trim=edge_trim)
+                y_raw = folded.astype(float)
+            norm = float(np.percentile(y_raw, 90)) or 1.0
+            y_data = y_raw / norm
+            label = fpath.stem
+            csp = ComparisonSpectrum(path=fpath, velocity=vel, y_data=y_data, label=label)
+            self.comparison_spectra.append(csp)
+            self.act_clear_comparison.setEnabled(True)
+            n = len(self.comparison_spectra)
+            self.statusBar().showMessage(
+                tr("status.comparison_added", n=n, name=label,
+                   default=f"Comparación [{n}]: {label}"), 5000)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(
+                self, tr("file.compare_spectrum"),
+                f"{type(exc).__name__}: {exc}")
+            return
+        self._refresh_plot()
+
+    def on_clear_comparison(self) -> None:
+        """Elimina todos los espectros de comparación."""
+        self.comparison_spectra.clear()
+        if hasattr(self, "act_clear_comparison"):
+            self.act_clear_comparison.setEnabled(False)
+        self.statusBar().showMessage(
+            tr("status.comparison_cleared", default="Comparación eliminada"), 3000)
+        self._refresh_plot()
 
     def on_changelog(self) -> None:
         from core.constants import CHANGELOG_PATH

@@ -57,6 +57,9 @@ class SpectrumCanvas(FigureCanvas):
             self.ax_res.set_xticks([]); self.ax_res.set_yticks([])
         self.draw_idle()
 
+    # Paleta fija para espectros de comparación (contrasta con datos/modelo/componentes)
+    _COMPARISON_PALETTE = ("#f97316", "#0d9488", "#db2777", "#65a30d", "#7c3aed", "#0284c7")
+
     def render(self, v: np.ndarray, y: np.ndarray,
                model: np.ndarray | None = None,
                components: list[tuple[int, str, np.ndarray]] | None = None,
@@ -66,7 +69,8 @@ class SpectrumCanvas(FigureCanvas):
                model_v: np.ndarray | None = None,
                residual: np.ndarray | None = None,
                style_name: str | None = None,
-               dist_map_2d=None) -> None:
+               dist_map_2d=None,
+               comparison: list | None = None) -> None:
         s = style or get_style("classic")
         actual_show_residual = bool(show_residual)
         # ``model``/``components`` pueden venir muestreados en una rejilla densa
@@ -75,6 +79,7 @@ class SpectrumCanvas(FigureCanvas):
         mv = model_v if model_v is not None else v
         if residual is None and model is not None and model_v is None:
             residual = y - model
+        _comparison = list(comparison or [])
         # Estado para el gráfico Plotly (y otros consumidores) y para alternar.
         self.last_render = {
             "velocity": np.asarray(v, dtype=float).copy(),
@@ -90,19 +95,21 @@ class SpectrumCanvas(FigureCanvas):
             "show_residual": bool(show_residual),
             "show_legend": bool(show_legend),
             "dist_map_2d": dist_map_2d,
+            "comparison": _comparison,
         }
         n_comp = len(components or [])
+        n_cmp = len(_comparison)
         has_2d = dist_map_2d is not None
         # Firma de la disposición: si no cambia, se reutilizan los ejes/artistas
         # y solo se reescriben los datos (mucho más rápido, sin reconstruir).
-        layout_sig = (actual_show_residual, model is not None, n_comp,
+        layout_sig = (actual_show_residual, model is not None, n_comp, n_cmp,
                       bool(show_legend), style_name, int(np.asarray(v).size),
                       int(np.asarray(mv).size), has_2d)
         if (self._artists is not None and self._layout_sig == layout_sig
                 and style_name is not None):
             try:
                 self._update_fast(v, y, model, components, residual, mv, s,
-                                  actual_show_residual)
+                                  actual_show_residual, _comparison)
                 return
             except Exception as _exc:
                 logging.debug("Actualización incremental del canvas fallida, reconstruyendo: %s", _exc)
@@ -136,6 +143,14 @@ class SpectrumCanvas(FigureCanvas):
         self.ax.set_facecolor(s["ax_bg"])
         if self.ax_res is not None:
             self.ax_res.set_facecolor(s["res_bg"])
+        # Espectros de comparación (detrás de los datos principales)
+        cmp_lines: list = []
+        for ci, csp in enumerate(_comparison):
+            color = self._COMPARISON_PALETTE[ci % len(self._COMPARISON_PALETTE)]
+            ln, = self.ax.plot(csp.velocity, csp.y_data, "-",
+                               color=color, lw=1.2, alpha=0.7,
+                               label=csp.label)
+            cmp_lines.append(ln)
         data_line, = self.ax.plot(v, y, ".", color=s["data"],
                                   ms=s.get("data_ms", 3.5),
                                   alpha=s.get("data_alpha", 0.7),
@@ -204,6 +219,7 @@ class SpectrumCanvas(FigureCanvas):
         self._artists = {
             "data": data_line,
             "comps": comp_lines,
+            "cmp_lines": cmp_lines,
             "model": model_line,
             "res_line": res_line,
             "res_fill": res_fill,
@@ -251,7 +267,7 @@ class SpectrumCanvas(FigureCanvas):
             sp.set_color(style.get("spine", "#cbd5e1"))
 
     def _update_fast(self, v, y, model, components, residual, mv, s,
-                     actual_show_residual) -> None:
+                     actual_show_residual, comparison=None) -> None:
         """Refresco incremental: reescribe los datos sin reconstruir la figura.
 
         Se usa cuando la disposición (residuos, nº de componentes, leyenda,
@@ -260,6 +276,8 @@ class SpectrumCanvas(FigureCanvas):
         de parámetro, que es lo que hace lento el arrastre de sliders.
         """
         a = self._artists
+        for ln, csp in zip(a.get("cmp_lines", []), (comparison or [])):
+            ln.set_data(csp.velocity, csp.y_data)
         a["data"].set_data(v, y)
         comps = components or []
         for ln, (_idx, _kind, comp) in zip(a["comps"], comps):
