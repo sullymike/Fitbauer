@@ -30,4 +30,18 @@ jobs:
       - name: Run tests (headless via Xvfb)
         env:
           QT_QPA_PLATFORM: offscreen   # PySide6 sin display real (pytest-qt)
-        run: xvfb-run -a pytest -q --tb=line
+        run: |
+          xvfb-run -a pytest -q --tb=short --junit-xml=test_results.xml || true
+          python3 - << 'EOF'
+          import sys, xml.etree.ElementTree as ET
+          tree = ET.parse("test_results.xml")
+          failures = []
+          for tc in tree.getroot().iter("testcase"):
+              for ch in tc:
+                  if ch.tag in ("failure", "error"):
+                      failures.append((tc.get("classname",""), tc.get("name",""), ch.text or ""))
+          for cls, name, msg in failures:
+              print(f"\nFAILED: {cls}::{name}")
+              print(msg[:1000])
+          sys.exit(len(failures) > 0)
+          EOF
