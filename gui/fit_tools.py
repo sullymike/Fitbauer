@@ -10,7 +10,7 @@ from matplotlib.figure import Figure
 
 from mossbauer_i18n import tr
 from core.fit_engine import profile_likelihood
-from gui.dialogs import BatchFitDialog, ConstraintsDialog
+from gui.dialogs import BatchFitDialog, ConstraintsDialog, GlobalNeelFitDialog
 
 
 class FitToolsMixin:
@@ -139,6 +139,11 @@ class FitToolsMixin:
     # ── Ajuste en serie (batch) ─────────────────────────────────────────
     def on_batch_fit(self) -> None:
         dlg = BatchFitDialog(self)
+        dlg.exec()
+
+    # ── Ajuste global Néel-Arrhenius multi-temperatura ──────────────────
+    def on_global_neel_fit(self) -> None:
+        dlg = GlobalNeelFitDialog(self)
         dlg.exec()
 
     def on_constraints(self) -> None:

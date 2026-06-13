@@ -743,5 +743,14 @@
   "help.tree_files": "📁 Files and data",
   "help.tree_fitting": "🧮 Fitting",
   "help.tree_results": "💾 Results and reports",
-  "help.tree_tools": "🧰 Tools and extras"
+  "help.tree_tools": "🧰 Tools and extras",
+  "fit.global_neel_fit": "Global Néel fit (multi-T)...",
+  "global_neel.title": "Global Néel-Arrhenius fit",
+  "global_neel.col_temp": "T (K)",
+  "global_neel.init_group": "Initial Néel parameters (shared)",
+  "global_neel.results": "Global fit result",
+  "global_neel.temp_missing": "Temperature missing for one or more spectra.",
+  "global_neel.running": "Fitting {n} spectra simultaneously...",
+  "global_neel.done": "Global fit completed (χ²_red≈{redchi2:.4g}).",
+  "global_neel.save_header": "Shared parameters:"
 }

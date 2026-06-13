@@ -743,5 +743,14 @@
   "help.tree_files": "📁 Ficheros y datos",
   "help.tree_fitting": "🧮 Ajuste",
   "help.tree_results": "💾 Resultados e informes",
-  "help.tree_tools": "🧰 Herramientas y extras"
+  "help.tree_tools": "🧰 Herramientas y extras",
+  "fit.global_neel_fit": "Ajuste global Néel (multi-T)...",
+  "global_neel.title": "Ajuste global Néel-Arrhenius",
+  "global_neel.col_temp": "T (K)",
+  "global_neel.init_group": "Parámetros Néel iniciales (compartidos)",
+  "global_neel.results": "Resultado del ajuste global",
+  "global_neel.temp_missing": "Falta temperatura en uno o más espectros.",
+  "global_neel.running": "Ajustando {n} espectros simultáneamente...",
+  "global_neel.done": "Ajuste global completado (χ²_red≈{redchi2:.4g}).",
+  "global_neel.save_header": "Parámetros compartidos:"
 }
