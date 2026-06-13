@@ -1,5 +1,45 @@
 # Changelog
 
+## v4.10.0 — Comparación de espectros, correcciones y documentación ampliada
+
+Versión con **nueva funcionalidad de superposición visual de espectros**, **correcciones
+de bugs** en la detección CWT y el diálogo Néel, y **documentación de ayuda ampliada**
+a 30 capítulos en los tres idiomas (ES/EN/FR).
+
+### Nueva funcionalidad: comparación de espectros (`gui/file_actions.py`, `gui/canvas.py`, `gui/plotly_tools.py`)
+
+- **Archivo → Comparar espectro…**: carga hasta 6 espectros adicionales (`.ws5`, `.adt`,
+  `.csv`, `.dat`) para superponerlos al espectro principal como líneas finas de colores
+  distintos (naranja, teal, rosa, lima, violeta, azul cielo).
+- **Archivo → Limpiar comparación**: elimina todos los espectros de comparación; la acción
+  se habilita/deshabilita automáticamente.
+- Los espectros de comparación aparecen también en la figura Plotly exportable (HTML interactivo).
+- Los ADT/WS5 se doblan automáticamente usando el centro óptimo; los CSV se cargan directamente.
+- Nuevo dataclass `ComparisonSpectrum(path, velocity, y_data, label)` en `gui/state.py`.
+
+### Corrección de bugs
+
+- **CWT kernel overflow** (`gui/minima_analysis.py`): el kernel Ricker se clampea a
+  `(n−1)//2` para que nunca supere el tamaño del signal. Evitaba el ValueError
+  `could not broadcast input array from shape (261,) into shape (254,)`.
+- **Qt.ItemFlag** (`gui/dialogs.py`): `QTableWidgetItem.ItemFlag` no existe en PySide6;
+  corregido a `Qt.ItemFlag.ItemIsEditable` (importando `Qt` de `PySide6.QtCore`).
+- **fold_and_normalize** (`gui/file_actions.py`): la función devuelve 4 valores
+  `(folded, sigma, y, norm)`; corregido el desempaquetado que esperaba 3.
+
+### Documentación de ayuda (`locales/es,en,fr/help.json`)
+
+- **28 → 30 capítulos** en los tres idiomas:
+  - Nuevo capítulo **«Comparación de espectros»** / "Spectrum comparison" / "Comparaison de spectres"
+    (grupo: ficheros): carga, normalización, paleta de colores, límite de 6 espectros, uso típico.
+  - Nuevo capítulo **«Ajuste global Néel-Arrhenius»** / "Global Néel-Arrhenius fit" /
+    "Ajustement global Néel-Arrhenius" (grupo: ajuste): diálogo de ajuste τ(T) = τ₀·exp(Eₐ/kT)
+    sobre series de temperatura.
+  - Capítulo «Archivo y web»: añadida sección sobre el formato CSV con columna de velocidad.
+  - Capítulo «Novedades»: añadida entrada v4.9.0 y v4.10.0.
+
+---
+
 ## v4.9.0 — Detección híbrida CWT, early-stop multistart y biblioteca de espectros de referencia
 
 Versión con **mejoras en el motor de ajuste**, **nueva detección automática de mínimos
