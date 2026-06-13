@@ -213,3 +213,43 @@ def test_result_has_required_keys(tmp_path):
     result = load_velocity_csv(p)
     assert set(result.keys()) == {"velocity", "y", "source"}
     assert result["source"] == "csv"
+
+
+# ── Tests: nuevas validaciones ────────────────────────────────────────────────
+
+def test_exactly_10_points_accepted(tmp_path):
+    """Exactamente 10 puntos válidos NO debe lanzar ValueError."""
+    velocities = np.linspace(-5.0, 5.0, 10)
+    counts = [2_000_000.0] * 10
+    lines = "\n".join(f"{v:.4f},{c:.1f}" for v, c in zip(velocities, counts))
+    p = _write_csv(tmp_path, lines)
+    result = load_velocity_csv(p)
+    assert result["velocity"].size == 10
+
+
+def test_narrow_range_raises(tmp_path):
+    """20 puntos dentro de un rango < 1 mm/s debe lanzar ValueError con 'Rango'."""
+    velocities = np.linspace(-0.2, 0.3, 20)  # rango = 0.5 mm/s
+    counts = [2_000_000.0] * 20
+    lines = "\n".join(f"{v:.6f},{c:.1f}" for v, c in zip(velocities, counts))
+    p = _write_csv(tmp_path, lines)
+    with pytest.raises(ValueError, match="Rango"):
+        load_velocity_csv(p)
+
+
+def test_duplicate_velocities_deduplicated(tmp_path):
+    """15 velocidades únicas con 5 repetidas (20 filas) → resultado con ≤ 15 puntos y diffs > 0."""
+    rng = np.random.default_rng(7)
+    unique_vels = np.linspace(-7.0, 7.0, 15)
+    unique_counts = rng.integers(1_900_000, 2_100_000, size=15).astype(float)
+
+    # Duplicar las primeras 5 velocidades únicas
+    dup_vels = list(unique_vels) + list(unique_vels[:5])
+    dup_counts = list(unique_counts) + list(unique_counts[:5])
+
+    lines = "\n".join(f"{v:.6f},{c:.1f}" for v, c in zip(dup_vels, dup_counts))
+    p = _write_csv(tmp_path, lines)
+    result = load_velocity_csv(p)
+
+    assert result["velocity"].size <= 15
+    assert np.all(np.diff(result["velocity"]) > 0)
