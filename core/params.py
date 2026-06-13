@@ -58,6 +58,12 @@ COMPONENT_KINDS = (
 # Formas válidas de distribución hiperfina (selector del panel y validación).
 DISTRIBUTION_SHAPES = ("Histograma", "Gaussiana", "Binomial", "Fija", "2D")
 
+# Modos válidos de intensidad relativa para sextetes.
+INTENSITY_MODES = ("free", "texture")
+
+# Tratamientos cuadrupolares válidos para sextetes.
+QUAD_TREATMENTS = ("1st_order", "kundig_fixed", "kundig_powder")
+
 
 @dataclass(frozen=True)
 class ParamSpec:

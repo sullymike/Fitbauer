@@ -9,7 +9,7 @@ from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
 from core.folding import find_best_integer_or_half_center
-from core.params import COMPONENT_KINDS, DISTRIBUTION_SHAPES
+from core.params import COMPONENT_KINDS, DISTRIBUTION_SHAPES, INTENSITY_MODES, QUAD_TREATMENTS
 from gui.state import (
     CalibrationState,
     DistributionViewState,
@@ -140,13 +140,10 @@ class SessionIOMixin:
                 if en is not None:
                     cp.enabled.setChecked(bool(en))
                 im = state.get("intensity_mode", {}).get(str(cp.idx))
-                # TODO (punto 3): centralizar estas listas en core/params.py igual que
-                # COMPONENT_KINDS/DISTRIBUTION_SHAPES para evitar que añadir nuevos
-                # modos de intensidad o tratamientos cuadrupolares sea un bug silencioso.
-                if im in ("free", "texture"):
+                if im in INTENSITY_MODES:
                     cp.intensity_mode = im
                 qt_v = state.get("quad_treatment", {}).get(str(cp.idx))
-                if qt_v in ("1st_order", "kundig_fixed", "kundig_powder"):
+                if qt_v in QUAD_TREATMENTS:
                     cp.quad_treatment = qt_v
                 for name, ctl in cp.params.items():
                     f = state.get("fixed", {}).get(f"s{cp.idx}_{name}")
