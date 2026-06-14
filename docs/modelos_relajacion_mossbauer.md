@@ -1,4 +1,9 @@
-# Implementación de modelos de relajación magnética en un programa de ajuste Mössbauer
+> **ARCHIVO HISTÓRICO** — Este documento es la especificación de diseño original
+> (Fases 1–5) para el módulo de relajación magnética. Todas las fases están
+> completamente implementadas en Fitbauer v4.9.0+. Para la descripción matemática
+> de los modelos implementados ver `docs/relajacion_mossbauer.tex`.
+
+# Implementación de modelos de relajación magnética — especificación original
 
 ## Contexto
 

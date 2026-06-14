@@ -1,0 +1,578 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{tcolorbox}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  urlcolor=blue!60!black,
+  citecolor=blue!40!black
+}
+
+\newcommand{\BHF}{B_{\mathrm{hf}}}
+\newcommand{\dEQ}{\Delta E_{Q}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\file}[1]{\textcolor{black!70}{\texttt{\small #1}}}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\erfc}{erfc}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+\newtcolorbox{nota}[1][Note]{
+  colback=blue!4, colframe=blue!45!black, fonttitle=\bfseries,
+  title={#1}, left=4pt, right=4pt, top=3pt, bottom=3pt
+}
+
+\title{\textbf{Mathematical manual of the \emph{Mossbauer} fitting engine}\\[3pt]
+\large Forward model, discrete fitting and distribution fitting}
+\author{Department of Physical Chemistry · UAM}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}\noindent
+This manual documents, in a self-contained way, the complete mathematics of the
+fitting engine for $^{57}$Fe Mössbauer spectra implemented in the application. It
+covers (i)~the \emph{forward model} —line profiles, positions and intensities of the
+six lines of the sextet with first-order and Kündig treatments of the
+magnetic–quadrupole coupling, doublets and singlets—; (ii)~the \emph{discrete
+fitting} —statistics of the data in Gauss and Poisson modes, propagation of the
+calibration uncertainty, cost functional with robust losses,
+trust-region optimization with multistart and a global option,
+covariance, diagnostics and bootstrap—; and (iii)~the \emph{distribution fitting}
+$P(\BHF)$ or $P(\dEQ)$ —discretization, kernel, Tikhonov and total
+variation regularization, conditioning, effective degrees of freedom, automatic
+selection of the regularization parameter, error bars and parametric
+distributions. References to the file and function of the code are included.
+\end{abstract}
+
+\tableofcontents
+\bigskip
+
+%======================================================================
+\part{Forward model}
+%======================================================================
+
+\section{Transmission spectrum}\label{sec:fwd}
+
+After folding the raw data about the folding point, the spectrum is
+defined over $N$ channels with velocities $\{v_i\}_{i=1}^{N}$ equally spaced in
+$[-v_{\max}, v_{\max}]$ and normalized transmission $\{y_i\}$, with $y_i\approx 1$
+away from the absorption peaks. The forward model is a linear superposition of
+absorptions over a baseline:
+\begin{equation}
+  \boxed{\;
+  T(v;\bm\theta) \;=\; b + s\,v \;-\; \sum_{c=1}^{N_c} A_c(v;\bm\theta_c)
+  \;}
+  \label{eq:Tmodel}
+\end{equation}
+where $b$ is the baseline (multiplicative, the data are normalized by the
+\code{norm\_factor}), $s$ the slope, and each $A_c$ is the absorption of a
+component (sextet, doublet or singlet). It is a \emph{thin absorber}
+model: linear in the depth of each component. Implemented in
+\file{core/physics.py}, function \code{total\_model}.
+
+\section{Line profiles}\label{sec:lineshape}
+
+Each elementary line uses a profile normalized to unit height at its center. The
+application offers two profiles, selectable globally.
+
+\subsection{Lorentzian}
+\begin{equation}
+  L(v;v_0,\gamma) \;=\; \frac{\gamma^{2}}{(v-v_0)^{2}+\gamma^{2}},
+  \label{eq:lorentz}
+\end{equation}
+with $\gamma$ the half-width at half maximum (HWHM). It satisfies $L(v_0)=1$.
+
+\subsection{Pseudo-Voigt (Faddeeva)}
+The convolution of a Lorentzian (HWHM $\gamma$) with a Gaussian (width
+$\sigma$) is the Voigt profile, evaluated through the Faddeeva
+function $w(z)=e^{-z^2}\erfc(-iz)$:
+\begin{equation}
+  \widetilde V(v;v_0,\gamma,\sigma) \;=\;
+   \frac{1}{\sigma\sqrt{2\pi}}\,\Re\!\left[w\!\left(\frac{(v-v_0)+i\gamma}{\sigma\sqrt2}\right)\right].
+\end{equation}
+So that the profile has height exactly $1$ at $v_0$ \emph{independently
+of the sampling}, it is normalized by its analytic value at the peak:
+\begin{equation}
+  V(v;v_0,\gamma,\sigma) \;=\; \frac{\widetilde V(v;v_0,\gamma,\sigma)}{\widetilde V(v_0;v_0,\gamma,\sigma)},
+  \qquad
+  \widetilde V(v_0) = \frac{1}{\sigma\sqrt{2\pi}}\,\Re\!\left[w\!\left(\tfrac{i\gamma}{\sigma\sqrt2}\right)\right].
+  \label{eq:voigt}
+\end{equation}
+Since $w(iy)=e^{y^2}\erfc(y)\in\mathbb R^{+}$ for $y\in\mathbb R$, the denominator
+is real and positive. In the limit $\sigma\to0$, $V\to L$.
+
+\begin{nota}[Normalization to the peak]
+Normalizing by the \emph{discrete} maximum of the grid (as previous versions
+did) underestimates the real peak when no $v_i$ falls on $v_0$, inflating the
+amplitude and making the depth depend on the sampling. The form
+\eqref{eq:voigt} removes that bias.
+\end{nota}
+
+\section{Magnetic sextet}\label{sec:sextet}
+
+A sextet arises from the nuclear Zeeman splitting combined, when applicable, with the
+quadrupole interaction. The six lines correspond to the
+allowed transitions ($\Delta m=0,\pm1$) between the ground state $I_g=\tfrac12$ and the
+excited state $I_e=\tfrac32$. The absorption is
+\begin{equation}
+  A_{\text{sext}}(v) \;=\; d\,\sum_{j=1}^{6} W_j\, P\!\left(v;v_{0,j},\gamma_j\right),
+  \label{eq:Asext}
+\end{equation}
+with $d$ the depth, $P$ the profile (\S\ref{sec:lineshape}), $W_j$ the
+intensities (\S\ref{sec:intensities}) and $\gamma_j$ the linewidths
+\begin{equation}
+  \bm\gamma = \gamma_1\,[\,1,\;\gamma_2,\;\gamma_3,\;\gamma_3,\;\gamma_2,\;1\,],
+\end{equation}
+where $\gamma_2,\gamma_3$ are \emph{relative} linewidths. The positions
+$v_{0,j}$ are obtained by one of two treatments.
+
+\subsection{First-order treatment}
+The quadrupole is treated as a rigid perturbation on the Zeeman pattern:
+\begin{equation}
+  v_{0,j} \;=\; \frac{\BHF}{B_0}\,r_j^{(0)} \;+\; \delta \;+\; s_j\,\dEQ,
+  \qquad j=1,\dots,6,
+  \label{eq:sext_pos1}
+\end{equation}
+with $B_0=33\,$T the reference field, $\delta$ the isomer shift,
+$r^{(0)}$ the positions calibrated at $B_0$ (Appendix~\ref{ap:calib}) and the
+quadrupole pattern
+\begin{equation}
+  \bm s = \left[\,+\tfrac12,\,-\tfrac12,\,-\tfrac12,\,-\tfrac12,\,-\tfrac12,\,+\tfrac12\,\right].
+\end{equation}
+Valid when $\dEQ \ll \mu_N g_e \BHF$ and the axis of the electric field gradient
+(EFG) is parallel to $\vec B$.
+
+\subsection{Kündig treatment (full axial Hamiltonian)}\label{sec:kundig}
+For an axial EFG (asymmetry parameter $\eta=0$) and an arbitrary angle $\beta$ between
+$\vec B$ and the principal axis $V_{zz}$, the positions are obtained by diagonalizing the
+Hamiltonian of the excited state. In the basis $\{\lvert\tfrac32\rangle,
+\lvert\tfrac12\rangle, \lvert{-}\tfrac12\rangle, \lvert{-}\tfrac32\rangle\}$:
+\begin{equation}
+  \mathcal H_e \;=\; \omega_e\, I_z \;+\; \frac{\dEQ}{6}\bigl(3 I_{z'}^2 - I(I+1)\bigr),
+  \qquad I_{z'} = I_z\cos\beta + I_x\sin\beta,
+  \label{eq:Hkundig}
+\end{equation}
+with $I(I+1)=\tfrac{15}{4}$ and $\omega_e=(\BHF/B_0)\,\omega_e^{(0)}$ the
+Zeeman splitting of the excited state. The numerical diagonalization of the
+$4\times4$ matrix gives the eigenvalues $E^{e}_{m}$ and eigenvectors. The ground state
+($I_g=\tfrac12$) is purely Zeeman:
+\begin{equation}
+  E^{g}_{\pm 1/2} = \pm\tfrac12\,\omega_g, \qquad \omega_g=(\BHF/B_0)\,\omega_g^{(0)}.
+\end{equation}
+The six positions are the energy differences of the allowed transitions,
+assigning to each excited-state eigenvalue its dominant $m_e$ (by the overlap of
+the eigenvector):
+\begin{equation}
+\begin{aligned}
+  v_{0,1}&=E^{e}_{-3/2}-E^{g}_{-1/2}, & v_{0,2}&=E^{e}_{-1/2}-E^{g}_{-1/2}, & v_{0,3}&=E^{e}_{+1/2}-E^{g}_{-1/2},\\
+  v_{0,4}&=E^{e}_{-1/2}-E^{g}_{+1/2}, & v_{0,5}&=E^{e}_{+1/2}-E^{g}_{+1/2}, & v_{0,6}&=E^{e}_{+3/2}-E^{g}_{+1/2},
+\end{aligned}
+\end{equation}
+plus $\delta$. In the limit $\beta=0$ it reproduces \eqref{eq:sext_pos1} to machine
+precision. Implemented in \file{core/hamiltonian.py}.
+
+\subsection{Polycrystalline average}\label{sec:powder}
+In a powder sample all orientations $\beta$ are equally probable. The
+absorption is averaged over the sphere:
+\begin{equation}
+  A_{\text{sext}}^{\text{pol}}(v) \;=\; \frac12\int_0^{\pi}\!\sin\beta\;A_{\text{sext}}(v;\beta)\,d\beta
+  \;\approx\; \sum_{k=1}^{N_q} w_k\, A_{\text{sext}}(v;\beta_k),
+  \label{eq:powder}
+\end{equation}
+with Gauss–Legendre quadrature nodes and weights over $x=\cos\beta\in[-1,1]$,
+$\beta_k=\arccos x_k$, $w_k=\tfrac12 w_k^{\mathrm{GL}}$ (so that
+$\sum_k w_k=1$). The computation is vectorized: for $N_q$ orientations a
+tensor $(N_q,4,4)$ is built and diagonalized at once. Default value
+$N_q=20$ (error $<0.01\%$).
+
+\section{Intensities and texture}\label{sec:intensities}
+
+The intensities of the six lines respect the symmetry $1\!\leftrightarrow\!6$,
+$2\!\leftrightarrow\!5$, $3\!\leftrightarrow\!4$:
+\begin{equation}
+  \bm W = [\,I_1,\,I_2,\,I_3,\,I_3,\,I_2,\,I_1\,],\qquad
+  I_1=i_3 i_1,\;\; I_2=i_3 i_2,\;\; I_3=i_3.
+\end{equation}
+The application offers two parametrizations per sextet.
+
+\subsection{Free intensities}
+$i_1,i_2,i_3$ are independent fit parameters. It does not impose the
+$3{:}2{:}1$ ratio; useful for numerical flexibility and empirical interpretation.
+
+\subsection{Texture parameter}\label{sec:texture}
+For a sample with angle $\theta$ between the magnetic moment and the direction of the
+$\gamma$ photon, the magnetic dipole amplitudes are
+\begin{equation}
+  W_{1,6}\propto 3(1+\cos^2\theta),\quad W_{2,5}\propto 4\sin^2\theta,\quad W_{3,4}\propto (1+\cos^2\theta).
+\end{equation}
+Defining the texture parameter $t=\sin^2\theta\in[0,1]$ and normalizing by
+$(1+\cos^2\theta)=2-t$:
+\begin{equation}
+  \boxed{\;i_1 = 3,\qquad i_2 = \frac{4t}{2-t},\qquad i_3 = 1.\;}
+  \label{eq:texture}
+\end{equation}
+Cases: $t=\tfrac23\Rightarrow 3{:}2{:}1$ (random powder); $t=1\Rightarrow
+3{:}4{:}1$ (planar texture, foil $\perp$ beam); $t=0\Rightarrow 3{:}0{:}1$ (easy
+axis $\parallel$ beam). In this mode $t$ is the only free
+intensity parameter; $i_1,i_2,i_3$ are derived from \eqref{eq:texture}.
+
+\section{Doublet and singlet}
+
+\begin{align}
+  A_{\text{dob}}(v) &= d\bigl[\,i_1\,P(v;\delta-\tfrac{\dEQ}{2},\gamma_1) + i_1 i_2\,P(v;\delta+\tfrac{\dEQ}{2},\gamma_1\gamma_2)\,\bigr],\\
+  A_{\text{sing}}(v) &= d\,i_1\,P(v;\delta,\gamma_1).
+\end{align}
+
+%======================================================================
+\part{Discrete fitting}
+%======================================================================
+
+\section{Parametrization and constraints}\label{sec:disc-param}
+
+The vector of free parameters $\bm x\in\mathbb R^{p}$ is composed of the global ones
+$\{b,s\}$ (plus optionally $v_{\max}$ and the folding center $c_{\text{fold}}$) and,
+for each active component, a subset of
+$\bm\theta_c=(\delta,\dEQ,\BHF,\gamma_1,\gamma_2,\gamma_3,d,i_1,i_2,i_3,t,\beta)$
+according to its type and mode:
+\begin{itemize}[leftmargin=*]
+  \item \emph{Type}: singlet uses $\{\delta,\gamma_1,d,i_1\}$; doublet adds
+        $\{\dEQ,\gamma_2,i_2\}$; sextet uses all of them.
+  \item \emph{Intensities}: in texture mode, $\{i_1,i_2,i_3\}$ are replaced by
+        the single parameter $t$.
+  \item \emph{Quadrupole}: in Kündig mode with fixed $\beta$, $\beta$ enters as a
+        free parameter; in polycrystal or first-order mode, it does not.
+  \item \emph{Fixed}: marked parameters are removed from the active vector.
+  \item \emph{Linearly constrained} $k_t=\alpha\,k_s+\beta_0$: applied at each
+        evaluation (up to six iterations for chains of dependencies).
+\end{itemize}
+Each parameter has hard bounds $[\ell_k,u_k]$ (Appendix~\ref{ap:bounds}).
+
+\section{Statistics of the data}\label{sec:weighting}
+
+\subsection{Gauss mode}
+Folding averages two independent Poisson channels; for counts $c_i$ per
+folded channel, $\mathrm{Var}\approx c_i/2$, from which the $1\sigma$ uncertainty
+of the normalized datum:
+\begin{equation}
+  \sigma_i \;=\; \frac{\max\!\bigl(\sqrt{c_i/2},\,1\bigr)}{f_{\text{norm}}},
+  \qquad \sigma_i\leftarrow\max(\sigma_i,10^{-9}).
+  \label{eq:sigma-gauss}
+\end{equation}
+
+\subsection{Poisson mode (IRLS)}
+The Poisson likelihood is approximated by reweighted least squares: the
+uncertainty is evaluated on the \emph{model} (predicted counts
+$\hat c_i = T_i f_{\text{norm}}$) and is recomputed at each evaluation of the
+optimizer, which is equivalent to a Newton step on the Poisson $-2\log\mathcal L$:
+\begin{equation}
+  \sigma_i^{\text{Poiss}} \;=\; \frac{\sqrt{\max(\hat c_i/2,\,1)}}{f_{\text{norm}}}
+  \;=\; \frac{\sqrt{\max(T_i f_{\text{norm}}/2,\,1)}}{f_{\text{norm}}}.
+  \label{eq:sigma-poisson}
+\end{equation}
+
+\subsection{Propagation of the calibration uncertainty}\label{sec:calib}
+If the velocity calibration contributes an uncertainty $\sigma_{v_{\max}}$, its
+effect on the model is added in quadrature. Since $v_i=v_{\max}(2i/(N-1)-1)$, one
+has $\partial v_i/\partial v_{\max}=v_i/v_{\max}$, and by the chain rule
+\begin{equation}
+  \sigma_i^{\text{eff}\,2} \;=\; \sigma_i^2 \;+\;
+  \left(\frac{\partial T}{\partial v}\bigg|_i \frac{v_i}{v_{\max}}\,\sigma_{v_{\max}}\right)^{\!2}.
+  \label{eq:calib}
+\end{equation}
+The term weighs more on the flanks of the peaks (where $\partial T/\partial v$ is
+large), which is where a scale error biases $\delta$ and $\BHF$.
+
+\section{Cost functional and robust losses}\label{sec:cost}
+
+The weighted residual is
+\begin{equation}
+  r_i(\bm x) \;=\; \frac{T(v_i;\bm x)-y_i}{\sigma_i^{\text{eff}}},
+  \label{eq:residuo}
+\end{equation}
+and the minimized functional
+\begin{equation}
+  \mathcal C(\bm x) \;=\; \tfrac12 \sum_{i=1}^{N}\rho\!\left(r_i(\bm x)^2\right),
+  \label{eq:cost}
+\end{equation}
+with $\rho$ the loss function: \emph{linear} $\rho(z)=z$ (least squares),
+\emph{soft-}$\ell_1$ $\rho(z)=2(\sqrt{1+z}-1)$, or \emph{Huber}. The robust ones use
+scale $f_{\text{scale}}=3$ (threshold $\sim3\sigma$), reducing the weight of channels
+with spurious peaks. For linear $\rho$, $\mathcal C=\tfrac12\chi^2$.
+
+\section{Optimization}\label{sec:opt}
+
+\subsection{Trust region (TRF)}
+Minimization is performed with \emph{Trust Region Reflective} over the bounds:
+\begin{equation}
+  \hat{\bm x} \;=\; \argmin_{\bm\ell\le\bm x\le\bm u}\; \mathcal C(\bm x),
+\end{equation}
+solving at each iteration the quadratic subproblem with a finite-difference
+Jacobian:
+\begin{equation}
+  \min_{\bm d}\;\tfrac12\|J_k\bm d + \bm r_k\|^{2}
+  \;\;\text{s.t.}\;\; \|\bm D_k\bm d\|\le\Delta_k,\;\; \bm\ell-\bm x_k\le\bm d\le\bm u-\bm x_k.
+\end{equation}
+
+\subsection{Multistart}
+The user's point plus 8 Gaussian restarts are tried:
+\begin{equation}
+  \bm x^{(s)}=\bm x^{(0)}+\bm\xi^{(s)},\quad \xi^{(s)}_k\sim\mathcal N(0,\rho_k^2(u_k-\ell_k)^2),
+\end{equation}
+with $\rho_k=0.12$ for $\{\delta,\dEQ,\BHF,\gamma_1,d,v_{\max}\}$ and $0.08$ for the
+rest; fixed seed. The one with the lowest cost is retained.
+
+\subsection{Global optimization (optional)}
+As an optional pre-pass, \emph{differential evolution} is run over the scalar
+cost $\tfrac12\|\bm r\|^2$ (Sobol initialization, no polishing), and its best point
+is added as a seed for the TRF polishing. It covers local minima from label
+permutation and $\BHF_1\!\leftrightarrow\!\BHF_2$ swaps in
+multi-sextet spectra that the Gaussian multistart does not reach.
+
+\section{Uncertainties and diagnostics}\label{sec:disc-stats}
+
+\subsection{Covariance}
+From the final Jacobian $J=U\Sigma V^\top$ (SVD, truncated singular values):
+\begin{equation}
+  \boxed{\;\widehat{\mathrm{Cov}}(\hat{\bm x}) = V\,\Sigma^{-2}V^\top\cdot\frac{2\,\mathcal C(\hat{\bm x})}{N-p},
+  \qquad \hat\sigma_{x_k}=\sqrt{\widehat{\mathrm{Cov}}_{kk}}.\;}
+  \label{eq:cov}
+\end{equation}
+Correlations $|\rho_{kl}|\ge0.95$ are reported as a warning of degeneracy.
+
+\subsection{Goodness-of-fit statistics}
+\begin{align}
+  \chi^2 &= \sum_i r_i^2, & \nu&=N-p, & \chi^2_\nu&=\chi^2/\nu,\\
+  \mathrm{AIC}&=N\ln(\mathrm{RSS}/N)+2p, & \mathrm{BIC}&=N\ln(\mathrm{RSS}/N)+p\ln N.
+\end{align}
+
+\subsection{Residual diagnostics}
+To detect non-random structure (with $\tilde r=r-\bar r$):
+\begin{align}
+  \text{lag-1 autocorrelation:}\quad &\rho_1=\frac{\sum_i\tilde r_i\tilde r_{i+1}}{\sum_i\tilde r_i^2},\\
+  \text{runs (Wald–Wolfowitz):}\quad &Z=\frac{R-\mu_R}{\sigma_R},\\
+  \text{antisymmetric correlation:}\quad &c_{\text{as}}=\frac{\tilde{\bm r}\cdot(-\tilde{\bm r}^{\text{rev}})}{\tilde{\bm r}\cdot\tilde{\bm r}},
+\end{align}
+with warnings if $|\rho_1|>0.35$, $|Z|>2$ or $c_{\text{as}}>0.45$ (the latter
+detects centering/calibration errors).
+
+\subsection{Bootstrap}
+Monte Carlo estimation of errors: $M$ replicas of synthetic data
+$\tilde y^{(m)}=T(\cdot;\hat{\bm x})+\eta^{(m)}$, with $\eta^{(m)}$ Gaussian of
+standard deviation $\sigma_i$ (or real Poisson resampling
+$\tilde c\sim\mathrm{Poisson}(\hat c)$ in Poisson mode); each replica is refitted and
+$\hat\sigma_{x_k}^{\text{boot}}=\mathrm{std}_m(\hat x_k^{(m)})$.
+
+%======================================================================
+\part{Distribution fitting}
+%======================================================================
+
+\section{Discretization and kernel}\label{sec:dist-kernel}
+
+The spectrum is modeled as a continuous density $P(\BHF)$ (or $P(\dEQ)$)
+discretized into $n$ \emph{bins} with equally spaced centers
+$c_k\in[p_{\min},p_{\max}]$. The \emph{kernel}
+\begin{equation}
+  K_{ik} \;=\; A_{\text{sext}}^{(d=1)}\bigl(v_i;\;\BHF=c_k\bigr)
+\end{equation}
+is the absorption at $v_i$ of a sextet of unit depth with field $c_k$
+(variable $\BHF$) or with $\dEQ=c_k$ and fixed $\BHF$ (variable $\dEQ$). The
+kernel intensities follow $3{:}2{:}1$ by construction.
+
+\section{Augmented linear system}\label{sec:dist-system}
+
+The forward is
+\begin{equation}
+  \hat y_i \;=\; b + s\,v_i \;-\; \sum_{k}K_{ik}\,P_k \;-\;\sum_{m}K^{\text{sharp}}_{im}q_m,
+\end{equation}
+with $P_k\ge0$ the weights of the distribution and $q_m\ge0$ amplitudes of optional
+``sharp'' sextets. Defining the design matrix
+\begin{equation}
+  X = \bigl[\;\bm 1\;\big|\;\bm v\;\big|\;{-}K\;\big|\;{-}K^{\text{sharp}}\;\bigr],
+  \qquad \bm z=(b,s,\bm P^\top,\bm q^\top)^\top,
+\end{equation}
+and the weights $W=\diag(1/\sigma_i^2)$, the problem is
+\begin{equation}
+  \boxed{\;
+  \min_{\bm z}\;\;\bigl\|W^{1/2}(X\bm z-\bm y)\bigr\|_2^2 \;+\; \alpha\,\mathcal R(\bm P)
+  \quad\text{s.t.}\quad b\ge0,\;\bm P\ge0,\;\bm q\ge0.\;}
+  \label{eq:dist-min}
+\end{equation}
+The slope $s$ has no bound. It is solved with bounded least squares
+(\code{lsq\_linear}, reflective Newton with LSMR).
+
+\subsection{Column-scale preconditioning}\label{sec:cond}
+For small $\BHF$ the sextet collapses and the columns of $K$ become nearly
+collinear with very disparate norms, which ill-conditions \eqref{eq:dist-min}.
+Each column of the distribution is rescaled $K_k\to K_k/s_k$ with
+$s_k=\lVert W^{1/2}K_k\rVert$ and $\tilde P_k=s_k P_k$; the penalizer and the weights
+are adjusted accordingly and the scale is undone at the end. It is an
+\emph{exact} reparametrization (solution and degrees of freedom invariant) that
+only improves the numerical stability.
+
+\section{Regularization}\label{sec:reg}
+
+\subsection{Tikhonov (smoothness, L2)}
+$\mathcal R(\bm P)=\lVert L\,\bm P\rVert_2^2$ with $L$ the \emph{second-difference}
+operator $(n-2)\times n$:
+\begin{equation}
+  (L\bm P)_k = P_{k-1}-2P_k+P_{k+1},
+\end{equation}
+which penalizes the curvature and produces smooth distributions. The augmented
+system stacks $\bigl[\begin{smallmatrix}W^{1/2}X\\ \sqrt\alpha\,L_{\text{ext}}\end{smallmatrix}\bigr]\bm z = \bigl[\begin{smallmatrix}W^{1/2}\bm y\\ \bm 0\end{smallmatrix}\bigr]$.
+
+\subsection{Total variation (edges, L1)}
+$\mathcal R(\bm P)=\lVert D\,\bm P\rVert_1$ with $D$ the \emph{first difference}
+$(D\bm P)_k=P_{k+1}-P_k$. It favors piecewise-constant solutions that preserve
+edges (less smearing of peaks). It is solved by reweighted least squares
+(IRLS): starting from the majorization
+$|t|\le t^2/(2|t^{\text{prev}}|)+\text{const}$, each iteration solves a weighted
+Tikhonov with
+\begin{equation}
+  w_k = \frac{1}{\sqrt{(D\bm P^{\text{prev}})_k^2+\varepsilon^2}},
+  \qquad \mathcal R\approx \sum_k w_k\,(D\bm P)_k^2,
+\end{equation}
+reusing \code{lsq\_linear}. The effective operator $\sqrt{w}\,D$ is also used
+for the degrees of freedom and the error bars.
+
+\section{Poisson likelihood in the distribution}
+In Poisson mode the histogram fit is repeated with IRLS reweighting of
+$\sigma$ from the model (\S\ref{sec:weighting}), closing the loop through
+\code{lsq\_linear} until convergence.
+
+\section{Effective degrees of freedom}\label{sec:effdof}
+
+Regularization reduces the degrees of freedom below $n$. The effective
+number is the trace of the hat matrix:
+\begin{equation}
+  p_{\text{eff}} \;=\; \tr A(\alpha),\qquad
+  A(\alpha)=X\bigl(X^\top W X+\alpha L^\top L\bigr)^{-1}X^\top W,
+  \label{eq:effdof}
+\end{equation}
+computable as $\tr\!\bigl[(X^\top WX+\alpha L^\top L)^{-1}X^\top WX\bigr]$. It is used
+in $\chi^2_\nu=\chi^2/(N-p_{\text{eff}})$, avoiding the bias of counting the $n$
+bins as independent parameters. It is invariant under the column rescaling
+of \S\ref{sec:cond}.
+
+\section{Selection of the regularization parameter}\label{sec:alpha}
+
+Over a logarithmic grid of $\alpha$, three criteria are computed.
+
+\paragraph{L-curve (maximum curvature).} With
+$\rho(\alpha)=\log\lVert W^{1/2}(X\hat z-y)\rVert$ and
+$\eta(\alpha)=\log\lVert L\hat{\bm P}\rVert$, the corner maximizes
+\begin{equation}
+  \kappa(\alpha)=\frac{\rho'\eta''-\eta'\rho''}{\bigl((\rho')^2+(\eta')^2\bigr)^{3/2}}.
+\end{equation}
+
+\paragraph{Trade-off.} Minimum normalized distance to the origin in the
+$(\eta,\rho)$ plane.
+
+\paragraph{Generalized cross-validation (GCV).}
+\begin{equation}
+  \mathrm{GCV}(\alpha)=\frac{\lVert W^{1/2}(\bm y - X\hat z)\rVert^2}{\bigl(N-p_{\text{eff}}(\alpha)\bigr)^2},
+  \qquad \hat\alpha=\argmin_\alpha \mathrm{GCV}(\alpha),
+\end{equation}
+which does not require knowing the scale of the noise and is optimal in prediction loss.
+
+\section{Error bars of \texorpdfstring{$P(\BHF)$}{P(BHF)}}\label{sec:perr}
+
+For the regularized estimator $\hat{\bm z}=H^{-1}X^\top W\bm y$ with
+$H=X^\top WX+\alpha L^\top L$, the linearized covariance is
+\begin{equation}
+  \widehat{\mathrm{Cov}}(\hat{\bm z}) \;=\; H^{-1}\,(X^\top WX)\,H^{-1}\cdot\frac{\chi^2}{N-p_{\text{eff}}},
+\end{equation}
+scaled by the effective $\chi^2_\nu$ (same convention as the discrete fit). The
+square root of the diagonal corresponding to the bins gives $\sigma_{P_k}$. The band
+$P_k\pm\sigma_{P_k}$ is clipped to $P\ge0$ when plotted (the non-negativity makes
+it asymmetric in bins pinned to zero). In TV mode the effective operator
+$\sqrt{w}\,D$ is used instead of $L$.
+
+\section{Parametric distributions}
+As an alternative to the regularized histogram, closed forms with few
+parameters are fitted (nonlinear least squares):
+\begin{align}
+  \text{Gaussian:}\quad & P_k\propto \exp\!\bigl(-\tfrac12((c_k-\mu)/\varsigma)^2\bigr), & (b,s,A,\mu,\log\varsigma),\\
+  \text{Binomial:}\quad & P_k\propto \binom{n-1}{k-1}p^{k-1}(1-p)^{n-k}, & (b,s,A,\mathrm{logit}\,p),\\
+  \text{Fixed:}\quad & P_k=\phi_k\ \text{(preloaded)}, & (b,s,A).
+\end{align}
+
+\section{Global refinement (VARPRO)}\label{sec:refine}
+When enabled, a nonlinear outer loop optimizes the shape parameters
+$\bm\eta=(\delta_g,\log\gamma_g,\dots)$; at each evaluation the inner linear
+problem \eqref{eq:dist-min} is solved \emph{entirely}, returning the
+residual to the optimizer (separable VARPRO-type scheme):
+\begin{equation}
+  \min_{\bm\eta}\;\bigl\|W^{1/2}\bigl[X(\bm\eta)\,\hat{\bm z}(\bm\eta)-\bm y\bigr]\bigr\|^2,
+  \qquad \hat{\bm z}(\bm\eta)=\argmin_{\bm z}\eqref{eq:dist-min}.
+\end{equation}
+
+%======================================================================
+\appendix
+\part{Appendices}
+
+\section{Sextet calibration}\label{ap:calib}
+The reference positions at $B_0=33\,$T are obtained from
+$r^{(0)}=\tfrac12[-10.657,-6.167,-1.677,1.677,6.167,10.657]\cdot(B_0/32.95)\,$mm/s.
+From them the Zeeman splittings used in \eqref{eq:Hkundig} are derived:
+\begin{equation}
+  \omega_e^{(0)} = r^{(0)}_2-r^{(0)}_1 \approx 2.248\ \text{mm/s},\qquad
+  \omega_g^{(0)} = -\bigl[(r^{(0)}_4-r^{(0)}_3)+\omega_e^{(0)}\bigr] \approx -3.928\ \text{mm/s}.
+\end{equation}
+
+\section{Parameter bounds}\label{ap:bounds}
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Parameter & Bound & Unit\\
+\midrule
+$b$ (baseline) & $[0.7,\ 1.3]$ & --\\
+$s$ (slope) & $[-5\cdot10^{-3},\ 5\cdot10^{-3}]$ & mm$^{-1}$s\\
+$\delta$ & $[-2,\ 3]$ & mm/s\\
+$\dEQ$ & $[0,\ 4]$ & mm/s\\
+$\BHF$ & $[0,\ 50]$ & T\\
+$\gamma_1$ & $[0.03,\ 2]$ & mm/s\\
+$\gamma_2,\gamma_3$ & $[0.2,\ 3]$ & (relative)\\
+$d$ (depth) & $[0,\ 0.30]$ & --\\
+$i_1,i_2,i_3$ & $[0,9]/[0,6]/[0,3]$ & (relative)\\
+$t$ (texture) & $[0,\ 1]$ & --\\
+$\beta$ & $[0,\ 90]$ & degrees\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Faddeeva function}
+$w(z)=e^{-z^2}\erfc(-iz)$, evaluated by \code{scipy.special.wofz}. The real part
+gives the Voigt profile \eqref{eq:voigt}; for $z=iy$ with $y\in\mathbb R$,
+$w(iy)=e^{y^2}\erfc(y)$ is real, which allows the analytic normalization to the peak.
+
+\section{Summary of the optimization stack}
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Mode} & \textbf{Functional} & \textbf{Solver}\\
+\midrule
+Discrete & $\tfrac12\sum_i\rho(r_i^2)$ & \code{least\_squares} (TRF) [+ optional DE]\\
+Tikhonov distribution & $\|W^{1/2}(X\bm z-\bm y)\|^2+\alpha\|L\bm P\|^2$ & \code{lsq\_linear} (bounded)\\
+TV distribution & $\|W^{1/2}(X\bm z-\bm y)\|^2+\alpha\|D\bm P\|_1$ & IRLS over \code{lsq\_linear}\\
+Parametric distribution & $\|W^{1/2}(X(\bm\theta)\bm z-\bm y)\|^2$ & \code{least\_squares} (NL)\\
+Global refinement & $\|W^{1/2}(X(\bm\eta)\hat{\bm z}(\bm\eta)-\bm y)\|^2$ & outer NL + inner bounded\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}

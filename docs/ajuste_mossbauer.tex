@@ -47,7 +47,17 @@
 \maketitle
 
 \begin{abstract}\noindent
-Este documento describe formalmente el problema de optimización que resuelve la aplicación \emph{Mossbauer} cuando ajusta un espectro de transmisión: (i) en modo \emph{discreto} (suma finita de sextetes/dobletes/singletes) y (ii) en modo \emph{distribución} (densidad continua $P(\BHF)$ o $P(\dEQ)$ regularizada). Se detallan el modelo directo, el funcional de coste, el algoritmo de minimización, el cálculo de incertidumbres y los diagnósticos estadísticos, con referencias precisas a los ficheros y líneas del código actual. Al final de cada sección, y en una sección dedicada, se proponen mejoras concretas y aplicables.
+Este documento describe formalmente el problema de optimización que resuelve la aplicación \emph{Fitbauer} cuando ajusta un espectro de transmisión: (i) en modo \emph{discreto} (suma finita de sextetes/dobletes/singletes) y (ii) en modo \emph{distribución} (densidad continua $P(\BHF)$ o $P(\dEQ)$ regularizada). Se detallan el modelo directo, el funcional de coste, el algoritmo de minimización, el cálculo de incertidumbres y los diagnósticos estadísticos. Al final se discuten mejoras implementadas y pendientes.
+
+\medskip\noindent\textbf{Nota de actualización (v4.9.0+).}
+El código fue completamente refactorizado: la lógica de ajuste reside ahora en
+\file{core/fit\_engine.py}, \file{core/physics.py} y \file{gui/}. Las referencias
+a \file{mossbauer\_fe33\_gui\_v2IA.py} en este documento son históricas; la
+implementación actual sigue los mismos algoritmos en esos módulos. Mejoras
+incorporadas desde la redacción original: normalización analítica de Voigt,
+early-stop en multistart, Hamiltoniano Kündig completo y componentes de relajación
+(\code{Relajacion}, \code{BlumeTjon}, \code{NeelSize}); ver
+\file{docs/relajacion\_mossbauer.tex} para estas últimas.
 \end{abstract}
 
 \tableofcontents
@@ -69,9 +79,9 @@ con \emph{baseline} $b$ y pendiente $s$ \emph{multiplicativos} (los datos ya est
 La función \code{line\_profile} (\file{core/physics.py:14--21}) selecciona globalmente Lorentziana o pseudo-Voigt:
 \begin{align}
   L(v;v_0,\gamma) &= \frac{\gamma^{2}}{(v-v_0)^{2}+\gamma^{2}}, \label{eq:lorentz}\\
-  V(v;v_0,\gamma,\sigma) &= \frac{1}{c_V}\;\Re\!\left[\frac{w\!\left(\frac{(v-v_0)+i\gamma}{\sigma\sqrt 2}\right)}{\sigma\sqrt{2\pi}}\right], \quad c_V = \max_v(\cdot), \label{eq:voigt}
+  V(v;v_0,\gamma,\sigma) &= \frac{1}{c_V}\;\Re\!\left[\frac{w\!\left(\frac{(v-v_0)+i\gamma}{\sigma\sqrt 2}\right)}{\sigma\sqrt{2\pi}}\right], \quad c_V = \frac{\Re\,w\!\left(\frac{i\gamma}{\sigma\sqrt 2}\right)}{\sigma\sqrt{2\pi}}, \label{eq:voigt}
 \end{align}
-con $w(z)=\exp(-z^{2})\operatorname{erfc}(-iz)$ (función de Faddeeva). El factor $c_V$ \emph{normaliza el pico a~1} dividiendo por el máximo discreto del muestreo, lo cual es funcional pero pierde interpretabilidad analítica (véase mejora~\ref{mej:voigt}).
+con $w(z)=\exp(-z^{2})\operatorname{erfc}(-iz)$ (función de Faddeeva). El factor $c_V$ normaliza el pico a~1 usando el \emph{valor analítico} en $v=v_0$, de modo que la profundidad es comparable entre perfiles Lorentziano y Voigt (\emph{mejora implementada en v4.x}; véase mejora~\ref{mej:voigt}).
 
 \subsection{Sextete (interacción magnética)}\label{sec:sextet}
 Las seis posiciones de línea (\file{core/physics.py:38}, constantes en \file{core/constants.py:21,25,28,29}) se obtienen escalando la referencia a 33\,T y desplazándolas por $\delta$ y $\dEQ$:
@@ -147,11 +157,11 @@ TRF resuelve en cada iteración el subproblema cuadrático
 \end{equation}
 con escalado adaptativo $\bm D_k$ y reflexión en los bordes activos.
 
-\paragraph{Multistart.} Se realizan 8 reinicios gausianos en torno al usuario (\file{...:3407--3422}):
+\paragraph{Multistart.} Se realizan hasta 8 reinicios gausianos en torno al usuario (\file{core/fit\_engine.py}):
 \begin{equation}
   \bm x^{(s)} = \bm x^{(0)} + \bm \xi^{(s)},\quad \xi^{(s)}_k \sim \mathcal N(0,\sigma_k^{2}),\;\sigma_k=\rho_k(\bm u_k-\bm\ell_k),
 \end{equation}
-con $\rho_k=0{,}12$ para $\{\delta,\dEQ,\BHF,\gamma_1,d,v_{\max}\}$ y $\rho_k=0{,}08$ para el resto; semilla fija 12345. Se retiene el de menor $\mathcal C$.
+con $\rho_k=0{,}12$ para $\{\delta,\dEQ,\BHF,\gamma_1,d,v_{\max}\}$ y $\rho_k=0{,}08$ para el resto; semilla fija 12345. Se retiene el de menor $\mathcal C$. \textbf{Early-stop} (v4.9+): si el coste no mejora más de $10^{-6}$ relativo en 4 arranques consecutivos (\code{stagnation\_patience=4}, \code{rel\_tol=1e-6}), el bucle termina anticipadamente sin penalización estadística.
 
 \subsection{Covarianza y errores 1$\sigma$}\label{sec:cov}
 A partir del Jacobiano final $J=U\Sigma V^{\top}$ (SVD) y truncando $\Sigma_{kk}$ por debajo de un umbral (\file{...:3451--3468}):

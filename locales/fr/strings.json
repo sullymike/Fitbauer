@@ -757,5 +757,21 @@
   "global_neel.temp_missing": "Température manquante pour un ou plusieurs spectres.",
   "global_neel.running": "Ajustement de {n} spectres simultanément...",
   "global_neel.done": "Ajustement global terminé (χ²_red≈{redchi2:.4g}).",
-  "global_neel.save_header": "Paramètres partagés :"
+  "global_neel.save_header": "Paramètres partagés :",
+  "phase.identify": "Identifier les phases…",
+  "phase.dialog_title": "Phases compatibles",
+  "phase.intro": "Phases de référence compatibles avec chaque composante (classées par similarité). Sélectionnez-en une pour utiliser ses valeurs comme point de départ.",
+  "phase.no_components": "Aucune composante active avec des paramètres à identifier.",
+  "phase.no_match": "Aucune phase compatible dans la base de données.",
+  "phase.col_phase": "Phase",
+  "phase.col_score": "Similarité",
+  "phase.col_params": "δ / ΔEQ / B(T)",
+  "phase.col_os": "Fe",
+  "phase.col_T": "T (K)",
+  "phase.col_ref": "Référence",
+  "phase.apply_label": "Utiliser les valeurs de :",
+  "phase.apply_none": "(ne pas appliquer)",
+  "phase.applied": "Valeurs de référence appliquées à {n} composante(s)",
+  "phase.predict_toggle": "Prédiction de phases",
+  "phase.enabled": "Prédiction de phases activée"
 }

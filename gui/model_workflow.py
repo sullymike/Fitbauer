@@ -648,6 +648,9 @@ class ModelWorkflowMixin:
                                 f"norm={norm:.4g}")
         self.act_fit.setEnabled(True)
         self.act_init.setEnabled(True)
+        if hasattr(self, 'act_identify_phases'):
+            self.act_identify_phases.setEnabled(
+                getattr(self, 'phase_predict_enabled', False))
         self.act_edit_minima.setEnabled(True)
         self.act_auto_fit.setEnabled(True)
         self.act_ai.setEnabled(True)
@@ -728,6 +731,9 @@ class ModelWorkflowMixin:
         # Habilitar acciones compatibles con espectros sin cuentas en bruto.
         self.act_fit.setEnabled(True)
         self.act_init.setEnabled(True)
+        if hasattr(self, 'act_identify_phases'):
+            self.act_identify_phases.setEnabled(
+                getattr(self, 'phase_predict_enabled', False))
         self.act_edit_minima.setEnabled(True)
         self.act_auto_fit.setEnabled(True)
         self.act_ai.setEnabled(True)
