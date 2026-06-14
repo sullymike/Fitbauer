@@ -773,5 +773,16 @@
   "phase.apply_none": "(do not apply)",
   "phase.applied": "Reference values applied to {n} component(s)",
   "phase.predict_toggle": "Phase prediction",
-  "phase.enabled": "Phase prediction enabled"
+  "phase.enabled": "Phase prediction enabled",
+  "history.title": "Fit history",
+  "history.empty": "No fits in the history yet.",
+  "history.col_time": "Time",
+  "history.col_file": "File",
+  "history.col_mode": "Mode",
+  "history.col_redchi2": "χ²ᵣ",
+  "history.col_summary": "Components",
+  "history.restore": "Restore",
+  "history.clear": "Clear history",
+  "history.clear_confirm": "Clear the entire fit history?",
+  "history.restored": "Fit restored: {name}"
 }

@@ -19,6 +19,7 @@ from gui.discrete_fit import DiscreteFitMixin
 from gui.distribution_fit import DistributionFitMixin
 from gui.minima_analysis import MinimaAnalysisMixin
 from gui.phase_id_actions import PhaseIdMixin
+from gui.fit_history import FitHistoryMixin
 from gui.plotly_tools import PlotlyToolsMixin
 from gui.file_actions import FileActionsMixin
 from gui.fit_tools import FitToolsMixin
@@ -44,6 +45,7 @@ class WindowMixins(
     DistributionFitMixin,
     MinimaAnalysisMixin,
     PhaseIdMixin,
+    FitHistoryMixin,
     # Visualización interactiva
     PlotlyToolsMixin,
     # Acciones auxiliares
