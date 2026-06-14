@@ -17,33 +17,63 @@ from mossbauer_i18n import tr
 from core.data_io import SETTINGS_PATH
 
 HISTORY_PATH = SETTINGS_PATH.parent / "fit_history.json"
-MAX_HISTORY = 20
+DEFAULT_MAX_HISTORY = 50    # configurable por el usuario
+MIN_MAX_HISTORY = 1
+MAX_MAX_HISTORY = 500       # tope para que reescribir el JSON siga siendo barato
 
 
 class FitHistoryMixin:
     # ── Estado / persistencia ────────────────────────────────────────────
     def _ensure_fit_history(self) -> None:
         if getattr(self, "fit_history", None) is None:
-            self.fit_history = deque(maxlen=MAX_HISTORY)
+            self.fit_history = deque(maxlen=getattr(self, "fit_history_max", DEFAULT_MAX_HISTORY))
 
     def _load_fit_history(self) -> None:
-        self.fit_history = deque(maxlen=MAX_HISTORY)
+        """Carga el historial y el tope configurado desde disco.
+
+        Formato en disco: ``{"max_entries": int, "entries": [...]}``. Se acepta
+        también el formato antiguo (lista simple) por compatibilidad.
+        """
+        self.fit_history_max = DEFAULT_MAX_HISTORY
+        entries: list = []
         try:
             if HISTORY_PATH.exists():
                 data = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
-                for entry in data[-MAX_HISTORY:]:
-                    self.fit_history.append(entry)
+                if isinstance(data, dict):
+                    self.fit_history_max = self._clamp_max(
+                        int(data.get("max_entries", DEFAULT_MAX_HISTORY)))
+                    entries = data.get("entries", []) or []
+                elif isinstance(data, list):   # formato antiguo
+                    entries = data
         except Exception:
             pass
+        self.fit_history = deque(entries[-self.fit_history_max:], maxlen=self.fit_history_max)
 
     def _save_fit_history(self) -> None:
         try:
             HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
             HISTORY_PATH.write_text(
-                json.dumps(list(self.fit_history), ensure_ascii=False, default=str),
+                json.dumps({"max_entries": getattr(self, "fit_history_max", DEFAULT_MAX_HISTORY),
+                            "entries": list(self.fit_history)},
+                           ensure_ascii=False, default=str),
                 encoding="utf-8")
         except Exception:
             pass
+
+    @staticmethod
+    def _clamp_max(n: int) -> int:
+        return max(MIN_MAX_HISTORY, min(MAX_MAX_HISTORY, int(n)))
+
+    def _set_fit_history_max(self, n: int) -> None:
+        """Cambia el tope de entradas, reconstruye el deque y persiste."""
+        self._ensure_fit_history()
+        new_max = self._clamp_max(n)
+        if new_max == getattr(self, "fit_history_max", DEFAULT_MAX_HISTORY):
+            return
+        self.fit_history_max = new_max
+        kept = list(self.fit_history)[-new_max:]
+        self.fit_history = deque(kept, maxlen=new_max)
+        self._save_fit_history()
 
     # ── Registro de un ajuste ────────────────────────────────────────────
     def _fit_components_summary(self) -> str:
@@ -124,6 +154,18 @@ class FitHistoryMixin:
         if entries:
             table.selectRow(0)
         v.addWidget(table, stretch=1)
+
+        # Selector del número máximo de entradas (configurable y persistente).
+        cfg = QtWidgets.QHBoxLayout()
+        cfg.addWidget(QtWidgets.QLabel(
+            tr("history.max_label", default="Máximo de entradas:")))
+        spin = QtWidgets.QSpinBox()
+        spin.setRange(MIN_MAX_HISTORY, MAX_MAX_HISTORY)
+        spin.setValue(getattr(self, "fit_history_max", DEFAULT_MAX_HISTORY))
+        spin.valueChanged.connect(self._set_fit_history_max)
+        cfg.addWidget(spin)
+        cfg.addStretch(1)
+        v.addLayout(cfg)
 
         bb = QtWidgets.QDialogButtonBox()
         btn_restore = bb.addButton(
