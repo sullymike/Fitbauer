@@ -784,5 +784,6 @@
   "history.restore": "Restaurer",
   "history.clear": "Effacer l'historique",
   "history.clear_confirm": "Effacer tout l'historique des ajustements ?",
-  "history.restored": "Ajustement restauré : {name}"
+  "history.restored": "Ajustement restauré : {name}",
+  "history.max_label": "Nombre maximum d'entrées :"
 }

@@ -784,5 +784,6 @@
   "history.restore": "Restore",
   "history.clear": "Clear history",
   "history.clear_confirm": "Clear the entire fit history?",
-  "history.restored": "Fit restored: {name}"
+  "history.restored": "Fit restored: {name}",
+  "history.max_label": "Maximum entries:"
 }
