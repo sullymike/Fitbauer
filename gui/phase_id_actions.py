@@ -14,6 +14,19 @@ from core.phase_id import PhaseMatch, suggest_phases
 
 
 class PhaseIdMixin:
+    # ── Interruptor maestro de la predicción ─────────────────────────────
+    def _on_phase_predict_toggled(self, enabled: bool) -> None:
+        """Activa/desactiva la predicción de fases (auto y manual)."""
+        self.phase_predict_enabled = bool(enabled)
+        # La acción manual solo está disponible si la predicción está activa y
+        # hay un espectro cargado.
+        if hasattr(self, "act_identify_phases"):
+            has_spectrum = getattr(self.file, "velocity", None) is not None
+            self.act_identify_phases.setEnabled(self.phase_predict_enabled and has_spectrum)
+        if self.phase_predict_enabled:
+            self.statusBar().showMessage(
+                tr("phase.enabled", default="Predicción de fases activada"), 3000)
+
     # ── Lectura de parámetros de un panel de componente ──────────────────
     def _component_query(self, cp) -> tuple[float | None, float | None, float | None, str]:
         """Devuelve (delta, quad, bhf, kind) leídos del panel ``cp``."""
@@ -169,7 +182,12 @@ class PhaseIdMixin:
 
     # ── Sugerencia tras inicializar desde mínimos ────────────────────────
     def _suggest_phases_after_init(self) -> None:
-        """Tras inicializar desde mínimos, ofrece identificar y sembrar fases."""
+        """Tras inicializar desde mínimos, ofrece identificar y sembrar fases.
+
+        Solo actúa si la predicción de fases está activada (interruptor maestro).
+        """
+        if not getattr(self, "phase_predict_enabled", False):
+            return
         data = self._gather_suggestions()
         if not any(matches for _i, _k, _p, matches in data):
             return

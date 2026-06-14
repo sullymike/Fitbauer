@@ -208,6 +208,13 @@ class MenuBuilderMixin:
         self.act_init.setEnabled(False)
         prep_menu.addAction(self.act_init)
         self._reg("fit.init_from_minima", self.act_init)
+        # Interruptor maestro de la predicción de fases (desactivado por defecto).
+        self.act_phase_predict = QtGui.QAction(
+            tr("phase.predict_toggle", default="Predicción de fases"), self,
+            checkable=True)
+        self.act_phase_predict.setChecked(getattr(self, "phase_predict_enabled", False))
+        self.act_phase_predict.toggled.connect(self._on_phase_predict_toggled)
+        prep_menu.addAction(self.act_phase_predict)
         self.act_identify_phases = QtGui.QAction(
             tr("phase.identify", default="Identificar fases…"), self)
         self.act_identify_phases.triggered.connect(

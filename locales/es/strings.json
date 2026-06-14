@@ -771,5 +771,7 @@
   "phase.col_ref": "Referencia",
   "phase.apply_label": "Usar valores de:",
   "phase.apply_none": "(no aplicar)",
-  "phase.applied": "Valores de referencia aplicados a {n} componente(s)"
+  "phase.applied": "Valores de referencia aplicados a {n} componente(s)",
+  "phase.predict_toggle": "Predicción de fases",
+  "phase.enabled": "Predicción de fases activada"
 }

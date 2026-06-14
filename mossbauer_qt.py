@@ -87,6 +87,7 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
         self._plotly_temp_files: list[Path] = []
         self._help_dialog: QtWidgets.QDialog | None = None
         self.dist_use_sharp = False
+        self.phase_predict_enabled = False  # sugeridor de fases: desactivado por defecto
         self._edge_trim = 1
         self._load_settings()
         self._build_ui()

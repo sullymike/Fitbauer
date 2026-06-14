@@ -649,7 +649,8 @@ class ModelWorkflowMixin:
         self.act_fit.setEnabled(True)
         self.act_init.setEnabled(True)
         if hasattr(self, 'act_identify_phases'):
-            self.act_identify_phases.setEnabled(True)
+            self.act_identify_phases.setEnabled(
+                getattr(self, 'phase_predict_enabled', False))
         self.act_edit_minima.setEnabled(True)
         self.act_auto_fit.setEnabled(True)
         self.act_ai.setEnabled(True)
@@ -731,7 +732,8 @@ class ModelWorkflowMixin:
         self.act_fit.setEnabled(True)
         self.act_init.setEnabled(True)
         if hasattr(self, 'act_identify_phases'):
-            self.act_identify_phases.setEnabled(True)
+            self.act_identify_phases.setEnabled(
+                getattr(self, 'phase_predict_enabled', False))
         self.act_edit_minima.setEnabled(True)
         self.act_auto_fit.setEnabled(True)
         self.act_ai.setEnabled(True)
