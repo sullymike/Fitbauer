@@ -1,5 +1,48 @@
 # Changelog
 
+## v4.10.1 — Sugeridor de fases, historial de ajustes y base de datos de referencia
+
+Versión centrada en **identificación de fases**, **historial de ajustes persistente**
+y una **ampliación importante de la documentación** (matemática bilingüe ES/EN).
+
+### Nueva funcionalidad: sugeridor de fases (`core/phase_id.py`, `gui/phase_id_actions.py`)
+
+- **Identificación bidireccional** de fases a partir de los parámetros hiperfinos
+  (δ, ΔEQ, B_hf) de cada componente, comparando contra una base de datos de referencia:
+  - **Al inicio**: tras *Inicializar desde mínimos*, propone las fases compatibles y
+    permite, opcionalmente, **sembrar el ajuste** con sus valores de referencia.
+  - **Tras el ajuste**: *Ajuste → Preparación → Identificar fases…* lista las fases
+    compatibles con los valores ajustados, con su cita bibliográfica.
+- **Interruptor maestro** *«Predicción de fases»* (**desactivado por defecto**): controla
+  tanto la sugerencia automática al inicializar como la disponibilidad del identificador.
+- Matching con distancia normalizada por dimensión, *gating* magnético/paramagnético por
+  tipo de componente, inferencia de tipo y desempate suave por temperatura.
+
+### Nueva funcionalidad: historial de ajustes (`gui/fit_history.py`)
+
+- Cada ajuste terminado (discreto o distribución) se guarda con hora, fichero, modo,
+  χ²/χ²ᵣ, resumen de componentes y un snapshot completo restaurable.
+- **Persistente** (en memoria y en disco, `fit_history.json` junto a los settings):
+  sobrevive al reinicio.
+- **Tope configurable** desde el propio diálogo (*Máximo de entradas*, **50 por defecto**,
+  rango 1–500). Restaurar reutiliza la maquinaria probada de cargar sesión.
+
+### Nuevos datos (`data_sample/reference/`)
+
+- **Base de datos de parámetros Mössbauer de referencia** (δ, ΔEQ, B_hf) para fases de
+  hierro, con su procedencia bibliográfica (JSON + TSV + parser reproducible). Base del
+  sugeridor de fases.
+
+### Documentación
+
+- **Documentos matemáticos corregidos y ampliados** y **traducidos al inglés** (manual
+  principal, ajuste, distribuciones 1D/2D/IS, corrección de espesor, relajación magnética).
+- **Nuevos documentos**: plegado (folding), ajuste en serie (batch), calibración α-Fe 33 T,
+  comparación de espectros, formato de sesión JSON, detección de mínimos (CWT) y perfil de
+  verosimilitud — todos en ES y EN.
+- Corregida la documentación de relajación (NeelSize y ajuste multi-temperatura ya están
+  implementados; el texto afirmaba lo contrario).
+
 ## v4.10.0 — Comparación de espectros, correcciones y documentación ampliada
 
 Versión con **nueva funcionalidad de superposición visual de espectros**, **correcciones
