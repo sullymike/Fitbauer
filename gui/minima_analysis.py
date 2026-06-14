@@ -656,4 +656,11 @@ class MinimaAnalysisMixin:
         self.statusBar().showMessage(f"{tr('msg.auto_minima_title')}: {summary}", 5000)
         if show_message:
             QtWidgets.QMessageBox.information(self, tr("msg.auto_minima_title"), msg)
+            # Tras inicializar, ofrecer identificar fases y, si se desea, sembrar
+            # el ajuste con sus valores de referencia.
+            if hasattr(self, "_suggest_phases_after_init"):
+                try:
+                    self._suggest_phases_after_init()
+                except Exception:
+                    pass
         return True

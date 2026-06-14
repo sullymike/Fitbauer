@@ -2158,5 +2158,23 @@
     "model": "0",
     "reference": "Rouzies and Millet 1992",
     "reference_url": "https://link.springer.com/article/10.1007/BF02320295"
+  },
+  {
+    "sample": "Iron",
+    "class": "Elements and Alloys",
+    "type": "U",
+    "oxidation_state": "0",
+    "T_K": 295.0,
+    "IS_mm_s": 0.0,
+    "IS_err": null,
+    "QS_mm_s": 0.0,
+    "QS_err": null,
+    "Bhf_T": 33.1,
+    "Bhf_err": null,
+    "site": 1,
+    "site_total": 1,
+    "model": "0",
+    "reference": "Dyar et al. 2006",
+    "reference_url": "https://www.researchgate.net/publication/234149051"
   }
 ]

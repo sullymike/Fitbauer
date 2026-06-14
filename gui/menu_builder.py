@@ -34,6 +34,7 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     ("fit.undo_fit",           "menu.fit",  "fit.undo_fit",           "Ctrl+Z"),
     ("fit.find_center",        "menu.fit",  "fit.find_center",        ""),
     ("fit.init_from_minima",   "menu.fit",  "fit.init_from_minima",   ""),
+    ("fit.identify_phases",    "menu.fit",  "phase.identify",         ""),
     ("fit.edit_minima",        "menu.fit",  "minima.edit_action",     ""),
     ("fit.auto_from_minima",   "menu.fit",  "fit.auto_from_minima",   ""),
     ("fit.ollama_start",       "menu.fit",  "fit.ollama_start",       ""),
@@ -207,6 +208,13 @@ class MenuBuilderMixin:
         self.act_init.setEnabled(False)
         prep_menu.addAction(self.act_init)
         self._reg("fit.init_from_minima", self.act_init)
+        self.act_identify_phases = QtGui.QAction(
+            tr("phase.identify", default="Identificar fases…"), self)
+        self.act_identify_phases.triggered.connect(
+            lambda _checked=False: self.on_identify_phases())
+        self.act_identify_phases.setEnabled(False)
+        prep_menu.addAction(self.act_identify_phases)
+        self._reg("fit.identify_phases", self.act_identify_phases)
         self.act_edit_minima = QtGui.QAction(
             tr("minima.edit_action", default="Editar mínimos (semi-manual)…"), self)
         self.act_edit_minima.triggered.connect(lambda _checked=False: self.on_edit_minima())
