@@ -90,6 +90,7 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
         self.phase_predict_enabled = False  # sugeridor de fases: desactivado por defecto
         self._edge_trim = 1
         self._load_settings()
+        self._load_fit_history()
         self._build_ui()
         self._build_menubar()
         self._apply_color_theme(self.color_theme, persist=False)

@@ -86,6 +86,8 @@ class DiscreteFitMixin:
         self.runtime_results.set_discrete_fit(result, gui_result=gui_result)
         self._finish_gui_fit_result(gui_result)
         self._refresh_plot()
+        if hasattr(self, "_record_fit_history"):
+            self._record_fit_history("discrete", result.stats)
 
 
 

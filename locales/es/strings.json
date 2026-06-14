@@ -773,5 +773,16 @@
   "phase.apply_none": "(no aplicar)",
   "phase.applied": "Valores de referencia aplicados a {n} componente(s)",
   "phase.predict_toggle": "Predicción de fases",
-  "phase.enabled": "Predicción de fases activada"
+  "phase.enabled": "Predicción de fases activada",
+  "history.title": "Historial de ajustes",
+  "history.empty": "No hay ajustes en el historial todavía.",
+  "history.col_time": "Hora",
+  "history.col_file": "Fichero",
+  "history.col_mode": "Modo",
+  "history.col_redchi2": "χ²ᵣ",
+  "history.col_summary": "Componentes",
+  "history.restore": "Restaurar",
+  "history.clear": "Borrar historial",
+  "history.clear_confirm": "¿Borrar todo el historial de ajustes?",
+  "history.restored": "Ajuste restaurado: {name}"
 }

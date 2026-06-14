@@ -529,6 +529,8 @@ class DistributionFitMixin:
         r.correlations = {}
         r.n_starts = 1
         self.info_panel.show_result(r)
+        if hasattr(self, "_record_fit_history"):
+            self._record_fit_history("distribution", r.stats)
         self._show_distribution_dialog(result)
 
     def _show_distribution_dialog(self, result) -> None:

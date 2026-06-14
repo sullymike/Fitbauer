@@ -32,6 +32,7 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     # ── Ajuste ──
     ("fit.run",                "menu.fit",  "fit.run",                "Ctrl+R"),
     ("fit.undo_fit",           "menu.fit",  "fit.undo_fit",           "Ctrl+Z"),
+    ("fit.history",            "menu.fit",  "history.title",          ""),
     ("fit.find_center",        "menu.fit",  "fit.find_center",        ""),
     ("fit.init_from_minima",   "menu.fit",  "fit.init_from_minima",   ""),
     ("fit.identify_phases",    "menu.fit",  "phase.identify",         ""),
@@ -180,6 +181,12 @@ class MenuBuilderMixin:
         self.act_undo_fit.setEnabled(False)
         fit_menu.addAction(self.act_undo_fit)
         self._reg("fit.undo_fit", self.act_undo_fit)
+        self.act_fit_history = QtGui.QAction(
+            tr("history.title", default="Historial de ajustes…"), self)
+        self.act_fit_history.triggered.connect(lambda _checked=False: self.on_fit_history())
+        self.act_fit_history.setEnabled(bool(getattr(self, "fit_history", None)))
+        fit_menu.addAction(self.act_fit_history)
+        self._reg("fit.history", self.act_fit_history)
         # Modo de ajuste: radios para TODOS los modos del combo lateral
         # (sincronizados en ambos sentidos vía _on_mode_changed).
         mode_menu = fit_menu.addMenu(tr("fit.mode_menu", default="Modo de ajuste"))
