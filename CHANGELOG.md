@@ -1,5 +1,83 @@
 # Changelog
 
+## v4.11.0 — Suite de validación sintética (6 niveles)
+
+Versión centrada en **calidad interna del motor de ajuste**: añade una suite de tests
+sistemática que cubre desde la autoconsistencia matemática hasta la calibración
+estadística de incertidumbres, con datos reales y casos físicamente exigentes.
+
+### Nueva funcionalidad: `tests/test_synthetic_validation.py`
+
+Suite de **34 tests** (31 rápidos + 3 Monte Carlo marcados `@pytest.mark.slow`)
+organizada en seis niveles de verificación:
+
+#### Nivel 1 — Autoconsistencia (generador independiente)
+
+- Implementación directa de referencia (`ref_sextet`, `ref_doublet`, `ref_singlet`,
+  `ref_sextet_thick`) que **no llama a `core.physics`**: usa matemáticas puras y las
+  constantes físicas publicadas de α-Fe.
+- Test de cierre: espectro sintético sin ruido → ajuste → **χ²_reducido < 1×10⁻⁶**
+  para sextete, doblete y singlete. Si este test falla, hay un bug estructural en el
+  modelo o el optimizador que invalida todo lo demás.
+- Verificación explícita de que el generador de referencia es numéricamente idéntico a
+  `physics.sextet_absorption` (discrepancia < 1×10⁻¹⁰).
+
+#### Nivel 2 — Jacobiano de la función residuo
+
+- Validación analítica de ∂L/∂c y ∂L/∂Γ (Lorentziana) contra diferencias finitas
+  (`approx_fprime`), error relativo < 1×10⁻⁴.
+- Consistencia del jacobiano del residuo entre dos tamaños de paso independientes
+  (eps=10⁻⁵ y 10⁻⁶): error relativo < 5 %.
+- Ausencia de NaN/Inf en el jacobiano para sextete y doblete.
+
+#### Nivel 3 — Monte Carlo con pull statistics (`@pytest.mark.slow`)
+
+- **200 réplicas** de un sextete con ruido Poisson realista (8 000 cuentas/canal).
+  Semilla fija (`SEEDS_MC["sextet_pull"] = 42042`) para reproducibilidad de fallos.
+- Valida tres propiedades estadísticas:
+  - **Sesgo**: `|media(pull)| < 3.5·SEM + 0.05` (estimador sin sesgo significativo).
+  - **Calibración de σ**: `0.5 < std(pull) < 2.0` (incertidumbres reportadas coherentes
+    con la dispersión real de Monte Carlo; std(pull) > 2 indica σ muy subestimado).
+  - **Cobertura 1σ**: 48 %–88 % de las réplicas caen dentro de ±1σ reportado
+    (teórico 68 %).
+
+#### Nivel 4 — Casos físicos difíciles
+
+- **Solapamiento creciente de dobletes**: sweep de ΔEQ ∈ {2.0, 1.0, 0.60} mm/s;
+  verifica recuperación de ΔEQ cuando separación > 2Γ, y que las barras de error
+  crecen al aproximarse a la resolución.
+- **Sextete con líneas internas no resueltas** (Γ = 0.60 mm/s): ajuste converge.
+- **Absorbente grueso** (`sat_scale`):
+  - Recuperación de `sat_scale` verdadero (error < 20 %).
+  - Degeneración al modelo fino cuando `sat_scale → ∞` (diferencia < 10⁻⁴ relativa).
+  - Efecto de saturación: el modelo grueso tiene valles menos profundos que el fino.
+
+#### Nivel 5 — Restricciones físicas y convenciones
+
+- Ratios 3:2:1 del sextete para polvo aleatorio (`<sin²θ> = 2/3`).
+- `texture_to_intensities` para orientaciones canónicas (perpendicular 3:4:1,
+  paralela 3:0:1, polvo aleatorio 3:2:1).
+- Convención ΔEQ: los mínimos del doblete están en `δ ± ΔEQ/2`.
+- Signo de δ: campo desplaza el espectro en la dirección correcta.
+- Campo hiperfino: posiciones externas escalan linealmente con BHF.
+- Cuadrupolo magnético: rompe la simetría del sextete.
+- Línea base plana sin componentes de absorción.
+- Calibración de la malla de velocidades.
+
+#### Nivel 6 — Datos reales (α-Fe, referencia publicada 33.0 T)
+
+- BHF ajustado: 33.0 ± 0.5 T.
+- δ ajustado: ISO_REF (−0.1092) ± 0.05 mm/s.
+- Γ ajustada: rango físico 0.15–0.50 mm/s.
+- χ²_reducido < 5.0 (ajuste aceptable con datos experimentales).
+
+### `pytest.ini`
+
+- Registrado el marcador `slow` para excluir Monte Carlo en CI:
+  `pytest -m "not slow"` (208 tests, ~2 s) vs. `pytest` completo (211 tests, ~48 s).
+
+---
+
 ## v4.10.1 — Sugeridor de fases, historial de ajustes y base de datos de referencia
 
 Versión centrada en **identificación de fases**, **historial de ajustes persistente**
