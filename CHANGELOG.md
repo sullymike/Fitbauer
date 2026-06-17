@@ -1,5 +1,43 @@
 # Changelog
 
+## v4.11.1 — Relleno semitransparente en subespectros · figuras SVG · artículo svjour3
+
+### Mejoras en la GUI
+
+- **Relleno semitransparente bajo cada subespectro** (`gui/canvas.py`): al representar
+  componentes (singlete, doblete, sextete o envolvente de distribución), se añade un área
+  `fill_between` con el color de la línea correspondiente y opacidad configurable
+  (`component_fill_alpha`, por defecto 0.12). Las líneas de componente pasan de trazo
+  discontinuo (`--`) a continuo (`-`) para coherencia visual con el relleno.
+  - En el modo de actualización rápida (`_update_fast`, usado durante el arrastre de
+    sliders) el relleno se elimina y recrea en cada fotograma, igual que el relleno de
+    residuos, porque `fill_between` no admite `set_data()`.
+  - El estilo es análogo a las figuras publicadas con Matplotlib: cada subespectro queda
+    identificado de forma inequívoca incluso cuando los componentes se superponen.
+
+### Publicación: artículo para *Interactions* (Springer)
+
+- Archivo principal `docs/article_hyperfine_interactions.tex` migrado a la clase
+  **`svjour3`** (Springer). Compilado limpiamente a PDF de 15 páginas.
+- Nuevas secciones incorporadas desde el borrador previo:
+  - Perfil de Voigt (función de Faddeeva), ecuación de Kündig para el Hamiltoniano
+    magnético-cuadrupolar, fórmula de absorbente grueso.
+  - **Sección de modelos de relajación magnética**: Relajacion (fenomenológico),
+    BlumeTjon y NeelSize (Néel-Arrhenius); incluye la ecuación de tiempo de
+    relajación en función de tamaño de partícula y temperatura.
+  - Distribuciones 2D con regularización dual y selección de α por GCV/L-curve.
+- Bibliografía ampliada con 9 nuevas referencias (Kündig 1967, Margulies 1961,
+  Blume-Tjon 1968, Néel 1949, Brown 1963, Klencsar 2013, Matsnev 2012,
+  Kamusella 2016, Rancourt 1991).
+- Añadido stub `docs/svglov3.clo` requerido por `svjour3.cls`.
+- Figuras regeneradas como **SVG** (`docs/img/fig_*.svg`) para edición con Inkscape:
+  - `fig_reference_fits.svg` — panel 2×2 con espectros reales de laboratorio
+    (α-Fe, hematita, magnetita).
+  - `fig_magnetita_fit.svg` — ajuste de 2 sextetes de Fe₃O₄ con relleno de área.
+  - `fig_normos_comparison.svg` — correlación Fitbauer vs. NORMOS en δ, ΔEQ, BHF, Γ.
+- Guía `docs/normos_dosbox_guide.md` para ejecutar NORMOS con DOSBox en sistemas
+  modernos (Linux/Mac/Windows).
+
 ## v4.11.0 — Suite de validación sintética (6 niveles)
 
 Versión centrada en **calidad interna del motor de ajuste**: añade una suite de tests

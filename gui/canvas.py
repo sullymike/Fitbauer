@@ -156,16 +156,24 @@ class SpectrumCanvas(FigureCanvas):
                                   alpha=s.get("data_alpha", 0.7),
                                   label=tr("plot.legend_data"))
         comp_lines: list = []
+        comp_fills: list = []
+        fill_alpha = s.get("component_fill_alpha", 0.12)
         if components:
             palette = s.get("components_palette") or ("#10b981", "#f59e0b", "#8b5cf6")
             for idx, kind, comp in components:
                 label = str(kind) if idx <= 0 else f"{tr(f'kind.{kind}', default=kind)} {idx}"
                 color = s.get("dist_line", s.get("model", "#dc2626")) if idx <= 0 else palette[(idx - 1) % len(palette)]
-                ln, = self.ax.plot(mv, comp, "--",
+                # Nivel de baseline: máximo local del componente (≈ 1 + pendiente·v)
+                ceiling = np.full_like(comp, float(np.nanmax(comp)))
+                fc = self.ax.fill_between(mv, ceiling, comp,
+                                          color=color, alpha=fill_alpha,
+                                          linewidth=0, zorder=1)
+                comp_fills.append(fc)
+                ln, = self.ax.plot(mv, comp, "-",
                                    color=color,
                                    lw=s.get("component_lw", 1.4),
                                    alpha=s.get("component_alpha", 0.85),
-                                   label=label)
+                                   label=label, zorder=2)
                 comp_lines.append(ln)
         model_line = None
         res_line = None
@@ -219,6 +227,8 @@ class SpectrumCanvas(FigureCanvas):
         self._artists = {
             "data": data_line,
             "comps": comp_lines,
+            "comp_fills": comp_fills,
+            "comp_fill_alpha": fill_alpha,
             "cmp_lines": cmp_lines,
             "model": model_line,
             "res_line": res_line,
@@ -280,8 +290,22 @@ class SpectrumCanvas(FigureCanvas):
             ln.set_data(csp.velocity, csp.y_data)
         a["data"].set_data(v, y)
         comps = components or []
-        for ln, (_idx, _kind, comp) in zip(a["comps"], comps):
+        # Eliminar fills anteriores y recrearlos (fill_between no soporta set_data)
+        new_fills: list = []
+        for fc in a.get("comp_fills", []):
+            try:
+                fc.remove()
+            except Exception:
+                pass
+        for ln, (idx, kind, comp) in zip(a["comps"], comps):
             ln.set_data(mv, comp)
+            color = ln.get_color()
+            ceiling = np.full_like(comp, float(np.nanmax(comp)))
+            fc = self.ax.fill_between(mv, ceiling, comp,
+                                      color=color, alpha=a.get("comp_fill_alpha", 0.12),
+                                      linewidth=0, zorder=1)
+            new_fills.append(fc)
+        a["comp_fills"] = new_fills
         if a["model"] is not None and model is not None:
             a["model"].set_data(mv, model)
         self.ax.relim()

@@ -41,5 +41,14 @@ env/
 *~
 .DS_Store
 
+# Auxiliares LaTeX (generados al compilar)
+*.aux
+*.log
+*.blg
+*.bbl
+*.out
+*.synctex.gz
+docs/svg-inkscape/
+
 # Estado de runtime de la app (disposición de paneles guardada por el usuario)
 layout.json
