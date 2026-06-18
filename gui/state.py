@@ -330,18 +330,21 @@ class PlotViewState:
 
     show_residual: bool = True
     show_legend: bool = True
+    show_component_fill: bool = True
 
     @classmethod
     def from_model_state(cls, state: dict[str, Any]) -> "PlotViewState":
         return cls(
             show_residual=bool(state.get("show_residual", True)),
             show_legend=bool(state.get("show_legend", True)),
+            show_component_fill=bool(state.get("show_component_fill", True)),
         )
 
     def to_model_state_fragment(self) -> dict[str, Any]:
         return {
             "show_residual": bool(self.show_residual),
             "show_legend": bool(self.show_legend),
+            "show_component_fill": bool(self.show_component_fill),
         }
 
 
@@ -359,6 +362,10 @@ class UiActionState:
     @property
     def show_legend(self) -> bool:
         return self.plot.show_legend
+
+    @property
+    def show_component_fill(self) -> bool:
+        return self.plot.show_component_fill
 
     def to_model_state_fragment(self) -> dict[str, Any]:
         return {

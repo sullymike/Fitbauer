@@ -66,6 +66,7 @@ class SpectrumCanvas(FigureCanvas):
                style: dict | None = None,
                show_residual: bool = True,
                show_legend: bool = True,
+               show_component_fill: bool = True,
                model_v: np.ndarray | None = None,
                residual: np.ndarray | None = None,
                style_name: str | None = None,
@@ -73,6 +74,7 @@ class SpectrumCanvas(FigureCanvas):
                comparison: list | None = None) -> None:
         s = style or get_style("classic")
         actual_show_residual = bool(show_residual)
+        show_component_fill = bool(show_component_fill)
         # ``model``/``components`` pueden venir muestreados en una rejilla densa
         # (``model_v``) para que la curva de ajuste salga suave aunque el espectro
         # tenga pocos canales. Los datos y los residuos van en la rejilla ``v``.
@@ -94,6 +96,7 @@ class SpectrumCanvas(FigureCanvas):
             "style": dict(s),
             "show_residual": bool(show_residual),
             "show_legend": bool(show_legend),
+            "show_component_fill": show_component_fill,
             "dist_map_2d": dist_map_2d,
             "comparison": _comparison,
         }
@@ -103,7 +106,8 @@ class SpectrumCanvas(FigureCanvas):
         # Firma de la disposición: si no cambia, se reutilizan los ejes/artistas
         # y solo se reescriben los datos (mucho más rápido, sin reconstruir).
         layout_sig = (actual_show_residual, model is not None, n_comp, n_cmp,
-                      bool(show_legend), style_name, int(np.asarray(v).size),
+                      bool(show_legend), show_component_fill, style_name,
+                      int(np.asarray(v).size),
                       int(np.asarray(mv).size), has_2d)
         if (self._artists is not None and self._layout_sig == layout_sig
                 and style_name is not None):
@@ -163,12 +167,15 @@ class SpectrumCanvas(FigureCanvas):
             for idx, kind, comp in components:
                 label = str(kind) if idx <= 0 else f"{tr(f'kind.{kind}', default=kind)} {idx}"
                 color = s.get("dist_line", s.get("model", "#dc2626")) if idx <= 0 else palette[(idx - 1) % len(palette)]
-                # Nivel de baseline: máximo local del componente (≈ 1 + pendiente·v)
-                ceiling = np.full_like(comp, float(np.nanmax(comp)))
-                fc = self.ax.fill_between(mv, ceiling, comp,
-                                          color=color, alpha=fill_alpha,
-                                          linewidth=0, zorder=1)
-                comp_fills.append(fc)
+                # Área sombreada por encima del subespectro. Es opcional: se puede
+                # ocultar desde Vista → "Mostrar área de componentes".
+                if show_component_fill:
+                    # Nivel de baseline: máximo local del componente (≈ 1 + pendiente·v)
+                    ceiling = np.full_like(comp, float(np.nanmax(comp)))
+                    fc = self.ax.fill_between(mv, ceiling, comp,
+                                              color=color, alpha=fill_alpha,
+                                              linewidth=0, zorder=1)
+                    comp_fills.append(fc)
                 ln, = self.ax.plot(mv, comp, "-",
                                    color=color,
                                    lw=s.get("component_lw", 1.4),
@@ -229,6 +236,7 @@ class SpectrumCanvas(FigureCanvas):
             "comps": comp_lines,
             "comp_fills": comp_fills,
             "comp_fill_alpha": fill_alpha,
+            "show_component_fill": show_component_fill,
             "cmp_lines": cmp_lines,
             "model": model_line,
             "res_line": res_line,
@@ -297,14 +305,16 @@ class SpectrumCanvas(FigureCanvas):
                 fc.remove()
             except Exception:
                 pass
+        show_fill = a.get("show_component_fill", True)
         for ln, (idx, kind, comp) in zip(a["comps"], comps):
             ln.set_data(mv, comp)
-            color = ln.get_color()
-            ceiling = np.full_like(comp, float(np.nanmax(comp)))
-            fc = self.ax.fill_between(mv, ceiling, comp,
-                                      color=color, alpha=a.get("comp_fill_alpha", 0.12),
-                                      linewidth=0, zorder=1)
-            new_fills.append(fc)
+            if show_fill:
+                color = ln.get_color()
+                ceiling = np.full_like(comp, float(np.nanmax(comp)))
+                fc = self.ax.fill_between(mv, ceiling, comp,
+                                          color=color, alpha=a.get("comp_fill_alpha", 0.12),
+                                          linewidth=0, zorder=1)
+                new_fills.append(fc)
         a["comp_fills"] = new_fills
         if a["model"] is not None and model is not None:
             a["model"].set_data(mv, model)

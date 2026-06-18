@@ -159,6 +159,8 @@ class SessionIOMixin:
                 self.act_show_residual.setChecked(bool(state["show_residual"]))
             if "show_legend" in state and hasattr(self, "act_show_legend"):
                 self.act_show_legend.setChecked(bool(state["show_legend"]))
+            if "show_component_fill" in state and hasattr(self, "act_show_component_fill"):
+                self.act_show_component_fill.setChecked(bool(state["show_component_fill"]))
             # Opciones avanzadas
             lk = state.get("likelihood")
             if lk in ("gauss", "poisson"):
