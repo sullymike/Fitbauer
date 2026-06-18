@@ -72,6 +72,7 @@
   "options.distribution_bhf": "P(BHF) distribution",
   "options.show_residual": "Show residual",
   "options.show_legend": "Show legend",
+  "options.show_component_fill": "Show component area",
   "options.line_profile": "Line profile",
   "options.profile_lorentzian": "Lorentzian",
   "options.profile_voigt": "Voigt",

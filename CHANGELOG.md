@@ -1,5 +1,20 @@
 # Changelog
 
+## v4.11.2 — Relleno de subespectros conmutable
+
+### Mejoras en la GUI
+
+- **Opción para mostrar u ocultar el área de los componentes** (`Vista → Mostrar área de
+  componentes`): el relleno semitransparente bajo cada subespectro introducido en v4.11.1 es
+  ahora opcional. Está activado por defecto (comportamiento previo), pero puede desactivarse
+  desde el menú para quien prefiera ver solo las líneas de los componentes.
+  - El nuevo flag `show_component_fill` viaja por `PlotViewState` (`gui/state.py`), el snapshot
+    de acciones (`UiActionState`) y ambas rutas de render (`gui/canvas.py`, modo completo y
+    `_update_fast`), de forma análoga a `show_legend`/`show_residual`.
+  - Se persiste con la sesión: al guardar/cargar un proyecto se conserva la preferencia
+    (`gui/session_io.py`).
+  - Cadenas i18n añadidas en ES/EN/FR (`options.show_component_fill`).
+
 ## v4.11.1 — Relleno semitransparente en subespectros · figuras SVG · artículo svjour3
 
 ### Mejoras en la GUI

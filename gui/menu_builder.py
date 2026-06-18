@@ -51,6 +51,7 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     # ── Vista ──
     ("view.show_residual",     "menu.view", "options.show_residual",  ""),
     ("view.show_legend",       "menu.view", "options.show_legend",    ""),
+    ("view.show_component_fill", "menu.view", "options.show_component_fill", ""),
     ("view.open_plotly",       "menu.view", "view.open_plotly",       ""),
     ("view.configure_layout",  "menu.view", "view.configure_layout",  ""),
     # ── Ayuda ──
@@ -388,6 +389,11 @@ class MenuBuilderMixin:
         self.act_show_legend.toggled.connect(lambda _: self._refresh_plot())
         view_menu.addAction(self.act_show_legend)
         self._reg("view.show_legend", self.act_show_legend)
+        self.act_show_component_fill = QtGui.QAction(tr("options.show_component_fill"), self,
+                                                     checkable=True, checked=True)
+        self.act_show_component_fill.toggled.connect(lambda _: self._refresh_plot())
+        view_menu.addAction(self.act_show_component_fill)
+        self._reg("view.show_component_fill", self.act_show_component_fill)
         self.act_open_plotly = QtGui.QAction(tr("view.open_plotly"), self)
         self.act_open_plotly.triggered.connect(self.on_open_plotly)
         self.act_open_plotly.setEnabled(False)

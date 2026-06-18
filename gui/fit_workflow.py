@@ -233,6 +233,7 @@ class FitWorkflowMixin:
             style=style,
             show_residual=ui_state.show_residual,
             show_legend=ui_state.show_legend,
+            show_component_fill=ui_state.show_component_fill,
             model_v=render_state.model_v,
             residual=render_state.residual,
             style_name=self.plot_style_name,

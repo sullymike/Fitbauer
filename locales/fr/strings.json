@@ -72,6 +72,7 @@
   "options.distribution_bhf": "Distribution P(BHF)",
   "options.show_residual": "Afficher le résidu",
   "options.show_legend": "Afficher la légende",
+  "options.show_component_fill": "Afficher l'aire des composantes",
   "options.line_profile": "Profil de raie",
   "options.profile_lorentzian": "Lorentzien",
   "options.profile_voigt": "Voigt",
