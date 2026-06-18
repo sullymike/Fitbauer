@@ -47,6 +47,10 @@ class ModelWorkflowMixin:
                 bool(self.act_show_legend.isChecked())
                 if hasattr(self, "act_show_legend") else True
             ),
+            show_component_fill=(
+                bool(self.act_show_component_fill.isChecked())
+                if hasattr(self, "act_show_component_fill") else True
+            ),
         )
         return UiActionState(n_components=n_components, plot=plot)
 

@@ -485,9 +485,11 @@ class DistributionFitMixin:
         style = get_style(self.plot_style_name)
         show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
         show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
+        show_fill = self.act_show_component_fill.isChecked() if hasattr(self, "act_show_component_fill") else True
         self.canvas.render(self.file.velocity, self.file.y_data,
                            model=result.fitted_curve, components=components_for_plot,
                            style=style, show_residual=show_res, show_legend=show_leg,
+                           show_component_fill=show_fill,
                            style_name=self.plot_style_name,
                            dist_map_2d=self._dist_map_2d)
 
