@@ -154,7 +154,7 @@ DISTRIBUTION_PARAM_SPECS: dict[str, ParamSpec] = {
     "bmin":        ParamSpec(0.0,    0.0,  60.0,  0.1, 2),
     "bmax":        ParamSpec(50.0,   0.0,  60.0,  0.1, 2),
     "nbins":       ParamSpec(50.0,  10.0, 100.0,  1.0, 0),
-    "log_alpha":   ParamSpec(-2.0,  -8.0,   4.0,  0.1, 2),
+    "log_alpha":   ParamSpec( 0.0,  -6.0,   6.0,  0.1, 2),
     # Límites exteriores del eje X en modo IS (δ) y ΔEQ distribuido.
     # Controlan hasta dónde pueden llegar los sliders bmin/bmax en esos modos.
     "is_lo":       ParamSpec(-2.5, -10.0,  0.0,  0.1, 2),
@@ -165,7 +165,7 @@ DISTRIBUTION_PARAM_SPECS: dict[str, ParamSpec] = {
     "qmin":        ParamSpec(-1.0,  -4.0,  4.0, 0.01, 3),
     "qmax":        ParamSpec(1.0,   -4.0,  4.0, 0.01, 3),
     "qbins":       ParamSpec(21.0,   5.0, 80.0,  1.0, 0),
-    "log_alpha_q": ParamSpec(-2.0,  -8.0,  4.0,  0.1, 2),
+    "log_alpha_q": ParamSpec( 0.0,  -6.0,  6.0,  0.1, 2),
 }
 
 # Constante física: pesos estándar de las 6 líneas del sextete Fe-57.
@@ -189,8 +189,8 @@ FIT_INIT_SPECS: dict[str, ParamSpec] = {
     "doublet_sep_min":     ParamSpec(0.18, 0.05, 1.0,  0.01, 3),
     "doublet_sep_max":     ParamSpec(5.0,  1.0, 10.0,   0.1, 2),
     # L-curve: rango del barrido de α
-    "lcurve_alpha_lo":     ParamSpec(-6.0, -10.0, -1.0,  0.5, 1),
-    "lcurve_alpha_hi":     ParamSpec( 2.0,   0.0,  6.0,  0.5, 1),
+    "lcurve_alpha_lo":     ParamSpec(-4.0, -10.0, -1.0,  0.5, 1),
+    "lcurve_alpha_hi":     ParamSpec( 4.0,   0.0,  6.0,  0.5, 1),
     "lcurve_n_points":     ParamSpec(25.0,   5.0, 100.0,  1.0, 0),
     # Bootstrap
     "bootstrap_nrep":      ParamSpec(30.0,   5.0, 500.0,  5.0, 0),

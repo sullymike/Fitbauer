@@ -1,5 +1,38 @@
 # Changelog
 
+## v4.12.2 — α de distribución adimensional (regularización con escala física)
+
+**Problema:** en el ajuste de distribución, mover el slider de log α apenas cambiaba
+la P(BHF) obtenida. Causa: el objetivo es `‖(y−XP)/σ‖² + α·‖L·P‖²`; el término de datos
+es un χ² ~ N, pero el penalizador iba en unidades de absorción y **sin normalizar**, de
+modo que el α «útil» dependía de N, del ruido (σ) y de la profundidad de absorción. Con
+un rango/default fijos, toda la mitad inferior del slider caía en zona muerta y el punto
+activo se desplazaba de un espectro a otro (de 10⁰ a 10² según el ruido).
+
+**Solución — α adimensional:**
+
+- `fit_hyperfine_distribution` y `fit_bhf_quad_distribution` escalan el penalizador por
+  `λ_ref = ‖A_dist‖²_F / ‖L_scaled‖²_F` (operadores blanqueados) y una constante de
+  calibración `ALPHA_REF_SCALE`, de forma que α queda adimensional y **log α ≈ 0 es el
+  balance natural datos/suavidad** para cualquier espectro. Aplica a los tres reguladores
+  (`tikhonov`, `tv`, `maxent`) y a ambos ejes del 2D.
+- El codo de la L-curve queda **estable frente a N, ruido y profundidad de absorción**
+  (antes derivaba varias décadas). La dependencia residual con `nbins`/Γ (elecciones de
+  modelado que el usuario fija) mantiene el codo dentro de ~[−2, +2].
+- La dof efectiva y las σ de los pesos usan el α físico efectivo (`alpha_eff`), coherente
+  con la penalización realmente aplicada.
+
+**GUI / parámetros:**
+
+- Slider `log α` (y `log α_q` del 2D): default **0.0** (antes −2.0) y rango **[−6, +6]**
+  (antes [−8, +4]), centrado en la zona activa.
+- Escaneo de la L-curve por defecto **[−4, +4]** (antes [−6, +2]), para bracketear el codo.
+- Ayuda (ES/EN/FR) actualizada: α adimensional, valor típico −1…+2.
+
+**Compatibilidad:** el valor numérico de α cambia de significado (ahora adimensional). Las
+sesiones antiguas cargan con el nuevo default; los α guardados se reinterpretan en la nueva
+escala. El comportamiento cualitativo (α→0 sin regularizar, α↑ más suave) se conserva.
+
 ## v4.12.1 — Persistencia e informes de los metadatos de distribución
 
 Los parámetros del ajuste de distribución añadidos en v4.12.0 (forma, regularizador y

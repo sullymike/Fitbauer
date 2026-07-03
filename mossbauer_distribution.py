@@ -33,6 +33,10 @@ from core.physics import (
 
 
 BHF_DEFAULT_T = 33.0
+# Calibración del α adimensional del ajuste de distribución (ver
+# `fit_hyperfine_distribution`): centra el codo de la L-curve en log α ≈ 0 para
+# una configuración típica una vez normalizado el penalizador por λ_ref.
+ALPHA_REF_SCALE = 1e-4
 LINE_QUAD_PATTERN = np.array([0.5, -0.5, -0.5, -0.5, -0.5, 0.5], dtype=float)
 
 
@@ -653,10 +657,23 @@ def fit_bhf_quad_distribution(
         X_fit = Xs
         y_fit = y_work
 
+    # Normalización adimensional de α (igual que en el 1D, ver
+    # `fit_hyperfine_distribution`): cada eje se escala por λ_ref = ‖A_dist‖²_F /
+    # ‖L_scaled‖²_F y la constante de calibración, de modo que log α ≈ 0 es el
+    # balance natural con independencia de N, ruido y profundidad.
+    _A_dist = X_fit[:, dist_start:dist_end]
+    _data_scale = float(np.sum(_A_dist * _A_dist))
+    _pen_b = float(np.sum(L_b_scaled * L_b_scaled))
+    _pen_q = float(np.sum(L_q_scaled * L_q_scaled))
+    lambda_b = (_data_scale / _pen_b) if _pen_b > 1e-30 else 1.0
+    lambda_q = (_data_scale / _pen_q) if _pen_q > 1e-30 else 1.0
+    alpha_bhf_eff = float(alpha_bhf) * lambda_b * ALPHA_REF_SCALE
+    alpha_quad_eff = float(alpha_quad) * lambda_q * ALPHA_REF_SCALE
+
     reg_b = np.zeros((L_b.shape[0], X.shape[1]), dtype=float)
     reg_q = np.zeros((L_q.shape[0], X.shape[1]), dtype=float)
-    reg_b[:, dist_start:dist_end] = np.sqrt(float(alpha_bhf)) * L_b_scaled
-    reg_q[:, dist_start:dist_end] = np.sqrt(float(alpha_quad)) * L_q_scaled
+    reg_b[:, dist_start:dist_end] = np.sqrt(alpha_bhf_eff) * L_b_scaled
+    reg_q[:, dist_start:dist_end] = np.sqrt(alpha_quad_eff) * L_q_scaled
     X_aug = np.vstack([X_fit, reg_b, reg_q])
     y_aug = np.concatenate([y_fit, np.zeros(reg_b.shape[0] + reg_q.shape[0], dtype=float)])
 
@@ -676,8 +693,8 @@ def fit_bhf_quad_distribution(
     residuals = y - fitted
     rms = float(np.sqrt(np.mean(residuals ** 2)))
     try:
-        L_combined = np.vstack([np.sqrt(float(alpha_bhf)) * L_b,
-                                np.sqrt(float(alpha_quad)) * L_q])
+        L_combined = np.vstack([np.sqrt(alpha_bhf_eff) * L_b,
+                                np.sqrt(alpha_quad_eff) * L_q])
         eff_dof = tikhonov_effective_dof(X, L_combined, 1.0, dist_start, dist_end, sigma=sigma_arr)
     except Exception:
         eff_dof = None
@@ -1298,9 +1315,25 @@ def fit_hyperfine_distribution(
     lower_arr = np.array(lower)
     upper_arr = np.array(upper)
 
+    # Normalización adimensional de α: el término de datos es un χ² ~ N y el
+    # penalizador α·‖L·P‖² va en unidades de absorción, de modo que el α útil
+    # depende de N, del ruido (σ) y de la profundidad de absorción. Escalando el
+    # penalizador por λ_ref = ‖A_dist‖²_F / ‖L_scaled‖²_F (operadores blanqueados),
+    # α queda adimensional y log α≈0 cae en el codo de la L-curve para cualquier
+    # espectro. Con α→0 se recupera el caso sin regularizar (retrocompatible en
+    # comportamiento, no en el valor numérico de α).
+    _A_dist = X_fit[:, dist_start:dist_end]
+    _data_scale = float(np.sum(_A_dist * _A_dist))
+    _pen_scale = float(np.sum(L_scaled * L_scaled))
+    lambda_ref = (_data_scale / _pen_scale) if _pen_scale > 1e-30 else 1.0
+    # Constante de calibración: sitúa el codo de la L-curve cerca de log α ≈ 0
+    # (α ≈ 1 = balance datos/suavidad) para una configuración típica. La
+    # dependencia residual con nbins/γ mantiene el codo dentro de ~[-2, +2].
+    alpha_eff = float(alpha) * lambda_ref * ALPHA_REF_SCALE
+
     def _solve(L_pen_scaled: np.ndarray):
         reg = np.zeros((L_pen_scaled.shape[0], X.shape[1]), dtype=float)
-        reg[:, dist_start:dist_end] = np.sqrt(float(alpha)) * L_pen_scaled
+        reg[:, dist_start:dist_end] = np.sqrt(alpha_eff) * L_pen_scaled
         X_aug = np.vstack([X_fit, reg])
         y_aug = np.concatenate([y_fit, np.zeros(L_pen_scaled.shape[0], dtype=float)])
         # Las cotas de p̃ = escala·P coinciden con las de P (0 e ∞ invariantes).
@@ -1336,8 +1369,8 @@ def fit_hyperfine_distribution(
             P = z[dist_start:dist_end]
             Pg = np.maximum(P, 1e-300)
             ent = float(np.sum(P * np.log(Pg / m)))          # −α·S = +α·Σ P log(P/m)
-            phi = 0.5 * float(r @ r) + float(alpha) * ent
-            g[dist_start:dist_end] += float(alpha) * (np.log(Pg / m) + 1.0)
+            phi = 0.5 * float(r @ r) + alpha_eff * ent
+            g[dist_start:dist_end] += alpha_eff * (np.log(Pg / m) + 1.0)
             return phi, g
 
         bounds = list(zip(lower_arr.tolist(), upper_arr.tolist()))
@@ -1347,7 +1380,7 @@ def fit_hyperfine_distribution(
         try:
             H = XtWX.copy()
             Pd = np.maximum(opt.x[dist_start:dist_end], 1e-9)
-            H[idx, idx] += float(alpha) * (1.0 / Pd)
+            H[idx, idx] += alpha_eff * (1.0 / Pd)
             eff = float(np.trace(np.linalg.solve(H, XtWX)))
         except Exception:
             eff = float(X.shape[1])
@@ -1394,14 +1427,14 @@ def fit_hyperfine_distribution(
     else:
         try:
             eff_dof = tikhonov_effective_dof(
-                X, L_stats, float(alpha), dist_start, dist_end, sigma=sigma_arr
+                X, L_stats, alpha_eff, dist_start, dist_end, sigma=sigma_arr
             )
         except Exception:
             eff_dof = float(X.shape[1])
 
         try:
             weight_sigma = distribution_weight_sigma(
-                X, L_stats, float(alpha), dist_start, dist_end, residuals, eff_dof, sigma=sigma_arr
+                X, L_stats, alpha_eff, dist_start, dist_end, residuals, eff_dof, sigma=sigma_arr
             )
         except Exception:
             weight_sigma = None
