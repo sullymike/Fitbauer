@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 from PySide6 import QtWidgets
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from scipy.optimize import least_squares
 
@@ -27,6 +28,101 @@ from mossbauer_distribution import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _lcurve_corner_index(rough: np.ndarray, resid_norm: np.ndarray) -> int:
+    """Índice de la esquina de la L-curve (criterio de máxima curvatura, Hansen).
+
+    Trabaja en escala log-log: la esquina es el punto de máxima curvatura de la
+    curva paramétrica (rugosidad ``‖Lw‖``  vs  residuo ``‖Kw−y‖``), es decir el
+    mejor compromiso entre ajuste y suavidad. Devuelve 0 si no puede estimarse
+    (curva demasiado corta o no positiva).
+    """
+    rough = np.asarray(rough, dtype=float)
+    resid_norm = np.asarray(resid_norm, dtype=float)
+    n = rough.size
+    if n < 3 or resid_norm.size != n:
+        return 0
+    # Solo puntos positivos y finitos: el log exige valores > 0.
+    valid = np.isfinite(rough) & np.isfinite(resid_norm) & (rough > 0) & (resid_norm > 0)
+    if valid.sum() < 3:
+        return 0
+    idx_valid = np.flatnonzero(valid)
+    x = np.log(rough[idx_valid])
+    y = np.log(resid_norm[idx_valid])
+    m = x.size
+    # Curvatura de Menger sobre tríos consecutivos (sin signo): en las ramas
+    # rectas de la L vale ~0 y se dispara en la esquina. Robusta frente al
+    # sentido de recorrido (a diferencia de la curvatura con signo).
+    best_local, best_curv = m // 2, -1.0
+    for i in range(1, m - 1):
+        ax, ay = x[i - 1], y[i - 1]
+        bx, by = x[i], y[i]
+        cx, cy = x[i + 1], y[i + 1]
+        area2 = abs((bx - ax) * (cy - ay) - (cx - ax) * (by - ay))
+        d_ab = np.hypot(bx - ax, by - ay)
+        d_bc = np.hypot(cx - bx, cy - by)
+        d_ca = np.hypot(ax - cx, ay - cy)
+        denom = d_ab * d_bc * d_ca
+        if denom <= 0:
+            continue
+        curv = 2.0 * area2 / denom          # = 1 / radio del círculo circunscrito
+        if curv > best_curv:
+            best_curv, best_local = curv, i
+    return int(idx_valid[best_local])
+
+
+def _couple_lcurve_zoom(cv, ax1, ax2, rough, resid_norm, alphas, rms) -> None:
+    """Acopla el zoom de las dos figuras de la L-curve por el rango de α.
+
+    Ambas figuras (izq: ``rough`` vs ``resid_norm``; der: ``alphas`` vs ``rms``)
+    están parametrizadas por el mismo barrido, punto a punto. Al hacer zoom en una,
+    la otra se limita a los puntos del mismo rango de α (selección por pertenencia,
+    robusta aunque ``rough`` no sea monótona en α). Un cerrojo de reentrada evita el
+    bucle infinito entre ambos callbacks.
+    """
+    rough = np.asarray(rough, dtype=float)
+    resid_norm = np.asarray(resid_norm, dtype=float)
+    alphas = np.asarray(alphas, dtype=float)
+    rms = np.asarray(rms, dtype=float)
+    if alphas.size < 2:
+        return
+    sync = {"busy": False}
+
+    def _pad_log(lo: float, hi: float):
+        lo, hi = float(min(lo, hi)), float(max(lo, hi))
+        if lo <= 0 or hi <= 0:
+            return None
+        if lo == hi:
+            return lo / 1.5, hi * 1.5
+        return lo / 1.05, hi * 1.05
+
+    def _apply(ax, xs, ys) -> None:
+        rx = _pad_log(float(np.min(xs)), float(np.max(xs)))
+        ry = _pad_log(float(np.min(ys)), float(np.max(ys)))
+        if rx:
+            ax.set_xlim(*rx)
+        if ry:
+            ax.set_ylim(*ry)
+
+    def _couple(src_ax, src_vals, dst_ax, dst_x, dst_y) -> None:
+        if sync["busy"]:
+            return
+        lo, hi = sorted(src_ax.get_xlim())
+        mask = (src_vals >= lo) & (src_vals <= hi)
+        if not mask.any():
+            return
+        sync["busy"] = True
+        try:
+            _apply(dst_ax, dst_x[mask], dst_y[mask])
+        finally:
+            sync["busy"] = False
+        cv.draw_idle()
+
+    ax1.callbacks.connect(
+        "xlim_changed", lambda _ax: _couple(ax1, rough, ax2, alphas, rms))
+    ax2.callbacks.connect(
+        "xlim_changed", lambda _ax: _couple(ax2, alphas, ax1, rough, resid_norm))
 
 
 class DistributionFitMixin:
@@ -92,6 +188,14 @@ class DistributionFitMixin:
         if self.file.velocity is None or self.file.y_data is None:
             return
         d = self.dist_panel
+        # α/L-curve solo tienen sentido en el histograma regularizado.
+        if d.shape != "Histograma":
+            QtWidgets.QMessageBox.information(
+                self, tr("bhf.lcurve_alpha"),
+                tr("bhf.lcurve_only_histogram",
+                   default="La L-curve solo aplica a la forma Histograma "
+                           "(Gaussiana/Binomial son paramétricas y no usan α)."))
+            return
         var = self.dist_variable
         dist_state = d.to_view_state(variable=var)
         _fi = _eff_fi()
@@ -136,23 +240,39 @@ class DistributionFitMixin:
         v = QtWidgets.QVBoxLayout(dlg)
         fig = Figure(figsize=(8.0, 5.0), dpi=96, constrained_layout=True)
         cv = FigureCanvas(fig); v.addWidget(cv, stretch=1)
+        # Esquina de la L (máxima curvatura) = mejor compromiso ajuste/suavidad.
+        best_idx = _lcurve_corner_index(rough, resid_norm) if alphas.size else 0
         ax1 = fig.add_subplot(1, 2, 1)
         ax1.loglog(rough, resid_norm, "o-", color="#2563eb", ms=4)
         for i, a in enumerate(alphas):
             ax1.annotate(f"{np.log10(a):+.1f}", (rough[i], resid_norm[i]),
                           fontsize=6, alpha=0.7)
+        if alphas.size:
+            ax1.plot(rough[best_idx], resid_norm[best_idx], "o", ms=13,
+                     mfc="none", mec="#16a34a", mew=2.0, zorder=5,
+                     label=tr("plot.lcurve_corner", default="esquina (α óptimo)"))
+            ax1.legend(loc="best", fontsize=7)
         ax1.set_xlabel(tr("plot.lcurve_xlabel"))
         ax1.set_ylabel(tr("plot.lcurve_ylabel"))
         ax1.set_title(tr("plot.lcurve_title"))
         ax1.grid(True, alpha=0.3, which="both")
         ax2 = fig.add_subplot(1, 2, 2)
         ax2.semilogx(alphas, rms, "o-", color="#ef4444", ms=4)
+        if alphas.size:
+            ax2.axvline(float(alphas[best_idx]), color="#16a34a", ls="--", lw=1.2)
         ax2.set_xlabel("α")
         ax2.set_ylabel(tr("plot.label_rms"))
         ax2.set_title(tr("plot.alpha_scan_title"))
         ax2.grid(True, alpha=0.3, which="both")
         cv.draw_idle()
-        best_idx = int(np.nanargmin(rms)) if rms.size else 0
+
+        # Barra de herramientas (zoom/pan/reset) que actúa sobre ambas figuras.
+        toolbar = NavigationToolbar(cv, dlg)
+        v.addWidget(toolbar)
+
+        # Zoom acoplado por α entre ambas figuras.
+        _couple_lcurve_zoom(cv, ax1, ax2, rough, resid_norm, alphas, rms)
+
         suggest = float(alphas[best_idx]) if alphas.size else dist_state.alpha
         buttons = QtWidgets.QHBoxLayout()
         btn_use = QtWidgets.QPushButton(tr("button.use_lcurve", default="Usar α={value}", value=suggest))

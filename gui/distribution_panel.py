@@ -109,12 +109,14 @@ class DistributionPanel(QtWidgets.QGroupBox):
 
         alpha_row = QtWidgets.QHBoxLayout()
         alpha_row.setSpacing(4)
+        self._alpha_preset_btns: list[QtWidgets.QPushButton] = []
         for text, value in ((tr("bhf.alpha_fine", default="Fina"), -5.0),
                             (tr("bhf.alpha_medium", default="Media"), -2.0),
                             (tr("bhf.alpha_smooth", default="Suave"), 1.0)):
             btn = QtWidgets.QPushButton(text)
             btn.clicked.connect(lambda _=False, val=value: self._set_log_alpha(val))
             alpha_row.addWidget(btn)
+            self._alpha_preset_btns.append(btn)
         right_v.addLayout(alpha_row)
 
         self.use_sharp = QtWidgets.QCheckBox(tr("bhf.use_sharp", default="Añadir componentes nítidas activas"))
@@ -160,7 +162,20 @@ class DistributionPanel(QtWidgets.QGroupBox):
             ctl.setVisible(is_2d)
         self.reg_mode_combo.setEnabled(not is_2d)
         self.btn_load_fixed.setEnabled(self.shape == "Fija")
-        self.lcurve_link.setEnabled(True)
+        # α regulariza el Histograma (Tikhonov/TV) y también la 2D (α_BHF/α_ΔEQ);
+        # Gaussiana/Binomial/Fija son paramétricas y no usan α.
+        # La L-curve solo está implementada para el Histograma 1D.
+        is_histogram = self.shape == "Histograma"
+        is_regularized = self.shape in ("Histograma", "2D")
+        self.lcurve_link.setEnabled(is_histogram)
+        self.log_alpha.setEnabled(is_regularized)
+        for _btn in getattr(self, "_alpha_preset_btns", ()):
+            _btn.setEnabled(is_regularized)
+        self.lcurve_link.setToolTip(
+            "" if is_histogram
+            else tr("bhf.lcurve_only_histogram",
+                    default="La L-curve solo aplica a la forma Histograma "
+                            "(Gaussiana/Binomial son paramétricas y no usan α)."))
         self.use_sharp.setEnabled(True)
         if is_2d:
             x_var, y_var = getattr(self, "_distribution_pair", ("bhf", "quad"))

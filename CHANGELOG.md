@@ -1,6 +1,25 @@
 # Changelog
 
-## No publicado
+## v4.11.3 — L-curve (esquina automática · zoom acoplado), perfil Voigt y ayuda ampliada
+
+### Modo distribución P(BHF) / P(ΔEQ)
+
+- **Selección de α por la esquina real de la L-curve** (`gui/distribution_fit.py`): el botón
+  «Usar α» del diálogo de L-curve ya no sugiere el α de mínimo RMS (que tendía a
+  infra-regularizar, escogiendo casi siempre el α más pequeño del barrido). Ahora detecta el
+  **codo de la L-curve por máxima curvatura de Menger** (`_lcurve_corner_index`), es decir el
+  mejor compromiso entre fidelidad al espectro y suavidad de la distribución. La esquina se
+  resalta visualmente: círculo verde en la L-curve y línea vertical en la gráfica RMS vs α.
+- **Zoom en el diálogo de L-curve, acoplado por α** (`_couple_lcurve_zoom`): las dos figuras
+  incorporan barra de herramientas Matplotlib (zoom/pan/reset). Al hacer zoom en una, la otra
+  se limita al mismo rango de α (selección por pertenencia de puntos, robusta aunque la
+  rugosidad no sea monótona en α; cerrojo de reentrada para evitar el bucle entre callbacks).
+- **α y L-curve deshabilitados donde no aplican** (`gui/distribution_panel.py`,
+  `gui/distribution_fit.py`): las formas **Gaussiana** y **Binomial** son ajustes paramétricos
+  (la suavidad la impone la forma funcional) y no usan α, así que el botón de L-curve, el slider
+  `log α` y los presets Fina/Media/Suave se desactivan al seleccionarlas (también en Fija). El
+  slider de α permanece activo en 2D, que sí regulariza con α_BHF/α_ΔEQ. La L-curve solo está
+  implementada para el Histograma 1D.
 
 ### Perfil Voigt en el ajuste de distribución
 
@@ -20,6 +39,19 @@
 - Tests nuevos en `tests/test_distribution_2d.py`: el perfil Voigt produce un kernel
   distinto y el estado global se restaura aunque estuviera "contaminado" por un discreto
   previo.
+
+### Ayuda
+
+- **Capítulo «P(BHF): método» ampliado** (`locales/{es,en,fr}/help.json`): se añade el encuadre
+  como *problema inverso mal condicionado* y una sección dedicada a la **L-curve** (qué mide, la
+  forma de «L», cómo leer el codo, su sentido físico y la aclaración de que α/L-curve solo
+  aplican a la forma Histograma). Traducido a ES/EN/FR.
+
+### Tests
+
+- `tests/test_lcurve_corner.py` y `tests/test_lcurve_zoom_coupling.py`: cobertura de la
+  detección del codo (curvatura de Menger, casos degenerados) y del zoom acoplado por α.
+
 ## v4.11.2 — Relleno de subespectros conmutable
 
 ### Mejoras en la GUI
