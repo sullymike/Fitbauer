@@ -1,5 +1,26 @@
 # Changelog
 
+## No publicado
+
+### Perfil Voigt en el ajuste de distribución
+
+- **Perfil de línea explícito en las distribuciones P(BHF)/P(ΔEQ) y P(BHF, ΔEQ)**
+  (`mossbauer_distribution.py`): `fit_hyperfine_distribution` y
+  `fit_bhf_quad_distribution` aceptan ahora `profile` (`"Lorentziana"`/`"Voigt"`) y
+  `voigt_sigma`. El kernel se construye con la forma de línea elegida, igual que el
+  ajuste discreto. La GUI pasa el selector de perfil compartido
+  (`calib_state.line_profile` / `voigt_sigma`) en el ajuste Histograma y en el escáner
+  de α (L-curve) (`gui/distribution_fit.py`).
+- **Corrección de acoplamiento global latente**: la forma de línea vive en variables de
+  módulo de `core.physics` (`LINE_PROFILE_KIND`/`VOIGT_SIGMA`) que `lorentzian` lee y que
+  el ajuste discreto muta sin restaurar. Antes la distribución heredaba de forma no
+  determinista el perfil dejado por el último discreto. El nuevo gestor `line_profile`
+  fija y **restaura** ese estado alrededor de la construcción del kernel, dejando la
+  distribución con perfil explícito y sin efectos colaterales.
+- Tests nuevos en `tests/test_distribution_2d.py`: el perfil Voigt produce un kernel
+  distinto y el estado global se restaura aunque estuviera "contaminado" por un discreto
+  previo.
+
 ## v4.11.1 — Relleno semitransparente en subespectros · figuras SVG · artículo svjour3
 
 ### Mejoras en la GUI

@@ -111,6 +111,7 @@ class DistributionFitMixin:
                 baseline=calib_state.baseline, slope=calib_state.slope,
                 pmin=bmin, pmax=bmax, nbins=nbins, sigma=self.file.sigma,
                 sharp_components=sharp_components,
+                profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
             )
             if var == "quad":
                 fits = [fit_hyperfine_distribution(
@@ -253,6 +254,7 @@ class DistributionFitMixin:
                     baseline=calib_state.baseline, slope=calib_state.slope,
                     sharp_components=sharp_for_fit,
                     sigma=self.file.sigma,
+                    profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
                 )
             common = dict(
                 variable=var, delta=delta_value, gamma=gamma_value,
@@ -265,7 +267,9 @@ class DistributionFitMixin:
                 return fit_hyperfine_distribution(
                     v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins, alpha=alpha,
                     fit_baseline=fit_baseline, fit_slope=fit_slope,
-                    sigma=self.file.sigma, reg_mode=dist_state.reg_mode, **common)
+                    sigma=self.file.sigma, reg_mode=dist_state.reg_mode,
+                    profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
+                    **common)
             if shape == "Gaussiana":
                 return fit_gaussian_hyperfine_distribution(
                     v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins, **common)

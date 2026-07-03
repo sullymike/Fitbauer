@@ -155,3 +155,51 @@ def test_fit_bhf_quad_distribution_accepts_fixed_sharp_component():
     assert res.success
     assert res.sharp_weights is not None
     assert np.isclose(res.sharp_weights[0], sharp_depth)
+
+
+def test_distribution_voigt_profile_differs_and_restores_global_state():
+    """El perfil Voigt en la distribución es explícito y no filtra estado global.
+
+    Verifica (1) que ``profile='Voigt'`` produce un kernel distinto al
+    Lorentziano, y (2) que el gestor de perfil restaura las variables globales
+    de ``core.physics`` que ``lorentzian`` lee, aunque estuvieran "contaminadas"
+    por un ajuste discreto previo.
+    """
+    import core.physics as _phys
+
+    v = np.linspace(-10.0, 10.0, 300)
+    y = 1.0 - 0.2 * sextet_absorption(v, delta=0.0, quad=0.0, bhf=33.0, gamma=0.30)
+
+    # Estado global dejado por un discreto Voigt con sigma grande.
+    _phys.LINE_PROFILE_KIND = "Voigt"
+    _phys.VOIGT_SIGMA = 0.9
+    before = (_phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA)
+
+    common = dict(variable="bhf", gamma=0.30, pmin=20.0, pmax=45.0,
+                  nbins=40, alpha=1e-3, fit_slope=False)
+    fit_lorentz = fit_hyperfine_distribution(v, y, profile="Lorentziana", **common)
+    assert (_phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA) == before  # restaurado
+
+    fit_voigt = fit_hyperfine_distribution(v, y, profile="Voigt",
+                                           voigt_sigma=0.10, **common)
+    assert (_phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA) == before  # restaurado
+
+    # Los dos perfiles dan curvas distintas.
+    assert not np.allclose(fit_lorentz.fitted_curve, fit_voigt.fitted_curve)
+    # Los datos son Lorentzianos: el ajuste Lorentz no es peor que el Voigt.
+    assert fit_lorentz.rms <= fit_voigt.rms + 1e-9
+
+    # Restaura el default para no afectar a otros tests.
+    _phys.LINE_PROFILE_KIND = "Lorentziana"
+    _phys.VOIGT_SIGMA = 0.05
+
+
+def test_distribution_2d_voigt_profile_differs():
+    v = np.linspace(-8.0, 8.0, 180)
+    y = 1.0 - 0.014 * sextet_absorption(v, delta=0.0, quad=0.2, bhf=32.0, gamma=0.32)
+    common = dict(delta=0.0, gamma=0.32, bmin=28.0, bmax=36.0, nbins_bhf=9,
+                  qmin=-0.4, qmax=0.8, nbins_quad=7, alpha_bhf=1e-4,
+                  alpha_quad=1e-4, fit_slope=False, baseline=1.0)
+    res_l = fit_bhf_quad_distribution(v, y, profile="Lorentziana", **common)
+    res_v = fit_bhf_quad_distribution(v, y, profile="Voigt", voigt_sigma=0.12, **common)
+    assert not np.allclose(res_l.fitted_curve, res_v.fitted_curve)
