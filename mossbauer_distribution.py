@@ -13,6 +13,7 @@ interfaz.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
 
@@ -22,6 +23,7 @@ from scipy.optimize import lsq_linear, nnls
 # Fuente única de las posiciones del sextete: patrón de velocidad PUBLICADO de
 # α-Fe (±0.839 / ±3.084 / ±5.329 mm/s a 33 T), igual que NORMOS. No derivar de
 # los momentos nucleares (sesgaría el BHF ~0.1 T; ver CHANGELOG v4.0.2/v4.0.3).
+from core import physics as _phys
 from core.constants import LINE_POS_33T
 from core.physics import (
     lorentzian,
@@ -29,6 +31,32 @@ from core.physics import (
     neel_log10_nu,
     two_state_exchange_profile,
 )
+
+
+@contextmanager
+def line_profile(kind: str = "Lorentziana", voigt_sigma: float = 0.05):
+    """Fija de forma determinista el perfil de línea usado por ``lorentzian``.
+
+    La forma de línea vive en variables de módulo de ``core.physics``
+    (``LINE_PROFILE_KIND`` / ``VOIGT_SIGMA``) que ``lorentzian`` lee en cada
+    llamada. El ajuste discreto las muta y no las restaura, así que la
+    distribución heredaría un perfil arbitrario según qué ajuste se ejecutó
+    antes. Este gestor las fija durante la construcción del kernel y las
+    restaura al salir, dejando la distribución con perfil explícito y sin
+    efectos colaterales sobre el estado global.
+    """
+    use_voigt = str(kind) == "Voigt"
+    prev_kind = _phys.LINE_PROFILE_KIND
+    prev_sigma = _phys.VOIGT_SIGMA
+    _phys.LINE_PROFILE_KIND = "Voigt" if use_voigt else "Lorentziana"
+    if use_voigt:
+        _phys.VOIGT_SIGMA = max(float(voigt_sigma), 1e-9)
+    try:
+        yield
+    finally:
+        _phys.LINE_PROFILE_KIND = prev_kind
+        _phys.VOIGT_SIGMA = prev_sigma
+
 
 BHF_DEFAULT_T = 33.0
 LINE_QUAD_PATTERN = np.array([0.5, -0.5, -0.5, -0.5, -0.5, 0.5], dtype=float)
@@ -516,6 +544,8 @@ def fit_bhf_quad_distribution(
     sharp_components: list[dict[str, float]] | None = None,
     sigma: np.ndarray | None = None,
     rescale_columns: bool = True,
+    profile: str = "Lorentziana",
+    voigt_sigma: float = 0.05,
 ) -> BhfQuadDistribution2DFit:
     """Ajusta una distribución regularizada bidimensional P(BHF, ΔEQ).
 
@@ -524,6 +554,9 @@ def fit_bhf_quad_distribution(
     curvatura en las dos direcciones::
 
         ||W(y - X z)||² + α_B ||D²_B P||² + α_Q ||D²_Q P||²
+
+    ``profile`` / ``voigt_sigma`` seleccionan la forma de línea del kernel
+    (Lorentziana o Voigt), igual que en la distribución 1D.
 
     Advertencia: incluso con residuo excelente, la solución 2D puede no ser
     única ni tener sentido físico si la malla es demasiado fina o α demasiado
@@ -552,26 +585,27 @@ def fit_bhf_quad_distribution(
     quad_centers = parameter_grid(qmin, qmax, nbins_quad)
     n_b = bhf_centers.size
     n_q = quad_centers.size
-    K = build_bhf_quad_distribution_kernel(
-        v, bhf_centers, quad_centers,
-        variable_x=variable_x, variable_y=variable_y,
-        delta=delta, quad=quad, bhf=bhf, gamma=gamma,
-        gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel,
-        int1=int1, int2_rel=int2_rel, int3_rel=int3_rel,
-    )
+    with line_profile(profile, voigt_sigma):
+        K = build_bhf_quad_distribution_kernel(
+            v, bhf_centers, quad_centers,
+            variable_x=variable_x, variable_y=variable_y,
+            delta=delta, quad=quad, bhf=bhf, gamma=gamma,
+            gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel,
+            int1=int1, int2_rel=int2_rel, int3_rel=int3_rel,
+        )
+        K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
+            v,
+            sharp_components,
+            default_delta=delta,
+            default_quad=0.0,
+            default_gamma=gamma,
+            default_gamma2_rel=gamma2_rel,
+            default_gamma3_rel=gamma3_rel,
+            default_int1=int1,
+            default_int2_rel=int2_rel,
+            default_int3_rel=int3_rel,
+        )
     L_b, L_q = second_difference_matrix_2d(n_b, n_q)
-    K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
-        v,
-        sharp_components,
-        default_delta=delta,
-        default_quad=0.0,
-        default_gamma=gamma,
-        default_gamma2_rel=gamma2_rel,
-        default_gamma3_rel=gamma3_rel,
-        default_int1=int1,
-        default_int2_rel=int2_rel,
-        default_int3_rel=int3_rel,
-    )
 
     y_work = y.astype(float).copy() + fixed_sharp_abs
     columns: list[np.ndarray] = []
@@ -1089,11 +1123,18 @@ def fit_hyperfine_distribution(
     rescale_columns: bool = True,
     reg_mode: str = "tikhonov",
     tv_iters: int = 8,
+    profile: str = "Lorentziana",
+    voigt_sigma: float = 0.05,
 ) -> BhfDistributionFit:
     """Ajusta una distribución Hesse-Rübartsch de BHF o ΔEQ.
 
     variable='bhf': centers son campos hiperfinos.
     variable='quad': centers son valores de ΔEQ con BHF fijo en ``bhf``.
+
+    ``profile`` selecciona la forma de línea del kernel: ``"Lorentziana"``
+    (por defecto) o ``"Voigt"`` (con anchura gaussiana instrumental
+    ``voigt_sigma`` en mm/s). El perfil se aplica de forma determinista solo a
+    la construcción del kernel, sin heredar ni dejar estado global.
     """
     v = _finite_1d("v", v)
     y = _finite_1d("y", y)
@@ -1114,32 +1155,33 @@ def fit_hyperfine_distribution(
         slope = 0.0
 
     centers = parameter_grid(pmin, pmax, nbins)
-    K = build_hyperfine_distribution_kernel(
-        v,
-        centers,
-        variable=variable,
-        delta=delta,
-        quad=quad,
-        bhf=bhf,
-        gamma=gamma,
-        gamma2_rel=gamma2_rel,
-        gamma3_rel=gamma3_rel,
-        int1=int1,
-        int2_rel=int2_rel,
-        int3_rel=int3_rel,
-    )
-    K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
-        v,
-        sharp_components,
-        default_delta=delta,
-        default_quad=quad,
-        default_gamma=gamma,
-        default_gamma2_rel=gamma2_rel,
-        default_gamma3_rel=gamma3_rel,
-        default_int1=int1,
-        default_int2_rel=int2_rel,
-        default_int3_rel=int3_rel,
-    )
+    with line_profile(profile, voigt_sigma):
+        K = build_hyperfine_distribution_kernel(
+            v,
+            centers,
+            variable=variable,
+            delta=delta,
+            quad=quad,
+            bhf=bhf,
+            gamma=gamma,
+            gamma2_rel=gamma2_rel,
+            gamma3_rel=gamma3_rel,
+            int1=int1,
+            int2_rel=int2_rel,
+            int3_rel=int3_rel,
+        )
+        K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
+            v,
+            sharp_components,
+            default_delta=delta,
+            default_quad=quad,
+            default_gamma=gamma,
+            default_gamma2_rel=gamma2_rel,
+            default_gamma3_rel=gamma3_rel,
+            default_int1=int1,
+            default_int2_rel=int2_rel,
+            default_int3_rel=int3_rel,
+        )
     # Penalizador: Tikhonov L2 (segunda diferencia, suave) o Variación Total
     # (primera diferencia, L1 → picos afilados con bordes). Mejora 5.
     use_tv = str(reg_mode).lower() in ("tv", "total_variation", "variacion_total")
