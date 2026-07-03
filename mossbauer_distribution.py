@@ -13,7 +13,6 @@ interfaz.
 """
 from __future__ import annotations
 
-from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
 
@@ -23,39 +22,14 @@ from scipy.optimize import lsq_linear, nnls
 # Fuente única de las posiciones del sextete: patrón de velocidad PUBLICADO de
 # α-Fe (±0.839 / ±3.084 / ±5.329 mm/s a 33 T), igual que NORMOS. No derivar de
 # los momentos nucleares (sesgaría el BHF ~0.1 T; ver CHANGELOG v4.0.2/v4.0.3).
-from core import physics as _phys
 from core.constants import LINE_POS_33T
 from core.physics import (
+    line_profile,
     lorentzian,
     lognormal_diameter_distribution,
     neel_log10_nu,
     two_state_exchange_profile,
 )
-
-
-@contextmanager
-def line_profile(kind: str = "Lorentziana", voigt_sigma: float = 0.05):
-    """Fija de forma determinista el perfil de línea usado por ``lorentzian``.
-
-    La forma de línea vive en variables de módulo de ``core.physics``
-    (``LINE_PROFILE_KIND`` / ``VOIGT_SIGMA``) que ``lorentzian`` lee en cada
-    llamada. El ajuste discreto las muta y no las restaura, así que la
-    distribución heredaría un perfil arbitrario según qué ajuste se ejecutó
-    antes. Este gestor las fija durante la construcción del kernel y las
-    restaura al salir, dejando la distribución con perfil explícito y sin
-    efectos colaterales sobre el estado global.
-    """
-    use_voigt = str(kind) == "Voigt"
-    prev_kind = _phys.LINE_PROFILE_KIND
-    prev_sigma = _phys.VOIGT_SIGMA
-    _phys.LINE_PROFILE_KIND = "Voigt" if use_voigt else "Lorentziana"
-    if use_voigt:
-        _phys.VOIGT_SIGMA = max(float(voigt_sigma), 1e-9)
-    try:
-        yield
-    finally:
-        _phys.LINE_PROFILE_KIND = prev_kind
-        _phys.VOIGT_SIGMA = prev_sigma
 
 
 BHF_DEFAULT_T = 33.0
@@ -146,6 +120,8 @@ class BhfDistributionFit:
     fitted_dist_p: float | None = None
     effective_dof: float | None = None
     weight_sigma: np.ndarray | None = None
+    # VBF multi-gaussiano: lista de componentes (A_k, μ_k, σ_k) ordenados por μ.
+    vbf_components: tuple[tuple[float, float, float], ...] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Devuelve un dict serializable en JSON tras convertir arrays a listas."""
@@ -168,6 +144,7 @@ class BhfDistributionFit:
             "fitted_dist_p": self.fitted_dist_p,
             "effective_dof": self.effective_dof,
             "weight_sigma": [] if self.weight_sigma is None else self.weight_sigma.tolist(),
+            "vbf_components": [] if self.vbf_components is None else [list(c) for c in self.vbf_components],
         }
 
 
@@ -361,15 +338,29 @@ def build_bhf_kernel(
     int1: float = 1.0,
     int2_rel: float = 1.0,
     int3_rel: float = 1.0,
+    delta_slope: float = 0.0,
+    quad_slope: float = 0.0,
+    h_ref: float | None = None,
 ) -> np.ndarray:
-    """Matriz K[i,j] = absorcion de un sextete unitario con BHF_j."""
+    """Matriz K[i,j] = absorcion de un sextete unitario con BHF_j.
+
+    Correlación δ(H)/ΔEQ(H) (Le Caër–Dubois 1979, Wivel–Mørup 1981): en óxidos y
+    aleaciones el desplazamiento isomérico y el desdoblamiento cuadrupolar
+    correlacionan linealmente con el campo hiperfino. Con ``delta_slope`` /
+    ``quad_slope`` (en mm/s·T⁻¹) cada columna usa
+    ``δ_j = delta + delta_slope·(H_j − H_ref)`` y
+    ``ΔEQ_j = quad + quad_slope·(H_j − H_ref)`` (``H_ref`` = media de la malla si es
+    ``None``). El modelo sigue siendo **lineal en los pesos P_j**: solo cambia la
+    construcción de cada columna. Con pendientes = 0 reproduce el kernel clásico.
+    """
     v = np.asarray(v, dtype=float)
     bhf_centers = np.asarray(bhf_centers, dtype=float)
+    href = float(np.mean(bhf_centers)) if h_ref is None else float(h_ref)
     cols = [
         sextet_absorption(
             v,
-            delta=delta,
-            quad=quad,
+            delta=float(delta) + float(delta_slope) * (float(bhf) - href),
+            quad=float(quad) + float(quad_slope) * (float(bhf) - href),
             bhf=float(bhf),
             gamma=gamma,
             gamma2_rel=gamma2_rel,
@@ -728,24 +719,44 @@ def build_hyperfine_distribution_kernel(
     int1: float = 1.0,
     int2_rel: float = 1.0,
     int3_rel: float = 1.0,
+    delta_slope: float = 0.0,
+    quad_slope: float = 0.0,
+    h_ref: float | None = None,
 ) -> np.ndarray:
     """Kernel de distribución 1D en BHF o ΔEQ.
 
     variable="bhf": centers son campos BHF y quad queda fijo.
     variable="quad": centers son ΔEQ y BHF queda fijo.
+
+    ``delta_slope`` / ``quad_slope`` introducen la correlación lineal de δ y ΔEQ
+    con la variable de la malla (ver :func:`build_bhf_kernel`). Con
+    ``variable="quad"`` la pendiente análoga aplica sobre δ (δ(ΔEQ)); con
+    ``variable="delta"`` sobre ΔEQ (ΔEQ(IS)). Pendientes = 0 → kernel clásico.
     """
     variable = variable.lower()
+    centers_arr = np.asarray(centers, dtype=float)
+    href = float(np.mean(centers_arr)) if h_ref is None else float(h_ref)
     if variable in {"bhf", "b", "field"}:
-        return build_bhf_kernel(v, centers, delta=delta, quad=quad, gamma=gamma, gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel, int1=int1, int2_rel=int2_rel, int3_rel=int3_rel)
+        return build_bhf_kernel(v, centers_arr, delta=delta, quad=quad, gamma=gamma,
+                                gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel,
+                                int1=int1, int2_rel=int2_rel, int3_rel=int3_rel,
+                                delta_slope=delta_slope, quad_slope=quad_slope, h_ref=href)
     if variable in {"quad", "deq", "deltaeq", "qs", "Δeq"}:
         return np.column_stack([
-            sextet_absorption(v, delta=delta, quad=float(q), bhf=bhf, gamma=gamma, gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel, int1=int1, int2_rel=int2_rel, int3_rel=int3_rel)
-            for q in np.asarray(centers, dtype=float)
+            sextet_absorption(v, delta=float(delta) + float(delta_slope) * (float(q) - href),
+                              quad=float(q), bhf=bhf, gamma=gamma,
+                              gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel,
+                              int1=int1, int2_rel=int2_rel, int3_rel=int3_rel)
+            for q in centers_arr
         ])
     if variable in {"delta", "is", "isomer", "isomer_shift"}:
         return np.column_stack([
-            sextet_absorption(v, delta=float(d), quad=quad, bhf=bhf, gamma=gamma, gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel, int1=int1, int2_rel=int2_rel, int3_rel=int3_rel)
-            for d in np.asarray(centers, dtype=float)
+            sextet_absorption(v, delta=float(d),
+                              quad=float(quad) + float(quad_slope) * (float(d) - href),
+                              bhf=bhf, gamma=gamma,
+                              gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel,
+                              int1=int1, int2_rel=int2_rel, int3_rel=int3_rel)
+            for d in centers_arr
         ])
     raise ValueError("variable de distribución no reconocida: usa 'bhf', 'quad' o 'delta'")
 
@@ -1125,6 +1136,9 @@ def fit_hyperfine_distribution(
     tv_iters: int = 8,
     profile: str = "Lorentziana",
     voigt_sigma: float = 0.05,
+    delta_slope: float = 0.0,
+    quad_slope: float = 0.0,
+    h_ref: float | None = None,
 ) -> BhfDistributionFit:
     """Ajusta una distribución Hesse-Rübartsch de BHF o ΔEQ.
 
@@ -1135,6 +1149,13 @@ def fit_hyperfine_distribution(
     (por defecto) o ``"Voigt"`` (con anchura gaussiana instrumental
     ``voigt_sigma`` en mm/s). El perfil se aplica de forma determinista solo a
     la construcción del kernel, sin heredar ni dejar estado global.
+
+    ``reg_mode`` selecciona el regularizador: ``"tikhonov"`` (curvatura, suave),
+    ``"tv"`` (variación total, bordes) o ``"maxent"`` (máxima entropía: la P menos
+    comprometida compatible con los datos, positiva y sin oscilaciones espurias).
+
+    ``delta_slope`` / ``quad_slope`` (mm/s·T⁻¹) activan la correlación lineal
+    δ(H)/ΔEQ(H) en el kernel (opt-in; 0 = comportamiento clásico).
     """
     v = _finite_1d("v", v)
     y = _finite_1d("y", y)
@@ -1169,6 +1190,9 @@ def fit_hyperfine_distribution(
             int1=int1,
             int2_rel=int2_rel,
             int3_rel=int3_rel,
+            delta_slope=delta_slope,
+            quad_slope=quad_slope,
+            h_ref=h_ref,
         )
         K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
             v,
@@ -1182,9 +1206,10 @@ def fit_hyperfine_distribution(
             default_int2_rel=int2_rel,
             default_int3_rel=int3_rel,
         )
-    # Penalizador: Tikhonov L2 (segunda diferencia, suave) o Variación Total
-    # (primera diferencia, L1 → picos afilados con bordes). Mejora 5.
+    # Penalizador: Tikhonov L2 (segunda diferencia, suave), Variación Total
+    # (primera diferencia, L1 → picos afilados con bordes) o Máxima Entropía.
     use_tv = str(reg_mode).lower() in ("tv", "total_variation", "variacion_total")
+    use_maxent = str(reg_mode).lower() in ("maxent", "max_entropy", "maxima_entropia", "entropia")
     if use_tv:
         L = first_difference_matrix(centers.size)
     else:
@@ -1268,7 +1293,56 @@ def fit_hyperfine_distribution(
         res = lsq_linear(X_aug, y_aug, bounds=(lower_arr, upper_arr), lsmr_tol="auto", max_iter=2000)
         return res, res.x / scale  # deshace el escalado para recuperar P físico
 
-    if use_tv:
+    def _solve_maxent():
+        """Máxima entropía: minimiza ½‖(y−Xz)/σ‖² − α·S(P), S = −Σ Pⱼ log(Pⱼ/mⱼ).
+
+        La entropía no es cuadrática ⇒ no vale ``lsq_linear``: se usa L-BFGS-B con
+        gradiente analítico sobre las variables físicas z=[baseline,slope,P,sharp]
+        con cotas P≥0. mⱼ es el modelo por defecto (plano). El óptimo es convexo.
+        """
+        from scipy.optimize import minimize
+        if sigma_arr is not None:
+            Xw = X / sigma_arr[:, None]
+            yw = y_work / sigma_arr
+        else:
+            Xw = X
+            yw = y_work
+        XtWX = Xw.T @ Xw
+        # Warm start desde el Tikhonov lineal (fija también la escala de m).
+        _res0, params0 = _solve(L_scaled)
+        P0 = np.maximum(params0[dist_start:dist_end], 0.0)
+        m = max(float(np.mean(P0)), 1e-9)
+        x0 = np.clip(np.asarray(params0, dtype=float), lower_arr, upper_arr)
+        x0[dist_start:dist_end] = np.maximum(x0[dist_start:dist_end], m * 1e-3)
+        idx = np.arange(dist_start, dist_end)
+
+        def phi_grad(z):
+            r = yw - Xw @ z
+            g = -(Xw.T @ r)
+            P = z[dist_start:dist_end]
+            Pg = np.maximum(P, 1e-300)
+            ent = float(np.sum(P * np.log(Pg / m)))          # −α·S = +α·Σ P log(P/m)
+            phi = 0.5 * float(r @ r) + float(alpha) * ent
+            g[dist_start:dist_end] += float(alpha) * (np.log(Pg / m) + 1.0)
+            return phi, g
+
+        bounds = list(zip(lower_arr.tolist(), upper_arr.tolist()))
+        opt = minimize(phi_grad, x0, jac=True, method="L-BFGS-B", bounds=bounds,
+                       options={"maxiter": 3000, "ftol": 1e-12, "gtol": 1e-8})
+        # dof efectivos con el Hessiano MaxEnt: XᵀWX + α·diag(1/Pⱼ).
+        try:
+            H = XtWX.copy()
+            Pd = np.maximum(opt.x[dist_start:dist_end], 1e-9)
+            H[idx, idx] += float(alpha) * (1.0 / Pd)
+            eff = float(np.trace(np.linalg.solve(H, XtWX)))
+        except Exception:
+            eff = float(X.shape[1])
+        return opt, opt.x, eff
+
+    if use_maxent:
+        result, params, eff_dof_maxent = _solve_maxent()
+        L_stats = None
+    elif use_tv:
         # IRLS para ‖α^{1/2} D P‖₁: en cada iteración se resuelve un Tikhonov
         # ponderado con pesos w_k = 1/√((D P)_k² + ε²). Converge a la solución
         # de variación total, que preserva bordes (picos afilados).
@@ -1299,19 +1373,24 @@ def fit_hyperfine_distribution(
     residuals = y - fitted
     rms = float(np.sqrt(np.mean(residuals**2)))
 
-    try:
-        eff_dof = tikhonov_effective_dof(
-            X, L_stats, float(alpha), dist_start, dist_end, sigma=sigma_arr
-        )
-    except Exception:
-        eff_dof = float(X.shape[1])
-
-    try:
-        weight_sigma = distribution_weight_sigma(
-            X, L_stats, float(alpha), dist_start, dist_end, residuals, eff_dof, sigma=sigma_arr
-        )
-    except Exception:
+    if use_maxent:
+        # dof desde el Hessiano MaxEnt; sin covarianza lineal fiable (fallback).
+        eff_dof = eff_dof_maxent
         weight_sigma = None
+    else:
+        try:
+            eff_dof = tikhonov_effective_dof(
+                X, L_stats, float(alpha), dist_start, dist_end, sigma=sigma_arr
+            )
+        except Exception:
+            eff_dof = float(X.shape[1])
+
+        try:
+            weight_sigma = distribution_weight_sigma(
+                X, L_stats, float(alpha), dist_start, dist_end, residuals, eff_dof, sigma=sigma_arr
+            )
+        except Exception:
+            weight_sigma = None
 
     return BhfDistributionFit(
         bhf_centers=centers,
@@ -1412,6 +1491,130 @@ def fit_gaussian_hyperfine_distribution(
         sharp_weights=sharp_weights_arr,
         fitted_dist_center=float(cen),
         fitted_dist_sigma=float(np.exp(log_sig)),
+    )
+
+
+def fit_vbf_hyperfine_distribution(
+    v: np.ndarray,
+    y: np.ndarray,
+    *,
+    n_components: int = 2,
+    profile: str = "Voigt",
+    voigt_sigma: float = 0.05,
+    variable: str = "bhf",
+    delta: float = 0.0,
+    quad: float = 0.0,
+    bhf: float = BHF_DEFAULT_T,
+    gamma: float = 0.18,
+    pmin: float = 0.0,
+    pmax: float = 50.0,
+    nbins: int = 80,
+    baseline: float | None = None,
+    slope: float | None = None,
+    sharp_components: list[dict[str, float]] | None = None,
+    delta_slope: float = 0.0,
+    quad_slope: float = 0.0,
+    h_ref: float | None = None,
+) -> BhfDistributionFit:
+    """VBF (Voigt-Based Fitting, Rancourt–Ping 1991): P como suma de N gaussianas.
+
+    Generaliza :func:`fit_gaussian_hyperfine_distribution` a ``n_components``
+    gaussianas sobre un kernel Voigt (o Lorentziano). Cada componente aporta
+    parámetros con significado físico (A_k, μ_k, σ_k), que se **guardan** en
+    ``vbf_components`` (ordenados por μ) — esa es la ventaja del VBF frente a
+    Hesse-Rübartsch. Admite correlación δ(H)/ΔEQ(H) (``delta_slope``/``quad_slope``)
+    y componentes nítidos.
+    """
+    from scipy.optimize import least_squares
+    v = _finite_1d("v", v); y = _finite_1d("y", y)
+    N = max(1, int(n_components))
+    centers = parameter_grid(pmin, pmax, nbins)
+    with line_profile(profile, voigt_sigma):
+        K = build_hyperfine_distribution_kernel(
+            v, centers, variable=variable, delta=delta, quad=quad, bhf=bhf, gamma=gamma,
+            delta_slope=delta_slope, quad_slope=quad_slope, h_ref=h_ref)
+        K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
+            v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
+    n_sharp = K_sharp.shape[1] if K_sharp is not None else 0
+    if baseline is None:
+        baseline = float(np.percentile(y, 90))
+    if slope is None:
+        slope = 0.0
+    rng = max(float(pmax) - float(pmin), 1e-3)
+    amp0 = max(1e-6, float(np.percentile(y, 90) - np.min(y)))
+
+    def gauss_weights(center: float, sigma: float) -> np.ndarray:
+        sigma = max(float(sigma), 1e-6)
+        w = np.exp(-0.5 * ((centers - center) / sigma) ** 2)
+        area = np.trapezoid(w, centers) if w.size > 1 else w[0]
+        return w / max(float(area), 1e-12)
+
+    def comp_view(x: np.ndarray) -> np.ndarray:
+        return np.asarray(x[2:2 + 3 * N]).reshape(N, 3)
+
+    def total_w(comp: np.ndarray) -> np.ndarray:
+        w = np.zeros(centers.size, dtype=float)
+        for A, mu, log_sig in comp:
+            w = w + max(float(A), 0.0) * gauss_weights(float(mu), float(np.exp(log_sig)))
+        return w
+
+    def residual(x: np.ndarray) -> np.ndarray:
+        b0, sl = x[0], x[1]
+        w = total_w(comp_view(x))
+        r = b0 + sl * v - K @ w - fixed_sharp_abs - y
+        if K_sharp is not None and n_sharp:
+            r = r - K_sharp @ np.maximum(x[2 + 3 * N:2 + 3 * N + n_sharp], 0.0)
+        return r
+
+    log_sig_lo, log_sig_hi = np.log(1e-3), np.log(rng)
+    sig0 = max(rng / (3.0 * N), 1e-3)
+    mus0 = (np.linspace(float(pmin) + rng / (N + 1), float(pmax) - rng / (N + 1), N)
+            if N > 1 else np.array([0.5 * (float(pmin) + float(pmax))]))
+    lo = [0.0, -np.inf]
+    hi = [np.inf, np.inf]
+    x0 = [float(baseline), float(slope)]
+    for mu in mus0:
+        lo += [0.0, float(pmin), log_sig_lo]
+        hi += [np.inf, float(pmax), log_sig_hi]
+        x0 += [amp0 / N, float(mu), float(np.log(sig0))]
+    lo += [0.0] * n_sharp
+    hi += [np.inf] * n_sharp
+    x0 += [amp0 / max(n_sharp, 1)] * n_sharp
+    lo_arr = np.array(lo); hi_arr = np.array(hi)
+    res = least_squares(residual, np.clip(np.array(x0), lo_arr, hi_arr),
+                        bounds=(lo_arr, hi_arr), max_nfev=4000)
+
+    comp = comp_view(res.x)
+    w = total_w(comp)
+    sharp_weights_free = np.maximum(res.x[2 + 3 * N:2 + 3 * N + n_sharp], 0.0) if n_sharp else None
+    sharp_weights_arr = merge_sharp_weights(sharp_weights_free, sharp_fixed_mask, fixed_sharp_weights)
+    fitted = float(res.x[0]) + float(res.x[1]) * v - K @ w - fixed_sharp_abs
+    if K_sharp is not None and sharp_weights_free is not None:
+        fitted = fitted - K_sharp @ sharp_weights_free
+    residuals = y - fitted
+    # Ordenar por μ (evita el label switching) y guardar (A, μ, σ).
+    comps = tuple(sorted(
+        ((max(float(A), 0.0), float(mu), float(np.exp(log_sig))) for A, mu, log_sig in comp),
+        key=lambda c: c[1]))
+    dominant = max(comps, key=lambda c: c[0]) if comps else (0.0, 0.0, 0.0)
+    summary = ", ".join(f"(A={A:.3g}, μ={mu:.4g}, σ={sg:.3g})" for A, mu, sg in comps)
+    return BhfDistributionFit(
+        bhf_centers=centers,
+        weights=w,
+        probability=normalize_probability(w, centers),
+        fitted_curve=fitted,
+        residuals=residuals,
+        baseline=float(res.x[0]),
+        slope=float(res.x[1]),
+        alpha=0.0,
+        rms=float(np.sqrt(np.mean(residuals**2))),
+        success=bool(res.success),
+        message=f"VBF {variable} N={N}: {summary}; {res.message}",
+        sharp_bhf_centers=sharp_bhf_centers,
+        sharp_weights=sharp_weights_arr,
+        fitted_dist_center=float(dominant[1]),
+        fitted_dist_sigma=float(dominant[2]),
+        vbf_components=comps,
     )
 
 

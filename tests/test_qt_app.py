@@ -256,6 +256,65 @@ def test_mode_switch_to_pbhf_and_fit(win):
     assert 28.0 < bhf_peak < 38.0
 
 
+def test_pbhf_1d_reopen_distribution_dialog(win):
+    """Tras un ajuste P(BHF) 1D, el botón reabre el gráfico desde el resultado guardado."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    captured = {}
+    win._show_distribution_dialog = lambda r: captured.setdefault("r", r)
+    win.mode_combo.setCurrentIndex(1)
+    win.on_fit()
+    # Botón visible y etiquetado como "Ver distribución…" (no el mapa 2D).
+    assert not win.dist_panel.btn_show_map.isHidden()
+    assert "distribu" in win.dist_panel.btn_show_map.text().lower()
+    # Reabrir usa el resultado persistido, sin re-ajustar.
+    reopened = {}
+    win._show_distribution_dialog = lambda r: reopened.setdefault("r", r)
+    win.dist_panel.btn_show_map.click()
+    assert reopened.get("r") is win.runtime_results.distribution_result
+
+
+def _fix_dist_globals(d):
+    """Fija δ/quad/γ del panel de distribución para evitar el lazo externo lento."""
+    d.delta.set_fixed(True)
+    d.quad.set_fixed(True)
+    d.gamma.set_fixed(True)
+
+
+def test_pbhf_vbf_shape_fits_and_stores_components(win):
+    """La forma VBF ajusta y guarda las componentes gaussianas (A, μ, σ)."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    captured = {}
+    win._show_distribution_dialog = lambda r: captured.setdefault("r", r)
+    win.mode_combo.setCurrentIndex(1)
+    d = win.dist_panel
+    _fix_dist_globals(d)
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("VBF"))
+    d.vbf_ncomp.setValue(2)
+    win.on_fit()
+    r = captured["r"]
+    assert r.vbf_components is not None and len(r.vbf_components) == 2
+    # ordenadas por μ
+    mus = [c[1] for c in r.vbf_components]
+    assert mus == sorted(mus)
+
+
+def test_pbhf_maxent_reg_mode_fits(win):
+    """El modo de regularización 'maxent' ajusta un histograma P(BHF) positivo."""
+    import numpy as np
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    captured = {}
+    win._show_distribution_dialog = lambda r: captured.setdefault("r", r)
+    win.mode_combo.setCurrentIndex(1)
+    d = win.dist_panel
+    _fix_dist_globals(d)
+    d.nbins.set_value(30)
+    d.reg_mode_combo.setCurrentText("maxent")
+    win.on_fit()
+    r = captured["r"]
+    assert r.success
+    assert np.all(np.asarray(r.weights) >= -1e-9)
+
+
 def test_2d_distribution_fit_renders_topographic_map(win):
     """Un ajuste 2D produce un resultado con probabilidad matricial y mapa.
 

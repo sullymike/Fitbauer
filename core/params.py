@@ -56,7 +56,7 @@ COMPONENT_KINDS = (
 )
 
 # Formas válidas de distribución hiperfina (selector del panel y validación).
-DISTRIBUTION_SHAPES = ("Histograma", "Gaussiana", "Binomial", "Fija", "2D")
+DISTRIBUTION_SHAPES = ("Histograma", "Gaussiana", "VBF", "Binomial", "Fija", "2D")
 
 # Modos válidos de intensidad relativa para sextetes.
 INTENSITY_MODES = ("free", "texture")

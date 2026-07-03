@@ -22,6 +22,7 @@ from gui.fit_workflow import GuiFitRenderState, GuiFitResult
 from mossbauer_distribution import (
     fit_hyperfine_distribution,
     fit_gaussian_hyperfine_distribution,
+    fit_vbf_hyperfine_distribution,
     fit_binomial_hyperfine_distribution,
     fit_fixed_hyperfine_distribution,
     fit_bhf_quad_distribution,
@@ -216,6 +217,7 @@ class DistributionFitMixin:
                 pmin=bmin, pmax=bmax, nbins=nbins, sigma=self.file.sigma,
                 sharp_components=sharp_components,
                 profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
+                delta_slope=dist_state.delta_slope, quad_slope=dist_state.quad_slope,
             )
             if var == "quad":
                 fits = [fit_hyperfine_distribution(
@@ -355,11 +357,17 @@ class DistributionFitMixin:
         base_delta = dist_state.delta
         base_quad = dist_state.quad
         base_gamma = dist_state.gamma
+        base_delta_slope = dist_state.delta_slope
+        base_quad_slope = dist_state.quad_slope
         v_arr = self.file.velocity
         y_arr = self.file.y_data
 
         def run_fit(delta_value: float, quad_value: float, gamma_value: float,
-                    sharp_for_fit: list[dict] | None):
+                    sharp_for_fit: list[dict] | None,
+                    delta_slope_value: float | None = None,
+                    quad_slope_value: float | None = None):
+            dsl = base_delta_slope if delta_slope_value is None else delta_slope_value
+            qsl = base_quad_slope if quad_slope_value is None else quad_slope_value
             if shape == "2D":
                 return fit_bhf_quad_distribution(
                     v_arr, y_arr,
@@ -389,6 +397,14 @@ class DistributionFitMixin:
                     fit_baseline=fit_baseline, fit_slope=fit_slope,
                     sigma=self.file.sigma, reg_mode=dist_state.reg_mode,
                     profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
+                    delta_slope=dsl, quad_slope=qsl,
+                    **common)
+            if shape == "VBF":
+                return fit_vbf_hyperfine_distribution(
+                    v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins,
+                    n_components=dist_state.vbf_n_components,
+                    profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
+                    delta_slope=dsl, quad_slope=qsl,
                     **common)
             if shape == "Gaussiana":
                 return fit_gaussian_hyperfine_distribution(
@@ -414,6 +430,13 @@ class DistributionFitMixin:
                 outer_specs.append(("dist_quad", "lin", d.quad._lo, d.quad._hi))
         if not dist_state.is_fixed("gamma"):
             outer_specs.append(("dist_gamma", "loggamma", d.gamma._lo, d.gamma._hi))
+        # Nivel (b): refinar las pendientes de correlación δ(H)/ΔEQ(H) en la capa
+        # externa (son no lineales). Solo con Histograma/VBF y si no están fijas.
+        if shape in ("Histograma", "VBF"):
+            if not dist_state.is_fixed("delta_slope"):
+                outer_specs.append(("dist_delta_slope", "lin", d.delta_slope._lo, d.delta_slope._hi))
+            if not dist_state.is_fixed("quad_slope"):
+                outer_specs.append(("dist_quad_slope", "lin", d.quad_slope._lo, d.quad_slope._hi))
         if sharp_components:
             for pos, idx in enumerate(sharp_indices):
                 cp = self.components_panels[idx - 1]
@@ -451,6 +474,10 @@ class DistributionFitMixin:
                     cur = base_quad
                 elif key == "dist_gamma":
                     cur = base_gamma
+                elif key == "dist_delta_slope":
+                    cur = base_delta_slope
+                elif key == "dist_quad_slope":
+                    cur = base_quad_slope
                 else:
                     _sharp, pos_txt, pname = key.split(":")
                     cur = float(sharp_components[int(pos_txt)]["gamma" if pname == "gamma1" else pname])
@@ -460,10 +487,12 @@ class DistributionFitMixin:
                     x0.append(cur); lo.append(lo_v); hi.append(hi_v)
             return np.array(x0, dtype=float), np.array(lo, dtype=float), np.array(hi, dtype=float)
 
-        def expand(x: np.ndarray) -> tuple[float, float, float, list[dict] | None]:
+        def expand(x: np.ndarray):
             delta_value = base_delta
             quad_value = base_quad
             gamma_value = base_gamma
+            delta_slope_value = base_delta_slope
+            quad_slope_value = base_quad_slope
             local_sharp = [dict(c) for c in sharp_components] if sharp_components else None
             for i, (key, kind, _lo, _hi) in enumerate(outer_specs):
                 value = float(np.exp(x[i])) if kind == "loggamma" else float(x[i])
@@ -473,10 +502,15 @@ class DistributionFitMixin:
                     quad_value = value
                 elif key == "dist_gamma":
                     gamma_value = value
+                elif key == "dist_delta_slope":
+                    delta_slope_value = value
+                elif key == "dist_quad_slope":
+                    quad_slope_value = value
                 elif local_sharp is not None:
                     _sharp, pos_txt, pname = key.split(":")
                     local_sharp[int(pos_txt)]["gamma" if pname == "gamma1" else pname] = value
-            return delta_value, quad_value, gamma_value, local_sharp
+            return (delta_value, quad_value, gamma_value, local_sharp,
+                    delta_slope_value, quad_slope_value)
 
         def compute_distribution(update_progress):
             fitted_x_local = None
@@ -487,8 +521,8 @@ class DistributionFitMixin:
                 x0 = np.clip(x0, lo, hi)
 
                 def residual_outer(x: np.ndarray) -> np.ndarray:
-                    dd, qq, gg, ss = expand(x)
-                    fit = run_fit(dd, qq, gg, ss)
+                    dd, qq, gg, ss, dsl, qsl = expand(x)
+                    fit = run_fit(dd, qq, gg, ss, dsl, qsl)
                     resid = fit.residuals
                     rms = float(np.sqrt(np.mean(resid * resid))) if resid.size else float("nan")
                     progress_state["eval"] = int(progress_state["eval"]) + 1
@@ -510,10 +544,11 @@ class DistributionFitMixin:
 
                 opt = least_squares(residual_outer, x0, bounds=(lo, hi), max_nfev=max_outer_evals)
                 fitted_x_local = opt.x
-                delta_final, quad_final, gamma_final, sharp_final = expand(fitted_x_local)
+                delta_final, quad_final, gamma_final, sharp_final, dslope_final, qslope_final = expand(fitted_x_local)
                 update_progress(tr("progress.distribution_compute_final",
                                    default="Calculando distribución final…"))
-                result_local = run_fit(delta_final, quad_final, gamma_final, sharp_final)
+                result_local = run_fit(delta_final, quad_final, gamma_final, sharp_final,
+                                       dslope_final, qslope_final)
             else:
                 update_progress(tr("progress.distribution_compute", shape=shape,
                                    default=f"Calculando distribución {shape}…"))
@@ -545,6 +580,10 @@ class DistributionFitMixin:
                     d.quad.set_value(value)
                 elif key == "dist_gamma":
                     d.gamma.set_value(value)
+                elif key == "dist_delta_slope":
+                    d.delta_slope.set_value(value)
+                elif key == "dist_quad_slope":
+                    d.quad_slope.set_value(value)
                 elif key.startswith("sharp:"):
                     _sharp, pos_txt, pname = key.split(":")
                     cp = self.components_panels[sharp_indices[int(pos_txt)] - 1]
@@ -605,7 +644,11 @@ class DistributionFitMixin:
                 _prev_fig.clf()
             self._dist_map_2d_fig = None
         if hasattr(self, "dist_panel"):
-            self.dist_panel.btn_show_map.setVisible(shape == "2D")
+            # Botón para reabrir el gráfico de distribución tras cerrarlo (1D y 2D).
+            self.dist_panel.btn_show_map.setText(
+                tr("button.show_map", default="Ver mapa 2D…") if shape == "2D"
+                else tr("button.show_distribution", default="Ver distribución…"))
+            self.dist_panel.btn_show_map.setVisible(True)
         style = get_style(self.plot_style_name)
         show_res = self.act_show_residual.isChecked() if hasattr(self, "act_show_residual") else True
         show_leg = self.act_show_legend.isChecked() if hasattr(self, "act_show_legend") else True
@@ -812,6 +855,15 @@ class DistributionFitMixin:
         dlg.exec()
 
     def _on_reopen_map_dialog(self) -> None:
-        result = getattr(self, "_dist_map_2d", None)
+        # Reabre el último gráfico de distribución (1D P(BHF)/P(ΔEQ) o 2D) desde
+        # el resultado ya persistido, sin re-ejecutar el ajuste.
+        result = getattr(self.runtime_results, "distribution_result", None)
+        if result is None:
+            result = getattr(self, "_dist_map_2d", None)
         if result is not None:
             self._show_distribution_dialog(result)
+        else:
+            QtWidgets.QMessageBox.information(
+                self, tr("button.show_distribution", default="Ver distribución…"),
+                tr("bhf.no_distribution_yet",
+                   default="Aún no hay ninguna distribución ajustada que mostrar."))

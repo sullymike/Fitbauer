@@ -123,6 +123,32 @@ def test_dense_velocity_grid_and_discrete_reconstruction():
     assert [curve.idx for curve in reconstruction.components] == [1, 2]
 
 
+def test_reconstruct_discrete_model_respects_line_profile_and_sigma():
+    """La previsualización refleja el perfil Voigt y σ, y restaura el estado global."""
+    from core import physics as ph
+
+    v = np.linspace(-6.0, 6.0, 400)
+    comps = [Component(idx=0, enabled=True, kind="Singlete")]
+    values = {
+        "baseline": 1.0, "slope": 0.0,
+        "s0_delta": 0.0, "s0_quad": 0.0, "s0_bhf": 0.0,
+        "s0_gamma1": 0.30, "s0_gamma2": 1.0, "s0_gamma3": 1.0,
+        "s0_depth": 0.5, "s0_int1": 1.0, "s0_int2": 1.0, "s0_int3": 1.0,
+    }
+    before = (ph.LINE_PROFILE_KIND, ph.VOIGT_SIGMA)
+    m_small = reconstruct_discrete_model(
+        v, np.ones_like(v), values, comps, [],
+        line_profile_kind="Voigt", voigt_sigma=0.05).model
+    m_large = reconstruct_discrete_model(
+        v, np.ones_like(v), values, comps, [],
+        line_profile_kind="Voigt", voigt_sigma=0.45).model
+
+    # Cambiar σ cambia el modelo de forma apreciable.
+    assert float(np.max(np.abs(m_small - m_large))) > 1e-3
+    # El estado global se restaura tras la reconstrucción (sin contaminación).
+    assert (ph.LINE_PROFILE_KIND, ph.VOIGT_SIGMA) == before
+
+
 def test_component_area_percentages_are_normalized():
     class Snapshot:
         idx = 1

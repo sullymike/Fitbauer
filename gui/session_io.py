@@ -151,7 +151,8 @@ class SessionIOMixin:
                         ctl.set_fixed(bool(f))
             self.calib.fit_velocity.setChecked(bool(state.get("fit_velocity", False)))
             self.calib.fit_center.setChecked(bool(state.get("fit_center", False)))
-            self.calib.fit_sigma.setChecked(bool(state.get("fit_sigma", False)))
+            # 'Ajustar σ' se controla ahora con la casilla 'Fijo' de σ.
+            self.calib.voigt_sigma.set_fixed(not bool(state.get("fit_sigma", False)))
             lp = state.get("line_profile")
             if lp in ("Lorentziana", "Voigt"):
                 self.calib._set_line_profile(lp)

@@ -1,6 +1,8 @@
 """Funciones puras de física Mössbauer (sin dependencias de GUI)."""
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 import numpy as np
 from scipy.special import wofz
 
@@ -14,6 +16,29 @@ from .hamiltonian import (
 # Estado global del perfil de línea (modificado por la GUI).
 LINE_PROFILE_KIND: str = "Lorentziana"
 VOIGT_SIGMA: float = 0.05
+
+
+@contextmanager
+def line_profile(kind: str = "Lorentziana", voigt_sigma: float = 0.05):
+    """Fija de forma determinista el perfil de línea usado por ``lorentzian``.
+
+    La forma de línea vive en las variables de módulo ``LINE_PROFILE_KIND`` /
+    ``VOIGT_SIGMA`` que ``lorentzian`` lee en cada llamada. Distintas rutas
+    (ajuste discreto, distribución, previsualización) las escriben; este gestor
+    las fija durante un bloque y las **restaura** al salir, evitando que el
+    perfil quede "contaminado" entre operaciones.
+    """
+    global LINE_PROFILE_KIND, VOIGT_SIGMA
+    use_voigt = str(kind) == "Voigt"
+    prev_kind, prev_sigma = LINE_PROFILE_KIND, VOIGT_SIGMA
+    LINE_PROFILE_KIND = "Voigt" if use_voigt else "Lorentziana"
+    if use_voigt:
+        VOIGT_SIGMA = max(float(voigt_sigma), 1e-9)
+    try:
+        yield
+    finally:
+        LINE_PROFILE_KIND = prev_kind
+        VOIGT_SIGMA = prev_sigma
 
 
 def lorentzian(v: np.ndarray, center: float, gamma: float) -> np.ndarray:

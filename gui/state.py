@@ -291,6 +291,10 @@ class DistributionViewState:
     bmax:      float = _DSPEC["bmax"].default
     nbins:     int   = int(_DSPEC["nbins"].default)
     log_alpha: float = _DSPEC["log_alpha"].default
+    # Correlación δ(H)/ΔEQ(H) (mm/s·T⁻¹) y nº de gaussianas del VBF (opt-in).
+    delta_slope: float = 0.0
+    quad_slope:  float = 0.0
+    vbf_n_components: int = 2
     fixed: dict[str, bool] = field(default_factory=dict)
 
     @property

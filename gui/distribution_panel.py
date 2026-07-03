@@ -52,6 +52,7 @@ class DistributionPanel(QtWidgets.QGroupBox):
         self.shape_combo = QtWidgets.QComboBox()
         for code, key in (("Histograma", "shape.Histograma"),
                           ("Gaussiana", "shape.Gaussiana"),
+                          ("VBF", "shape.VBF"),
                           ("Binomial", "shape.Binomial"),
                           ("Fija", "shape.Fija"),
                           ("2D", "shape.2D")):
@@ -64,10 +65,22 @@ class DistributionPanel(QtWidgets.QGroupBox):
         reg_row = QtWidgets.QHBoxLayout()
         reg_row.addWidget(QtWidgets.QLabel(tr("bhf.reg_mode_label") + ":"))
         self.reg_mode_combo = QtWidgets.QComboBox()
-        self.reg_mode_combo.addItems(["tikhonov", "tv"])
+        self.reg_mode_combo.addItems(["tikhonov", "tv", "maxent"])
         self.reg_mode_combo.currentIndexChanged.connect(lambda *_: self.paramChanged.emit())
         reg_row.addWidget(self.reg_mode_combo, stretch=1)
         left_v.addLayout(reg_row)
+
+        # Nº de gaussianas para la forma VBF (Rancourt–Ping). Oculto salvo VBF.
+        self.vbf_row = QtWidgets.QHBoxLayout()
+        self.vbf_row.addWidget(QtWidgets.QLabel(tr("bhf.vbf_ncomp", default="Componentes VBF") + ":"))
+        self.vbf_ncomp = QtWidgets.QSpinBox()
+        self.vbf_ncomp.setRange(1, 6)
+        self.vbf_ncomp.setValue(2)
+        self.vbf_ncomp.valueChanged.connect(lambda *_: self.paramChanged.emit())
+        self.vbf_row.addWidget(self.vbf_ncomp, stretch=1)
+        self._vbf_row_widget = QtWidgets.QWidget()
+        self._vbf_row_widget.setLayout(self.vbf_row)
+        left_v.addWidget(self._vbf_row_widget)
 
         self.btn_load_fixed = QtWidgets.QPushButton(tr("bhf.load_fixed"))
         self.btn_load_fixed.clicked.connect(self.loadFixedRequested)
@@ -82,7 +95,18 @@ class DistributionPanel(QtWidgets.QGroupBox):
         self.quad      = ParamControl(tr("slider.dist_quad"),      *astuple(_ds["quad"]))
         self.fixed_bhf = ParamControl(tr("slider.dist_fixed_bhf"), *astuple(_ds["fixed_bhf"]), with_fixed=False)
         self.gamma     = ParamControl(tr("slider.dist_gamma"),     *astuple(_ds["gamma"]))
-        for w in (self.delta, self.quad, self.fixed_bhf, self.gamma):
+        # Correlación δ(H)/ΔEQ(H) (mm/s·T⁻¹). Default 0 = sin correlación. La
+        # casilla 'Fijo' desmarcada refina la pendiente en la capa externa (nivel b).
+        self.delta_slope = ParamControl(
+            tr("slider.dist_delta_slope", default="κδ dδ/dH (mm/s·T⁻¹)"),
+            0.0, -0.02, 0.02, 0.0005, 4)
+        self.quad_slope = ParamControl(
+            tr("slider.dist_quad_slope", default="κq dΔEQ/dH (mm/s·T⁻¹)"),
+            0.0, -0.02, 0.02, 0.0005, 4)
+        self.delta_slope.set_fixed(True)
+        self.quad_slope.set_fixed(True)
+        for w in (self.delta, self.quad, self.fixed_bhf, self.gamma,
+                  self.delta_slope, self.quad_slope):
             left_v.addWidget(w)
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
             if w.fixed_cb is not None:
@@ -160,7 +184,15 @@ class DistributionPanel(QtWidgets.QGroupBox):
         is_2d = self.shape == "2D"
         for ctl in (self.qmin, self.qmax, self.qbins, self.log_alpha_q):
             ctl.setVisible(is_2d)
-        self.reg_mode_combo.setEnabled(not is_2d)
+        # reg_mode (tikhonov/tv/maxent) solo lo consume el Histograma 1D.
+        self.reg_mode_combo.setEnabled(self.shape == "Histograma")
+        # Nº de gaussianas: solo con forma VBF.
+        if hasattr(self, "_vbf_row_widget"):
+            self._vbf_row_widget.setVisible(self.shape == "VBF")
+        # Correlación δ(H)/ΔEQ(H): aplica al Histograma y al VBF.
+        corr_ok = self.shape in ("Histograma", "VBF")
+        for ctl in (self.delta_slope, self.quad_slope):
+            ctl.setEnabled(corr_ok)
         self.btn_load_fixed.setEnabled(self.shape == "Fija")
         # α regulariza el Histograma (Tikhonov/TV) y también la 2D (α_BHF/α_ΔEQ);
         # Gaussiana/Binomial/Fija son paramétricas y no usan α.
@@ -254,10 +286,15 @@ class DistributionPanel(QtWidgets.QGroupBox):
             bmax=self.bmax.value(),
             nbins=max(1, int(round(self.nbins.value()))),
             log_alpha=self.log_alpha.value(),
+            delta_slope=self.delta_slope.value(),
+            quad_slope=self.quad_slope.value(),
+            vbf_n_components=int(self.vbf_ncomp.value()),
             fixed={
                 "delta": self.delta.is_fixed(),
                 "quad": self.quad.is_fixed(),
                 "gamma": self.gamma.is_fixed(),
+                "delta_slope": self.delta_slope.is_fixed(),
+                "quad_slope": self.quad_slope.is_fixed(),
             },
         )
 

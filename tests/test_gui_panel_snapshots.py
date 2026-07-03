@@ -45,6 +45,30 @@ def test_calibration_panel_to_view_state_reflects_controls(qapp):
     assert state.is_fixed("baseline") is True
 
 
+def test_voigt_sigma_fixed_checkbox_drives_refine(qapp):
+    """La casilla 'Fijo' de σ controla el refinado (fit_sigma), solo con Voigt."""
+    panel = CalibrationPanel()
+    # Por defecto: perfil Lorentziana y σ fija -> no se refina.
+    assert panel.voigt_sigma.is_fixed() is True
+    assert panel.to_view_state().fit_sigma is False
+
+    # Con Voigt, desmarcar 'Fijo' activa el refinado de σ.
+    panel._set_line_profile("Voigt")
+    panel.voigt_sigma.set_fixed(False)
+    assert panel.to_view_state().fit_sigma is True
+    assert panel.fit_sigma.isChecked() is True  # espejo interno sincronizado
+
+    # Volver a marcar 'Fijo' lo desactiva.
+    panel.voigt_sigma.set_fixed(True)
+    assert panel.to_view_state().fit_sigma is False
+
+    # Fuera de Voigt nunca se refina, aunque quede 'libre'.
+    panel.voigt_sigma.set_fixed(False)
+    panel._set_line_profile("Lorentziana")
+    assert panel.voigt_sigma.is_fixed() is True  # forzada a fija fuera de Voigt
+    assert panel.to_view_state().fit_sigma is False
+
+
 def test_distribution_panel_to_view_state_reflects_controls(qapp):
     panel = DistributionPanel()
     panel.use_sharp.setChecked(True)

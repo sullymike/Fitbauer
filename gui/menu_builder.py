@@ -374,6 +374,11 @@ class MenuBuilderMixin:
         self.act_add_sharp.setChecked(self.dist_use_sharp)
         self.act_add_sharp.toggled.connect(self._set_dist_use_sharp)
         adv_menu.addAction(self.act_add_sharp)
+        # Reabrir el gráfico de la última distribución ajustada (1D/2D).
+        self.act_show_distribution = QtGui.QAction(
+            tr("button.show_distribution", default="Ver distribución…"), self)
+        self.act_show_distribution.triggered.connect(self._on_reopen_map_dialog)
+        adv_menu.addAction(self.act_show_distribution)
 
 
         # ── Vista ────────────────────────────────────────────────────────

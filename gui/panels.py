@@ -37,9 +37,17 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         self.fit_center = QtWidgets.QCheckBox(tr("checkbox.fit_center"))
         self.baseline = ParamControl(tr("slider.baseline"), *astuple(_cs["baseline"]))
         self.slope = ParamControl(tr("slider.slope"), *astuple(_cs["slope"]))
-        self.voigt_sigma = ParamControl(tr("slider.voigt_sigma"), *astuple(_cs["voigt_sigma"]), with_fixed=False)
+        self.voigt_sigma = ParamControl(tr("slider.voigt_sigma"), *astuple(_cs["voigt_sigma"]), with_fixed=True)
+        self.voigt_sigma.set_fixed(True)  # σ fija por defecto; con perfil Voigt, desmárcala para refinarla
+        if self.voigt_sigma.fixed_cb is not None:
+            self.voigt_sigma.fixed_cb.setToolTip(
+                tr("tooltip.fit_sigma",
+                   default="Con perfil Voigt, desmarca 'Fijo' para refinar σ en el ajuste."))
         self.line_profile = "Lorentziana"
-        self.fit_sigma = QtWidgets.QCheckBox(tr("checkbox.fit_sigma"))
+        # Casilla interna (oculta): refleja "refinar σ", derivado de la casilla
+        # 'Fijo' de σ + perfil Voigt. Es lo que consumen el motor y la sesión.
+        self.fit_sigma = QtWidgets.QCheckBox(tr("checkbox.fit_sigma"), self)
+        self.fit_sigma.hide()
 
         # Menú contextual (clic derecho) del perfil de línea: solo sobre el
         # control de σ-Voigt (etiqueta, slider y spinbox). No aparece sobre el
@@ -58,7 +66,7 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         self.sat_scale = ParamControl(tr("slider.sat_scale"), *astuple(_cs["sat_scale"]))
 
         for w in (self.vmax, self.fit_velocity, self.center, self.fit_center,
-                  self.baseline, self.slope, self.voigt_sigma, self.fit_sigma):
+                  self.baseline, self.slope, self.voigt_sigma):
             v.addWidget(w)
         v.addLayout(absorber_row)
         v.addWidget(self.sat_scale)
@@ -69,8 +77,11 @@ class CalibrationPanel(QtWidgets.QGroupBox):
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
             w.fixedChanged.connect(lambda *_: self.paramChanged.emit())
         self.absorber_combo.currentIndexChanged.connect(lambda *_: (self._refresh_absorber_widgets(), self.paramChanged.emit()))
-        for cb in (self.fit_velocity, self.fit_center, self.fit_sigma):
+        for cb in (self.fit_velocity, self.fit_center):
             cb.toggled.connect(lambda *_: self.paramChanged.emit())
+        # La casilla 'Fijo' de σ dirige el refinado (fit_sigma). Estado inicial coherente.
+        self.voigt_sigma.fixedChanged.connect(lambda *_: self._refresh_fit_sigma())
+        self._set_line_profile(self.line_profile)
 
     def _show_sigma_menu(self, pos: QtCore.QPoint) -> None:
         """Menú contextual sobre σ: cambiar perfil Lorentziana/Voigt + Ajustar σ."""
@@ -83,12 +94,6 @@ class CalibrationPanel(QtWidgets.QGroupBox):
             act.setCheckable(True)
             act.setChecked(self.line_profile == kind)
             act.triggered.connect(lambda _checked=False, k=kind: self._set_line_profile(k))
-        menu.addSeparator()
-        act_fit_sigma = menu.addAction(tr("checkbox.fit_sigma"))
-        act_fit_sigma.setCheckable(True)
-        act_fit_sigma.setChecked(self.fit_sigma.isChecked())
-        act_fit_sigma.setEnabled(self.line_profile == "Voigt")
-        act_fit_sigma.triggered.connect(lambda checked: self.fit_sigma.setChecked(bool(checked)))
         sender = self.sender()
         anchor = sender if isinstance(sender, QtWidgets.QWidget) else self.voigt_sigma.spin
         menu.exec(anchor.mapToGlobal(pos))
@@ -126,17 +131,32 @@ class CalibrationPanel(QtWidgets.QGroupBox):
                 "sat_scale": self.sat_scale.is_fixed(),
                 "vmax": True,
                 "center": True,
-                "voigt_sigma": False,
+                "voigt_sigma": self.voigt_sigma.is_fixed(),
             },
         )
 
     def _set_line_profile(self, kind: str) -> None:
         self.line_profile = kind
-        self.voigt_sigma.spin.setEnabled(kind == "Voigt")
-        self.fit_sigma.setEnabled(kind == "Voigt")
-        if kind != "Voigt":
-            self.fit_sigma.setChecked(False)
+        is_voigt = kind == "Voigt"
+        # El slider (la "barra") y el spinbox de σ no se pueden mover fuera de
+        # Voigt, pero el ParamControl y su etiqueta siguen ACTIVOS: así el menú
+        # contextual de clic derecho sigue disponible para elegir Voigt estando
+        # en Lorentziana (los eventos de ratón sobre el slider deshabilitado se
+        # propagan al ParamControl, que conserva el menú contextual).
+        self.voigt_sigma.slider.setEnabled(is_voigt)
+        self.voigt_sigma.spin.setEnabled(is_voigt)
+        if self.voigt_sigma.fixed_cb is not None:
+            self.voigt_sigma.fixed_cb.setEnabled(is_voigt)
+            if not is_voigt:
+                self.voigt_sigma.set_fixed(True)  # fuera de Voigt σ no se refina
+        self._refresh_fit_sigma()
         self.paramChanged.emit()
+
+    def _refresh_fit_sigma(self) -> None:
+        """Sincroniza la casilla interna fit_sigma: refinar σ = perfil Voigt y σ NO fija."""
+        refine = self.line_profile == "Voigt" and not self.voigt_sigma.is_fixed()
+        if self.fit_sigma.isChecked() != refine:
+            self.fit_sigma.setChecked(refine)
 
 
 class ComponentPanel(QtWidgets.QWidget):

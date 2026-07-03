@@ -11,9 +11,11 @@ from typing import Any, Mapping
 
 import numpy as np
 
+from contextlib import nullcontext
+
 from core.constants import SEXTET_PARAM_NAMES
 from core.fit_engine import model_from_values
-from core.physics import component_absorption
+from core.physics import component_absorption, line_profile
 
 
 @dataclass(frozen=True)
@@ -104,28 +106,39 @@ def reconstruct_discrete_model(
     constraints: list[dict] | None,
     *,
     absorber_model: str = "thin",
+    line_profile_kind: str | None = None,
+    voigt_sigma: float = 0.05,
 ) -> DiscreteReconstruction:
-    """Reconstruye modelo, residuos y subcomponentes de un ajuste discreto."""
+    """Reconstruye modelo, residuos y subcomponentes de un ajuste discreto.
+
+    ``line_profile_kind`` / ``voigt_sigma`` fijan de forma determinista la forma
+    de línea (Lorentziana/Voigt) durante la reconstrucción, para que la
+    previsualización refleje el perfil y la σ actuales del panel. Si es ``None``
+    se respeta el estado global vigente (retrocompatibilidad).
+    """
     v = np.asarray(velocity, dtype=float)
     y = np.asarray(y_data, dtype=float)
     constraints = constraints or []
-    model = model_from_values(v, values, components, constraints,
-                              absorber_model=absorber_model)
-    mv = dense_velocity_grid(v)
-    if mv is not None:
-        model_dense = model_from_values(mv, values, components, constraints,
-                                        absorber_model=absorber_model)
-    else:
-        model_dense = model
-    residual = y - model
-    curves: list[ReconstructedCurve] = []
-    enabled = [c for c in components if getattr(c, "enabled", False)]
-    if len(enabled) >= 2:
-        grid = mv if mv is not None else v
-        for comp in enabled:
-            only_this = model_from_values(grid, values, [comp], constraints,
-                                          absorber_model=absorber_model)
-            curves.append(ReconstructedCurve(int(comp.idx), str(comp.kind), only_this))
+    ctx = (line_profile(line_profile_kind, voigt_sigma)
+           if line_profile_kind is not None else nullcontext())
+    with ctx:
+        model = model_from_values(v, values, components, constraints,
+                                  absorber_model=absorber_model)
+        mv = dense_velocity_grid(v)
+        if mv is not None:
+            model_dense = model_from_values(mv, values, components, constraints,
+                                            absorber_model=absorber_model)
+        else:
+            model_dense = model
+        residual = y - model
+        curves: list[ReconstructedCurve] = []
+        enabled = [c for c in components if getattr(c, "enabled", False)]
+        if len(enabled) >= 2:
+            grid = mv if mv is not None else v
+            for comp in enabled:
+                only_this = model_from_values(grid, values, [comp], constraints,
+                                              absorber_model=absorber_model)
+                curves.append(ReconstructedCurve(int(comp.idx), str(comp.kind), only_this))
     return DiscreteReconstruction(
         model=model,
         residual=residual,

@@ -785,6 +785,8 @@ class ModelWorkflowMixin:
                 state.components,
                 state.constraints,
                 absorber_model=state.absorber_model,
+                line_profile_kind=state.line_profile,
+                voigt_sigma=state.voigt_sigma,
             )
         except Exception:
             self._render_fit_result(GuiFitRenderState(velocity=v, y_data=y))

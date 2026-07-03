@@ -107,7 +107,7 @@ def validate_distribution_parameters(state: Any) -> list[ValidationIssue]:
         issues.append(ValidationIssue("gamma", "La anchura Γ debe ser positiva"))
     if getattr(state, "shape", "Histograma") not in DISTRIBUTION_SHAPES:
         issues.append(ValidationIssue("shape", f"Forma de distribución desconocida: {getattr(state, 'shape')!r}"))
-    if getattr(state, "reg_mode", "tikhonov") not in {"tikhonov", "tv"}:
+    if getattr(state, "reg_mode", "tikhonov") not in {"tikhonov", "tv", "maxent"}:
         issues.append(ValidationIssue("reg_mode", f"Regularización desconocida: {getattr(state, 'reg_mode')!r}"))
     return issues
 

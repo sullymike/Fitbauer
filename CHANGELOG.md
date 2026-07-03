@@ -1,5 +1,74 @@
 # Changelog
 
+## v4.12.0 — P(BHF): correlación δ(H)/ΔEQ(H), VBF multi-gaussiano y MaxEnt
+
+### Núcleo (`mossbauer_distribution.py`, `core/physics.py`)
+
+- **Correlación lineal δ(H)/ΔEQ(H)** (Le Caër–Dubois 1979, Wivel–Mørup 1981):
+  `build_bhf_kernel` y `build_hyperfine_distribution_kernel` aceptan `delta_slope`,
+  `quad_slope`, `h_ref`; cada sextete de la malla usa `δⱼ = δ + κδ·(Hⱼ − Href)` y
+  `ΔEQⱼ = ΔEQ + κq·(Hⱼ − Href)`. El modelo sigue siendo **lineal en los pesos P**
+  (solo cambia cada columna del kernel). Propagado a `fit_hyperfine_distribution`.
+  Con pendientes = 0 reproduce el kernel clásico (opt-in, retrocompatible).
+- **Regularización de Máxima Entropía** (`reg_mode="maxent"`): minimiza
+  `½‖(y−Xz)/σ‖² − α·S(P)` con `S = −Σ Pⱼ log(Pⱼ/mⱼ)` mediante L-BFGS-B con gradiente
+  analítico y cotas P≥0; grados de libertad efectivos por el Hessiano MaxEnt. Positiva
+  por construcción y sin oscilaciones espurias. Junto a `tikhonov`/`tv`.
+- **VBF multi-gaussiano** (Rancourt–Ping 1991): `fit_vbf_hyperfine_distribution`
+  ajusta P como suma de N gaussianas sobre kernel Voigt; guarda los parámetros físicos
+  (A, μ, σ) por componente en `BhfDistributionFit.vbf_components` (ordenados por μ).
+
+### GUI
+
+- Panel de distribución: nueva forma **"VBF"** (con selector de nº de componentes),
+  modo de regularización **"maxent"** y controles de pendientes de correlación
+  **κδ**/**κq** (fijas por defecto; desmarcar «Fijo» las refina en la capa externa).
+  Despacho en `run_fit`, threading de pendientes por el lazo de refinado externo, y
+  validación (`core/params`, `core/validation`) ampliada a VBF/maxent.
+- Ayuda «P(BHF): método» ampliada (ES/EN/FR) con los tres métodos.
+
+### Tests
+
+- `tests/test_distribution_advanced.py` (correlación κ=0≡clásico y desplazamiento de
+  centroides; VBF recupera μ/σ/A; MaxEnt positivo, ∫P=1 y pico correcto) y dos tests
+  GUI en `tests/test_qt_app.py` (forma VBF y reg_mode maxent).
+
+## v4.11.4 — Refinado de σ (Voigt) por casilla y reapertura del gráfico P(BHF)
+
+### Ajuste discreto (cristalino)
+
+- **Refinar σ de Voigt con la casilla "Fijo" de σ** (`gui/panels.py`): el control de σ
+  gaussiana pasa a tener la misma casilla libre/fijo que baseline/slope. Con perfil Voigt,
+  **desmarcar "Fijo" refina σ** en el ajuste; marcarla lo deja fijo. Antes el refinado
+  dependía de una casilla separada "Ajustar σ" accesible solo por clic derecho (poco
+  descubrible), y marcar σ como "libre" no hacía nada. La casilla "Ajustar σ" se conserva
+  como espejo interno oculto (sincronizado) por compatibilidad de sesión/motor; el motor de
+  ajuste no cambia. Fuera de Voigt, σ queda fija (no se refina). Tooltip explicativo.
+- **La barra de σ solo es manipulable con perfil Voigt** (`gui/panels.py`): con Lorentziana el
+  control de σ (slider + spinbox + casilla) se deshabilita por completo, no solo el spinbox.
+- **La previsualización en vivo refleja el perfil de línea y σ del panel** (`core/physics.py`,
+  `core/reconstruction.py`, `gui/model_workflow.py`): antes, mover el slider de σ no cambiaba la
+  figura porque la ruta de simulación no fijaba las globales `LINE_PROFILE_KIND`/`VOIGT_SIGMA`
+  (solo las escribía el motor de ajuste). Ahora `reconstruct_discrete_model` acepta
+  `line_profile_kind`/`voigt_sigma` y fija el perfil de forma determinista con un gestor de
+  contexto `line_profile()` que **restaura** el estado global al salir (sin contaminar entre
+  operaciones). El gestor, antes duplicado en `mossbauer_distribution.py`, se centraliza en
+  `core.physics` y se reutiliza (DRY).
+
+### Modo distribución P(BHF) / P(ΔEQ)
+
+- **Reabrir el gráfico de la distribución tras cerrarlo** (`gui/distribution_fit.py`,
+  `gui/menu_builder.py`): antes solo el mapa 2D podía reabrirse. Ahora, tras cualquier ajuste
+  de distribución (1D P(BHF)/P(ΔEQ) o 2D), el botón del panel queda visible ("Ver
+  distribución…" en 1D, "Ver mapa 2D…" en 2D) y hay una acción de menú equivalente en
+  "P(BHF) extras". Reabre desde el resultado ya guardado en memoria
+  (`runtime_results.distribution_result`), sin re-ejecutar el ajuste.
+
+### Tests
+
+- `tests/test_gui_panel_snapshots.py`: la casilla "Fijo" de σ controla el refinado solo con
+  Voigt. `tests/test_qt_app.py`: reapertura del gráfico P(BHF) 1D desde el resultado persistido.
+
 ## v4.11.3 — L-curve (esquina automática · zoom acoplado), perfil Voigt y ayuda ampliada
 
 ### Modo distribución P(BHF) / P(ΔEQ)

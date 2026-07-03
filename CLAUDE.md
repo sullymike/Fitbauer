@@ -85,6 +85,12 @@ del código de la GUI.**
   pesos Poisson, χ²/AIC/BIC, multistart, errores por covarianza/bootstrap, textura de sextete.
 - **Distribución** `P(BHF)` / `P(ΔEQ)`: suma de muchos sextetes/dobletes en una malla,
   regularización por segunda diferencia (α), L-curve, y **componentes "nítidos"** simultáneos.
+  - **Regularizadores** (`reg_mode`): `tikhonov` (curvatura, suave), `tv` (variación total,
+    bordes) y `maxent` (máxima entropía; L-BFGS-B con gradiente analítico).
+  - **Formas** (`shape`): `Histograma` (Hesse-Rübartsch), `Gaussiana`, `VBF` (multi-gaussiano
+    Voigt, Rancourt–Ping; guarda A/μ/σ por componente), `Binomial`, `Fija`, `2D`.
+  - **Correlación δ(H)/ΔEQ(H)** (`delta_slope`/`quad_slope` en el kernel): δ y ΔEQ varían
+    linealmente con H (opt-in, 0 = clásico). Aplica a Histograma y VBF.
   - En modo distribución + nítidos, la GUI dibuja **todos los subespectros**: cada nítido por
     separado y la **envolvente de la distribución** (índice `idx=0` con estilo propio), además
     del modelo total. Esto vive en `DistributionFitMixin.on_fit_distribution`
