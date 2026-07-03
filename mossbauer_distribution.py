@@ -66,9 +66,11 @@ class BhfQuadDistribution2DFit:
     dof_warning: str | None = None
     sharp_bhf_centers: np.ndarray | None = None
     sharp_weights: np.ndarray | None = None
+    shape: str | None = "2D"
 
     def as_dict(self) -> dict[str, Any]:
         return {
+            "shape": self.shape,
             "BHF_centers": self.bhf_centers.tolist(),
             "quad_centers": self.quad_centers.tolist(),
             "P": self.weights.tolist(),
@@ -122,6 +124,13 @@ class BhfDistributionFit:
     weight_sigma: np.ndarray | None = None
     # VBF multi-gaussiano: lista de componentes (A_k, μ_k, σ_k) ordenados por μ.
     vbf_components: tuple[tuple[float, float, float], ...] | None = None
+    # Metadatos del ajuste (para informes/sesión): forma, regularizador y
+    # pendientes de correlación δ(H)/ΔEQ(H) efectivamente aplicadas.
+    shape: str | None = None
+    reg_mode: str | None = None
+    delta_slope: float = 0.0
+    quad_slope: float = 0.0
+    vbf_n_components: int | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Devuelve un dict serializable en JSON tras convertir arrays a listas."""
@@ -145,6 +154,11 @@ class BhfDistributionFit:
             "effective_dof": self.effective_dof,
             "weight_sigma": [] if self.weight_sigma is None else self.weight_sigma.tolist(),
             "vbf_components": [] if self.vbf_components is None else [list(c) for c in self.vbf_components],
+            "shape": self.shape,
+            "reg_mode": self.reg_mode,
+            "delta_slope": self.delta_slope,
+            "quad_slope": self.quad_slope,
+            "vbf_n_components": self.vbf_n_components,
         }
 
 
@@ -1408,6 +1422,10 @@ def fit_hyperfine_distribution(
         sharp_weights=sharp_weights,
         effective_dof=eff_dof,
         weight_sigma=weight_sigma,
+        shape="Histograma",
+        reg_mode=str(reg_mode),
+        delta_slope=float(delta_slope),
+        quad_slope=float(quad_slope),
     )
 
 
@@ -1491,6 +1509,7 @@ def fit_gaussian_hyperfine_distribution(
         sharp_weights=sharp_weights_arr,
         fitted_dist_center=float(cen),
         fitted_dist_sigma=float(np.exp(log_sig)),
+        shape="Gaussiana",
     )
 
 
@@ -1615,6 +1634,10 @@ def fit_vbf_hyperfine_distribution(
         fitted_dist_center=float(dominant[1]),
         fitted_dist_sigma=float(dominant[2]),
         vbf_components=comps,
+        shape="VBF",
+        delta_slope=float(delta_slope),
+        quad_slope=float(quad_slope),
+        vbf_n_components=int(N),
     )
 
 
@@ -1700,6 +1723,7 @@ def fit_binomial_hyperfine_distribution(
         sharp_bhf_centers=sharp_bhf_centers,
         sharp_weights=sharp_weights_arr,
         fitted_dist_p=float(pval),
+        shape="Binomial",
     )
 
 
@@ -1775,6 +1799,7 @@ def fit_fixed_hyperfine_distribution(
         message="Fixed distribution",
         sharp_bhf_centers=sharp_bhf_centers,
         sharp_weights=sharp_weights_arr,
+        shape="Fija",
     )
 
 
@@ -1853,6 +1878,7 @@ def fit_bhf_distribution_nnls_fixed_background(
         rms=float(np.sqrt(np.mean(residuals**2))),
         success=True,
         message="NNLS terminado",
+        shape="Histograma",
     )
 
 

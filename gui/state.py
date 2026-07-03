@@ -307,12 +307,32 @@ class DistributionViewState:
     @classmethod
     def from_model_state(cls, state: dict[str, Any]) -> "DistributionViewState":
         fixed_path = state.get("fixed_distribution_path")
+        d = cls()  # defaults por si la sesión es antigua y no trae estos campos
+
+        def _num(key: str, default: float) -> float:
+            try:
+                return float(state.get(key, default))
+            except (TypeError, ValueError):
+                return default
+
         return cls(
             use_sharp=bool(state.get("dist_use_sharp", False)),
             shape=str(state.get("dist_shape", "Histograma")),
             reg_mode=str(state.get("dist_reg_mode", "tikhonov")),
             fixed_distribution_path=Path(fixed_path) if fixed_path else None,
             variable=str(state.get("dist_variable", "BHF")),
+            delta=_num("dist_delta", d.delta),
+            quad=_num("dist_quad", d.quad),
+            fixed_bhf=_num("dist_fixed_bhf", d.fixed_bhf),
+            gamma=_num("dist_gamma", d.gamma),
+            bmin=_num("dist_bmin", d.bmin),
+            bmax=_num("dist_bmax", d.bmax),
+            nbins=int(_num("dist_nbins", d.nbins)),
+            log_alpha=_num("dist_log_alpha", d.log_alpha),
+            delta_slope=_num("dist_delta_slope", d.delta_slope),
+            quad_slope=_num("dist_quad_slope", d.quad_slope),
+            vbf_n_components=int(_num("dist_vbf_n_components", d.vbf_n_components)),
+            fixed=dict(state.get("dist_fixed") or {}),
         )
 
     def to_model_state_fragment(self) -> dict[str, Any]:
@@ -325,6 +345,20 @@ class DistributionViewState:
                 if self.fixed_distribution_path is not None else None
             ),
             "dist_variable": self.variable,
+            # Ajustes numéricos del panel (antes no se persistían: al recargar
+            # volvían a sus valores por defecto).
+            "dist_delta": float(self.delta),
+            "dist_quad": float(self.quad),
+            "dist_fixed_bhf": float(self.fixed_bhf),
+            "dist_gamma": float(self.gamma),
+            "dist_bmin": float(self.bmin),
+            "dist_bmax": float(self.bmax),
+            "dist_nbins": int(self.nbins),
+            "dist_log_alpha": float(self.log_alpha),
+            "dist_delta_slope": float(self.delta_slope),
+            "dist_quad_slope": float(self.quad_slope),
+            "dist_vbf_n_components": int(self.vbf_n_components),
+            "dist_fixed": dict(self.fixed),
         }
 
 

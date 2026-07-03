@@ -666,8 +666,9 @@ class DistributionFitMixin:
                    f"αB=10^{dist_state.log_alpha:.2f} αQ=10^{alpha_q_log:.2f}  "
                    f"RMS={result.rms:.5g}")
         else:
-            msg = (f"{label}: bins={nbins}  α=10^{dist_state.log_alpha:.2f}  "
-                   f"RMS={result.rms:.5g}")
+            reg_tag = f"/{result.reg_mode}" if getattr(result, "reg_mode", None) else ""
+            msg = (f"{label}: {shape}{reg_tag}  bins={nbins}  "
+                   f"α=10^{dist_state.log_alpha:.2f}  RMS={result.rms:.5g}")
 
         gui_result = GuiFitResult(
             mode="distribution",
@@ -688,12 +689,20 @@ class DistributionFitMixin:
         r = _R()
         r.stats = {"chi2": float(np.sum(result.residuals**2)), "red_chi2": float(result.rms),
                    "dof": 0.0, "aic": 0.0, "bic": 0.0}
-        r.free_keys = []
         # El resultado 2D expone alpha_bhf/alpha_quad en vez de un único alpha.
         alpha_val = getattr(result, "alpha", None)
         if alpha_val is None:
             alpha_val = getattr(result, "alpha_bhf", 0.0)
         r.values = {"baseline": result.baseline, "slope": result.slope, "alpha": alpha_val}
+        # Pendientes de correlación δ(H)/ΔEQ(H): solo si la forma las usó (≠ 0).
+        dsl = float(getattr(result, "delta_slope", 0.0) or 0.0)
+        qsl = float(getattr(result, "quad_slope", 0.0) or 0.0)
+        if dsl:
+            r.values["delta_slope"] = dsl
+        if qsl:
+            r.values["quad_slope"] = qsl
+        # free_keys guía qué parámetros muestra el panel; sin esto no salía ninguno.
+        r.free_keys = list(r.values.keys())
         r.errors = {}
         r.correlations = {}
         r.n_starts = 1

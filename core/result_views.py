@@ -48,6 +48,8 @@ _DISCRETE_METRIC_LABELS = {
 }
 
 _DISTRIBUTION_METRIC_LABELS = {
+    "shape": "Forma",
+    "reg_mode": "Regularizador",
     "rms": "RMS",
     "alpha": "α",
     "baseline": "Línea base",
@@ -56,6 +58,7 @@ _DISTRIBUTION_METRIC_LABELS = {
     "fitted_dist_center": "Centro distribución",
     "fitted_dist_sigma": "σ distribución",
     "fitted_dist_p": "p distribución",
+    "vbf_n_components": "Nº gaussianas VBF",
     "success": "Éxito",
     "message": "Mensaje",
 }
@@ -193,17 +196,26 @@ class DistributionResultView:
         out: list[ResultMetric] = []
         for key in selected:
             if hasattr(self.result, key):
-                out.append(ResultMetric(key, _DISTRIBUTION_METRIC_LABELS.get(key, key), getattr(self.result, key)))
+                value = getattr(self.result, key)
+                if value is None:
+                    continue
+                out.append(ResultMetric(key, _DISTRIBUTION_METRIC_LABELS.get(key, key), value))
         return out
 
     def parameters(self) -> list[ParameterEstimate]:
-        keys = ("baseline", "slope", "alpha", "fitted_dist_center", "fitted_dist_sigma", "fitted_dist_p")
+        keys = ("baseline", "slope", "alpha", "fitted_dist_center",
+                "fitted_dist_sigma", "fitted_dist_p", "delta_slope", "quad_slope")
+        # Las pendientes de correlación solo se muestran si se usaron (≠ 0).
+        skip_if_zero = {"delta_slope", "quad_slope"}
         out: list[ParameterEstimate] = []
         for key in keys:
             if hasattr(self.result, key):
                 value = getattr(self.result, key)
-                if value is not None:
-                    out.append(ParameterEstimate(key=key, value=float(value)))
+                if value is None:
+                    continue
+                if key in skip_if_zero and float(value) == 0.0:
+                    continue
+                out.append(ParameterEstimate(key=key, value=float(value)))
         return out
 
 

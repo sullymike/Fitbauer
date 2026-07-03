@@ -191,7 +191,7 @@ class SessionIOMixin:
                 self.constraints = list(state.get("constraints") or [])
             shape_saved = state.get("dist_shape")
             reg_saved = state.get("dist_reg_mode")
-            if reg_saved in ("tikhonov", "tv") and hasattr(self, "dist_panel"):
+            if reg_saved in ("tikhonov", "tv", "maxent") and hasattr(self, "dist_panel"):
                 self.dist_panel.reg_mode_combo.setCurrentText(reg_saved)
             fixed_path = state.get("fixed_distribution_path")
             if fixed_path and hasattr(self, "dist_panel"):
@@ -200,6 +200,36 @@ class SessionIOMixin:
                 idx_shape = self.dist_panel.shape_combo.findData(shape_saved)
                 if idx_shape >= 0:
                     self.dist_panel.shape_combo.setCurrentIndex(idx_shape)
+            # Ajustes numéricos del panel de distribución (δ, ΔEQ, Γ, malla,
+            # α, κδ/κq y nº de gaussianas VBF). Antes no se restauraban.
+            if hasattr(self, "dist_panel"):
+                dp = self.dist_panel
+                _num_ctls = {
+                    "dist_delta": dp.delta, "dist_quad": dp.quad,
+                    "dist_fixed_bhf": dp.fixed_bhf, "dist_gamma": dp.gamma,
+                    "dist_bmin": dp.bmin, "dist_bmax": dp.bmax,
+                    "dist_nbins": dp.nbins, "dist_log_alpha": dp.log_alpha,
+                    "dist_delta_slope": dp.delta_slope, "dist_quad_slope": dp.quad_slope,
+                }
+                for key, ctl in _num_ctls.items():
+                    if key in state:
+                        try:
+                            ctl.set_value(float(state[key]))
+                        except (TypeError, ValueError):
+                            pass
+                if "dist_vbf_n_components" in state:
+                    try:
+                        dp.vbf_ncomp.setValue(int(state["dist_vbf_n_components"]))
+                    except (TypeError, ValueError):
+                        pass
+                fixed_map = state.get("dist_fixed") or {}
+                _fix_ctls = {
+                    "delta": dp.delta, "quad": dp.quad, "gamma": dp.gamma,
+                    "delta_slope": dp.delta_slope, "quad_slope": dp.quad_slope,
+                }
+                for name, ctl in _fix_ctls.items():
+                    if name in fixed_map:
+                        ctl.set_fixed(bool(fixed_map[name]))
             mode_idx_saved = state.get("mode_combo_idx")
             if mode_idx_saved is not None:
                 # Índice guardado explícitamente: cubre el modo discreto (0) y 2D (4/5/6)

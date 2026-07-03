@@ -70,6 +70,7 @@ class FileActionsMixin:
             reconstruction = None
 
         # En modo distribución, si hay un resultado de distribución, úsalo
+        dist_res = None
         if is_dist:
             dist_res = getattr(self.runtime_results, "distribution_result", None)
             if dist_res is not None and hasattr(dist_res, "model_at_v"):
@@ -104,6 +105,28 @@ class FileActionsMixin:
         if comp_curves:
             header.append("# Components: " + "  ".join(
                 f"comp{idx}={kind}" for idx, kind, _ in comp_curves))
+        # Metadatos del ajuste de distribución (forma, regularizador, α, κδ/κq)
+        if is_dist and dist_res is not None:
+            def _g(attr):
+                return getattr(dist_res, attr, None)
+            meta_bits = []
+            if _g("shape"):
+                meta_bits.append(f"shape={_g('shape')}")
+            if _g("reg_mode"):
+                meta_bits.append(f"reg_mode={_g('reg_mode')}")
+            for attr, tag in (("alpha", "alpha"), ("alpha_bhf", "alpha_bhf"),
+                              ("alpha_quad", "alpha_quad"), ("rms", "rms"),
+                              ("effective_dof", "eff_dof")):
+                val = _g(attr)
+                if val is not None:
+                    meta_bits.append(f"{tag}={float(val):.6g}")
+            dsl = float(_g("delta_slope") or 0.0)
+            qsl = float(_g("quad_slope") or 0.0)
+            if dsl or qsl:
+                meta_bits.append(f"kdelta={dsl:.6g}")
+                meta_bits.append(f"kquad={qsl:.6g}")
+            if meta_bits:
+                header.append("# Distribution: " + "  ".join(meta_bits))
 
         # ── Columnas ────────────────────────────────────────────────────
         cols: list[str] = ["velocity_mm_s", "data_norm"]
@@ -118,6 +141,31 @@ class FileActionsMixin:
             cols.append("folded_counts")
             rows.append(self.file.folded)
 
+        # ── Bloque de la distribución P(x) (rejilla propia ≠ velocidad) ──
+        dist_block: list[str] = []
+        if is_dist and dist_res is not None:
+            try:
+                centers = np.asarray(getattr(dist_res, "bhf_centers"), dtype=float)
+                prob = np.asarray(getattr(dist_res, "probability"), dtype=float)
+                weights = np.asarray(getattr(dist_res, "weights"), dtype=float)
+                if prob.ndim == 2:
+                    # 2D: exportamos la marginal en el eje X (BHF).
+                    marg = getattr(dist_res, "marginal_bhf", None)
+                    prob = (np.asarray(marg, dtype=float) if marg is not None
+                            else prob.sum(axis=1))
+                    weights = prob
+                if centers.size and centers.size == prob.size:
+                    xlbl = {"quad": "quad_mm_s", "delta": "delta_mm_s"}.get(
+                        getattr(dist_res, "x_variable", "bhf"), "BHF_T")
+                    dist_block.append("")
+                    dist_block.append("# --- Distribution P(x) ---")
+                    dist_block.append(f"{xlbl}\tP_normalized\tweight")
+                    for i in range(centers.size):
+                        dist_block.append(
+                            f"{centers[i]:.8g}\t{prob[i]:.8g}\t{weights[i]:.8g}")
+            except Exception:
+                dist_block = []
+
         try:
             with open(path, "w", encoding="utf-8") as fh:
                 for hl in header:
@@ -125,6 +173,8 @@ class FileActionsMixin:
                 fh.write("\t".join(cols) + "\n")
                 for i in range(v.size):
                     fh.write("\t".join(f"{rows[j][i]:.8g}" for j in range(len(rows))) + "\n")
+                for dl in dist_block:
+                    fh.write(dl + "\n")
             self.statusBar().showMessage(tr("status.fit_saved", path=path, default=f"Fit saved: {path}"), 5000)
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("file.save_fit"),

@@ -1,5 +1,44 @@
 # Changelog
 
+## v4.12.1 — Persistencia e informes de los metadatos de distribución
+
+Los parámetros del ajuste de distribución añadidos en v4.12.0 (forma, regularizador y
+las pendientes de correlación κδ/κq) se calculaban pero **no se guardaban** en ningún
+sitio salvo el propio widget: no aparecían en el panel de estado, ni en los informes, ni
+en la sesión ni en el export TSV. Esta versión cierra esos huecos.
+
+### Núcleo (`mossbauer_distribution.py`, `core/result_views.py`)
+
+- `BhfDistributionFit` y `BhfQuadDistribution2DFit` almacenan ahora `shape`, `reg_mode`,
+  `delta_slope`, `quad_slope` y `vbf_n_components`; cada función de ajuste los escribe en
+  su resultado (`fit_hyperfine_distribution`, `fit_vbf_*`, gaussiana, binomial, fija, 2D).
+  `as_dict()` los serializa. Con esto el resultado es la **fuente única** de los κδ/κq
+  refinados (antes solo sobrevivían en el control del panel).
+- `DistributionResultView`: `metrics()` expone `shape`/`reg_mode`/`vbf_n_components` (y
+  omite valores `None`); `parameters()` incluye `delta_slope`/`quad_slope` (solo si ≠ 0).
+
+### GUI (`gui/distribution_fit.py`, `gui/reports.py`, `gui/file_actions.py`)
+
+- **Panel de estado**: tras un ajuste de distribución muestra `baseline`, `slope`, `α` y
+  las pendientes κδ/κq cuando se usaron; la barra de estado añade forma y regularizador.
+  Antes el panel no listaba ningún parámetro (`free_keys` iba vacío).
+- **Informes** (completo, reducido y sus PDF/ODT): nuevo bloque **«Ajuste de distribución»**
+  con forma, regularizador, α, línea base, RMS, grados efectivos, ⟨x⟩/σ de la distribución,
+  κδ/κq, componentes VBF (A/μ/σ) y componentes nítidos. Antes los informes eran 100 %
+  del ajuste discreto e ignoraban la distribución.
+- **Export TSV** (`Guardar ajuste`): cabecera `# Distribution:` con forma/regularizador/α/
+  κδ/κq y un bloque final `# --- Distribution P(x) ---` con la curva P(BHF)/P(ΔEQ) (marginal
+  en 2D). Antes solo se exportaban `model`/`residual`.
+
+### Sesión (`gui/state.py`, `gui/session_io.py`)
+
+- La sesión serializa y restaura los ajustes numéricos del panel de distribución que antes
+  se perdían: `delta_slope`, `quad_slope`, `vbf_n_components`, `log_alpha`, `nbins`,
+  `bmin`/`bmax`, δ, ΔEQ, Γ, `fixed_bhf` y el mapa de fijados. Sesiones antiguas cargan con
+  los valores por defecto (retrocompatible).
+- Corrección: la restauración de `reg_mode` ignoraba `maxent` (solo aceptaba
+  `tikhonov`/`tv`); ahora se restaura correctamente.
+
 ## v4.12.0 — P(BHF): correlación δ(H)/ΔEQ(H), VBF multi-gaussiano y MaxEnt
 
 ### Núcleo (`mossbauer_distribution.py`, `core/physics.py`)

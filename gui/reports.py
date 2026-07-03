@@ -8,12 +8,157 @@ from PySide6 import QtWidgets
 from mossbauer_i18n import tr
 from core.constants import APP_NAME, APP_VERSION
 from core.params import USED_BY
-from core.result_views import discrete_result_view
+from core.result_views import discrete_result_view, distribution_result_view
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReportMixin:
+    def _distribution_report_lines(self, *, short: bool = False) -> list[str]:
+        """Bloque de informe del ajuste de distribución P(BHF)/P(ΔEQ).
+
+        Devuelve ``[]`` si no hay un resultado de distribución activo. Cubre
+        forma, regularizador, α, correlación δ(H)/ΔEQ(H) (κδ/κq), componentes
+        VBF y nítidos, y estadísticos de la distribución.
+        """
+        import numpy as np
+        result = getattr(self.runtime_results, "distribution_result", None)
+        if result is None:
+            return []
+        view = distribution_result_view(result)
+
+        def _fmt(v, nd=".6g"):
+            try:
+                return format(float(v), nd)
+            except (TypeError, ValueError):
+                return str(v)
+
+        shape = getattr(result, "shape", None) or "—"
+        reg_mode = getattr(result, "reg_mode", None)
+        is_2d = view.is_2d()
+
+        # Media y σ de la distribución 1D a partir de centros + pesos.
+        mean_x = std_x = None
+        try:
+            if not is_2d:
+                x = np.asarray(result.bhf_centers, dtype=float)
+                w = np.asarray(result.weights, dtype=float)
+                wsum = float(w.sum())
+                if wsum > 0:
+                    mean_x = float(np.sum(x * w) / wsum)
+                    std_x = float(np.sqrt(max(0.0, np.sum(w * (x - mean_x) ** 2) / wsum)))
+        except Exception:
+            mean_x, std_x = None, None
+
+        var_lbl = "ΔEQ" if getattr(result, "x_variable", "bhf") == "quad" else (
+            "δ" if getattr(result, "x_variable", "bhf") == "delta" else "BHF")
+        unit = "mm/s" if var_lbl in ("ΔEQ", "δ") else "T"
+
+        lines: list[str] = []
+        if short:
+            bits = [f"forma **{shape}**"]
+            if reg_mode:
+                bits.append(f"reg. {reg_mode}")
+            if is_2d:
+                bits.append(f"αB={_fmt(getattr(result, 'alpha_bhf', None), '.3g')}")
+                bits.append(f"αQ={_fmt(getattr(result, 'alpha_quad', None), '.3g')}")
+            else:
+                bits.append(f"α={_fmt(getattr(result, 'alpha', None), '.3g')}")
+            if mean_x is not None:
+                bits.append(f"⟨{var_lbl}⟩={_fmt(mean_x, '.4g')} {unit}")
+            if std_x is not None:
+                bits.append(f"σ={_fmt(std_x, '.3g')} {unit}")
+            dsl = float(getattr(result, "delta_slope", 0.0) or 0.0)
+            qsl = float(getattr(result, "quad_slope", 0.0) or 0.0)
+            if dsl:
+                bits.append(f"κδ={_fmt(dsl, '.3g')}")
+            if qsl:
+                bits.append(f"κq={_fmt(qsl, '.3g')}")
+            lines.append("**Distribución:** " + " · ".join(bits))
+            lines.append("")
+            return lines
+
+        lines.append("## 🌫️ Ajuste de distribución")
+        lines.append("")
+        lines.append("| Campo | Valor |")
+        lines.append("|---|---|")
+        lines.append(f"| Forma | {shape} |")
+        if reg_mode:
+            lines.append(f"| Regularizador | {reg_mode} |")
+        lines.append(f"| Variable | {var_lbl} |")
+        if is_2d:
+            lines.append(f"| α (BHF) | {_fmt(getattr(result, 'alpha_bhf', None))} |")
+            lines.append(f"| α (ΔEQ) | {_fmt(getattr(result, 'alpha_quad', None))} |")
+        else:
+            lines.append(f"| α (regularización) | {_fmt(getattr(result, 'alpha', None))} |")
+        lines.append(f"| Línea base | {_fmt(result.baseline)} |")
+        lines.append(f"| Pendiente del fondo | {_fmt(result.slope)} |")
+        lines.append(f"| RMS | {_fmt(result.rms)} |")
+        eff = getattr(result, "effective_dof", None)
+        if eff is not None:
+            lines.append(f"| Grados efectivos de libertad | {_fmt(eff)} |")
+        if mean_x is not None:
+            lines.append(f"| ⟨{var_lbl}⟩ (media) | {_fmt(mean_x)} {unit} |")
+        if std_x is not None:
+            lines.append(f"| σ ({var_lbl}) | {_fmt(std_x)} {unit} |")
+        # Correlación δ(H)/ΔEQ(H)
+        dsl = float(getattr(result, "delta_slope", 0.0) or 0.0)
+        qsl = float(getattr(result, "quad_slope", 0.0) or 0.0)
+        if dsl or qsl:
+            lines.append(f"| κδ = dδ/dH | {_fmt(dsl)} mm/s·T⁻¹ |")
+            lines.append(f"| κq = dΔEQ/dH | {_fmt(qsl)} mm/s·T⁻¹ |")
+        # Estadísticos paramétricos (Gaussiana/Binomial)
+        for key, lbl in (("fitted_dist_center", "Centro (paramétrico)"),
+                         ("fitted_dist_sigma", "σ (paramétrico)"),
+                         ("fitted_dist_p", "p (binomial)")):
+            val = getattr(result, key, None)
+            if val is not None:
+                lines.append(f"| {lbl} | {_fmt(val)} |")
+        # Estadísticos 2D
+        if is_2d:
+            for key, lbl in (("mean_bhf", "⟨BHF⟩"), ("mean_quad", "⟨ΔEQ⟩"),
+                             ("sigma_bhf", "σ(BHF)"), ("sigma_quad", "σ(ΔEQ)"),
+                             ("corr_bhf_quad", "Correlación BHF–ΔEQ")):
+                val = getattr(result, key, None)
+                if val is not None:
+                    lines.append(f"| {lbl} | {_fmt(val)} |")
+        lines.append("")
+
+        # Componentes VBF (multi-gaussiano)
+        vbf = getattr(result, "vbf_components", None)
+        if vbf:
+            lines.append("### Componentes VBF (Voigt-based fitting)")
+            lines.append("")
+            lines.append("| # | A | μ (T) | σ (T) |")
+            lines.append("|---|---|---|---|")
+            for i, comp in enumerate(vbf, start=1):
+                try:
+                    a, mu, sg = comp
+                    lines.append(f"| {i} | {_fmt(a, '.4g')} | {_fmt(mu, '.4g')} | {_fmt(sg, '.4g')} |")
+                except Exception:
+                    pass
+            lines.append("")
+
+        # Componentes nítidos
+        sw = getattr(result, "sharp_weights", None)
+        sc = getattr(result, "sharp_bhf_centers", None)
+        try:
+            if sw is not None and np.asarray(sw).size:
+                sw = np.asarray(sw, dtype=float)
+                sc = np.asarray(sc, dtype=float) if sc is not None else None
+                lines.append("### Componentes nítidos")
+                lines.append("")
+                lines.append("| # | Centro (T) | Peso |")
+                lines.append("|---|---|---|")
+                for i in range(sw.size):
+                    c = _fmt(sc[i], '.4g') if sc is not None and i < sc.size else "—"
+                    lines.append(f"| {i + 1} | {c} | {_fmt(sw[i], '.4g')} |")
+                lines.append("")
+        except Exception:
+            pass
+
+        return lines
+
     def _build_report_lines(self) -> list[str]:
         """Genera el informe en Markdown estructurado por secciones.
 
@@ -68,6 +213,9 @@ class ReportMixin:
                 f"σ: {self.runtime_results.error_source}"
             )
             lines.append("")
+
+        # ── Ajuste de distribución (si aplica) ──────────────────────────
+        lines.extend(self._distribution_report_lines())
 
         # ── Espectro y plegado ──────────────────────────────────────────
         lines.append("## 📁 Espectro y plegado")
@@ -815,6 +963,9 @@ class ReportMixin:
         if iso_ref is not None:
             lines.append(f"_Referencia isomérica: **{iso_ref:.6g} mm/s**_")
             lines.append("")
+
+        # Ajuste de distribución en una línea (si aplica)
+        lines.extend(self._distribution_report_lines(short=True))
 
         # ── Parámetros por componente ───────────────────────────────────
         lines.append("## Parámetros")
