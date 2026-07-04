@@ -203,73 +203,30 @@ class MainLayoutMixin:
         self._center_bottom_layout.setContentsMargins(6, 0, 6, 6)
         self._center_bottom_layout.setSpacing(8)
 
-        self.plot_tabs = QtWidgets.QTabWidget(center)
-        mpl_tab = QtWidgets.QWidget(self.plot_tabs)
-        mpl_lay = QtWidgets.QVBoxLayout(mpl_tab)
-        mpl_lay.setContentsMargins(0, 0, 0, 0)
-        mpl_lay.addWidget(self.toolbar)
-        mpl_lay.addWidget(self.canvas, stretch=1)
-        self.plot_tabs.addTab(mpl_tab, tr("plot.tab_matplotlib", default="Matplotlib"))
-
-        self.plotly_tab = QtWidgets.QWidget(self.plot_tabs)
-        plotly_lay = QtWidgets.QVBoxLayout(self.plotly_tab)
-        plotly_lay.setContentsMargins(6, 6, 6, 6)
-        plotly_actions = QtWidgets.QHBoxLayout()
-        self.btn_plotly_update = QtWidgets.QPushButton(tr("button.update_plotly", default="Actualizar Plotly"))
-        self.btn_plotly_update.clicked.connect(self._update_plotly_view)
-        self.btn_plotly_minima = QtWidgets.QPushButton(tr("minima.edit_action", default="Editar mínimos"))
-        self.btn_plotly_minima.clicked.connect(lambda _checked=False: self.on_edit_minima())
-        self.btn_plotly_export = QtWidgets.QPushButton(tr("file.export_plotly_html"))
-        self.btn_plotly_export.clicked.connect(self.on_export_plotly_html)
-        self.plotly_status = QtWidgets.QLabel(tr("plotly.initial", default="Abre o actualiza el gráfico interactivo."))
-        self.plotly_status.setWordWrap(True)
-        plotly_actions.addWidget(self.btn_plotly_update)
-        plotly_actions.addWidget(self.btn_plotly_minima)
-        plotly_actions.addWidget(self.btn_plotly_export)
-        plotly_actions.addWidget(self.plotly_status, stretch=1)
-        plotly_lay.addLayout(plotly_actions)
-        self.plotly_view = None
-        self._plotly_available = False
-        # Estado de la página incremental: la plantilla con plotly.js se carga
-        # una sola vez; los refrescos usan Plotly.react (no recargan el HTML).
-        self._plotly_page_ready = False
-        self._plotly_loading = False
-        self._plotly_pending: str | None = None
-        self._plotly_theme: str | None = None
-        # Estado de la edición semi-manual de mínimos.
+        # Área de gráfico: canvas Matplotlib + toolbar, con el editor de mínimos
+        # (panel lateral, oculto por defecto) a la derecha en un splitter.
+        plot_container = QtWidgets.QWidget(center)
+        plot_lay = QtWidgets.QVBoxLayout(plot_container)
+        plot_lay.setContentsMargins(0, 0, 0, 0)
+        plot_lay.addWidget(self.toolbar)
+        # Estado del editor semi-manual de mínimos.
         self._minima_edit_mode = False
         self._minima_entries: list[dict] = []
         self._minima_rows: list[dict] = []
-        self._minima_bridge = None
-        # La vista web y el editor de mínimos van lado a lado en un splitter.
-        self.plotly_split = QtWidgets.QSplitter(QtCore.Qt.Horizontal, self.plotly_tab)
+        self._minima_artists: list = []
         self.minima_editor = self._build_minima_editor()
-        try:
-            from PySide6 import QtWebEngineWidgets as _QtWebEngineWidgets
-            self.plotly_view = _QtWebEngineWidgets.QWebEngineView(self.plotly_tab)
-            self._plotly_available = True
-            self.plotly_view.loadFinished.connect(self._on_plotly_loaded)
-            self.plotly_split.addWidget(self.plotly_view)
-            self.plotly_split.addWidget(self.minima_editor)
-            self.plotly_split.setStretchFactor(0, 1)
-            self.plotly_split.setStretchFactor(1, 0)
-            self.minima_editor.hide()
-            plotly_lay.addWidget(self.plotly_split, stretch=1)
-            self._setup_minima_webchannel()
-        except Exception:
-            self.plotly_placeholder = QtWidgets.QLabel(tr("msg.plotly_webengine_missing"))
-            self.plotly_placeholder.setAlignment(QtCore.Qt.AlignCenter)
-            self.plotly_placeholder.setWordWrap(True)
-            plotly_lay.addWidget(self.plotly_placeholder, stretch=1)
-        self.plot_tabs.addTab(self.plotly_tab, tr("plot.tab_plotly", default="Plotly interactivo"))
-        self._plotly_update_timer = QtCore.QTimer(self)
-        self._plotly_update_timer.setSingleShot(True)
-        self._plotly_update_timer.setInterval(0)
-        self._plotly_update_timer.timeout.connect(self._update_plotly_view)
-        self.plot_tabs.currentChanged.connect(lambda _idx: self._schedule_plotly_update() if self._is_plotly_tab_active() else None)
+        self.plot_split = QtWidgets.QSplitter(QtCore.Qt.Horizontal, plot_container)
+        self.plot_split.addWidget(self.canvas)
+        self.plot_split.addWidget(self.minima_editor)
+        self.plot_split.setStretchFactor(0, 1)
+        self.plot_split.setStretchFactor(1, 0)
+        self.minima_editor.hide()
+        plot_lay.addWidget(self.plot_split, stretch=1)
+        # Clic sobre el canvas para añadir/alternar mínimos en modo edición.
+        self.canvas.mpl_connect("button_press_event", self._on_minima_canvas_click)
 
         cv.addWidget(self._center_top_widget)
-        cv.addWidget(self.plot_tabs, stretch=1)
+        cv.addWidget(plot_container, stretch=1)
         cv.addWidget(self._center_bottom_widget)
         splitter.addWidget(center)
 

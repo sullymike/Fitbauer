@@ -25,7 +25,6 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     ("file.save_fit",             "menu.file", "file.save_fit",             ""),
     ("file.export_report",        "menu.file", "file.export_report",        ""),
     ("file.export_short_report",  "menu.file", "file.export_short_report",  ""),
-    ("file.export_plotly_html",   "menu.file", "file.export_plotly_html",   ""),
     ("file.save_session",      "menu.file", "file.save_session",      "Ctrl+S"),
     ("file.load_session",      "menu.file", "file.load_session",      "Ctrl+L"),
     ("file.exit",              "menu.file", "file.exit",              "Ctrl+Q"),
@@ -52,7 +51,6 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     ("view.show_residual",     "menu.view", "options.show_residual",  ""),
     ("view.show_legend",       "menu.view", "options.show_legend",    ""),
     ("view.show_component_fill", "menu.view", "options.show_component_fill", ""),
-    ("view.open_plotly",       "menu.view", "view.open_plotly",       ""),
     ("view.configure_layout",  "menu.view", "view.configure_layout",  ""),
     # ── Ayuda ──
     ("help.open",              "menu.help", "help.open",              "F1"),
@@ -150,11 +148,6 @@ class MenuBuilderMixin:
         self.act_export_short_report.setEnabled(False)
         file_menu.addAction(self.act_export_short_report)
         self._reg("file.export_short_report", self.act_export_short_report)
-        self.act_export_plotly = QtGui.QAction(tr("file.export_plotly_html"), self)
-        self.act_export_plotly.triggered.connect(self.on_export_plotly_html)
-        self.act_export_plotly.setEnabled(False)
-        file_menu.addAction(self.act_export_plotly)
-        self._reg("file.export_plotly_html", self.act_export_plotly)
         file_menu.addSeparator()
         act_save_session = QtGui.QAction(tr("file.save_session"), self)
         act_save_session.triggered.connect(self.on_save_session)
@@ -399,11 +392,6 @@ class MenuBuilderMixin:
         self.act_show_component_fill.toggled.connect(lambda _: self._refresh_plot())
         view_menu.addAction(self.act_show_component_fill)
         self._reg("view.show_component_fill", self.act_show_component_fill)
-        self.act_open_plotly = QtGui.QAction(tr("view.open_plotly"), self)
-        self.act_open_plotly.triggered.connect(self.on_open_plotly)
-        self.act_open_plotly.setEnabled(False)
-        view_menu.addAction(self.act_open_plotly)
-        self._reg("view.open_plotly", self.act_open_plotly)
         view_menu.addSeparator()
         # Tema UI (QStyle de Qt). Por defecto Fusion.
         theme_menu = view_menu.addMenu(tr("options.theme"))

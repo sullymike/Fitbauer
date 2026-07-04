@@ -3,4 +3,3 @@ scipy
 matplotlib
 requests
 PySide6>=6.5
-plotly

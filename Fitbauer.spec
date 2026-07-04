@@ -14,10 +14,6 @@ a = Analysis(
         'core.session', 'layout.presets',
         'mossbauer_i18n', 'mossbauer_help', 'mossbauer_distribution',
         'mossbauer_updater',
-        # Plotly se importa de forma diferida al abrir/exportar el gráfico HTML.
-        'plotly', 'plotly.graph_objects', 'plotly.subplots',
-        # Visor HTML Plotly embebido en la propia aplicación Qt.
-        'PySide6.QtWebEngineWidgets', 'PySide6.QtWebEngineCore',
     ],
     hookspath=[],
     hooksconfig={},

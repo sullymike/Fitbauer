@@ -668,8 +668,6 @@ class ModelWorkflowMixin:
         self.act_save_fit.setEnabled(True)
         self.act_export_report.setEnabled(True)
         self.act_export_short_report.setEnabled(True)
-        self.act_export_plotly.setEnabled(True)
-        self.act_open_plotly.setEnabled(True)
         self.act_bootstrap.setEnabled(True)
         self.act_lcurve.setEnabled(True)
         self._set_quick_action_buttons_enabled(True)
@@ -745,8 +743,6 @@ class ModelWorkflowMixin:
         self.act_save_fit.setEnabled(True)
         self.act_export_report.setEnabled(True)
         self.act_export_short_report.setEnabled(True)
-        self.act_export_plotly.setEnabled(True)
-        self.act_open_plotly.setEnabled(True)
         self.act_bootstrap.setEnabled(True)
         self.act_lcurve.setEnabled(True)
         self._set_quick_action_buttons_enabled(True)
@@ -774,7 +770,7 @@ class ModelWorkflowMixin:
         if state is None or not self._simulate_enabled:
             self._render_fit_result(GuiFitRenderState(velocity=v, y_data=y))
             self._update_info_panel()
-            self._schedule_plotly_update()
+            self._refresh_minima_overlay()
             return
         try:
             reconstruction = reconstruct_discrete_model(
@@ -790,7 +786,7 @@ class ModelWorkflowMixin:
         except Exception:
             self._render_fit_result(GuiFitRenderState(velocity=v, y_data=y))
             self._update_info_panel()
-            self._schedule_plotly_update()
+            self._refresh_minima_overlay()
             return
         self._render_fit_result(GuiFitRenderState(
             velocity=v,
@@ -801,7 +797,7 @@ class ModelWorkflowMixin:
             model_v=reconstruction.model_v,
         ))
         self._update_info_panel()
-        self._schedule_plotly_update()
+        self._refresh_minima_overlay()
 
     def _render_intermediate_fit(self, state: FitState, free_keys: list[str], free_values: list[float]) -> None:
         """Renderiza el modelo con los parámetros intermedios del optimizador.

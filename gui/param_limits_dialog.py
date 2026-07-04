@@ -114,8 +114,8 @@ _PARAM_LABELS_BY_LANG: dict[str, dict[str, str]] = {
         "singlet_dominance":   "Ratio d₀/d₁ para clasificar singlete",
         "doublet_ratio_min":   "Ratio mín. d₁/d₀ para doblete",
         "doublet_ratio_max":   "Ratio máx. d₂/d₀ para doblete",
-        "plotly_tol_factor":   "Factor tolerancia marcadores Plotly",
-        "plotly_tol_min":      "Tolerancia mínima marcadores Plotly (mm/s)",
+        "plotly_tol_factor":   "Factor tolerancia marcadores de mínimos",
+        "plotly_tol_min":      "Tolerancia mínima marcadores de mínimos (mm/s)",
     },
     "en": {
         "delta":        "δ  (isomer shift, mm/s)",
@@ -187,8 +187,8 @@ _PARAM_LABELS_BY_LANG: dict[str, dict[str, str]] = {
         "singlet_dominance":   "d₀/d₁ ratio to classify singlet",
         "doublet_ratio_min":   "Min d₁/d₀ ratio for doublet",
         "doublet_ratio_max":   "Max d₂/d₀ ratio for doublet",
-        "plotly_tol_factor":   "Plotly marker tolerance factor",
-        "plotly_tol_min":      "Minimum Plotly marker tolerance (mm/s)",
+        "plotly_tol_factor":   "Minima marker tolerance factor",
+        "plotly_tol_min":      "Minimum minima-marker tolerance (mm/s)",
     },
     "fr": {
         "delta":        "δ  (déplacement isomérique, mm/s)",
@@ -260,8 +260,8 @@ _PARAM_LABELS_BY_LANG: dict[str, dict[str, str]] = {
         "singlet_dominance":   "Rapport d₀/d₁ pour classer un singulet",
         "doublet_ratio_min":   "Rapport min d₁/d₀ pour doublet",
         "doublet_ratio_max":   "Rapport max d₂/d₀ pour doublet",
-        "plotly_tol_factor":   "Facteur tolérance marqueurs Plotly",
-        "plotly_tol_min":      "Tolérance minimale marqueurs Plotly (mm/s)",
+        "plotly_tol_factor":   "Facteur tolérance marqueurs de minima",
+        "plotly_tol_min":      "Tolérance minimale marqueurs de minima (mm/s)",
     },
 }
 

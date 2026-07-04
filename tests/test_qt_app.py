@@ -49,14 +49,7 @@ def _no_blocking_dialogs(monkeypatch):
 
 @pytest.fixture
 def make_window(app):
-    """Crea ventanas Qt y las destruye de forma segura para QtWebEngine.
-
-    Cada ``MossbauerQtWindow`` crea una ``QWebEngineView``. Si la vista/página no
-    se eliminan y se procesan ANTES de que se libere el perfil global de
-    WebEngine, PySide6 segfaultea al cerrar el proceso ("Release of profile
-    requested but WebEnginePage still not deleted"). La factoría rastrea todas
-    las ventanas creadas en el test y las limpia en orden.
-    """
+    """Crea ventanas Qt y las destruye de forma segura al terminar el test."""
     created: list = []
 
     def _make():
@@ -67,18 +60,8 @@ def make_window(app):
     yield _make
 
     for w in created:
-        view = getattr(w, "plotly_view", None)
-        if view is not None:
-            try:
-                view.stop()
-            except Exception:
-                pass
-            view.setParent(None)
-            view.deleteLater()
         w.close()
         w.deleteLater()
-    # Procesa las eliminaciones diferidas (DeferredDelete) mientras el perfil
-    # de WebEngine sigue vivo, evitando el segfault de cierre.
     app.processEvents()
 
 
@@ -341,9 +324,6 @@ def test_2d_distribution_fit_renders_topographic_map(win):
     # El canvas Matplotlib añadió el panel del mapa topográfico.
     assert win.canvas.ax_map is not None
     assert win.canvas.last_render.get("dist_map_2d") is res
-    # La figura Plotly incluye un heatmap del mapa P(x, y).
-    fig = win._current_plotly_figure()
-    assert any(t.type == "heatmap" for t in fig.data)
 
 
 def test_session_save_load_roundtrip(win, make_window, tmp_path):
@@ -451,8 +431,8 @@ def test_model_grid_is_denser_than_data(win):
     assert mv[-1] == pytest.approx(v.max())
 
 
-def test_render_stores_dense_curve_for_plotly(win):
-    """El render guarda la curva densa y el residual para el gráfico Plotly."""
+def test_render_stores_dense_curve(win):
+    """El render guarda la curva densa y el residual en last_render."""
     import numpy as np
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
     win.components_panels[0].enabled.setChecked(True)
@@ -484,22 +464,6 @@ def test_incremental_render_reuses_artists(win):
     assert cv._artists["data"] is data_line
 
 
-def test_current_plotly_figure_builds(win):
-    """La figura Plotly se construye con la curva densa (si plotly está)."""
-    plotly = pytest.importorskip("plotly")  # noqa: F841
-    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
-    win.components_panels[0].enabled.setChecked(True)
-    win._simulate_enabled = True
-    win._refresh_plot()
-    fig = win._current_plotly_figure()
-    # Debe haber al menos datos + modelo.
-    assert len(fig.data) >= 2
-    # El trazo del modelo usa la rejilla densa.
-    n_data = win.canvas.last_render["velocity"].size
-    line_lengths = [len(tr.x) for tr in fig.data if tr.mode == "lines"]
-    assert line_lengths and max(line_lengths) > n_data
-
-
 def test_edit_minima_populates_list(win):
     """Entrar en edición semi-manual detecta mínimos y crea filas editables."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
@@ -523,19 +487,46 @@ def test_minima_marker_click_syncs_checkbox(win):
     assert win._minima_rows[0]["check"].isChecked() == win._minima_entries[0]["included"]
 
 
-def test_minima_overlay_present_in_plotly_figure(win):
-    """En modo edición, la figura Plotly añade la capa de marcadores de mínimos."""
-    pytest.importorskip("plotly")
+def test_minima_overlay_drawn_on_canvas(win):
+    """En modo edición se dibujan marcadores de mínimos sobre el canvas."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
     win.on_edit_minima(redetect=True)
-    fig = win._current_plotly_figure()
-    names = [t.name or "" for t in fig.data]
-    assert any("nim" in n for n in names)  # "Mínimos" (ES) / "Minima" (EN/FR)
-    # Excluir uno hace aparecer la traza de excluidos.
+    # El overlay Matplotlib crea artistas de marcadores (incluidos/excluidos).
+    assert win._minima_artists
+    n_before = len(win._minima_artists)
+    # Excluir uno mantiene el overlay (ahora con una capa de excluidos).
     win._on_minima_row_changed(0, included=False)
-    fig2 = win._current_plotly_figure()
-    names2 = [t.name or "" for t in fig2.data]
-    assert any("xcl" in n for n in names2)  # "...(excluidos)"
+    assert win._minima_artists
+    # Al salir de edición el overlay se limpia.
+    win._exit_minima_edit()
+    assert win._minima_artists == []
+    assert n_before >= 1
+
+
+def test_minima_canvas_click_adds_or_toggles(win):
+    """Un clic sobre el canvas (evento Matplotlib) añade o alterna un mínimo."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.on_edit_minima(redetect=True)
+
+    class _Ev:
+        pass
+    ev = _Ev()
+    ev.inaxes = win.canvas.ax
+    ev.button = 1
+    # Clic lejos de los mínimos existentes → añade uno nuevo.
+    xs = [e["pos"] for e in win._minima_entries]
+    x_new = max(xs) + 3.0
+    n0 = len(win._minima_entries)
+    ev.xdata = x_new
+    win._on_minima_canvas_click(ev)
+    assert len(win._minima_entries) == n0 + 1
+    # Clic sobre un mínimo existente → lo alterna (no añade).
+    ev.xdata = win._minima_entries[0]["pos"]
+    n1 = len(win._minima_entries)
+    inc_before = win._minima_entries[0]["included"]
+    win._on_minima_canvas_click(ev)
+    assert len(win._minima_entries) == n1
+    assert win._minima_entries[0]["included"] is (not inc_before)
 
 
 def test_propose_from_minima_builds_components(win):

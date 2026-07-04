@@ -1,5 +1,28 @@
 # Changelog
 
+## v4.13.1 — adelgazamiento: se retira Plotly + QtWebEngine
+
+Se elimina la dependencia de **Plotly** y **QtWebEngine** (Chromium embebido).
+El objetivo es un ejecutable mucho más ligero y de arranque más rápido, sin los
+*segfaults* de cierre de WebEngine. Se conserva el editor de mínimos, reimplementado
+sobre Matplotlib.
+
+- **Gráfico único Matplotlib.** Se retira la pestaña «Plotly interactivo», la vista
+  web, el prototipo de arrastre de BHF, la exportación a HTML interactivo y los
+  puentes WebChannel (`MinimaBridge`/`ModelDragBridge`).
+- **Editor de mínimos en Matplotlib** (`gui/minima_editor.py`, nuevo): clic sobre el
+  canvas para añadir/alternar mínimos (eventos `mpl_connect`), panel lateral en un
+  splitter junto al gráfico. Reutiliza intacta la lógica de detección y de propuesta
+  de componentes (*Inicializar/Autoajustar desde mínimos*).
+- **Dependencias y empaquetado.** Se quita `plotly` de `requirements.txt` y
+  `plotly*`/`PySide6.QtWebEngine*` de `Fitbauer.spec`. Se elimina el *workaround*
+  anti-*segfault* de los tests.
+- **Documentación.** `docs/plotly.md` conserva la referencia completa de la
+  integración anterior y una **guía de restauración** por si se quiere reintroducir.
+
+Sustituido: `gui/plotly_tools.py` → `gui/minima_editor.py`. Retirados los menús
+«Exportar gráfico interactivo HTML» y «Mostrar pestaña Plotly interactiva».
+
 ## v4.13.0 — calibración fija reutilizable + manual de usuario
 
 **Calibración fija.** La calibración deja de reajustarse en cada carga y se

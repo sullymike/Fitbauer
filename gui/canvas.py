@@ -82,7 +82,7 @@ class SpectrumCanvas(FigureCanvas):
         if residual is None and model is not None and model_v is None:
             residual = y - model
         _comparison = list(comparison or [])
-        # Estado para el gráfico Plotly (y otros consumidores) y para alternar.
+        # Estado de lo último dibujado (consumido por refrescos y otros paneles).
         self.last_render = {
             "velocity": np.asarray(v, dtype=float).copy(),
             "y_data": np.asarray(y, dtype=float).copy(),

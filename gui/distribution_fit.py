@@ -683,7 +683,7 @@ class DistributionFitMixin:
         )
         self.runtime_results.set_distribution_fit(result, gui_result=gui_result)
         self._finish_gui_fit_result(gui_result)
-        self._schedule_plotly_update()
+        self._refresh_minima_overlay()
         class _R:
             pass
         r = _R()

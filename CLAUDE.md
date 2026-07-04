@@ -19,9 +19,13 @@ pip install -r requirements-dev.txt  # para los tests
 python fitbauer.py                   # abre la GUI Qt
 ```
 
-- **Una sola GUI: Qt (PySide6 + Plotly).** La antigua interfaz Tk fue **eliminada por
+- **Una sola GUI: Qt (PySide6 + Matplotlib).** La antigua interfaz Tk fue **eliminada por
   completo**; no la reintroduzcas. Si ves referencias a `mossbauer_app.py`,
   `mossbauer_fe33_gui_v2IA.py`, `panels/`, `sv_ttk` o un fallback Tk, son obsoletas.
+- **Plotly/QtWebEngine se retiraron** (adelgazamiento, v4.13.1). El gráfico es solo
+  Matplotlib (`gui/canvas.py`) y el editor de mínimos vive en `gui/minima_editor.py`.
+  Todo el detalle de la integración anterior, por si se quiere restaurar, está en
+  `docs/plotly.md`. No reintroduzcas `plotly` ni `QtWebEngine` sin motivo.
 - Python objetivo: 3.11+ (CI usa 3.12).
 
 ## Arquitectura (lo más importante)
@@ -49,7 +53,7 @@ del código de la GUI.**
   importa mixins de `gui/`, define `MossbauerQtWindow`, `main()` y mantiene algunos reexports
   históricos usados por tests/extensiones (`ReleaseInfo`, `latest_release`, `threading`,
   `webbrowser`, `load_credentials`, `save_credentials`). No volver a concentrar aquí lógica
-  de paneles, menús, fitting o Plotly.
+  de paneles, menús o fitting.
 - `gui/` — implementación modular de la GUI Qt. Es código de presentación/controlador; puede
   orquestar `core/`, pero la física y los motores de ajuste siguen viviendo en `core/`.
   - `window_mixins.py` — composición ordenada de mixins de `MossbauerQtWindow`.
@@ -62,7 +66,8 @@ del código de la GUI.**
   - `discrete_fit.py`, `distribution_fit.py`, `minima_analysis.py`, `fit_tools.py` — acciones
     de ajuste discreto/distribución, bootstrap, perfil likelihood, detección de mínimos,
     presets físicos y batch.
-  - `plotly_tools.py` — figura Plotly, HTML incremental y editor semi-manual de mínimos.
+  - `minima_editor.py` — editor semi-manual de mínimos sobre el canvas Matplotlib
+    (clic para añadir/alternar; alimenta *Inicializar/Autoajustar desde mínimos*).
   - `state.py` — estados runtime (`FileState`, `RuntimeResultState`) y snapshots
     serializables (`ComponentViewState`, `SpectrumState`, `CalibrationState`, `FitOptionsState`,
     `DistributionViewState`, `PlotViewState`, `UiPreferencesState`, `ProjectState`); es el
@@ -94,8 +99,7 @@ del código de la GUI.**
   - En modo distribución + nítidos, la GUI dibuja **todos los subespectros**: cada nítido por
     separado y la **envolvente de la distribución** (índice `idx=0` con estilo propio), además
     del modelo total. Esto vive en `DistributionFitMixin.on_fit_distribution`
-    (`gui/distribution_fit.py`) y se refleja en `SpectrumCanvas.render` (`gui/canvas.py`) y
-    en la figura Plotly (`gui/plotly_tools.py`).
+    (`gui/distribution_fit.py`) y se refleja en `SpectrumCanvas.render` (`gui/canvas.py`).
   - Nota: la reconstrucción actual de los nítidos usa `component_absorption` con los valores de
     los widgets + el peso ajustado. Existe un enfoque alternativo (reconstruir con el propio
     kernel del ajuste, `build_sharp_kernel`) que sería más fiel si el ajuste refina δ/Γ globales;

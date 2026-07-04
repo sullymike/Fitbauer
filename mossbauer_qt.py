@@ -52,7 +52,6 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
     def closeEvent(self, event):
         try:
             self._save_settings()
-            self._cleanup_plotly_temp_files()
         except Exception:
             pass
         super().closeEvent(event)
@@ -84,7 +83,6 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
         self.absorber_model = "thin"       # "thin" / "thickness"
         self._simulate_enabled = False      # igual que Tk: al cargar solo se dibujan datos
         self.runtime_results = RuntimeResultState()
-        self._plotly_temp_files: list[Path] = []
         self._help_dialog: QtWidgets.QDialog | None = None
         self.dist_use_sharp = False
         self.phase_predict_enabled = False  # sugeridor de fases: desactivado por defecto
