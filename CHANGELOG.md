@@ -1,5 +1,17 @@
 # Changelog
 
+## v4.13.2 — L-curve: elegir α pinchando la figura
+
+La detección automática de la esquina de la L-curve (curvatura de Menger) no
+siempre acierta. Ahora el diálogo de la L-curve es **interactivo**:
+
+- **Clic para elegir α** sobre cualquiera de las dos figuras (la L
+  `rugosidad↔residuo` o `α↔RMS`). Se ajusta al valor de α escaneado más cercano
+  (distancia log-log en la L, o en `log10 α` en la otra) y se resalta en ambas.
+- La esquina automática pasa a ser una **sugerencia** (marcador verde) y el botón
+  **«Usar α=…»** aplica el valor **elegido** (arranca en la sugerencia).
+- Lógica de selección extraída a `_lcurve_pick_index` (testeable); nuevos tests.
+
 ## v4.13.1 — adelgazamiento: se retira Plotly + QtWebEngine
 
 Se elimina la dependencia de **Plotly** y **QtWebEngine** (Chromium embebido).

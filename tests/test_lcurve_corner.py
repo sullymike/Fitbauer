@@ -38,3 +38,32 @@ def test_non_positive_points_are_ignored():
     idx = _lcurve_corner_index(rough, resid)
     assert 0 <= idx < rough.size
     assert np.isfinite(rough[idx]) and rough[idx] > 0
+
+
+from gui.distribution_fit import _lcurve_pick_index
+
+
+def test_pick_on_alpha_axis_snaps_to_nearest_alpha():
+    """Un clic sobre la gráfica α↔RMS elige el α escaneado más cercano."""
+    alphas = np.logspace(-4, 4, 9)          # 10^-4 … 10^4
+    rough = np.linspace(5, 1, 9)
+    resid = np.linspace(1, 5, 9)
+    # Clic cerca de α=10^2 → índice 6.
+    assert _lcurve_pick_index("alpha", 10 ** 2.1, None, rough, resid, alphas) == 6
+    # Clic cerca de α=10^-4 → índice 0.
+    assert _lcurve_pick_index("alpha", 10 ** -3.9, None, rough, resid, alphas) == 0
+
+
+def test_pick_on_lcurve_uses_loglog_distance():
+    """Un clic sobre la L elige el punto (rough, resid) más próximo en log-log."""
+    alphas = np.logspace(-4, 4, 5)
+    rough = np.array([100.0, 30.0, 10.0, 3.0, 1.0])
+    resid = np.array([1.0, 1.2, 2.0, 4.0, 8.0])
+    # Clic junto al 3er punto (10, 2.0).
+    idx = _lcurve_pick_index("lcurve", 11.0, 2.1, rough, resid, alphas)
+    assert idx == 2
+
+
+def test_pick_degenerate_returns_zero():
+    assert _lcurve_pick_index("alpha", None, None, [], [], []) == 0
+    assert _lcurve_pick_index("lcurve", 1.0, 1.0, [], [], []) == 0

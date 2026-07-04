@@ -73,6 +73,27 @@ def _lcurve_corner_index(rough: np.ndarray, resid_norm: np.ndarray) -> int:
     return int(idx_valid[best_local])
 
 
+def _lcurve_pick_index(axis: str, x, y, rough, resid_norm, alphas) -> int:
+    """Índice del punto escaneado más cercano a un clic en la L-curve.
+
+    ``axis="lcurve"`` mide la distancia en el plano log-log ``(rough, resid_norm)``
+    (la propia L); ``axis="alpha"`` mide la distancia en ``log10(α)`` (la gráfica
+    α↔RMS). Permite que el usuario elija α pinchando la figura cuando la esquina
+    automática no acierta. Devuelve 0 si no hay puntos o el clic no es válido.
+    """
+    alphas = np.asarray(alphas, dtype=float)
+    if alphas.size == 0 or x is None:
+        return 0
+    if axis == "lcurve" and y is not None:
+        lr = np.log10(np.maximum(np.asarray(rough, dtype=float), 1e-30))
+        ly = np.log10(np.maximum(np.asarray(resid_norm, dtype=float), 1e-30))
+        d2 = (lr - np.log10(max(float(x), 1e-30))) ** 2 + \
+             (ly - np.log10(max(float(y), 1e-30))) ** 2
+        return int(np.argmin(d2))
+    la = np.log10(np.maximum(alphas, 1e-30))
+    return int(np.argmin(np.abs(la - np.log10(max(float(x), 1e-30)))))
+
+
 def _couple_lcurve_zoom(cv, ax1, ax2, rough, resid_norm, alphas, rms) -> None:
     """Acopla el zoom de las dos figuras de la L-curve por el rango de α.
 
@@ -242,26 +263,36 @@ class DistributionFitMixin:
         v = QtWidgets.QVBoxLayout(dlg)
         fig = Figure(figsize=(8.0, 5.0), dpi=96, constrained_layout=True)
         cv = FigureCanvas(fig); v.addWidget(cv, stretch=1)
-        # Esquina de la L (máxima curvatura) = mejor compromiso ajuste/suavidad.
+        # Esquina de la L (máxima curvatura) = sugerencia de compromiso ajuste/suavidad.
         best_idx = _lcurve_corner_index(rough, resid_norm) if alphas.size else 0
+        # Selección actual (arranca en la esquina automática; el usuario la corrige
+        # pinchando sobre la figura).
+        sel = {"idx": int(best_idx)}
         ax1 = fig.add_subplot(1, 2, 1)
-        ax1.loglog(rough, resid_norm, "o-", color="#2563eb", ms=4)
+        ax1.loglog(rough, resid_norm, "o-", color="#2563eb", ms=4, picker=False)
         for i, a in enumerate(alphas):
             ax1.annotate(f"{np.log10(a):+.1f}", (rough[i], resid_norm[i]),
                           fontsize=6, alpha=0.7)
+        sel_pt1 = None
         if alphas.size:
             ax1.plot(rough[best_idx], resid_norm[best_idx], "o", ms=13,
                      mfc="none", mec="#16a34a", mew=2.0, zorder=5,
-                     label=tr("plot.lcurve_corner", default="esquina (α óptimo)"))
+                     label=tr("plot.lcurve_corner", default="esquina (auto)"))
+            sel_pt1, = ax1.plot([rough[best_idx]], [resid_norm[best_idx]], "o",
+                                ms=11, mfc="#f97316", mec="#7c2d12", mew=1.6, zorder=6,
+                                label=tr("plot.lcurve_selected", default="α elegido"))
             ax1.legend(loc="best", fontsize=7)
         ax1.set_xlabel(tr("plot.lcurve_xlabel"))
         ax1.set_ylabel(tr("plot.lcurve_ylabel"))
         ax1.set_title(tr("plot.lcurve_title"))
         ax1.grid(True, alpha=0.3, which="both")
         ax2 = fig.add_subplot(1, 2, 2)
-        ax2.semilogx(alphas, rms, "o-", color="#ef4444", ms=4)
+        ax2.semilogx(alphas, rms, "o-", color="#ef4444", ms=4, picker=False)
+        sel_line2 = None
         if alphas.size:
             ax2.axvline(float(alphas[best_idx]), color="#16a34a", ls="--", lw=1.2)
+            sel_line2 = ax2.axvline(float(alphas[best_idx]), color="#f97316",
+                                    ls="-", lw=1.6, zorder=6)
         ax2.set_xlabel("α")
         ax2.set_ylabel(tr("plot.label_rms"))
         ax2.set_title(tr("plot.alpha_scan_title"))
@@ -275,14 +306,57 @@ class DistributionFitMixin:
         # Zoom acoplado por α entre ambas figuras.
         _couple_lcurve_zoom(cv, ax1, ax2, rough, resid_norm, alphas, rms)
 
-        suggest = float(alphas[best_idx]) if alphas.size else dist_state.alpha
+        # Etiqueta + botón (se actualizan al elegir un punto en la figura).
+        hint = QtWidgets.QLabel(tr(
+            "plot.lcurve_pick_hint",
+            default="Haz clic en un punto de cualquiera de las dos figuras para "
+                    "elegir α (se ajusta al valor escaneado más cercano)."))
+        hint.setStyleSheet("color:#64748b;font-size:11px;")
+        v.addWidget(hint)
         buttons = QtWidgets.QHBoxLayout()
-        btn_use = QtWidgets.QPushButton(tr("button.use_lcurve", default="Usar α={value}", value=suggest))
-        btn_use.clicked.connect(lambda _=False, a=suggest, dialog=dlg: (d.log_alpha.set_value(float(np.log10(a))), dialog.accept()))
+        btn_use = QtWidgets.QPushButton("")
         buttons.addWidget(btn_use); buttons.addStretch(1)
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
         bb.rejected.connect(dlg.reject); buttons.addWidget(bb)
         v.addLayout(buttons)
+
+        def _update_selection() -> None:
+            if not alphas.size:
+                btn_use.setText(tr("button.use_lcurve", default="Usar α={value}",
+                                   value=f"{float(dist_state.alpha):.3g}"))
+                return
+            i = int(sel["idx"])
+            a = float(alphas[i])
+            if sel_pt1 is not None:
+                sel_pt1.set_data([rough[i]], [resid_norm[i]])
+            if sel_line2 is not None:
+                sel_line2.set_xdata([a, a])
+            btn_use.setText(tr("button.use_lcurve", default="Usar α={value}",
+                               value=f"{a:.3g}  (log₁₀={np.log10(a):+.2f})"))
+            cv.draw_idle()
+
+        def _on_pick(event) -> None:
+            # No seleccionar mientras el zoom/pan de la toolbar está activo.
+            if getattr(toolbar, "mode", ""):
+                return
+            if not alphas.size or event.xdata is None:
+                return
+            if event.inaxes is ax1 and event.ydata is not None:
+                sel["idx"] = _lcurve_pick_index(
+                    "lcurve", event.xdata, event.ydata, rough, resid_norm, alphas)
+            elif event.inaxes is ax2:
+                sel["idx"] = _lcurve_pick_index(
+                    "alpha", event.xdata, None, rough, resid_norm, alphas)
+            else:
+                return
+            _update_selection()
+
+        cv.mpl_connect("button_press_event", _on_pick)
+        btn_use.clicked.connect(
+            lambda _=False: (
+                d.log_alpha.set_value(float(np.log10(float(alphas[int(sel["idx"])]))))
+                if alphas.size else None, dlg.accept()))
+        _update_selection()
         dlg.exec()
 
 
