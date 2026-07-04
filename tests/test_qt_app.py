@@ -677,6 +677,32 @@ def test_use_as_calibration_sets_info(win):
     assert win.calibration_info["source"] == "local"
 
 
+def test_fixed_calibration_applied_on_counts_load(win):
+    """Una calibración fijada se aplica al cargar datos sin calibración propia."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.calibration_info = {"source": "local", "calibration_sample": "alphaFe",
+                            "velocity_calibrated": 9.876, "isomer_shift": -0.1}
+    # Cargar otro espectro de cuentas (sin eje de velocidad propio).
+    win._load_file(DATA / "magnetita_Fe3O4.adt")
+    # La Vmax fijada se impone y la calibración no varía.
+    assert abs(float(win.calib.vmax.value()) - 9.876) < 1e-6
+    assert win.calibration_info["source"] == "local"
+    assert abs(win.calibration_info["velocity_calibrated"] - 9.876) < 1e-6
+
+
+def test_velocity_file_substitutes_fixed_calibration(win):
+    """Un fichero con calibración propia (velocidad) sustituye la fijada."""
+    from pathlib import Path as _P
+    win.calibration_info = {"source": "local", "calibration_sample": "alphaFe",
+                            "velocity_calibrated": 9.876, "isomer_shift": -0.1}
+    win._apply_calibration_on_load(_P("otros/datos.csv"), file_vmax=11.5)
+    assert abs(float(win.calib.vmax.value()) - 11.5) < 1e-6
+    assert win.calibration_info["source"] == "embedded"
+    assert abs(win.calibration_info["velocity_calibrated"] - 11.5) < 1e-6
+    # El IS de referencia se conserva al sustituir.
+    assert abs(win.calibration_info["isomer_shift"] - (-0.1)) < 1e-6
+
+
 def test_session_save_load_roundtrip_keeps_calibration(win, make_window, tmp_path):
     """Save→Load preserva calibration_info."""
     import json

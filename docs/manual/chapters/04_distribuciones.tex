@@ -1,0 +1,112 @@
+\chapter{Distribuciones: simulación cristalina para empezar}
+\label{ch:distribuciones}
+
+No siempre el campo hiperfino es único. En óxidos desordenados, nanopartículas o
+aleaciones, el entorno de cada núcleo de Fe varía y el espectro es la
+\textbf{suma} de muchos sextetes con campos distintos. Fitbauer modela esto con
+una \emph{distribución} $P(\BHF)$ (o $P(\dEQ)$).
+
+Para empezar a familiarizarse conviene ir del caso \textbf{cristalino} (un solo
+campo bien definido) al caso \textbf{distribuido} (un abanico de campos).
+
+\section{Idea: de un sexteto a una distribución}
+
+Una distribución reparte la probabilidad entre una malla de campos
+$\{\BHF^{(j)}\}$ con pesos $P_j \ge 0$. El espectro es
+\[
+  T(v) \;=\; b \;-\; \sum_j P_j \, S_j(v),
+\]
+donde $S_j$ es el sexteto correspondiente al campo $\BHF^{(j)}$. Un
+\textbf{material cristalino} con un único campo se representa como una
+distribución \emph{estrecha} (casi una delta) en torno a ese valor; un material
+desordenado, como una distribución \emph{ancha}.
+
+\autofig[\textwidth]{fig_pbhf_distribution}{Izquierda: distribución de campo
+hiperfino cristalina (nítida, en torno a 49~T) frente a una distribución ancha.
+Derecha: los espectros simulados correspondientes. La distribución ancha
+«emborrona» y solapa las líneas del sexteto.}
+
+Observe en la figura cómo un $P(\BHF)$ estrecho produce un sexteto de líneas
+finas (comportamiento cristalino), mientras que uno ancho da un espectro con
+líneas ensanchadas y solapadas.
+
+\section{Simular una distribución cristalina}
+\label{sec:sim-cristalina}
+
+El caso cristalino es el punto de partida natural. En modo distribución:
+
+\begin{enumerate}[nosep]
+  \item Active el \textbf{modo distribución} y elija la variable ($P(\BHF)$ o
+        $P(\dEQ)$).
+  \item Fije el rango de la malla ($\BHF$ mínimo y máximo) y el número de bins.
+  \item Fije los parámetros compartidos del kernel: $\delta$, $\dEQ$ y la anchura
+        $\Gamma$ de línea.
+  \item Para simular un material cristalino, concentre la probabilidad en un
+        único campo (una forma estrecha centrada en el valor esperado).
+\end{enumerate}
+
+El gráfico muestra a la vez la \textbf{distribución} $P(\BHF)$ y el
+\textbf{espectro} resultante, de modo que se ve el efecto de estrechar o
+ensanchar la distribución.
+
+\guicap{gui_distribution_panel}{Panel de distribución: variable, forma,
+regularizador, rango de la malla y número de bins.}
+
+\section{Formas de la distribución}
+
+Fitbauer ofrece varias \textbf{formas} (\menu{Forma:}) para el $P(\BHF)$:
+
+\begin{center}
+\begin{tabular}{@{}lp{0.62\textwidth}@{}}
+\toprule
+\textbf{Forma} & \textbf{Descripción} \\
+\midrule
+\textbf{Histograma} & Inversión de Hesse--Rübartsch: pesos libres por bin con
+regularización. La más general. \\[3pt]
+\textbf{Gaussiana} & Una única gaussiana en $\BHF$. \\[3pt]
+\textbf{VBF} & Suma de varias gaussianas (Voigt-Based Fitting, Rancourt--Ping);
+guarda $A_k, \mu_k, \sigma_k$ por componente. \\[3pt]
+\textbf{Binomial} & Distribución binomial (modelos de vecinos). \\[3pt]
+\textbf{Fija} & Distribución impuesta por el usuario. \\[3pt]
+\textbf{2D} & Distribución conjunta $P(\BHF, \dEQ)$. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{nota}
+En modo \textbf{VBF} con más de una gaussiana, Fitbauer informa del \textbf{área}
+de cada componente y su \textbf{porcentaje relativo} ($A_k/\sum A$), que
+representa la población de cada entorno. El área aparece en el panel de estado
+(claves \ruta{vbf$k$\_area}, \ruta{vbf$k$\_area\%}) y en los informes.
+\end{nota}
+
+\section{Componentes nítidos junto a la distribución}
+
+Es habitual que una muestra combine una \textbf{fase cristalina} (un sexteto
+nítido) con una \textbf{fase distribuida}. Fitbauer permite ajustar
+simultáneamente uno o varios \textbf{componentes nítidos} y la distribución. En
+ese caso el gráfico dibuja cada nítido por separado, la envolvente de la
+distribución y el modelo total.
+
+\section{Regularización y L-curve}
+
+Al ajustar un \textbf{Histograma} a datos reales, el problema es mal
+condicionado: hay que \textbf{regularizar} para evitar oscilaciones espurias.
+Fitbauer usa un parámetro $\alpha$ (adimensional) que equilibra fidelidad a los
+datos y suavidad de la distribución:
+
+\begin{itemize}[nosep]
+  \item Regularizadores: \textbf{Tikhonov} (suave), \textbf{TV} (bordes) y
+        \textbf{MaxEnt} (máxima entropía).
+  \item El valor $\log\alpha \approx 0$ es el equilibrio natural; valores típicos
+        entre $-1$ y $+2$.
+  \item \menu{Ajuste} dispone de un barrido de \textbf{L-curve} con detección
+        automática del codo para elegir $\alpha$.
+\end{itemize}
+
+\begin{truco}
+Empiece siempre por una \textbf{simulación cristalina}
+(§\ref{sec:sim-cristalina}) para entender la escala de campos y anchuras de su
+muestra; solo después pase al ajuste con Histograma y regularización sobre los
+datos reales.
+\end{truco}

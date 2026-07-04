@@ -1,0 +1,102 @@
+\chapter{Carga y visualización de datos}
+\label{ch:carga}
+
+Con la calibración fijada (capítulo~\ref{ch:calibracion}), cargar un espectro es
+inmediato: Fitbauer lo dobla, construye el eje de velocidad y lo muestra
+normalizado.
+
+\section{Formatos admitidos}
+
+\begin{center}
+\begin{tabular}{@{}lp{0.62\textwidth}@{}}
+\toprule
+\textbf{Extensión} & \textbf{Contenido} \\
+\midrule
+\ruta{.ws5}, \ruta{.adt} & \textbf{Cuentas en bruto} por canal (típ.\ 512
+canales). No traen eje de velocidad: se doblan y se calibran con la \param{Vmax}
+fijada. \\[4pt]
+\ruta{.csv}, \ruta{.txt}, \ruta{.dat}, \ruta{.exp} & Espectro \textbf{ya doblado}
+en espacio de velocidad (columnas velocidad/cuentas). Traen su propio eje: no se
+doblan y \emph{sustituyen} la calibración (§\ref{sec:calib-fija}). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Cargar un espectro}
+
+\menu{Archivo > Cargar…} abre el selector de ficheros. Al elegir un espectro de
+cuentas en bruto, Fitbauer:
+
+\begin{enumerate}[nosep]
+  \item Lee las cuentas por canal.
+  \item Detecta el \textbf{centro de folding} (o lo lee de un fichero
+        \ruta{.RES} de NORMOS si existe).
+  \item \textbf{Dobla} las dos ramas del espectro triangular y recorta los
+        extremos.
+  \item \textbf{Normaliza} a línea base $\approx 1$ y estima el ruido de Poisson.
+  \item Construye el eje de velocidad con la \param{Vmax} de la calibración
+        fijada.
+\end{enumerate}
+
+\autofig{fig_load_alphafe}{Espectro de $\alpha$-Fe recién cargado y doblado:
+transmisión relativa frente a velocidad. Las seis líneas del sexteto son
+visibles y simétricas respecto a $v=0$.}
+
+\begin{nota}
+La barra de estado y la etiqueta del fichero informan del número de canales, el
+centro de folding detectado y el factor de normalización.
+\end{nota}
+
+\section{El folding y el centro}
+\label{sec:folding}
+
+El \emph{folding} suma las dos mitades del espectro (velocidad creciente y
+decreciente) para promediar y duplicar la relación señal/ruido. El punto clave
+es el \textbf{centro}: el canal donde se pliega. Fitbauer lo detecta
+automáticamente, pero puede ajustarlo:
+
+\begin{itemize}[nosep]
+  \item Modifique el control \param{Centro} en el panel de calibración: el
+        espectro se \textbf{re-dobla} en vivo.
+  \item \menu{Ajuste > Buscar centro} refina el centro por minimización.
+\end{itemize}
+
+\begin{aviso}
+Un centro mal elegido produce líneas dobles o asimétricas. Si observa
+desdoblamientos espurios, revise primero el centro de folding.
+\end{aviso}
+
+\section{Visualización}
+
+La zona de gráfico muestra:
+
+\begin{itemize}[nosep]
+  \item Los \textbf{datos} (puntos), la \textbf{línea base}, el \textbf{modelo}
+        total y, cuando procede, los \textbf{subespectros} de cada componente.
+  \item En modo distribución, además la \textbf{envolvente} de la distribución y
+        cada componente nítido por separado.
+\end{itemize}
+
+La barra de herramientas del gráfico (zoom, desplazamiento, guardar imagen)
+permite explorar el espectro y exportar la figura a PNG.
+
+\guicap{gui_plot_area}{Zona de gráfico con datos, modelo y subespectros, y su
+barra de herramientas de navegación.}
+
+\section{Comparar espectros}
+
+\menu{Archivo > Comparar espectro…} superpone uno o varios espectros de
+referencia sobre el actual, útil para identificar fases o comparar tratamientos.
+\menu{Archivo > Limpiar comparación} retira las superposiciones.
+
+\section{Guardar y reutilizar}
+
+\begin{itemize}[nosep]
+  \item \menu{Archivo > Guardar sesión…} guarda el estado completo (datos
+        cargados, calibración fijada, modelo, opciones) en un \ruta{.json}
+        reproducible.
+  \item \menu{Archivo > Guardar ajuste…} exporta el ajuste actual (parámetros,
+        curva, distribución) a un fichero de texto.
+  \item \menu{Archivo > Exportar informe Markdown/PDF…} genera un informe legible
+        con parámetros, estadísticos y, si procede, la tabla de la distribución.
+\end{itemize}

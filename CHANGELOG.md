@@ -1,5 +1,30 @@
 # Changelog
 
+## v4.13.0 — calibración fija reutilizable + manual de usuario
+
+**Calibración fija.** La calibración deja de reajustarse en cada carga y se
+convierte en un estado persistente que se **aplica** de forma coherente:
+
+- Al definir una calibración (**Usar fichero actual como calibración**) o cargar
+  una calibración web, su `Vmax` (e IS de referencia) quedan **fijados** y se
+  marcan como «fija» en la etiqueta.
+- Cargar un fichero **sin calibración propia** (cuentas en bruto `.ws5`/`.adt`)
+  **usa la calibración fijada** para construir el eje de velocidad; la
+  calibración no varía. Antes no había un concepto explícito de calibración fija.
+- Cargar un fichero **con calibración propia** (velocidad `.csv/.txt/.dat/.exp`)
+  **sustituye** la calibración y lo **avisa** en la barra de estado.
+- Nueva acción **Liberar calibración fijada** en el menú contextual del cuadro de
+  fichero. i18n ES/EN/FR.
+
+Implementado en `gui/calibration_actions.py` (`_apply_calibration_on_load`,
+`_fixed_calibration_vmax`, `_release_calibration`) y aplicado en las dos rutas de
+carga de `gui/model_workflow.py`. Cubierto por tests en `tests/test_qt_app.py`.
+
+**Manual de usuario.** Nuevo manual LaTeX extenso en `docs/manual/` (capítulos:
+introducción, calibración, carga de datos, simular/ajustar y distribuciones), con
+figuras de física auto-generadas desde `core/` (`scripts/make_figures.py`) y
+huecos para capturas de la interfaz.
+
 ## v4.12.3 — área de cada gaussiana en VBF multi-componente
 
 Con forma **VBF** y más de una gaussiana, ahora se informa el **área de cada

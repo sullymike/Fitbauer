@@ -1,0 +1,91 @@
+\chapter{Introducción y puesta en marcha}
+\label{ch:intro}
+
+\section{Qué es Fitbauer}
+
+\textbf{Fitbauer} es una aplicación de escritorio para el análisis de espectros
+Mössbauer de $^{57}$Fe. Permite:
+
+\begin{itemize}[nosep]
+  \item \textbf{Cargar} espectros en varios formatos (cuentas en bruto
+        \ruta{.ws5}/\ruta{.adt} o espectros ya doblados en velocidad
+        \ruta{.csv}/\ruta{.txt}/\ruta{.dat}/\ruta{.exp}).
+  \item \textbf{Doblar} (\emph{folding}) las cuentas en bruto y construir el eje
+        de velocidad a partir de una \emph{calibración}.
+  \item \textbf{Simular} el modelo directo con hasta tres componentes discretos
+        (singlete, doblete, sexteto) y perfiles Lorentz/Voigt.
+  \item \textbf{Ajustar} de forma discreta o mediante \emph{distribuciones}
+        $P(\BHF)$ / $P(\dEQ)$.
+  \item \textbf{Documentar}: informes Markdown/PDF, exportación de gráficos
+        interactivos y sesiones reproducibles.
+\end{itemize}
+
+La interfaz está disponible en español, inglés y francés (menú \menu{Idioma}).
+
+\begin{nota}
+El cálculo (física y motores de ajuste) reside en el paquete \ruta{core/}, que
+no depende de ninguna interfaz gráfica. La GUI es un cliente de ese núcleo. Este
+manual describe el uso de la aplicación; el detalle matemático del motor de
+ajuste está en el documento aparte \emph{Manual matemático del motor de ajuste}.
+\end{nota}
+
+\section{Instalación y arranque}
+
+Fitbauer requiere Python 3.11 o superior. Desde la raíz del repositorio:
+
+\begin{lstlisting}[language=bash]
+python3 -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python fitbauer.py               # abre la interfaz gráfica
+\end{lstlisting}
+
+El punto de entrada único es \ruta{fitbauer.py}, que lanza la ventana principal
+(Qt + Matplotlib). También existen versiones ejecutables empaquetadas
+(PyInstaller) para quienes no deseen instalar Python.
+
+\section{Panorama de la interfaz}
+\label{sec:panorama}
+
+Al arrancar aparece la ventana principal, organizada en:
+
+\begin{itemize}[nosep]
+  \item \textbf{Barra de menús}: \menu{Archivo}, \menu{Ajuste}, \menu{Vista},
+        \menu{Idioma} y \menu{Ayuda}.
+  \item \textbf{Panel de calibración}: control de \param{Vmax}, centro de
+        \emph{folding}, línea base, pendiente y perfil de línea.
+  \item \textbf{Paneles de componentes} (hasta tres): forma del componente y sus
+        parámetros físicos ($\delta$, $\dEQ$, $\BHF$, anchuras, intensidades).
+  \item \textbf{Panel de distribución}: modo $P(\BHF)$/$P(\dEQ)$, forma,
+        regularizador y sus parámetros.
+  \item \textbf{Zona de gráfico}: representación del espectro, el modelo y los
+        subespectros, con barra de herramientas de navegación (Matplotlib).
+  \item \textbf{Panel de información/estado}: parámetros ajustados, estadísticos
+        ($\chi^2$, AIC, BIC) y mensajes.
+\end{itemize}
+
+\guicap{gui_overview}{Vista general de la ventana principal de Fitbauer con sus
+paneles. (Sustituir por una captura real; nombre del fichero indicado bajo el
+recuadro.)}
+
+\begin{truco}
+La disposición de los paneles es configurable desde
+\menu{Vista > Configurar layout de paneles…}. Puede guardar presets adaptados a
+pantallas grandes o portátiles.
+\end{truco}
+
+\section{El flujo de trabajo típico}
+
+El orden recomendado, que estructura los capítulos siguientes, es:
+
+\begin{enumerate}[nosep]
+  \item \textbf{Calibrar} (capítulo~\ref{ch:calibracion}): cargar o definir una
+        calibración de velocidad y \textbf{fijarla}. A partir de ese momento se
+        reutiliza automáticamente.
+  \item \textbf{Cargar datos} (capítulo~\ref{ch:carga}): abrir el espectro
+        problema; la calibración fijada se aplica sola.
+  \item \textbf{Simular y ajustar} (capítulo~\ref{ch:simular}): construir el
+        modelo directo y ajustarlo; validar con un calibrado de $\alpha$-Fe.
+  \item \textbf{Distribuciones} (capítulo~\ref{ch:distribuciones}): cuando el
+        campo hiperfino no es único, simular y ajustar $P(\BHF)$.
+\end{enumerate}

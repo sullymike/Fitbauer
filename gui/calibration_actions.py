@@ -14,11 +14,18 @@ class CalibrationActionsMixin:
         menu = QtWidgets.QMenu(self)
         act_quick = menu.addAction(tr("context.use_as_calibration_quick"))
         act_detail = menu.addAction(tr("context.use_as_calibration_detailed"))
+        act_release = None
+        if self.calibration_info:
+            menu.addSeparator()
+            act_release = menu.addAction(
+                tr("context.release_calibration", default="Liberar calibración fijada"))
         chosen = menu.exec(self.file_box.mapToGlobal(pos))
         if chosen == act_quick:
             self._use_as_calibration_quick()
         elif chosen == act_detail:
             self._use_as_calibration_detailed()
+        elif act_release is not None and chosen == act_release:
+            self._release_calibration()
 
     def _use_as_calibration_quick(self) -> None:
         if self.file.path is None:
@@ -79,6 +86,80 @@ class CalibrationActionsMixin:
         }
         self._refresh_calib_label()
 
+    # ── Calibración fija: aplicación al cargar datos ──────────────────────
+    def _fixed_calibration_vmax(self) -> float | None:
+        """Vmax de la calibración fijada (o ``None`` si no hay ninguna)."""
+        info = self.calibration_info
+        if not info:
+            return None
+        value = info.get("velocity_calibrated")
+        try:
+            return float(value) if value not in (None, "") else None
+        except (TypeError, ValueError):
+            return None
+
+    def _set_vmax_quiet(self, vmax: float) -> None:
+        """Fija el control de Vmax sin disparar refolds intermedios."""
+        if not (hasattr(self, "calib") and hasattr(self.calib, "vmax")):
+            return
+        prev = bool(getattr(self, "_building", False))
+        self._building = True
+        try:
+            self.calib.vmax.set_value(float(vmax))
+        finally:
+            self._building = prev
+
+    def _apply_calibration_on_load(self, path, *, file_vmax: float | None) -> None:
+        """Aplica la política de calibración fija al cargar un espectro.
+
+        - ``file_vmax is None`` → el fichero NO trae calibración propia
+          (cuentas en bruto: ``.ws5``/``.adt``). Si hay una calibración fijada,
+          se **usa** (se impone su Vmax); la calibración no varía.
+        - ``file_vmax`` numérico → el fichero trae calibración propia (eje de
+          velocidad, CSV/TXT/DAT/EXP). **Sustituye** la calibración fijada por la
+          del fichero y se avisa en la barra de estado.
+        """
+        fixed = self._fixed_calibration_vmax()
+        if file_vmax is None:
+            # Datos sin calibración propia: aplicar la fija si existe.
+            if fixed is not None:
+                self._set_vmax_quiet(fixed)
+            return
+        # Fichero con calibración propia: sustituye.
+        if fixed is not None and abs(fixed - float(file_vmax)) > 1e-9:
+            try:
+                self.statusBar().showMessage(
+                    tr("status.calib_replaced",
+                       name=getattr(path, "name", str(path)),
+                       old=f"{fixed:.4f}", new=f"{float(file_vmax):.4f}",
+                       default=(f"Calibración sustituida por la del fichero "
+                                f"{getattr(path, 'name', path)}: "
+                                f"Vmax {fixed:.4f} → {float(file_vmax):.4f} mm/s")),
+                    6000)
+            except Exception:
+                pass
+        keep_iso = (self.calibration_info or {}).get("isomer_shift")
+        self.calibration_info = {
+            "source": "embedded",
+            "calibration_sample": getattr(path, "stem", str(path)),
+            "velocity_calibrated": float(file_vmax),
+            "isomer_shift": keep_iso,
+            "calibration_file_name": getattr(path, "name", str(path)),
+            "calibration_file_path": str(path),
+        }
+        self._set_vmax_quiet(float(file_vmax))
+        self._refresh_calib_label()
+
+    def _release_calibration(self) -> None:
+        """Libera la calibración fijada (deja de aplicarse a cargas futuras)."""
+        self.calibration_info = None
+        self._refresh_calib_label()
+        try:
+            self.statusBar().showMessage(
+                tr("status.calib_released", default="Calibración liberada."), 4000)
+        except Exception:
+            pass
+
     def _refresh_calib_label(self) -> None:
         if not self.calibration_info:
             self.calib_label.setText("")
@@ -88,7 +169,9 @@ class CalibrationActionsMixin:
         sample = info.get("calibration_sample", "")
         vmax = info.get("velocity_calibrated")
         iso = info.get("isomer_shift")
-        txt = f"Calibración [{src}] {sample}<br>"
+        fija = tr("label.calib_fixed", default="fija") if vmax not in (None, "") else ""
+        tag = f" · <b>{fija}</b>" if fija else ""
+        txt = f"Calibración [{src}] {sample}{tag}<br>"
         if vmax is not None:
             try:
                 vmax_txt = f"{float(vmax):.4f}"

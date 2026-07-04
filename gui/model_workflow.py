@@ -639,6 +639,9 @@ class ModelWorkflowMixin:
         folded, sigma, y = self._fold_counts_for_center(center)
         norm = float(np.percentile(folded, 90)) if folded.size else 1.0
         norm = norm or 1.0
+        # Cuentas en bruto: el fichero NO trae calibración propia → se aplica la
+        # calibración fijada (si la hay) antes de construir el eje de velocidad.
+        self._apply_calibration_on_load(path, file_vmax=None)
         v = self._velocity_for_folded(folded.size)
         self.file.folded = folded
         self.file.sigma = sigma
@@ -719,13 +722,9 @@ class ModelWorkflowMixin:
         if hasattr(self, "dist_panel"):
             self.dist_panel.btn_show_map.setVisible(False)
 
-        # Actualizar controles de calibración con el Vmax detectado.
-        self._building = True
-        try:
-            if hasattr(self, "calib") and hasattr(self.calib, "vmax"):
-                self.calib.vmax.set_value(vmax)
-        finally:
-            self._building = False
+        # El fichero trae calibración propia (eje de velocidad): sustituye la
+        # calibración fijada por la del fichero y actualiza el control de Vmax.
+        self._apply_calibration_on_load(path, file_vmax=vmax)
 
         n_pts = int(vel.size)
         self.file_label.setText(

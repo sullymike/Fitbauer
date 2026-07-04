@@ -1,0 +1,142 @@
+\chapter{Calibración}
+\label{ch:calibracion}
+
+La calibración es \textbf{el primer paso} del análisis. Determina la relación
+entre canal y velocidad (mm/s) y, opcionalmente, la referencia de desplazamiento
+isomérico. En Fitbauer la calibración se \textbf{fija} y se reutiliza en todas
+las cargas posteriores, de modo que no hay que redefinirla para cada espectro.
+
+\section{Por qué hace falta calibrar}
+
+El transductor de velocidad recorre un ciclo triangular; el sistema registra las
+cuentas por canal. Para convertir el eje de canales en un eje físico de
+velocidad se necesita la \textbf{velocidad máxima} \param{Vmax} (mm/s en el
+extremo del recorrido). Esta \param{Vmax} depende de la amplitud del transductor
+y es común a todos los espectros medidos con la misma configuración: por eso se
+mide una vez con un patrón y se reutiliza.
+
+El patrón habitual es el \textbf{$\alpha$-Fe metálico}, cuyo sexteto tiene
+posiciones de línea muy bien conocidas. Fitbauer adopta la convención de que un
+espectro de $\alpha$-Fe corresponde a $\BHF = 33{,}0$~T, usando el patrón de
+velocidad publicado ($\pm0{,}839 / \pm3{,}084 / \pm5{,}329$~mm/s), igual que
+NORMOS.
+
+\begin{aviso}
+Las posiciones del sexteto de referencia \textbf{no} se derivan de los momentos
+nucleares: el cálculo de libro da un desdoblamiento $\sim0{,}4\%$ menor y haría
+que el $\BHF$ saliera $\sim0{,}1$~T demasiado alto. Se usan las posiciones
+publicadas de $\alpha$-Fe a 33,0~T.
+\end{aviso}
+
+\section{Definir una calibración a partir de un $\alpha$-Fe}
+\label{sec:definir-calib}
+
+El procedimiento habitual es cargar un espectro de $\alpha$-Fe, ajustarlo como
+sexteto (véase el capítulo~\ref{ch:simular}) y marcarlo como calibración:
+
+\begin{enumerate}[nosep]
+  \item \menu{Archivo > Cargar…} y seleccione el espectro de $\alpha$-Fe
+        (por ejemplo \ruta{data\_sample/hierro\_metalico\_alphaFe.adt}).
+  \item Ajuste el sexteto (\menu{Ajuste > Ajustar}) hasta reproducir las seis
+        líneas. Puede activar \emph{Ajustar Vmax} para refinar la propia
+        \param{Vmax} contra las posiciones de $\alpha$-Fe.
+  \item Marque el resultado como calibración con
+        \menu{Archivo > Usar fichero actual como calibración…}, o desde el menú
+        contextual del cuadro de fichero (clic derecho).
+\end{enumerate}
+
+\autofig{fig_calibration_fit}{Ajuste de un espectro de $\alpha$-Fe usado como
+calibración. El $\BHF$ recuperado ($\approx 33$~T) y el $\chi^2$ reducido
+próximo a 1 indican una calibración correcta. Figura generada con
+\ruta{scripts/make\_figures.py}.}
+
+Al marcar la calibración, Fitbauer ofrece dos variantes desde el menú
+contextual del cuadro de fichero:
+
+\begin{itemize}[nosep]
+  \item \menu{Usar como calibrado (vmax e iso actuales)}: toma directamente la
+        \param{Vmax} y el desplazamiento isomérico $\delta$ del estado actual.
+  \item \menu{Usar como calibrado (detalle)…}: abre un diálogo para revisar y
+        editar el nombre de la muestra, la \param{Vmax} y el IS antes de fijar.
+\end{itemize}
+
+\guicap{gui_use_as_calibration}{Diálogo «Usar como calibración» con el nombre de
+la muestra, la Vmax calibrada y el desplazamiento isomérico de referencia.}
+
+\section{La calibración queda \emph{fijada}}
+\label{sec:calib-fija}
+
+Una vez definida, la calibración queda \textbf{fijada}: su \param{Vmax} (y el IS
+de referencia) se guardan y se muestran en la etiqueta de calibración con la
+marca \textbf{«fija»}. A partir de ese punto se aplica automáticamente a los
+espectros que cargue, según esta regla:
+
+\begin{center}
+\begin{tabular}{@{}p{0.46\textwidth}p{0.46\textwidth}@{}}
+\toprule
+\textbf{Acción} & \textbf{Efecto sobre la calibración} \\
+\midrule
+Cargar un fichero \textbf{sin} calibración propia (cuentas en bruto:
+\ruta{.ws5}, \ruta{.adt}) &
+Se \textbf{usa la fija}: el eje de velocidad se construye con la \param{Vmax}
+fijada. La calibración \textbf{no varía}. \\[6pt]
+Cargar un fichero \textbf{con} calibración propia (eje de velocidad:
+\ruta{.csv}, \ruta{.txt}, \ruta{.dat}, \ruta{.exp}) &
+\textbf{Sustituye} la calibración por la del fichero (su \param{Vmax}) y se
+\textbf{avisa} en la barra de estado. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Es decir: si fija una calibración y después carga \textbf{solo datos} de cuentas
+en bruto, la calibración permanece \textbf{intacta} y se aplica a todos ellos.
+
+\begin{nota}
+Los ficheros de cuentas en bruto (\ruta{.ws5}/\ruta{.adt}) no llevan un eje de
+velocidad; necesitan la \param{Vmax} de la calibración para construirlo. Los
+ficheros ya doblados en velocidad (\ruta{.csv}, etc.) traen su propio eje: por
+eso \emph{sustituyen} la calibración activa.
+\end{nota}
+
+\guicap{gui_calib_label_fixed}{Etiqueta de calibración mostrando el estado
+«fija», con la muestra, la Vmax y el IS de referencia.}
+
+\subsection{Sustitución de la calibración}
+
+Cuando carga un fichero con calibración propia estando ya fijada otra, la nueva
+sustituye a la anterior y Fitbauer muestra un aviso temporal en la barra de
+estado del tipo:
+
+\begin{center}\ttfamily\small
+Calibración sustituida por la del fichero datos.csv: Vmax 12.0070 $\to$ 11.5000 mm/s
+\end{center}
+
+Así queda constancia de que la \param{Vmax} activa ha cambiado. El
+desplazamiento isomérico de referencia se conserva.
+
+\subsection{Liberar la calibración}
+
+Para dejar de aplicar la calibración fijada, use \menu{Liberar calibración
+fijada} en el menú contextual del cuadro de fichero. A partir de entonces cada
+carga usará la \param{Vmax} que corresponda a su propio fichero (o el valor por
+defecto del control).
+
+\section{Calibraciones desde la web}
+
+Si dispone de acceso a la API, \menu{Archivo > Web > Calibraciones web…} permite
+descargar una calibración remota. Sus valores (\param{velocity\_calibrated} e
+\param{isomer\_shift}) quedan fijados exactamente igual que una calibración
+local, reescalando el eje de velocidad del espectro actual.
+
+\section{Persistencia en la sesión}
+
+La calibración fijada forma parte de la \textbf{sesión}: al guardar
+(\menu{Archivo > Guardar sesión…}) se almacena junto con el resto del estado, y
+al cargarla (\menu{Archivo > Cargar sesión…}) se restaura tal cual. De este modo
+un análisis es reproducible sin volver a calibrar.
+
+\begin{truco}
+Para un trabajo por lotes sobre muchas muestras medidas con la misma
+configuración: cargue y fije la calibración de $\alpha$-Fe una vez, guárdela en
+una sesión base y arranque desde ella cada día.
+\end{truco}

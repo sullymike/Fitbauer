@@ -1,0 +1,132 @@
+% ============================================================================
+%  Manual de usuario de Fitbauer
+%  Software for Mössbauer spectrum fitting and analysis
+%
+%  Compilar (desde docs/manual/):   make        (o)   latexmk -pdf main.tex
+%  Las figuras «de física/datos» se generan con:
+%      python scripts/make_figures.py     (desde la raíz del repositorio)
+%  Las capturas de la interfaz se añaden a mano en img/ con el nombre que
+%  indica cada hueco \guicap{...}; si faltan, el manual compila con un recuadro
+%  «captura pendiente» en su lugar.
+% ============================================================================
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{listings}
+\usepackage{seqsplit}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{img/}}
+\DeclareGraphicsExtensions{.pdf,.png,.jpg}
+
+\definecolor{fbblue}{HTML}{1F4E79}
+\definecolor{fbred}{HTML}{C1272D}
+\definecolor{fbgreen}{HTML}{2E7D32}
+\definecolor{fbgray}{HTML}{6B6B6B}
+
+\hypersetup{
+  colorlinks=true, linkcolor=fbblue!80!black,
+  urlcolor=fbblue, citecolor=fbblue}
+
+% ── Estilo de encabezados ────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\leftmark}
+\fancyhead[R]{\small Manual de Fitbauer}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── Cajas semánticas ─────────────────────────────────────────────────────────
+\newtcolorbox{nota}[1][Nota]{
+  colback=fbblue!4, colframe=fbblue!55!black, fonttitle=\bfseries,
+  title={#1}, left=5pt, right=5pt, top=3pt, bottom=3pt, arc=2pt}
+\newtcolorbox{aviso}[1][Importante]{
+  colback=fbred!5, colframe=fbred!65!black, fonttitle=\bfseries,
+  title={#1}, left=5pt, right=5pt, top=3pt, bottom=3pt, arc=2pt}
+\newtcolorbox{truco}[1][Consejo]{
+  colback=fbgreen!5, colframe=fbgreen!55!black, fonttitle=\bfseries,
+  title={#1}, left=5pt, right=5pt, top=3pt, bottom=3pt, arc=2pt}
+
+% ── Comandos de la interfaz ──────────────────────────────────────────────────
+% \menu{Archivo > Cargar...} — rutas de menú.
+\newcommand{\menu}[1]{\textsf{\textbf{#1}}}
+\newcommand{\boton}[1]{\textsf{[#1]}}
+% \ruta: rutas/ficheros en monoespaciado; seqsplit permite cortar rutas largas.
+% Robusto para poder usarse dentro de \caption (argumento móvil).
+\DeclareRobustCommand{\ruta}[1]{\texttt{\small\seqsplit{#1}}}
+\newcommand{\param}[1]{\textit{#1}}
+\newcommand{\BHF}{B_{\mathrm{hf}}}
+\newcommand{\dEQ}{\Delta E_{Q}}
+
+% ── Figuras auto-generadas (siempre presentes en img/) ───────────────────────
+% \autofig[ancho]{fichero-sin-ext}{pie}
+\newcommand{\autofig}[3][0.82\textwidth]{%
+  \begin{figure}[htbp]\centering
+    \includegraphics[width=#1]{#2}%
+    \caption{#3}\label{fig:#2}%
+  \end{figure}}
+
+% ── Capturas de la GUI (placeholder si aún no existe la imagen) ──────────────
+% \guicap[ancho]{fichero-sin-ext}{pie}
+\newcommand{\guiplaceholder}[2]{%
+  \fcolorbox{fbgray}{fbgray!7}{%
+    \parbox[c][0.26\textheight][c]{#1}{\centering
+      \textbf{\textcolor{fbgray}{Captura de pantalla pendiente}}\\[6pt]
+      \texttt{\small img/\detokenize{#2}.png}\\[8pt]}}}
+\newcommand{\guicap}[3][0.82\textwidth]{%
+  \begin{figure}[htbp]\centering
+    \IfFileExists{img/#2.png}{\includegraphics[width=#1]{#2}}{%
+      \IfFileExists{img/#2.pdf}{\includegraphics[width=#1]{#2}}{%
+        \guiplaceholder{#1}{#2}}}%
+    \caption{#3}\label{fig:#2}%
+  \end{figure}}
+
+\lstset{basicstyle=\ttfamily\small, breaklines=true,
+        frame=single, rulecolor=\color{fbgray!50}, backgroundcolor=\color{fbblue!3},
+        extendedchars=true,
+        literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+                 {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+                 {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1 {¡}{{!`}}1 {¿}{{?`}}1}
+
+% ============================================================================
+\title{\vspace{-1cm}\textbf{\Huge Fitbauer}\\[8pt]
+  \Large Manual de usuario\\[4pt]
+  \normalsize \textit{Software for Mössbauer spectrum fitting and analysis}}
+\author{Jorge Sánchez Marcos \and Nieves Menéndez González\\[2pt]
+  \small Departamento de Química Física · Universidad Autónoma de Madrid}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+\noindent Este manual describe el uso de \textbf{Fitbauer}, la aplicación de
+escritorio para cargar, doblar, simular y ajustar espectros Mössbauer de
+$^{57}$Fe. Se organiza siguiendo el flujo de trabajo real: primero la
+\emph{calibración} —que se fija y se reutiliza—, después la carga y
+visualización de datos, la simulación y el ajuste de un calibrado, y por último
+la simulación de distribuciones. Los recuadros \textbf{Nota}, \textbf{Importante}
+y \textbf{Consejo} resaltan detalles prácticos.
+\end{abstract}
+
+\tableofcontents
+
+\input{chapters/00_intro}
+\input{chapters/01_calibracion}
+\input{chapters/02_carga_datos}
+\input{chapters/03_simular_ajustar}
+\input{chapters/04_distribuciones}
+
+\end{document}

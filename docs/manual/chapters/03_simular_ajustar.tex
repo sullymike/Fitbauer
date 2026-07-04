@@ -1,0 +1,116 @@
+\chapter{Simular y ajustar}
+\label{ch:simular}
+
+Este capítulo cubre el \emph{modelo directo} (simulación) y el \emph{ajuste
+discreto}, ilustrados con el caso más sencillo y a la vez más importante: un
+calibrado de $\alpha$-Fe.
+
+\section{El modelo directo}
+
+Fitbauer construye el espectro como transmisión:
+\[
+  T(v) \;=\; b + s\,v \;-\; \sum_{k} A_k(v),
+\]
+donde $b$ es la línea base, $s$ una pendiente opcional y $A_k(v)$ la
+\emph{absorción} de cada componente. Hay tres formas discretas:
+
+\begin{center}
+\begin{tabular}{@{}lp{0.6\textwidth}@{}}
+\toprule
+\textbf{Componente} & \textbf{Parámetros físicos} \\
+\midrule
+\textbf{Singlete} & $\delta$ (desplazamiento isomérico), $\Gamma$ (anchura),
+profundidad. Un único pico. \\[3pt]
+\textbf{Doblete} & $\delta$, $\dEQ$ (desdoblamiento cuadrupolar), $\Gamma$,
+profundidad. Dos líneas. \\[3pt]
+\textbf{Sexteto} & $\delta$, $\dEQ$, $\BHF$ (campo hiperfino), anchuras
+$\Gamma_{1,2,3}$, profundidad e intensidades relativas. Seis líneas. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Cada componente admite perfil \textbf{Lorentziano} o \textbf{Voigt} (con
+$\sigma$ gaussiana), seleccionable en el panel de calibración.
+
+\autofig[\textwidth]{fig_sim_components}{Simulación de los tres componentes
+discretos: singlete (un pico), doblete ($\dEQ = 0{,}80$~mm/s) y sexteto
+($\BHF = 33$~T con relación de intensidades $3:2:1$).}
+
+\section{Simular sin ajustar}
+
+Para explorar el modelo antes de ajustar:
+
+\begin{enumerate}[nosep]
+  \item Elija la forma de cada componente en su panel (\menu{Forma:}).
+  \item Fije los parámetros con los controles deslizantes o escribiendo el valor.
+  \item El gráfico se actualiza en vivo con el modelo resultante.
+\end{enumerate}
+
+Esto es útil para \emph{sembrar} valores iniciales razonables antes de lanzar el
+ajuste, o para entender el efecto de cada parámetro.
+
+\guicap{gui_component_panel}{Panel de un componente sexteto con sus controles de
+$\delta$, $\dEQ$, $\BHF$, anchuras e intensidades.}
+
+\section{Ajustar un calibrado de $\alpha$-Fe}
+\label{sec:ajustar-alphafe}
+
+El $\alpha$-Fe es el caso de referencia. El procedimiento:
+
+\begin{enumerate}[nosep]
+  \item Cargue el espectro (\menu{Archivo > Cargar…}).
+  \item Active un único componente de forma \textbf{Sexteto}.
+  \item Dé valores iniciales aproximados: $\delta \approx 0$, $\dEQ \approx 0$,
+        $\BHF \approx 33$~T, $\Gamma \approx 0{,}30$~mm/s.
+  \item \menu{Ajuste > Ajustar}.
+\end{enumerate}
+
+El resultado debe reproducir las seis líneas con $\BHF \approx 33$~T y un
+$\chi^2$ reducido próximo a 1, como en la figura~\ref{fig:fig_calibration_fit}
+(capítulo~\ref{ch:calibracion}). Ese ajuste es, precisamente, el que se marca
+como calibración (§\ref{sec:definir-calib}).
+
+\begin{truco}
+Si quiere que el ajuste refine además la propia \param{Vmax} contra las
+posiciones de $\alpha$-Fe, active \emph{Ajustar Vmax}. Para evitar
+degeneración, Fitbauer fija automáticamente el $\BHF$ activo cuando se ajusta la
+velocidad (no pueden refinarse ambos a la vez).
+\end{truco}
+
+\section{Calidad del ajuste y errores}
+
+Tras ajustar, el panel de información muestra:
+
+\begin{itemize}[nosep]
+  \item Los \textbf{parámetros} ajustados con su incertidumbre.
+  \item Estadísticos: $\chi^2$, $\chi^2$ reducido, grados de libertad, AIC y BIC.
+  \item Avisos de \textbf{correlaciones} altas entre parámetros.
+\end{itemize}
+
+Para incertidumbres más robustas:
+
+\begin{itemize}[nosep]
+  \item \menu{Ajuste > Bootstrap errores (MC)…}: remuestreo Monte Carlo.
+  \item \menu{Ajuste > Errores por verosimilitud perfilada…}: intervalos por
+        \emph{profile likelihood}, fiables cuando las incertidumbres no son
+        gaussianas.
+\end{itemize}
+
+\section{Herramientas de ayuda al ajuste}
+
+\begin{itemize}[nosep]
+  \item \menu{Ajuste > Inicializar desde mínimos} y \menu{Autoajustar desde
+        mínimos}: detectan las posiciones de línea y proponen un punto de
+        partida.
+  \item \menu{Ajuste > Fijar todos} / \menu{Liberar todos}: bloquean o liberan
+        todos los parámetros de una vez.
+  \item \menu{Ajuste > Ajuste en serie…}: ajusta una tanda de espectros por
+        \emph{warm-start} (cada ajuste parte del anterior).
+  \item \menu{Ajuste > Deshacer ajuste}: revierte al estado previo.
+\end{itemize}
+
+\begin{nota}
+Los modos de ajuste (perfiles, pesos, tratamiento del cuadrupolo, textura del
+sexteto, multistart) se seleccionan en \menu{Ajuste > Modo de ajuste} y en las
+opciones del panel. El detalle numérico está en el manual matemático.
+\end{nota}
