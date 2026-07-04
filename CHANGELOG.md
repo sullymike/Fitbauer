@@ -1,5 +1,18 @@
 # Changelog
 
+## v4.12.3 — área de cada gaussiana en VBF multi-componente
+
+Con forma **VBF** y más de una gaussiana, ahora se informa el **área de cada
+componente** y su **porcentaje relativo** (población de cada entorno):
+
+- No requiere reajuste: en `fit_vbf_hyperfine_distribution` cada gaussiana aporta
+  `A_k · gauss_weights(μ_k, σ_k)` y `gauss_weights` está normalizada a área unidad, así
+  que el `A_k` ya almacenado en `vbf_components` **es exactamente el área** sobre la malla;
+  el % relativo es `100·A_k/ΣA`.
+- **Panel de estado:** el resumen del ajuste muestra `(A=…[NN%], μ=…, σ=…)` por gaussiana.
+- **Informe** (markdown → PDF/ODT): la tabla de componentes VBF pasa a
+  `| # | A (área) | Área % | μ (T) | σ (T) |`.
+
 ## v4.12.2 — α de distribución adimensional (regularización con escala física)
 
 **Problema:** en el ajuste de distribución, mover el slider de log α apenas cambiaba

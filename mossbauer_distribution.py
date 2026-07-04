@@ -1649,7 +1649,13 @@ def fit_vbf_hyperfine_distribution(
         ((max(float(A), 0.0), float(mu), float(np.exp(log_sig))) for A, mu, log_sig in comp),
         key=lambda c: c[1]))
     dominant = max(comps, key=lambda c: c[0]) if comps else (0.0, 0.0, 0.0)
-    summary = ", ".join(f"(A={A:.3g}, μ={mu:.4g}, σ={sg:.3g})" for A, mu, sg in comps)
+    # A_k = área de cada gaussiana (gauss_weights está normalizada a área unidad);
+    # el % es la fracción relativa A_k/ΣA (población de cada entorno).
+    area_tot = sum(A for A, _, _ in comps)
+    summary = ", ".join(
+        f"(A={A:.3g}[{100.0 * A / area_tot:.0f}%], μ={mu:.4g}, σ={sg:.3g})"
+        if area_tot > 0 else f"(A={A:.3g}, μ={mu:.4g}, σ={sg:.3g})"
+        for A, mu, sg in comps)
     return BhfDistributionFit(
         bhf_centers=centers,
         weights=w,

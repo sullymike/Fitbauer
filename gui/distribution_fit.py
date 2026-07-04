@@ -701,6 +701,20 @@ class DistributionFitMixin:
             r.values["delta_slope"] = dsl
         if qsl:
             r.values["quad_slope"] = qsl
+        # Componentes VBF: A_k ya es el área de cada gaussiana (gauss_weights está
+        # normalizada a área unidad); mostramos área y su % relativo (A_k/ΣA) por sitio.
+        vbf = getattr(result, "vbf_components", None)
+        if vbf:
+            area_tot = sum(max(float(c[0]), 0.0) for c in vbf)
+            for i, comp in enumerate(vbf, start=1):
+                try:
+                    a, mu, _sg = comp
+                    a = max(float(a), 0.0)
+                    r.values[f"vbf{i}_area"] = a
+                    r.values[f"vbf{i}_area%"] = (100.0 * a / area_tot) if area_tot > 0 else 0.0
+                    r.values[f"vbf{i}_mu"] = float(mu)
+                except Exception:
+                    pass
         # free_keys guía qué parámetros muestra el panel; sin esto no salía ninguno.
         r.free_keys = list(r.values.keys())
         r.errors = {}

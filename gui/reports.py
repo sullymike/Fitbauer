@@ -129,12 +129,24 @@ class ReportMixin:
         if vbf:
             lines.append("### Componentes VBF (Voigt-based fitting)")
             lines.append("")
-            lines.append("| # | A | μ (T) | σ (T) |")
-            lines.append("|---|---|---|---|")
+            # A_k es el área (integral) de cada gaussiana: gauss_weights está
+            # normalizada a área unidad, así que A_k = área y A_k/ΣA = fracción.
+            areas = []
+            for comp in vbf:
+                try:
+                    areas.append(max(float(comp[0]), 0.0))
+                except Exception:
+                    areas.append(0.0)
+            area_tot = sum(areas)
+            lines.append("| # | A (área) | Área % | μ (T) | σ (T) |")
+            lines.append("|---|---|---|---|---|")
             for i, comp in enumerate(vbf, start=1):
                 try:
                     a, mu, sg = comp
-                    lines.append(f"| {i} | {_fmt(a, '.4g')} | {_fmt(mu, '.4g')} | {_fmt(sg, '.4g')} |")
+                    frac = (100.0 * float(a) / area_tot) if area_tot > 0 else 0.0
+                    lines.append(
+                        f"| {i} | {_fmt(a, '.4g')} | {_fmt(frac, '.1f')} | "
+                        f"{_fmt(mu, '.4g')} | {_fmt(sg, '.4g')} |")
                 except Exception:
                     pass
             lines.append("")
