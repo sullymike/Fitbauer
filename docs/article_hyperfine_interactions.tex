@@ -53,11 +53,15 @@
 We present \textbf{Fitbauer}, an open-source desktop application
 written in Python for the analysis, simulation, and least-squares fitting
 of $^{57}$Fe M\"{o}ssbauer transmission spectra.
-The program implements discrete fitting of up to three simultaneous components
-(singlets, doublets, and sextets), hyperfine field distributions $P(B_\mathrm{hf})$
-and quadrupole-splitting distributions $P(\Delta E_Q)$ with Tikhonov regularisation
-(Hesse--R\"{u}bartsch method), and relaxation models including an empirical
-blocked-fraction approach and a two-state Blume--Tjon treatment.
+The program is built around \emph{live simulation} of the direct model:
+every parameter change re-renders the spectrum instantly, so a physically
+sensible model can be constructed by eye before fitting.
+It implements discrete fitting of up to six simultaneous components
+(singlets, doublets, sextets, and magnetic-relaxation lineshapes),
+as well as hyperfine field distributions $P(B_\mathrm{hf})$
+and quadrupole-splitting distributions $P(\Delta E_Q)$ with Tikhonov,
+total-variation, or maximum-entropy regularisation
+(Hesse--R\"{u}bartsch method).
 Three independent uncertainty-quantification methods are provided:
 propagated covariance matrices, residual bootstrap Monte Carlo,
 and profile-likelihood intervals.
@@ -71,8 +75,8 @@ to within \SI{0.013}{\tesla} in $B_\mathrm{hf}$ and
 \SI{0.004}{\milli\metre\per\second} in $\delta$,
 confirming the correctness of the physical model and calibration.
 The program is platform-independent (Windows, Linux, macOS),
-trilingual (Spanish, English, French),
-and freely available under an open licence.
+offers an interface in seven languages,
+and is freely available under an open licence.
 
 \keywords{M\"{o}ssbauer spectroscopy \and Spectral fitting \and
           Hyperfine parameters \and Distribution analysis \and
@@ -113,8 +117,9 @@ virtual-environment setups~\cite{Virtanen2020}.
 Here we describe Fitbauer, which was designed from the outset with three
 goals: (i) full separation of the physics engine from any graphical interface,
 enabling headless (scriptable/CLI) operation; (ii) a comprehensive and
-formally validated uncertainty-quantification framework; (iii) modern,
-cross-platform graphical interface in three languages.
+formally validated uncertainty-quantification framework; (iii) a modern,
+cross-platform interface built around \emph{live simulation} of the direct
+model, available in seven languages.
 
 Section~\ref{sec:model} describes the physical model.
 Section~\ref{sec:arch} outlines the software architecture.
@@ -141,8 +146,6 @@ Fitbauer evaluates the M\"{o}ssbauer transmission spectrum in the
 where $B$ is the baseline (normalised), $s$ is an optional linear slope
 accounting for slow background drift, $v$ is the source velocity, and
 $A_k(v)$ is the absorption contribution of the $k$-th component.
-A thick-absorber correction $T(v) = B + sv - C[1-\exp(-A_\mathrm{tot}/C)]$,
-where $C$ is the saturation scale parameter, is available as an option.
 
 Each Lorentzian line has the form
 \begin{equation}
@@ -150,25 +153,22 @@ Each Lorentzian line has the form
 \end{equation}
 where $v_0$ is the line centre and $\Gamma$ is the full width at half
 maximum (FWHM). A Voigt profile (convolution with a Gaussian of width
-$\sigma$) is optionally available.
+$\sigma$) is also available, evaluated via the Faddeeva function
+(\texttt{scipy.special.wofz}) and normalised to its peak analytically,
+independently of the velocity sampling.
+
+Spectra recorded with a triangular velocity drive are folded around an
+automatically refined folding point; sinusoidal-drive data
+(NORMOS convention \texttt{TRIANG=.FALSE.}) are handled unfolded, with
+each channel evaluated at its true sinusoidal velocity and the drive
+phase available as a free fit parameter.
 
 \subsection{Discrete components}
 \label{sec:discrete}
 
-Up to six spectral components can be superimposed; each is one of five
-types: singlet, doublet, sextet, and two relaxation types
-(Section~\ref{sec:relax}).
-
-\subsubsection{Line profile}
-
-The default Lorentzian profile has half-width at half-maximum (HWHM) $\gamma$:
-\begin{equation}
-  L(v;\,c,\gamma) = \frac{\gamma^2}{(v-c)^2 + \gamma^2}.
-\end{equation}
-A Voigt profile (convolution with a Gaussian of width $\sigma$) is also
-available, evaluated via the Faddeeva function
-(\texttt{scipy.special.wofz}), and normalised to its peak independently
-of velocity sampling.
+Up to six spectral components can be superimposed; each is one of six
+types: singlet, doublet, sextet, or one of three magnetic-relaxation
+lineshapes (Section~\ref{sec:relax}).
 
 \subsubsection{Sextet and quadrupole treatment}
 
@@ -199,33 +199,15 @@ thin-absorber absorption, and $C$ is the saturation scale.
 \subsection{Magnetic relaxation models}
 \label{sec:relax}
 
-Three relaxation component types can be combined freely with discrete phases.
-
-\textit{Phenomenological (Relajacion).}
-Interpolates linearly between a blocked sextet and a superparamagnetic
-doublet via an effective blocked fraction $f_\mathrm{eff}$ that depends on
-the blocked-fraction parameter $f_b$ and the relaxation rate
-$\log_{10}\nu$.
-
-\textit{Two-state dynamic model (BlumeTjon).}
-Implements the stochastic Liouville equation for the
-$+B_\mathrm{hf} \leftrightarrow -B_\mathrm{hf}$ process following
-Blume and Tjon~\cite{BluemeTjon1968}. A single parameter
-$\log_{10}\nu$ drives the lineshape from slow (sextet) to fast
-(singlet/doublet) limits through the coalescence regime.
-
-\textit{N\'{e}el--Arrhenius with size distribution (NeelSize).}
-Models a polydisperse nanoparticle assembly via a lognormal diameter
-distribution $p(d;\,d_{50},\sigma_\ell)$. Each size bin is converted
-to a relaxation rate via the N\'{e}el--Arrhenius
-equation~\cite{Neel1949,Brown1963}:
-\begin{equation}
-  \nu(d,T) = \frac{1}{\tau_0}
-             \exp\!\left(-\frac{K_\mathrm{eff}\,V(d)}{k_\mathrm{B}\,T}\right),
-\end{equation}
-and the total spectrum is a weighted sum of BlumeTjon spectra over size
-bins. A multi-temperature global-fit backend shares physical parameters
-across spectra.
+Although the main focus of the program is crystalline (discrete) fitting,
+three relaxation lineshapes can be combined freely with discrete phases:
+a phenomenological interpolation between a blocked sextet and a
+superparamagnetic doublet; a two-state dynamic model for the
+$+B_\mathrm{hf} \leftrightarrow -B_\mathrm{hf}$ exchange following
+Blume and Tjon~\cite{BluemeTjon1968}; and a N\'{e}el--Arrhenius
+model~\cite{Neel1949,Brown1963} for polydisperse nanoparticle assemblies
+(lognormal size distribution, with an optional multi-temperature global
+fit that shares the physical parameters across spectra).
 
 \subsection{Hyperfine field and quadrupole-splitting distributions}
 \label{sec:dist}
@@ -235,33 +217,35 @@ Fitbauer implements $P(B_\mathrm{hf})$ and $P(\Delta E_Q)$
 distributions following the Hesse--R\"{u}bartsch
 method~\cite{Hesse1974}: a sum of many sextets (or doublets)
 on a uniform grid, with amplitudes constrained to be non-negative
-and regularised (Tikhonov second-difference or Total Variation) by
-minimising
+and regularised by minimising
 \begin{equation}
   F = \|\mathbf{y} - \mathbf{A}\mathbf{p}\|_w^2
     + \alpha\,\|\mathbf{D}^2\mathbf{p}\|^2, \quad \mathbf{p}\geq 0 ,
   \label{eq:tikhonov}
 \end{equation}
 where $\|\cdot\|_w$ is the Poisson-weighted norm and $\mathbf{D}^2$ is
-the second-difference matrix.
+the second-difference matrix. Besides the Tikhonov penalty of
+Eq.~\eqref{eq:tikhonov}, total-variation (edge-preserving) and
+maximum-entropy regularisers are available.
 The regularisation parameter $\alpha$ is selected via the L-curve
-criterion~\cite{Hansen1992}, with suggestions from maximum curvature,
-a compromise value, and Generalised Cross-Validation (GCV).
+criterion~\cite{Hansen1992} --- with suggestions from maximum curvature,
+a compromise value, and Generalised Cross-Validation (GCV) --- and can be
+chosen interactively by clicking directly on the L-curve plot.
 A $1\sigma$ uncertainty band on $P$ is computed from the linearised
 covariance of the weights, and $\tilde{\chi}^2$ uses effective
 degrees of freedom (trace of the hat matrix).
 Simultaneous \emph{sharp} (discrete) components can be superimposed
 on the distribution to handle multiphase samples.
 
-Two-dimensional distributions
-$P(B_\mathrm{hf},\Delta E_Q)$, $P(\delta,\Delta E_Q)$ and
-$P(B_\mathrm{hf},\delta)$ are also available, with independent
-regularisation parameters in each direction:
-\begin{equation}
-  \|\mathbf{y}-\mathbf{X}\mathbf{p}\|_w^2
-  + \alpha_B\|\mathbf{D}^2_B\mathbf{p}\|^2
-  + \alpha_Q\|\mathbf{D}^2_Q\mathbf{p}\|^2, \quad \mathbf{p}\geq 0.
-\end{equation}
+As an alternative to the free-form histogram, parametric shapes can be
+fitted without any regularisation: a single Gaussian, a binomial (alloy)
+distribution, and the Voigt-based sum-of-Gaussians of Rancourt and
+Ping~\cite{Rancourt1991}, in which the fitted amplitude of each Gaussian
+directly gives the \emph{area} (population) of the corresponding
+subpopulation.
+Two-dimensional distributions such as $P(B_\mathrm{hf},\Delta E_Q)$ are
+also available, with independent regularisation parameters in each
+direction.
 
 \subsection{Calibration convention}
 \label{sec:calib}
@@ -273,6 +257,9 @@ from published experimental measurements~\cite{Kalvius1969}
 not from nuclear moments.
 Using theoretical positions introduces a systematic error of
 $\approx\SI{0.1}{\tesla}$ in all fitted fields~\cite{FitbauerChangelog}.
+Once determined from an $\alpha$-Fe foil, the calibration is \emph{fixed}
+and reused automatically for every subsequent raw-counts spectrum, so the
+velocity scale is defined once per instrument configuration.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Software architecture}
@@ -292,14 +279,14 @@ from a Python script, or from a batch pipeline without modification.
     and the Kündig Hamiltonian.
 
   \item[\texttt{core/fit\_engine.py}] Least-squares optimisation
-    via \texttt{scipy.optimize.least\_squares} (Levenberg--Marquardt
-    by default), multi-start initialisation, parameter bounds,
-    covariance-matrix uncertainties, bootstrap resampling,
-    and profile-likelihood intervals.
+    via \texttt{scipy.optimize.least\_squares} (bounded
+    trust-region-reflective), multi-start initialisation,
+    parameter bounds, covariance-matrix uncertainties,
+    bootstrap resampling, and profile-likelihood intervals.
 
   \item[\texttt{core/folding.py}] Spectrum loading (WS5 XML and
-    single-column ASCII ADT formats), automatic folding-point search
-    by chi-squared minimisation, and Doppler-corrected velocity axis.
+    single-column ASCII ADT formats), automatic folding-point search,
+    triangular- and sinusoidal-drive velocity axes.
 
   \item[\texttt{core/session.py}] Headless orchestration layer
     (\texttt{HeadlessSession}, \texttt{ModelState}):
@@ -316,10 +303,13 @@ and a discrete-fit result.
 \begin{figure*}[t]
   \centering
   \includegraphics[width=\textwidth]{img/captura-pantalla-principal}
-  \caption{Fitbauer main window showing a loaded M\"{o}ssbauer spectrum
-           (folded, $^{57}$Co/Rh source, $\alpha$-Fe absorber).
-           The left panel displays status information and calibration parameters;
-           the right panel shows the interactive Plotly canvas.}
+  \caption{Fitbauer main window showing a fitted $\alpha$-Fe calibration
+           spectrum (folded, $^{57}$Co/Rh source).
+           Left: file status, calibration, folding, and background controls.
+           Centre: Matplotlib plot area with data, model, and residuals.
+           Right: simulation/fit panel with the physical parameters of the
+           active component (here a sextet with $B_\mathrm{hf}$ fixed at
+           \SI{33}{\tesla} while the velocity scale is fitted).}
   \label{fig:gui-main}
 \end{figure*}
 
@@ -327,8 +317,9 @@ and a discrete-fit result.
   \centering
   \includegraphics[width=\textwidth]{img/captura-ajuste-discreto}
   \caption{Discrete fitting of a two-component spectrum (magnetite Fe$_3$O$_4$).
-           Individual subspectra are shown in colour (site A in blue, site B in red);
-           the total model in black; residuals in the lower panel.}
+           The two sextet subspectra are shown individually in colour with
+           optional area shading; the total model is the thick red curve;
+           residuals in the lower panel.}
   \label{fig:gui-fit}
 \end{figure*}
 
@@ -336,38 +327,66 @@ and a discrete-fit result.
 \section{Main features}
 \label{sec:features}
 
+\subsection{Live simulation of the direct model}
+\label{sec:simulation}
+
+A distinguishing design choice is that the direct model is always
+\emph{live}: every slider or numeric change to any physical parameter
+($\delta$, $\Delta E_Q$, $B_\mathrm{hf}$, widths, depths, intensities)
+re-renders the full spectrum and its individual subspectra instantly.
+This serves several practical purposes:
+(i) a physically sensible starting model can be constructed by eye
+before launching the optimiser, which makes the subsequent non-linear
+fit faster and far less likely to fall into a spurious minimum;
+(ii) the effect of each hyperfine parameter on the lineshape can be
+explored interactively, which builds physical intuition and makes the
+program useful for teaching;
+(iii) hypotheses can be compared visually --- e.g.\ simulating a
+two-phase mixture with assumed proportions over a measured spectrum ---
+without fitting anything.
+Simulation and fitting share exactly the same direct model, so what is
+simulated is precisely what the optimiser will refine; per-parameter
+\emph{fix} locks let the user freeze any subset of parameters during
+this exploration and during the fit.
+
 \subsection{Fitting modes}
 
-\emph{Discrete mode} supports up to three simultaneous components
-of any type (singlet, doublet, sextet), with independent free/fixed
-flags for each parameter, linear equality and inequality constraints,
-and multi-start global optimisation (up to ten random restarts from
-Latin-hypercube-sampled initial conditions).
-The noise model can be Gaussian (covariance-matrix weights) or
-Poissonian (per-channel weights proportional to $1/c_i$).
+\emph{Discrete mode} supports up to six simultaneous components
+of any type, with independent free/fixed flags for each parameter,
+linear constraints between parameters, and multi-start optimisation
+(eight Gaussian restarts around the user's starting point with early
+stopping, plus an optional differential-evolution pre-pass for
+multi-sextet label-permutation minima).
+The noise model can be Gaussian or Poissonian (iteratively reweighted
+least squares with model-based variances).
 
 \emph{Distribution mode} (Fig.~\ref{fig:gui-dist}) computes
-$P(B_\mathrm{hf})$ or $P(\Delta E_Q)$ over a user-defined grid
-with up to four simultaneously fitted sharp components.
+$P(B_\mathrm{hf})$ or $P(\Delta E_Q)$ over a user-defined grid,
+optionally with simultaneously fitted sharp components.
 The regularisation parameter is selected interactively via the
 L-curve (Fig.~\ref{fig:gui-lcurve}) or set manually.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{img/captura-distribucion-bhf}
-  \caption{Distribution fitting of a disordered iron oxide.
-           The inset shows the reconstructed $P(B_\mathrm{hf})$
-           distribution as a function of the hyperfine field.}
+  \caption{Distribution fitting of a magnetically disordered sample
+           (synthetic spectrum generated from a bimodal
+           $P(B_\mathrm{hf})$ at 28 and \SI{48}{\tesla}).
+           Left: fitted spectrum and residuals.
+           Right: reconstructed $P(B_\mathrm{hf})$, which recovers the
+           two field populations.}
   \label{fig:gui-dist}
 \end{figure}
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{img/captura-lcurve}
-  \caption{L-curve tool for automatic regularisation parameter selection.
-           Left: $\|\mathbf{r}\|$ vs.\ $\|\mathbf{L}\cdot\mathbf{P}\|$;
-           right: RMS residual and $\tilde{\chi}^2$ as a function
-           of $\alpha$.}
+  \caption{L-curve tool for regularisation-parameter selection.
+           Left: $\|\mathbf{r}\|$ vs.\ $\|\mathbf{L}\cdot\mathbf{P}\|$
+           with the automatically detected corner;
+           right: RMS residual as a function of $\alpha$.
+           Clicking on either panel selects the nearest scanned $\alpha$,
+           so the automatic suggestion can be overridden by eye.}
   \label{fig:gui-lcurve}
 \end{figure}
 
@@ -394,22 +413,22 @@ same fit:
 
 \subsection{Other features}
 
-A \emph{batch fitting} mode applies a starting template sequentially
-to an arbitrary list of spectra, using warm-start from the previous
-fit. An interactive \emph{minimum-detection} tool identifies multiple
-local minima in the $\chi^2$ surface.
-\emph{Reports} are exportable to PDF/Markdown.
-A \emph{web API} mode serves fit results as JSON for integration
-with laboratory information management systems.
-The interface is fully trilingual (Spanish, English, French)
-via a \texttt{gettext}-compatible i18n layer.
+Further tools include batch fitting of spectrum series with warm-start
+from the previous result, a semi-manual absorption-minima editor that
+proposes starting models from the detected line positions,
+PDF/Markdown report export, and reproducible session files that store
+the complete analysis state (data, calibration, model, and results).
+The interface is available in seven languages
+(Spanish, English, French, German, Japanese, Russian, and Chinese).
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Validation suite}
 \label{sec:validation}
 
-Version 4.11.0 includes \texttt{tests/test\_synthetic\_validation.py},
-a 34-test module structured in six levels of increasing rigour.
+The distribution includes \texttt{tests/test\_synthetic\_validation.py},
+a 34-test module structured in six levels of increasing rigour
+(part of a wider automated suite covering the physics core, folding,
+fit engine, distributions, and the graphical interface).
 
 \subsection{Level 1 — Self-consistency}
 
@@ -487,7 +506,8 @@ and April~2025, respectively, demonstrating result reproducibility
 across different measurement sessions.
 Panels (c) and (d) are reference compounds ($\alpha$-Fe$_2$O$_3$ and
 Fe$_3$O$_4$) included in the repository.
-All spectra consist of 512 channels with a sinusoidal velocity drive;
+All spectra consist of 512 channels recorded with a triangular velocity
+drive and folded around the automatically determined folding point;
 $V_\mathrm{max} \approx \SI{12.0}{\milli\metre\per\second}$.
 Fig.~\ref{fig:reference-fits} shows the fitted spectra with residuals.
 
@@ -624,7 +644,7 @@ established programs are:
 
 \emph{Reproducibility.}
 Being open-source and relying exclusively on widely distributed
-Python packages (NumPy, SciPy, PySide6, Plotly), the exact
+Python packages (NumPy, SciPy, Matplotlib, PySide6), the exact
 computational environment can be reproduced via \texttt{pip install
 -r requirements.txt}. This is essential for the
 reproducibility of published results~\cite{Peng2011}.
@@ -647,10 +667,10 @@ disordered one) and is implemented more transparently than
 in NORMOS.
 
 \emph{Modern interface and scripting.}
-Real-time visual feedback during fitting, interactive Plotly
-figures with hover information, batch processing of series of
-spectra, and a clean Python API for integration into automated
-workflows are features not available in legacy programs.
+Live simulation of the direct model, real-time visual feedback
+during fitting, batch processing of series of spectra, and a clean
+Python API for integration into automated workflows are features
+not available in legacy programs.
 
 \subsection{Current limitations}
 
@@ -701,12 +721,13 @@ and the most commonly used alternatives.
 
 We have described Fitbauer, an open-source Python application for
 $^{57}$Fe M\"{o}ssbauer spectral fitting with the following
-distinguishing characteristics: complete separation of physics and GUI
-enabling headless/CLI use; three independent uncertainty-estimation
-methods (covariance matrix, bootstrap, profile likelihood); a
-comprehensive automated validation suite including Monte Carlo pull
-statistics; built-in phase identification and batch processing;
-and a modern cross-platform interface in three languages.
+distinguishing characteristics: live simulation of the direct model
+as the entry point to every analysis; complete separation of physics
+and GUI enabling headless/CLI use; three independent
+uncertainty-estimation methods (covariance matrix, bootstrap, profile
+likelihood); a comprehensive automated validation suite including
+Monte Carlo pull statistics; and a modern cross-platform interface
+in seven languages.
 
 The validation results demonstrate that the physical model is
 self-consistent at the level of $\tilde{\chi}^2 < 10^{-6}$ on noiseless
@@ -721,8 +742,9 @@ and \SI{0.004}{\milli\metre\per\second} in $\delta$ (Table~\ref{tab:comparison})
 The program is freely available at
 \url{https://github.com/sullymike/Mossbauer},
 together with a comprehensive suite of example spectra covering
-common iron-bearing minerals, calibration templates,
-and documentation in Spanish, English, and French.
+common iron-bearing minerals, calibration templates, an extensive
+user manual with mathematical appendices, and an interface in seven
+languages.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \begin{acknowledgements}
