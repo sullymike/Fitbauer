@@ -345,3 +345,68 @@ def velocity_axis(counts_size: int, vmax: float, n_points: int,
     elif velocity.size != n_points:
         velocity = np.linspace(-float(vmax), float(vmax), n_points)
     return velocity
+
+
+# ── Drive senoidal (NORMOS: TRIANG=.FALSE., FOLD=.FALSE., SIMULT=.TRUE.) ───────
+# Con drive senoidal la velocidad NO avanza linealmente con el canal, así que no
+# se dobla: se asigna a cada canal su velocidad real v_i = vmax·sin(2π(i−c0)/N) y
+# se ajusta el espectro sin plegar completo. El eje resultante NO es monótono
+# (la misma velocidad aparece en varias fases), lo que el motor de ajuste tolera
+# porque evalúa el modelo punto a punto.
+
+SINE_PHASE_QUARTER = 0.25  # el pico del seno está N/4 canales tras el cruce por 0
+
+
+def sine_velocity_axis(counts_size: int, vmax: float, c0: float) -> np.ndarray:
+    """Velocidad real por canal para un drive sinusoidal, sin doblar.
+
+    ``v_i = vmax·sin(2π(i − c0)/N)`` con canales 1-based ``i = 1..N`` y ``c0`` la
+    fase (canal de cruce por cero ascendente). Devuelve un eje de tamaño ``N`` no
+    monótono.
+    """
+    n = int(counts_size)
+    if n <= 0:
+        return np.array([], dtype=float)
+    i = np.arange(1, n + 1, dtype=float)
+    return float(vmax) * np.sin(2.0 * np.pi * (i - float(c0)) / n)
+
+
+def symmetry_center_to_c0(center: float, counts_size: int) -> float:
+    """Convierte el punto de simetría (extremo del seno) en la fase ``c0``.
+
+    El pico del seno (``v = +vmax``) está en ``i = c0 + N/4``, luego
+    ``c0 = center − N/4``.
+    """
+    return float(center) - SINE_PHASE_QUARTER * int(counts_size)
+
+
+def normalize_unfolded(counts: np.ndarray
+                       ) -> tuple[np.ndarray, np.ndarray, float]:
+    """Normaliza el espectro SIN doblar y da ``sigma`` Poisson por canal.
+
+    Paralelo a :func:`fold_and_normalize` pero sin plegado ni factor ``/2`` (no
+    hay promedio de canales). Devuelve ``(sigma, y, norm)`` con la línea base a
+    ~1.
+    """
+    c = np.asarray(counts, dtype=float)
+    norm = float(np.percentile(c, 90)) if c.size else 1.0
+    norm = norm or 1.0
+    sigma = np.sqrt(np.maximum(c, 1.0)) / norm
+    y = c / norm
+    return sigma, y, norm
+
+
+def find_sine_symmetry_center(counts: np.ndarray) -> float:
+    """Localiza el punto de simetría (extremo del seno) del primer cuarto (~N/4).
+
+    El espectro senoidal es simétrico respecto a los extremos del drive (donde
+    ``v = ±vmax``). Se busca el del primer cuarto reutilizando el mismo criterio
+    de simetría por pares (:func:`chi2_for_center`) que el folding triangular,
+    pero en una ventana ancha alrededor de ``N/4``.
+    """
+    n = int(np.asarray(counts).size)
+    if n < 8:
+        return SINE_PHASE_QUARTER * n
+    lo = max(1.5, 0.15 * n)
+    hi = 0.40 * n
+    return find_best_integer_or_half_center(counts, lo, hi)

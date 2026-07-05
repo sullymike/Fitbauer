@@ -24,6 +24,7 @@ class CalibrationPanel(QtWidgets.QGroupBox):
     """
 
     paramChanged = QtCore.Signal()
+    driveFormChanged = QtCore.Signal()   # cambio de forma de onda (recomputar datos)
 
     def __init__(self, parent=None):
         super().__init__(tr("controls.calibration_box"), parent)
@@ -65,9 +66,23 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         absorber_row.addWidget(self.absorber_combo, stretch=1)
         self.sat_scale = ParamControl(tr("slider.sat_scale"), *astuple(_cs["sat_scale"]))
 
+        # Forma de onda del drive: triangular (aceleración cte, se dobla + eje
+        # lineal) o senoidal (NORMOS FOLD=.FALSE.: sin doblar, v = vmax·sin).
+        drive_row = QtWidgets.QHBoxLayout()
+        drive_row.addWidget(QtWidgets.QLabel(tr("drive.model_label", default="Forma de onda")))
+        self.drive_combo = QtWidgets.QComboBox()
+        for value, key in (("triangular", "drive.triangular"), ("sine", "drive.sine")):
+            self.drive_combo.addItem(tr(key, default=("Triangular" if value == "triangular" else "Senoidal")), value)
+        self.drive_combo.setToolTip(tr(
+            "drive.tooltip",
+            default="Triangular (aceleración constante): se dobla y el eje es lineal. "
+                    "Senoidal: no se dobla; v = vmax·sin(2π(i−c0)/N)."))
+        drive_row.addWidget(self.drive_combo, stretch=1)
+
         for w in (self.vmax, self.fit_velocity, self.center, self.fit_center,
                   self.baseline, self.slope, self.voigt_sigma):
             v.addWidget(w)
+        v.addLayout(drive_row)
         v.addLayout(absorber_row)
         v.addWidget(self.sat_scale)
         self._refresh_absorber_widgets()
@@ -77,6 +92,7 @@ class CalibrationPanel(QtWidgets.QGroupBox):
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
             w.fixedChanged.connect(lambda *_: self.paramChanged.emit())
         self.absorber_combo.currentIndexChanged.connect(lambda *_: (self._refresh_absorber_widgets(), self.paramChanged.emit()))
+        self.drive_combo.currentIndexChanged.connect(lambda *_: self.driveFormChanged.emit())
         for cb in (self.fit_velocity, self.fit_center):
             cb.toggled.connect(lambda *_: self.paramChanged.emit())
         # La casilla 'Fijo' de σ dirige el refinado (fit_sigma). Estado inicial coherente.
@@ -108,6 +124,15 @@ class CalibrationPanel(QtWidgets.QGroupBox):
             self.absorber_combo.setCurrentIndex(idx)
         self._refresh_absorber_widgets()
 
+    @property
+    def drive_form(self) -> str:
+        return self.drive_combo.currentData() or "triangular"
+
+    def set_drive_form(self, form: str) -> None:
+        idx = self.drive_combo.findData(form)
+        if idx >= 0:
+            self.drive_combo.setCurrentIndex(idx)
+
     def _refresh_absorber_widgets(self) -> None:
         self.sat_scale.setEnabled(self.absorber_model == "thickness")
 
@@ -122,6 +147,7 @@ class CalibrationPanel(QtWidgets.QGroupBox):
             sat_scale=self.sat_scale.value(),
             line_profile=self.line_profile,
             absorber_model=self.absorber_model,
+            drive_form=self.drive_form,
             fit_velocity=self.fit_velocity.isChecked(),
             fit_center=self.fit_center.isChecked(),
             fit_sigma=self.fit_sigma.isChecked(),

@@ -9,8 +9,9 @@ from PySide6 import QtWidgets
 from mossbauer_i18n import tr
 from core.constants import GLOBAL_PARAM_NAMES, SEXTET_PARAM_NAMES
 from core.folding import (
-    find_best_integer_or_half_center, fold_and_normalize, load_velocity_csv,
-    read_ws5_counts, velocity_axis,
+    find_best_integer_or_half_center, find_sine_symmetry_center,
+    fold_and_normalize, load_velocity_csv, normalize_unfolded,
+    read_ws5_counts, sine_velocity_axis, symmetry_center_to_c0, velocity_axis,
 )
 from core.fit_engine import FitState, resolve_values
 from core.result_views import discrete_result_view
@@ -221,19 +222,31 @@ class ModelWorkflowMixin:
         self._building = False
         self._refresh_plot()
 
+    def _drive_form(self) -> str:
+        return self.calib.to_view_state().drive_form
+
     def _fold_counts_for_center(self, center: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Dobla las cuentas con el mismo recorte de borde que el controlador headless."""
+        """Dobla las cuentas (triangular) o las deja sin doblar (seno)."""
         if self.file.counts is None:
             raise ValueError("No hay cuentas cargadas")
+        if self._drive_form() == "sine":
+            # Seno: no se dobla; se usan las cuentas por canal directamente.
+            sigma, y, _norm = normalize_unfolded(self.file.counts)
+            return self.file.counts, sigma, y
         folded, sigma, y, _norm = fold_and_normalize(
             self.file.counts, center, int(getattr(self, "_edge_trim", 0)))
         return folded, sigma, y
 
     def _velocity_for_folded(self, n_points: int, trim_edges: bool = True) -> np.ndarray:
-        """Crea el eje de velocidad y recorta sus extremos si se recortó el folding."""
+        """Crea el eje de velocidad (lineal en triangular, senoidal en seno)."""
         if self.file.counts is None:
             return np.array([], dtype=float)
         calib_state = self.calib.to_view_state()
+        if calib_state.drive_form == "sine":
+            n = int(self.file.counts.size)
+            center = float(self.file.center) if self.file.center is not None else float(calib_state.center)
+            c0 = symmetry_center_to_c0(center, n)
+            return sine_velocity_axis(n, calib_state.vmax, c0)
         return velocity_axis(self.file.counts.size, calib_state.vmax,
                              n_points, int(getattr(self, "_edge_trim", 0)), trim_edges)
 
@@ -259,6 +272,28 @@ class ModelWorkflowMixin:
                                     f"{self.file.counts.size} canales · centro={float(center):.3f} · "
                                     f"norm={self.file.norm_factor:.4g}")
         self.statusBar().showMessage(tr("status.refolded", center=f"{float(center):.4f}", default=f"Refolded with center={float(center):.4f}"), 3000)
+        self._refresh_plot()
+
+    def _on_drive_form_changed(self) -> None:
+        """Cambio triangular↔seno: re-detecta el centro y recomputa los datos.
+
+        Cambiar la forma de onda cambia el tamaño de los arrays (doblar vs no
+        doblar), así que hay que recomputar folded/velocidad/σ desde las cuentas.
+        """
+        if self._building or self.file.counts is None:
+            self._refresh_plot()
+            return
+        counts = self.file.counts
+        if self._drive_form() == "sine":
+            center = find_sine_symmetry_center(counts)
+        else:
+            center = find_best_integer_or_half_center(counts)
+        self._building = True
+        try:
+            self.calib.center.set_value(center)
+        finally:
+            self._building = False
+        self._refold_current_data(float(center))
         self._refresh_plot()
 
     # ── Resumen de estado y parámetros (paridad con la GUI Tk) ───────────
@@ -547,6 +582,7 @@ class ModelWorkflowMixin:
             likelihood=self.likelihood,
             robust_loss=self.robust_loss,
             absorber_model=calib_state.absorber_model,
+            drive_form=calib_state.drive_form,
             propagate_calib=self.propagate_calib,
             global_opt=self.global_opt,
             fit_velocity=calib_state.fit_velocity,
@@ -626,7 +662,10 @@ class ModelWorkflowMixin:
 
     def _load_file(self, path: Path) -> None:
         counts = read_ws5_counts(path)
-        center = find_best_integer_or_half_center(counts)
+        if self._drive_form() == "sine":
+            center = find_sine_symmetry_center(counts)
+        else:
+            center = find_best_integer_or_half_center(counts)
         self.file = FileState(path=path, counts=counts, center=center)
         self._simulate_enabled = False
         self._dist_map_2d = None

@@ -1,5 +1,26 @@
 # Changelog
 
+## v4.14.0 — soporte de drive senoidal (estilo NORMOS)
+
+Fitbauer ya admite datos medidos con drive **senoidal**, no solo de aceleración
+constante (triangular). Antes había que pre-linealizarlos; ahora se ajustan de
+forma nativa, siguiendo el criterio de NORMOS (`TRIANG=.FALSE.`, `FOLD=.FALSE.`,
+`SIMULT=.TRUE.`): **no se doblan** y se ajusta el espectro completo asignando a
+cada canal su velocidad real `v_i = vmax·sin(2π(i−c0)/N)`.
+
+- Nuevo control **Forma de onda** (triangular/senoidal) en el panel de
+  calibración, persistido en la sesión (junto al modelo de absorbente).
+- En senoidal: la **fase** `c0` (canal de v=0) se autodetecta por simetría y es
+  ajustable con el control *Centro*; con *Ajustar centro* entra como **parámetro
+  libre** del ajuste (como permite NORMOS). *Ajustar Vmax* refina la amplitud.
+- El motor de ajuste ya era agnóstico al orden de la velocidad; el eje senoidal
+  (no monótono) se evalúa punto a punto. Guardas para el eje no monótono en el
+  residuo (`propagate_calib`) y en el dibujo del residuo.
+- Funciones nuevas en `core/folding.py`: `sine_velocity_axis`,
+  `normalize_unfolded`, `symmetry_center_to_c0`, `find_sine_symmetry_center`.
+  i18n en los 7 idiomas; nota en el manual (cap. 2).
+- No soportado en v1: componente de relajación con drive senoidal.
+
 ## v4.13.2 — L-curve: elegir α pinchando la figura
 
 La detección automática de la esquina de la L-curve (curvatura de Menger) no

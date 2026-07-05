@@ -28,7 +28,11 @@ from core.physics import (
     total_model,
 )
 from core.constants import SEXTET_PARAM_NAMES
-from core.folding import fold_integer_or_half
+from core.folding import (
+    fold_integer_or_half,
+    sine_velocity_axis,
+    symmetry_center_to_c0,
+)
 from core.profile_likelihood import asymmetric_intervals
 
 
@@ -73,6 +77,7 @@ class FitState:
     fit_center: bool = False
     fit_sigma: bool = False
     absorber_model: str = "thin"        # "thin" / "thickness"
+    drive_form: str = "triangular"      # "triangular" / "sine" (eje v = vmax·sin)
     multistart_n: int = 8               # nº de réplicas perturbadas (+1 base)
     # Re-folding del centro (portado del Tk): cuentas crudas sin doblar y
     # normalización de referencia. Si se proporcionan y fit_center=True, el
@@ -301,9 +306,15 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
     fit_center = state.fit_center and "center" in base_values
     fit_sigma = (state.fit_sigma and profile == "Voigt"
                  and "voigt_sigma" in base_values)
-    # Re-folding del centro (portado del Tk): sólo si tenemos las cuentas crudas.
+    # Drive senoidal: el eje v = vmax·sin(2π(i−c0)/N) se reconstruye por iteración
+    # (a partir de vmax/center de prueba); los datos y/σ NO cambian con c0/vmax
+    # (a diferencia del re-fold triangular). c0 = center − N/4.
+    is_sine = state.drive_form == "sine"
+    n_channels = int(np.asarray(state.velocity).size)
+    # Re-folding del centro (portado del Tk): sólo si tenemos las cuentas crudas
+    # y en modo triangular (en seno el centro es la fase y no se dobla).
     counts = state.counts
-    can_refold = fit_center and counts is not None
+    can_refold = fit_center and counts is not None and not is_sine
     fallback_norm = float(state.norm_factor) if state.norm_factor else 1.0
     # Normalización para la σ Poisson correcta (0/None → escala relativa √m).
     norm_factor = float(state.norm_factor) if state.norm_factor else 0.0
@@ -329,7 +340,11 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
         if profile == "Voigt" and not fit_sigma:
             _phys.VOIGT_SIGMA = max(float(state.voigt_sigma), 1e-9)
         # 3. Evaluar el modelo.
-        if velocity_scaler is not None:
+        if is_sine:
+            # Eje senoidal por canal con el vmax/fase de prueba (no monótono).
+            c0 = symmetry_center_to_c0(center, n_channels)
+            v = sine_velocity_axis(n_channels, vmax, c0)
+        elif velocity_scaler is not None:
             v = velocity_scaler(vmax)
         else:
             v = state.velocity
@@ -360,10 +375,12 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
             sig_use = np.ones_like(m)
         else:
             sig_use = np.asarray(sig, dtype=float)
-        if propagate and fit_velocity and vmax > 0:
+        _v_monotonic = v.size < 2 or bool(np.all(np.diff(v) > 0) or np.all(np.diff(v) < 0))
+        if propagate and fit_velocity and vmax > 0 and _v_monotonic:
             # Sensibilidad a la ESCALA vmax (portado del Tk, forma correcta):
             #   ∂T/∂v_max|_i = (∂T/∂v)|_i · (v_i/v_max),  pues v_i = v_max·(…),
             # de modo que σ_eff² = σ² + (∂T/∂v_max · σ_vmax)². Pesa en los flancos.
+            # En modo seno (v no monótono) se omite: np.gradient exige eje ordenado.
             dT_dv = np.gradient(m, v)
             dT_dvmax = dT_dv * (v / vmax)
             sig_use = np.sqrt(sig_use ** 2 + (dT_dvmax * sigma_vmax) ** 2)

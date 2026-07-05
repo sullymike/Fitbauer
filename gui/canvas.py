@@ -191,10 +191,14 @@ class SpectrumCanvas(FigureCanvas):
                                        label=tr("plot.legend_model"))
             if residual is not None and actual_show_residual and self.ax_res is not None:
                 self.ax_res.axhline(0, color=s["res_zero"], lw=0.9, alpha=0.9)
+                # Ordenar por velocidad solo para el dibujo: con drive senoidal el
+                # eje no es monótono y la línea/relleno del residuo zigzaguearían.
+                ro = np.argsort(v)
+                v_r, res_r = np.asarray(v)[ro], np.asarray(residual)[ro]
                 res_fill = self.ax_res.fill_between(
-                    v, residual, 0, color=s["res_fill"],
+                    v_r, res_r, 0, color=s["res_fill"],
                     alpha=s.get("res_fill_alpha", 0.22))
-                res_line, = self.ax_res.plot(v, residual, "-", color=s["res_line"],
+                res_line, = self.ax_res.plot(v_r, res_r, "-", color=s["res_line"],
                                              lw=s.get("res_line_lw", 1.0))
                 lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
                 self.ax_res.set_ylim(-lim, lim)
@@ -322,7 +326,10 @@ class SpectrumCanvas(FigureCanvas):
         self.ax.autoscale_view()
         if (a["res_line"] is not None and residual is not None
                 and actual_show_residual and self.ax_res is not None):
-            a["res_line"].set_data(v, residual)
+            # Ordenar por velocidad para el dibujo (eje senoidal no monótono).
+            ro = np.argsort(v)
+            v_r, res_r = np.asarray(v)[ro], np.asarray(residual)[ro]
+            a["res_line"].set_data(v_r, res_r)
             # ``fill_between`` no admite set_data: se sustituye la colección.
             if a["res_fill"] is not None:
                 try:
@@ -330,7 +337,7 @@ class SpectrumCanvas(FigureCanvas):
                 except Exception as _exc:
                     logging.debug("No se pudo eliminar el relleno de residuo anterior: %s", _exc)
             a["res_fill"] = self.ax_res.fill_between(
-                v, residual, 0, color=a["res_color"], alpha=a["res_alpha"])
+                v_r, res_r, 0, color=a["res_color"], alpha=a["res_alpha"])
             lim = max(float(np.nanmax(np.abs(residual))) * 1.18, 1e-6)
             self.ax_res.set_ylim(-lim, lim)
         self.draw_idle()

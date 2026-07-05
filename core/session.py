@@ -21,9 +21,13 @@ import numpy as np
 from core.fit_engine import Component, FitState, fit_discrete
 from core.folding import (
     find_best_integer_or_half_center,
+    find_sine_symmetry_center,
     fold_and_normalize,
+    normalize_unfolded,
     read_normos_folding_point,
     read_ws5_counts,
+    sine_velocity_axis,
+    symmetry_center_to_c0,
     velocity_axis,
 )
 from core.params import (
@@ -64,6 +68,7 @@ class ModelState:
     likelihood: str = "gauss"
     robust_loss: str = "linear"
     absorber_model: str = "thin"
+    drive_form: str = "triangular"      # "triangular" (aceleración cte) / "sine"
     propagate_calib: bool = False
     global_opt: bool = False
     fit_velocity: bool = False
@@ -128,7 +133,8 @@ class ModelState:
                 setattr(self, flag, bool(state[flag]))
         if "multistart_n" in state:
             self.multistart_n = max(0, min(10, int(state["multistart_n"])))
-        for skey in ("line_profile", "likelihood", "robust_loss", "absorber_model"):
+        for skey in ("line_profile", "likelihood", "robust_loss", "absorber_model",
+                     "drive_form"):
             if skey in state:
                 setattr(self, skey, str(state[skey]))
         if "constraints" in state:
@@ -166,6 +172,12 @@ class ModelState:
         for idx in self.sextet_enabled:
             for name, rng in _PARAM_BOUNDS.items():
                 bounds[f"s{idx}_{name}"] = rng
+        # En modo seno el "centro" es la fase (~N/4), fuera del rango triangular
+        # (~N/2): límites propios para que fit_center (ajuste de fase) no se recorte.
+        if self.drive_form == "sine" and counts is not None:
+            n = int(np.asarray(counts).size)
+            if n > 0:
+                bounds["center"] = (0.05 * n, 0.45 * n)
         return FitState(
             velocity=velocity, y_data=y_data, sigma_data=sigma_data,
             values=values, fixed=fixed, bounds=bounds, components=components,
@@ -176,6 +188,7 @@ class ModelState:
             propagate_calib=self.propagate_calib, global_opt=self.global_opt,
             fit_velocity=self.fit_velocity, fit_center=self.fit_center,
             fit_sigma=self.fit_sigma, absorber_model=self.absorber_model,
+            drive_form=self.drive_form,
             multistart_n=self.multistart_n,
             counts=counts, norm_factor=norm_factor)
 
@@ -214,6 +227,7 @@ class ModelState:
             "propagate_calib": self.propagate_calib,
             "global_opt": self.global_opt,
             "absorber_model": self.absorber_model,
+            "drive_form": self.drive_form,
             "multistart_n": self.multistart_n,
             "n_components": self.n_components,
             "constraints": list(self.constraints),
@@ -252,12 +266,19 @@ class HeadlessSession:
         """Carga un espectro, detecta su centro y lo dobla (espejo de load_ws5+refold)."""
         path = Path(path)
         counts = read_ws5_counts(path)
-        center = read_normos_folding_point(path)
-        if center is None:
-            half = 0.5 * counts.size
-            center = find_best_integer_or_half_center(
-                counts, max(1.5, half - 20.0), min(counts.size - 0.5, half + 20.0))
-        folded, sigma, y, norm = fold_and_normalize(counts, center, _EDGE_TRIM)
+        if self.model.drive_form == "sine":
+            # Drive senoidal (NORMOS FOLD=.FALSE.): no se dobla; se usa el
+            # espectro sin plegar y su punto de simetría (~N/4) como fase.
+            center = find_sine_symmetry_center(counts)
+            sigma, y, norm = normalize_unfolded(counts)
+            folded = counts
+        else:
+            center = read_normos_folding_point(path)
+            if center is None:
+                half = 0.5 * counts.size
+                center = find_best_integer_or_half_center(
+                    counts, max(1.5, half - 20.0), min(counts.size - 0.5, half + 20.0))
+            folded, sigma, y, norm = fold_and_normalize(counts, center, _EDGE_TRIM)
         self.spectrum = LoadedSpectrum(
             path=path, counts=counts, center=float(center),
             folded=folded, y_data=y, sigma=sigma, norm_factor=norm)
@@ -275,6 +296,9 @@ class HeadlessSession:
         """Eje de velocidad con el mismo recorte de borde que el folding (espejo Qt)."""
         sp = self._require_spectrum()
         vmax = float(self.model.vars.get("vmax", 12.0))
+        if self.model.drive_form == "sine":
+            c0 = symmetry_center_to_c0(sp.center, sp.counts.size)
+            return sine_velocity_axis(sp.counts.size, vmax, c0)
         return velocity_axis(sp.counts.size, vmax, sp.y_data.size, _EDGE_TRIM)
 
     def build_fit_state(self) -> FitState:

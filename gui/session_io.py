@@ -184,6 +184,9 @@ class SessionIOMixin:
             if am in ("thin", "thickness"):
                 self.absorber_model = am
                 self.calib.set_absorber_model(am)
+            df = state.get("drive_form")
+            if df in ("triangular", "sine"):
+                self.calib.set_drive_form(df)
             if "dist_use_sharp" in state:
                 self.dist_use_sharp = bool(state["dist_use_sharp"])
             # dist_refine_global era un campo legacy (v4.5); se ignora silenciosamente

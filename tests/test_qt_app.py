@@ -1074,3 +1074,28 @@ def test_lorentzian_gamma_zero_returns_finite(win):
     result = lorentzian(v, center=0.0, gamma=0.0)
     assert np.all(np.isfinite(result)), "lorentzian(gamma=0) produce NaN/inf"
     assert float(result.max()) <= 1.0 + 1e-9
+
+
+def test_sine_drive_toggle_changes_axis_size(win, tmp_path):
+    """Cambiar a drive senoidal recarga los datos sin doblar (N canales)."""
+    import numpy as np
+    from core.folding import sine_velocity_axis
+    from core.physics import total_model
+    N, vmax = 512, 11.0
+    v = sine_velocity_axis(N, vmax, 0.0)
+    t = total_model(v, 1.0, 0.0,
+                    [("Sextete", np.array([0., 0., 33., 0.3, 1., 1., 0.3, 3., 2., 1.]))])
+    counts = np.maximum(t, 0.0) * 20000.0
+    fp = tmp_path / "sine.adt"
+    fp.write_text("\n".join(str(int(c)) for c in counts), encoding="utf-8")
+    # Triangular por defecto → doblado (~254).
+    win._load_file(fp)
+    assert win.file.velocity.size < N
+    # Cambiar a senoidal → sin doblar (N).
+    win.calib.set_drive_form("sine")
+    win._on_drive_form_changed()
+    assert win.file.velocity.size == N
+    assert abs(win.file.center - N / 4) < 6.0
+    win._simulate_enabled = True
+    win._refresh_plot()   # no debe reventar con eje no monótono
+    assert win.canvas.last_render["velocity"].size == N

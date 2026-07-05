@@ -260,6 +260,7 @@ class MainLayoutMixin:
 
         # Conectar señales de cambio para refrescar el plot en vivo
         self.calib.paramChanged.connect(self._on_model_param_changed)
+        self.calib.driveFormChanged.connect(self._on_drive_form_changed)
         self.calib.center.valueChanged.connect(self._on_center_value_changed)
         self.calib.absorber_combo.currentIndexChanged.connect(self._sync_absorber_model_from_panel)
         # Al activar "Ajustar Vmax", fijar automáticamente todos los BHF (el
