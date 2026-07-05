@@ -59,8 +59,8 @@ _EYE4 = np.eye(4)
 # (separación entre m_e=−1/2 y m_e=−3/2 manteniendo m_g=−1/2), y de
 # LINE_POS_33T[3] − LINE_POS_33T[2] sale −ω_g − ω_e.
 BHF_REF_T = float(BHF_DEFAULT_T)
-OMEGA_E_33T = float(LINE_POS_33T[1] - LINE_POS_33T[0])         # ~2.2484 mm/s
-OMEGA_G_33T = float(-((LINE_POS_33T[3] - LINE_POS_33T[2]) + OMEGA_E_33T))   # ~-3.928 mm/s
+OMEGA_E_33T = float(LINE_POS_33T[1] - LINE_POS_33T[0])         # ≈ 2.245 mm/s
+OMEGA_G_33T = float(-((LINE_POS_33T[3] - LINE_POS_33T[2]) + OMEGA_E_33T))   # ≈ -3.922 mm/s
 
 
 @lru_cache(maxsize=8)

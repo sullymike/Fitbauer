@@ -1,0 +1,163 @@
+\section{Motivación física}
+
+El desplazamiento isomérico $\IS$ mide el desplazamiento del centro del patrón
+Mössbauer respecto a una referencia, normalmente $\alpha$-Fe. Está relacionado
+con la densidad electrónica en el núcleo y, por tanto, con el estado de
+oxidación, coordinación y covalencia del átomo de Fe. En materiales ordenados se
+suele ajustar un único $\IS$ por fase. Sin embargo, en vidrios, silicatos,
+materiales amorfos, ferritinas, nanopartículas o mezclas de entornos locales,
+puede existir una distribución continua de desplazamientos.
+
+Fitbauer implementa dos extensiones:
+\begin{itemize}
+  \item una distribución unidimensional $P(\IS)$;
+  \item distribuciones bidimensionales que combinan $\IS$ con otra magnitud,
+  especialmente $P(\IS,\QS)$ y $P(\BHF,\IS)$.
+\end{itemize}
+El caso $P(\IS,\QS)$ es particularmente útil para dobletes paramagnéticos anchos,
+donde el centro del doblete y su separación pueden variar simultáneamente.
+
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.95\textwidth]{apx_is}
+  \caption{Distribución de desplazamiento isomérico. \emph{Izquierda}: una
+  $P(\IS)$ con dos poblaciones separadas en $\delta$ —por ejemplo Fe$^{3+}$
+  ($\delta\!\approx\!0{,}35$~mm/s) y Fe$^{2+}$ ($\delta\!\approx\!1{,}05$~mm/s)—
+  refleja dos estados de oxidación o entornos. \emph{Derecha}: el espectro
+  resultante es la superposición de los patrones de cada $\delta$; cuando los
+  entornos solapan, la información los separa mejor que un ajuste discreto rígido.}
+  \label{fig:apx_is}
+\end{figure}
+
+\section{Distribución unidimensional $P(\IS)$}
+
+Para una malla de desplazamientos $\IS_i$, el modelo 1D es
+\begin{equation}
+  T(v_k)=b_0+b_1v_k-\sum_i P_i\,S(v_k;\IS_i,\QS,\BHF,\Gamma),
+\end{equation}
+donde $S$ es el patrón de absorción de profundidad unitaria. Si $\BHF=0$, el
+patrón se reduce en la práctica a un doblete o singlete según el valor de $\QS$.
+Los pesos cumplen
+\begin{equation}
+  P_i\ge0.
+\end{equation}
+El problema regularizado se escribe como
+\begin{equation}
+  \Phi(\bm p)=\|W(\bm y-X\bm p)\|^2+\alpha\|D^2\bm p\|^2,
+\end{equation}
+donde $D^2$ es el operador de segundas diferencias. La probabilidad normalizada
+se calcula como
+\begin{equation}
+  p(\IS_i)=\frac{P_i}{\int P(\IS)\,\dd\IS}.
+\end{equation}
+
+\section{Distribución bidimensional $P(\IS,\QS)$}
+
+Para una malla $\IS_i$, $Q_j$, el modelo es
+\begin{equation}
+  T(v_k)=b_0+b_1v_k-\sum_{ij}P_{ij}\,
+  S(v_k;\IS_i,Q_j,\BHF,\Gamma).
+\end{equation}
+Si se desea describir una población paramagnética, se fija $\BHF=0$ y cada punto
+$(\IS_i,Q_j)$ genera un doblete centrado en $\IS_i$ con separación $Q_j$:
+\begin{align}
+  v_{1,ij}&=\IS_i-\frac{Q_j}{2},\\
+  v_{2,ij}&=\IS_i+\frac{Q_j}{2}.
+\end{align}
+
+La regularización 2D penaliza curvatura en las dos direcciones:
+\begin{equation}
+  \Phi(\bm P)=\|W(\bm y-X\bm z)\|^2
+  +\alpha_{\IS}\|D_{\IS}^2P\|^2
+  +\alpha_Q\|D_Q^2P\|^2,
+  \qquad P_{ij}\ge0.
+\end{equation}
+En forma aumentada:
+\begin{equation}
+  \begin{bmatrix}
+    WX\\
+    \sqrt{\alpha_{\IS}}\,D_{\IS}^2\\
+    \sqrt{\alpha_Q}\,D_Q^2
+  \end{bmatrix}\bm z\simeq
+  \begin{bmatrix}
+    W\bm y\\
+    \bm 0\\
+    \bm 0
+  \end{bmatrix}.
+\end{equation}
+
+\section{Interpretación de $P(\IS,\QS)$}
+
+Las marginales son
+\begin{align}
+  P_{\IS}(\IS_i)&=\int P(\IS_i,Q)\,\dd Q,\\
+  P_Q(Q_j)&=\int P(\IS,Q_j)\,\dd\IS.
+\end{align}
+Una nube inclinada en el mapa puede indicar que los sitios con mayor $\IS$ tienen
+también mayor o menor $\QS$. Esto puede sugerir familias de entornos locales,
+por ejemplo variación de valencia, coordinación o distorsión del poliedro.
+
+Fitbauer calcula diagnósticos descriptivos del mapa:
+\begin{align}
+  \langle\IS\rangle,\quad \sigma_{\IS},\quad
+  \langle Q\rangle,\quad \sigma_Q,\quad
+  \rho_{\IS Q}.
+\end{align}
+La correlación aparente es
+\begin{equation}
+  \rho_{\IS Q}=\frac{\langle(\IS-\langle\IS\rangle)(Q-\langle Q\rangle)\rangle}
+  {\sigma_{\IS}\sigma_Q}.
+\end{equation}
+Estos valores describen la distribución ajustada, pero no prueban por sí solos
+que la distribución sea única o física.
+
+\section{Distribución $P(\BHF,\IS)$}
+
+También se implementa $P(\BHF,\IS)$:
+\begin{equation}
+  T(v_k)=b_0+b_1v_k-\sum_{ij}P_{ij}\,
+  S(v_k;B_i,\QS,\IS_j,\Gamma).
+\end{equation}
+Puede ser útil en fases magnéticas donde el campo hiperfino y el desplazamiento
+isomérico varían conjuntamente, por ejemplo por distribución de tamaños,
+oxidación parcial o entornos de superficie. No obstante, es especialmente
+sensible a errores de calibración de velocidad: un desplazamiento global de la
+escala puede parecer una distribución de $\IS$.
+
+\section{Riesgos de identificabilidad}
+
+\textbf{Advertencia importante:} las distribuciones que contienen $\IS$ son muy
+sensibles a calibración, folding y fondo. En un doblete,
+\begin{equation}
+  v_1=\IS-\frac{\QS}{2},\qquad v_2=\IS+\frac{\QS}{2},
+\end{equation}
+por lo que cambios de $\IS$ desplazan el centro y cambios de $\QS$ modifican la
+separación. Con líneas anchas o ruido, muchas combinaciones $(\IS,\QS)$ pueden
+producir espectros parecidos. Además, $\IS$ se correlaciona con:
+\begin{itemize}
+  \item el folding point;
+  \item la calibración $V_{\max}$;
+  \item la referencia isomérica;
+  \item la anchura $\Gamma$;
+  \item la pendiente/fondo;
+  \item componentes discretas omitidas.
+\end{itemize}
+Por tanto, una distribución $P(\IS)$ o $P(\IS,\QS)$ visualmente suave y con buen
+residuo puede carecer de significado físico si está compensando un error
+instrumental o un modelo incompleto.
+
+\section{Buenas prácticas}
+
+Antes de interpretar una distribución con $\IS$ se recomienda:
+\begin{enumerate}
+  \item fijar o verificar cuidadosamente la calibración de velocidad;
+  \item usar una referencia isomérica conocida;
+  \item comprobar el folding point con el diagnóstico de residuo;
+  \item comparar con modelos discretos y con $P(\QS)$ 1D;
+  \item variar $\alpha_{\IS}$ y $\alpha_Q$ en varios órdenes de magnitud;
+  \item repetir con distinto número de bins;
+  \item evitar publicar detalles finos que desaparecen al cambiar la
+  regularización;
+  \item usar información externa: química, XRD, TEM, magnetometría o literatura.
+\end{enumerate}
+Para publicación, conviene mostrar que el mapa $P(\IS,\QS)$ es estable y que un
+modelo más simple no explica los datos de forma satisfactoria.

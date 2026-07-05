@@ -7,6 +7,9 @@
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{hyperref}
+\usepackage{graphicx}
+% Figuras del anexo: python docs/manual/scripts/make_appendix_figures.py
+\graphicspath{{manual/img/}{img/}}
 \geometry{margin=2.5cm}
 \hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
 
@@ -40,6 +43,17 @@ Fitbauer implementa dos extensiones:
 \end{itemize}
 El caso $P(\IS,\QS)$ es particularmente útil para dobletes paramagnéticos anchos,
 donde el centro del doblete y su separación pueden variar simultáneamente.
+
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.95\textwidth]{apx_is}
+  \caption{Distribución de desplazamiento isomérico. \emph{Izquierda}: una
+  $P(\IS)$ con dos poblaciones separadas en $\delta$ —por ejemplo Fe$^{3+}$
+  ($\delta\!\approx\!0{,}35$~mm/s) y Fe$^{2+}$ ($\delta\!\approx\!1{,}05$~mm/s)—
+  refleja dos estados de oxidación o entornos. \emph{Derecha}: el espectro
+  resultante es la superposición de los patrones de cada $\delta$; cuando los
+  entornos solapan, la información los separa mejor que un ajuste discreto rígido.}
+  \label{fig:apx_is}
+\end{figure}
 
 \section{Distribución unidimensional $P(\IS)$}
 
@@ -174,17 +188,5 @@ Antes de interpretar una distribución con $\IS$ se recomienda:
 \end{enumerate}
 Para publicación, conviene mostrar que el mapa $P(\IS,\QS)$ es estable y que un
 modelo más simple no explica los datos de forma satisfactoria.
-
-\section{Estado en Fitbauer}
-
-En la GUI se accede mediante los modos:
-\begin{itemize}
-  \item \textbf{P(IS)} para la distribución 1D;
-  \item \textbf{P(IS,$\Delta E_Q$) 2D};
-  \item \textbf{P(BHF,IS) 2D}.
-\end{itemize}
-Los modos 2D comparten el motor regularizado usado para $P(\BHF,\QS)$. La GUI
-muestra mapa de calor, marginales, L-surface de regularización, exportación TSV,
-heatmap interactivo Plotly e informe PDF con mapa 2D.
 
 \end{document}

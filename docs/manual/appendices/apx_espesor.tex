@@ -1,0 +1,237 @@
+\noindent
+El modelo de ajuste estándar trata la muestra como un absorbente \emph{delgado}:
+la transmisión es lineal en la absorción de cada componente. En muestras gruesas
+o muy absorbentes esa aproximación falla —las líneas profundas se \emph{saturan}—
+y sesga profundidades, anchuras y, sobre todo, las áreas (fracciones de fase).
+La rama experimental añade una \emph{corrección por espesor} mediante un modelo de
+saturación exponencial con un único parámetro físico $C$. Este documento explica
+qué beneficios aporta, cuándo conviene aplicarla, cómo se aplica (qué cambia en el
+ajuste y en la representación) y cómo se comporta con varios subespectros.
+
+
+
+\bigskip
+
+%======================================================================
+\section{El problema: absorbente delgado vs. grueso}
+
+El modelo histórico es lineal en la absorción:
+\begin{equation}
+  T_{\text{delgado}}(v) \;=\; b + s\,v \;-\; A_{\text{tot}}(v),
+  \qquad A_{\text{tot}}(v)=\sum_{c} A_c(v),
+  \label{eq:thin}
+\end{equation}
+con $b$ la línea base, $s$ la pendiente y $A_c$ la absorción de cada componente
+(sextete/doblete/singlete). Es exacto sólo en el límite de absorbente
+infinitamente fino. En una muestra real de espesor finito, la fracción de fotones
+resonantes que llegan al detector decae \emph{exponencialmente} con la cantidad de
+material resonante: las líneas más profundas absorben proporcionalmente menos de
+lo que predice \eqref{eq:thin} (se \emph{saturan}) y, además, se \emph{ensanchan}.
+
+\begin{nota}
+El efecto de saturación de espesor no es un artefacto numérico: es física del
+experimento de transmisión. Ignorarlo en muestras gruesas hace que el ajuste
+``compense'' falsamente subiendo anchuras y desequilibrando áreas.
+\end{nota}
+
+%======================================================================
+\section{Modelo de saturación exponencial}
+
+La corrección sustituye \eqref{eq:thin} por
+\begin{equation}
+  \boxed{\;
+  T(v) \;=\; b + s\,v \;-\; C\,\Bigl(1 - e^{-A_{\text{tot}}(v)/C}\Bigr)
+  \;}
+  \label{eq:thick}
+\end{equation}
+donde $C>0$ es la \emph{escala de saturación} (amplitud de absorción máxima
+alcanzable, $\approx f_s\,b$, con $f_s$ la fracción libre de retroceso efectiva
+de la fuente). Sus dos límites lo hacen interpretable y compatible hacia atrás:
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Límite delgado} $C\to\infty$: como $C(1-e^{-x/C})\to x$, se
+        recupera exactamente \eqref{eq:thin}. Es decir, el modelo delgado es el
+        caso particular de espesor nulo.
+  \item \textbf{Saturación} $C$ finito: la absorción efectiva
+        $A_{\text{eff}}=C(1-e^{-A_{\text{tot}}/C})$ está acotada por $C$ y
+        comprime las líneas profundas tanto más cuanto mayor es
+        $A_{\text{tot}}/C$.
+\end{itemize}
+Implementado en \code{core/physics.py} (\code{total\_model}, parámetro
+\code{sat\_scale}=$C$).
+
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.98\textwidth]{apx_thickness}
+  \caption{Absorbente delgado frente a grueso. \emph{Izquierda}: la absorción
+  efectiva $A_{\text{eff}}=C(1-e^{-A_{\text{tot}}/C})$ satura acotada por $C$,
+  mientras el modelo delgado ($C\to\infty$) crece sin límite. \emph{Derecha}:
+  sobre una línea profunda, el modelo delgado $1-A$ llegaría a valores negativos
+  imposibles; la corrección de espesor da líneas \emph{menos profundas y más
+  anchas}, que es el efecto físico de la saturación.}
+  \label{fig:apx_thickness}
+\end{figure}
+
+%======================================================================
+\section{Beneficios}
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Áreas y fracciones de fase insesgadas.} La saturación suprime más
+        la absorción de las fases mayoritarias (líneas profundas) que la de las
+        minoritarias. Sin corregir, el cociente de áreas está sesgado a favor de
+        las fases débiles. Al \emph{des-saturar}, las áreas recuperadas
+        corresponden a las del absorbente delgado equivalente, que son las
+        proporcionales a las abundancias (a igual $f$ de Lamb–Mössbauer).
+  \item \textbf{Profundidades correctas.} El parámetro de profundidad deja de
+        leer la absorción aparente (recortada) para representar la absorción real.
+  \item \textbf{Anchuras menos infladas.} El ensanchamiento por espesor ya no se
+        absorbe artificialmente en $\gamma$; las anchuras ajustadas se acercan a
+        las intrínsecas.
+  \item \textbf{Mejor $\chi^2$ en espectros profundos.} Donde el modelo delgado
+        deja estructura sistemática en el residuo (en los mínimos), la saturación
+        la elimina sin añadir componentes espurios.
+\end{enumerate}
+
+\begin{nota}[Verificación]
+Sobre un espectro sintético saturado con $A_{\max}/C=2$, el ajuste con corrección
+de espesor reconstruyó el espectro un $\sim27\%$ mejor (RMS) que el modelo
+delgado, y recuperó la escala $C$ de partida ($C=0.41$ frente al verdadero
+$0.40$). En saturación suave recuperó $\sim9\%$ más área (des-saturación).
+\end{nota}
+
+%======================================================================
+\section{Cuándo aplicarla}
+
+\begin{aviso}
+La corrección de espesor \textbf{aporta} cuando la muestra es gruesa / muy
+absorbente y \textbf{no es necesaria} (y no debe forzarse) cuando es fina.
+\end{aviso}
+
+Señales de que conviene activarla:
+\begin{itemize}[leftmargin=*]
+  \item Absorción profunda: el mínimo de transmisión baja bastante por debajo de
+        la base (típicamente $\gtrsim 15$–$20\%$ de absorción), o espesor efectivo
+        $t_a\gtrsim 1$.
+  \item El ajuste delgado deja \emph{residuo estructurado en los mínimos} (el
+        modelo no llega al fondo de las líneas profundas o las hace demasiado
+        anchas).
+  \item Se busca \emph{cuantificación de fases} fiable (cocientes de área), no
+        sólo posiciones.
+\end{itemize}
+Cuándo \emph{no}:
+\begin{itemize}[leftmargin=*]
+  \item Espectros finos (absorción de pocos \%): el modelo lineal ya es exacto y
+        $C$ queda indeterminado (tiende a valores grandes). Mantener modo delgado.
+  \item Como diagnóstico: si al ajustar $C$ éste converge a un valor grande y el
+        $\chi^2$ no mejora, la muestra es efectivamente delgada.
+\end{itemize}
+
+%======================================================================
+\section{Cómo se aplica en el ajuste}
+
+\subsection{Selección y parámetro}
+En el panel de calibración hay un selector \emph{Absorbente: \code{thin} /
+\code{thickness}} y un \emph{slider} de escala de saturación $C$
+(\code{sat\_scale}), activo sólo en modo grueso. $C$ es un parámetro global
+(como la base o la pendiente), ajustable o fijable.
+
+\subsection{Modo discreto}
+El optimizador no lineal (TRF) ya ajusta una función arbitraria, así que basta
+con que el modelo directo use \eqref{eq:thick}: $C$ entra como un parámetro libre
+más y se refina junto al resto. No cambia el algoritmo, sólo el forward.
+
+\subsection{Modo distribución \texorpdfstring{$P(\BHF)$}{P(BHF)}}
+Aquí la exponencial \emph{rompe la linealidad} en los pesos $P$, sobre la que se
+apoya todo el solver regularizado. La solución es una \emph{transformada inversa}
+que recupera la linealidad: dado el dato $y$, se invierte la saturación para
+obtener la absorción lineal observada
+\begin{equation}
+  A_{\text{obs}}(v) \;=\; -\,C\,\ln\!\Bigl(1 - \tfrac{b + s\,v - y(v)}{C}\Bigr),
+  \label{eq:invtransform}
+\end{equation}
+que \emph{sí} es lineal en $P$ ($A_{\text{obs}}=K\,P+\dots$). Se resuelve el
+sistema lineal regularizado habitual (Tikhonov/TV, no negatividad) sobre
+$A_{\text{obs}}$, y el modelo se \emph{re-satura} con \eqref{eq:thick} para
+calcular residuos y la curva mostrada. El ruido se propaga por la transformada,
+\begin{equation}
+  \sigma_{A} \;=\; \sigma_y\,\frac{dA_{\text{obs}}}{dy} \;=\; \sigma_y\,e^{A_{\text{obs}}/C},
+\end{equation}
+de modo que los canales saturados pesan correctamente. Un lazo externo no lineal
+(esquema separable tipo VARPRO) refina $(b,s,C)$ mientras el solve lineal interno
+recupera $P$ en cada iteración.
+
+\begin{nota}
+La transformada \eqref{eq:invtransform} exige $b+s\,v-y < C$ en todo canal (la
+absorción aparente no puede exceder la plateau de saturación); el programa recorta
+el argumento al dominio válido $(0,1]$ antes del logaritmo.
+\end{nota}
+
+%======================================================================
+\section{Qué cambia en la vista}
+
+\begin{itemize}[leftmargin=*]
+  \item La \textbf{curva de modelo} representada es la transmisión \emph{saturada}
+        \eqref{eq:thick}: es la que se compara con los datos y la que genera el
+        residuo.
+  \item Las \textbf{profundidades/áreas} mostradas y exportadas son las del
+        absorbente delgado equivalente (des-saturadas): por eso, al activar la
+        corrección, las áreas relativas pueden cambiar respecto al ajuste delgado
+        —es justamente la corrección buscada.
+  \item Aparece el valor ajustado de $C$ (escala de saturación) entre los
+        parámetros globales. Un $C$ grande indica muestra prácticamente delgada.
+  \item En modo distribución, $P(\BHF)$ se muestra ya des-saturada; su área
+        integrada refleja la fracción real.
+\end{itemize}
+
+%======================================================================
+\section{Varios subespectros}
+
+La saturación es una propiedad del \emph{absorbente completo}, no de cada fase por
+separado: los fotones de una velocidad dada atraviesan todo el material y ``ven''
+la suma de todas las absorciones a esa velocidad. Por eso \eqref{eq:thick} satura
+la \textbf{absorción total} $A_{\text{tot}}=\sum_c A_c$ con \emph{una sola} escala
+$C$ común a todos los subespectros, y no cada componente por su cuenta:
+\begin{equation}
+  T(v) = b + s\,v - C\Bigl(1 - \exp\!\bigl[-\tfrac{1}{C}\textstyle\sum_c A_c(v)\bigr]\Bigr).
+\end{equation}
+Consecuencias prácticas:
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Acoplamiento físico correcto.} Donde dos subespectros solapan, la
+        saturación es mayor (la absorción local es la suma); el modelo lo captura
+        automáticamente.
+  \item \textbf{Cuantificación de fases.} Tras des-saturar, los cocientes de área
+        entre subespectros recuperan su valor insesgado, que es el objetivo en
+        mezclas de fases (p. ej. varios entornos de Fe).
+  \item \textbf{Un único $C$.} No se ajusta una escala por componente (sería
+        no físico y degeneraría con las profundidades): $C$ es global y describe el
+        espesor efectivo de la muestra.
+  \item \textbf{Compatibilidad.} En modo distribución, los sextetes ``nítidos''
+        añadidos y la propia distribución comparten la misma corrección, porque
+        todos contribuyen a $A_{\text{tot}}$.
+\end{itemize}
+
+\begin{nota}[Limitación del modelo]
+Es una saturación exponencial efectiva (Lambert–Beer), que captura el efecto
+dominante del espesor (compresión, ensanchamiento, áreas insesgadas) con un único
+parámetro. No es la integral de transmisión completa de Margulies–Ehrman
+(convolución con la línea de la fuente), que sería un refinamiento de segundo
+orden raramente necesario en la práctica.
+\end{nota}
+
+%======================================================================
+\section{Resumen}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Aspecto} & \textbf{Corrección por espesor}\\
+\midrule
+Modelo & $T=b+s v - C(1-e^{-A_{\text{tot}}/C})$ \\
+Parámetro nuevo & $C$ (escala de saturación), global, $C\to\infty$ = delgado\\
+Cuándo & muestras gruesas / absorción profunda / cuantificación de fases\\
+Discreto & $C$ libre en el TRF; sólo cambia el modelo directo\\
+Distribución & transformada inversa $A_{\text{obs}}=-C\ln(1-(b+sv-y)/C)$ + VARPRO $(b,s,C)$\\
+Vista & curva saturada; áreas/$P$ des-saturadas; se muestra $C$\\
+Subespectros & una sola $C$ satura la suma $\sum_c A_c$ (acoplamiento físico)\\
+Beneficio clave & áreas/fracciones de fase insesgadas, anchuras y $\chi^2$ mejores\\
+\bottomrule
+\end{tabular}
+\end{center}

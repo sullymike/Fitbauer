@@ -7,6 +7,9 @@
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{hyperref}
+\usepackage{graphicx}
+% Figuras del anexo: python docs/manual/scripts/make_appendix_figures.py
+\graphicspath{{manual/img/}{img/}}
 \geometry{margin=2.5cm}
 \hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
 
@@ -73,7 +76,18 @@ con la restricción
 \end{equation}
 Aquí $W$ es el peso estadístico de los canales, $D_B^2$ aplica segundas
 diferencias a lo largo de $\BHF$, y $D_Q^2$ aplica segundas diferencias a lo
-largo de $\DEQ$. En la implementación inicial se usa una malla rectangular y los
+largo de $\DEQ$.
+
+\paragraph{$\alpha_B$, $\alpha_Q$ adimensionales.} Igual que en 1D, los $\alpha$
+que fija el usuario no son los pesos brutos: cada eje se \textbf{adimensionaliza}
+de forma independiente,
+$\alpha_{B,\text{eff}}=\alpha_B\,\lambda_B\,c_0$ y
+$\alpha_{Q,\text{eff}}=\alpha_Q\,\lambda_Q\,c_0$, con
+$\lambda=\lVert A_{\text{dist}}\rVert_F^2/\lVert L_{\text{eje}}\rVert_F^2$
+(norma de Frobenius de los operadores blanqueados) y $c_0=10^{-4}$
+(\texttt{\small ALPHA\_REF\_SCALE}). Así $\log_{10}\alpha_B\approx\log_{10}\alpha_Q\approx0$
+es el equilibrio natural en cada eje, independiente de $N$, ruido y profundidad.
+El sistema aumentado usa $\sqrt{\alpha_{\cdot,\text{eff}}}\,L_\cdot$. En la implementación inicial se usa una malla rectangular y los
 operadores se escriben mediante productos de Kronecker:
 \begin{align}
   L_B &= D_B^2\otimes I_Q,\\
@@ -122,6 +136,17 @@ y la correlación aparente
 Una nube inclinada en el mapa $B$--$Q$ puede sugerir correlación entre campo y
 cuadrupolo, pero esa interpretación sólo es válida si la solución es estable.
 
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.72\textwidth]{apx_2d_contour}
+  \caption{Distribución conjunta $P(B_{\mathrm{hf}},\Delta E_Q)$ y sus
+  marginales. El mapa central muestra dos poblaciones: una nube \emph{inclinada}
+  (campo alto, cuadrupolo pequeño), cuya inclinación indica correlación aparente
+  $\rho_{BQ}$, y un segundo sitio aislado. Arriba y a la derecha, las marginales
+  $P_B$ y $P_Q$ obtenidas integrando el mapa; por sí solas no revelan la
+  correlación, que sólo se ve en el mapa 2D.}
+  \label{fig:apx_2d_contour}
+\end{figure}
+
 \section{Componentes nítidas simultáneas}
 
 La implementación permite añadir componentes nítidas al problema 2D. El modelo
@@ -149,6 +174,17 @@ $\log_{10}\alpha_Q$ y una proyección $R$ frente a $G$. Se proponen dos puntos:
 el mínimo de RMS y un compromiso geométrico entre residuo y rugosidad. Ninguno
 es una respuesta automática; debe verificarse visualmente la estabilidad del
 mapa.
+
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.72\textwidth]{apx_lsurface}
+  \caption{L-surface de regularización 2D, análoga a la L-curve pero con dos
+  parámetros. El RMS es bajo cuando ambas regularizaciones son débiles (esquina
+  inferior izquierda: el mapa ajusta el ruido) y crece al reforzarlas (arriba a
+  la derecha: sobre-suavizado). La esquina de compromiso (estrella) equilibra
+  ajuste y suavidad en cada eje; conviene comprobar que la solución es estable
+  alrededor de ella.}
+  \label{fig:apx_lsurface}
+\end{figure}
 
 \section{Riesgo de sobreajuste}
 
@@ -184,23 +220,5 @@ Antes de interpretar el mapa se recomienda:
 Para publicación, el modelo 2D debería justificarse mostrando que un modelo 1D o
 discreto no explica los datos de forma satisfactoria y que la distribución 2D es
 robusta frente a cambios razonables de regularización.
-
-\section{Estado de implementación}
-
-La implementación de Fitbauer incluye el backend:
-\begin{center}
-\texttt{mossbauer\_distribution.fit\_bhf\_quad\_distribution()}
-\end{center}
-y una integración en la GUI como modos \textbf{P(BHF,$\DEQ$) 2D},
-\textbf{P($\delta$,$\DEQ$) 2D}, \textbf{P(BHF,$\delta$) 2D} y como distribución
-1D \textbf{P($\delta$)}. El backend devuelve centros de los dos ejes, matriz de
-pesos, probabilidad normalizada, curva ajustada, residuo, fondo, pendiente,
-valores de $\alpha_x$, $\alpha_y$, marginales, momentos, correlación aparente y
-avisos de identificabilidad. La GUI muestra un mapa de calor con marginales,
-permite exportar el mapa a TSV, incluye una L-surface $\alpha_x$--$\alpha_y$,
-dibuja el heatmap en Plotly y añade el mapa 2D al PDF del informe. También se
-admiten componentes nítidas simultáneas. Quedan para fases posteriores mejoras
-de rendimiento para mallas muy grandes y validaciones avanzadas específicas por
-tipo de muestra.
 
 \end{document}

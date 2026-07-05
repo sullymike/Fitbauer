@@ -31,23 +31,45 @@ publicadas de $\alpha$-Fe a 33,0~T.
 \section{Definir una calibración a partir de un $\alpha$-Fe}
 \label{sec:definir-calib}
 
-El procedimiento habitual es cargar un espectro de $\alpha$-Fe, ajustarlo como
-sexteto (véase el capítulo~\ref{ch:simular}) y marcarlo como calibración:
+El procedimiento habitual es cargar un espectro de $\alpha$-Fe y usarlo para
+\textbf{fijar la escala de velocidad}. Conviene tener clara una idea:
+
+\begin{aviso}
+\textbf{Calibrar es ajustar la velocidad, no el campo.} En el $\alpha$-Fe el
+campo hiperfino \textbf{ya se conoce}: por convención $\BHF = 33{,}0$~T. Lo que
+\emph{no} se conoce es la \param{Vmax} —cuántos mm/s corresponden al extremo del
+recorrido del transductor—. Por eso el ajuste de calibración \textbf{fija}
+$\BHF = 33{,}0$~T (y $\delta$, $\dEQ$ del $\alpha$-Fe) y \textbf{deja libre la
+\param{Vmax}}, buscando el valor que hace coincidir las seis líneas del modelo
+con las del espectro. El resultado del ajuste no es un $\BHF$ (es conocido), sino
+la \param{Vmax} que define el eje de velocidad para todos los espectros
+posteriores.
+\end{aviso}
 
 \begin{enumerate}[nosep]
   \item \menu{Archivo > Cargar…} y seleccione el espectro de $\alpha$-Fe
         (por ejemplo \ruta{data\_sample/hierro\_metalico\_alphaFe.adt}).
-  \item Ajuste el sexteto (\menu{Ajuste > Ajustar}) hasta reproducir las seis
-        líneas. Puede activar \emph{Ajustar Vmax} para refinar la propia
-        \param{Vmax} contra las posiciones de $\alpha$-Fe.
+  \item \textbf{Fije el patrón y ajuste la velocidad.} Ponga un único sexteto con
+        $\BHF = 33{,}0$~T y \textbf{márquelo como fijo} (candado), active
+        \emph{Ajustar Vmax} y lance \menu{Ajuste > Ajustar}. El optimizador
+        moverá la \param{Vmax} (y afinará $\delta$, $\Gamma$) hasta que las seis
+        líneas encajen. Ese valor de \param{Vmax} es la calibración.
   \item Marque el resultado como calibración con
         \menu{Archivo > Usar fichero actual como calibración…}, o desde el menú
         contextual del cuadro de fichero (clic derecho).
 \end{enumerate}
 
-\autofig{fig_calibration_fit}{Ajuste de un espectro de $\alpha$-Fe usado como
-calibración. El $\BHF$ recuperado ($\approx 33$~T) y el $\chi^2$ reducido
-próximo a 1 indican una calibración correcta. Figura generada con
+\begin{nota}
+Si en lugar de fijar el campo deja $\BHF$ libre, obtendrá un valor muy cercano a
+33~T (p.\,ej.\ 33{,}04), pero eso es redundante: el patrón \emph{define} 33{,}0~T.
+Fijarlo evita la degeneración entre $\BHF$ y \param{Vmax} (ambos escalan las
+posiciones de línea) y hace que el ajuste determine \emph{solo} la velocidad.
+\end{nota}
+
+\autofig{fig_calibration_fit}{Calibración de un $\alpha$-Fe: se \textbf{fija}
+$\BHF = 33{,}0$~T (patrón) y se \textbf{ajusta la \param{Vmax}}. El ajuste
+devuelve $\text{Vmax} \approx 11{,}99$~mm/s con un $\chi^2$ reducido próximo a 1:
+esa \param{Vmax} es la escala de velocidad calibrada. Figura generada con
 \ruta{scripts/make\_figures.py}.}
 
 Al marcar la calibración, Fitbauer ofrece dos variantes desde el menú

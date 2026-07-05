@@ -15,7 +15,7 @@
 \usepackage[T1]{fontenc}
 \usepackage[spanish,es-tabla]{babel}
 \usepackage[a4paper,margin=2.4cm]{geometry}
-\usepackage{amsmath,amssymb}
+\usepackage{amsmath,amssymb,amsfonts,mathtools,bm}
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{booktabs}
@@ -62,12 +62,25 @@
 % \menu{Archivo > Cargar...} — rutas de menú.
 \newcommand{\menu}[1]{\textsf{\textbf{#1}}}
 \newcommand{\boton}[1]{\textsf{[#1]}}
+\newcommand{\code}[1]{\texttt{\small #1}}
 % \ruta: rutas/ficheros en monoespaciado; seqsplit permite cortar rutas largas.
 % Robusto para poder usarse dentro de \caption (argumento móvil).
 \DeclareRobustCommand{\ruta}[1]{\texttt{\small\seqsplit{#1}}}
 \newcommand{\param}[1]{\textit{#1}}
 \newcommand{\BHF}{B_{\mathrm{hf}}}
 \newcommand{\dEQ}{\Delta E_{Q}}
+% Macros usadas por los anexos matemáticos (docs/*.tex).
+\newcommand{\DEQ}{\Delta E_Q}
+\newcommand{\IS}{\delta}
+\newcommand{\QS}{\Delta E_Q}
+\newcommand{\nuR}{\nu}
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\file}[1]{\textcolor{black!70}{\texttt{\small #1}}}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\erfc}{erfc}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
 
 % ── Figuras auto-generadas (siempre presentes en img/) ───────────────────────
 % \autofig[ancho]{fichero-sin-ext}{pie}
@@ -100,7 +113,9 @@
                  {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1 {¡}{{!`}}1 {¿}{{?`}}1}
 
 % ============================================================================
-\title{\vspace{-1cm}\textbf{\Huge Fitbauer}\\[8pt]
+\title{\vspace{-1.2cm}
+  \includegraphics[width=2.8cm]{fitbauer_logo}\\[12pt]
+  \textbf{\Huge Fitbauer}\\[8pt]
   \Large Manual de usuario\\[4pt]
   \normalsize \textit{Software for Mössbauer spectrum fitting and analysis}}
 \author{Jorge Sánchez Marcos \and Nieves Menéndez González\\[2pt]
@@ -112,13 +127,28 @@
 \thispagestyle{empty}
 
 \begin{abstract}
-\noindent Este manual describe el uso de \textbf{Fitbauer}, la aplicación de
-escritorio para cargar, doblar, simular y ajustar espectros Mössbauer de
-$^{57}$Fe. Se organiza siguiendo el flujo de trabajo real: primero la
-\emph{calibración} —que se fija y se reutiliza—, después la carga y
-visualización de datos, la simulación y el ajuste de un calibrado, y por último
-la simulación de distribuciones. Los recuadros \textbf{Nota}, \textbf{Importante}
-y \textbf{Consejo} resaltan detalles prácticos.
+\noindent \textbf{Fitbauer} es una aplicación de escritorio para cargar, doblar,
+\emph{simular} y \emph{ajustar} espectros Mössbauer de $^{57}$Fe. La simulación
+corresponde al \emph{modelo directo} —singletes, dobletes y sextetes—, mientras
+que el ajuste puede ser \emph{discreto} (esos mismos componentes) o mediante
+\emph{distribuciones} de campo hiperfino o cuadrupolar, que se obtienen
+\textbf{ajustando} los datos (una distribución de probabilidad se infiere del
+espectro, no se «simula» arbitrariamente).
+
+\medskip\noindent Fitbauer nació con una idea: hacer algo \textbf{nuevo, fácil de
+entender e intuitivo}, con \textbf{simulación en vivo} y con lo necesario para
+ajustar espectros Mössbauer sin fricción. Existen otros programas —algunos
+comerciales, otros gratuitos o de uso académico— pero no siempre mostraban u
+ofrecían lo que se necesitaba o se quería para el día a día; de ahí este
+proyecto. La sección~\ref{sec:porque} explica el porqué y la
+sección~\ref{sec:comparacion} lo sitúa, de forma neutral, junto a otras
+herramientas del campo.
+
+\medskip\noindent El manual sigue el flujo de trabajo real: primero la
+\emph{calibración} —que se fija y se reutiliza—, después la carga y visualización
+de datos, la simulación y el ajuste de un calibrado, y por último el ajuste por
+distribuciones. Los recuadros \textbf{Nota}, \textbf{Importante} y
+\textbf{Consejo} resaltan detalles prácticos.
 \end{abstract}
 
 \tableofcontents
@@ -128,5 +158,32 @@ y \textbf{Consejo} resaltan detalles prácticos.
 \input{chapters/02_carga_datos}
 \input{chapters/03_simular_ajustar}
 \input{chapters/04_distribuciones}
+
+% ── Anexos: manuales matemáticos, incluidos como fuente (\input) ─────────────
+% Los cuerpos de docs/*.tex se copian en appendices/ (sin su preámbulo) y se
+% compilan junto al manual, con formato y numeración unificados. Regenerar con
+% scripts/make_appendices.py si cambian los originales de docs/.
+\appendix
+\addcontentsline{toc}{part}{Anexos matemáticos}
+
+\chapter{Manual matemático del motor de ajuste}
+\label{ap:mates}
+\input{appendices/apx_mates}
+
+\chapter{Distribuciones de desplazamiento isomérico \texorpdfstring{$P(\mathrm{IS})$}{P(IS)}}
+\label{ap:dist-is}
+\input{appendices/apx_dist_is}
+
+\chapter{Distribuciones bidimensionales \texorpdfstring{$P(\BHF,\dEQ)$}{P(BHF,DEQ)}}
+\label{ap:dist-2d}
+\input{appendices/apx_dist_2d}
+
+\chapter{Modelos de relajación magnética}
+\label{ap:relax}
+\input{appendices/apx_relax}
+
+\chapter{Corrección por espesor}
+\label{ap:espesor}
+\input{appendices/apx_espesor}
 
 \end{document}

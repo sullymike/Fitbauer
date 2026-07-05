@@ -11,6 +11,9 @@
 \usepackage{xcolor}
 \usepackage{hyperref}
 \usepackage{tcolorbox}
+\usepackage{graphicx}
+% Figuras del anexo: python docs/manual/scripts/make_appendix_figures.py
+\graphicspath{{manual/img/}{img/}}
 
 \hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!60!black}
 
@@ -43,8 +46,7 @@ con intercambio simétrico tipo Bloch--McConnell;
 (3)~\code{NeelSize}: modelo Néel--Arrhenius con distribución lognormal de tamaños
 de partícula, combinando el perfil \code{BlumeTjon} para cada diámetro.
 El ajuste global simultáneo de espectros a varias temperaturas está disponible
-mediante el diálogo \code{GlobalNeelFitDialog} (\code{gui/dialogs.py},
-\textbf{Ajuste → Global Néel (T)}).
+desde \textbf{Ajuste → Global Néel (T)}.
 \end{abstract}
 
 \tableofcontents
@@ -114,6 +116,16 @@ el doblete escalado para que su área integrada sea comparable a la del sextete:
   \frac{\int S_6(v)\,dv}{\int D_2(v)\,dv}.
 \end{equation}
 Así, $D$ conserva aproximadamente el significado de área/profundidad total.
+
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.82\textwidth]{apx_relax_phenom}
+  \caption{Modelo fenomenológico \code{Relajacion} \eqref{eq:rel-phen}. Al bajar
+  la fracción bloqueada $f_b$ de $1$ (sexteto bloqueado) a $0$ (doblete
+  superparamagnético aparente), la señal del sexteto se transfiere a un doblete
+  central de área equivalente. No representa dos fases químicas, sino el efecto
+  espectral de la relajación.}
+  \label{fig:apx_relax_phenom}
+\end{figure}
 
 \subsection{Fracción bloqueada y tasa fenomenológica}
 
@@ -208,6 +220,20 @@ donde $[\cdot]_+$ recorta pequeñas contribuciones negativas numéricas.
   el espectro tiende a un doblete o singlete según $\dEQ$.
 \end{itemize}
 
+La figura~\ref{fig:apx_relaxation} muestra la evolución continua entre estos
+límites al aumentar la tasa de intercambio.
+
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.72\textwidth]{apx_relaxation}
+  \caption{Colapso por relajación en el modelo de dos estados
+  $+\BHF\leftrightarrow-\BHF$ \eqref{eq:exchange}. A tasa baja (abajo) el espectro
+  es el \emph{sexteto estático}; al crecer la tasa las líneas se ensanchan y
+  coalescen (\emph{régimen intermedio}); a tasa alta (arriba) las posiciones
+  magnéticas se promedian a cero y queda una \emph{única línea colapsada}. Curvas
+  desplazadas verticalmente para comparar.}
+  \label{fig:apx_relaxation}
+\end{figure}
+
 %======================================================================
 \section{Néel--Arrhenius y distribución de tamaños}
 
@@ -253,6 +279,19 @@ La temperatura de bloqueo aproximada para un diámetro dado se estima con
 siendo $\tau_M$ el tiempo de observación Mössbauer (por defecto se usa
 $10^{-8}$ s para el resumen de la GUI).
 
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.98\textwidth]{apx_neel}
+  \caption{Néel--Arrhenius: bloqueo por tamaño. \emph{Izquierda}: la tasa de
+  relajación $\nu(d,T)$ cae al crecer el diámetro; las partículas pequeñas relajan
+  rápido (superparamagnéticas, colapsan a singlete/doblete) y las grandes quedan
+  \emph{bloqueadas} (sexteto). Una partícula se ve bloqueada cuando $\nu$ baja de
+  la ventana de observación Mössbauer (banda gris); al bajar $T$ el bloqueo se
+  desplaza a diámetros menores. \emph{Derecha}: sobre una distribución lognormal
+  de tamaños, a $T$ fija el diámetro de bloqueo $d_B$ separa la fracción
+  superparamagnética de la bloqueada, y el espectro es la mezcla de ambas.}
+  \label{fig:apx_neel}
+\end{figure}
+
 \begin{aviso}[Identificabilidad]
 En un único espectro, $K_{\mathrm{eff}}$, $d_{50}$, $\sigma_d$, $\tau_0$, $\Gamma$
 y una posible distribución estática $P(\BHF)$ pueden estar fuertemente
@@ -263,9 +302,8 @@ correlacionados. Por eso conviene fijar parámetros con información externa
 %======================================================================
 \section{Ajuste global multi-temperatura}
 
-La fase 5 añade un backend puro para ajustar simultáneamente varios espectros a
-distintas temperaturas. Para cada espectro $r$ se tiene $T_r(v)$ y temperatura
-$T_r$. El modelo comparte los parámetros físicos
+Fitbauer puede ajustar simultáneamente varios espectros a distintas
+temperaturas. Para cada espectro $r$ se tiene $T_r(v)$ y temperatura $T_r$. El modelo comparte los parámetros físicos
 \begin{equation}
   \theta_{\mathrm{shared}}=\{\delta,\dEQ,\BHF,\Gamma,K_{\mathrm{eff}},d_{50},
   \sigma_d,\tau_0\},
@@ -301,33 +339,5 @@ En los informes, la componente \code{Relajacion} debe interpretarse como
 ``fracción bloqueada / superparamagnética aparente'', no como fases químicas
 separadas. La componente \code{BlumeTjon} se reporta como modelo dinámico de dos
 estados y \code{NeelSize} como modelo Néel--Arrhenius con distribución de tamaños.
-
-%======================================================================
-\section{Validación implementada}
-
-Se añadieron pruebas sintéticas para verificar:
-\begin{enumerate}[leftmargin=*]
-  \item \code{Relajacion} con $f_{\mathrm{bloq}}=1$ reproduce un sextete.
-  \item \code{Relajacion} con $f_{\mathrm{bloq}}=0$ reproduce un doblete escalado
-  al área del sextete.
-  \item $\log_{10}\nu$ controla los límites lento/rápido del modelo
-  fenomenológico.
-  \item \code{BlumeTjon} reproduce límites lento e intercambio rápido de forma
-  cualitativa.
-  \item La distribución lognormal de tamaños se normaliza correctamente y la tasa
-  Néel disminuye al aumentar el diámetro.
-  \item \code{NeelSize} cambia con la temperatura y el backend global recupera
-  un diámetro sintético compartido en un par de espectros.
-\end{enumerate}
-
-\begin{nota}[Alcance — v4.9.0+]
-Los tres modelos descritos en este documento (\code{Relajacion}, \code{BlumeTjon}
-y \code{NeelSize}) están completamente implementados en \code{core/physics.py}
-e integrados en la GUI. El ajuste global multi-temperatura está disponible desde
-\textbf{Ajuste → Global Néel (T)} (\code{GlobalNeelFitDialog} en
-\code{gui/dialogs.py}). Para un único espectro conviene fijar parámetros con
-información externa (TEM, magnetometría) o usar el ajuste global multi-temperatura
-para reducir la degeneración.
-\end{nota}
 
 \end{document}

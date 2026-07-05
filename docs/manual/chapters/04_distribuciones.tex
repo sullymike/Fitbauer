@@ -1,13 +1,125 @@
-\chapter{Distribuciones: simulación cristalina para empezar}
+\chapter{Distribuciones de campo hiperfino}
 \label{ch:distribuciones}
 
-No siempre el campo hiperfino es único. En óxidos desordenados, nanopartículas o
-aleaciones, el entorno de cada núcleo de Fe varía y el espectro es la
-\textbf{suma} de muchos sextetes con campos distintos. Fitbauer modela esto con
-una \emph{distribución} $P(\BHF)$ (o $P(\dEQ)$).
+Si ha llegado hasta aquí sabe reconocer y ajustar un singlete, un doblete o un
+sexteto: sabe que cada uno corresponde a un \textbf{entorno de hierro bien
+definido}, con un único desplazamiento isomérico, un único cuadrupolo y —en el
+sexteto— un único campo hiperfino. Las \emph{distribuciones} son el paso
+siguiente, y su lógica es distinta. Este capítulo empieza \textbf{por la física}:
+qué son, de dónde salen y qué significa cada parámetro. Solo después entra en los
+controles del programa.
 
-Para empezar a familiarizarse conviene ir del caso \textbf{cristalino} (un solo
-campo bien definido) al caso \textbf{distribuido} (un abanico de campos).
+\section{La física: por qué aparecen las distribuciones}
+\label{sec:fisica-dist}
+
+\subsection{Del cristal perfecto al material real}
+
+En un \textbf{cristal perfecto} todos los átomos de Fe son equivalentes: ven el
+mismo entorno, así que tienen \emph{exactamente} el mismo campo hiperfino
+$\BHF$, el mismo $\delta$ y el mismo $\dEQ$. El resultado es un sexteto (o
+doblete, o singlete) \textbf{discreto} y nítido, de líneas finas. Es el mundo de
+los capítulos anteriores.
+
+Pero la mayoría de los materiales \textbf{no son cristales perfectos}. En un vidrio
+metálico, una aleación desordenada, un óxido no estequiométrico o una
+nanopartícula, cada átomo de Fe ve un entorno \textbf{ligeramente distinto} del de
+su vecino: puede tener otro número de átomos de un cierto tipo alrededor, otra
+distancia de enlace, otra deformación local. Y como los parámetros hiperfinos
+\emph{dependen} de ese entorno, dejan de tener un único valor: se
+\textbf{reparten} en un rango.
+
+\begin{nota}
+La idea clave: en un material desordenado no hay «un» campo hiperfino, sino
+\textbf{tantos campos como entornos locales distintos hay}. El espectro deja de
+ser un sexteto y pasa a ser la \textbf{superposición de muchísimos sextetes},
+cada uno con su campo, pesados por cuántos átomos de Fe tienen ese campo.
+\end{nota}
+
+\subsection{Qué es $P(\BHF)$}
+
+Esa «cuántos átomos tienen cada campo» es precisamente la distribución. $P(\BHF)$
+es una \textbf{densidad de probabilidad}: $P(\BHF)\,d\BHF$ es la fracción de
+átomos de Fe cuyo campo hiperfino cae entre $\BHF$ y $\BHF + d\BHF$. Dicho de otro
+modo, es el \textbf{histograma de los entornos locales} vistos por el hierro.
+
+\begin{itemize}[nosep]
+  \item Un material \textbf{cristalino} tiene $P(\BHF)$ \emph{muy estrecha} (casi
+        una delta): casi todos los átomos comparten el mismo campo.
+  \item Un material \textbf{desordenado} tiene $P(\BHF)$ \emph{ancha}: los campos
+        se reparten en un intervalo amplio.
+  \item Un material con \textbf{dos poblaciones} (p.\,ej.\ dos fases, o núcleo y
+        superficie de una nanopartícula) tiene $P(\BHF)$ con \textbf{dos máximos}.
+\end{itemize}
+
+El espectro medido es entonces
+\[
+  T(v) \;=\; b \;-\; \int P(\BHF)\; S(v;\BHF)\, d\BHF,
+\]
+la suma (integral) de todos los subespectros $S(v;\BHF)$ pesados por $P(\BHF)$.
+Ajustar una distribución es \textbf{el problema inverso}: partir del espectro y
+recuperar la $P(\BHF)$ que lo generó.
+
+\begin{nota}
+Por eso una distribución \emph{no se simula} de la nada: se \textbf{infiere del
+espectro} (ajuste). Lo que sí puede simular es el \emph{espectro} que produciría
+una $P(\BHF)$ que usted \emph{suponga} —útil para desarrollar intuición
+(§\ref{sec:sim-cristalina})—. El desarrollo matemático del problema inverso está
+en el anexo~\ref{ap:mates}.
+\end{nota}
+
+\subsection{Distribución no es lo mismo que línea ancha}
+
+Este punto confunde a menudo y conviene fijarlo. Hay \textbf{dos maneras} de que
+las líneas de un espectro salgan anchas, y significan cosas físicas distintas:
+
+\begin{itemize}[nosep]
+  \item \textbf{Anchura de línea $\Gamma$}: es el ensanchamiento \emph{intrínseco}
+        de \emph{un} entorno (vida media del estado, efectos instrumentales).
+        Ensancha \textbf{todas} las líneas por igual y de forma simétrica, sin
+        cambiar sus posiciones.
+  \item \textbf{Anchura de la distribución}: es el \emph{abanico de entornos}
+        distintos. Como la posición de las líneas del sexteto escala con el campo
+        (§\ref{sec:modelo-mates}), una dispersión de campos ensancha
+        \textbf{más las líneas externas que las internas}, y puede producir
+        formas \textbf{asimétricas}.
+\end{itemize}
+
+\begin{aviso}
+No intente «tapar» una distribución subiendo $\Gamma$. Un sexteto único con
+$\Gamma$ grande y una verdadera $P(\BHF)$ ancha \textbf{no} dan el mismo espectro:
+la distribución ensancha las líneas externas más que las internas y puede ser
+asimétrica, cosa que $\Gamma$ no reproduce. Si al ajustar de forma discreta las
+anchuras salen «infladas» y las líneas externas peor ajustadas que las internas,
+es señal de que hay una distribución.
+\end{aviso}
+
+\subsection{Qué le dice cada rasgo de la distribución}
+
+Una vez obtenida $P(\BHF)$, su \textbf{forma} es información física:
+
+\begin{center}
+\begin{tabular}{@{}lp{0.62\textwidth}@{}}
+\toprule
+\textbf{Rasgo de $P(\BHF)$} & \textbf{Qué implica físicamente} \\
+\midrule
+\textbf{Posición} (media / máximo) & El campo \emph{típico}: refleja el entorno
+medio (composición, coordinación, estado magnético medio). \\[3pt]
+\textbf{Anchura} & El \textbf{grado de desorden}: cuanto más ancha, más varían los
+entornos (más dispersión química o estructural). \\[3pt]
+\textbf{Asimetría} (cola) & Un gradiente de entornos: p.\,ej.\ una minoría de
+átomos con muchos vecinos de otro tipo genera una cola hacia campos altos o bajos. \\[3pt]
+\textbf{Varios máximos} & \textbf{Subpoblaciones} distintas: dos fases, dos sitios
+cristalográficos, núcleo/superficie de nanopartícula, etc. \\[3pt]
+\textbf{Peso en $\BHF\!\approx\!0$} & Fracción \textbf{no magnética / relajante}
+(paramagnética o superparamagnética a esa temperatura). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El mismo razonamiento vale para $P(\dEQ)$ (dispersión de gradientes de campo
+eléctrico en materiales paramagnéticos) y $P(\mathrm{IS})$ (dispersión de
+densidades electrónicas / estados de oxidación), tratadas en el
+anexo~\ref{ap:dist-is}.
 
 \section{Idea: de un sexteto a una distribución}
 
@@ -30,10 +142,11 @@ Observe en la figura cómo un $P(\BHF)$ estrecho produce un sexteto de líneas
 finas (comportamiento cristalino), mientras que uno ancho da un espectro con
 líneas ensanchadas y solapadas.
 
-\section{Simular una distribución cristalina}
+\section{Simular el espectro de un caso cristalino}
 \label{sec:sim-cristalina}
 
-El caso cristalino es el punto de partida natural. En modo distribución:
+El caso cristalino (un campo bien definido) es el punto de partida natural para
+entender el modelo. En modo distribución:
 
 \begin{enumerate}[nosep]
   \item Active el \textbf{modo distribución} y elija la variable ($P(\BHF)$ o
@@ -41,20 +154,177 @@ El caso cristalino es el punto de partida natural. En modo distribución:
   \item Fije el rango de la malla ($\BHF$ mínimo y máximo) y el número de bins.
   \item Fije los parámetros compartidos del kernel: $\delta$, $\dEQ$ y la anchura
         $\Gamma$ de línea.
-  \item Para simular un material cristalino, concentre la probabilidad en un
-        único campo (una forma estrecha centrada en el valor esperado).
+  \item Suponga una distribución \emph{estrecha} centrada en el campo esperado
+        (casi una delta): el espectro simulado tenderá al de un material
+        cristalino, con líneas finas.
 \end{enumerate}
 
-El gráfico muestra a la vez la \textbf{distribución} $P(\BHF)$ y el
-\textbf{espectro} resultante, de modo que se ve el efecto de estrechar o
-ensanchar la distribución.
+El gráfico muestra a la vez la \textbf{distribución} $P(\BHF)$ supuesta y el
+\textbf{espectro} que produce, de modo que se ve el efecto de estrechar o
+ensanchar la distribución. Sobre datos reales, en cambio, se \textbf{ajusta}
+$P(\BHF)$ (siguientes secciones).
 
 \guicap{gui_distribution_panel}{Panel de distribución: variable, forma,
 regularizador, rango de la malla y número de bins.}
 
-\section{Formas de la distribución}
+\section{El panel de distribución, control a control}
+\label{sec:panel-dist}
 
-Fitbauer ofrece varias \textbf{formas} (\menu{Forma:}) para el $P(\BHF)$:
+El panel de distribución reúne bastantes controles. Aquí se explica \textbf{cada
+uno}: qué es, para qué sirve, qué valores son razonables y cuándo conviene
+tocarlo. Muchos se \textbf{ocultan o deshabilitan} según la forma elegida (por
+ejemplo, el regularizador solo aparece con Histograma), así que no se asuste si no
+ve todos a la vez.
+
+\begin{nota}
+Idea de fondo: el ajuste de distribución construye \textbf{muchos subespectros}
+(sextetes o dobletes), uno por cada valor de la variable en una malla, y busca
+\textbf{qué peso} $P_j\ge 0$ tiene cada uno para reproducir el espectro. Los
+parámetros del panel controlan (a) \emph{qué} se distribuye, (b) \emph{cómo} es
+cada subespectro, (c) la \emph{malla} de valores y (d) la \emph{regularización}.
+\end{nota}
+
+\subsection{Qué se distribuye: la variable}
+\label{sec:dist-variable}
+
+Lo primero es decidir \textbf{qué magnitud} varía de un entorno a otro. Se elige
+en el selector de modo:
+
+\begin{center}
+\begin{tabular}{@{}lp{0.66\textwidth}@{}}
+\toprule
+\textbf{Modo} & \textbf{Qué distribuye} \\
+\midrule
+$P(\BHF)$ & El \textbf{campo hiperfino} (materiales magnéticos: cada entorno
+tiene su campo). Es el caso más común. \\[3pt]
+$P(\dEQ)$ & El \textbf{desdoblamiento cuadrupolar} (materiales paramagnéticos:
+distribución de gradientes de campo eléctrico, con dobletes en vez de sextetes). \\[3pt]
+$P(\text{IS})$ & El \textbf{desplazamiento isomérico}. \\[3pt]
+\textbf{2D} & Distribución conjunta de dos variables a la vez, p.\,ej.\
+$P(\BHF,\dEQ)$ (§\ref{sec:dist-2d}). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La variable distribuida es la que barre la malla; las \emph{demás} magnitudes se
+fijan como parámetros globales del núcleo (siguiente apartado).
+
+\subsection{Forma y regularizador}
+
+\begin{itemize}[nosep]
+  \item \menu{Forma}: la familia de $P$ que se ajusta —Histograma, Gaussiana,
+        VBF, Binomial, Fija o 2D— (§\ref{sec:formas-dist} las detalla). Es la
+        decisión que más condiciona el resto de controles.
+  \item \menu{Regularizador}: solo con \textbf{Histograma}. Elige cómo se penaliza
+        la falta de suavidad —\emph{tikhonov}, \emph{tv} o \emph{maxent}—
+        (§\ref{sec:regularizacion}).
+  \item \menu{Componentes VBF}: solo con \textbf{VBF}. Número de gaussianas (1--6)
+        que suman la distribución. Empiece por 1--2 y añada solo si el ajuste lo
+        pide.
+\end{itemize}
+
+\subsection{Parámetros del núcleo (cada subespectro)}
+\label{sec:panel-kernel}
+
+Cada subespectro de la malla comparte estos parámetros «de línea». Son los que
+definen \emph{cómo} es un sexteto/doblete individual antes de repartir los pesos:
+
+\begin{center}
+\begin{tabular}{@{}lp{0.50\textwidth}ll@{}}
+\toprule
+\textbf{Control} & \textbf{Función} & \textbf{Típico} & \textbf{Rango} \\
+\midrule
+$\delta$ & Desplazamiento isomérico común a todos los subespectros (mueve el
+patrón). Fíjelo al $\delta$ de su fase o déjelo libre. & $0$ & $-2{,}5\ldots2{,}5$ \\[4pt]
+$\dEQ$ & Cuadrupolo global (en modo $P(\BHF)$). Se \textbf{deshabilita} si es la
+variable distribuida. & $0$ & $-4\ldots4$ \\[4pt]
+BHF fijo & Campo fijo usado cuando se distribuye $\dEQ$ o IS (no se usa en modo
+$P(\BHF)$). & $33$ & $0\ldots60$ \\[4pt]
+$\Gamma$ & \textbf{Anchura} de línea de cada subespectro. \emph{Clave}: controla
+la resolución (véase el aviso). & $0{,}30$ & $0{,}06\ldots2{,}0$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{aviso}
+La anchura $\Gamma$ y el número de bins están \textbf{acoplados} con la
+regularización. Si pone $\Gamma$ muy pequeña, cada subespectro es muy estrecho y
+el histograma tiende a «picos» y a seguir el ruido; si la pone grande, la
+distribución se ve más lisa pero pierde detalle. Un valor físico razonable
+($\Gamma \approx 0{,}25$--$0{,}35$~mm/s para $^{57}$Fe) y una $\alpha$ elegida con
+la L-curve dan el mejor compromiso.
+\end{aviso}
+
+\subsection{Correlación con el campo: $\kappa_\delta$ y $\kappa_q$}
+
+Dos pendientes opcionales que acoplan $\delta$ y $\dEQ$ al valor del campo
+(§\ref{sec:correlacion}). Por defecto valen \textbf{0} (sin correlación) y están
+\textbf{fijas}; para refinarlas, desmarque su candado. Solo aplican a Histograma y
+VBF.
+
+\subsection{La malla de valores}
+
+Define sobre qué valores de la variable se reparte la probabilidad:
+
+\begin{center}
+\begin{tabular}{@{}lp{0.58\textwidth}ll@{}}
+\toprule
+\textbf{Control} & \textbf{Función} & \textbf{Típico} & \textbf{Rango} \\
+\midrule
+mín & Extremo \textbf{inferior} de la malla. & $0$ & $0\ldots60$ \\[3pt]
+máx & Extremo \textbf{superior}. Ajústelo al rango donde \emph{espera} campos
+(p.\,ej.\ $0$--$55$~T). & $50$ & $0\ldots60$ \\[3pt]
+bins & \textbf{Número de puntos} de la malla. Más bins = más resolución pero
+problema más mal condicionado (más regularización necesaria). & $50$ & $10\ldots200$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{truco}
+Elija el \textbf{rango} lo más ceñido posible a donde hay señal: una malla que se
+extiende por zonas vacías «gasta» bins y puede introducir estructura falsa en los
+bordes. Con $40$--$80$ bins suele bastar; suba solo si necesita separar detalles
+finos.
+\end{truco}
+
+\subsection{La regularización: $\log\alpha$ y atajos}
+
+Solo para Histograma (y 2D):
+
+\begin{itemize}[nosep]
+  \item \menu{log$_{10}\alpha$}: fuerza de la regularización
+        (§\ref{sec:regularizacion}). $\alpha$ es adimensional: $\log\alpha
+        \approx 0$ es el equilibrio natural. Menos $\alpha$ $\to$ más detalle y
+        más ruido; más $\alpha$ $\to$ más suave.
+  \item Botones \boton{Fina} / \boton{Media} / \boton{Suave}: atajos que fijan
+        $\log\alpha$ a valores progresivamente mayores (de más detalle a más
+        suavidad), para tantear rápido.
+  \item \boton{L-curve $\alpha$}: abre el diálogo que \textbf{elige $\alpha$ con
+        criterio} (§\ref{sec:lcurve}). Es la vía recomendada.
+\end{itemize}
+
+\subsection{Controles de la 2D}
+
+Aparecen solo con forma \textbf{2D}: \menu{mín/máx/bins del segundo eje} (p.\,ej.\
+$\dEQ$) y \menu{log$_{10}\alpha$ del segundo eje}, análogos a los de la primera
+variable pero para el eje $Y$. El botón \boton{Ver mapa 2D} abre el mapa
+(§\ref{sec:dist-2d}).
+
+\subsection{Otros}
+
+\begin{itemize}[nosep]
+  \item \menu{Añadir componentes nítidas activas}: ajusta a la vez la distribución
+        y los componentes discretos activos (§\ref{sec:nitidos}).
+  \item \menu{Cargar P fija…}: solo con forma \textbf{Fija}; lee una $P$ de
+        fichero (dos columnas: valor y peso).
+\end{itemize}
+
+\section{Formas de la distribución}
+\label{sec:formas-dist}
+
+Fitbauer ofrece varias \textbf{formas} (\menu{Forma:}) para el $P(\BHF)$. Unas
+son \emph{no paramétricas} (dejan libre el peso de cada bin) y otras
+\emph{paramétricas} (imponen una función con pocos parámetros):
 
 \begin{center}
 \begin{tabular}{@{}lp{0.62\textwidth}@{}}
@@ -62,51 +332,394 @@ Fitbauer ofrece varias \textbf{formas} (\menu{Forma:}) para el $P(\BHF)$:
 \textbf{Forma} & \textbf{Descripción} \\
 \midrule
 \textbf{Histograma} & Inversión de Hesse--Rübartsch: pesos libres por bin con
-regularización. La más general. \\[3pt]
-\textbf{Gaussiana} & Una única gaussiana en $\BHF$. \\[3pt]
+regularización. La más general y flexible; necesita elegir $\alpha$. \\[3pt]
+\textbf{Gaussiana} & Una única gaussiana en $\BHF$ (media y anchura). Rígida pero
+muy estable. \\[3pt]
 \textbf{VBF} & Suma de varias gaussianas (Voigt-Based Fitting, Rancourt--Ping);
-guarda $A_k, \mu_k, \sigma_k$ por componente. \\[3pt]
-\textbf{Binomial} & Distribución binomial (modelos de vecinos). \\[3pt]
-\textbf{Fija} & Distribución impuesta por el usuario. \\[3pt]
-\textbf{2D} & Distribución conjunta $P(\BHF, \dEQ)$. \\
+guarda $A_k, \mu_k, \sigma_k$ por componente (§\ref{sec:vbf-areas}). \\[3pt]
+\textbf{Binomial} & Distribución binomial (modelos de entornos de vecinos, p.\,ej.\
+aleaciones). \\[3pt]
+\textbf{Fija} & Distribución impuesta por el usuario (leída de fichero). \\[3pt]
+\textbf{2D} & Distribución conjunta $P(\BHF, \dEQ)$ (§\ref{sec:dist-2d}). \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\begin{nota}
-En modo \textbf{VBF} con más de una gaussiana, Fitbauer informa del \textbf{área}
-de cada componente y su \textbf{porcentaje relativo} ($A_k/\sum A$), que
-representa la población de cada entorno. El área aparece en el panel de estado
-(claves \ruta{vbf$k$\_area}, \ruta{vbf$k$\_area\%}) y en los informes.
-\end{nota}
+\begin{truco}
+Elija \textbf{Gaussiana} o \textbf{VBF} cuando espere uno o pocos entornos bien
+definidos (dan parámetros con significado directo); reserve el \textbf{Histograma}
+para formas complejas o desconocidas, donde no quiera imponer una función.
+\end{truco}
 
-\section{Componentes nítidos junto a la distribución}
+A continuación se detalla cada forma: qué modelo ajusta, qué controles usa y
+cuándo elegirla.
 
-Es habitual que una muestra combine una \textbf{fase cristalina} (un sexteto
-nítido) con una \textbf{fase distribuida}. Fitbauer permite ajustar
-simultáneamente uno o varios \textbf{componentes nítidos} y la distribución. En
-ese caso el gráfico dibuja cada nítido por separado, la envolvente de la
-distribución y el modelo total.
+\subsection{Histograma (Hesse--Rübartsch)}
+\label{sec:forma-histograma}
 
-\section{Regularización y L-curve}
-
-Al ajustar un \textbf{Histograma} a datos reales, el problema es mal
-condicionado: hay que \textbf{regularizar} para evitar oscilaciones espurias.
-Fitbauer usa un parámetro $\alpha$ (adimensional) que equilibra fidelidad a los
-datos y suavidad de la distribución:
+Es la forma \textbf{no paramétrica} y la más general. No impone ninguna función:
+trata el peso de \emph{cada bin} como una incógnita independiente. El espectro se
+escribe como combinación lineal de los subespectros de la malla,
+\[
+  T(v) \;=\; b + s\,v \;-\; \sum_{j=1}^{N_{\text{bins}}} P_j\, S_j(v),
+  \qquad P_j \ge 0,
+\]
+y ajustar significa \textbf{resolver los pesos} $\{P_j\}$ que mejor reproducen los
+datos. Es un problema lineal con no-negatividad, pero \textbf{mal condicionado}
+(muchos $\{P_j\}$ dan casi el mismo espectro), de ahí la necesidad de
+\textbf{regularizar} (§\ref{sec:regularizacion}). El método se remonta a Hesse y
+Rübartsch (1974).
 
 \begin{itemize}[nosep]
-  \item Regularizadores: \textbf{Tikhonov} (suave), \textbf{TV} (bordes) y
-        \textbf{MaxEnt} (máxima entropía).
-  \item El valor $\log\alpha \approx 0$ es el equilibrio natural; valores típicos
-        entre $-1$ y $+2$.
-  \item \menu{Ajuste} dispone de un barrido de \textbf{L-curve} con detección
-        automática del codo para elegir $\alpha$.
+  \item \textbf{Usa}: malla (mín/máx/bins), núcleo ($\delta$, $\dEQ$/BHF fijo,
+        $\Gamma$), \textbf{regularizador} y $\log\alpha$, correlaciones
+        $\kappa_\delta/\kappa_q$.
+  \item \textbf{Cuándo}: cuando la forma de $P$ es \emph{desconocida} o compleja
+        (varios entornos, colas asimétricas) y no quiere imponer una función.
+  \item \textbf{Precio}: hay que elegir bien $\alpha$ (use la L-curve,
+        §\ref{sec:lcurve}); es la única forma que la necesita.
 \end{itemize}
 
+\subsection{Gaussiana}
+\label{sec:forma-gaussiana}
+
+Forma \textbf{paramétrica} mínima: $P$ es \emph{una única gaussiana} sobre la
+malla. Ajusta su \textbf{media} $\mu$ (el campo central) y su \textbf{anchura}
+$\sigma$ (más la amplitud y la línea base). Solo dos parámetros de forma, así que
+es \textbf{muy estable} y no sufre mal condicionamiento: no usa regularizador ni
+$\alpha$.
+
+\begin{itemize}[nosep]
+  \item \textbf{Cuándo}: hay \emph{un} entorno ensanchado (una fase con dispersión
+        de campos aproximadamente simétrica), o como \textbf{primera
+        aproximación} rápida antes de complicar el modelo.
+  \item \textbf{Da}: $\mu$ y $\sigma$ con significado físico directo.
+\end{itemize}
+
+\subsection{VBF (Voigt-Based Fitting, Rancourt--Ping)}
+\label{sec:forma-vbf}
+
+Generaliza la Gaussiana a una \textbf{suma de $N$ gaussianas}
+(\menu{Componentes VBF}, $N=1\ldots6$). Cada componente $k$ tiene amplitud $A_k$,
+media $\mu_k$ y anchura $\sigma_k$, todas ajustables:
+\[
+  P(\BHF) \;=\; \sum_{k=1}^{N} A_k \,
+  \mathcal{N}(\BHF;\,\mu_k,\sigma_k).
+\]
+Es el método de Rancourt y Ping (1991). Su gran ventaja frente al Histograma:
+entrega \textbf{parámetros con significado} por subpoblación (posición, anchura y
+\textbf{área}, §\ref{sec:vbf-areas}) en vez de un perfil sin estructura, y es más
+estable (pocos parámetros, sin regularización).
+
+\begin{itemize}[nosep]
+  \item \textbf{Cuándo}: espera \textbf{2--3 subpoblaciones} magnéticas bien
+        definidas y quiere cuantificar su \emph{proporción}.
+  \item \textbf{Consejo}: empiece con $N=1$--$2$ y suba solo si el residuo lo pide;
+        más gaussianas de las necesarias se solapan y quedan mal definidas.
+  \item \textbf{Admite}: correlaciones $\kappa_\delta/\kappa_q$.
+\end{itemize}
+
+\subsection{Binomial}
+\label{sec:forma-binomial}
+
+Forma \textbf{paramétrica} con una sola incógnita de forma: $P$ sigue una
+\textbf{distribución binomial} $B(n,p)$ sobre la malla (con $n = N_{\text{bins}}-1$),
+y se ajusta la \textbf{probabilidad} $p\in(0,1)$ (la media cae en $p\,n$).
+
+Su motivación es física: en una \textbf{aleación}, el campo hiperfino de un átomo
+de Fe depende de \textbf{cuántos átomos de soluto} tiene en sus capas de vecinos.
+Si el soluto se distribuye al azar, ese número sigue una binomial, y por tanto la
+distribución de campos también. El parámetro $p$ se relaciona con la
+\textbf{concentración} de soluto.
+
+\begin{itemize}[nosep]
+  \item \textbf{Cuándo}: sistemas de \emph{vecinos} (aleaciones diluidas) donde
+        cada configuración de vecinos da un campo discreto.
+\end{itemize}
+
+\subsection{Fija}
+\label{sec:forma-fija}
+
+Usa una distribución $P$ \textbf{que usted proporciona} en un fichero de dos
+columnas (valor y peso), cargado con \menu{Cargar P fija…}. La forma \emph{no} se
+ajusta (solo amplitud y línea base): sirve para \textbf{reutilizar} una $P$
+conocida —de un ajuste anterior, de la literatura o teórica— y comparar o simular
+con ella sobre distintos espectros.
+
+\subsection{2D: dos variables a la vez}
+\label{sec:forma-2d}
+
+Distribuye \textbf{dos} magnitudes conjuntamente (p.\,ej.\ $P(\BHF,\dEQ)$) sobre
+una malla bidimensional. Es el caso más general y más costoso; se trata aparte en
+§\ref{sec:dist-2d}.
+
+\subsection{Áreas de cada gaussiana (VBF)}
+\label{sec:vbf-areas}
+
+En modo \textbf{VBF} con más de una gaussiana, cada componente aporta un área
+$A_k$ (su integral en la malla, porque el núcleo gaussiano está normalizado a
+área unidad). Fitbauer informa de ese \textbf{área} y de su \textbf{porcentaje
+relativo} $A_k/\sum_j A_j$, que representa la \textbf{población de cada entorno}:
+
+\begin{itemize}[nosep]
+  \item En el \textbf{panel de estado}: claves \ruta{vbf$k$\_area},
+        \ruta{vbf$k$\_area\%} y \ruta{vbf$k$\_mu} por componente.
+  \item En el \textbf{resumen del ajuste} y en los \textbf{informes} (tabla con
+        $A$, área \%, $\mu$ y $\sigma$).
+\end{itemize}
+
+Esto convierte al VBF en una vía cómoda para cuantificar la proporción de dos o
+más subpoblaciones magnéticas sin recurrir a un histograma.
+
+\section{Regularización del histograma}
+\label{sec:regularizacion}
+
+Ajustar un \textbf{Histograma} a datos reales es un problema \emph{mal
+condicionado}: muchos $P(\BHF)$ distintos reproducen casi igual de bien el
+espectro, y sin control aparecen oscilaciones espurias. La solución es
+\textbf{regularizar}: añadir al ajuste un término que penaliza las soluciones
+poco suaves, controlado por un parámetro $\alpha$.
+
+\subsection{Regularizadores}
+
+\begin{center}
+\begin{tabular}{@{}lp{0.6\textwidth}@{}}
+\toprule
+\textbf{Regularizador} & \textbf{Efecto / cuándo usarlo} \\
+\midrule
+\textbf{Tikhonov} & Penaliza la curvatura (segunda diferencia): soluciones
+\emph{suaves}. Opción por defecto, adecuada para distribuciones anchas y
+redondeadas. \\[4pt]
+\textbf{TV} (variación total) & Penaliza la variación total: preserva
+\emph{bordes} y escalones; útil si sospecha poblaciones bien separadas. \\[4pt]
+\textbf{MaxEnt} (máxima entropía) & Busca la distribución más «uniforme»
+compatible con los datos (L-BFGS-B con gradiente analítico); evita introducir
+estructura no justificada. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{El parámetro $\alpha$}
+
+$\alpha$ equilibra \textbf{fidelidad a los datos} (poco $\alpha$ $\to$ sigue el
+ruido, distribución rugosa) frente a \textbf{suavidad} (mucho $\alpha$ $\to$
+distribución lisa pero que ajusta peor). En Fitbauer $\alpha$ es
+\textbf{adimensional}: $\log_{10}\alpha \approx 0$ es el equilibrio natural para
+cualquier espectro, y los valores útiles suelen caer entre $-1$ y $+2$.
+
+\begin{aviso}
+$\alpha$ es la elección más delicada del ajuste por histograma. No lo deje al
+azar: use la \textbf{L-curve} (§\ref{sec:lcurve}) para elegirlo con criterio.
+\end{aviso}
+
+\section{La L-curve: elegir $\alpha$ con criterio}
+\label{sec:lcurve}
+
+Elegir $\alpha$ «a ojo» es arriesgado: un valor demasiado bajo mete ruido en la
+distribución y otro demasiado alto la aplana y esconde estructura real. La
+\textbf{L-curve} da un criterio objetivo. Es la herramienta más importante del
+ajuste por histograma.
+
+\subsection{Qué es y por qué tiene forma de L}
+
+Para cada $\alpha$ del barrido, el ajuste produce una distribución $P_\alpha$, y de
+ella se miden \textbf{dos cantidades} enfrentadas:
+
+\begin{itemize}[nosep]
+  \item \textbf{Desajuste} (residuo) $\lVert K P_\alpha - y\rVert$: cuánto se
+        aparta el modelo de los datos. Queremos que sea \emph{pequeño}.
+  \item \textbf{Rugosidad} $\lVert L\,P_\alpha\rVert$: cuánto «tiembla» la
+        distribución (la norma del operador de suavidad $L$). También queremos
+        que sea \emph{pequeña}.
+\end{itemize}
+
+No se pueden minimizar las dos a la vez: bajar $\alpha$ mejora el ajuste pero
+ensucia la distribución, y subirlo hace lo contrario. Si se dibuja
+\textbf{rugosidad frente a desajuste} en escala log-log al variar $\alpha$, sale
+una curva con forma de \textbf{L}:
+
+\begin{itemize}[nosep]
+  \item \textbf{Rama vertical} ($\alpha$ pequeño, \emph{sub-regularizado}):
+        seguir bajando $\alpha$ apenas mejora el ajuste, pero la rugosidad se
+        \textbf{dispara} —la solución empieza a ajustar el ruido.
+  \item \textbf{Rama horizontal} ($\alpha$ grande, \emph{sobre-regularizado}):
+        la distribución ya es lisa; subir más $\alpha$ apenas la suaviza, pero el
+        ajuste \textbf{empeora} —se pierde estructura real.
+  \item \textbf{La esquina}: el punto donde la curva gira. Es el
+        \textbf{mejor compromiso}: la $\alpha$ más pequeña posible que todavía
+        mantiene la distribución razonablemente suave.
+\end{itemize}
+
+Formalmente, la esquina es el punto de \textbf{máxima curvatura} de la L
+(criterio de Hansen). Fitbauer la detecta automáticamente (curvatura de Menger
+sobre tríos de puntos) y la marca en \textcolor{fbgreen}{verde} como
+\emph{sugerencia}.
+
+\subsection{El diálogo, panel a panel}
+
+\begin{itemize}[nosep]
+  \item \textbf{Izquierda — la L}: rugosidad frente a desajuste (log-log), con
+        cada punto etiquetado por su $\log\alpha$. La esquina automática en verde
+        y el punto \textbf{elegido} en \textcolor{fbred}{naranja}.
+  \item \textbf{Derecha — $\alpha$ vs RMS}: el error de ajuste (RMS) frente a
+        $\alpha$; ayuda a ver dónde el ajuste empieza a degradarse.
+\end{itemize}
+
+Ambas figuras están \textbf{acopladas}: al hacer zoom en una, la otra se limita al
+mismo rango de $\alpha$. La barra de herramientas permite ampliar la zona de la
+esquina.
+
+\guicap{gui_lcurve}{Diálogo de la L-curve: a la izquierda la curva
+rugosidad$\leftrightarrow$desajuste con la esquina automática (verde) y el punto
+elegido (naranja); a la derecha $\alpha$ frente a RMS. Un clic elige $\alpha$.}
+
+\subsection{Elegir $\alpha$: automático o a mano}
+
+La detección automática de la esquina \textbf{no siempre acierta} (curvas ruidosas,
+esquinas poco marcadas), así que el diálogo es \textbf{interactivo}:
+
+\begin{itemize}[nosep]
+  \item \textbf{Haga clic} sobre cualquiera de las dos figuras para \textbf{elegir}
+        el $\alpha$ escaneado más cercano al clic; el punto se resalta en ambas.
+  \item El botón \boton{Usar $\alpha$=…} aplica el valor \emph{elegido} (arranca en
+        la sugerencia automática) al ajuste y cierra el diálogo.
+\end{itemize}
+
+\subsection{Cómo interpretarla en la práctica}
+
+\begin{enumerate}[nosep]
+  \item Acepte la \textbf{esquina automática} como primera aproximación y observe
+        la $P(\BHF)$ resultante.
+  \item Si la ve \textbf{demasiado rugosa} (picos que parecen ruido), suba un poco
+        $\alpha$ (pinche un punto a la derecha en la L). Si la ve
+        \textbf{demasiado lavada} (ha perdido detalle que el residuo delataba),
+        baje $\alpha$ (un punto a la izquierda).
+  \item Compruebe la \textbf{estabilidad}: la solución correcta cambia \emph{poco}
+        al mover $\alpha$ un paso arriba o abajo. Si cambia mucho, está en una
+        rama, no en la esquina.
+\end{enumerate}
+
+\begin{aviso}
+A veces \textbf{no hay una esquina clara} (la L es redondeada). Suele significar
+que los datos no exigen mucha estructura: elija una $\alpha$ de la zona de
+transición y valídela por la estabilidad de $P(\BHF)$ y por el $\chi^2_r$ del
+ajuste, no por la esquina. Y recuerde: la L-curve solo aplica al \textbf{Histograma}
+(las formas paramétricas no usan $\alpha$).
+\end{aviso}
+
+\section{Correlación $\delta(H)$ y $\dEQ(H)$}
+\label{sec:correlacion}
+
+Hasta aquí hemos supuesto que $\delta$ y $\dEQ$ son \textbf{iguales para todos}
+los subespectros de la distribución, y solo variaba el campo. Pero físicamente eso
+no siempre es cierto: el desorden que dispersa el campo suele dispersar
+\emph{también} $\delta$ y $\dEQ$, y de forma \textbf{correlacionada}. Por ejemplo,
+un átomo de Fe con más vecinos de un cierto tipo tiene a la vez un campo distinto
+\emph{y} una densidad electrónica distinta (otro $\delta$): las dos magnitudes se
+mueven juntas.
+
+Fitbauer captura esa correlación con dos \textbf{pendientes} (\emph{opt-in}, cero =
+comportamiento clásico sin correlación):
+
+\begin{itemize}[nosep]
+  \item $\kappa_\delta = d\delta/dH$: hace que $\delta(H) = \delta_0 +
+        \kappa_\delta\,(H-H_{\text{ref}})$, es decir, el desplazamiento isomérico
+        \emph{varía linealmente} con el campo del subespectro.
+  \item $\kappa_q = d\dEQ/dH$: lo mismo para el cuadrupolo.
+\end{itemize}
+
+\textbf{Qué implica.} Con $\kappa_\delta \neq 0$, los subespectros de campo alto
+usan un $\delta$ distinto que los de campo bajo, de modo que la distribución ya no
+solo «abre» las líneas sino que las \emph{desplaza} de forma dependiente del
+campo. Es la manera de modelar, con \emph{un} solo parámetro extra, que el entorno
+químico y el magnético cambian a la par. Si su material lo requiere, verá que el
+residuo mejora al liberar $\kappa_\delta$/$\kappa_q$ (desmarcando su candado).
+
+Aplican a las formas \textbf{Histograma} y \textbf{VBF}. Los valores ajustados de
+$\kappa_\delta$ y $\kappa_q$ se muestran en el panel de estado y en los informes.
+
 \begin{truco}
-Empiece siempre por una \textbf{simulación cristalina}
-(§\ref{sec:sim-cristalina}) para entender la escala de campos y anchuras de su
-muestra; solo después pase al ajuste con Histograma y regularización sobre los
-datos reales.
+Empiece siempre con $\kappa=0$. Actívelos solo si, tras un buen ajuste sin
+correlación, el residuo muestra un patrón sistemático que sugiere que $\delta$ o
+$\dEQ$ dependen del campo. Un $\kappa$ mal usado puede compensar artificialmente
+otros defectos del modelo.
+\end{truco}
+
+\section{Distribuciones 2D: $P(\BHF, \dEQ)$}
+\label{sec:dist-2d}
+
+Cuando campo y cuadrupolo varían de forma \textbf{no correlacionable con una
+recta} (es decir, cuando $\kappa_\delta/\kappa_q$ no bastan), la forma \textbf{2D}
+ajusta una densidad conjunta $P(\BHF, \dEQ)$ sobre una malla bidimensional. Cada
+eje tiene sus propios controles:
+
+\begin{itemize}[nosep]
+  \item Eje $X$ (p.\,ej.\ $\BHF$): \menu{mín/máx/bins} y \menu{log$_{10}\alpha$}
+        habituales.
+  \item Eje $Y$ (p.\,ej.\ $\dEQ$): \menu{mín/máx/bins del segundo eje} y su propio
+        \menu{log$_{10}\alpha$}, que se \textbf{regulariza por separado}.
+\end{itemize}
+
+El resultado se muestra como un \textbf{mapa} (\emph{heatmap} con contornos)
+—accesible con \boton{Ver mapa 2D}— además de las distribuciones marginales de
+cada variable. El desarrollo matemático del caso bidimensional está en el
+anexo~\ref{ap:dist-2d}.
+
+\begin{aviso}
+El 2D tiene \textbf{muchos más incógnitas} (una por celda de la malla) que el 1D,
+así que es más costoso y más difícil de regularizar. Empiece con \textbf{pocos
+bins} en cada eje (p.\,ej.\ $15\times15$) para tantear, compruebe que el mapa es
+estable, y solo entonces afine la malla. Dos $\alpha$ demasiado bajos producen un
+mapa lleno de picos falsos.
+\end{aviso}
+
+\section{Componentes nítidos junto a la distribución}
+\label{sec:nitidos}
+
+Es habitual que una muestra combine una \textbf{fase cristalina} (un sexteto
+nítido) con una \textbf{fase distribuida}. Con \menu{P(BHF): sumar componentes
+activos nítidos} se ajustan \textbf{simultáneamente} uno o varios componentes
+discretos y la distribución. El gráfico dibuja entonces cada nítido por separado,
+la \textbf{envolvente} de la distribución y el modelo total, de modo que se ve la
+contribución de cada fase.
+
+\section{Paso a paso: ajustar una \texorpdfstring{$P(\BHF)$}{P(BHF)} desde cero}
+\label{sec:paso-a-paso}
+
+Si es la primera vez, siga esta receta. Cada paso remite a la sección que lo
+explica en detalle.
+
+\begin{enumerate}[nosep]
+  \item \textbf{Cargue y calibre.} Abra el espectro y asegúrese de tener una
+        calibración fijada (capítulo~\ref{ch:calibracion}); sin la escala de
+        velocidad correcta, los campos saldrán sesgados.
+  \item \textbf{Entre en modo distribución} y elija la \textbf{variable}
+        $P(\BHF)$ (§\ref{sec:dist-variable}).
+  \item \textbf{Tantee con una forma sencilla.} Empiece con \menu{Gaussiana} (o
+        \menu{VBF} con 1--2 componentes): son estables y le dan una idea rápida de
+        dónde está el campo y cuánto de ancho es. Fije $\delta$ al de su fase y una
+        $\Gamma \approx 0{,}30$~mm/s (§\ref{sec:panel-kernel}).
+  \item \textbf{Ajuste el rango de la malla} (mín/máx) para que cubra donde hay
+        campo, sin sobrar (§\ref{sec:panel-dist}); use $\sim 50$ bins.
+  \item \textbf{Lance el ajuste} (\menu{Ajuste > Ajustar}). Mire la $P(\BHF)$ y el
+        residuo: ¿reproduce las líneas?
+  \item \textbf{¿Forma compleja?} Si una o pocas gaussianas no bastan, pase a
+        \menu{Histograma} (§\ref{sec:formas-dist}), que no impone una función.
+  \item \textbf{Elija $\alpha$ con la L-curve} (§\ref{sec:lcurve}): no lo deje por
+        defecto. Acepte la esquina o pinche un punto y compare la $P(\BHF)$.
+  \item \textbf{Afine el modelo} si procede: active \textbf{componentes nítidos}
+        para una fase cristalina superpuesta (§\ref{sec:nitidos}), o las
+        pendientes $\kappa_\delta/\kappa_q$ si $\delta$/$\dEQ$ dependen del campo
+        (§\ref{sec:correlacion}).
+  \item \textbf{Documente.} Con VBF, anote las \textbf{áreas} de cada gaussiana
+        (proporción de fases, §\ref{sec:vbf-areas}). Guarde la \textbf{sesión} y
+        exporte el \textbf{informe} con la tabla de la distribución.
+\end{enumerate}
+
+\begin{truco}
+Regla de oro: vaya \textbf{de lo simple a lo complejo}. Una Gaussiana estable que
+explica el 95\% del espectro es mejor punto de partida que un Histograma mal
+regularizado. Suba en complejidad (VBF $\to$ Histograma $\to$ 2D) solo cuando el
+residuo lo justifique, y vigile siempre que la solución sea \textbf{estable} ante
+pequeños cambios de $\alpha$, $\Gamma$ o número de bins.
 \end{truco}

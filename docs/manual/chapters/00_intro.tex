@@ -12,22 +12,122 @@ Mössbauer de $^{57}$Fe. Permite:
         \ruta{.csv}/\ruta{.txt}/\ruta{.dat}/\ruta{.exp}).
   \item \textbf{Doblar} (\emph{folding}) las cuentas en bruto y construir el eje
         de velocidad a partir de una \emph{calibración}.
-  \item \textbf{Simular} el modelo directo con hasta tres componentes discretos
-        (singlete, doblete, sexteto) y perfiles Lorentz/Voigt.
-  \item \textbf{Ajustar} de forma discreta o mediante \emph{distribuciones}
-        $P(\BHF)$ / $P(\dEQ)$.
-  \item \textbf{Documentar}: informes Markdown/PDF, exportación de gráficos
-        interactivos y sesiones reproducibles.
+  \item \textbf{Simular} el \emph{modelo directo}, en vivo: hasta seis componentes
+        (singlete, doblete, sexteto y modelos de relajación magnética), con
+        perfiles Lorentz/Voigt.
+  \item \textbf{Ajustar} los datos, de forma \emph{discreta} (esos mismos
+        componentes) o mediante \emph{distribuciones} $P(\BHF)$ / $P(\dEQ)$.
+  \item \textbf{Documentar}: informes Markdown/PDF, exportación de la figura y
+        sesiones reproducibles.
 \end{itemize}
 
-La interfaz está disponible en español, inglés y francés (menú \menu{Idioma}).
+La interfaz está traducida a siete idiomas (menú \menu{Idioma}): español, inglés,
+francés, alemán, chino simplificado, japonés y ruso.
+
+\begin{nota}
+\textbf{Simular} y \textbf{ajustar} no son lo mismo. La \emph{simulación} genera
+un espectro a partir de parámetros que tú fijas (modelo directo). El \emph{ajuste}
+hace lo contrario: parte del espectro medido e \emph{infiere} los parámetros que
+mejor lo reproducen. Por eso una \emph{distribución de probabilidad} no se
+«simula» de la nada: se \textbf{obtiene ajustando} el espectro (aunque sí puedes
+\emph{simular el espectro} que produciría una distribución dada).
+\end{nota}
 
 \begin{nota}
 El cálculo (física y motores de ajuste) reside en el paquete \ruta{core/}, que
 no depende de ninguna interfaz gráfica. La GUI es un cliente de ese núcleo. Este
 manual describe el uso de la aplicación; el detalle matemático del motor de
-ajuste está en el documento aparte \emph{Manual matemático del motor de ajuste}.
+ajuste está en el \textbf{anexo}~\ref{ap:mates} (\emph{Manual matemático del
+motor de ajuste}) y en los demás anexos matemáticos.
 \end{nota}
+
+\section{¿Por qué Fitbauer?}
+\label{sec:porque}
+
+Fitbauer nació de una necesidad práctica en el laboratorio. La idea era construir
+algo \textbf{nuevo, fácil de entender e intuitivo}, que pusiera por delante la
+\textbf{simulación en vivo} —ver de inmediato cómo cada parámetro deforma el
+espectro— y que incluyera \textbf{lo necesario} para ajustar espectros Mössbauer
+sin curvas de aprendizaje innecesarias.
+
+Existen otros programas para este fin, algunos comerciales y otros gratuitos o de
+uso académico. Son herramientas valiosas y consolidadas, pero en el trabajo
+cotidiano no siempre mostraban u ofrecían lo que se necesitaba o se quería: a
+veces por depender de entornos antiguos, por interfaces poco directas, por no
+estar disponibles en todas las plataformas, o simplemente por no encajar con el
+flujo de trabajo concreto de nuestro grupo.
+
+Con esa motivación, Fitbauer persigue unos pocos principios:
+
+\begin{itemize}[nosep]
+  \item \textbf{Inmediatez}: cargar, ver y simular en pocos clics; el gráfico
+        responde en vivo a cada cambio de parámetro.
+  \item \textbf{Claridad}: parámetros con significado físico, unidades explícitas
+        y una calibración que se fija una vez y se reutiliza.
+  \item \textbf{Reproducibilidad}: sesiones e informes que permiten rehacer un
+        análisis tal cual, y un núcleo de cálculo separado de la interfaz.
+  \item \textbf{Accesibilidad}: multiplataforma, multilingüe y de instalación
+        sencilla (o como ejecutable, sin instalar Python).
+\end{itemize}
+
+\section{Comparación con otros programas}
+\label{sec:comparacion}
+
+A modo de orientación —y \textbf{sin ánimo de decidir cuál es mejor}—, conviene
+situar Fitbauer junto a otras herramientas habituales del campo. Cada una tiene
+su público, su historia y sus puntos fuertes:
+
+\begin{itemize}[nosep]
+  \item \textbf{NORMOS} (R.\,A.\ Brand): uno de los estándares históricos, con
+        módulos de sitios (\emph{Site}) y de distribuciones (\emph{Dist}). Muy
+        extendido, tradicionalmente ligado a un entorno de tipo DOS.
+  \item \textbf{MossWinn} (Z.\ Klencsár): programa de Windows muy completo, con
+        una amplia base de datos y muchos modelos; de carácter comercial.
+  \item \textbf{Recoil} (Lagarec \& Rancourt): popularizó el ajuste basado en
+        Voigt (VBF) para distribuciones; orientado a Windows.
+  \item \textbf{Vinda} (H.\,P.\ Gunnlaugsson): conjunto de macros sobre hoja de
+        cálculo, gratuito, muy usado en entornos como ISOLDE.
+  \item \textbf{WMOSS} y \textbf{Moessfit}: alternativas para Windows con ajuste
+        general (incluida diagonalización del hamiltoniano), de uso académico.
+\end{itemize}
+
+Fitbauer se sitúa en el terreno de una aplicación \textbf{moderna,
+multiplataforma y centrada en la simulación interactiva}, con los métodos de
+ajuste discreto y por distribuciones que se describen en este manual. No pretende
+sustituir a las anteriores, sino ofrecer una vía directa y cómoda para el trabajo
+habitual con Fe-57.
+
+\begin{nota}
+Las descripciones anteriores son aproximadas y pueden haber cambiado según la
+versión de cada programa; se incluyen solo para orientar a quien llega desde otra
+herramienta.
+\end{nota}
+
+\section{La espectroscopía Mössbauer en un vistazo}
+\label{sec:mossbauer-vistazo}
+
+Para seguir el manual basta con recordar los tres parámetros hiperfinos que
+Fitbauer ajusta, y cómo se manifiestan en el espectro (velocidad en mm/s frente a
+transmisión):
+
+\begin{itemize}[nosep]
+  \item \textbf{Desplazamiento isomérico} $\delta$: desplaza el patrón completo a
+        lo largo del eje de velocidad. Informa del estado de oxidación y del
+        entorno de coordinación del hierro.
+  \item \textbf{Desdoblamiento cuadrupolar} $\dEQ$: separa las líneas por pares.
+        En un \emph{doblete} es la distancia entre sus dos picos; refleja la
+        asimetría del gradiente de campo eléctrico.
+  \item \textbf{Campo hiperfino} $\BHF$: propio de los materiales magnéticos.
+        Genera un \emph{sexteto} de seis líneas cuya separación crece con el
+        campo (para $\alpha$-Fe, $\BHF = 33{,}0$~T).
+\end{itemize}
+
+Según el material, el espectro es un \textbf{singlete} (una línea), un
+\textbf{doblete} (dos), un \textbf{sexteto} (seis) o una \textbf{suma} de varias
+de estas contribuciones. Cuando el entorno del hierro no es único sino que varía
+—óxidos desordenados, nanopartículas, aleaciones—, el espectro se describe mejor
+con una \textbf{distribución} de campos o de cuadrupolos
+(capítulo~\ref{ch:distribuciones}).
 
 \section{Instalación y arranque}
 
@@ -54,7 +154,7 @@ Al arrancar aparece la ventana principal, organizada en:
         \menu{Idioma} y \menu{Ayuda}.
   \item \textbf{Panel de calibración}: control de \param{Vmax}, centro de
         \emph{folding}, línea base, pendiente y perfil de línea.
-  \item \textbf{Paneles de componentes} (hasta tres): forma del componente y sus
+  \item \textbf{Paneles de componentes} (hasta seis): forma del componente y sus
         parámetros físicos ($\delta$, $\dEQ$, $\BHF$, anchuras, intensidades).
   \item \textbf{Panel de distribución}: modo $P(\BHF)$/$P(\dEQ)$, forma,
         regularizador y sus parámetros.
@@ -65,8 +165,8 @@ Al arrancar aparece la ventana principal, organizada en:
 \end{itemize}
 
 \guicap{gui_overview}{Vista general de la ventana principal de Fitbauer con sus
-paneles. (Sustituir por una captura real; nombre del fichero indicado bajo el
-recuadro.)}
+paneles: menús, panel izquierdo de calibración e información, zona de gráfico
+central (aquí un ajuste de $\alpha$-Fe) y panel derecho de simulación/ajuste.}
 
 \begin{truco}
 La disposición de los paneles es configurable desde
@@ -87,5 +187,6 @@ El orden recomendado, que estructura los capítulos siguientes, es:
   \item \textbf{Simular y ajustar} (capítulo~\ref{ch:simular}): construir el
         modelo directo y ajustarlo; validar con un calibrado de $\alpha$-Fe.
   \item \textbf{Distribuciones} (capítulo~\ref{ch:distribuciones}): cuando el
-        campo hiperfino no es único, simular y ajustar $P(\BHF)$.
+        campo hiperfino no es único, ajustar $P(\BHF)$ (y simular el espectro que
+        produce una distribución dada).
 \end{enumerate}

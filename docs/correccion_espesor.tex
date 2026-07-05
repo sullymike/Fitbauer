@@ -11,6 +11,9 @@
 \usepackage{xcolor}
 \usepackage{hyperref}
 \usepackage{tcolorbox}
+\usepackage{graphicx}
+% Figuras del anexo: python docs/manual/scripts/make_appendix_figures.py
+\graphicspath{{manual/img/}{img/}}
 
 \hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!60!black}
 
@@ -25,8 +28,7 @@
   fonttitle=\bfseries, title={#1}, left=4pt, right=4pt, top=3pt, bottom=3pt}
 
 \title{\textbf{Corrección por espesor en \emph{Mossbauer}}\\[3pt]
-\large Modelo de absorbente grueso: beneficios, aplicabilidad y uso\\
-\normalsize\textcolor{black!60}{(rama experimental \texttt{claude/experimentos-espesor})}}
+\large Modelo de absorbente grueso: beneficios, aplicabilidad y uso}
 \author{Departamento de Química Física · UAM}
 \date{\today}
 
@@ -93,6 +95,17 @@ de la fuente). Sus dos límites lo hacen interpretable y compatible hacia atrás
 \end{itemize}
 Implementado en \code{core/physics.py} (\code{total\_model}, parámetro
 \code{sat\_scale}=$C$).
+
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.98\textwidth]{apx_thickness}
+  \caption{Absorbente delgado frente a grueso. \emph{Izquierda}: la absorción
+  efectiva $A_{\text{eff}}=C(1-e^{-A_{\text{tot}}/C})$ satura acotada por $C$,
+  mientras el modelo delgado ($C\to\infty$) crece sin límite. \emph{Derecha}:
+  sobre una línea profunda, el modelo delgado $1-A$ llegaría a valores negativos
+  imposibles; la corrección de espesor da líneas \emph{menos profundas y más
+  anchas}, que es el efecto físico de la saturación.}
+  \label{fig:apx_thickness}
+\end{figure}
 
 %======================================================================
 \section{Beneficios}
@@ -202,7 +215,7 @@ el argumento al dominio válido $(0,1]$ antes del logaritmo.
   \item Aparece el valor ajustado de $C$ (escala de saturación) entre los
         parámetros globales. Un $C$ grande indica muestra prácticamente delgada.
   \item En modo distribución, $P(\BHF)$ se muestra ya des-saturada; su área
-        integрада refleja la fracción real.
+        integrada refleja la fracción real.
 \end{itemize}
 
 %======================================================================

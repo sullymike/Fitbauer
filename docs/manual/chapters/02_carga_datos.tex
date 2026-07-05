@@ -3,7 +3,8 @@
 
 Con la calibración fijada (capítulo~\ref{ch:calibracion}), cargar un espectro es
 inmediato: Fitbauer lo dobla, construye el eje de velocidad y lo muestra
-normalizado.
+normalizado. Este capítulo detalla los formatos, el \emph{folding}, la
+normalización y las opciones de visualización.
 
 \section{Formatos admitidos}
 
@@ -22,6 +23,14 @@ doblan y \emph{sustituyen} la calibración (§\ref{sec:calib-fija}). \\
 \end{tabular}
 \end{center}
 
+\begin{nota}
+Los ficheros \ruta{.ws5}/\ruta{.adt} son listas de enteros (una cuenta por
+canal). Los de velocidad (\ruta{.csv}/\ruta{.txt}/…) son dos columnas
+—velocidad y cuentas/transmisión— separadas por espacios, tabuladores o comas;
+Fitbauer tolera cabeceras y líneas de comentario. Si un fichero de velocidad no
+carga, revise que tenga exactamente dos columnas numéricas por línea.
+\end{nota}
+
 \section{Cargar un espectro}
 
 \menu{Archivo > Cargar…} abre el selector de ficheros. Al elegir un espectro de
@@ -30,41 +39,124 @@ cuentas en bruto, Fitbauer:
 \begin{enumerate}[nosep]
   \item Lee las cuentas por canal.
   \item Detecta el \textbf{centro de folding} (o lo lee de un fichero
-        \ruta{.RES} de NORMOS si existe).
-  \item \textbf{Dobla} las dos ramas del espectro triangular y recorta los
-        extremos.
+        \ruta{.RES} de NORMOS si existe junto al espectro).
+  \item \textbf{Dobla} las dos ramas del espectro triangular y \textbf{recorta}
+        unos pocos canales de cada extremo (§\ref{sec:folding} explica por qué).
   \item \textbf{Normaliza} a línea base $\approx 1$ y estima el ruido de Poisson.
   \item Construye el eje de velocidad con la \param{Vmax} de la calibración
         fijada.
 \end{enumerate}
 
-\autofig{fig_load_alphafe}{Espectro de $\alpha$-Fe recién cargado y doblado:
-transmisión relativa frente a velocidad. Las seis líneas del sexteto son
-visibles y simétricas respecto a $v=0$.}
+\autofig[\textwidth]{fig_load_alphafe}{Un mismo $\alpha$-Fe \textbf{sin doblar}
+(izq., 512 canales) y \textbf{doblado} (dcha., en velocidad). Sin doblar, el
+transductor mide el sexteto \emph{dos veces} —una en cada rama del barrido—,
+espejadas respecto al \textbf{centro de folding} (línea roja). El folding suma
+esas dos mitades: reduce el ruido y produce el espectro simétrico de la derecha.}
 
 \begin{nota}
 La barra de estado y la etiqueta del fichero informan del número de canales, el
-centro de folding detectado y el factor de normalización.
+centro de folding detectado y el factor de normalización. \menu{Archivo > Abrir
+recientes} reabre los últimos espectros usados.
 \end{nota}
 
 \section{El folding y el centro}
 \label{sec:folding}
 
-El \emph{folding} suma las dos mitades del espectro (velocidad creciente y
-decreciente) para promediar y duplicar la relación señal/ruido. El punto clave
-es el \textbf{centro}: el canal donde se pliega. Fitbauer lo detecta
-automáticamente, pero puede ajustarlo:
+El transductor Mössbauer recorre un ciclo de velocidad \textbf{triangular}: cada
+velocidad se mide dos veces, una en la rama ascendente y otra en la descendente.
+El \emph{folding} \textbf{suma esas dos mitades} para promediarlas: mejora la
+relación señal/ruido y produce un único espectro simétrico. El punto clave es el
+\textbf{centro}: el canal (posiblemente fraccionario) donde se pliega.
 
 \begin{itemize}[nosep]
-  \item Modifique el control \param{Centro} en el panel de calibración: el
-        espectro se \textbf{re-dobla} en vivo.
-  \item \menu{Ajuste > Buscar centro} refina el centro por minimización.
+  \item Fitbauer detecta el centro automáticamente (o lo lee de un \ruta{.RES}).
+  \item El control \param{Centro} del panel de calibración lo ajusta a mano: el
+        espectro se \textbf{re-dobla en vivo} al cambiarlo.
+  \item \menu{Ajuste > Buscar centro} lo refina por minimización.
 \end{itemize}
+
+\paragraph{Por qué se recortan los extremos.} Tras doblar, Fitbauer descarta
+unos pocos canales de cada borde. La razón: los canales extremos corresponden a
+los \textbf{puntos de retorno} del transductor (velocidad máxima), donde el
+movimiento invierte su sentido. Ahí el drive es menos lineal y hay más
+incertidumbre en la correspondencia canal$\to$velocidad y en el emparejamiento de
+las dos ramas, de modo que esos puntos son los \textbf{menos fiables}. Recortarlos
+evita que contaminen el ajuste; a cambio se pierde una porción minúscula del eje,
+sin líneas de interés. El eje de velocidad se recorta en las \emph{mismas}
+posiciones que los datos para que ambos queden alineados (estirar la escala
+sesgaría el $\BHF$).
 
 \begin{aviso}
 Un centro mal elegido produce líneas dobles o asimétricas. Si observa
-desdoblamientos espurios, revise primero el centro de folding.
+desdoblamientos espurios o un espectro «fantasma» desplazado, revise
+\textbf{primero} el centro de folding antes de tocar los parámetros del modelo.
 \end{aviso}
+
+\subsection{Forma de onda: triangular o senoidal}
+\label{sec:drive-form}
+
+Todo lo anterior asume un drive de \textbf{aceleración constante}, cuya onda de
+velocidad es \textbf{triangular}: la velocidad sube y baja en rampas rectas, de
+modo que avanza \emph{linealmente} con el canal y las dos mitades del barrido
+recorren las mismas velocidades. Por eso tiene sentido doblar y usar un eje
+lineal.
+
+Algunos espectrómetros usan en cambio un drive \textbf{senoidal}. Entonces la
+velocidad de cada canal no es lineal, sino
+\[
+  v_i \;=\; v_{\max}\,\sin\!\Big(\tfrac{2\pi\,(i-c_0)}{N}\Big),
+\]
+donde $N$ es el número de canales y $c_0$ la \textbf{fase} (el canal en que
+$v=0$). Al ser el eje senoidal, doblar por simetría ya \emph{no} da un eje
+lineal, y forzar uno lineal desplazaría las líneas.
+
+\autofig[\textwidth]{fig_sine_drive}{Drive senoidal. Izquierda: la velocidad de
+cada canal sigue una \emph{senoide}, no una rampa. Derecha: el espectro
+resultante, con cada canal colocado en su velocidad real. No se pliega: se ajusta
+tal cual.}
+
+El control \menu{Forma de onda} del panel de calibración selecciona el modo:
+
+\begin{itemize}[nosep]
+  \item \textbf{Triangular} (por defecto): se dobla y el eje es lineal, como se ha
+        descrito arriba.
+  \item \textbf{Senoidal}: siguiendo el criterio de NORMOS (\emph{no doblar} y
+        ajustar el espectro completo, con las dos ramas a la vez), Fitbauer asigna
+        a cada canal su velocidad senoidal real y ajusta \textbf{sin plegar}.
+\end{itemize}
+
+Sobre la \textbf{fase} $c_0$: al igual que en triangular hay que localizar el
+centro, en senoidal hay que localizar el punto de simetría del barrido. Fitbauer
+lo autodetecta y lo expone en el control \param{Centro} (ajustable en vivo).
+Como una fase mal puesta desplazaría todas las velocidades, conviene además
+\textbf{refinarla en el ajuste}: al activar \emph{Ajustar centro}, $c_0$ entra
+como \textbf{parámetro libre} y el optimizador la afina (igual que \emph{Ajustar
+Vmax} afina la amplitud). Es lo que en NORMOS corresponde a \code{TRIANG=.FALSE.}
+con \code{FOLD=.FALSE.} y \code{SIMULT=.TRUE.}
+
+\begin{nota}
+En modo senoidal el eje de velocidad no es monótono (la misma velocidad aparece
+en varias fases del ciclo), por lo que los datos se dibujan como \textbf{puntos}
+que recorren $-v_{\max}\!\dots\!+v_{\max}$ y vuelven. El modelo y el ajuste lo
+tratan sin problema, porque evalúan el modelo \emph{punto a punto} (no necesitan
+un eje ordenado). El componente de relajación no está soportado con drive
+senoidal en esta versión.
+\end{nota}
+
+\section{Normalización y ruido}
+
+Para que los ajustes sean comparables entre espectros, los datos se
+\textbf{normalizan} dividiendo por un factor (el percentil 90 de las cuentas
+dobladas), de modo que la línea base queda en $\approx 1$ y las absorciones se
+leen como fracciones. Ese mismo factor se usa para estimar la incertidumbre de
+cada punto a partir del ruido de Poisson (proporcional a $\sqrt{N}$), que después
+pondera el ajuste (véase la \emph{verosimilitud}, §\ref{sec:opciones-ajuste}).
+
+\begin{nota}
+La \textbf{línea base} y la \textbf{pendiente} (control \param{Pendiente}) del
+panel de calibración modelan una posible deriva del fondo. Se pueden fijar o
+dejar libres en el ajuste como cualquier otro parámetro.
+\end{nota}
 
 \section{Visualización}
 
@@ -72,31 +164,65 @@ La zona de gráfico muestra:
 
 \begin{itemize}[nosep]
   \item Los \textbf{datos} (puntos), la \textbf{línea base}, el \textbf{modelo}
-        total y, cuando procede, los \textbf{subespectros} de cada componente.
+        total y, cuando procede, los \textbf{subespectros} de cada componente
+        (con su relleno de área opcional).
+  \item Debajo, la \textbf{gráfica de diferencia} (residuo) datos$-$modelo.
   \item En modo distribución, además la \textbf{envolvente} de la distribución y
-        cada componente nítido por separado.
+        cada componente nítido por separado, y un panel con $P(\BHF)$.
 \end{itemize}
 
-La barra de herramientas del gráfico (zoom, desplazamiento, guardar imagen)
-permite explorar el espectro y exportar la figura a PNG.
-
-\guicap{gui_plot_area}{Zona de gráfico con datos, modelo y subespectros, y su
-barra de herramientas de navegación.}
-
-\section{Comparar espectros}
-
-\menu{Archivo > Comparar espectro…} superpone uno o varios espectros de
-referencia sobre el actual, útil para identificar fases o comparar tratamientos.
-\menu{Archivo > Limpiar comparación} retira las superposiciones.
-
-\section{Guardar y reutilizar}
+Desde el menú \menu{Vista} se controla la presentación:
 
 \begin{itemize}[nosep]
-  \item \menu{Archivo > Guardar sesión…} guarda el estado completo (datos
-        cargados, calibración fijada, modelo, opciones) en un \ruta{.json}
-        reproducible.
-  \item \menu{Archivo > Guardar ajuste…} exporta el ajuste actual (parámetros,
-        curva, distribución) a un fichero de texto.
-  \item \menu{Archivo > Exportar informe Markdown/PDF…} genera un informe legible
-        con parámetros, estadísticos y, si procede, la tabla de la distribución.
+  \item \menu{Vista > Mostrar diferencia} / \menu{Mostrar leyenda} /
+        \menu{Mostrar área de componentes}: activan u ocultan cada elemento.
+  \item \menu{Vista > Estilo de gráficos}: \emph{Clásico}, \emph{Moderno},
+        \emph{Publicación} u \emph{Oscuro}.
+  \item \menu{Vista > Tema visual} y \menu{Tema de color}: apariencia general de
+        la interfaz.
+  \item \menu{Vista > Configurar layout de paneles…}: reorganiza y guarda presets
+        de disposición.
 \end{itemize}
+
+La \textbf{barra de herramientas} bajo el gráfico (Matplotlib) permite hacer
+zoom, desplazarse, volver a la vista inicial y \textbf{guardar la figura} como
+imagen (PNG, PDF, SVG).
+
+\guicap{gui_plot_area}{Zona de gráfico con datos, modelo, subespectros y residuo,
+con su barra de herramientas de navegación.}
+
+\section{Comparar espectros}
+\label{sec:comparar}
+
+\menu{Archivo > Comparar espectro…} superpone uno o varios espectros de
+referencia (con una paleta de colores propia) sobre el actual, útil para
+identificar fases o comparar tratamientos térmicos. \menu{Archivo > Limpiar
+comparación} retira todas las superposiciones. La comparación es solo visual: no
+altera los datos ni el ajuste.
+
+\section{Guardar, exportar y reutilizar}
+
+\begin{center}
+\begin{tabular}{@{}p{0.42\textwidth}p{0.5\textwidth}@{}}
+\toprule
+\textbf{Acción} & \textbf{Qué guarda} \\
+\midrule
+\menu{Archivo > Guardar sesión…} & Estado \textbf{completo} en \ruta{.json}
+(datos, calibración fijada, modelo, opciones, distribución). Reabre con
+\menu{Cargar sesión…}. \\[4pt]
+\menu{Archivo > Guardar ajuste…} & El ajuste actual (parámetros, curva,
+distribución) en texto. \\[4pt]
+\menu{Archivo > Exportar informe Markdown/PDF…} & Informe legible con parámetros,
+estadísticos y, si procede, la tabla de la distribución. \\[4pt]
+\menu{Archivo > Exportar informe reducido…} & Versión abreviada del informe. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{truco}
+La \textbf{sesión} es la vía recomendada para reproducibilidad: guárdela al
+terminar un análisis y podrá retomarlo exactamente igual —incluida la
+calibración fijada— en otro momento u ordenador. Si dispone de la API del
+laboratorio, \menu{Archivo > Web} permite además descargar espectros/calibraciones
+y \menu{Subir sesión JSON a web}.
+\end{truco}

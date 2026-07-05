@@ -3,7 +3,10 @@
 
 Este capítulo cubre el \emph{modelo directo} (simulación) y el \emph{ajuste
 discreto}, ilustrados con el caso más sencillo y a la vez más importante: un
-calibrado de $\alpha$-Fe.
+calibrado de $\alpha$-Fe. Recuerde la distinción del
+capítulo~\ref{ch:intro}: \textbf{simular} produce un espectro a partir de
+parámetros que usted fija; \textbf{ajustar} infiere esos parámetros a partir del
+espectro medido.
 
 \section{El modelo directo}
 
@@ -12,7 +15,7 @@ Fitbauer construye el espectro como transmisión:
   T(v) \;=\; b + s\,v \;-\; \sum_{k} A_k(v),
 \]
 donde $b$ es la línea base, $s$ una pendiente opcional y $A_k(v)$ la
-\emph{absorción} de cada componente. Hay tres formas discretas:
+\emph{absorción} de cada componente. Las tres formas discretas básicas son:
 
 \begin{center}
 \begin{tabular}{@{}lp{0.6\textwidth}@{}}
@@ -29,28 +32,146 @@ $\Gamma_{1,2,3}$, profundidad e intensidades relativas. Seis líneas. \\
 \end{tabular}
 \end{center}
 
-Cada componente admite perfil \textbf{Lorentziano} o \textbf{Voigt} (con
-$\sigma$ gaussiana), seleccionable en el panel de calibración.
-
 \autofig[\textwidth]{fig_sim_components}{Simulación de los tres componentes
 discretos: singlete (un pico), doblete ($\dEQ = 0{,}80$~mm/s) y sexteto
 ($\BHF = 33$~T con relación de intensidades $3:2:1$).}
 
+\subsection{Las matemáticas del modelo}
+\label{sec:modelo-mates}
+
+Cada componente es una \textbf{suma de líneas} de forma lorentziana. Una línea
+centrada en $v_0$ con anchura $\Gamma$ (la \emph{anchura total a media altura},
+FWHM —el parámetro que se ajusta—) vale
+\[
+  L(v;\,v_0,\Gamma) \;=\; \frac{(\Gamma/2)^2}{(v-v_0)^2 + (\Gamma/2)^2},
+\]
+(máximo $1$ en $v=v_0$; la semianchura es $\Gamma/2$), y la absorción de un
+componente es
+\[
+  A_k(v) \;=\; d_k \sum_{j} w_j \, L(v;\,v_{0,j},\Gamma_j),
+\]
+con $d_k$ la \emph{profundidad} y $w_j$ las \emph{intensidades} relativas de sus
+líneas. Lo que distingue a cada tipo es \textbf{dónde caen las líneas} y
+\textbf{cuántas hay}:
+
+\begin{itemize}[nosep]
+  \item \textbf{Singlete}: una línea en $v_0 = \delta$. El desplazamiento
+        isomérico $\delta$ mueve todo el patrón.
+  \item \textbf{Doblete}: dos líneas en $v_0 = \delta \pm \tfrac{1}{2}\dEQ$. El
+        cuadrupolo $\dEQ$ es la separación entre ambas.
+  \item \textbf{Sexteto}: seis líneas
+        \[
+          v_{0,j} \;=\; \delta \;+\; \tfrac{1}{2}\,q_j\,\dEQ \;+\;
+          p_j\,\frac{\BHF}{33{,}0},
+        \]
+        donde $p_j = (\pm0{,}839,\ \pm3{,}084,\ \pm5{,}329)$~mm/s son las
+        posiciones publicadas de $\alpha$-Fe a 33~T (por eso el patrón
+        \emph{escala} con $\BHF/33$) y $q_j=(+1,-1,-1,-1,-1,+1)$ el patrón de
+        primer orden del cuadrupolo. Las intensidades siguen la relación
+        $3:x:1:1:x:3$ (§\ref{sec:textura}).
+\end{itemize}
+
+El espectro completo es la transmisión $T(v) = b + s\,v - \sum_k A_k(v)$. Esta
+parametrización —posiciones ligadas a $\delta$, $\dEQ$, $\BHF$ con significado
+físico— es la que permite \emph{leer} el material directamente de los parámetros
+ajustados. El desarrollo completo (tratamiento del hamiltoniano
+magnético+cuadrupolar, órdenes superiores) está en el anexo~\ref{ap:mates}.
+
+\subsection{Perfil de línea y modelo de absorbente}
+
+En el panel de calibración se elige el \menu{Perfil de línea}:
+
+\begin{itemize}[nosep]
+  \item \textbf{Lorentziana}: la forma natural de la línea Mössbauer.
+  \item \textbf{Voigt}: convolución de Lorentziana con una gaussiana de anchura
+        $\sigma$, útil cuando hay un ensanchamiento instrumental o una pequeña
+        dispersión no resuelta.
+\end{itemize}
+
+El \menu{Absorbente} modela el grosor de la muestra. La diferencia está en cómo
+se convierte la absorción $A(v)$ en transmisión:
+
+\begin{itemize}[nosep]
+  \item \textbf{Delgado (lineal)}: $T \approx 1 - A(v)$. La absorción es
+        proporcional a la cantidad de Fe; válido para muestras poco densas.
+  \item \textbf{Grueso (saturación)}: $T \propto e^{-A(v)}$ (forma tipo integral
+        de transmisión). Al crecer el grosor, las líneas \textbf{saturan} —dejan
+        de crecer linealmente y se ensanchan—; este modo lo corrige para no
+        sesgar áreas ni anchuras. La corrección completa está en el
+        anexo~\ref{ap:espesor}.
+\end{itemize}
+
+\begin{truco}
+Ante muestras densas o líneas muy profundas ($>15$--$20\%$), use \textbf{Grueso}:
+con el modelo delgado las áreas relativas (y por tanto las proporciones de fase)
+saldrían sesgadas.
+\end{truco}
+
+\subsection{Intensidades y textura del sexteto}
+\label{sec:textura}
+
+Las seis líneas del sexteto siguen la relación de áreas $3:x:1:1:x:3$. El valor
+$x$ (líneas 2 y 5) depende de la orientación de los momentos respecto al haz:
+
+\begin{itemize}[nosep]
+  \item En modo \textbf{libre}, las intensidades relativas se ajustan.
+  \item En modo \textbf{textura}, un único parámetro $t$ fija $x$ de forma física
+        (relación $R_{23}$, ángulo $\theta$), útil para muestras orientadas o
+        láminas. El panel muestra $\theta$ y $R_{23}$ derivados de $t$.
+\end{itemize}
+
+El tratamiento del \textbf{cuadrupolo} en el sexteto puede ser de primer orden
+(perturbativo) o completo; se selecciona en \menu{Ajuste > Modo de ajuste}. El
+detalle (tratamiento tipo Kündig del hamiltoniano magnético+cuadrupolar) está en
+el anexo~\ref{ap:mates}.
+
 \section{Simular sin ajustar}
 
-Para explorar el modelo antes de ajustar:
+La \textbf{simulación en vivo} es una de las señas de identidad de Fitbauer: en
+lugar de lanzar un ajuste a ciegas, se construye el modelo a mano y se ve el
+espectro cambiar \textbf{al instante} con cada parámetro. Para explorar el
+modelo:
 
 \begin{enumerate}[nosep]
-  \item Elija la forma de cada componente en su panel (\menu{Forma:}).
-  \item Fije los parámetros con los controles deslizantes o escribiendo el valor.
-  \item El gráfico se actualiza en vivo con el modelo resultante.
+  \item Elija la forma de cada componente en su panel (\menu{Forma:}) y actívelo.
+  \item Fije los parámetros con los controles deslizantes o escribiendo el valor;
+        cada control tiene una barra tipo \emph{slider} sincronizada con la caja
+        numérica.
+  \item El gráfico se actualiza \textbf{en vivo} con el modelo resultante y sus
+        subespectros.
 \end{enumerate}
 
-Esto es útil para \emph{sembrar} valores iniciales razonables antes de lanzar el
-ajuste, o para entender el efecto de cada parámetro.
+\paragraph{Para qué sirve simular.} La simulación no es un adorno; cumple varias
+funciones prácticas:
+
+\begin{itemize}[nosep]
+  \item \textbf{Sembrar el ajuste}: un ajuste no lineal necesita un punto de
+        partida razonable o cae en un mínimo falso. Acercar el modelo «a ojo»
+        antes de \menu{Ajustar} hace el ajuste más rápido y fiable.
+  \item \textbf{Entender el efecto de cada parámetro}: mover $\delta$ desplaza
+        todo el patrón; $\dEQ$ separa las líneas por pares; $\BHF$ abre o cierra
+        el sexteto; $\Gamma$ ensancha; la profundidad hunde. Verlo en vivo asienta
+        la intuición física.
+  \item \textbf{Prever un experimento o comparar hipótesis}: ¿cómo se vería una
+        mezcla de dos fases con estas proporciones? Se simula y se compara con un
+        espectro real superpuesto (§\ref{sec:comparar} del capítulo anterior).
+  \item \textbf{Docencia}: ilustrar de dónde sale cada línea sin necesidad de
+        datos.
+\end{itemize}
+
+Cada componente se dibuja como un \textbf{subespectro} propio (con su relleno de
+área opcional), de modo que se ve la contribución de cada uno al total. El
+\textbf{candado} de cada parámetro lo \emph{fija}: útil para simular variando solo
+una magnitud, o para que el ajuste posterior no mueva lo que usted ya conoce.
+
+\begin{nota}
+Simular y ajustar comparten exactamente el mismo modelo directo: lo que ve al
+simular es, línea por línea, lo que el optimizador intentará encajar. Por eso una
+buena simulación inicial es la mejor inversión antes de ajustar.
+\end{nota}
 
 \guicap{gui_component_panel}{Panel de un componente sexteto con sus controles de
-$\delta$, $\dEQ$, $\BHF$, anchuras e intensidades.}
+$\delta$, $\dEQ$, $\BHF$, anchuras e intensidades, y los candados de fijado.}
 
 \section{Ajustar un calibrado de $\alpha$-Fe}
 \label{sec:ajustar-alphafe}
@@ -77,40 +198,148 @@ degeneración, Fitbauer fija automáticamente el $\BHF$ activo cuando se ajusta 
 velocidad (no pueden refinarse ambos a la vez).
 \end{truco}
 
+\section{Opciones de ajuste}
+\label{sec:opciones-ajuste}
+
+Los criterios estadísticos se eligen en el menú \menu{Ajuste} / panel de opciones:
+
+\begin{itemize}[nosep]
+  \item \menu{Verosimilitud}: \textbf{Gauss} ($\chi^2$ con la $\sigma$ del dato) o
+        \textbf{Poisson} (IRLS, con la $\sigma$ del modelo). Poisson es más
+        apropiada con pocas cuentas.
+  \item \menu{Pérdida robusta}: \textbf{Lineal} (mínimos cuadrados),
+        \textbf{Soft L1} (suave) o \textbf{Huber}, que restan peso a los puntos
+        atípicos (\emph{outliers}).
+  \item \textbf{Multistart}: repite el ajuste desde varios puntos de partida para
+        no quedar atrapado en un mínimo local.
+  \item \menu{Propagar $\sigma$ de calibración (vmax)}: propaga la incertidumbre
+        de la \param{Vmax} calibrada a los parámetros ajustados.
+\end{itemize}
+
+\begin{nota}
+Cuando se activa \emph{Ajustar Vmax}, la calibración interviene en el ajuste; por
+eso conviene tener claro qué calibración está fijada (capítulo~\ref{ch:calibracion}).
+\end{nota}
+
+\subsection{Restricciones y presets físicos}
+
+\menu{Ajuste > Restricciones entre parámetros…} permite \textbf{ligar}
+parámetros (por ejemplo, igualar anchuras entre componentes o imponer relaciones
+de intensidad). \menu{Ajuste > Presets físicos de restricciones…} aplica
+conjuntos de restricciones habituales de un vistazo. Reducir el número de
+parámetros libres estabiliza el ajuste y evita degeneraciones.
+
 \section{Calidad del ajuste y errores}
+\label{sec:calidad}
 
-Tras ajustar, el panel de información muestra:
+Un ajuste no termina cuando el optimizador converge: hay que \textbf{juzgar si es
+bueno} y \textbf{cuantificar la incertidumbre}. Fitbauer reúne para ello varios
+indicadores en el panel de información y varios métodos de error.
 
-\begin{itemize}[nosep]
-  \item Los \textbf{parámetros} ajustados con su incertidumbre.
-  \item Estadísticos: $\chi^2$, $\chi^2$ reducido, grados de libertad, AIC y BIC.
-  \item Avisos de \textbf{correlaciones} altas entre parámetros.
-\end{itemize}
+\subsection{Los estadísticos y para qué sirven}
 
-Para incertidumbres más robustas:
+\begin{center}
+\begin{tabular}{@{}lp{0.66\textwidth}@{}}
+\toprule
+\textbf{Indicador} & \textbf{Qué mide / para qué} \\
+\midrule
+$\chi^2$ & Suma de residuos al cuadrado ponderados por el ruido. Baja al mejorar
+el ajuste, pero depende del número de puntos. \\[3pt]
+$\chi^2$ \textbf{reducido} & $\chi^2$ por grado de libertad. Es el \textbf{juez
+principal}: $\approx 1$ = ajuste compatible con el ruido; $\gg 1$ = el modelo no
+reproduce los datos (faltan componentes, mal centro, mala calibración);
+$\ll 1$ = sobreajuste o ruido sobreestimado. \\[3pt]
+\textbf{dof} (grados de libertad) & Nº de puntos menos parámetros libres. Contexto
+para el $\chi^2$. \\[3pt]
+\textbf{AIC} y \textbf{BIC} & Criterios de información: premian el buen ajuste y
+\textbf{penalizan añadir parámetros}. Sirven para \textbf{comparar modelos}
+(p.\,ej.\ ¿dos sitios o tres?): \emph{menor es mejor}. Evitan el autoengaño de que
+«más componentes siempre ajustan mejor». \\[3pt]
+\textbf{Correlaciones} & Fitbauer avisa de pares de parámetros muy correlacionados
+($|r|$ alto): señal de \textbf{degeneración} (el ajuste no puede separarlos) o de
+que sobran parámetros. La solución suele ser fijar o ligar alguno
+(§\ref{sec:opciones-ajuste}). \\
+\bottomrule
+\end{tabular}
+\end{center}
 
-\begin{itemize}[nosep]
-  \item \menu{Ajuste > Bootstrap errores (MC)…}: remuestreo Monte Carlo.
-  \item \menu{Ajuste > Errores por verosimilitud perfilada…}: intervalos por
-        \emph{profile likelihood}, fiables cuando las incertidumbres no son
-        gaussianas.
-\end{itemize}
+\begin{truco}
+No persiga un $\chi^2_r$ exactamente 1 añadiendo componentes: vigile AIC/BIC y las
+correlaciones. Un modelo con $\chi^2_r=1{,}1$ y parámetros bien definidos es mejor
+que uno con $\chi^2_r=1{,}0$ lleno de componentes correlacionados.
+\end{truco}
+
+\subsection{Estimación de incertidumbres}
+
+Los estadísticos dicen si el ajuste es bueno; los \textbf{errores} dicen cuánto se
+puede confiar en cada parámetro. Fitbauer ofrece tres métodos, de menor a mayor
+coste y fiabilidad:
+
+\begin{center}
+\begin{tabular}{@{}p{0.34\textwidth}p{0.58\textwidth}@{}}
+\toprule
+\textbf{Método} & \textbf{Qué hace / cuándo usarlo} \\
+\midrule
+Covarianza (por defecto) & Errores a partir de la matriz de covarianza del ajuste.
+Instantáneo; válido si las incertidumbres son aproximadamente gaussianas y las
+correlaciones moderadas. Es la primera estimación. \\[4pt]
+\menu{Bootstrap errores (MC)…} & Reajusta muchas réplicas del espectro
+remuestreadas según el ruido (Monte Carlo) y mide la dispersión de cada
+parámetro. Más robusto ante ruido y no linealidad; cuesta más tiempo. \\[4pt]
+\menu{Errores por verosimilitud perfilada…} & Recorre cada parámetro reajustando
+los demás y ve cuánto empeora el $\chi^2$ (\emph{profile likelihood}). Da
+intervalos \textbf{asimétricos} realistas; los más fiables cuando las
+incertidumbres \textbf{no} son gaussianas o hay fuertes correlaciones. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{nota}
+Regla práctica: use la \textbf{covarianza} durante el trabajo exploratorio y
+reserve \textbf{bootstrap} o \textbf{verosimilitud perfilada} para las cifras
+que vaya a publicar, sobre todo si el panel avisa de correlaciones altas.
+\end{nota}
 
 \section{Herramientas de ayuda al ajuste}
 
 \begin{itemize}[nosep]
   \item \menu{Ajuste > Inicializar desde mínimos} y \menu{Autoajustar desde
         mínimos}: detectan las posiciones de línea y proponen un punto de
-        partida.
+        partida. El \textbf{editor de mínimos} permite además \emph{curarlos}
+        sobre el propio gráfico: clic para añadir un mínimo, clic sobre un
+        marcador para activarlo/desactivarlo, y un contador de contribuciones por
+        mínimo.
+  \item \menu{Ajuste > Buscar centro}: refina el centro de folding.
   \item \menu{Ajuste > Fijar todos} / \menu{Liberar todos}: bloquean o liberan
         todos los parámetros de una vez.
   \item \menu{Ajuste > Ajuste en serie…}: ajusta una tanda de espectros por
-        \emph{warm-start} (cada ajuste parte del anterior).
+        \emph{warm-start} (cada ajuste parte del anterior), ideal para series de
+        temperatura o de tratamiento.
   \item \menu{Ajuste > Deshacer ajuste}: revierte al estado previo.
+  \item \menu{Ajuste > IA local Ollama: sugerir inicio…}: si tiene un modelo
+        local, propone valores iniciales a partir de un resumen del espectro.
+\end{itemize}
+
+\guicap{gui_minima_editor}{Editor semi-manual de mínimos sobre el gráfico: los
+marcadores incluidos (rojos) y excluidos (huecos) se editan con el ratón y con la
+lista lateral.}
+
+\section{Componentes de relajación magnética}
+
+Además de singlete/doblete/sexteto, Fitbauer incluye componentes para
+\textbf{relajación superparamagnética} y dinámica de espín, útiles en
+nanopartículas cerca de la temperatura de bloqueo:
+
+\begin{itemize}[nosep]
+  \item \textbf{Relajación} y \textbf{Blume--Tjon}: modelos de línea con una tasa
+        de relajación $\nu$ (parámetro $\log_{10}\nu$).
+  \item \textbf{Néel (tamaño)}: distribución de tamaños lognormal con anisotropía
+        $K_{\text{eff}}$ y temperatura de bloqueo; \menu{Ajuste > Ajuste global
+        Néel (multi-T)…} ajusta a la vez varias temperaturas.
 \end{itemize}
 
 \begin{nota}
-Los modos de ajuste (perfiles, pesos, tratamiento del cuadrupolo, textura del
-sexteto, multistart) se seleccionan en \menu{Ajuste > Modo de ajuste} y en las
-opciones del panel. El detalle numérico está en el manual matemático.
+Estos modelos comparten la interfaz de componente (se eligen en \menu{Forma:}).
+Su fundamento numérico se desarrolla en el anexo~\ref{ap:relax} (\emph{Modelos de
+relajación magnética}).
 \end{nota}

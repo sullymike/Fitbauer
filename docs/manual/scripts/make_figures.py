@@ -62,27 +62,78 @@ def _load(sample: str, vmax: float = 12.007):
     return sess._velocity(), sess.spectrum.y_data, sess
 
 
-# ── Figura 1: espectro α-Fe cargado (datos crudos) ───────────────────────────
+# ── Figura 1: α-Fe sin doblar y doblado (ilustra el folding) ─────────────────
 def fig_load_alphafe() -> None:
-    v, y, _ = _load("hierro_metalico_alphaFe.adt")
-    fig, ax = plt.subplots(figsize=(6.4, 3.6))
-    ax.plot(v, y, ".", color=DATA_C, ms=3.5, label="Datos (α-Fe)")
-    ax.set_xlabel("Velocidad (mm/s)")
-    ax.set_ylabel("Transmisión relativa")
-    ax.set_title("Espectro de α-Fe cargado y doblado")
-    ax.legend(loc="lower right")
+    from core.session import HeadlessSession
+    from core.folding import read_ws5_counts
+    sample = DATA / "hierro_metalico_alphaFe.adt"
+    sess = HeadlessSession()
+    sess.load_ws5(str(sample), vmax=12.007)
+    counts = read_ws5_counts(sample)
+    center = float(sess.spectrum.center)
+    v, y = sess._velocity(), sess.spectrum.y_data
+    ch = np.arange(1, counts.size + 1)
+    cn = counts / (float(np.percentile(counts, 90)) or 1.0)
+
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(9.6, 3.6))
+    # Izq: espectro SIN doblar (dos ramas del barrido, sextete repetido).
+    a1.plot(ch, cn, ".", color=DATA_C, ms=2.2)
+    a1.axvline(center, color=MODEL_C, ls="--", lw=1.3,
+               label=f"centro de folding ≈ {center:.1f}")
+    a1.set_xlabel("Canal")
+    a1.set_ylabel("Cuentas (norm.)")
+    a1.set_title(f"Sin doblar ({counts.size} canales)")
+    a1.legend(loc="lower center", fontsize=8)
+    # Dcha: espectro doblado en eje de velocidad.
+    a2.plot(v, y, ".", color=DATA_C, ms=3.0)
+    a2.set_xlabel("Velocidad (mm/s)")
+    a2.set_ylabel("Transmisión relativa")
+    a2.set_title(f"Doblado ({y.size} puntos)")
+    fig.suptitle("α-Fe: del espectro sin doblar al doblado", y=1.03)
     _save(fig, "fig_load_alphafe")
 
 
-# ── Figura 2: ajuste de calibración (sexteto α-Fe) ───────────────────────────
+# ── Figura 1b: drive senoidal (ley de velocidad + espectro sin plegar) ───────
+def fig_sine_drive() -> None:
+    from core.folding import sine_velocity_axis
+    from core.physics import total_model
+    N, vmax = 512, 11.0
+    ch = np.arange(1, N + 1)
+    v = sine_velocity_axis(N, vmax, 0.0)          # v_i = vmax·sin(2π(i−c0)/N)
+    p_sext = np.array([0.0, 0.0, 33.0, 0.30, 1.0, 1.0, 0.30, 3.0, 2.0, 1.0])
+    T = total_model(v, 1.0, 0.0, [("Sextete", p_sext)])
+
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(9.6, 3.6))
+    # Izq: la velocidad NO es lineal con el canal, es senoidal.
+    a1.plot(ch, v, "-", color=DIST_C, lw=1.6)
+    a1.axhline(0.0, color="0.6", lw=0.7)
+    a1.set_xlabel("Canal")
+    a1.set_ylabel("Velocidad (mm/s)")
+    a1.set_title("Ley de velocidad: $v_i = v_{max}\\,\\sin(2\\pi(i-c_0)/N)$",
+                 fontsize=9)
+    # Dcha: espectro SIN plegar (cada canal en su velocidad real, no monótono).
+    a2.plot(v, T, ".", color=DATA_C, ms=2.5)
+    a2.set_xlabel("Velocidad (mm/s)")
+    a2.set_ylabel("Transmisión relativa")
+    a2.set_title("Espectro sin plegar (se ajusta así)", fontsize=9)
+    fig.suptitle("Drive senoidal: no se dobla; cada canal en su velocidad real",
+                 y=1.03)
+    _save(fig, "fig_sine_drive")
+
+
+# ── Figura 2: calibración α-Fe = ajuste de la VELOCIDAD (BHF fijo = 33,0 T) ───
 def fig_calibration_fit() -> None:
     from core.session import HeadlessSession, ModelState
     from core.fit_engine import model_from_values
     sess = HeadlessSession(ModelState.defaults())
     sess.load_ws5(str(DATA / "hierro_metalico_alphaFe.adt"), vmax=12.007)
+    # Calibrar = fijar el patrón (BHF = 33,0 T de α-Fe) y AJUSTAR la velocidad.
     sess.model.vars.update({"s1_bhf": 33.0, "s1_delta": 0.0, "s1_quad": 0.0,
                             "s1_gamma1": 0.30})
+    sess.model.fixed["s1_bhf"] = True
+    sess.model.fit_velocity = True
     result = sess.run_fit()
+    vmax_fit = float(sess.model.vars.get("vmax", 12.007))
     state = sess.build_fit_state()
     fit_curve = model_from_values(state.velocity, sess.model.vars, state.components,
                                   state.constraints,
@@ -98,9 +149,10 @@ def fig_calibration_fit() -> None:
     ax.plot(v, y, ".", color=DATA_C, ms=3.2, label="Datos")
     ax.plot(v, fit_curve, "-", color=MODEL_C, label="Ajuste (sexteto)")
     ax.set_ylabel("Transmisión relativa")
-    bhf = result["values"].get("s1_bhf", float("nan"))
     rchi = result["stats"].get("red_chi2", float("nan"))
-    ax.set_title(f"Calibración α-Fe · BHF = {bhf:.2f} T · χ²ᵣ = {rchi:.3g}")
+    ax.set_title(f"Calibración α-Fe · BHF = 33,0 T (fijo) · "
+                 f"Vmax ajustada = {vmax_fit:.3f} mm/s · χ²ᵣ = {rchi:.3g}",
+                 fontsize=9)
     ax.legend(loc="lower right")
     axr.axhline(0.0, color="0.5", lw=0.8)
     axr.plot(v, resid, "-", color="0.35", lw=0.9)
@@ -175,7 +227,8 @@ def fig_pbhf_distribution() -> None:
 
 
 FIGURES = [
-    ("espectro α-Fe cargado", fig_load_alphafe),
+    ("espectro α-Fe sin doblar/doblado", fig_load_alphafe),
+    ("drive senoidal", fig_sine_drive),
     ("ajuste de calibración", fig_calibration_fit),
     ("componentes simulados", fig_sim_components),
     ("distribución P(BHF)", fig_pbhf_distribution),
