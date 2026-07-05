@@ -116,10 +116,12 @@ class MainLayoutMixin:
         self.n_components_spin.setRange(1, MAX_QT_COMPONENTS)
         self.n_components_spin.setValue(1)
         self.n_components_spin.setToolTip(
-            tr("sim.n_components", default="Número de componentes/sextetes activos"))
+            tr("sim.n_components_tip", default="Número de componentes/sextetes activos"))
         self.n_components_spin.valueChanged.connect(self._on_n_components_changed)
         ncomp_row.addWidget(self.n_components_spin)
-        ncomp_row.addWidget(QtWidgets.QLabel(f"(máx. {MAX_QT_COMPONENTS})"))
+        ncomp_row.addWidget(QtWidgets.QLabel(
+            tr("sim.n_components_max", n=MAX_QT_COMPONENTS,
+               default=f"(máx. {MAX_QT_COMPONENTS})")))
         ncomp_row.addStretch(1)
         sim_lay.addLayout(ncomp_row)
 
