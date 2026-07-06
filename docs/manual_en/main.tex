@@ -1,0 +1,190 @@
+% ============================================================================
+%  Fitbauer user manual (English)
+%  Software for Mössbauer spectrum fitting and analysis
+%
+%  Build (from docs/manual_en/):   make        (or)   latexmk -pdf main.tex
+%  The "physics/data" figures are generated with:
+%      python scripts/make_figures.py     (from the repository root)
+%  GUI screenshots are added by hand in img/ with the name indicated by each
+%  \guicap{...} slot; if missing, the manual compiles with a "screenshot
+%  pending" box in their place.
+% ============================================================================
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb,amsfonts,mathtools,bm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{listings}
+\usepackage{seqsplit}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{img/}}
+\DeclareGraphicsExtensions{.pdf,.png,.jpg}
+
+\definecolor{fbblue}{HTML}{1F4E79}
+\definecolor{fbred}{HTML}{C1272D}
+\definecolor{fbgreen}{HTML}{2E7D32}
+\definecolor{fbgray}{HTML}{6B6B6B}
+
+\hypersetup{
+  colorlinks=true, linkcolor=fbblue!80!black,
+  urlcolor=fbblue, citecolor=fbblue}
+
+% ── Header style ─────────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\leftmark}
+\fancyhead[R]{\small Fitbauer Manual}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── Semantic boxes ───────────────────────────────────────────────────────────
+\newtcolorbox{nota}[1][Note]{
+  colback=fbblue!4, colframe=fbblue!55!black, fonttitle=\bfseries,
+  title={#1}, left=5pt, right=5pt, top=3pt, bottom=3pt, arc=2pt}
+\newtcolorbox{aviso}[1][Important]{
+  colback=fbred!5, colframe=fbred!65!black, fonttitle=\bfseries,
+  title={#1}, left=5pt, right=5pt, top=3pt, bottom=3pt, arc=2pt}
+\newtcolorbox{truco}[1][Tip]{
+  colback=fbgreen!5, colframe=fbgreen!55!black, fonttitle=\bfseries,
+  title={#1}, left=5pt, right=5pt, top=3pt, bottom=3pt, arc=2pt}
+
+% ── Interface commands ───────────────────────────────────────────────────────
+% \menu{File > Load...} — menu paths.
+\newcommand{\menu}[1]{\textsf{\textbf{#1}}}
+\newcommand{\boton}[1]{\textsf{[#1]}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+% \ruta: paths/files in monospace; seqsplit allows breaking long paths.
+% Robust so it can be used inside \caption (moving argument).
+\DeclareRobustCommand{\ruta}[1]{\texttt{\small\seqsplit{#1}}}
+\newcommand{\param}[1]{\textit{#1}}
+\newcommand{\BHF}{B_{\mathrm{hf}}}
+\newcommand{\dEQ}{\Delta E_{Q}}
+% Macros used by the mathematical appendices (docs/*.tex).
+\newcommand{\DEQ}{\Delta E_Q}
+\newcommand{\IS}{\delta}
+\newcommand{\QS}{\Delta E_Q}
+\newcommand{\nuR}{\nu}
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\file}[1]{\textcolor{black!70}{\texttt{\small #1}}}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\erfc}{erfc}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+% ── Auto-generated figures (always present in img/) ──────────────────────────
+% \autofig[width]{file-without-ext}{caption}
+\newcommand{\autofig}[3][0.82\textwidth]{%
+  \begin{figure}[htbp]\centering
+    \includegraphics[width=#1]{#2}%
+    \caption{#3}\label{fig:#2}%
+  \end{figure}}
+
+% ── GUI screenshots (placeholder if the image does not exist yet) ────────────
+% \guicap[width]{file-without-ext}{caption}
+\newcommand{\guiplaceholder}[2]{%
+  \fcolorbox{fbgray}{fbgray!7}{%
+    \parbox[c][0.26\textheight][c]{#1}{\centering
+      \textbf{\textcolor{fbgray}{Screenshot pending}}\\[6pt]
+      \texttt{\small img/\detokenize{#2}.png}\\[8pt]}}}
+\newcommand{\guicap}[3][0.82\textwidth]{%
+  \begin{figure}[htbp]\centering
+    \IfFileExists{img/#2.png}{\includegraphics[width=#1]{#2}}{%
+      \IfFileExists{img/#2.pdf}{\includegraphics[width=#1]{#2}}{%
+        \guiplaceholder{#1}{#2}}}%
+    \caption{#3}\label{fig:#2}%
+  \end{figure}}
+
+\lstset{basicstyle=\ttfamily\small, breaklines=true,
+        frame=single, rulecolor=\color{fbgray!50}, backgroundcolor=\color{fbblue!3},
+        extendedchars=true,
+        literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+                 {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+                 {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1 {¡}{{!`}}1 {¿}{{?`}}1}
+
+% ============================================================================
+\title{\vspace{-1.2cm}
+  \includegraphics[width=2.8cm]{fitbauer_logo}\\[12pt]
+  \textbf{\Huge Fitbauer}\\[8pt]
+  \Large User manual\\[4pt]
+  \normalsize \textit{Software for Mössbauer spectrum fitting and analysis}}
+\author{Jorge Sánchez Marcos \and Nieves Menéndez González\\[2pt]
+  \small Department of Physical Chemistry · Universidad Autónoma de Madrid}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+\noindent \textbf{Fitbauer} is a desktop application to load, fold,
+\emph{simulate} and \emph{fit} $^{57}$Fe Mössbauer spectra. The simulation
+corresponds to the \emph{forward model} —singlets, doublets and sextets—, while
+the fit can be \emph{discrete} (those same components) or via \emph{distributions}
+of hyperfine field or quadrupole splitting, which are obtained by \textbf{fitting}
+the data (a probability distribution is inferred from the spectrum, not
+arbitrarily ``simulated'').
+
+\medskip\noindent Fitbauer was born with one idea: to build something
+\textbf{new, easy to understand and intuitive}, with \textbf{live simulation} and
+everything needed to fit Mössbauer spectra without friction. Other programs
+exist —some commercial, some free or academic— but they did not always show or
+offer what was needed or wanted for day-to-day work; hence this project.
+Section~\ref{sec:porque} explains why, and section~\ref{sec:comparacion} places
+it, neutrally, alongside other tools in the field.
+
+\medskip\noindent The manual follows the real workflow: first \emph{calibration}
+—which is fixed and reused—, then loading and visualising data, simulating and
+fitting a calibrant, and finally distribution fitting. The \textbf{Note},
+\textbf{Important} and \textbf{Tip} boxes highlight practical details.
+\end{abstract}
+
+\tableofcontents
+
+\input{chapters/00_intro}
+\input{chapters/01_calibracion}
+\input{chapters/02_carga_datos}
+\input{chapters/03_simular_ajustar}
+\input{chapters/04_distribuciones}
+
+% ── Appendices: mathematical manuals, included as source (\input) ────────────
+% The bodies of docs/*.tex are copied into appendices/ (without their preamble)
+% and compiled together with the manual, with unified formatting and numbering.
+\appendix
+\addcontentsline{toc}{part}{Mathematical appendices}
+
+\chapter{Mathematical manual of the fitting engine}
+\label{ap:mates}
+\input{appendices/apx_mates}
+
+\chapter[Voigt-based fitting (VBF)]{Voigt-based fitting (VBF): \texorpdfstring{$P(\BHF)$}{P(BHF)} as a sum of Gaussians}
+\label{ap:vbf}
+\input{appendices/apx_vbf}
+
+\chapter{Isomer-shift distributions \texorpdfstring{$P(\mathrm{IS})$}{P(IS)}}
+\label{ap:dist-is}
+\input{appendices/apx_dist_is}
+
+\chapter{Two-dimensional distributions \texorpdfstring{$P(\BHF,\dEQ)$}{P(BHF,DEQ)}}
+\label{ap:dist-2d}
+\input{appendices/apx_dist_2d}
+
+\chapter{Magnetic relaxation models}
+\label{ap:relax}
+\input{appendices/apx_relax}
+
+\chapter{Thickness correction}
+\label{ap:espesor}
+\input{appendices/apx_espesor}
+
+\end{document}

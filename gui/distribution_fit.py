@@ -21,7 +21,6 @@ from core.param_overrides import effective_fit_init_specs as _eff_fi, effective_
 from gui.fit_workflow import GuiFitRenderState, GuiFitResult
 from mossbauer_distribution import (
     fit_hyperfine_distribution,
-    fit_gaussian_hyperfine_distribution,
     fit_vbf_hyperfine_distribution,
     fit_binomial_hyperfine_distribution,
     fit_fixed_hyperfine_distribution,
@@ -481,8 +480,14 @@ class DistributionFitMixin:
                     delta_slope=dsl, quad_slope=qsl,
                     **common)
             if shape == "Gaussiana":
-                return fit_gaussian_hyperfine_distribution(
-                    v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins, **common)
+                # "Gaussiana" = VBF con una sola gaussiana y línea Lorentziana (el
+                # caso clásico). Se conserva la etiqueta shape="Gaussiana" en el
+                # resultado para sesiones/informes; VBF es su generalización a N>1,
+                # perfil Voigt y correlación δ(H)/ΔEQ(H).
+                return fit_vbf_hyperfine_distribution(
+                    v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins,
+                    n_components=1, profile="Lorentz", shape="Gaussiana",
+                    **common)
             if shape == "Binomial":
                 return fit_binomial_hyperfine_distribution(
                     v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins, **common)

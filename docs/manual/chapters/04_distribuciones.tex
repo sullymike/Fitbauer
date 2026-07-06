@@ -387,7 +387,9 @@ Forma \textbf{paramétrica} mínima: $P$ es \emph{una única gaussiana} sobre la
 malla. Ajusta su \textbf{media} $\mu$ (el campo central) y su \textbf{anchura}
 $\sigma$ (más la amplitud y la línea base). Solo dos parámetros de forma, así que
 es \textbf{muy estable} y no sufre mal condicionamiento: no usa regularizador ni
-$\alpha$.
+$\alpha$. Internamente es exactamente el \textbf{VBF con una sola componente}
+($N=1$, §\ref{sec:forma-vbf} y anexo~\ref{ap:vbf}): comparten algoritmo, y elegir
+«Gaussiana» equivale a fijar $N=1$ con línea Lorentziana.
 
 \begin{itemize}[nosep]
   \item \textbf{Cuándo}: hay \emph{un} entorno ensanchado (una fase con dispersión
@@ -409,7 +411,9 @@ media $\mu_k$ y anchura $\sigma_k$, todas ajustables:
 Es el método de Rancourt y Ping (1991). Su gran ventaja frente al Histograma:
 entrega \textbf{parámetros con significado} por subpoblación (posición, anchura y
 \textbf{área}, §\ref{sec:vbf-areas}) en vez de un perfil sin estructura, y es más
-estable (pocos parámetros, sin regularización).
+estable (pocos parámetros, sin regularización). El anexo~\ref{ap:vbf} desarrolla
+su matemática (modelo directo, perfil Voigt, parametrización, poblaciones y el
+caso $N=1$ que corresponde a la forma \menu{Gaussiana}).
 
 \begin{itemize}[nosep]
   \item \textbf{Cuándo}: espera \textbf{2--3 subpoblaciones} magnéticas bien

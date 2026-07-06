@@ -1,0 +1,192 @@
+\chapter{Introduction and getting started}
+\label{ch:intro}
+
+\section{What is Fitbauer}
+
+\textbf{Fitbauer} is a desktop application for the analysis of $^{57}$Fe
+Mössbauer spectra. It lets you:
+
+\begin{itemize}[nosep]
+  \item \textbf{Load} spectra in several formats (raw counts
+        \ruta{.ws5}/\ruta{.adt} or spectra already folded in velocity
+        \ruta{.csv}/\ruta{.txt}/\ruta{.dat}/\ruta{.exp}).
+  \item \textbf{Fold} the raw counts and build the velocity
+        axis from a \emph{calibration}.
+  \item \textbf{Simulate} the \emph{forward model}, live: up to six components
+        (singlet, doublet, sextet and magnetic relaxation models), with
+        Lorentz/Voigt profiles.
+  \item \textbf{Fit} the data, either \emph{discretely} (those same
+        components) or through \emph{distributions} $P(\BHF)$ / $P(\dEQ)$.
+  \item \textbf{Document}: Markdown/PDF reports, figure export and
+        reproducible sessions.
+\end{itemize}
+
+The interface is translated into seven languages (\menu{Language} menu): Spanish, English,
+French, German, simplified Chinese, Japanese and Russian.
+
+\begin{nota}
+\textbf{Simulating} and \textbf{fitting} are not the same thing. \emph{Simulation} generates
+a spectrum from parameters that you set (forward model). \emph{Fitting}
+does the opposite: it starts from the measured spectrum and \emph{infers} the parameters that
+best reproduce it. This is why a \emph{probability distribution} is not
+"simulated" out of thin air: it is \textbf{obtained by fitting} the spectrum (although you can
+\emph{simulate the spectrum} that a given distribution would produce).
+\end{nota}
+
+\begin{nota}
+The computation (physics and fitting engines) resides in the \ruta{core/} package, which
+does not depend on any graphical interface. The GUI is a client of that core. This
+manual describes how to use the application; the mathematical detail of the fitting
+engine is in \textbf{appendix}~\ref{ap:mates} (\emph{Mathematical manual of the fitting
+engine}) and in the other mathematical appendices.
+\end{nota}
+
+\section{Why Fitbauer?}
+\label{sec:porque}
+
+Fitbauer grew out of a practical need in the laboratory. The idea was to build
+something \textbf{new, easy to understand and intuitive}, that put \textbf{live
+simulation} first —seeing immediately how each parameter deforms the
+spectrum— and that included \textbf{what is necessary} to fit Mössbauer spectra
+without unnecessary learning curves.
+
+Other programs exist for this purpose, some commercial and others free or for
+academic use. They are valuable, well-established tools, but in day-to-day
+work they did not always show or offer what was needed or wanted: sometimes
+because they rely on old environments, because of non-intuitive interfaces, because they were not
+available on every platform, or simply because they did not fit the specific
+workflow of our group.
+
+With that motivation, Fitbauer pursues a few principles:
+
+\begin{itemize}[nosep]
+  \item \textbf{Immediacy}: load, view and simulate in a few clicks; the plot
+        responds live to every parameter change.
+  \item \textbf{Clarity}: parameters with physical meaning, explicit units
+        and a calibration that is set once and reused.
+  \item \textbf{Reproducibility}: sessions and reports that let you redo an
+        analysis exactly, and a computation core kept separate from the interface.
+  \item \textbf{Accessibility}: cross-platform, multilingual and easy to
+        install (or as an executable, without installing Python).
+\end{itemize}
+
+\section{Comparison with other programs}
+\label{sec:comparacion}
+
+By way of orientation —and \textbf{without any intention of deciding which is best}—, it is
+useful to place Fitbauer alongside other tools common in the field. Each has
+its own audience, history and strengths:
+
+\begin{itemize}[nosep]
+  \item \textbf{NORMOS} (R.\,A.\ Brand): one of the historical standards, with
+        site modules (\emph{Site}) and distribution modules (\emph{Dist}). Very
+        widespread, traditionally tied to a DOS-like environment.
+  \item \textbf{MossWinn} (Z.\ Klencsár): a very complete Windows program, with
+        an extensive database and many models; commercial in nature.
+  \item \textbf{Recoil} (Lagarec \& Rancourt): popularized Voigt-based
+        fitting (VBF) for distributions; oriented towards Windows.
+  \item \textbf{Vinda} (H.\,P.\ Gunnlaugsson): a set of spreadsheet
+        macros, free, widely used in environments such as ISOLDE.
+  \item \textbf{WMOSS} and \textbf{Moessfit}: Windows alternatives with general
+        fitting (including Hamiltonian diagonalization), for academic use.
+\end{itemize}
+
+Fitbauer sits in the territory of a \textbf{modern,
+cross-platform application focused on interactive simulation}, with the discrete
+and distribution fitting methods described in this manual. It does not aim to
+replace those above, but rather to offer a direct and convenient path for everyday
+work with Fe-57.
+
+\begin{nota}
+The descriptions above are approximate and may have changed depending on the
+version of each program; they are included only to orient anyone coming from another
+tool.
+\end{nota}
+
+\section{Mössbauer spectroscopy at a glance}
+\label{sec:mossbauer-vistazo}
+
+To follow the manual it is enough to remember the three hyperfine parameters that
+Fitbauer fits, and how they appear in the spectrum (velocity in mm/s versus
+transmission):
+
+\begin{itemize}[nosep]
+  \item \textbf{Isomer shift} $\delta$: shifts the whole pattern along
+        the velocity axis. It reports on the oxidation state and the
+        coordination environment of the iron.
+  \item \textbf{Quadrupole splitting} $\dEQ$: separates the lines into pairs.
+        In a \emph{doublet} it is the distance between its two peaks; it reflects
+        the asymmetry of the electric field gradient.
+  \item \textbf{Hyperfine field} $\BHF$: characteristic of magnetic materials.
+        It generates a \emph{sextet} of six lines whose separation grows with the
+        field (for $\alpha$-Fe, $\BHF = 33.0$~T).
+\end{itemize}
+
+Depending on the material, the spectrum is a \textbf{singlet} (one line), a
+\textbf{doublet} (two), a \textbf{sextet} (six) or a \textbf{sum} of several
+of these contributions. When the iron environment is not unique but varies
+—disordered oxides, nanoparticles, alloys—, the spectrum is better described
+with a \textbf{distribution} of fields or quadrupoles
+(chapter~\ref{ch:distribuciones}).
+
+\section{Installation and startup}
+
+Fitbauer requires Python 3.11 or higher. From the repository root:
+
+\begin{lstlisting}[language=bash]
+python3 -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python fitbauer.py               # abre la interfaz gráfica
+\end{lstlisting}
+
+The single entry point is \ruta{fitbauer.py}, which launches the main window
+(Qt + Matplotlib). Packaged executable versions
+(PyInstaller) are also available for those who do not wish to install Python.
+
+\section{Overview of the interface}
+\label{sec:panorama}
+
+On startup the main window appears, organized into:
+
+\begin{itemize}[nosep]
+  \item \textbf{Menu bar}: \menu{File}, \menu{Fit}, \menu{View},
+        \menu{Language} and \menu{Help}.
+  \item \textbf{Calibration panel}: control of \param{Vmax}, folding
+        center, baseline, slope and line profile.
+  \item \textbf{Component panels} (up to six): component shape and its
+        physical parameters ($\delta$, $\dEQ$, $\BHF$, linewidths, intensities).
+  \item \textbf{Distribution panel}: $P(\BHF)$/$P(\dEQ)$ mode, shape,
+        regularizer and its parameters.
+  \item \textbf{Plot area}: display of the spectrum, the model and the
+        subspectra, with a navigation toolbar (Matplotlib).
+  \item \textbf{Information/status panel}: fitted parameters, statistics
+        ($\chi^2$, AIC, BIC) and messages.
+\end{itemize}
+
+\guicap{gui_overview}{General view of the main Fitbauer window with its
+panels: menus, left-hand calibration and information panel, central plot
+area (here an $\alpha$-Fe fit) and right-hand simulation/fitting panel.}
+
+\begin{truco}
+The panel layout is configurable from
+\menu{View > Configure panel layout…}. You can save presets suited to
+large screens or laptops.
+\end{truco}
+
+\section{The typical workflow}
+
+The recommended order, which structures the following chapters, is:
+
+\begin{enumerate}[nosep]
+  \item \textbf{Calibrate} (chapter~\ref{ch:calibracion}): load or define a
+        velocity calibration and \textbf{set it}. From that moment on it is
+        reused automatically.
+  \item \textbf{Load data} (chapter~\ref{ch:carga}): open the target
+        spectrum; the fixed calibration is applied by itself.
+  \item \textbf{Simulate and fit} (chapter~\ref{ch:simular}): build the
+        forward model and fit it; validate with an $\alpha$-Fe calibration.
+  \item \textbf{Distributions} (chapter~\ref{ch:distribuciones}): when the
+        hyperfine field is not unique, fit $P(\BHF)$ (and simulate the spectrum that
+        a given distribution produces).
+\end{enumerate}

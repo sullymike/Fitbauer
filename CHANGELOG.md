@@ -1,5 +1,54 @@
 # Changelog
 
+## v4.14.2 — distribución: «Gaussiana» pasa a ser VBF con N=1 (sin duplicar código)
+
+La forma **Gaussiana** era un caso particular estricto de **VBF** (una sola
+gaussiana): mismos parámetros libres (baseline, slope, A, μ, σ), misma malla y la
+misma normalización de área. Se unifican ambos caminos.
+
+- La GUI **mantiene la etiqueta «Gaussiana»** (opción amigable, sin jerga), pero
+  internamente ajusta con `fit_vbf_hyperfine_distribution(n_components=1,
+  profile="Lorentz")`. El resultado conserva `shape="Gaussiana"`, así que sesiones,
+  informes y export siguen igual; ahora además reporta el componente como A/μ/σ.
+- Se **elimina la función duplicada** `fit_gaussian_hyperfine_distribution`. VBF es
+  su generalización (N>1, perfil Voigt, correlación δ(H)/ΔEQ(H)).
+- Efecto colateral positivo: el camino antiguo dependía del **perfil de línea global
+  ambiente** (podía «contaminarse» tras un ajuste discreto en Voigt); ahora fija el
+  perfil explícitamente (Lorentz), como el resto de VBF.
+- Test de regresión (`test_gaussiana_shape_is_vbf_single_lorentz`): recupera una
+  gaussiana de BHF conocida y verifica que se conserva la etiqueta.
+- **Documentación**: ayudas actualizadas en los **7 idiomas** (Gaussiana = VBF con
+  N=1); el capítulo P(BHF) del manual lo aclara; y **nuevo anexo B del manual**
+  («Ajuste por Voigt (VBF)», `docs/manual/appendices/apx_vbf.tex`) con la matemática
+  completa: modelo directo y núcleo, perfil Voigt y la doble lectura del
+  ensanchamiento, mínimos cuadrados y parametrización, áreas/poblaciones,
+  correlación δ(H)/ΔEQ(H), el caso N=1 y comparación con el histograma.
+- **Manual en inglés**: nuevo árbol `docs/manual_en/` con el manual completo
+  traducido (capítulos y anexos), figuras regeneradas en inglés y `main.pdf`
+  (76 págs., compila limpio). Se mantiene en paralelo al manual en español.
+- **Enlace al manual en la app**: nueva acción **Ayuda → Manual (PDF)** que abre el
+  manual **en inglés** (única versión enlazada): copia local `docs/manual_en/main.pdf`
+  si está presente, o el PDF en GitHub en su defecto (robusto en builds congelados,
+  que no empaquetan `docs/`). Cadena `help.manual` en los 7 idiomas.
+
+## v4.14.1 — comprobar actualizaciones sin caer en el rate-limit (HTTP 403)
+
+La comprobación de actualizaciones usaba solo la API REST de GitHub sin
+autenticar (`api.github.com`), limitada a **60 peticiones/hora por IP**. En redes
+con IP compartida (NAT, p. ej. una universidad) esa cuota se agota entre varios
+equipos y la comprobación fallaba con **HTTP 403**.
+
+- **Fallback al feed atom público** (`github.com/<repo>/releases.atom`), que **no
+  está sujeto** al límite de 60/h. Si la API devuelve 403 (rate-limit) o falla la
+  red, `list_releases`/`latest_release` recurren al feed y la comprobación sigue
+  funcionando. Los errores que no son de cuota (p. ej. 500) se propagan como antes.
+- El feed no publica assets ni el flag de prerelease: el prerelease se deduce del
+  sufijo del tag y la **descarga** se resuelve construyendo la URL canónica del
+  workflow (`.../releases/download/<tag>/Fitbauer-<tag>.zip` y `sha256sums.txt`),
+  de modo que descargar y verificar el SHA-256 también funcionan por esta vía.
+- Tests nuevos (`tests/test_updater_atom_fallback.py`): 403→atom, canal con betas,
+  URL canónica sin assets y que un error 500 no se traga.
+
 ## v4.14.0 — soporte de drive senoidal (estilo NORMOS)
 
 Fitbauer ya admite datos medidos con drive **senoidal**, no solo de aceleración

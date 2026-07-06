@@ -1,0 +1,163 @@
+\chapter{Calibration}
+\label{ch:calibracion}
+
+Calibration is \textbf{the first step} of the analysis. It determines the
+relationship between channel and velocity (mm/s) and, optionally, the isomer
+shift reference. In Fitbauer the calibration is \textbf{fixed} and reused in all
+subsequent loads, so it does not have to be redefined for each spectrum.
+
+\section{Why calibration is needed}
+
+The velocity transducer runs through a triangular cycle; the system records the
+counts per channel. To convert the channel axis into a physical velocity axis
+you need the \textbf{maximum velocity} \param{Vmax} (mm/s at the end of the
+travel). This \param{Vmax} depends on the transducer amplitude and is common to
+all spectra measured with the same configuration: this is why it is measured
+once with a standard and reused.
+
+The usual standard is \textbf{metallic $\alpha$-Fe}, whose sextet has very
+well-known line positions. Fitbauer adopts the convention that an $\alpha$-Fe
+spectrum corresponds to $\BHF = 33{,}0$~T, using the published velocity standard
+($\pm0{,}839 / \pm3{,}084 / \pm5{,}329$~mm/s), just like NORMOS.
+
+\begin{aviso}
+The reference sextet positions are \textbf{not} derived from the nuclear
+moments: the textbook calculation gives a splitting $\sim0{,}4\%$ smaller and
+would make the $\BHF$ come out $\sim0{,}1$~T too high. The published $\alpha$-Fe
+positions at 33.0~T are used instead.
+\end{aviso}
+
+\section{Defining a calibration from an $\alpha$-Fe}
+\label{sec:definir-calib}
+
+The usual procedure is to load an $\alpha$-Fe spectrum and use it to \textbf{fix
+the velocity scale}. It is worth keeping one idea clear:
+
+\begin{aviso}
+\textbf{Calibrating means fitting the velocity, not the field.} In $\alpha$-Fe
+the hyperfine field \textbf{is already known}: by convention $\BHF = 33{,}0$~T.
+What is \emph{not} known is the \param{Vmax} —how many mm/s correspond to the end
+of the transducer travel—. That is why the calibration fit \textbf{fixes}
+$\BHF = 33{,}0$~T (and $\delta$, $\dEQ$ of $\alpha$-Fe) and \textbf{leaves the
+\param{Vmax} free}, searching for the value that makes the six lines of the model
+coincide with those of the spectrum. The result of the fit is not a $\BHF$ (that
+is known), but the \param{Vmax} that defines the velocity axis for all subsequent
+spectra.
+\end{aviso}
+
+\begin{enumerate}[nosep]
+  \item \menu{File > Load…} and select the $\alpha$-Fe spectrum
+        (for example \ruta{data\_sample/hierro\_metalico\_alphaFe.adt}).
+  \item \textbf{Fix the standard and fit the velocity.} Set a single sextet with
+        $\BHF = 33{,}0$~T and \textbf{mark it as fixed} (padlock), enable
+        \emph{Fit Vmax} and run \menu{Fit > Fit}. The optimizer
+        will move the \param{Vmax} (and refine $\delta$, $\Gamma$) until the six
+        lines match. That \param{Vmax} value is the calibration.
+  \item Mark the result as calibration with
+        \menu{File > Use current file as calibration…}, or from the context
+        menu of the file box (right click).
+\end{enumerate}
+
+\begin{nota}
+If instead of fixing the field you leave $\BHF$ free, you will obtain a value
+very close to 33~T (e.g.\ 33{,}04), but that is redundant: the standard
+\emph{defines} 33{,}0~T. Fixing it avoids the degeneracy between $\BHF$ and
+\param{Vmax} (both scale the line positions) and makes the fit determine
+\emph{only} the velocity.
+\end{nota}
+
+\autofig{fig_calibration_fit}{Calibration of an $\alpha$-Fe: $\BHF = 33{,}0$~T
+(standard) is \textbf{fixed} and the \param{Vmax} is \textbf{fitted}. The fit
+returns $\text{Vmax} \approx 11{,}99$~mm/s with a reduced $\chi^2$ close to 1:
+that \param{Vmax} is the calibrated velocity scale. Figure generated with
+\ruta{scripts/make\_figures.py}.}
+
+When marking the calibration, Fitbauer offers two variants from the context menu
+of the file box:
+
+\begin{itemize}[nosep]
+  \item \menu{Use as calibration (current vmax and iso)}: takes directly the
+        \param{Vmax} and the isomer shift $\delta$ of the current state.
+  \item \menu{Use as calibration (details)…}: opens a dialog to review and
+        edit the sample name, the \param{Vmax} and the IS before fixing.
+\end{itemize}
+
+\guicap{gui_use_as_calibration}{"Use as calibration" dialog with the sample name,
+the calibrated Vmax and the reference isomer shift.}
+
+\section{The calibration remains \emph{fixed}}
+\label{sec:calib-fija}
+
+Once defined, the calibration remains \textbf{fixed}: its \param{Vmax} (and the
+reference IS) are saved and shown in the calibration label with the
+\textbf{"fixed"} mark. From that point on it is applied automatically to the
+spectra you load, according to this rule:
+
+\begin{center}
+\begin{tabular}{@{}p{0.46\textwidth}p{0.46\textwidth}@{}}
+\toprule
+\textbf{Action} & \textbf{Effect on the calibration} \\
+\midrule
+Load a file \textbf{without} its own calibration (raw counts:
+\ruta{.ws5}, \ruta{.adt}) &
+The \textbf{fixed one is used}: the velocity axis is built with the fixed
+\param{Vmax}. The calibration \textbf{does not change}. \\[6pt]
+Load a file \textbf{with} its own calibration (velocity axis:
+\ruta{.csv}, \ruta{.txt}, \ruta{.dat}, \ruta{.exp}) &
+It \textbf{replaces} the calibration with the file's own (its \param{Vmax}) and a
+\textbf{warning} is shown in the status bar. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+That is: if you fix a calibration and then load \textbf{only data} of raw counts,
+the calibration remains \textbf{intact} and is applied to all of them.
+
+\begin{nota}
+Raw-count files (\ruta{.ws5}/\ruta{.adt}) do not carry a velocity axis; they need
+the calibration's \param{Vmax} to build it. Files already folded in velocity
+(\ruta{.csv}, etc.) bring their own axis: that is why they \emph{replace} the
+active calibration.
+\end{nota}
+
+\guicap{gui_calib_label_fixed}{Calibration label showing the "fixed" state, with
+the sample, the Vmax and the reference IS.}
+
+\subsection{Replacing the calibration}
+
+When you load a file with its own calibration while another one is already fixed,
+the new one replaces the previous one and Fitbauer shows a temporary warning in
+the status bar of the type:
+
+\begin{center}\ttfamily\small
+Calibration replaced by the file's datos.csv: Vmax 12.0070 $\to$ 11.5000 mm/s
+\end{center}
+
+This is a record that the active \param{Vmax} has changed. The reference isomer
+shift is preserved.
+
+\subsection{Releasing the calibration}
+
+To stop applying the fixed calibration, use \menu{Release fixed calibration} in
+the context menu of the file box. From then on each load will use the
+\param{Vmax} corresponding to its own file (or the control's default value).
+
+\section{Calibrations from the web}
+
+If you have access to the API, \menu{File > Web > Web calibrations…} lets you
+download a remote calibration. Its values (\param{velocity\_calibrated} and
+\param{isomer\_shift}) are fixed exactly like a local calibration, rescaling the
+velocity axis of the current spectrum.
+
+\section{Persistence in the session}
+
+The fixed calibration is part of the \textbf{session}: when saving
+(\menu{File > Save session…}) it is stored together with the rest of the state,
+and when loading it (\menu{File > Load session…}) it is restored as is. In this
+way an analysis is reproducible without recalibrating.
+
+\begin{truco}
+For batch work over many samples measured with the same configuration: load and
+fix the $\alpha$-Fe calibration once, save it in a base session and start from it
+each day.
+\end{truco}

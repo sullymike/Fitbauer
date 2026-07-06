@@ -1,0 +1,302 @@
+\noindent
+This document describes the three magnetic relaxation models implemented in
+Fitbauer, complementary to the pre-existing singlet, doublet, sextet and
+Hesse--Rübartsch distribution models:
+(1)~\code{Relajacion}: a phenomenological component that interpolates between a
+blocked sextet and an apparent superparamagnetic doublet;
+(2)~\code{BlumeTjon}: a dynamic two-state model ($+\BHF \leftrightarrow -\BHF$)
+with symmetric Bloch--McConnell-type exchange;
+(3)~\code{NeelSize}: a Néel--Arrhenius model with a lognormal particle size
+distribution, combining the \code{BlumeTjon} profile for each diameter.
+Simultaneous global fitting of spectra at several temperatures is available from
+\textbf{Fit → Global Néel (T)}.
+
+
+
+\bigskip
+
+%======================================================================
+\section{Physical motivation}
+
+In magnetic nanoparticles, ferrites or partially superparamagnetic iron oxides,
+the magnetic moment may fluctuate during the Mössbauer observation window. If the
+fluctuations are slow, the nucleus observes an almost static hyperfine field and
+the spectrum is a sextet. If they are fast, the magnetic field is averaged out and
+a superparamagnetic doublet or singlet appears. In the intermediate regime the
+lines broaden and coalesce.
+
+The implementation aims to avoid an automatic ``sextet + doublet = two chemical
+phases'' interpretation. A doublet-like fraction may be the spectral manifestation
+of fast relaxation.
+
+\begin{aviso}
+The models described here are complementary. If the \code{Relajacion} or
+\code{BlumeTjon} components are not selected, the previous models are evaluated by
+exactly the same code branches as before.
+\end{aviso}
+
+%======================================================================
+\section{Common notation}
+
+In the thin-absorber limit, the transmission is written as
+\begin{equation}
+  T(v)=b+s\,v-A(v),
+\end{equation}
+where $b$ is the baseline, $s$ the slope and $A(v)$ the positive absorption of the
+component. For a conventional sextet:
+\begin{equation}
+  A_{6}(v)=D\sum_{j=1}^{6} I_j L\bigl(v; v_j,\Gamma_j\bigr),
+\end{equation}
+with depth $D$, intensities $I_j$ and Lorentzian profile
+\begin{equation}
+  L(v;v_0,\Gamma)=\frac{\Gamma^2}{(v-v_0)^2+\Gamma^2}.
+\end{equation}
+The first-order positions are
+\begin{equation}
+  v_j = \delta + q_j\,\dEQ + m_j\,\frac{\BHF}{33\,\mathrm{T}},
+\end{equation}
+where $m_j$ are the $\alpha$-Fe reference positions at $33$ T and $q_j$ the
+first-order quadrupole pattern.
+
+%======================================================================
+\section{Phenomenological model \code{Relajacion}}
+
+\subsection{Definition}
+
+The \code{Relajacion} component interpolates between a blocked sextet and an
+apparent superparamagnetic doublet:
+\begin{equation}
+  A_{\mathrm{rel}}(v)=D\left[
+  f_{\mathrm{b,ef}}\,S_6(v)
+  +\bigl(1-f_{\mathrm{b,ef}}\bigr)\,D_2^{\ast}(v)
+  \right].
+  \label{eq:rel-phen}
+\end{equation}
+$S_6(v)$ is the unit-depth sextet profile and $D_2^{\ast}(v)$ is the doublet
+scaled so that its integrated area is comparable to that of the sextet:
+\begin{equation}
+  D_2^{\ast}(v)=D_2(v)\,
+  \frac{\int S_6(v)\,dv}{\int D_2(v)\,dv}.
+\end{equation}
+In this way, $D$ approximately retains the meaning of total area/depth.
+
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.82\textwidth]{apx_relax_phenom}
+  \caption{Phenomenological model \code{Relajacion} \eqref{eq:rel-phen}. As the
+  blocked fraction $f_b$ decreases from $1$ (blocked sextet) to $0$ (apparent
+  superparamagnetic doublet), the sextet signal is transferred to a central
+  doublet of equivalent area. It does not represent two chemical phases, but the
+  spectral effect of relaxation.}
+  \label{fig:apx_relax_phenom}
+\end{figure}
+
+\subsection{Blocked fraction and phenomenological rate}
+
+The user sees two specific parameters:
+\begin{itemize}[leftmargin=*]
+  \item $f_{\mathrm{bloq}}$: maximum blocked fraction.
+  \item $\log_{10}\nu$: phenomenological relaxation rate in s$^{-1}$.
+\end{itemize}
+The fraction that actually enters \eqref{eq:rel-phen} is
+\begin{equation}
+  f_{\mathrm{b,ef}}=f_{\mathrm{bloq}}\,F(\log_{10}\nu),
+  \label{eq:fb-eff}
+\end{equation}
+with
+\begin{equation}
+  F(x)=\frac{1}{1+\exp\left(\frac{x-x_c}{w}\right)},
+  \qquad x_c=8.5,\quad w=0.55.
+\end{equation}
+Thus, slow rates ($x\ll x_c$) leave $F\simeq 1$, whereas fast rates ($x\gg x_c$)
+force $F\simeq 0$.
+
+In addition, a maximum phenomenological broadening is applied in the intermediate
+regime:
+\begin{equation}
+  \Gamma_{\mathrm{ef}}=\Gamma\left[1+1.6\exp\left(-\frac{1}{2}
+  \left(\frac{x-x_c}{0.75}\right)^2\right)\right].
+\end{equation}
+
+\begin{aviso}[Important correlation]
+$f_{\mathrm{bloq}}$ and $\log_{10}\nu$ are not fully independent parameters: both
+reduce the observed sextet fraction. In practice, it is advisable to fix one of
+the two unless the spectrum carries enough information. To estimate fractions, fix
+$\log_{10}\nu$ and free $f_{\mathrm{bloq}}$; to study dynamics, fix
+$f_{\mathrm{bloq}}=1$ and free $\log_{10}\nu$.
+\end{aviso}
+
+%======================================================================
+\section{Dynamic model \code{BlumeTjon}: two states}
+
+\subsection{Exchange matrix}
+
+The \code{BlumeTjon} component implements a first dynamic version with two opposite
+field orientations:
+\begin{equation}
+  +\BHF \leftrightarrow -\BHF,
+\end{equation}
+with symmetric transition matrix
+\begin{equation}
+  W=\begin{pmatrix}-\nu & \nu\\ \nu & -\nu\end{pmatrix}.
+\end{equation}
+There is no explicit blocked fraction: the dynamics is controlled by $\nu$.
+
+\subsection{Exchange profile for one transition}
+
+For each sextet line, two frequencies/velocities are computed, one for $+\BHF$ and
+one for $-\BHF$, denoted $v_a$ and $v_b$. A symmetric exchange form of
+Bloch--McConnell/Kubo type is used. We define
+\begin{equation}
+  z_a = \Gamma + i(v-v_a),\qquad z_b = \Gamma + i(v-v_b),
+\end{equation}
+and an exchange rate in velocity units
+\begin{equation}
+  k_v = \frac{\nu}{\mathcal{C}_{\nu\to v}},
+\end{equation}
+where
+\begin{equation}
+  \mathcal{C}_{\nu\to v}=\frac{E_\gamma}{h c_{\mathrm{mm/s}}}.
+\end{equation}
+Here $E_\gamma$ is the energy of the $^{57}$Fe transition and $c_{\mathrm{mm/s}}$
+the speed of light in mm/s. The absorption profile used is the real part of
+\begin{equation}
+  R(v)=\frac{1}{2}\,\Gamma\,
+  \frac{z_a+z_b+4k_v}{z_a z_b+k_v(z_a+z_b)}.
+  \label{eq:exchange}
+\end{equation}
+The total contribution is
+\begin{equation}
+  A_{\mathrm{BT}}(v)=D\sum_{j=1}^{6} I_j\,\Re\left[R_j(v)\right]_+,
+\end{equation}
+where $[\cdot]_+$ clips small numerical negative contributions.
+
+\subsection{Limits}
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Slow limit}: $k_v\to0$. Equation \eqref{eq:exchange} tends to the
+  average of two static Lorentzians. In the symmetric $+\BHF/-\BHF$ pattern it
+  reproduces the blocked sextet.
+  \item \textbf{Intermediate}: $k_v$ comparable to the line separation. Broadening
+  and coalescence appear.
+  \item \textbf{Fast}: large $k_v$. The magnetic positions are averaged out and the
+  spectrum tends to a doublet or singlet depending on $\dEQ$.
+\end{itemize}
+
+Figure~\ref{fig:apx_relaxation} shows the continuous evolution between these limits
+as the exchange rate increases.
+
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.72\textwidth]{apx_relaxation}
+  \caption{Relaxation-induced collapse in the two-state model
+  $+\BHF\leftrightarrow-\BHF$ \eqref{eq:exchange}. At a low rate (bottom) the
+  spectrum is the \emph{static sextet}; as the rate grows the lines broaden and
+  coalesce (\emph{intermediate regime}); at a high rate (top) the magnetic
+  positions are averaged to zero and a \emph{single collapsed line} remains. Curves
+  offset vertically for comparison.}
+  \label{fig:apx_relaxation}
+\end{figure}
+
+%======================================================================
+\section{Néel--Arrhenius and size distribution}
+
+The \code{NeelSize} component uses the Néel--Arrhenius model to convert the
+particle volume into a relaxation rate. For spherical particles of diameter $d$,
+\begin{equation}
+  V(d)=\frac{\pi d^3}{6},
+\end{equation}
+and
+\begin{equation}
+  \tau_N(d,T)=\tau_0\exp\left(\frac{K_{\mathrm{eff}}V(d)}{k_B T}\right),
+  \qquad
+  \nu(d,T)=\tau_0^{-1}\exp\left(-\frac{K_{\mathrm{eff}}V(d)}{k_B T}\right).
+\end{equation}
+In the GUI, $\log_{10}K_{\mathrm{eff}}$ and $\log_{10}\tau_0$ are fitted to keep
+reasonable numerical ranges:
+\begin{equation}
+  \log_{10}\nu_i=-\log_{10}\tau_0
+  -\frac{K_{\mathrm{eff}}V(d_i)}{k_BT\ln 10}.
+\end{equation}
+
+The size distribution is initially modelled as lognormal. If $d_{50}$ is the
+median and $\sigma_d$ the lognormal width,
+\begin{equation}
+  f(d)=\frac{1}{d\sigma_d\sqrt{2\pi}}
+  \exp\left[-\frac{(\ln d-\ln d_{50})^2}{2\sigma_d^2}\right].
+\end{equation}
+The total spectrum is discretized as
+\begin{equation}
+  A_{\mathrm{Neel}}(v)=D\sum_i w_i\,
+  A_{\mathrm{BT}}\bigl(v;\log_{10}\nu_i,T,K_{\mathrm{eff}},d_i\bigr),
+\end{equation}
+where $A_{\mathrm{BT}}$ is the two-state exchange profile of the previous section.
+Large particles have a larger barrier $K_{\mathrm{eff}}V$ and therefore relax more
+slowly; small ones relax fast and contribute a superparamagnetic signal.
+
+The approximate blocking temperature for a given diameter is estimated with
+\begin{equation}
+  T_B(d)=\frac{K_{\mathrm{eff}}V(d)}{k_B\ln(\tau_M/\tau_0)},
+\end{equation}
+where $\tau_M$ is the Mössbauer observation time (by default $10^{-8}$ s is used
+for the GUI summary).
+
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.98\textwidth]{apx_neel}
+  \caption{Néel--Arrhenius: size-dependent blocking. \emph{Left}: the relaxation
+  rate $\nu(d,T)$ drops as the diameter grows; small particles relax fast
+  (superparamagnetic, collapsing to a singlet/doublet) and large ones remain
+  \emph{blocked} (sextet). A particle appears blocked when $\nu$ falls below the
+  Mössbauer observation window (grey band); as $T$ decreases the blocking shifts to
+  smaller diameters. \emph{Right}: over a lognormal size distribution, at fixed $T$
+  the blocking diameter $d_B$ separates the superparamagnetic fraction from the
+  blocked one, and the spectrum is the mixture of both.}
+  \label{fig:apx_neel}
+\end{figure}
+
+\begin{aviso}[Identifiability]
+In a single spectrum, $K_{\mathrm{eff}}$, $d_{50}$, $\sigma_d$, $\tau_0$, $\Gamma$
+and a possible static distribution $P(\BHF)$ may be strongly correlated. It is
+therefore advisable to fix parameters using external information (TEM,
+magnetometry, literature) or to use a global multi-temperature fit.
+\end{aviso}
+
+%======================================================================
+\section{Global multi-temperature fit}
+
+Fitbauer can fit several spectra at different temperatures simultaneously. For each
+spectrum $r$ there is a $T_r(v)$ and a temperature $T_r$. The model shares the
+physical parameters
+\begin{equation}
+  \theta_{\mathrm{shared}}=\{\delta,\dEQ,\BHF,\Gamma,K_{\mathrm{eff}},d_{50},
+  \sigma_d,\tau_0\},
+\end{equation}
+and keeps local parameters per spectrum, by default
+\begin{equation}
+  \theta_r=\{b_r,s_r,D_r\}.
+\end{equation}
+The objective function is
+\begin{equation}
+  \chi^2=\sum_r\sum_k
+  \left(\frac{T_{r,\mathrm{model}}(v_k;\theta_{\mathrm{shared}},\theta_r,T_r)
+  -T_{r,\mathrm{data}}(v_k)}{\sigma_{rk}}\right)^2.
+\end{equation}
+This reduces the degeneracy compared to fitting a single spectrum: the same size
+distribution must simultaneously explain the blocking at low $T$ and the
+superparamagnetic collapse at high $T$.
+
+%======================================================================
+\section{Relation to fitting and reports}
+
+The fittable parameters are the same as in a sextet ($\delta$, $\dEQ$, $\BHF$,
+widths, depth and intensities) plus $\log_{10}\nu$ and, only in the
+phenomenological model, $f_{\mathrm{bloq}}$. In \code{NeelSize}, $T$,
+$\log_{10}K_{\mathrm{eff}}$, $d_{50}$, $\sigma_d$, $\log_{10}\tau_0$ and the number
+of bins are added. The GUI also shows
+\begin{equation}
+  \tau=\frac{1}{\nu}=10^{-\log_{10}\nu}\;\mathrm{s}
+\end{equation}
+and, for \code{NeelSize}, an approximate $T_B$.
+
+In reports, the \code{Relajacion} component should be interpreted as ``apparent
+blocked / superparamagnetic fraction'', not as separate chemical phases. The
+\code{BlumeTjon} component is reported as a dynamic two-state model and
+\code{NeelSize} as a Néel--Arrhenius model with a size distribution.

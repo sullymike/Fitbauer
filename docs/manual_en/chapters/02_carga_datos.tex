@@ -1,0 +1,230 @@
+\chapter{Loading and visualising data}
+\label{ch:carga}
+
+With the calibration fixed (chapter~\ref{ch:calibracion}), loading a spectrum is
+immediate: Fitbauer folds it, builds the velocity axis and displays it
+normalised. This chapter describes the formats, the \emph{folding}, the
+normalisation and the visualisation options.
+
+\section{Supported formats}
+
+\begin{center}
+\begin{tabular}{@{}lp{0.62\textwidth}@{}}
+\toprule
+\textbf{Extension} & \textbf{Content} \\
+\midrule
+\ruta{.ws5}, \ruta{.adt} & \textbf{Raw counts} per channel (typ.\ 512
+channels). They carry no velocity axis: they are folded and calibrated with the
+fixed \param{Vmax}. \\[4pt]
+\ruta{.csv}, \ruta{.txt}, \ruta{.dat}, \ruta{.exp} & Spectrum \textbf{already
+folded} in velocity space (velocity/counts columns). They carry their own axis:
+they are not folded and \emph{override} the calibration (§\ref{sec:calib-fija}). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{nota}
+The \ruta{.ws5}/\ruta{.adt} files are lists of integers (one count per
+channel). The velocity files (\ruta{.csv}/\ruta{.txt}/…) are two columns
+—velocity and counts/transmission— separated by spaces, tabs or commas;
+Fitbauer tolerates headers and comment lines. If a velocity file fails to
+load, check that it has exactly two numeric columns per line.
+\end{nota}
+
+\section{Loading a spectrum}
+
+\menu{File > Load…} opens the file selector. When you choose a raw-counts
+spectrum, Fitbauer:
+
+\begin{enumerate}[nosep]
+  \item Reads the counts per channel.
+  \item Detects the \textbf{folding centre} (or reads it from a NORMOS
+        \ruta{.RES} file if one sits next to the spectrum).
+  \item \textbf{Folds} the two branches of the triangular spectrum and
+        \textbf{trims} a few channels from each end (§\ref{sec:folding} explains why).
+  \item \textbf{Normalises} to a baseline of $\approx 1$ and estimates the Poisson noise.
+  \item Builds the velocity axis with the \param{Vmax} of the fixed
+        calibration.
+\end{enumerate}
+
+\autofig[\textwidth]{fig_load_alphafe}{The same $\alpha$-Fe \textbf{unfolded}
+(left, 512 channels) and \textbf{folded} (right, in velocity). Unfolded, the
+transducer measures the sextet \emph{twice} —once in each branch of the sweep—
+mirrored about the \textbf{folding centre} (red line). Folding sums those two
+halves: it reduces the noise and produces the symmetric spectrum on the right.}
+
+\begin{nota}
+The status bar and the file label report the number of channels, the detected
+folding centre and the normalisation factor. \menu{File > Open recent}
+reopens the most recently used spectra.
+\end{nota}
+
+\section{Folding and the centre}
+\label{sec:folding}
+
+The Mössbauer transducer runs through a \textbf{triangular} velocity cycle: each
+velocity is measured twice, once on the rising branch and once on the falling
+one. \emph{Folding} \textbf{sums those two halves} to average them: it improves
+the signal-to-noise ratio and produces a single symmetric spectrum. The key
+point is the \textbf{centre}: the (possibly fractional) channel at which it is
+folded.
+
+\begin{itemize}[nosep]
+  \item Fitbauer detects the centre automatically (or reads it from a \ruta{.RES}).
+  \item The \param{Centre} control of the calibration panel adjusts it by hand:
+        the spectrum is \textbf{re-folded live} when it is changed.
+  \item \menu{Fit > Find centre} refines it by minimisation.
+\end{itemize}
+
+\paragraph{Why the ends are trimmed.} After folding, Fitbauer discards a few
+channels from each edge. The reason: the extreme channels correspond to the
+\textbf{turning points} of the transducer (maximum velocity), where the motion
+reverses direction. There the drive is less linear and there is more uncertainty
+in the channel$\to$velocity correspondence and in the pairing of the two
+branches, so those points are the \textbf{least reliable}. Trimming them prevents
+them from contaminating the fit; in exchange a tiny portion of the axis is lost,
+with no lines of interest. The velocity axis is trimmed at the \emph{same}
+positions as the data so that both remain aligned (stretching the scale would
+bias the $\BHF$).
+
+\begin{aviso}
+A poorly chosen centre produces double or asymmetric lines. If you observe
+spurious splittings or a shifted "ghost" spectrum, check the folding centre
+\textbf{first} before touching the model parameters.
+\end{aviso}
+
+\subsection{Waveform: triangular or sinusoidal}
+\label{sec:drive-form}
+
+Everything above assumes a \textbf{constant-acceleration} drive, whose velocity
+waveform is \textbf{triangular}: the velocity rises and falls in straight ramps,
+so that it advances \emph{linearly} with the channel and the two halves of the
+sweep cover the same velocities. That is why it makes sense to fold and use a
+linear axis.
+
+Some spectrometers use a \textbf{sinusoidal} drive instead. Then the velocity of
+each channel is not linear, but
+\[
+  v_i \;=\; v_{\max}\,\sin\!\Big(\tfrac{2\pi\,(i-c_0)}{N}\Big),
+\]
+where $N$ is the number of channels and $c_0$ the \textbf{phase} (the channel at
+which $v=0$). Since the axis is sinusoidal, folding by symmetry \emph{no} longer
+gives a linear axis, and forcing a linear one would shift the lines.
+
+\autofig[\textwidth]{fig_sine_drive}{Sinusoidal drive. Left: the velocity of each
+channel follows a \emph{sine}, not a ramp. Right: the resulting spectrum, with
+each channel placed at its real velocity. It is not folded: it is fitted as is.}
+
+The \menu{Waveform} control of the calibration panel selects the mode:
+
+\begin{itemize}[nosep]
+  \item \textbf{Triangular} (default): it is folded and the axis is linear, as
+        described above.
+  \item \textbf{Sinusoidal}: following the NORMOS convention (\emph{do not fold}
+        and fit the complete spectrum, with both branches at once), Fitbauer
+        assigns each channel its real sinusoidal velocity and fits
+        \textbf{without folding}.
+\end{itemize}
+
+Regarding the \textbf{phase} $c_0$: just as in the triangular case one has to
+locate the centre, in the sinusoidal case one has to locate the symmetry point
+of the sweep. Fitbauer autodetects it and exposes it in the \param{Centre}
+control (adjustable live). Since a wrongly set phase would shift all the
+velocities, it is also advisable to \textbf{refine it in the fit}: when
+\emph{Fit centre} is enabled, $c_0$ enters as a \textbf{free parameter} and the
+optimiser tunes it (just as \emph{Fit Vmax} tunes the amplitude). This is what
+in NORMOS corresponds to \code{TRIANG=.FALSE.} with \code{FOLD=.FALSE.} and
+\code{SIMULT=.TRUE.}
+
+\begin{nota}
+In sinusoidal mode the velocity axis is not monotonic (the same velocity appears
+at several phases of the cycle), so the data are drawn as \textbf{points} that
+run from $-v_{\max}\!\dots\!+v_{\max}$ and back. The model and the fit handle it
+without problems, because they evaluate the model \emph{point by point} (they do
+not need an ordered axis). The relaxation component is not supported with a
+sinusoidal drive in this version.
+\end{nota}
+
+\section{Normalisation and noise}
+
+So that fits are comparable between spectra, the data are \textbf{normalised} by
+dividing by a factor (the 90th percentile of the folded counts), so that the
+baseline sits at $\approx 1$ and the absorptions read as fractions. That same
+factor is used to estimate the uncertainty of each point from the Poisson noise
+(proportional to $\sqrt{N}$), which then weights the fit (see the
+\emph{likelihood}, §\ref{sec:opciones-ajuste}).
+
+\begin{nota}
+The \textbf{baseline} and the \textbf{slope} (\param{Slope} control) of the
+calibration panel model a possible drift of the background. They can be fixed or
+left free in the fit like any other parameter.
+\end{nota}
+
+\section{Visualisation}
+
+The plot area shows:
+
+\begin{itemize}[nosep]
+  \item The \textbf{data} (points), the \textbf{baseline}, the total
+        \textbf{model} and, where appropriate, the \textbf{subspectra} of each
+        component (with their optional area fill).
+  \item Below, the \textbf{difference plot} (residual) data$-$model.
+  \item In distribution mode, additionally the \textbf{envelope} of the
+        distribution and each sharp component separately, and a panel with
+        $P(\BHF)$.
+\end{itemize}
+
+The presentation is controlled from the \menu{View} menu:
+
+\begin{itemize}[nosep]
+  \item \menu{View > Show difference} / \menu{Show legend} /
+        \menu{Show component area}: enable or hide each element.
+  \item \menu{View > Plot style}: \emph{Classic}, \emph{Modern},
+        \emph{Publication} or \emph{Dark}.
+  \item \menu{View > Visual theme} and \menu{Colour theme}: general appearance of
+        the interface.
+  \item \menu{View > Configure panel layout…}: rearranges and saves layout
+        presets.
+\end{itemize}
+
+The \textbf{toolbar} below the plot (Matplotlib) lets you zoom, pan, return to
+the initial view and \textbf{save the figure} as an image (PNG, PDF, SVG).
+
+\guicap{gui_plot_area}{Plot area with data, model, subspectra and residual, with
+its navigation toolbar.}
+
+\section{Comparing spectra}
+\label{sec:comparar}
+
+\menu{File > Compare spectrum…} overlays one or several reference spectra (with
+their own colour palette) on top of the current one, useful for identifying
+phases or comparing thermal treatments. \menu{File > Clear comparison} removes
+all overlays. The comparison is purely visual: it does not alter the data or the
+fit.
+
+\section{Saving, exporting and reusing}
+
+\begin{center}
+\begin{tabular}{@{}p{0.42\textwidth}p{0.5\textwidth}@{}}
+\toprule
+\textbf{Action} & \textbf{What it saves} \\
+\midrule
+\menu{File > Save session…} & The \textbf{complete} state in \ruta{.json}
+(data, fixed calibration, model, options, distribution). Reopen it with
+\menu{Load session…}. \\[4pt]
+\menu{File > Save fit…} & The current fit (parameters, curve,
+distribution) in text. \\[4pt]
+\menu{File > Export Markdown/PDF report…} & Readable report with parameters,
+statistics and, where appropriate, the distribution table. \\[4pt]
+\menu{File > Export reduced report…} & Abbreviated version of the report. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{truco}
+The \textbf{session} is the recommended route for reproducibility: save it when
+you finish an analysis and you will be able to resume it exactly as it was
+—including the fixed calibration— at another time or on another computer. If you
+have the laboratory API, \menu{File > Web} also lets you download
+spectra/calibrations and \menu{Upload session JSON to web}.
+\end{truco}

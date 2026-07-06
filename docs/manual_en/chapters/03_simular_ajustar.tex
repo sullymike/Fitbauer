@@ -1,0 +1,346 @@
+\chapter{Simulating and fitting}
+\label{ch:simular}
+
+This chapter covers the \emph{forward model} (simulation) and the \emph{discrete
+fit}, illustrated with the simplest yet most important case: an
+$\alpha$-Fe calibration. Recall the distinction from
+chapter~\ref{ch:intro}: \textbf{simulating} produces a spectrum from
+parameters that you set; \textbf{fitting} infers those parameters from the
+measured spectrum.
+
+\section{The forward model}
+
+Fitbauer builds the spectrum as transmission:
+\[
+  T(v) \;=\; b + s\,v \;-\; \sum_{k} A_k(v),
+\]
+where $b$ is the baseline, $s$ an optional slope and $A_k(v)$ the
+\emph{absorption} of each component. The three basic discrete shapes are:
+
+\begin{center}
+\begin{tabular}{@{}lp{0.6\textwidth}@{}}
+\toprule
+\textbf{Component} & \textbf{Physical parameters} \\
+\midrule
+\textbf{Singlet} & $\delta$ (isomer shift), $\Gamma$ (linewidth),
+depth. A single peak. \\[3pt]
+\textbf{Doublet} & $\delta$, $\dEQ$ (quadrupole splitting), $\Gamma$,
+depth. Two lines. \\[3pt]
+\textbf{Sextet} & $\delta$, $\dEQ$, $\BHF$ (hyperfine field), linewidths
+$\Gamma_{1,2,3}$, depth and relative intensities. Six lines. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\autofig[\textwidth]{fig_sim_components}{Simulation of the three discrete
+components: singlet (one peak), doublet ($\dEQ = 0{,}80$~mm/s) and sextet
+($\BHF = 33$~T with intensity ratio $3:2:1$).}
+
+\subsection{The mathematics of the model}
+\label{sec:modelo-mates}
+
+Each component is a \textbf{sum of lines} of Lorentzian shape. A line
+centred at $v_0$ with linewidth $\Gamma$ (the \emph{full width at half
+maximum}, FWHM —the parameter being fitted—) is
+\[
+  L(v;\,v_0,\Gamma) \;=\; \frac{(\Gamma/2)^2}{(v-v_0)^2 + (\Gamma/2)^2},
+\]
+(maximum $1$ at $v=v_0$; the half-width is $\Gamma/2$), and the absorption of a
+component is
+\[
+  A_k(v) \;=\; d_k \sum_{j} w_j \, L(v;\,v_{0,j},\Gamma_j),
+\]
+with $d_k$ the \emph{depth} and $w_j$ the relative \emph{intensities} of its
+lines. What distinguishes each type is \textbf{where the lines fall} and
+\textbf{how many there are}:
+
+\begin{itemize}[nosep]
+  \item \textbf{Singlet}: one line at $v_0 = \delta$. The isomer
+        shift $\delta$ moves the whole pattern.
+  \item \textbf{Doublet}: two lines at $v_0 = \delta \pm \tfrac{1}{2}\dEQ$. The
+        quadrupole $\dEQ$ is the separation between the two.
+  \item \textbf{Sextet}: six lines
+        \[
+          v_{0,j} \;=\; \delta \;+\; \tfrac{1}{2}\,q_j\,\dEQ \;+\;
+          p_j\,\frac{\BHF}{33{,}0},
+        \]
+        where $p_j = (\pm0{,}839,\ \pm3{,}084,\ \pm5{,}329)$~mm/s are the
+        published $\alpha$-Fe line positions at 33~T (which is why the pattern
+        \emph{scales} with $\BHF/33$) and $q_j=(+1,-1,-1,-1,-1,+1)$ the
+        first-order quadrupole pattern. The intensities follow the
+        $3:x:1:1:x:3$ ratio (§\ref{sec:textura}).
+\end{itemize}
+
+The complete spectrum is the transmission $T(v) = b + s\,v - \sum_k A_k(v)$. This
+parametrisation —positions tied to $\delta$, $\dEQ$, $\BHF$ with physical
+meaning— is what lets you \emph{read} the material directly from the fitted
+parameters. The full derivation (treatment of the
+magnetic+quadrupolar Hamiltonian, higher orders) is in appendix~\ref{ap:mates}.
+
+\subsection{Line profile and absorber model}
+
+In the calibration panel you choose the \menu{Line profile}:
+
+\begin{itemize}[nosep]
+  \item \textbf{Lorentzian}: the natural shape of the Mössbauer line.
+  \item \textbf{Voigt}: convolution of a Lorentzian with a Gaussian of width
+        $\sigma$, useful when there is instrumental broadening or a small
+        unresolved spread.
+\end{itemize}
+
+The \menu{Absorber} models the thickness of the sample. The difference lies in how
+the absorption $A(v)$ is converted into transmission:
+
+\begin{itemize}[nosep]
+  \item \textbf{Thin (linear)}: $T \approx 1 - A(v)$. The absorption is
+        proportional to the amount of Fe; valid for low-density samples.
+  \item \textbf{Thick (saturation)}: $T \propto e^{-A(v)}$ (transmission-integral
+        type form). As the thickness increases, the lines \textbf{saturate} —they
+        stop growing linearly and broaden—; this mode corrects for that so as not
+        to bias areas or linewidths. The full correction is in
+        appendix~\ref{ap:espesor}.
+\end{itemize}
+
+\begin{truco}
+For dense samples or very deep lines ($>15$--$20\%$), use \textbf{Thick}:
+with the thin model the relative areas (and therefore the phase proportions)
+would come out biased.
+\end{truco}
+
+\subsection{Sextet intensities and texture}
+\label{sec:textura}
+
+The six lines of the sextet follow the $3:x:1:1:x:3$ area ratio. The value
+$x$ (lines 2 and 5) depends on the orientation of the moments with respect to the beam:
+
+\begin{itemize}[nosep]
+  \item In \textbf{free} mode, the relative intensities are fitted.
+  \item In \textbf{texture} mode, a single parameter $t$ fixes $x$ physically
+        (ratio $R_{23}$, angle $\theta$), useful for oriented samples or
+        thin films. The panel shows $\theta$ and $R_{23}$ derived from $t$.
+\end{itemize}
+
+The treatment of the \textbf{quadrupole} in the sextet can be first-order
+(perturbative) or complete; it is selected in \menu{Fit > Fit mode}. The
+detail (Kündig-type treatment of the magnetic+quadrupolar Hamiltonian) is in
+appendix~\ref{ap:mates}.
+
+\section{Simulating without fitting}
+
+\textbf{Live simulation} is one of Fitbauer's hallmarks: instead of launching a
+fit blindly, you build the model by hand and watch the spectrum change
+\textbf{instantly} with each parameter. To explore the model:
+
+\begin{enumerate}[nosep]
+  \item Choose the shape of each component in its panel (\menu{Shape:}) and enable it.
+  \item Set the parameters with the sliders or by typing the value;
+        each control has a \emph{slider}-type bar synchronised with the numeric
+        box.
+  \item The plot updates \textbf{live} with the resulting model and its
+        subspectra.
+\end{enumerate}
+
+\paragraph{What simulation is for.} Simulation is not just decoration; it serves
+several practical functions:
+
+\begin{itemize}[nosep]
+  \item \textbf{Seeding the fit}: a non-linear fit needs a reasonable starting
+        point or it falls into a false minimum. Getting the model close "by eye"
+        before \menu{Fit} makes the fit faster and more reliable.
+  \item \textbf{Understanding the effect of each parameter}: moving $\delta$
+        shifts the whole pattern; $\dEQ$ separates the lines in pairs; $\BHF$
+        opens or closes the sextet; $\Gamma$ broadens; the depth deepens. Seeing
+        it live builds physical intuition.
+  \item \textbf{Anticipating an experiment or comparing hypotheses}: how would a
+        mixture of two phases in these proportions look? You simulate it and
+        compare it with a real spectrum overlaid (§\ref{sec:comparar} of the
+        previous chapter).
+  \item \textbf{Teaching}: illustrating where each line comes from without needing
+        data.
+\end{itemize}
+
+Each component is drawn as its own \textbf{subspectrum} (with its optional area
+fill), so you can see each one's contribution to the total. The
+\textbf{lock} on each parameter \emph{fixes} it: useful for simulating while
+varying only one quantity, or so that the subsequent fit does not move what you
+already know.
+
+\begin{nota}
+Simulating and fitting share exactly the same forward model: what you see when you
+simulate is, line by line, what the optimiser will try to match. That is why a
+good initial simulation is the best investment before fitting.
+\end{nota}
+
+\guicap{gui_component_panel}{Panel of a sextet component with its controls for
+$\delta$, $\dEQ$, $\BHF$, linewidths and intensities, and the fixing locks.}
+
+\section{Fitting an $\alpha$-Fe calibration}
+\label{sec:ajustar-alphafe}
+
+$\alpha$-Fe is the reference case. The procedure:
+
+\begin{enumerate}[nosep]
+  \item Load the spectrum (\menu{File > Load…}).
+  \item Enable a single component of \textbf{Sextet} shape.
+  \item Give approximate initial values: $\delta \approx 0$, $\dEQ \approx 0$,
+        $\BHF \approx 33$~T, $\Gamma \approx 0{,}30$~mm/s.
+  \item \menu{Fit > Fit}.
+\end{enumerate}
+
+The result should reproduce the six lines with $\BHF \approx 33$~T and a
+reduced $\chi^2$ close to 1, as in figure~\ref{fig:fig_calibration_fit}
+(chapter~\ref{ch:calibracion}). That fit is, precisely, the one marked
+as calibration (§\ref{sec:definir-calib}).
+
+\begin{truco}
+If you want the fit to also refine \param{Vmax} itself against the
+$\alpha$-Fe positions, enable \emph{Fit Vmax}. To avoid
+degeneracy, Fitbauer automatically fixes the active $\BHF$ when the
+velocity is fitted (both cannot be refined at once).
+\end{truco}
+
+\section{Fit options}
+\label{sec:opciones-ajuste}
+
+The statistical criteria are chosen in the \menu{Fit} menu / options panel:
+
+\begin{itemize}[nosep]
+  \item \menu{Likelihood}: \textbf{Gauss} ($\chi^2$ with the data $\sigma$) or
+        \textbf{Poisson} (IRLS, with the model $\sigma$). Poisson is more
+        appropriate with low counts.
+  \item \menu{Robust loss}: \textbf{Linear} (least squares),
+        \textbf{Soft L1} (smooth) or \textbf{Huber}, which downweight
+        outliers.
+  \item \textbf{Multistart}: repeats the fit from several starting points so as
+        not to get trapped in a local minimum.
+  \item \menu{Propagate calibration $\sigma$ (vmax)}: propagates the uncertainty
+        of the calibrated \param{Vmax} to the fitted parameters.
+\end{itemize}
+
+\begin{nota}
+When \emph{Fit Vmax} is enabled, the calibration takes part in the fit; that
+is why it is worth being clear about which calibration is set (chapter~\ref{ch:calibracion}).
+\end{nota}
+
+\subsection{Constraints and physical presets}
+
+\menu{Fit > Constraints between parameters…} lets you \textbf{tie}
+parameters (for example, equalising linewidths between components or imposing
+intensity relations). \menu{Fit > Physical constraint presets…} applies
+common sets of constraints at a glance. Reducing the number of free
+parameters stabilises the fit and avoids degeneracies.
+
+\section{Fit quality and errors}
+\label{sec:calidad}
+
+A fit is not finished when the optimiser converges: you have to \textbf{judge
+whether it is good} and \textbf{quantify the uncertainty}. For this, Fitbauer
+gathers several indicators in the information panel and several error methods.
+
+\subsection{The statistics and what they are for}
+
+\begin{center}
+\begin{tabular}{@{}lp{0.66\textwidth}@{}}
+\toprule
+\textbf{Indicator} & \textbf{What it measures / what it is for} \\
+\midrule
+$\chi^2$ & Sum of squared residuals weighted by the noise. It decreases as the
+fit improves, but it depends on the number of points. \\[3pt]
+\textbf{Reduced} $\chi^2$ & $\chi^2$ per degree of freedom. It is the \textbf{main
+judge}: $\approx 1$ = fit compatible with the noise; $\gg 1$ = the model does not
+reproduce the data (missing components, wrong centre, poor calibration);
+$\ll 1$ = overfitting or overestimated noise. \\[3pt]
+\textbf{dof} (degrees of freedom) & Number of points minus free parameters. Context
+for the $\chi^2$. \\[3pt]
+\textbf{AIC} and \textbf{BIC} & Information criteria: they reward a good fit and
+\textbf{penalise adding parameters}. They serve to \textbf{compare models}
+(e.g.\ two sites or three?): \emph{lower is better}. They avoid the self-deception
+that "more components always fit better". \\[3pt]
+\textbf{Correlations} & Fitbauer warns of pairs of highly correlated parameters
+(high $|r|$): a sign of \textbf{degeneracy} (the fit cannot separate them) or that
+there are too many parameters. The solution is usually to fix or tie one
+(§\ref{sec:opciones-ajuste}). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{truco}
+Do not chase a $\chi^2_r$ of exactly 1 by adding components: watch AIC/BIC and the
+correlations. A model with $\chi^2_r=1{,}1$ and well-defined parameters is better
+than one with $\chi^2_r=1{,}0$ full of correlated components.
+\end{truco}
+
+\subsection{Estimating uncertainties}
+
+The statistics tell you whether the fit is good; the \textbf{errors} tell you how
+much you can trust each parameter. Fitbauer offers three methods, from lower to
+higher cost and reliability:
+
+\begin{center}
+\begin{tabular}{@{}p{0.34\textwidth}p{0.58\textwidth}@{}}
+\toprule
+\textbf{Method} & \textbf{What it does / when to use it} \\
+\midrule
+Covariance (default) & Errors from the covariance matrix of the fit.
+Instantaneous; valid if the uncertainties are approximately Gaussian and the
+correlations moderate. It is the first estimate. \\[4pt]
+\menu{Bootstrap errors (MC)…} & Refits many replicas of the spectrum
+resampled according to the noise (Monte Carlo) and measures the spread of each
+parameter. More robust against noise and non-linearity; it costs more time. \\[4pt]
+\menu{Profile-likelihood errors…} & Scans each parameter, refitting
+the others, and sees how much the $\chi^2$ worsens (\emph{profile likelihood}). It
+gives realistic \textbf{asymmetric} intervals; the most reliable when the
+uncertainties are \textbf{not} Gaussian or there are strong correlations. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{nota}
+Rule of thumb: use \textbf{covariance} during exploratory work and
+reserve \textbf{bootstrap} or \textbf{profile likelihood} for the figures
+you are going to publish, especially if the panel warns of high correlations.
+\end{nota}
+
+\section{Fitting-aid tools}
+
+\begin{itemize}[nosep]
+  \item \menu{Fit > Initialise from minima} and \menu{Auto-fit from
+        minima}: they detect the line positions and propose a starting
+        point. The \textbf{minima editor} also lets you \emph{curate} them
+        on the plot itself: click to add a minimum, click on a
+        marker to activate/deactivate it, and a counter of contributions per
+        minimum.
+  \item \menu{Fit > Find centre}: refines the folding centre.
+  \item \menu{Fit > Fix all} / \menu{Release all}: lock or release
+        all parameters at once.
+  \item \menu{Fit > Batch fit…}: fits a batch of spectra by
+        \emph{warm-start} (each fit starts from the previous one), ideal for
+        temperature or treatment series.
+  \item \menu{Fit > Undo fit}: reverts to the previous state.
+  \item \menu{Fit > Local Ollama AI: suggest start…}: if you have a
+        local model, it proposes initial values from a summary of the spectrum.
+\end{itemize}
+
+\guicap{gui_minima_editor}{Semi-manual minima editor on the plot: the
+included (red) and excluded (hollow) markers are edited with the mouse and with the
+side list.}
+
+\section{Magnetic relaxation components}
+
+In addition to singlet/doublet/sextet, Fitbauer includes components for
+\textbf{superparamagnetic relaxation} and spin dynamics, useful in
+nanoparticles near the blocking temperature:
+
+\begin{itemize}[nosep]
+  \item \textbf{Relaxation} and \textbf{Blume--Tjon}: line models with a
+        relaxation rate $\nu$ (parameter $\log_{10}\nu$).
+  \item \textbf{Néel (size)}: lognormal size distribution with anisotropy
+        $K_{\text{eff}}$ and blocking temperature; \menu{Fit > Néel global
+        fit (multi-T)…} fits several temperatures at once.
+\end{itemize}
+
+\begin{nota}
+These models share the component interface (they are chosen in \menu{Shape:}).
+Their numerical basis is developed in appendix~\ref{ap:relax} (\emph{Magnetic
+relaxation models}).
+\end{nota}

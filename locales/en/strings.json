@@ -96,6 +96,7 @@
   "options.theme_dark": "Dark (sv_ttk dark)",
   "options.theme_classic": "Classic (clam)",
   "help.open": "Help",
+  "help.manual": "Manual (PDF)",
   "help.shortcuts": "Keyboard Shortcuts…",
   "help.tab_help": "📖 Help",
   "help.tab_shortcuts": "⌨️ Shortcuts",

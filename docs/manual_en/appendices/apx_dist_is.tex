@@ -1,0 +1,166 @@
+\section{Physical motivation}
+
+The isomer shift $\IS$ measures the shift of the center of the Mössbauer
+pattern with respect to a reference, usually $\alpha$-Fe. It is related to the
+electron density at the nucleus and, therefore, to the oxidation state,
+coordination and covalency of the Fe atom. In ordered materials a single $\IS$
+is usually fitted per phase. However, in glasses, silicates, amorphous
+materials, ferritins, nanoparticles or mixtures of local environments, a
+continuous distribution of shifts may exist.
+
+Fitbauer implements two extensions:
+\begin{itemize}
+  \item a one-dimensional distribution $P(\IS)$;
+  \item two-dimensional distributions that combine $\IS$ with another quantity,
+  especially $P(\IS,\QS)$ and $P(\BHF,\IS)$.
+\end{itemize}
+The $P(\IS,\QS)$ case is particularly useful for broad paramagnetic doublets,
+where the center of the doublet and its separation may vary simultaneously.
+
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.95\textwidth]{apx_is}
+  \caption{Isomer shift distribution. \emph{Left}: a
+  $P(\IS)$ with two populations separated in $\delta$ —for example Fe$^{3+}$
+  ($\delta\!\approx\!0{,}35$~mm/s) and Fe$^{2+}$ ($\delta\!\approx\!1{,}05$~mm/s)—
+  reflects two oxidation states or environments. \emph{Right}: the resulting
+  spectrum is the superposition of the patterns of each $\delta$; when the
+  environments overlap, the distribution separates them better than a rigid
+  discrete fit.}
+  \label{fig:apx_is}
+\end{figure}
+
+\section{One-dimensional distribution $P(\IS)$}
+
+For a grid of shifts $\IS_i$, the 1D model is
+\begin{equation}
+  T(v_k)=b_0+b_1v_k-\sum_i P_i\,S(v_k;\IS_i,\QS,\BHF,\Gamma),
+\end{equation}
+where $S$ is the unit-depth absorption pattern. If $\BHF=0$, the pattern reduces
+in practice to a doublet or singlet depending on the value of $\QS$. The weights
+satisfy
+\begin{equation}
+  P_i\ge0.
+\end{equation}
+The regularized problem is written as
+\begin{equation}
+  \Phi(\bm p)=\|W(\bm y-X\bm p)\|^2+\alpha\|D^2\bm p\|^2,
+\end{equation}
+where $D^2$ is the second-difference operator. The normalized probability is
+computed as
+\begin{equation}
+  p(\IS_i)=\frac{P_i}{\int P(\IS)\,\dd\IS}.
+\end{equation}
+
+\section{Two-dimensional distribution $P(\IS,\QS)$}
+
+For a grid $\IS_i$, $Q_j$, the model is
+\begin{equation}
+  T(v_k)=b_0+b_1v_k-\sum_{ij}P_{ij}\,
+  S(v_k;\IS_i,Q_j,\BHF,\Gamma).
+\end{equation}
+If one wishes to describe a paramagnetic population, $\BHF=0$ is fixed and each
+point $(\IS_i,Q_j)$ generates a doublet centered at $\IS_i$ with separation
+$Q_j$:
+\begin{align}
+  v_{1,ij}&=\IS_i-\frac{Q_j}{2},\\
+  v_{2,ij}&=\IS_i+\frac{Q_j}{2}.
+\end{align}
+
+The 2D regularization penalizes curvature in both directions:
+\begin{equation}
+  \Phi(\bm P)=\|W(\bm y-X\bm z)\|^2
+  +\alpha_{\IS}\|D_{\IS}^2P\|^2
+  +\alpha_Q\|D_Q^2P\|^2,
+  \qquad P_{ij}\ge0.
+\end{equation}
+In augmented form:
+\begin{equation}
+  \begin{bmatrix}
+    WX\\
+    \sqrt{\alpha_{\IS}}\,D_{\IS}^2\\
+    \sqrt{\alpha_Q}\,D_Q^2
+  \end{bmatrix}\bm z\simeq
+  \begin{bmatrix}
+    W\bm y\\
+    \bm 0\\
+    \bm 0
+  \end{bmatrix}.
+\end{equation}
+
+\section{Interpretation of $P(\IS,\QS)$}
+
+The marginals are
+\begin{align}
+  P_{\IS}(\IS_i)&=\int P(\IS_i,Q)\,\dd Q,\\
+  P_Q(Q_j)&=\int P(\IS,Q_j)\,\dd\IS.
+\end{align}
+A tilted cloud in the map may indicate that the sites with higher $\IS$ also
+have a higher or lower $\QS$. This may suggest families of local environments,
+for example variation in valence, coordination or polyhedron distortion.
+
+Fitbauer computes descriptive diagnostics of the map:
+\begin{align}
+  \langle\IS\rangle,\quad \sigma_{\IS},\quad
+  \langle Q\rangle,\quad \sigma_Q,\quad
+  \rho_{\IS Q}.
+\end{align}
+The apparent correlation is
+\begin{equation}
+  \rho_{\IS Q}=\frac{\langle(\IS-\langle\IS\rangle)(Q-\langle Q\rangle)\rangle}
+  {\sigma_{\IS}\sigma_Q}.
+\end{equation}
+These values describe the fitted distribution, but on their own they do not
+prove that the distribution is unique or physical.
+
+\section{Distribution $P(\BHF,\IS)$}
+
+$P(\BHF,\IS)$ is also implemented:
+\begin{equation}
+  T(v_k)=b_0+b_1v_k-\sum_{ij}P_{ij}\,
+  S(v_k;B_i,\QS,\IS_j,\Gamma).
+\end{equation}
+It can be useful in magnetic phases where the hyperfine field and the isomer
+shift vary jointly, for example due to a size distribution, partial oxidation or
+surface environments. However, it is especially sensitive to velocity
+calibration errors: a global shift of the scale can look like an $\IS$
+distribution.
+
+\section{Identifiability risks}
+
+\textbf{Important warning:} distributions that contain $\IS$ are very sensitive
+to calibration, folding and background. In a doublet,
+\begin{equation}
+  v_1=\IS-\frac{\QS}{2},\qquad v_2=\IS+\frac{\QS}{2},
+\end{equation}
+so that changes in $\IS$ shift the center and changes in $\QS$ modify the
+separation. With broad lines or noise, many $(\IS,\QS)$ combinations can produce
+similar spectra. In addition, $\IS$ correlates with:
+\begin{itemize}
+  \item the folding point;
+  \item the $V_{\max}$ calibration;
+  \item the isomeric reference;
+  \item the width $\Gamma$;
+  \item the slope/background;
+  \item omitted discrete components.
+\end{itemize}
+Therefore, a $P(\IS)$ or $P(\IS,\QS)$ distribution that is visually smooth and
+has a good residual may lack physical meaning if it is compensating for an
+instrumental error or an incomplete model.
+
+\section{Good practices}
+
+Before interpreting a distribution involving $\IS$ it is recommended to:
+\begin{enumerate}
+  \item fix or carefully verify the velocity calibration;
+  \item use a known isomeric reference;
+  \item check the folding point with the residual diagnostic;
+  \item compare with discrete models and with the 1D $P(\QS)$;
+  \item vary $\alpha_{\IS}$ and $\alpha_Q$ over several orders of magnitude;
+  \item repeat with a different number of bins;
+  \item avoid publishing fine details that disappear when the regularization is
+  changed;
+  \item use external information: chemistry, XRD, TEM, magnetometry or the
+  literature.
+\end{enumerate}
+For publication, it is advisable to show that the $P(\IS,\QS)$ map is stable and
+that a simpler model does not explain the data satisfactorily.

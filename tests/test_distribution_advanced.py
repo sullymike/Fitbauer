@@ -84,6 +84,27 @@ def test_vbf_single_component_matches_gaussian_shape():
     assert r.success and r.vbf_components is not None and len(r.vbf_components) == 1
 
 
+def test_gaussiana_shape_is_vbf_single_lorentz():
+    """La forma 'Gaussiana' de la GUI es VBF con N=1 y línea Lorentziana: recupera
+    una gaussiana de BHF conocida y conserva la etiqueta shape='Gaussiana'."""
+    v = np.linspace(-10, 10, 400)
+    centers = md.parameter_grid(0.0, 50.0, 80)
+    w = np.exp(-0.5 * ((centers - 30.0) / 2.0) ** 2)
+    P_true = w / np.trapezoid(w, centers)
+    K = md.build_bhf_kernel(v, centers, delta=0.0, gamma=0.25)
+    y = 1.0 - K @ (P_true * 0.5)
+
+    r = md.fit_vbf_hyperfine_distribution(
+        v, y, n_components=1, profile="Lorentz", shape="Gaussiana",
+        pmin=0, pmax=50, nbins=80, gamma=0.25)
+    assert r.success
+    assert r.shape == "Gaussiana"            # etiqueta conservada para sesión/informe
+    assert r.vbf_n_components == 1
+    assert r.vbf_components is not None and len(r.vbf_components) == 1
+    assert abs(r.vbf_components[0][1] - 30.0) < 1.5   # μ recuperado
+    assert abs(r.fitted_dist_center - 30.0) < 1.5
+
+
 # ── MaxEnt ──────────────────────────────────────────────────────────────────
 def test_maxent_positive_normalized_and_peaked():
     v = np.linspace(-10, 10, 300)

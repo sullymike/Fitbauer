@@ -1462,90 +1462,6 @@ def fit_hyperfine_distribution(
     )
 
 
-def fit_gaussian_hyperfine_distribution(
-    v: np.ndarray,
-    y: np.ndarray,
-    *,
-    variable: str = "bhf",
-    delta: float = 0.0,
-    quad: float = 0.0,
-    bhf: float = BHF_DEFAULT_T,
-    gamma: float = 0.18,
-    pmin: float = 0.0,
-    pmax: float = 50.0,
-    nbins: int = 80,
-    baseline: float | None = None,
-    slope: float | None = None,
-    sharp_components: list[dict[str, float]] | None = None,
-) -> BhfDistributionFit:
-    """Ajuste paramétrico sencillo de una distribución gaussiana 1D.
-
-    Ajusta baseline, slope, amplitud, centro y sigma. La gaussiana se discretiza
-    en la misma malla que el histograma para poder dibujar P(parámetro).
-    Opcionalmente suma componentes nítidos (sharp_components) con amplitud libre >= 0.
-    """
-    from scipy.optimize import least_squares
-    v = _finite_1d("v", v); y = _finite_1d("y", y)
-    centers = parameter_grid(pmin, pmax, nbins)
-    K = build_hyperfine_distribution_kernel(v, centers, variable=variable, delta=delta, quad=quad, bhf=bhf, gamma=gamma)
-    K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
-        v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
-    n_sharp = K_sharp.shape[1] if K_sharp is not None else 0
-    if baseline is None:
-        baseline = float(np.percentile(y, 90))
-    if slope is None:
-        slope = 0.0
-    amp0 = max(1e-6, float(np.percentile(y, 90) - np.min(y)))
-    center0 = 0.5 * (float(pmin) + float(pmax))
-    sigma0 = max((float(pmax) - float(pmin)) / 6.0, 1e-3)
-
-    def gauss_weights(center: float, sigma: float) -> np.ndarray:
-        sigma = max(float(sigma), 1e-6)
-        w = np.exp(-0.5 * ((centers - center) / sigma) ** 2)
-        area = np.trapezoid(w, centers) if w.size > 1 else w[0]
-        return w / max(float(area), 1e-12)
-
-    def residual(x: np.ndarray) -> np.ndarray:
-        b0, sl, amp, cen, log_sig = x[:5]
-        w = amp * gauss_weights(cen, np.exp(log_sig))
-        r = b0 + sl * v - K @ w - fixed_sharp_abs - y
-        if K_sharp is not None and n_sharp:
-            sharp_amps = np.maximum(x[5:5 + n_sharp], 0.0)
-            r = r - K_sharp @ sharp_amps
-        return r
-
-    lo = np.array([0.0, -np.inf, 0.0, float(pmin), np.log(1e-3)] + [0.0] * n_sharp)
-    hi = np.array([np.inf, np.inf, np.inf, float(pmax), np.log(max(float(pmax) - float(pmin), 1e-3))] + [np.inf] * n_sharp)
-    x0 = np.array([baseline, slope, amp0, center0, np.log(sigma0)] + [amp0 / max(n_sharp, 1)] * n_sharp)
-    res = least_squares(residual, np.clip(x0, lo, hi), bounds=(lo, hi), max_nfev=2000)
-    b0, sl, amp, cen, log_sig = res.x[:5]
-    w = float(amp) * gauss_weights(float(cen), float(np.exp(log_sig)))
-    sharp_weights_free = np.maximum(res.x[5:5 + n_sharp], 0.0) if n_sharp else None
-    sharp_weights_arr = merge_sharp_weights(sharp_weights_free, sharp_fixed_mask, fixed_sharp_weights)
-    fitted = float(b0) + float(sl) * v - K @ w - fixed_sharp_abs
-    if K_sharp is not None and sharp_weights_free is not None:
-        fitted = fitted - K_sharp @ sharp_weights_free
-    residuals = y - fitted
-    return BhfDistributionFit(
-        bhf_centers=centers,
-        weights=w,
-        probability=normalize_probability(w, centers),
-        fitted_curve=fitted,
-        residuals=residuals,
-        baseline=float(b0),
-        slope=float(sl),
-        alpha=0.0,
-        rms=float(np.sqrt(np.mean(residuals**2))),
-        success=bool(res.success),
-        message=f"Gaussian {variable}: center={cen:.6g}, sigma={np.exp(log_sig):.6g}; {res.message}",
-        sharp_bhf_centers=sharp_bhf_centers,
-        sharp_weights=sharp_weights_arr,
-        fitted_dist_center=float(cen),
-        fitted_dist_sigma=float(np.exp(log_sig)),
-        shape="Gaussiana",
-    )
-
-
 def fit_vbf_hyperfine_distribution(
     v: np.ndarray,
     y: np.ndarray,
@@ -1567,15 +1483,19 @@ def fit_vbf_hyperfine_distribution(
     delta_slope: float = 0.0,
     quad_slope: float = 0.0,
     h_ref: float | None = None,
+    shape: str = "VBF",
 ) -> BhfDistributionFit:
     """VBF (Voigt-Based Fitting, Rancourt–Ping 1991): P como suma de N gaussianas.
 
-    Generaliza :func:`fit_gaussian_hyperfine_distribution` a ``n_components``
-    gaussianas sobre un kernel Voigt (o Lorentziano). Cada componente aporta
-    parámetros con significado físico (A_k, μ_k, σ_k), que se **guardan** en
-    ``vbf_components`` (ordenados por μ) — esa es la ventaja del VBF frente a
-    Hesse-Rübartsch. Admite correlación δ(H)/ΔEQ(H) (``delta_slope``/``quad_slope``)
-    y componentes nítidos.
+    Ajusta ``n_components`` gaussianas sobre un kernel Voigt (o Lorentziano). Cada
+    componente aporta parámetros con significado físico (A_k, μ_k, σ_k), que se
+    **guardan** en ``vbf_components`` (ordenados por μ) — esa es la ventaja del VBF
+    frente a Hesse-Rübartsch. Admite correlación δ(H)/ΔEQ(H)
+    (``delta_slope``/``quad_slope``) y componentes nítidos.
+
+    El caso ``n_components=1`` con ``profile="Lorentz"`` es la clásica **distribución
+    gaussiana** simple: la GUI la ofrece con la etiqueta ``shape="Gaussiana"``, que
+    se propaga al resultado mediante el parámetro ``shape``.
     """
     from scipy.optimize import least_squares
     v = _finite_1d("v", v); y = _finite_1d("y", y)
@@ -1673,7 +1593,7 @@ def fit_vbf_hyperfine_distribution(
         fitted_dist_center=float(dominant[1]),
         fitted_dist_sigma=float(dominant[2]),
         vbf_components=comps,
-        shape="VBF",
+        shape=str(shape),
         delta_slope=float(delta_slope),
         quad_slope=float(quad_slope),
         vbf_n_components=int(N),

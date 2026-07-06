@@ -1,0 +1,727 @@
+\chapter{Hyperfine field distributions}
+\label{ch:distribuciones}
+
+If you have made it this far, you know how to recognize and fit a singlet, a
+doublet or a sextet: you know that each one corresponds to a \textbf{well-defined
+iron site}, with a single isomer shift, a single quadrupole and---in the
+sextet---a single hyperfine field. \emph{Distributions} are the next step, and
+their logic is different. This chapter starts \textbf{with the physics}: what they
+are, where they come from and what each parameter means. Only afterwards does it
+address the program's controls.
+
+\section{The physics: why distributions appear}
+\label{sec:fisica-dist}
+
+\subsection{From the perfect crystal to the real material}
+
+In a \textbf{perfect crystal} all the Fe atoms are equivalent: they see the same
+environment, so they have \emph{exactly} the same hyperfine field $\BHF$, the same
+$\delta$ and the same $\dEQ$. The result is a \textbf{discrete}, sharp sextet (or
+doublet, or singlet) of narrow lines. This is the world of the previous chapters.
+
+But most materials \textbf{are not perfect crystals}. In a metallic glass, a
+disordered alloy, a non-stoichiometric oxide or a nanoparticle, each Fe atom sees
+an environment \textbf{slightly different} from that of its neighbor: it may have a
+different number of atoms of a certain type around it, a different bond distance, a
+different local strain. And since the hyperfine parameters \emph{depend} on that
+environment, they no longer have a single value: they \textbf{spread out} over a
+range.
+
+\begin{nota}
+The key idea: in a disordered material there is no single hyperfine field, but
+rather \textbf{as many fields as there are distinct local environments}. The
+spectrum ceases to be a sextet and becomes the \textbf{superposition of very many
+sextets}, each with its own field, weighted by how many Fe atoms have that field.
+\end{nota}
+
+\subsection{What $P(\BHF)$ is}
+
+That ``how many atoms have each field'' is precisely the distribution. $P(\BHF)$ is
+a \textbf{probability density}: $P(\BHF)\,d\BHF$ is the fraction of Fe atoms whose
+hyperfine field falls between $\BHF$ and $\BHF + d\BHF$. Put another way, it is the
+\textbf{histogram of the local environments} seen by the iron.
+
+\begin{itemize}[nosep]
+  \item A \textbf{crystalline} material has a \emph{very narrow} $P(\BHF)$ (almost a
+        delta): nearly all atoms share the same field.
+  \item A \textbf{disordered} material has a \emph{broad} $P(\BHF)$: the fields
+        spread out over a wide interval.
+  \item A material with \textbf{two populations} (e.g.\ two phases, or the core and
+        surface of a nanoparticle) has a $P(\BHF)$ with \textbf{two maxima}.
+\end{itemize}
+
+The measured spectrum is then
+\[
+  T(v) \;=\; b \;-\; \int P(\BHF)\; S(v;\BHF)\, d\BHF,
+\]
+the sum (integral) of all the subspectra $S(v;\BHF)$ weighted by $P(\BHF)$. Fitting
+a distribution is \textbf{the inverse problem}: starting from the spectrum and
+recovering the $P(\BHF)$ that generated it.
+
+\begin{nota}
+That is why a distribution is \emph{not simulated} out of nothing: it is
+\textbf{inferred from the spectrum} (fitting). What you can simulate is the
+\emph{spectrum} that a $P(\BHF)$ you \emph{assume} would produce---useful for
+developing intuition (\S\ref{sec:sim-cristalina}). The mathematical development of
+the inverse problem is in appendix~\ref{ap:mates}.
+\end{nota}
+
+\subsection{A distribution is not the same as a broad line}
+
+This point is often confused and it is worth pinning down. There are \textbf{two
+ways} for the lines of a spectrum to come out broad, and they mean different
+physical things:
+
+\begin{itemize}[nosep]
+  \item \textbf{Line width $\Gamma$}: the \emph{intrinsic} broadening of \emph{one}
+        environment (lifetime of the state, instrumental effects). It broadens
+        \textbf{all} the lines equally and symmetrically, without changing their
+        positions.
+  \item \textbf{Distribution width}: the \emph{range of distinct environments}.
+        Since the position of the sextet lines scales with the field
+        (\S\ref{sec:modelo-mates}), a spread of fields broadens \textbf{the outer
+        lines more than the inner ones}, and can produce \textbf{asymmetric}
+        shapes.
+\end{itemize}
+
+\begin{aviso}
+Do not try to ``cover up'' a distribution by increasing $\Gamma$. A single sextet
+with large $\Gamma$ and a genuine broad $P(\BHF)$ do \textbf{not} give the same
+spectrum: the distribution broadens the outer lines more than the inner ones and
+can be asymmetric, something $\Gamma$ does not reproduce. If, when fitting
+discretely, the widths come out ``inflated'' and the outer lines fit worse than the
+inner ones, it is a sign that there is a distribution.
+\end{aviso}
+
+\subsection{What each feature of the distribution tells you}
+
+Once $P(\BHF)$ is obtained, its \textbf{shape} is physical information:
+
+\begin{center}
+\begin{tabular}{@{}lp{0.62\textwidth}@{}}
+\toprule
+\textbf{Feature of $P(\BHF)$} & \textbf{What it implies physically} \\
+\midrule
+\textbf{Position} (mean / maximum) & The \emph{typical} field: reflects the average
+environment (composition, coordination, average magnetic state). \\[3pt]
+\textbf{Width} & The \textbf{degree of disorder}: the broader it is, the more the
+environments vary (more chemical or structural spread). \\[3pt]
+\textbf{Asymmetry} (tail) & A gradient of environments: e.g.\ a minority of atoms
+with many neighbors of another type generates a tail toward high or low fields. \\[3pt]
+\textbf{Several maxima} & Distinct \textbf{subpopulations}: two phases, two
+crystallographic sites, nanoparticle core/surface, etc. \\[3pt]
+\textbf{Weight at $\BHF\!\approx\!0$} & \textbf{Non-magnetic / relaxing} fraction
+(paramagnetic or superparamagnetic at that temperature). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The same reasoning applies to $P(\dEQ)$ (spread of electric field gradients in
+paramagnetic materials) and $P(\mathrm{IS})$ (spread of electron densities /
+oxidation states), covered in appendix~\ref{ap:dist-is}.
+
+\section{Idea: from a sextet to a distribution}
+
+A distribution shares out the probability among a grid of fields
+$\{\BHF^{(j)}\}$ with weights $P_j \ge 0$. The spectrum is
+\[
+  T(v) \;=\; b \;-\; \sum_j P_j \, S_j(v),
+\]
+where $S_j$ is the sextet corresponding to the field $\BHF^{(j)}$. A
+\textbf{crystalline material} with a single field is represented as a \emph{narrow}
+distribution (almost a delta) about that value; a disordered material, as a
+\emph{broad} distribution.
+
+\autofig[\textwidth]{fig_pbhf_distribution}{Left: crystalline hyperfine field
+distribution (sharp, around 49~T) versus a broad distribution. Right: the
+corresponding simulated spectra. The broad distribution ``blurs'' and overlaps the
+sextet lines.}
+
+Notice in the figure how a narrow $P(\BHF)$ produces a sextet of narrow lines
+(crystalline behavior), whereas a broad one gives a spectrum with broadened and
+overlapping lines.
+
+\section{Simulating the spectrum of a crystalline case}
+\label{sec:sim-cristalina}
+
+The crystalline case (a well-defined field) is the natural starting point for
+understanding the model. In distribution mode:
+
+\begin{enumerate}[nosep]
+  \item Enable \textbf{distribution mode} and choose the variable ($P(\BHF)$ or
+        $P(\dEQ)$).
+  \item Set the range of the grid (minimum and maximum $\BHF$) and the number of
+        bins.
+  \item Set the shared kernel parameters: $\delta$, $\dEQ$ and the line width
+        $\Gamma$.
+  \item Assume a \emph{narrow} distribution centered on the expected field (almost
+        a delta): the simulated spectrum will tend toward that of a crystalline
+        material, with narrow lines.
+\end{enumerate}
+
+The plot shows at the same time the assumed \textbf{distribution} $P(\BHF)$ and the
+\textbf{spectrum} it produces, so that you can see the effect of narrowing or
+broadening the distribution. On real data, by contrast, $P(\BHF)$ is
+\textbf{fitted} (following sections).
+
+\guicap{gui_distribution_panel}{Distribution panel: variable, shape, regularizer,
+grid range and number of bins.}
+
+\section{The distribution panel, control by control}
+\label{sec:panel-dist}
+
+The distribution panel brings together quite a few controls. Here \textbf{each
+one} is explained: what it is, what it is for, what values are reasonable and when
+it is worth adjusting. Many are \textbf{hidden or disabled} depending on the chosen
+shape (for example, the regularizer only appears with Histogram), so do not be
+alarmed if you do not see them all at once.
+
+\begin{nota}
+Underlying idea: distribution fitting builds \textbf{many subspectra} (sextets or
+doublets), one for each value of the variable on a grid, and looks for \textbf{what
+weight} $P_j\ge 0$ each one has in order to reproduce the spectrum. The panel
+parameters control (a) \emph{what} is distributed, (b) \emph{how} each subspectrum
+looks, (c) the \emph{grid} of values and (d) the \emph{regularization}.
+\end{nota}
+
+\subsection{What is distributed: the variable}
+\label{sec:dist-variable}
+
+The first thing is to decide \textbf{which quantity} varies from one environment to
+another. It is chosen in the mode selector:
+
+\begin{center}
+\begin{tabular}{@{}lp{0.66\textwidth}@{}}
+\toprule
+\textbf{Mode} & \textbf{What it distributes} \\
+\midrule
+$P(\BHF)$ & The \textbf{hyperfine field} (magnetic materials: each environment has
+its own field). It is the most common case. \\[3pt]
+$P(\dEQ)$ & The \textbf{quadrupole splitting} (paramagnetic materials: distribution
+of electric field gradients, with doublets instead of sextets). \\[3pt]
+$P(\text{IS})$ & The \textbf{isomer shift}. \\[3pt]
+\textbf{2D} & Joint distribution of two variables at once, e.g.\ $P(\BHF,\dEQ)$
+(\S\ref{sec:dist-2d}). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The distributed variable is the one that sweeps the grid; the \emph{other}
+quantities are fixed as global kernel parameters (next subsection).
+
+\subsection{Shape and regularizer}
+
+\begin{itemize}[nosep]
+  \item \menu{Shape}: the family of $P$ that is fitted---Histogram, Gaussian, VBF,
+        Binomial, Fixed or 2D---(\S\ref{sec:formas-dist} details them). It is the
+        decision that most conditions the rest of the controls.
+  \item \menu{Regularizer}: only with \textbf{Histogram}. Chooses how the lack of
+        smoothness is penalized---\emph{tikhonov}, \emph{tv} or \emph{maxent}---
+        (\S\ref{sec:regularizacion}).
+  \item \menu{VBF components}: only with \textbf{VBF}. Number of Gaussians (1--6)
+        that make up the distribution. Start with 1--2 and add more only if the fit
+        calls for it.
+\end{itemize}
+
+\subsection{Kernel parameters (each subspectrum)}
+\label{sec:panel-kernel}
+
+Each subspectrum of the grid shares these ``line'' parameters. They are the ones
+that define \emph{how} an individual sextet/doublet looks before sharing out the
+weights:
+
+\begin{center}
+\begin{tabular}{@{}lp{0.50\textwidth}ll@{}}
+\toprule
+\textbf{Control} & \textbf{Function} & \textbf{Typical} & \textbf{Range} \\
+\midrule
+$\delta$ & Isomer shift common to all subspectra (shifts the pattern). Fix it to
+the $\delta$ of your phase or leave it free. & $0$ & $-2{,}5\ldots2{,}5$ \\[4pt]
+$\dEQ$ & Global quadrupole (in $P(\BHF)$ mode). It is \textbf{disabled} if it is
+the distributed variable. & $0$ & $-4\ldots4$ \\[4pt]
+Fixed BHF & Fixed field used when $\dEQ$ or IS is distributed (not used in $P(\BHF)$
+mode). & $33$ & $0\ldots60$ \\[4pt]
+$\Gamma$ & \textbf{Line width} of each subspectrum. \emph{Key}: it controls the
+resolution (see the warning). & $0{,}30$ & $0{,}06\ldots2{,}0$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{aviso}
+The width $\Gamma$ and the number of bins are \textbf{coupled} with the
+regularization. If you set $\Gamma$ too small, each subspectrum is very narrow and
+the histogram tends toward ``spikes'' and to follow the noise; if you set it large,
+the distribution looks smoother but loses detail. A physically reasonable value
+($\Gamma \approx 0{,}25$--$0{,}35$~mm/s for $^{57}$Fe) and an $\alpha$ chosen with
+the L-curve give the best compromise.
+\end{aviso}
+
+\subsection{Correlation with the field: $\kappa_\delta$ and $\kappa_q$}
+
+Two optional slopes that couple $\delta$ and $\dEQ$ to the value of the field
+(\S\ref{sec:correlacion}). By default they are \textbf{0} (no correlation) and are
+\textbf{fixed}; to refine them, uncheck their lock. They only apply to Histogram and
+VBF.
+
+\subsection{The grid of values}
+
+Defines over which values of the variable the probability is shared out:
+
+\begin{center}
+\begin{tabular}{@{}lp{0.58\textwidth}ll@{}}
+\toprule
+\textbf{Control} & \textbf{Function} & \textbf{Typical} & \textbf{Range} \\
+\midrule
+min & \textbf{Lower} end of the grid. & $0$ & $0\ldots60$ \\[3pt]
+max & \textbf{Upper} end. Set it to the range where you \emph{expect} fields (e.g.\
+$0$--$55$~T). & $50$ & $0\ldots60$ \\[3pt]
+bins & \textbf{Number of points} of the grid. More bins = more resolution but a
+more ill-conditioned problem (more regularization needed). & $50$ & $10\ldots200$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{truco}
+Choose the \textbf{range} as tight as possible to where there is signal: a grid that
+extends over empty zones ``wastes'' bins and can introduce spurious structure at the
+edges. With $40$--$80$ bins is usually enough; raise it only if you need to separate
+fine details.
+\end{truco}
+
+\subsection{The regularization: $\log\alpha$ and shortcuts}
+
+Only for Histogram (and 2D):
+
+\begin{itemize}[nosep]
+  \item \menu{log$_{10}\alpha$}: strength of the regularization
+        (\S\ref{sec:regularizacion}). $\alpha$ is dimensionless: $\log\alpha
+        \approx 0$ is the natural balance. Less $\alpha$ $\to$ more detail and more
+        noise; more $\alpha$ $\to$ smoother.
+  \item \boton{Fine} / \boton{Medium} / \boton{Smooth} buttons: shortcuts that set
+        $\log\alpha$ to progressively larger values (from more detail to more
+        smoothness), for quick trials.
+  \item \boton{L-curve $\alpha$}: opens the dialog that \textbf{chooses $\alpha$ with
+        a criterion} (\S\ref{sec:lcurve}). It is the recommended route.
+\end{itemize}
+
+\subsection{2D controls}
+
+They appear only with the \textbf{2D} shape: \menu{min/max/bins of the second axis}
+(e.g.\ $\dEQ$) and \menu{log$_{10}\alpha$ of the second axis}, analogous to those of
+the first variable but for the $Y$ axis. The \boton{View 2D map} button opens the
+map (\S\ref{sec:dist-2d}).
+
+\subsection{Other}
+
+\begin{itemize}[nosep]
+  \item \menu{Add active sharp components}: fits the distribution and the active
+        discrete components at the same time (\S\ref{sec:nitidos}).
+  \item \menu{Load fixed P…}: only with the \textbf{Fixed} shape; reads a $P$ from a
+        file (two columns: value and weight).
+\end{itemize}
+
+\section{Distribution shapes}
+\label{sec:formas-dist}
+
+Fitbauer offers several \textbf{shapes} (\menu{Shape:}) for $P(\BHF)$. Some are
+\emph{non-parametric} (they leave the weight of each bin free) and others
+\emph{parametric} (they impose a function with few parameters):
+
+\begin{center}
+\begin{tabular}{@{}lp{0.62\textwidth}@{}}
+\toprule
+\textbf{Shape} & \textbf{Description} \\
+\midrule
+\textbf{Histogram} & Hesse--Rübartsch inversion: free weights per bin with
+regularization. The most general and flexible; requires choosing $\alpha$. \\[3pt]
+\textbf{Gaussian} & A single Gaussian in $\BHF$ (mean and width). Rigid but very
+stable. \\[3pt]
+\textbf{VBF} & Sum of several Gaussians (Voigt-Based Fitting, Rancourt--Ping); saves
+$A_k, \mu_k, \sigma_k$ per component (\S\ref{sec:vbf-areas}). \\[3pt]
+\textbf{Binomial} & Binomial distribution (neighbor-environment models, e.g.\
+alloys). \\[3pt]
+\textbf{Fixed} & Distribution imposed by the user (read from a file). \\[3pt]
+\textbf{2D} & Joint distribution $P(\BHF, \dEQ)$ (\S\ref{sec:dist-2d}). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{truco}
+Choose \textbf{Gaussian} or \textbf{VBF} when you expect one or a few well-defined
+environments (they give parameters with direct meaning); reserve the
+\textbf{Histogram} for complex or unknown shapes, where you do not want to impose a
+function.
+\end{truco}
+
+Each shape is detailed below: what model it fits, what controls it uses and when to
+choose it.
+
+\subsection{Histogram (Hesse--Rübartsch)}
+\label{sec:forma-histograma}
+
+This is the \textbf{non-parametric} shape and the most general. It imposes no
+function: it treats the weight of \emph{each bin} as an independent unknown. The
+spectrum is written as a linear combination of the subspectra of the grid,
+\[
+  T(v) \;=\; b + s\,v \;-\; \sum_{j=1}^{N_{\text{bins}}} P_j\, S_j(v),
+  \qquad P_j \ge 0,
+\]
+and fitting means \textbf{solving for the weights} $\{P_j\}$ that best reproduce the
+data. It is a linear problem with non-negativity, but \textbf{ill-conditioned} (many
+$\{P_j\}$ give almost the same spectrum), hence the need to \textbf{regularize}
+(\S\ref{sec:regularizacion}). The method goes back to Hesse and Rübartsch (1974).
+
+\begin{itemize}[nosep]
+  \item \textbf{Uses}: grid (min/max/bins), kernel ($\delta$, $\dEQ$/fixed BHF,
+        $\Gamma$), \textbf{regularizer} and $\log\alpha$, correlations
+        $\kappa_\delta/\kappa_q$.
+  \item \textbf{When}: when the shape of $P$ is \emph{unknown} or complex (several
+        environments, asymmetric tails) and you do not want to impose a function.
+  \item \textbf{Price}: you have to choose $\alpha$ well (use the L-curve,
+        \S\ref{sec:lcurve}); it is the only shape that needs it.
+\end{itemize}
+
+\subsection{Gaussian}
+\label{sec:forma-gaussiana}
+
+Minimal \textbf{parametric} shape: $P$ is \emph{a single Gaussian} over the grid. It
+fits its \textbf{mean} $\mu$ (the central field) and its \textbf{width} $\sigma$
+(plus the amplitude and the baseline). Only two shape parameters, so it is
+\textbf{very stable} and does not suffer from ill-conditioning: it uses no
+regularizer or $\alpha$. Internally it is exactly the \textbf{VBF with a single
+component} ($N=1$, \S\ref{sec:forma-vbf} and appendix~\ref{ap:vbf}): they share the
+algorithm, and choosing ``Gaussian'' is equivalent to fixing $N=1$ with a Lorentzian
+line.
+
+\begin{itemize}[nosep]
+  \item \textbf{When}: there is \emph{one} broadened environment (a phase with an
+        approximately symmetric spread of fields), or as a quick \textbf{first
+        approximation} before complicating the model.
+  \item \textbf{Gives}: $\mu$ and $\sigma$ with direct physical meaning.
+\end{itemize}
+
+\subsection{VBF (Voigt-Based Fitting, Rancourt--Ping)}
+\label{sec:forma-vbf}
+
+Generalizes the Gaussian to a \textbf{sum of $N$ Gaussians} (\menu{VBF components},
+$N=1\ldots6$). Each component $k$ has amplitude $A_k$, mean $\mu_k$ and width
+$\sigma_k$, all adjustable:
+\[
+  P(\BHF) \;=\; \sum_{k=1}^{N} A_k \,
+  \mathcal{N}(\BHF;\,\mu_k,\sigma_k).
+\]
+This is the method of Rancourt and Ping (1991). Its great advantage over the
+Histogram: it delivers \textbf{parameters with meaning} per subpopulation (position,
+width and \textbf{area}, \S\ref{sec:vbf-areas}) instead of a structureless profile,
+and it is more stable (few parameters, no regularization). Appendix~\ref{ap:vbf}
+develops its mathematics (direct model, Voigt profile, parametrization, populations
+and the case $N=1$ that corresponds to the \menu{Gaussian} shape).
+
+\begin{itemize}[nosep]
+  \item \textbf{When}: you expect \textbf{2--3} well-defined magnetic
+        \textbf{subpopulations} and want to quantify their \emph{proportion}.
+  \item \textbf{Advice}: start with $N=1$--$2$ and raise it only if the residual
+        calls for it; more Gaussians than needed overlap and end up poorly defined.
+  \item \textbf{Supports}: correlations $\kappa_\delta/\kappa_q$.
+\end{itemize}
+
+\subsection{Binomial}
+\label{sec:forma-binomial}
+
+\textbf{Parametric} shape with a single shape unknown: $P$ follows a
+\textbf{binomial distribution} $B(n,p)$ over the grid (with $n = N_{\text{bins}}-1$),
+and the \textbf{probability} $p\in(0,1)$ is fitted (the mean falls at $p\,n$).
+
+Its motivation is physical: in an \textbf{alloy}, the hyperfine field of an Fe atom
+depends on \textbf{how many solute atoms} it has in its neighbor shells. If the
+solute is distributed at random, that number follows a binomial, and therefore so
+does the distribution of fields. The parameter $p$ is related to the
+\textbf{concentration} of solute.
+
+\begin{itemize}[nosep]
+  \item \textbf{When}: \emph{neighbor} systems (dilute alloys) where each neighbor
+        configuration gives a discrete field.
+\end{itemize}
+
+\subsection{Fixed}
+\label{sec:forma-fija}
+
+Uses a distribution $P$ \textbf{that you provide} in a two-column file (value and
+weight), loaded with \menu{Load fixed P…}. The shape is \emph{not} fitted (only
+amplitude and baseline): it serves to \textbf{reuse} a known $P$---from a previous
+fit, from the literature or theoretical---and compare or simulate with it over
+different spectra.
+
+\subsection{2D: two variables at once}
+\label{sec:forma-2d}
+
+Distributes \textbf{two} quantities jointly (e.g.\ $P(\BHF,\dEQ)$) over a
+two-dimensional grid. It is the most general and most costly case; it is treated
+separately in \S\ref{sec:dist-2d}.
+
+\subsection{Areas of each Gaussian (VBF)}
+\label{sec:vbf-areas}
+
+In \textbf{VBF} mode with more than one Gaussian, each component contributes an area
+$A_k$ (its integral over the grid, because the Gaussian kernel is normalized to unit
+area). Fitbauer reports that \textbf{area} and its \textbf{relative percentage}
+$A_k/\sum_j A_j$, which represents the \textbf{population of each environment}:
+
+\begin{itemize}[nosep]
+  \item In the \textbf{status panel}: keys \ruta{vbf$k$\_area},
+        \ruta{vbf$k$\_area\%} and \ruta{vbf$k$\_mu} per component.
+  \item In the \textbf{fit summary} and in the \textbf{reports} (table with $A$,
+        area \%, $\mu$ and $\sigma$).
+\end{itemize}
+
+This makes VBF a convenient route to quantify the proportion of two or more magnetic
+subpopulations without resorting to a histogram.
+
+\section{Histogram regularization}
+\label{sec:regularizacion}
+
+Fitting a \textbf{Histogram} to real data is an \emph{ill-conditioned} problem: many
+different $P(\BHF)$ reproduce the spectrum almost equally well, and without control
+spurious oscillations appear. The solution is to \textbf{regularize}: add to the fit
+a term that penalizes solutions that are not smooth, controlled by a parameter
+$\alpha$.
+
+\subsection{Regularizers}
+
+\begin{center}
+\begin{tabular}{@{}lp{0.6\textwidth}@{}}
+\toprule
+\textbf{Regularizer} & \textbf{Effect / when to use it} \\
+\midrule
+\textbf{Tikhonov} & Penalizes the curvature (second difference): \emph{smooth}
+solutions. Default option, suitable for broad, rounded distributions. \\[4pt]
+\textbf{TV} (total variation) & Penalizes the total variation: preserves
+\emph{edges} and steps; useful if you suspect well-separated populations. \\[4pt]
+\textbf{MaxEnt} (maximum entropy) & Seeks the most ``uniform'' distribution
+compatible with the data (L-BFGS-B with analytical gradient); avoids introducing
+unjustified structure. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{The parameter $\alpha$}
+
+$\alpha$ balances \textbf{fidelity to the data} (small $\alpha$ $\to$ follows the
+noise, rough distribution) against \textbf{smoothness} (large $\alpha$ $\to$ smooth
+distribution but a worse fit). In Fitbauer $\alpha$ is \textbf{dimensionless}:
+$\log_{10}\alpha \approx 0$ is the natural balance for any spectrum, and the useful
+values usually fall between $-1$ and $+2$.
+
+\begin{aviso}
+$\alpha$ is the most delicate choice in histogram fitting. Do not leave it to chance:
+use the \textbf{L-curve} (\S\ref{sec:lcurve}) to choose it with a criterion.
+\end{aviso}
+
+\section{The L-curve: choosing $\alpha$ with a criterion}
+\label{sec:lcurve}
+
+Choosing $\alpha$ ``by eye'' is risky: a value that is too low injects noise into the
+distribution and one that is too high flattens it and hides real structure. The
+\textbf{L-curve} provides an objective criterion. It is the most important tool in
+histogram fitting.
+
+\subsection{What it is and why it has an L shape}
+
+For each $\alpha$ in the sweep, the fit produces a distribution $P_\alpha$, and from
+it \textbf{two} competing quantities are measured:
+
+\begin{itemize}[nosep]
+  \item \textbf{Misfit} (residual) $\lVert K P_\alpha - y\rVert$: how much the model
+        departs from the data. We want it to be \emph{small}.
+  \item \textbf{Roughness} $\lVert L\,P_\alpha\rVert$: how much the distribution
+        ``trembles'' (the norm of the smoothness operator $L$). We also want it to be
+        \emph{small}.
+\end{itemize}
+
+Both cannot be minimized at once: lowering $\alpha$ improves the fit but dirties the
+distribution, and raising it does the opposite. If \textbf{roughness against misfit}
+is plotted on a log-log scale as $\alpha$ is varied, a curve with an \textbf{L}
+shape appears:
+
+\begin{itemize}[nosep]
+  \item \textbf{Vertical branch} ($\alpha$ small, \emph{under-regularized}):
+        continuing to lower $\alpha$ barely improves the fit, but the roughness
+        \textbf{shoots up}---the solution starts to fit the noise.
+  \item \textbf{Horizontal branch} ($\alpha$ large, \emph{over-regularized}): the
+        distribution is already smooth; raising $\alpha$ further barely smooths it,
+        but the fit \textbf{gets worse}---real structure is lost.
+  \item \textbf{The corner}: the point where the curve turns. It is the \textbf{best
+        compromise}: the smallest possible $\alpha$ that still keeps the distribution
+        reasonably smooth.
+\end{itemize}
+
+Formally, the corner is the point of \textbf{maximum curvature} of the L (Hansen's
+criterion). Fitbauer detects it automatically (Menger curvature over triples of
+points) and marks it in \textcolor{fbgreen}{green} as a \emph{suggestion}.
+
+\subsection{The dialog, panel by panel}
+
+\begin{itemize}[nosep]
+  \item \textbf{Left --- the L}: roughness against misfit (log-log), with each point
+        labeled by its $\log\alpha$. The automatic corner in green and the
+        \textbf{chosen} point in \textcolor{fbred}{orange}.
+  \item \textbf{Right --- $\alpha$ vs RMS}: the fit error (RMS) against $\alpha$;
+        it helps to see where the fit starts to degrade.
+\end{itemize}
+
+Both figures are \textbf{coupled}: when you zoom on one, the other is limited to the
+same $\alpha$ range. The toolbar allows you to zoom into the corner region.
+
+\guicap{gui_lcurve}{L-curve dialog: on the left the
+roughness$\leftrightarrow$misfit curve with the automatic corner (green) and the
+chosen point (orange); on the right $\alpha$ against RMS. A click chooses $\alpha$.}
+
+\subsection{Choosing $\alpha$: automatic or by hand}
+
+The automatic corner detection \textbf{does not always get it right} (noisy curves,
+poorly marked corners), so the dialog is \textbf{interactive}:
+
+\begin{itemize}[nosep]
+  \item \textbf{Click} on either of the two figures to \textbf{choose} the scanned
+        $\alpha$ closest to the click; the point is highlighted in both.
+  \item The \boton{Use $\alpha$=…} button applies the \emph{chosen} value (it starts
+        at the automatic suggestion) to the fit and closes the dialog.
+\end{itemize}
+
+\subsection{How to interpret it in practice}
+
+\begin{enumerate}[nosep]
+  \item Accept the \textbf{automatic corner} as a first approximation and observe the
+        resulting $P(\BHF)$.
+  \item If you see it \textbf{too rough} (spikes that look like noise), raise $\alpha$
+        a little (click a point to the right on the L). If you see it \textbf{too
+        washed out} (it has lost detail that the residual revealed), lower $\alpha$
+        (a point to the left).
+  \item Check the \textbf{stability}: the correct solution changes \emph{little} when
+        you move $\alpha$ one step up or down. If it changes a lot, you are on a
+        branch, not at the corner.
+\end{enumerate}
+
+\begin{aviso}
+Sometimes \textbf{there is no clear corner} (the L is rounded). This usually means
+that the data do not demand much structure: choose an $\alpha$ from the transition
+zone and validate it by the stability of $P(\BHF)$ and by the $\chi^2_r$ of the fit,
+not by the corner. And remember: the L-curve only applies to the \textbf{Histogram}
+(the parametric shapes do not use $\alpha$).
+\end{aviso}
+
+\section{Correlation $\delta(H)$ and $\dEQ(H)$}
+\label{sec:correlacion}
+
+So far we have assumed that $\delta$ and $\dEQ$ are \textbf{the same for all} the
+subspectra of the distribution, and only the field varied. But physically that is
+not always true: the disorder that spreads the field usually spreads $\delta$ and
+$\dEQ$ \emph{as well}, and in a \textbf{correlated} way. For example, an Fe atom with
+more neighbors of a certain type has at once a different field \emph{and} a different
+electron density (a different $\delta$): the two quantities move together.
+
+Fitbauer captures that correlation with two \textbf{slopes} (\emph{opt-in}, zero =
+classical behavior without correlation):
+
+\begin{itemize}[nosep]
+  \item $\kappa_\delta = d\delta/dH$: makes $\delta(H) = \delta_0 +
+        \kappa_\delta\,(H-H_{\text{ref}})$, that is, the isomer shift \emph{varies
+        linearly} with the field of the subspectrum.
+  \item $\kappa_q = d\dEQ/dH$: the same for the quadrupole.
+\end{itemize}
+
+\textbf{What it implies.} With $\kappa_\delta \neq 0$, the high-field subspectra use
+a different $\delta$ than the low-field ones, so that the distribution no longer just
+``opens'' the lines but also \emph{shifts} them in a field-dependent way. It is the
+way to model, with \emph{one} extra parameter, that the chemical and magnetic
+environments change together. If your material requires it, you will see the residual
+improve when $\kappa_\delta$/$\kappa_q$ are freed (by unchecking their lock).
+
+They apply to the \textbf{Histogram} and \textbf{VBF} shapes. The fitted values of
+$\kappa_\delta$ and $\kappa_q$ are shown in the status panel and in the reports.
+
+\begin{truco}
+Always start with $\kappa=0$. Activate them only if, after a good fit without
+correlation, the residual shows a systematic pattern that suggests $\delta$ or $\dEQ$
+depend on the field. A misused $\kappa$ can artificially compensate for other defects
+of the model.
+\end{truco}
+
+\section{2D distributions: $P(\BHF, \dEQ)$}
+\label{sec:dist-2d}
+
+When field and quadrupole vary in a way that is \textbf{not correlatable with a
+straight line} (that is, when $\kappa_\delta/\kappa_q$ are not enough), the
+\textbf{2D} shape fits a joint density $P(\BHF, \dEQ)$ over a two-dimensional grid.
+Each axis has its own controls:
+
+\begin{itemize}[nosep]
+  \item $X$ axis (e.g.\ $\BHF$): the usual \menu{min/max/bins} and
+        \menu{log$_{10}\alpha$}.
+  \item $Y$ axis (e.g.\ $\dEQ$): \menu{min/max/bins of the second axis} and its own
+        \menu{log$_{10}\alpha$}, which is \textbf{regularized separately}.
+\end{itemize}
+
+The result is shown as a \textbf{map} (\emph{heatmap} with contours)---accessible
+with \boton{View 2D map}---in addition to the marginal distributions of each
+variable. The mathematical development of the two-dimensional case is in
+appendix~\ref{ap:dist-2d}.
+
+\begin{aviso}
+The 2D has \textbf{many more unknowns} (one per grid cell) than the 1D, so it is more
+costly and harder to regularize. Start with \textbf{few bins} on each axis (e.g.\
+$15\times15$) to test, check that the map is stable, and only then refine the grid.
+Two $\alpha$ values that are too low produce a map full of false peaks.
+\end{aviso}
+
+\section{Sharp components alongside the distribution}
+\label{sec:nitidos}
+
+It is common for a sample to combine a \textbf{crystalline phase} (a sharp sextet)
+with a \textbf{distributed phase}. With \menu{P(BHF): add active sharp components},
+one or several discrete components and the distribution are fitted
+\textbf{simultaneously}. The plot then draws each sharp component separately, the
+\textbf{envelope} of the distribution and the total model, so that the contribution
+of each phase can be seen.
+
+\section{Step by step: fitting a \texorpdfstring{$P(\BHF)$}{P(BHF)} from scratch}
+\label{sec:paso-a-paso}
+
+If this is your first time, follow this recipe. Each step refers to the section that
+explains it in detail.
+
+\begin{enumerate}[nosep]
+  \item \textbf{Load and calibrate.} Open the spectrum and make sure you have a fixed
+        calibration (chapter~\ref{ch:calibracion}); without the correct velocity
+        scale, the fields will come out biased.
+  \item \textbf{Enter distribution mode} and choose the \textbf{variable} $P(\BHF)$
+        (\S\ref{sec:dist-variable}).
+  \item \textbf{Test with a simple shape.} Start with \menu{Gaussian} (or \menu{VBF}
+        with 1--2 components): they are stable and give you a quick idea of where the
+        field is and how broad it is. Fix $\delta$ to that of your phase and a
+        $\Gamma \approx 0{,}30$~mm/s (\S\ref{sec:panel-kernel}).
+  \item \textbf{Adjust the grid range} (min/max) so that it covers where there is
+        field, without excess (\S\ref{sec:panel-dist}); use $\sim 50$ bins.
+  \item \textbf{Launch the fit} (\menu{Fit > Fit}). Look at $P(\BHF)$ and the
+        residual: does it reproduce the lines?
+  \item \textbf{Complex shape?} If one or a few Gaussians are not enough, switch to
+        \menu{Histogram} (\S\ref{sec:formas-dist}), which imposes no function.
+  \item \textbf{Choose $\alpha$ with the L-curve} (\S\ref{sec:lcurve}): do not leave
+        it at the default. Accept the corner or click a point and compare the
+        $P(\BHF)$.
+  \item \textbf{Refine the model} if appropriate: activate \textbf{sharp components}
+        for a superimposed crystalline phase (\S\ref{sec:nitidos}), or the slopes
+        $\kappa_\delta/\kappa_q$ if $\delta$/$\dEQ$ depend on the field
+        (\S\ref{sec:correlacion}).
+  \item \textbf{Document.} With VBF, note the \textbf{areas} of each Gaussian (phase
+        proportion, \S\ref{sec:vbf-areas}). Save the \textbf{session} and export the
+        \textbf{report} with the distribution table.
+\end{enumerate}
+
+\begin{truco}
+Rule of thumb: go \textbf{from simple to complex}. A stable Gaussian that explains
+95\% of the spectrum is a better starting point than a poorly regularized Histogram.
+Increase in complexity (VBF $\to$ Histogram $\to$ 2D) only when the residual
+justifies it, and always watch that the solution is \textbf{stable} against small
+changes in $\alpha$, $\Gamma$ or number of bins.
+\end{truco}

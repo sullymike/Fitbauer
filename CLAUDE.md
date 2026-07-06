@@ -94,6 +94,9 @@ del código de la GUI.**
     bordes) y `maxent` (máxima entropía; L-BFGS-B con gradiente analítico).
   - **Formas** (`shape`): `Histograma` (Hesse-Rübartsch), `Gaussiana`, `VBF` (multi-gaussiano
     Voigt, Rancourt–Ping; guarda A/μ/σ por componente), `Binomial`, `Fija`, `2D`.
+    `Gaussiana` **no tiene función propia**: es VBF con `n_components=1` y `profile="Lorentz"`
+    (`fit_vbf_hyperfine_distribution(..., shape="Gaussiana")`); se conserva la etiqueta solo
+    para la GUI/sesión/informes.
   - **Correlación δ(H)/ΔEQ(H)** (`delta_slope`/`quad_slope` en el kernel): δ y ΔEQ varían
     linealmente con H (opt-in, 0 = clásico). Aplica a Histograma y VBF.
   - En modo distribución + nítidos, la GUI dibuja **todos los subespectros**: cada nítido por

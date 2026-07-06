@@ -1,0 +1,258 @@
+% Anexo: matemática del método VBF (Voigt-Based Fitting, Rancourt–Ping 1991).
+% Se incluye con \input desde main.tex bajo un \chapter, así que empieza en \section.
+
+\section{Motivación: una base de gaussianas para \texorpdfstring{$P(\BHF)$}{P(BHF)}}
+\label{sec:vbf-motiv}
+
+En un sólido magnéticamente desordenado —un vidrio metálico, una ferrita con
+sustituciones, una nanopartícula, un amorfo— el campo hiperfino $\BHF$ que ve
+cada núcleo de $^{57}$Fe no es único, sino que se reparte según una densidad de
+probabilidad $P(\BHF)$. El espectro medido es la \emph{superposición} de todos
+los sextetes elementales pesada por esa distribución. Recuperar $P(\BHF)$ a partir
+del espectro es un problema inverso mal condicionado (véase el anexo del manual
+matemático, \S\ref{sec:dist-corr} y aledaños).
+
+El \textbf{histograma} de Hesse--Rübartsch lo resuelve sin suponer forma: da un
+peso libre a cada bin y controla las oscilaciones con un regularizador (Tikhonov,
+TV o MaxEnt) gobernado por $\alpha$. Es flexible, pero entrega un perfil sin
+estructura y es sensible a la elección de $\alpha$.
+
+El \textbf{VBF} (\emph{Voigt-Based Fitting}, Rancourt y Ping, 1991) adopta la
+hipótesis contraria y muy razonable en la práctica: cada \textbf{entorno} o
+\textbf{subpoblación} magnética contribuye con una \emph{gaussiana} de campos, y
+la distribución total es la suma de unas pocas de ellas,
+\begin{equation}
+  P(\BHF) \;=\; \sum_{j=1}^{N} A_j\,\mathcal N\!\bigl(\BHF;\,\mu_j,\sigma_j\bigr),
+  \qquad N = 1\ldots6 .
+  \label{eq:vbf-P}
+\end{equation}
+En lugar de decenas de pesos de bin, el modelo tiene $3N$ parámetros de forma con
+\textbf{significado físico directo}: la posición $\mu_j$ (campo medio del entorno),
+la anchura $\sigma_j$ (su dispersión) y el área $A_j$ (su población). Al reducir
+tanto los grados de libertad, el ajuste es estable y \textbf{no necesita}
+regularización ni $\alpha$.
+
+\section{Del campo al espectro: el modelo directo}
+\label{sec:vbf-directo}
+
+Fitbauer discretiza la variable en una malla de $M$ nodos
+$c_1<\dots<c_M$ (los centros de bin, \code{parameter\_grid}). A cada nodo $c_k$ le
+corresponde un \textbf{subespectro elemental} —un sextete de Fe-57 con campo
+$c_k$, desplazamiento $\IS$, desdoblamiento cuadrupolar $\dEQ$ y anchura $\gamma$—
+cuya absorción en el canal de velocidad $v_i$ es el elemento del \textbf{núcleo}
+\begin{equation}
+  K_{ik} \;=\; \sum_{\ell=1}^{6} I_\ell(c_k)\;
+  \Phi\!\bigl(v_i - p_\ell(c_k);\,\Gamma_\ell,\varsigma\bigr),
+  \label{eq:vbf-kernel}
+\end{equation}
+donde $p_\ell(c_k)$ e $I_\ell(c_k)$ son las posiciones e intensidades de las seis
+líneas (anexo~\ref{ap:mates}) y $\Phi$ es el perfil de línea
+(\S\ref{sec:vbf-voigt}). Sobre esta malla, la ecuación~\eqref{eq:vbf-P} se
+convierte en el vector de pesos
+\begin{equation}
+  w_k \;=\; \sum_{j=1}^{N} A_j\, \mathcal N(c_k;\mu_j,\sigma_j),
+  \qquad k=1,\dots,M,
+  \label{eq:vbf-w}
+\end{equation}
+y el espectro modelado es lineal en esos pesos:
+\begin{equation}
+  \hat y_i \;=\; b + s\,v_i \;-\; \sum_{k=1}^{M} K_{ik}\,w_k
+  \;-\; \underbrace{\sum_{m} a_m\,S_{im}}_{\text{componentes nítidos (opc.)}},
+  \label{eq:vbf-model}
+\end{equation}
+con línea base $b$, pendiente $s$ y, opcionalmente, uno o varios subespectros
+\emph{nítidos} $S_{im}$ (fases cristalinas discretas) de amplitud $a_m\ge0$.
+
+\paragraph{Núcleo gaussiano normalizado a área unidad.} La gaussiana elemental de
+\eqref{eq:vbf-w} se evalúa y se \textbf{normaliza al área} sobre la propia malla,
+\begin{equation}
+  \mathcal N(c_k;\mu,\sigma) \;=\;
+  \frac{\exp\!\bigl(-\tfrac12((c_k-\mu)/\sigma)^2\bigr)}
+       {\displaystyle\int \exp\!\bigl(-\tfrac12((c-\mu)/\sigma)^2\bigr)\,\dd c},
+  \label{eq:vbf-gauss}
+\end{equation}
+donde el denominador se calcula por trapecios (\code{gauss\_weights}). Esta
+normalización es la que da al coeficiente $A_j$ el significado de \emph{área}
+(\S\ref{sec:vbf-areas2}).
+
+\section{Por qué «basado en Voigt»}
+\label{sec:vbf-voigt}
+
+El nombre del método viene del perfil de línea $\Phi$. La línea Mössbauer
+intrínseca es \textbf{Lorentziana} de anchura natural, pero el ensanchamiento
+instrumental y el espesor finito del absorbente la convolucionan con una
+\textbf{gaussiana}. La convolución de ambas es el perfil de \textbf{Voigt}
+\begin{equation}
+  V(x;\gamma,\varsigma) \;=\; (L_\gamma * G_\varsigma)(x)
+  \;=\; \frac{\operatorname{Re}\,\mathrm w(z)}{\varsigma\sqrt{2\pi}},
+  \qquad
+  z = \frac{x + i\,\gamma/2}{\varsigma\sqrt 2},
+  \label{eq:vbf-voigt}
+\end{equation}
+con $L_\gamma$ Lorentziana de anchura total $\gamma$, $G_\varsigma$ gaussiana de
+desviación $\varsigma$ (el parámetro \param{Voigt $\sigma$} de la GUI) y
+$\mathrm w(z)$ la función de Faddeeva. Con $\varsigma\to0$ se recupera la
+Lorentziana pura. En \eqref{eq:vbf-kernel} se toma $\Phi=V$ (perfil «Voigt») o
+$\Phi=L$ (perfil «Lorentz»); Fitbauer fija el perfil de forma explícita al
+construir el núcleo del VBF.
+
+\paragraph{La doble lectura del ensanchamiento gaussiano.} Hay una equivalencia
+importante que justifica el enfoque. Distribuir un sextete \emph{lorentziano}
+sobre una gaussiana \emph{de campos} de anchura $\sigma_j$ equivale, en el eje de
+velocidad, a convolucionar ese sextete con una gaussiana cuya anchura es
+$\sigma_j$ escalada por la sensibilidad $\partial p_\ell/\partial\BHF$ de cada
+línea al campo. Es decir, \textbf{cada componente de $P(\BHF)$ produce un sextete
+de líneas efectivamente \emph{voigtianas}}: de ahí «Voigt-Based Fitting». El
+parámetro $\sigma_j$ de la distribución y el ensanchamiento $\varsigma$ del perfil
+capturan, respectivamente, la dispersión \emph{física} de campos del entorno y el
+ensanchamiento \emph{instrumental}; Fitbauer los mantiene separados para no
+confundir una cosa con la otra.
+
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.82\textwidth]{apx_vbf}
+  \caption{Descomposición VBF (Rancourt--Ping). La distribución $P(\BHF)$ se
+  modela como suma de gaussianas \eqref{eq:vbf-P}; como el núcleo gaussiano está
+  normalizado a área unidad \eqref{eq:vbf-gauss}, la amplitud $A_j$ de cada
+  componente \emph{es} su área y su fracción $A_j/\sum_i A_i$ da la población del
+  entorno. La suma reproduce la distribución con pocos parámetros y sin
+  regularización.}
+  \label{fig:vbf-decomp}
+\end{figure}
+
+\section{Problema de mínimos cuadrados y parametrización}
+\label{sec:vbf-lsq}
+
+El ajuste minimiza el residuo de \eqref{eq:vbf-model} por mínimos cuadrados no
+lineales (\code{scipy.optimize.least\_squares}, región de confianza) sobre el
+vector de parámetros
+\begin{equation}
+  \bm x \;=\; \bigl(\,b,\; s,\; \{A_j,\ \mu_j,\ \log\sigma_j\}_{j=1}^{N},\;
+  \{a_m\}_m\,\bigr).
+  \label{eq:vbf-x}
+\end{equation}
+Detalles de la parametrización:
+\begin{itemize}[nosep]
+  \item \textbf{Se ajusta $\log\sigma_j$}, no $\sigma_j$: garantiza $\sigma_j>0$
+        sin barrera dura y equilibra la escala de la anchura frente a la posición
+        y el área, mejorando el condicionamiento.
+  \item \textbf{Cotas físicas}: $A_j\ge0$ (áreas no negativas),
+        $\mu_j\in[\,B_{\mathrm{hf},\min},B_{\mathrm{hf},\max}]$ dentro de la malla, y
+        $\sigma_j$ acotada entre una fracción de bin y el rango completo. La línea
+        base cumple $b\ge0$ y las amplitudes nítidas $a_m\ge0$.
+  \item \textbf{Arranque}: los $N$ centros se siembran equiespaciados en el rango,
+        con anchura inicial $\sim(B_{\mathrm{hf},\max}-B_{\mathrm{hf},\min})/(3N)$ y área repartida.
+  \item \textbf{Orden e identificabilidad}: como el modelo es invariante ante
+        permutaciones de las componentes (\emph{label switching}), al terminar se
+        \textbf{ordenan por $\mu_j$} antes de guardarlas, de modo que la
+        componente $1$ es siempre la de menor campo.
+\end{itemize}
+
+Frente al histograma, aquí \emph{no} hay término de regularización: la propia
+forma funcional \eqref{eq:vbf-P} impone la suavidad, y por eso la selección de
+$\alpha$ y la L-curve no intervienen (el botón correspondiente se desactiva).
+
+\section{Áreas, poblaciones y porcentajes}
+\label{sec:vbf-areas2}
+
+Como cada núcleo gaussiano de \eqref{eq:vbf-gauss} integra a la unidad sobre la
+malla, el área de la componente $j$ en $P(\BHF)$ es exactamente su coeficiente:
+\begin{equation}
+  \int A_j\,\mathcal N(\BHF;\mu_j,\sigma_j)\,\dd\BHF \;=\; A_j .
+\end{equation}
+Por tanto la \textbf{fracción de población} del entorno $j$ —qué proporción de los
+núcleos de Fe ven ese campo medio— es, en tanto por ciento,
+\begin{equation}
+  f_j \;=\; 100\;\frac{A_j}{\sum_{i=1}^{N} A_i}.
+  \label{eq:vbf-pop}
+\end{equation}
+Fitbauer reporta $A_j$, $f_j$, $\mu_j$ y $\sigma_j$ por componente en el panel de
+estado y en los informes. Esta es la ventaja operativa del VBF: \textbf{cuantifica
+directamente la proporción} de dos o más subpoblaciones magnéticas, algo que un
+histograma solo da tras integrar a mano regiones del perfil.
+
+\section{Correlación \texorpdfstring{$\IS(H)$}{d(H)} y \texorpdfstring{$\dEQ(H)$}{DEQ(H)}}
+\label{sec:vbf-corr}
+
+El VBF admite las mismas pendientes de correlación que el histograma
+(\S\ref{sec:dist-corr}): al construir cada columna $k$ del núcleo
+\eqref{eq:vbf-kernel} se usan
+\begin{equation}
+  \IS_k = \IS_0 + \kappa_\delta\,(c_k - H_{\text{ref}}),\qquad
+  \Delta E_{Q,k} = \Delta E_{Q,0} + \kappa_q\,(c_k - H_{\text{ref}}),
+\end{equation}
+en lugar de valores globales (modelo de Le~Caër--Dubois / Wivel--M\o{}rup). El
+modelo sigue siendo lineal en los pesos $w_k$; solo cambia el núcleo. Con
+$\kappa_\delta=\kappa_q=0$ (por defecto) se recupera el caso clásico, y las
+pendientes pueden fijarse o refinarse en el bucle externo.
+
+\section{Caso \texorpdfstring{$N=1$}{N=1}: la forma «Gaussiana»}
+\label{sec:vbf-gaussiana}
+
+La forma \menu{Gaussiana} de la interfaz \textbf{es el VBF con una sola
+componente} ($N=1$) y perfil de línea Lorentziano. Con ello \eqref{eq:vbf-P} se
+reduce a una única gaussiana de campos,
+\begin{equation}
+  P(\BHF) = A\,\mathcal N(\BHF;\mu,\sigma),
+\end{equation}
+y el vector de parámetros \eqref{eq:vbf-x} a $(b,s,A,\mu,\log\sigma)$: la
+descripción mínima de \emph{un} entorno ensanchado y aproximadamente simétrico.
+Internamente Fitbauer no mantiene un algoritmo aparte para ello —«Gaussiana» y
+«VBF» comparten exactamente el mismo código— sino que enruta la etiqueta al mismo
+ajuste con $N=1$. Elija «Gaussiana» como primera aproximación rápida a una fase
+única; suba a «VBF» con $N=2$--$3$ en cuanto el residuo revele más de un entorno.
+
+\section{VBF frente al histograma}
+\label{sec:vbf-vs-hist}
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{0.30\textwidth}p{0.32\textwidth}p{0.30\textwidth}@{}}
+\toprule
+ & \textbf{Histograma (H.--R.)} & \textbf{VBF} \\
+\midrule
+Parámetros de forma & $M$ pesos de bin ($\sim$40--100) & $3N$ ($N=1$--$6$) \\
+Suavidad & impuesta por $\alpha$ (regularizador) & impuesta por la forma \\
+Selección de $\alpha$ / L-curve & sí, crítica & no aplica \\
+Salida & perfil libre & $A_j,\mu_j,\sigma_j$ por entorno \\
+Poblaciones & integrando a mano & directas \eqref{eq:vbf-pop} \\
+Riesgo & oscilaciones si $\alpha$ mal & sobreajuste si $N$ alto \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+En resumen: use el \textbf{histograma} cuando no quiera comprometerse con una
+forma (distribución posiblemente compleja o multimodal irregular) y el
+\textbf{VBF} cuando espere \emph{pocos entornos bien definidos} y le interese su
+posición, anchura y proporción. Ambos comparten el mismo núcleo, las mismas
+correlaciones y los mismos componentes nítidos.
+
+\section{Buenas prácticas}
+\label{sec:vbf-practica}
+
+\begin{itemize}[nosep]
+  \item \textbf{Empiece bajo}: $N=1$--$2$ y suba solo si el residuo lo pide. Con
+        $N$ excesivo, dos gaussianas tienden a solaparse sobre el mismo entorno y
+        quedan mal determinadas (áreas anticorreladas, anchuras degeneradas).
+  \item \textbf{Vigile la degeneración $\kappa_\delta$--desplazamiento de malla}:
+        una pendiente $\kappa_\delta$ y un corrimiento global de $\IS$ son casi
+        indistinguibles; refine con cotas y de forma suave.
+  \item \textbf{Separe física e instrumento}: deje que $\sigma_j$ absorba la
+        dispersión de campos y $\varsigma$ (Voigt) el ensanchamiento
+        instrumental; no compense uno con el otro.
+  \item \textbf{Compare con el histograma}: si la $P(\BHF)$ del histograma
+        regularizado y la envolvente del VBF coinciden, la descripción en pocas
+        gaussianas está justificada.
+\end{itemize}
+
+\section*{Referencias}
+\begin{itemize}[nosep]
+  \item D.~G.~Rancourt, J.~Y.~Ping (1991). \emph{Voigt-based methods for
+        arbitrary-shape static hyperfine parameter distributions in Mössbauer
+        spectroscopy}. Nucl. Instrum. Methods Phys. Res. B \textbf{58}, 85--97.
+  \item G.~Le~Caër, J.~M.~Dubois (1979). \emph{Evaluation of hyperfine parameter
+        distributions from overlapped Mössbauer spectra of amorphous alloys}.
+        J. Phys. E: Sci. Instrum. \textbf{12}, 1083--1090.
+  \item C.~Wivel, S.~M\o{}rup (1981). \emph{Improved computational procedure for
+        evaluation of overlapping hyperfine parameter distributions in Mössbauer
+        spectra}. J. Phys. E: Sci. Instrum. \textbf{14}, 605--610.
+\end{itemize}

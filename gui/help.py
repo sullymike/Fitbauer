@@ -12,6 +12,11 @@ from core.constants import APP_NAME, APP_VERSION
 from core.data_io import SETTINGS_PATH
 from gui.branding import _logo_pixmap
 
+# El manual de usuario solo se publica en inglés. Se enlaza al PDF en GitHub
+# (funciona también en builds congelados, que no empaquetan docs/); si existe
+# una copia local junto al repo, se abre esa en su lugar.
+MANUAL_EN_URL = "https://github.com/sullymike/Mossbauer/blob/main/docs/manual_en/main.pdf"
+
 
 class HelpMixin:
     @staticmethod
@@ -662,6 +667,23 @@ class HelpMixin:
         btn_row.addWidget(btn_save)
         lay.addLayout(btn_row)
         return w
+
+    def on_open_manual(self) -> None:
+        """Abre el manual de usuario (solo en inglés) en el visor/navegador.
+
+        Prefiere una copia local (``docs/manual_en/main.pdf``) si está presente
+        junto al código; en su defecto abre el PDF alojado en GitHub.
+        """
+        from pathlib import Path
+
+        local = Path(__file__).resolve().parents[1] / "docs" / "manual_en" / "main.pdf"
+        if local.exists():
+            url = QtCore.QUrl.fromLocalFile(str(local))
+        else:
+            url = QtCore.QUrl(MANUAL_EN_URL)
+        if not QtGui.QDesktopServices.openUrl(url):
+            # Fallback: si el visor local falla, intenta el enlace web.
+            QtGui.QDesktopServices.openUrl(QtCore.QUrl(MANUAL_EN_URL))
 
     def on_about(self) -> None:
         dlg = QtWidgets.QDialog(self)

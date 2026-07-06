@@ -1,0 +1,197 @@
+\section{Motivation}
+
+The one-dimensional distributions $P(\BHF)$, $P(\DEQ)$ and $P(\delta)$ are
+appropriate when the dominant source of disorder is, respectively, magnetic,
+quadrupolar or isomer-shift related. In amorphous materials, disordered
+ferrites, glasses, nanoparticles or phases with multiple local environments it
+may happen that two parameters change at the same time. In that case one can
+pose a two-dimensional distribution:
+\begin{equation}
+  P(x,y)\ge 0,\qquad x,y\in\{\BHF,\DEQ,\delta\}.
+\end{equation}
+The cases implemented in the GUI are $P(\BHF,\DEQ)$, $P(\delta,\DEQ)$ and
+$P(\BHF,\delta)$. The main interest is being able to study not only the
+marginals, but also the possible correlation between the two distributed
+quantities. The $P(\delta,\DEQ)$ case is especially relevant for broad
+paramagnetic doublets in glasses, silicates and amorphous phases.
+
+\section{Spectral model}
+
+Let $v_k$ be the velocity channel and let $S(v;B,Q,\delta,\Gamma)$ be the
+absorption sextet of unit depth. On a grid $x_i$, $y_j$ the model that is linear
+in the weights is
+\begin{equation}
+  T_k = b_0 + b_1 v_k - \sum_{i=1}^{N_x}\sum_{j=1}^{N_y}
+  P_{ij}\,S(v_k;B_{ij},Q_{ij},\delta_{ij},\Gamma).
+\end{equation}
+The non-distributed parameters are kept global. For example, in
+$P(\delta,\DEQ)$ a global $B$ is fixed or fitted; if $B=0$ the pattern
+represents a set of magnetically collapsed doublets.
+In matrix form,
+\begin{equation}
+  \bm y \simeq X\bm z,
+\end{equation}
+where $\bm z$ contains baseline, slope and the flattened weights $P_{ij}$. The
+columns associated with the distribution are $-S(v_k;B_i,Q_j)$ because
+absorption subtracts transmission.
+
+\section{2D regularization}
+
+The inverse problem is strongly underdetermined. For this reason the curvature
+of the distribution is penalized along both directions:
+\begin{equation}
+  \Phi(\bm z)=\|W(\bm y-X\bm z)\|^2
+  +\alpha_B\|D_B^2 P\|^2
+  +\alpha_Q\|D_Q^2 P\|^2,
+\end{equation}
+subject to the constraint
+\begin{equation}
+  P_{ij}\ge 0.
+\end{equation}
+Here $W$ is the statistical weight of the channels, $D_B^2$ applies second
+differences along $\BHF$, and $D_Q^2$ applies second differences along $\DEQ$.
+
+\paragraph{Dimensionless $\alpha_B$, $\alpha_Q$.} As in 1D, the $\alpha$ values
+set by the user are not the raw weights: each axis is
+\textbf{non-dimensionalized} independently,
+$\alpha_{B,\text{eff}}=\alpha_B\,\lambda_B\,c_0$ and
+$\alpha_{Q,\text{eff}}=\alpha_Q\,\lambda_Q\,c_0$, with
+$\lambda=\lVert A_{\text{dist}}\rVert_F^2/\lVert L_{\text{eje}}\rVert_F^2$
+(Frobenius norm of the whitened operators) and $c_0=10^{-4}$
+(\texttt{\small ALPHA\_REF\_SCALE}). Thus $\log_{10}\alpha_B\approx\log_{10}\alpha_Q\approx0$
+is the natural balance on each axis, independent of $N$, noise and depth.
+The augmented system uses $\sqrt{\alpha_{\cdot,\text{eff}}}\,L_\cdot$. In the
+initial implementation a rectangular grid is used and the operators are written
+by means of Kronecker products:
+\begin{align}
+  L_B &= D_B^2\otimes I_Q,\\
+  L_Q &= I_B\otimes D_Q^2.
+\end{align}
+The augmented problem solved by bounded least squares is
+\begin{equation}
+  \begin{bmatrix}
+    WX\\
+    \sqrt{\alpha_B}\,L_B\\
+    \sqrt{\alpha_Q}\,L_Q
+  \end{bmatrix}\bm z
+  \simeq
+  \begin{bmatrix}
+    W\bm y\\
+    \bm 0\\
+    \bm 0
+  \end{bmatrix},
+  \qquad P_{ij}\ge 0.
+\end{equation}
+
+\section{Marginals, moments and correlation}
+
+Once $P_{ij}$ has been fitted, the marginal distributions are
+\begin{align}
+  P_B(B_i) &= \int P(B_i,Q)\,\dd Q \simeq \sum_j P_{ij}\,\Delta Q_j,\\
+  P_Q(Q_j) &= \int P(B,Q_j)\,\dd B \simeq \sum_i P_{ij}\,\Delta B_i.
+\end{align}
+On a non-uniform grid, appropriate integration weights must be used. The
+normalized two-dimensional probability is defined by
+\begin{equation}
+  p_{ij}=\frac{P_{ij}}{\int\!\int P(B,Q)\,\dd B\,\dd Q}.
+\end{equation}
+With $p_{ij}$ the diagnostic moments are computed,
+\begin{align}
+  \langle B\rangle &= \sum_{ij} p_{ij} B_i\,\Delta B_i\Delta Q_j, &
+  \langle Q\rangle &= \sum_{ij} p_{ij} Q_j\,\Delta B_i\Delta Q_j,\\
+  \sigma_B^2 &= \sum_{ij} p_{ij}(B_i-\langle B\rangle)^2\Delta B_i\Delta Q_j, &
+  \sigma_Q^2 &= \sum_{ij} p_{ij}(Q_j-\langle Q\rangle)^2\Delta B_i\Delta Q_j,
+\end{align}
+and the apparent correlation
+\begin{equation}
+  \rho_{BQ}=\frac{\sum_{ij}p_{ij}(B_i-\langle B\rangle)(Q_j-\langle Q\rangle)
+  \Delta B_i\Delta Q_j}{\sigma_B\sigma_Q}.
+\end{equation}
+A tilted cloud in the $B$--$Q$ map may suggest a correlation between field and
+quadrupole, but that interpretation is only valid if the solution is stable.
+
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.72\textwidth]{apx_2d_contour}
+  \caption{Joint distribution $P(B_{\mathrm{hf}},\Delta E_Q)$ and its
+  marginals. The central map shows two populations: a \emph{tilted} cloud
+  (high field, small quadrupole), whose tilt indicates an apparent correlation
+  $\rho_{BQ}$, and a second isolated site. At the top and to the right, the
+  marginals $P_B$ and $P_Q$ obtained by integrating the map; on their own they
+  do not reveal the correlation, which is only visible in the 2D map.}
+  \label{fig:apx_2d_contour}
+\end{figure}
+
+\section{Simultaneous sharp components}
+
+The implementation allows sharp components to be added to the 2D problem. The
+model is extended to
+\begin{equation}
+  T_k=b_0+b_1v_k-\sum_{ij}P_{ij}S_{ij}(v_k)-\sum_m a_m C_m(v_k)-F_k,
+\end{equation}
+where $C_m$ are discrete components with free amplitude $a_m\ge0$ and $F_k$ is
+the known absorption of components with fixed depth. The sharp columns are not
+regularized; they compete with the distribution only through the residual. This
+is useful for separating a known discrete phase from a disordered background,
+but it can also transfer weight artificially between map and sharp components if
+they overlap.
+
+\section{2D regularization L-surface}
+
+In 1D an L-curve is used. In 2D there are two regularizations, so the analogue
+is a surface in $(\alpha_B,\alpha_Q)$. For each pair the following are computed:
+\begin{align}
+  R(\alpha_B,\alpha_Q)&=\|W(\bm y-X\bm z)\|,\\
+  G(\alpha_B,\alpha_Q)&=\sqrt{\|D_B^2P\|^2+\|D_Q^2P\|^2},\\
+  \mathrm{RMS}(\alpha_B,\alpha_Q)&=\sqrt{\langle r_k^2\rangle}.
+\end{align}
+The GUI shows a map of RMS versus $\log_{10}\alpha_B$ and
+$\log_{10}\alpha_Q$ and a projection of $R$ versus $G$. Two points are
+proposed: the RMS minimum and a geometric compromise between residual and
+roughness. Neither is an automatic answer; the stability of the map must be
+verified visually.
+
+\begin{figure}[htbp]\centering
+  \includegraphics[width=0.72\textwidth]{apx_lsurface}
+  \caption{2D regularization L-surface, analogous to the L-curve but with two
+  parameters. The RMS is low when both regularizations are weak (lower-left
+  corner: the map fits the noise) and grows as they are strengthened (upper
+  right: over-smoothing). The compromise corner (star) balances fit and
+  smoothness on each axis; it is advisable to check that the solution is stable
+  around it.}
+  \label{fig:apx_lsurface}
+\end{figure}
+
+\section{Overfitting risk}
+
+\textbf{Essential warning:} a 2D distribution may apparently fit very well and
+have no physical meaning. For example, a $30\times30$ grid contains 900 weights,
+often more than the effective number of independent points in the spectrum.
+With weak regularization, the map can absorb:
+\begin{itemize}
+  \item statistical noise,
+  \item folding or velocity-scale errors,
+  \item poorly chosen line widths,
+  \item instrumental background,
+  \item omitted discrete components,
+  \item dynamic relaxation that should be modeled in another way.
+\end{itemize}
+Therefore, a low residual or a visually attractive map do not by themselves
+prove the existence of a physical distribution $P(\BHF,\DEQ)$.
+
+\section{Good practices}
+
+Before interpreting the map, it is recommended to:
+\begin{enumerate}
+  \item compare with simpler models: discrete sextets, $P(\BHF)$,
+  $P(\DEQ)$ and sharp components;
+  \item vary $\alpha_B$ and $\alpha_Q$ over several orders of magnitude;
+  \item repeat with a different number of bins;
+  \item verify that the marginals and main features are stable;
+  \item fix $\delta$ and $\Gamma$ if they are known independently;
+  \item check that the residual retains no systematic structure;
+  \item cross-check against external information: TEM, magnetometry, structure,
+  chemistry or literature.
+\end{enumerate}
+For publication, the 2D model should be justified by showing that a 1D or
+discrete model does not explain the data satisfactorily and that the 2D
+distribution is robust against reasonable changes of regularization.

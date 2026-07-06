@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import re
 import shutil
@@ -9,7 +10,9 @@ import subprocess
 import sys
 import tempfile
 import threading
+import urllib.error
 import urllib.request
+import xml.etree.ElementTree as ET
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,7 +20,9 @@ from urllib.parse import urlparse
 
 GITHUB_REPO = "sullymike/Mossbauer"
 RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
+RELEASES_ATOM = f"https://github.com/{GITHUB_REPO}/releases.atom"
 RELEASES_URL = f"https://github.com/{GITHUB_REPO}/releases"
+RELEASE_DOWNLOAD_URL = f"https://github.com/{GITHUB_REPO}/releases/download"
 
 
 @dataclass
@@ -62,6 +67,13 @@ def is_newer(latest: str, current: str) -> bool:
     return _version_key(latest) > _version_key(current)
 
 
+def _is_prerelease_tag(tag: str) -> bool:
+    """Deduce si un tag es prerelease por su sufijo (para el feed atom, que no lo marca)."""
+    text = tag.strip().lower().lstrip("v")
+    suffix = text.split("-", 1)[1] if "-" in text else ""
+    return any(token in suffix for token in ("a", "alpha", "b", "beta", "rc", "pre", "dev"))
+
+
 def _release_from_json(data: dict) -> ReleaseInfo:
     return ReleaseInfo(
         tag=str(data.get("tag_name") or ""),
@@ -75,15 +87,76 @@ def _release_from_json(data: dict) -> ReleaseInfo:
     )
 
 
-def list_releases(include_prereleases: bool = False, timeout: int = 15) -> list[ReleaseInfo]:
-    """Lista releases publicadas. Por defecto excluye prereleases y drafts."""
+def _releases_via_api(timeout: int) -> list[ReleaseInfo]:
+    """Lista releases usando la API REST (rica: assets, flags), pero limitada a
+    60 peticiones/hora por IP sin autenticar (devuelve HTTP 403 al agotarse)."""
     req = urllib.request.Request(
         RELEASES_API,
         headers={"Accept": "application/vnd.github+json", "User-Agent": "MossbauerFe57-updater"},
     )
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         data = json.loads(resp.read().decode("utf-8"))
-    releases = [_release_from_json(item) for item in data]
+    return [_release_from_json(item) for item in data]
+
+
+def _html_to_text(fragment: str) -> str:
+    """Convierte el cuerpo HTML del feed atom en texto plano legible."""
+    text = re.sub(r"(?is)<\s*br\s*/?>", "\n", fragment)
+    text = re.sub(r"(?is)</\s*(p|li|div|h[1-6])\s*>", "\n", text)
+    text = re.sub(r"(?s)<[^>]+>", "", text)
+    return html.unescape(text).strip()
+
+
+def _releases_via_atom(timeout: int) -> list[ReleaseInfo]:
+    """Lista releases desde el feed atom público (github.com), que NO está sujeto
+    al límite de 60/h de la API. No expone assets ni el flag de prerelease/draft:
+    el prerelease se deduce del sufijo del tag y los assets se construyen luego."""
+    req = urllib.request.Request(RELEASES_ATOM, headers={"User-Agent": "MossbauerFe57-updater"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read().decode("utf-8", errors="replace")
+    ns = {"a": "http://www.w3.org/2005/Atom"}
+    root = ET.fromstring(raw)
+    releases: list[ReleaseInfo] = []
+    for entry in root.findall("a:entry", ns):
+        entry_id = (entry.findtext("a:id", default="", namespaces=ns) or "").strip()
+        link_el = entry.find("a:link", ns)
+        href = str(link_el.get("href")) if link_el is not None else ""
+        tag = entry_id.rsplit("/", 1)[-1] if "/" in entry_id else ""
+        if not tag and "/tag/" in href:
+            tag = href.rsplit("/tag/", 1)[-1]
+        if not tag:
+            continue
+        title = (entry.findtext("a:title", default=tag, namespaces=ns) or tag).strip()
+        content = entry.findtext("a:content", default="", namespaces=ns) or ""
+        releases.append(ReleaseInfo(
+            tag=tag,
+            name=title,
+            html_url=href or RELEASES_URL,
+            body=_html_to_text(content),
+            zipball_url=f"https://github.com/{GITHUB_REPO}/archive/refs/tags/{tag}.zip",
+            assets=[],  # el feed no los publica; se construyen en choose_download
+            prerelease=_is_prerelease_tag(tag),
+            draft=False,  # los drafts no aparecen en el feed
+        ))
+    return releases
+
+
+def list_releases(include_prereleases: bool = False, timeout: int = 15) -> list[ReleaseInfo]:
+    """Lista releases publicadas. Por defecto excluye prereleases y drafts.
+
+    Usa la API REST (más rica) y, si se agota su límite sin autenticar (HTTP 403)
+    o falla la red, recurre al feed atom público, que no tiene ese límite. Así la
+    comprobación de actualizaciones no se rompe por el rate-limit de GitHub.
+    """
+    try:
+        releases = _releases_via_api(timeout=timeout)
+    except urllib.error.HTTPError as exc:
+        if exc.code in (403, 429):  # rate-limit de la API sin autenticar
+            releases = _releases_via_atom(timeout=timeout)
+        else:
+            raise
+    except urllib.error.URLError:
+        releases = _releases_via_atom(timeout=timeout)
     return [r for r in releases if not r.draft and (include_prereleases or not r.prerelease)]
 
 
@@ -118,6 +191,11 @@ def choose_download(release: ReleaseInfo, prefer_exe: bool = False) -> tuple[str
         name = str(asset.get("name") or Path(urlparse(url).path).name or f"Mossbauer-{release.tag}.zip")
         if url:
             return url, name
+    if release.tag:
+        # Sin lista de assets (p. ej. release obtenida del feed atom): el workflow
+        # publica siempre "Fitbauer-<tag>.zip", así que construimos su URL directa.
+        name = f"Fitbauer-{release.tag}.zip"
+        return f"{RELEASE_DOWNLOAD_URL}/{release.tag}/{name}", name
     if release.zipball_url:
         return release.zipball_url, f"Mossbauer-{release.tag or 'latest'}.zip"
     return release.html_url, f"Mossbauer-{release.tag or 'latest'}"
@@ -196,6 +274,8 @@ def find_release_checksum(release: ReleaseInfo, filename: str, timeout: int = 30
     """
     target = filename.lower()
     sidecar_names = {f"{target}.sha256", f"{target}.sha256sum"}
+    # (url, es_sidecar) a inspeccionar, en orden de preferencia.
+    candidates: list[tuple[str, bool]] = []
     for asset in release.assets:
         name = str(asset.get("name") or "").lower()
         url = str(asset.get("browser_download_url") or "")
@@ -204,6 +284,13 @@ def find_release_checksum(release: ReleaseInfo, filename: str, timeout: int = 30
         sidecar = name in sidecar_names
         if not sidecar and name not in _CHECKSUM_FILE_NAMES:
             continue
+        candidates.append((url, sidecar))
+    if not candidates and release.tag:
+        # Sin assets (feed atom): construimos las URLs canónicas del workflow.
+        base = f"{RELEASE_DOWNLOAD_URL}/{release.tag}"
+        candidates.append((f"{base}/sha256sums.txt", False))
+        candidates.append((f"{base}/{filename}.sha256", True))
+    for url, sidecar in candidates:
         req = urllib.request.Request(url, headers={"User-Agent": "MossbauerFe57-updater"})
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
