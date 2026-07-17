@@ -1,12 +1,10 @@
 """Construcción de la barra de menús y acciones globales."""
 from __future__ import annotations
 
-import json
-
 from PySide6 import QtGui, QtWidgets
 
 from mossbauer_i18n import tr, get_language, set_language, available_languages
-from core.data_io import SETTINGS_PATH
+from core.data_io import update_settings
 from gui.main_layout import fit_mode_labels
 from gui.themes import COLOR_THEMES
 
@@ -54,6 +52,7 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     ("view.configure_layout",  "menu.view", "view.configure_layout",  ""),
     # ── Ayuda ──
     ("help.open",              "menu.help", "help.open",              "F1"),
+    ("help.manual",            "menu.help", "help.manual",            ""),
     ("help.about",             "menu.help", "help.about",             ""),
     ("help.changelog",         "menu.help", "help.changelog",         ""),
     ("help.check_updates",     "menu.help", "help.check_updates",     ""),
@@ -508,19 +507,9 @@ class MenuBuilderMixin:
 
     def _set_language(self, code: str) -> None:
         set_language(code)
-        # Persistir
+        # Persistir (best-effort)
         try:
-            current = {}
-            if SETTINGS_PATH.exists():
-                try:
-                    current = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-                except Exception:
-                    pass
-            current["ui_language"] = code
-            SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-            SETTINGS_PATH.write_text(
-                json.dumps(current, indent=2, ensure_ascii=False),
-                encoding="utf-8")
+            update_settings(ui_language=code)
         except Exception:
             pass
         QtWidgets.QMessageBox.information(

@@ -1,7 +1,6 @@
 """Gestión de actualizaciones de la GUI Qt."""
 from __future__ import annotations
 
-import json
 import os
 import threading
 import webbrowser
@@ -11,7 +10,7 @@ from PySide6 import QtCore, QtWidgets
 
 from mossbauer_i18n import tr
 from core.constants import APP_VERSION
-from core.data_io import CONFIG_DIR, SETTINGS_PATH
+from core.data_io import CONFIG_DIR, load_settings, update_settings
 from gui.compat import frontend_attr
 from mossbauer_updater import (
     choose_download, download_file, find_release_checksum,
@@ -25,24 +24,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class UpdateMixin:
     def _qt_update_prefs(self) -> dict:
-        try:
-            if SETTINGS_PATH.exists():
-                data = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-                if isinstance(data, dict):
-                    return data
-        except Exception:
-            pass
-        return {}
+        return load_settings()
 
     def _updates_at_startup_enabled(self) -> bool:
         return bool(self._qt_update_prefs().get("check_updates_on_startup", False))
 
     def _save_qt_update_prefs(self, *, startup: bool, checksum: bool) -> None:
-        current = self._qt_update_prefs()
-        current["check_updates_on_startup"] = bool(startup)
-        current["verify_update_checksum"] = bool(checksum)
-        SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        SETTINGS_PATH.write_text(json.dumps(current, indent=2, ensure_ascii=False), encoding="utf-8")
+        # Los errores de escritura se propagan: el llamador muestra el aviso.
+        update_settings(
+            check_updates_on_startup=bool(startup),
+            verify_update_checksum=bool(checksum),
+        )
 
     def _downloads_dir(self) -> Path:
         for name in ("Descargas", "Downloads"):

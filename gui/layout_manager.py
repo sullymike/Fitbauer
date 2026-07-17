@@ -7,7 +7,7 @@ from pathlib import Path
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from mossbauer_i18n import tr, available_languages, set_language
-from core.data_io import SETTINGS_PATH
+from core.data_io import SETTINGS_PATH, update_settings
 from core.plot_styles import apply_rc
 from gui.state import UiPreferencesState
 from gui.themes import COLOR_THEMES
@@ -388,14 +388,7 @@ class LayoutSettingsMixin:
             return
         self.qt_style = style_name
         try:
-            import json
-            current = {}
-            if SETTINGS_PATH.exists():
-                current = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-            current["qt_style"] = style_name
-            SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-            SETTINGS_PATH.write_text(
-                json.dumps(current, indent=2, ensure_ascii=False), encoding="utf-8")
+            update_settings(qt_style=style_name)
         except Exception:
             pass
 
@@ -529,17 +522,9 @@ class LayoutSettingsMixin:
 
     def _save_settings(self) -> None:
         try:
-            current = {}
-            if SETTINGS_PATH.exists():
-                try:
-                    current = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-                except Exception:
-                    current = {}
-            current = self._ui_preferences_state().to_settings_dict(base=current)
-            SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-            SETTINGS_PATH.write_text(
-                json.dumps(current, indent=2, ensure_ascii=False),
-                encoding="utf-8")
+            # update_settings ya carga el dict actual y fusiona encima, así que
+            # basta con pasarle las claves del estado de preferencias.
+            update_settings(**self._ui_preferences_state().to_settings_dict())
         except Exception:
             pass
 

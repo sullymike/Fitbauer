@@ -18,6 +18,7 @@ from pathlib import Path
 
 import numpy as np
 
+from mossbauer_bhf_pipeline import make_sharp_components
 from mossbauer_distribution import fit_bhf_distribution, scan_alpha, second_difference_matrix
 from mossbauer_ws5 import folded_velocity_data, read_normos_sidecar_params
 
@@ -172,15 +173,15 @@ def main() -> None:
         norm_percentile=args.norm_percentile,
     )
 
-    sharp_components = [
-        {
-            "bhf": float(bhf),
-            "delta": float(args.sharp_delta if args.sharp_delta is not None else delta),
-            "quad": float(args.sharp_quad if args.sharp_quad is not None else quad),
-            "gamma": float(args.sharp_gamma if args.sharp_gamma is not None else gamma),
-        }
-        for bhf in args.sharp_bhf
-    ]
+    sharp_components = make_sharp_components(
+        args.sharp_bhf,
+        delta=delta,
+        quad=quad,
+        gamma=gamma,
+        sharp_delta=args.sharp_delta,
+        sharp_quad=args.sharp_quad,
+        sharp_gamma=args.sharp_gamma,
+    )
 
     result = fit_bhf_distribution(
         v,

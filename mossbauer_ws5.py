@@ -3,6 +3,10 @@
 
 Este modulo no depende de Tk ni de matplotlib, para poder reutilizarlo desde
 scripts, backend web y pruebas automaticas.
+
+Las funciones de lectura y folding son reexports de ``core.folding`` (fuente
+única, igual que hace ``core.data_io``). Aquí solo viven la variante local de
+``read_normos_sidecar_params`` (claves planas) y ``folded_velocity_data``.
 """
 from __future__ import annotations
 
@@ -11,64 +15,26 @@ from pathlib import Path
 
 import numpy as np
 
-
-def _number_re() -> str:
-    return r"[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[EeDd][-+]?\d+)?"
-
-
-def read_ws5_counts(path: str | Path) -> np.ndarray:
-    """Lee cuentas de ficheros WS5 XML o ADT antiguos sin cabecera."""
-    path = Path(path)
-    text = path.read_text(encoding="utf-8", errors="replace")
-    m = re.search(r"<data[^>]*>(.*?)</data>", text, re.S | re.I)
-    source = m.group(1) if m else text
-    counts = np.array([float(x) for x in re.findall(r"[-+]?\d+(?:\.\d+)?", source)], dtype=float)
-    if counts.size < 2:
-        raise ValueError(f"No se encontraron cuentas suficientes en {path}")
-    return counts
-
-
-def read_normos_folding_point(path: str | Path) -> float | None:
-    """Lee el 'Final folding point' de Normos si existe y lo pasa a centro interno.
-
-    Algunas versiones de Normos reportan el PFP en convención de espectro
-    completo (~511 para 512 canales) y otras en convención de semiespecro
-    (~256). Se distinguen por el valor: >= 400 → espectro completo (÷2);
-    < 400 → semiespecro (usar tal cual).
-    """
-    path = Path(path)
-    res = path.with_suffix(".RES")
-    if not res.exists():
-        res = path.with_suffix(".res")
-    if not res.exists():
-        return None
-    text = res.read_text(encoding="utf-8", errors="replace")
-    matches = re.findall(r"Final folding point\s*=\s*(" + _number_re() + ")", text, re.I)
-    if not matches:
-        return None
-    v = float(matches[-1].replace("D", "E").replace("d", "E"))
-    return 0.5 * v if v >= 400.0 else v
-
-
-def read_normos_plt_velocity(path: str | Path) -> float | None:
-    """Lee Vmax del .PLT asociado si existe."""
-    path = Path(path)
-    plt = path.with_suffix(".PLT")
-    if not plt.exists():
-        plt = path.with_suffix(".plt")
-    if not plt.exists():
-        return None
-    text = plt.read_text(encoding="utf-8", errors="replace")
-    nums = [float(x.replace("D", "E").replace("d", "E")) for x in re.findall(_number_re(), text)]
-    if len(nums) % 256 == 1:
-        nums = nums[1:]
-    if len(nums) >= 256:
-        return float(max(abs(min(nums[:256])), abs(max(nums[:256]))))
-    return None
+from core.folding import (  # noqa: F401  (reexports por compatibilidad)
+    _number_re,
+    chi2_for_center,
+    find_best_integer_or_half_center,
+    fold_integer_or_half,
+    interp_channel_1based,
+    read_normos_folding_point,
+    read_normos_plt_velocity,
+    read_ws5_counts,
+)
 
 
 def read_normos_sidecar_params(path: str | Path) -> dict[str, float]:
-    """Extrae algunos valores finales de Normos (.RES) y parametros fijos del .JOB."""
+    """Extrae algunos valores finales de Normos (.RES) y parametros fijos del .JOB.
+
+    NO reexportar desde ``core.folding``: esta variante divergió deliberadamente
+    de la de core. Devuelve claves planas ``delta``/``quad``/``gamma`` (las que
+    consumen los CLIs de distribución), mientras que la versión canónica de
+    ``core.folding`` usa claves prefijadas ``s1_*`` para el motor de ajuste.
+    """
     path = Path(path)
     params: dict[str, float] = {}
     res = path.with_suffix(".RES")
@@ -99,75 +65,6 @@ def read_normos_sidecar_params(path: str | Path) -> dict[str, float]:
         if m and "quad" not in params:
             params["quad"] = float(m.group(1).replace("D", "E").replace("d", "E"))
     return params
-
-
-def interp_channel_1based(counts: np.ndarray, channel: float) -> float:
-    """Interpolacion lineal C(channel) con canales 1..N; extrapola en bordes."""
-    counts = np.asarray(counts, dtype=float)
-    n = counts.size
-    if channel < 1.0:
-        return float(counts[0] + (channel - 1.0) * (counts[1] - counts[0]))
-    if channel >= float(n):
-        return float(counts[-1] + (channel - float(n)) * (counts[-1] - counts[-2]))
-    lo = int(np.floor(channel))
-    frac = channel - lo
-    if frac < 1e-12:
-        return float(counts[lo - 1])
-    return float((1.0 - frac) * counts[lo - 1] + frac * counts[lo])
-
-
-def fold_integer_or_half(counts: np.ndarray, center: float) -> tuple[np.ndarray, list[tuple[int, int]]]:
-    """Dobla a N/2 puntos al estilo Normos usando un centro interno."""
-    counts = np.asarray(counts, dtype=float)
-    n = counts.size
-    n_out = n // 2
-    rows: list[tuple[int, int, float]] = []
-    for j in range(n_out):
-        distance = j + 0.5
-        left_ch = center - distance
-        right_ch = center + distance
-        folded = 0.5 * (interp_channel_1based(counts, left_ch) + interp_channel_1based(counts, right_ch))
-        rows.append((int(round(left_ch)), int(round(right_ch)), folded))
-    return np.array([r[2] for r in rows], dtype=float), [(r[0], r[1]) for r in rows]
-
-
-def chi2_for_center(counts: np.ndarray, center: float) -> tuple[float, int]:
-    folded, pairs = fold_integer_or_half(counts, center)
-    del folded
-    chi2 = 0.0
-    n_used = 0
-    for left, right in pairs:
-        if not (1 <= left <= counts.size and 1 <= right <= counts.size):
-            continue
-        d = counts[left - 1] - counts[right - 1]
-        chi2 += d * d
-        n_used += 1
-    return chi2, n_used
-
-
-def find_best_integer_or_half_center(counts: np.ndarray, cmin: float = 250.5, cmax: float = 262.5) -> float:
-    """Busca el folding point con malla de 0.5 canales e interpolacion parabolica."""
-    counts = np.asarray(counts, dtype=float)
-    candidates = np.arange(cmin, cmax + 1e-9, 0.5)
-    values: list[tuple[float, float]] = []
-    for center in candidates:
-        chi2, n_pairs = chi2_for_center(counts, float(center))
-        if n_pairs:
-            values.append((float(center), chi2 / n_pairs))
-    if not values:
-        return 0.5 * counts.size
-    best_i = min(range(len(values)), key=lambda i: values[i][1])
-    if 0 < best_i < len(values) - 1:
-        xm, ym = values[best_i - 1]
-        x0, y0 = values[best_i]
-        xp, yp = values[best_i + 1]
-        den = ym - 2.0 * y0 + yp
-        if den > 0:
-            step = x0 - xm
-            xv = x0 + 0.5 * step * (ym - yp) / den
-            if xm <= xv <= xp:
-                return float(xv)
-    return values[best_i][0]
 
 
 def folded_velocity_data(

@@ -27,6 +27,38 @@ SETTINGS_PATH = CONFIG_DIR / "settings.json"
 CREDENTIALS_PATH = CONFIG_DIR / "credentials.json"
 
 
+def load_settings() -> dict:
+    """Lee ``settings.json`` y devuelve su contenido como dict.
+
+    Devuelve ``{}`` si el fichero no existe, está corrupto o no contiene un
+    objeto JSON (lectura best-effort: nunca lanza).
+    """
+    if SETTINGS_PATH.exists():
+        try:
+            data = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+    return {}
+
+
+def update_settings(**kwargs) -> None:
+    """Actualiza claves de ``settings.json`` conservando el resto.
+
+    Carga el contenido actual (``{}`` si falta o está corrupto), aplica
+    ``kwargs`` encima y reescribe el fichero con el formato habitual
+    (``indent=2``, ``ensure_ascii=False``). Los errores de escritura se
+    propagan: cada llamador decide si los silencia o los muestra.
+    """
+    current = load_settings()
+    current.update(kwargs)
+    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    SETTINGS_PATH.write_text(
+        json.dumps(current, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+
+
 def load_credentials() -> dict:
     if CREDENTIALS_PATH.exists():
         try:

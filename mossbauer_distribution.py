@@ -22,7 +22,7 @@ from scipy.optimize import lsq_linear, nnls
 # Fuente única de las posiciones del sextete: patrón de velocidad PUBLICADO de
 # α-Fe (±0.839 / ±3.084 / ±5.329 mm/s a 33 T), igual que NORMOS. No derivar de
 # los momentos nucleares (sesgaría el BHF ~0.1 T; ver CHANGELOG v4.0.2/v4.0.3).
-from core.constants import LINE_POS_33T
+from core.constants import BHF_DEFAULT_T, LINE_POS_33T, LINE_QUAD_PATTERN
 from core.physics import (
     line_profile,
     lorentzian,
@@ -32,12 +32,10 @@ from core.physics import (
 )
 
 
-BHF_DEFAULT_T = 33.0
 # Calibración del α adimensional del ajuste de distribución (ver
 # `fit_hyperfine_distribution`): centra el codo de la L-curve en log α ≈ 0 para
 # una configuración típica una vez normalizado el penalizador por λ_ref.
 ALPHA_REF_SCALE = 1e-4
-LINE_QUAD_PATTERN = np.array([0.5, -0.5, -0.5, -0.5, -0.5, 0.5], dtype=float)
 
 
 @dataclass(frozen=True)
