@@ -39,7 +39,6 @@ jobs:
             mossbauer_distribution.py \
             mossbauer_ws5.py \
             mossbauer_fit_cli.py \
-            fold_mossbauer.py \
             fit_bhf_distribution_cli.py \
             mossbauer_bhf_pipeline.py \
             install.py \

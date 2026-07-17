@@ -79,7 +79,7 @@ del código de la GUI.**
   regularización, L-curve, componentes nítidos). Aquí vive `build_sharp_kernel`.
 - `mossbauer_fit_cli.py` — ajuste headless (plantilla + espectro → fichero); usa `core.session`.
 - `fit_bhf_distribution_cli.py`, `mossbauer_bhf_pipeline.py` — CLIs/pipeline de distribución.
-- `mossbauer_ws5.py`, `fold_mossbauer.py` — lectura WS5 y folding standalone.
+- `mossbauer_ws5.py` — lectura WS5/folding (reexports de `core.folding` + variantes para los CLIs de distribución).
 - `mossbauer_api_client.py`, `mossbauer_updater.py` — descarga web de espectros/calibraciones y actualizaciones.
 - `mossbauer_i18n.py`, `mossbauer_help.py`, `locales/` — traducciones ES/EN/FR y ayuda.
 - `layout/presets.py` — presets de disposición usados por la GUI Qt. (`panels/` es vestigial: vacío.)

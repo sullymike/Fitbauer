@@ -19,17 +19,34 @@ from typing import Any
 import numpy as np
 from scipy.optimize import lsq_linear, nnls
 
-# Fuente única de las posiciones del sextete: patrón de velocidad PUBLICADO de
-# α-Fe (±0.839 / ±3.084 / ±5.329 mm/s a 33 T), igual que NORMOS. No derivar de
-# los momentos nucleares (sesgaría el BHF ~0.1 T; ver CHANGELOG v4.0.2/v4.0.3).
-from core.constants import BHF_DEFAULT_T, LINE_POS_33T, LINE_QUAD_PATTERN
+# Los perfiles de absorción de este módulo son adaptadores de convención sobre
+# core.physics (posiciones del sextete = patrón PUBLICADO de α-Fe a 33 T, igual
+# que NORMOS; ver CHANGELOG v4.0.2/v4.0.3): aquí solo se traduce la convención
+# relativa de intensidades del GUI (int2_rel/int3_rel) a pesos por línea.
+from core.constants import BHF_DEFAULT_T
+from core import physics as core_physics
 from core.physics import (
     line_profile,
-    lorentzian,
     lognormal_diameter_distribution,
     neel_log10_nu,
-    two_state_exchange_profile,
 )
+
+
+def _rel_weights_gammas(
+    gamma: float, gamma2_rel: float, gamma3_rel: float,
+    int1: float, int2_rel: float, int3_rel: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Pesos y anchuras por línea de la convención relativa del GUI.
+
+    int2_rel=1 -> I2=(2/3)·I1; int3_rel=1 -> I3=(1/3)·I1 (patrón 3:2:1).
+    """
+    i1 = float(int1)
+    i2 = i1 * (2.0 / 3.0) * float(int2_rel)
+    i3 = i1 * (1.0 / 3.0) * float(int3_rel)
+    weights = np.array([i1, i2, i3, i3, i2, i1], dtype=float)
+    gammas = float(gamma) * np.array(
+        [1.0, gamma2_rel, gamma3_rel, gamma3_rel, gamma2_rel, 1.0], dtype=float)
+    return weights, gammas
 
 
 # Calibración del α adimensional del ajuste de distribución (ver
@@ -181,24 +198,20 @@ def sextet_absorption(
 
     Las intensidades siguen la convencion del GUI actual:
     int2_rel=1 -> I2=(2/3)*I1; int3_rel=1 -> I3=(1/3)*I1.
+    La física (posiciones y suma de líneas) vive en ``core.physics``; aquí
+    solo se traduce la convención de pesos.
     """
     v = np.asarray(v, dtype=float)
-    i1 = float(int1)
-    i2 = i1 * (2.0 / 3.0) * float(int2_rel)
-    i3 = i1 * (1.0 / 3.0) * float(int3_rel)
-    weights = np.array([i1, i2, i3, i3, i2, i1], dtype=float)
-    gammas = float(gamma) * np.array([1.0, gamma2_rel, gamma3_rel, gamma3_rel, gamma2_rel, 1.0], dtype=float)
-    positions = LINE_POS_33T * (float(bhf) / BHF_DEFAULT_T) + float(delta) + float(quad) * LINE_QUAD_PATTERN
-
-    absorption = np.zeros_like(v, dtype=float)
-    for pos, weight, width in zip(positions, weights, gammas):
-        absorption += weight * lorentzian(v, float(pos), float(width))
-    return absorption
+    weights, gammas = _rel_weights_gammas(gamma, gamma2_rel, gamma3_rel,
+                                          int1, int2_rel, int3_rel)
+    positions = core_physics.sextet_line_positions(delta, quad, bhf)
+    return core_physics.sum_lorentzian_lines(v, positions, weights, gammas)
 
 
 def singlet_absorption(v: np.ndarray, *, delta: float, gamma: float, int1: float = 1.0) -> np.ndarray:
     """Absorcion positiva de un singlete con profundidad unitaria."""
-    return float(int1) * lorentzian(np.asarray(v, dtype=float), float(delta), float(gamma))
+    return core_physics.singlet_absorption(
+        np.asarray(v, dtype=float), float(delta), float(gamma), 1.0, float(int1))
 
 
 def doublet_absorption(
@@ -211,12 +224,14 @@ def doublet_absorption(
     int1: float = 1.0,
     int2_rel: float = 1.0,
 ) -> np.ndarray:
-    """Absorcion positiva de un doblete con profundidad unitaria."""
-    v = np.asarray(v, dtype=float)
-    g1 = float(gamma)
-    g2 = g1 * float(gamma2_rel)
-    i1 = float(int1)
-    return i1 * lorentzian(v, float(delta) - float(quad) / 2.0, g1) + i1 * float(int2_rel) * lorentzian(v, float(delta) + float(quad) / 2.0, g2)
+    """Absorcion positiva de un doblete con profundidad unitaria.
+
+    Mapeo exacto a ``core.physics.doublet_absorption``: la ``int2`` de core es
+    multiplicativa sobre ``int1``, igual que ``int2_rel`` aquí.
+    """
+    return core_physics.doublet_absorption(
+        np.asarray(v, dtype=float), float(delta), float(quad),
+        float(gamma), float(gamma2_rel), 1.0, float(int1), float(int2_rel))
 
 
 def relaxation_empirical_absorption(
@@ -234,17 +249,14 @@ def relaxation_empirical_absorption(
     blocked_fraction: float = 1.0,
     log10_nu: float | None = None,
 ) -> np.ndarray:
-    """Perfil unitario fenomenológico: sextete bloqueado + doblete SPM."""
-    f_blocked = max(0.0, min(1.0, float(blocked_fraction)))
-    gamma_eff = float(gamma)
-    if log10_nu is not None and np.isfinite(float(log10_nu)):
-        lognu = float(log10_nu)
-        center = 8.5
-        width = 0.55
-        dynamic_blocked = 1.0 / (1.0 + np.exp((lognu - center) / width))
-        broad = np.exp(-0.5 * ((lognu - center) / 0.75) ** 2)
-        gamma_eff *= 1.0 + 1.6 * broad
-        f_blocked *= float(dynamic_blocked)
+    """Perfil unitario fenomenológico: sextete bloqueado + doblete SPM.
+
+    El sigmoide de transición y el emparejamiento de áreas viven en
+    ``core.physics``; aquí solo se mezclan los perfiles en convención relativa.
+    """
+    f_dyn, g_factor = core_physics.relaxation_transition_factors(log10_nu)
+    f_blocked = max(0.0, min(1.0, float(blocked_fraction))) * f_dyn
+    gamma_eff = float(gamma) * g_factor
     sext = sextet_absorption(
         v, delta=delta, quad=quad, bhf=bhf, gamma=gamma_eff,
         gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel,
@@ -254,14 +266,7 @@ def relaxation_empirical_absorption(
         v, delta=delta, quad=quad, gamma=gamma_eff,
         gamma2_rel=gamma2_rel, int1=int1, int2_rel=int2_rel,
     )
-    try:
-        area_sext = float(np.trapezoid(np.maximum(sext, 0.0), v))
-        area_doub = float(np.trapezoid(np.maximum(doub, 0.0), v))
-    except AttributeError:
-        area_sext = float(np.trapz(np.maximum(sext, 0.0), v))
-        area_doub = float(np.trapz(np.maximum(doub, 0.0), v))
-    if np.isfinite(area_sext) and np.isfinite(area_doub) and abs(area_doub) > 1e-12:
-        doub = doub * (area_sext / area_doub)
+    doub = core_physics.match_positive_area(doub, sext, v)
     return f_blocked * sext + (1.0 - f_blocked) * doub
 
 
@@ -279,19 +284,10 @@ def blume_tjon_two_state_absorption(
     int3_rel: float = 1.0,
     log10_nu: float = 5.0,
 ) -> np.ndarray:
-    i1 = float(int1)
-    i2 = i1 * (2.0 / 3.0) * float(int2_rel)
-    i3 = i1 * (1.0 / 3.0) * float(int3_rel)
-    weights = np.array([i1, i2, i3, i3, i2, i1], dtype=float)
-    gammas = float(gamma) * np.array([1.0, gamma2_rel, gamma3_rel, gamma3_rel, gamma2_rel, 1.0], dtype=float)
-    mag = LINE_POS_33T * (float(bhf) / BHF_DEFAULT_T)
-    q = float(quad) * LINE_QUAD_PATTERN
-    c_plus = float(delta) + q + mag
-    c_minus = float(delta) + q - mag
-    out = np.zeros_like(np.asarray(v, dtype=float), dtype=float)
-    for ca, cb, g, w in zip(c_plus, c_minus, gammas, weights):
-        out += float(w) * two_state_exchange_profile(v, float(ca), float(cb), float(g), float(log10_nu))
-    return out
+    weights, gammas = _rel_weights_gammas(gamma, gamma2_rel, gamma3_rel,
+                                          int1, int2_rel, int3_rel)
+    return core_physics.two_state_sextet_absorption(
+        v, delta, quad, bhf, weights, gammas, log10_nu)
 
 
 def neel_size_relaxation_absorption(

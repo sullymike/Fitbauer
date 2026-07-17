@@ -53,6 +53,26 @@ def lorentzian(v: np.ndarray, center: float, gamma: float) -> np.ndarray:
     return g * g / ((v - center) ** 2 + g * g)
 
 
+def sextet_line_positions(delta: float, quad: float, bhf: float) -> np.ndarray:
+    """Posiciones de las 6 líneas del sextete a 1er orden (patrón α-Fe escalado)."""
+    return LINE_POS_33T * (float(bhf) / BHF_DEFAULT_T) + float(delta) + float(quad) * LINE_QUAD_PATTERN
+
+
+def sum_lorentzian_lines(
+    v: np.ndarray, positions: np.ndarray, weights: np.ndarray, gammas: np.ndarray,
+) -> np.ndarray:
+    """Suma de líneas (perfil global Lorentz/Voigt) con pesos y anchuras por línea.
+
+    Primitivo compartido por las dos convenciones de intensidad del proyecto
+    (pesos explícitos en ``core.physics``; ``int2_rel``/``int3_rel`` con los
+    factores 2/3 y 1/3 horneados en ``mossbauer_distribution``).
+    """
+    absorption = np.zeros_like(np.asarray(v, dtype=float), dtype=float)
+    for pos, weight, gamma in zip(positions, weights, gammas):
+        absorption += weight * lorentzian(v, float(pos), float(gamma))
+    return absorption
+
+
 def sextet_absorption(
     v: np.ndarray,
     delta: float, quad: float, bhf: float,
@@ -84,25 +104,18 @@ def sextet_absorption(
 
     if treatment == "kundig_fixed":
         positions = kundig_sextet_positions(bhf, delta, quad, beta)
-        absorption = np.zeros_like(v, dtype=float)
-        for pos, weight, gamma in zip(positions, weights, gammas):
-            absorption += weight * lorentzian(v, pos, gamma)
-        return depth * absorption
+        return depth * sum_lorentzian_lines(v, positions, weights, gammas)
 
     if treatment == "kundig_powder":
         pos_grid, w_grid = polycrystal_kundig_positions(bhf, delta, quad, n_quad)
         absorption = np.zeros_like(v, dtype=float)
         for k in range(pos_grid.shape[0]):
-            for j in range(6):
-                absorption += w_grid[k] * weights[j] * lorentzian(v, pos_grid[k, j], gammas[j])
+            absorption += w_grid[k] * sum_lorentzian_lines(v, pos_grid[k], weights, gammas)
         return depth * absorption
 
     # Default: 1er orden (modelo histórico)
-    positions = LINE_POS_33T * (bhf / BHF_DEFAULT_T) + delta + quad * LINE_QUAD_PATTERN
-    absorption = np.zeros_like(v, dtype=float)
-    for pos, weight, gamma in zip(positions, weights, gammas):
-        absorption += weight * lorentzian(v, pos, gamma)
-    return depth * absorption
+    positions = sextet_line_positions(delta, quad, bhf)
+    return depth * sum_lorentzian_lines(v, positions, weights, gammas)
 
 
 def singlet_absorption(
@@ -122,6 +135,42 @@ def doublet_absorption(
         int1 * lorentzian(v, delta - quad / 2.0, g1)
         + int1 * int2 * lorentzian(v, delta + quad / 2.0, g2)
     )
+
+
+def relaxation_transition_factors(log10_nu: float | None) -> tuple[float, float]:
+    """Factores fenomenológicos (fracción bloqueada, ensanchamiento) de ν.
+
+    Sigmoide centrado en el rango intermedio Mössbauer (~10^8.5 s⁻¹): ν lento
+    conserva el sextete, ν intermedio añade ensanchamiento máximo y ν rápido
+    colapsa hacia el doblete. Devuelve ``(f_blocked_factor, gamma_factor)``;
+    con ``log10_nu=None`` es la identidad ``(1, 1)``. Fuente única del modelo
+    empírico usado por ``core.physics`` y ``mossbauer_distribution``.
+    """
+    if log10_nu is None or not np.isfinite(float(log10_nu)):
+        return 1.0, 1.0
+    lognu = float(log10_nu)
+    center = 8.5
+    width = 0.55
+    dynamic_blocked = 1.0 / (1.0 + np.exp((lognu - center) / width))
+    broad = np.exp(-0.5 * ((lognu - center) / 0.75) ** 2)
+    return float(dynamic_blocked), 1.0 + 1.6 * float(broad)
+
+
+def match_positive_area(y: np.ndarray, ref: np.ndarray, v: np.ndarray) -> np.ndarray:
+    """Reescala ``y`` para que su área positiva integrada iguale la de ``ref``.
+
+    Si alguna de las áreas no es finita o la de ``y`` es ~0, devuelve ``y``
+    sin cambios (comportamiento histórico de la mezcla sextete/doblete).
+    """
+    try:
+        area_ref = float(np.trapezoid(np.maximum(ref, 0.0), v))
+        area_y = float(np.trapezoid(np.maximum(y, 0.0), v))
+    except AttributeError:  # compatibilidad NumPy antiguo
+        area_ref = float(np.trapz(np.maximum(ref, 0.0), v))
+        area_y = float(np.trapz(np.maximum(y, 0.0), v))
+    if np.isfinite(area_ref) and np.isfinite(area_y) and abs(area_y) > 1e-12:
+        return y * (area_ref / area_y)
+    return y
 
 
 def relaxation_empirical_absorption(
@@ -149,31 +198,15 @@ def relaxation_empirical_absorption(
     área del sextete de profundidad unitaria en la malla de velocidades usada.
     Así ``depth`` mantiene el papel de amplitud/área total aproximada.
     """
-    f_blocked = max(0.0, min(1.0, float(blocked_fraction)))
-    gamma_eff = float(gamma1)
-    if log10_nu is not None and np.isfinite(float(log10_nu)):
-        # Centro en el rango intermedio Mössbauer (~10^8.5 s^-1). No pretende
-        # ser Blume–Tjon exacto: sólo reproduce límites y ensanchamiento máximo.
-        lognu = float(log10_nu)
-        center = 8.5
-        width = 0.55
-        dynamic_blocked = 1.0 / (1.0 + np.exp((lognu - center) / width))
-        broad = np.exp(-0.5 * ((lognu - center) / 0.75) ** 2)
-        gamma_eff *= 1.0 + 1.6 * broad
-        f_blocked *= float(dynamic_blocked)
+    f_dyn, g_factor = relaxation_transition_factors(log10_nu)
+    f_blocked = max(0.0, min(1.0, float(blocked_fraction))) * f_dyn
+    gamma_eff = float(gamma1) * g_factor
     sext = sextet_absorption(
         v, delta, quad, bhf, gamma_eff, gamma2, gamma3,
         1.0, int1, int2, int3,
     )
     doub = doublet_absorption(v, delta, quad, gamma_eff, gamma2, 1.0, int1, int2)
-    try:
-        area_sext = float(np.trapezoid(np.maximum(sext, 0.0), v))
-        area_doub = float(np.trapezoid(np.maximum(doub, 0.0), v))
-    except AttributeError:  # compatibilidad NumPy antiguo
-        area_sext = float(np.trapz(np.maximum(sext, 0.0), v))
-        area_doub = float(np.trapz(np.maximum(doub, 0.0), v))
-    if np.isfinite(area_sext) and np.isfinite(area_doub) and abs(area_doub) > 1e-12:
-        doub = doub * (area_sext / area_doub)
+    doub = match_positive_area(doub, sext, v)
     return float(depth) * (f_blocked * sext + (1.0 - f_blocked) * doub)
 
 
@@ -297,6 +330,29 @@ def two_state_exchange_profile(
     return np.maximum(np.real(resp), 0.0)
 
 
+def two_state_sextet_absorption(
+    v: np.ndarray,
+    delta: float, quad: float, bhf: float,
+    weights: np.ndarray, gammas: np.ndarray,
+    log10_nu: float,
+) -> np.ndarray:
+    """Sextete de dos estados +BHF ↔ −BHF con pesos/anchuras explícitos por línea.
+
+    Primitivo Blume–Tjon compartido: cada transición intercambia entre la
+    frecuencia calculada con +BHF y la calculada con −BHF a tasa ν. Las dos
+    convenciones de intensidad del proyecto construyen ``weights``/``gammas``
+    y delegan aquí.
+    """
+    mag = LINE_POS_33T * (float(bhf) / BHF_DEFAULT_T)
+    q = float(quad) * LINE_QUAD_PATTERN
+    c_plus = float(delta) + q + mag
+    c_minus = float(delta) + q - mag
+    out = np.zeros_like(np.asarray(v, dtype=float), dtype=float)
+    for ca, cb, g, w in zip(c_plus, c_minus, gammas, weights):
+        out += float(w) * two_state_exchange_profile(v, float(ca), float(cb), float(g), float(log10_nu))
+    return out
+
+
 def relaxation_blume_tjon_two_state_absorption(
     v: np.ndarray,
     delta: float, quad: float, bhf: float,
@@ -314,14 +370,7 @@ def relaxation_blume_tjon_two_state_absorption(
     """
     weights = np.array([int3 * int1, int3 * int2, int3, int3, int3 * int2, int3 * int1], dtype=float)
     gammas = float(gamma1) * np.array([1.0, gamma2, gamma3, gamma3, gamma2, 1.0], dtype=float)
-    mag = LINE_POS_33T * (float(bhf) / BHF_DEFAULT_T)
-    q = float(quad) * LINE_QUAD_PATTERN
-    c_plus = float(delta) + q + mag
-    c_minus = float(delta) + q - mag
-    out = np.zeros_like(np.asarray(v, dtype=float), dtype=float)
-    for ca, cb, g, w in zip(c_plus, c_minus, gammas, weights):
-        out += float(w) * two_state_exchange_profile(v, float(ca), float(cb), float(g), float(log10_nu))
-    return float(depth) * out
+    return float(depth) * two_state_sextet_absorption(v, delta, quad, bhf, weights, gammas, log10_nu)
 
 
 def component_absorption(
