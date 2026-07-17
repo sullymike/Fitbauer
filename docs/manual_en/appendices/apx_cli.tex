@@ -1,0 +1,184 @@
+% Anexo: herramientas de línea de comandos (ajuste headless).
+% Se incluye con \input desde main.tex bajo un \chapter, así que empieza en \section.
+
+Every fit that the GUI performs can also be run \emph{headless} from the
+command line, with the \textbf{same numerical engine}
+(\code{core.fit\_engine} and \code{mossbauer\_distribution}): results are
+identical to those obtained interactively. Two scripts cover the two fitting
+worlds:
+
+\begin{itemize}[nosep]
+  \item \file{mossbauer\_fit\_cli.py} --- \textbf{discrete} fits
+        (singlet / doublet / sextet / relaxation models) driven by a session
+        template, including Monte-Carlo bootstrap errors, profile-likelihood
+        intervals and warm-start batch series.
+  \item \file{fit\_bhf\_distribution\_cli.py} --- \textbf{hyperfine
+        distribution} fits: $P(\BHF)$ or $P(\dEQ)$, every shape
+        (histogram, Gaussian, VBF, binomial), every regularizer
+        (Tikhonov, TV, MaxEnt), Voigt kernels, field correlations and the 2D
+        distribution $P(\BHF,\dEQ)$.
+\end{itemize}
+
+Neither script needs a display: they run on a cluster, inside a batch queue,
+or from another program. Both return exit code $0$ on success, which makes
+them easy to chain in shell scripts.
+
+\section{Discrete fits: \file{mossbauer\_fit\_cli.py}}
+\label{sec:cli-discrete}
+
+The workflow mirrors the GUI: prepare the model interactively once, save it as
+a session (\menu{File $\triangleright$ Save session\ldots}), and use that JSON
+file as a \textbf{template} for any number of spectra:
+
+\begin{lstlisting}[language=bash]
+python mossbauer_fit_cli.py \
+    --template template_alphaFe.json \
+    --spectrum sample.adt \
+    --out sample.fit.json
+\end{lstlisting}
+
+The template carries the full model definition: component kinds and starting
+values, fixed/free flags, constraints, line profile (Lorentzian/Voigt),
+likelihood (Gaussian/Poisson), robust loss, absorber model, drive waveform
+(triangular/sine), multistart count and the calibration flags. The folding
+centre is \emph{not} taken from the template --- it is detected for each
+spectrum, exactly as the GUI does. The output JSON has the same structure as
+a GUI session (it can be loaded back with
+\menu{File $\triangleright$ Load session\ldots}) plus a
+\code{batch\_fit\_result} block with the fitted values, errors and statistics
+($\chi^2$, reduced $\chi^2$, AIC, BIC).
+
+\subsection{Options}
+
+\begin{center}
+\begin{tabular}{@{}llp{7.6cm}@{}}
+\toprule
+Option & Argument & Meaning \\
+\midrule
+\code{-{}-template} & \file{file.json} & Session template (required). \\
+\code{-{}-spectrum} & one or more files & Spectrum(s) \file{.ws5}/\file{.adt}
+  to fit. With several files the series runs with sequential warm-start
+  (below). \\
+\code{-{}-out} & \file{file.json} & Output file (required). \\
+\code{-{}-vmax} & mm/s & Overrides the template $v_{\max}$ (useful when the
+  calibration changes between series). \\
+\code{-{}-bootstrap} & $N$ & Monte-Carlo bootstrap errors with $N$ replicas
+  (single spectrum only). Adds a \code{bootstrap} section with the per-parameter
+  $\sigma_{\mathrm{MC}}$. \\
+\code{-{}-profile-likelihood} & --- & Asymmetric $1\sigma/2\sigma$ intervals by
+  profile likelihood ($\Delta\chi^2=1$ and $\Delta\chi^2=4$ crossings; see the
+  mathematical appendix). Adds a \code{profile\_likelihood} section. \\
+\code{-{}-quiet} & --- & Suppress the summary printed to stdout. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Advanced errors}
+
+With \code{-{}-bootstrap} $N$ the base fit is repeated over $N$ synthetic
+spectra (real Poisson counts when the normalization factor is available) and
+the sample standard deviation of each free parameter is reported next to the
+covariance error:
+
+\begin{lstlisting}[language=bash]
+python mossbauer_fit_cli.py --template T.json --spectrum a.adt \
+    --out a.fit.json --bootstrap 100
+#  s1_bhf = 33.0446 +- 0.005988  [sigma_MC 0.006113]
+\end{lstlisting}
+
+With \code{-{}-profile-likelihood} each free parameter is scanned around its
+optimum while re-fitting the rest, and the $\Delta\chi^2=1$ / $\Delta\chi^2=4$
+crossings give asymmetric intervals that remain valid when the parabolic
+(covariance) approximation fails:
+
+\begin{lstlisting}[language=bash]
+#  s1_bhf = 33.0446 +- 0.005988  [1-sigma profile -0.00607/+0.006066]
+\end{lstlisting}
+
+\subsection{Warm-start series}
+
+When several spectra are given (a temperature or composition series), each
+fit starts from the converged values of the previous one --- the same
+sequential warm-start as the GUI batch tool. The output is a single JSON with
+one row per file (\code{status}, \code{values}, \code{errors}, \code{stats});
+individual failures do not stop the series:
+
+\begin{lstlisting}[language=bash]
+python mossbauer_fit_cli.py --template T.json \
+    --spectrum serie_010K.adt serie_050K.adt serie_100K.adt \
+    --out serie.batch.json
+\end{lstlisting}
+
+For fully independent fits (no warm-start) simply call the script once per
+file from the shell.
+
+\section{Distribution fits: \file{fit\_bhf\_distribution\_cli.py}}
+\label{sec:cli-dist}
+
+The distribution CLI reads a raw \file{.ws5}/\file{.adt} file, folds it
+(NORMOS-style, reusing the \file{.RES}/\file{.JOB} sidecars when present) and
+fits a hyperfine distribution with the same engine as the GUI panel of
+chapter~\ref{ch:distribuciones}:
+
+\begin{lstlisting}[language=bash]
+# Classic P(BHF) histogram (Tikhonov):
+python fit_bhf_distribution_cli.py sample.adt --alpha 0.01 --nbins 50 --plot
+
+# P(DEQ) doublet distribution:
+python fit_bhf_distribution_cli.py sample.adt --variable quad --bmax 3
+
+# VBF with two Gaussian components; MaxEnt histogram; 2D distribution:
+python fit_bhf_distribution_cli.py sample.adt --shape vbf --vbf-components 2
+python fit_bhf_distribution_cli.py sample.adt --reg-mode maxent
+python fit_bhf_distribution_cli.py sample.adt --dist-2d --qmin -1 --qmax 1
+\end{lstlisting}
+
+\subsection{Model options}
+
+\begin{center}
+\begin{tabular}{@{}llp{7.2cm}@{}}
+\toprule
+Option & Values & Meaning \\
+\midrule
+\code{-{}-variable} & \code{bhf} $|$ \code{quad} & Distributed variable:
+  $P(\BHF)$ (default) or $P(\dEQ)$ with the field fixed at
+  \code{-{}-fixed-bhf} ($0$~T $\Rightarrow$ doublet kernel). \\
+\code{-{}-shape} & \code{histograma} $|$ \code{gaussiana} $|$ \code{vbf} $|$
+  \code{binomial} & Distribution shape (chapter~\ref{ch:distribuciones}). \code{gaussiana}
+  is the VBF with $N=1$ and a Lorentzian line. \\
+\code{-{}-vbf-components} & $N$ & Number of Gaussians of the VBF. \\
+\code{-{}-reg-mode} & \code{tikhonov} $|$ \code{tv} $|$ \code{maxent} &
+  Histogram regularizer. \\
+\code{-{}-profile} & \code{Lorentziana} $|$ \code{Voigt} & Kernel line profile
+  (\code{-{}-voigt-sigma} sets the instrumental Gaussian width, mm/s). \\
+\code{-{}-delta-slope}, \code{-{}-quad-slope} & slope & Linear correlations
+  $\delta(H)$ and $\dEQ(H)$ of appendix~\ref{ap:mates}; $0$ = classic kernel. \\
+\code{-{}-bmin}, \code{-{}-bmax}, \code{-{}-nbins} & grid & Grid of the
+  distributed variable (T for \code{bhf}, mm/s for \code{quad}). \\
+\code{-{}-delta}, \code{-{}-quad}, \code{-{}-gamma} & values & Fixed kernel
+  parameters; defaults are read from the NORMOS sidecars when available. \\
+\code{-{}-sharp-bhf} & T (repeatable) & Adds crystalline (sharp) sextets on
+  top of the distribution, e.g.\ \code{-{}-sharp-bhf 33 -{}-sharp-bhf 49}. \\
+\code{-{}-dist-2d} & --- & Two-dimensional $P(\BHF,\dEQ)$
+  (appendix~\ref{ap:dist-2d}), with \code{-{}-qmin/-{}-qmax/-{}-nbins-quad}
+  and \code{-{}-alpha-quad}. \\
+\code{-{}-scan-alpha} & --- & Scans $\alpha$ (histogram only) and writes a
+  simple L-curve with a suggested corner value. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Output files}
+
+For 1D fits three files are written next to the input (or under
+\code{-{}-out-prefix}): \file{*\_spectrum.dat} (velocity, data, fit,
+residual, folded counts), \file{*\_distribution.dat} (grid, $P$, normalized
+$P$) and \file{*\_summary.json} (all scalar parameters and metrics; for the
+VBF it includes the fitted $(A_j,\mu_j,\sigma_j)$ triplets). With
+\code{-{}-plot} a PNG with the spectrum and the distribution is added.
+
+In 2D mode the distribution is written as a matrix
+(\file{*\_distribution2d.dat}) with its two axes in
+\file{*\_bhf\_axis.dat} / \file{*\_quad\_axis.dat}, and the summary carries
+the moments $\langle\BHF\rangle$, $\langle\dEQ\rangle$, widths and the
+$\BHF$--$\dEQ$ correlation.

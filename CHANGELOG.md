@@ -1,5 +1,58 @@
 # Changelog
 
+## v4.15.0 — todos los ajustes desde línea de comandos, física unificada y correcciones
+
+Auditoría completa del programa (fallos, duplicados, menús, ayuda) y paridad
+GUI ↔ CLI:
+
+### CLI: paridad completa con la GUI
+
+- **`fit_bhf_distribution_cli.py`** ahora expone todo el motor de distribución:
+  `--variable quad` (P(ΔEQ) con `--fixed-bhf`), `--shape
+  histograma|gaussiana|vbf|binomial` (+`--vbf-components`), `--reg-mode
+  tikhonov|tv|maxent`, `--profile Voigt` + `--voigt-sigma`, correlaciones
+  `--delta-slope`/`--quad-slope` y la distribución 2D `--dist-2d`
+  (+`--qmin/--qmax/--nbins-quad/--alpha-quad`). El `--scan-alpha` respeta
+  ahora regularizador/variable/perfil.
+- **`mossbauer_fit_cli.py`**: `--bootstrap N` (errores Monte Carlo),
+  `--profile-likelihood` (intervalos asimétricos 1σ/2σ por Δχ²=1/4) y serie
+  con **warm-start secuencial** al pasar varios `--spectrum` (espejo del
+  batch de la GUI).
+- Manual en inglés: nuevo apéndice «Command-line tools (headless fitting)»;
+  `BHF_DISTRIBUTION.md` actualizado. Tests nuevos en `tests/test_cli_extended.py`.
+
+### Corrección de fallos (auditoría)
+
+- **«Ajustar centro» era un no-op en modo triangular**: el re-doblado por
+  iteración nunca casaba con la malla recortada (`edge_trim`) y se descartaba.
+  Ahora recorta bordes simétricamente y el centro se ajusta de verdad.
+- **Bootstrap y verosimilitud perfilada** no propagaban `norm_factor`: en modo
+  Poisson las réplicas usaban otra escala de σ (σ_MC e intervalos sesgados).
+- **CLI**: la plantilla se aplica antes de cargar el espectro, con lo que
+  `drive_form="sine"` dobla correctamente.
+- El diálogo de bootstrap respeta el idioma de la interfaz.
+
+### Física unificada (fuente única)
+
+- Los perfiles de absorción de `mossbauer_distribution.py` (sextete, singlete,
+  doblete, relajación, Blume-Tjon, Néel) son ahora adaptadores finos sobre
+  primitivos nuevos de `core/physics.py` (`sextet_line_positions`,
+  `sum_lorentzian_lines`, `two_state_sextet_absorption`,
+  `relaxation_transition_factors`, `match_positive_area`). Equivalencia
+  garantizada por 21 tests de caracterización (atol 1e-12) y salida del CLI
+  idéntica bit a bit antes/después.
+- `mossbauer_ws5.py` reexporta de `core.folding`; `read_normos_sidecar_params`
+  plano es adaptador de la versión canónica. Retirado `fold_mossbauer.py`
+  (legacy sin usuarios). Persistencia de `settings.json` centralizada en
+  `core/data_io.py` (`load_settings`/`update_settings`).
+
+### Ayuda y menús
+
+- Ayuda in-app (7 idiomas): eliminados los restos de Plotly/QtWebEngine
+  (retirados en v4.13.1) y documentadas las acciones que faltaban («Mostrar
+  área de componentes», «Límites de parámetros…», «Manual (PDF)»).
+- «Manual (PDF)» entra en el registro de atajos configurables.
+
 ## v4.14.3 — el instalador registra Fitbauer en los menús del sistema
 
 `install.py` ahora, además de crear el entorno y los lanzadores, **añade Fitbauer a

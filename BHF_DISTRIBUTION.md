@@ -52,10 +52,36 @@ python3 fit_bhf_distribution_cli.py muestra.ws5 \
 Salidas:
 
 - `*_bhf_spectrum.dat`: velocidad, datos, ajuste, residuo, cuentas dobladas.
-- `*_bhf_distribution.dat`: BHF, P, P normalizada.
+- `*_bhf_distribution.dat`: variable (BHF o ΔEQ), P, P normalizada.
 - `*_bhf_summary.json`: parámetros y métricas.
 - `*_bhf_plot.png`: espectro + residual + P(BHF).
 - `*_bhf_alpha_scan.dat/.png`: L-curve si se usa `--scan-alpha --plot`.
+
+El CLI cubre los mismos modos que la GUI (mismo motor):
+
+```bash
+# P(ΔEQ) con BHF fijo (0 = doblete):
+python3 fit_bhf_distribution_cli.py muestra.adt --variable quad --bmax 3
+
+# Formas: histograma (por defecto), gaussiana, vbf (--vbf-components N), binomial:
+python3 fit_bhf_distribution_cli.py muestra.adt --shape vbf --vbf-components 2
+
+# Regularizador del histograma: tikhonov (defecto), tv, maxent:
+python3 fit_bhf_distribution_cli.py muestra.adt --reg-mode maxent
+
+# Kernel Voigt y correlación δ(H) / ΔEQ(H):
+python3 fit_bhf_distribution_cli.py muestra.adt --profile Voigt --voigt-sigma 0.06 \
+  --delta-slope 0.002
+
+# Distribución 2D P(BHF, ΔEQ) (matriz + ejes + momentos en el summary):
+python3 fit_bhf_distribution_cli.py muestra.adt --dist-2d --qmin -1 --qmax 1
+```
+
+Para el ajuste **discreto** headless (plantilla de sesión + espectro) está
+`mossbauer_fit_cli.py`, con `--bootstrap N` (errores Monte Carlo),
+`--profile-likelihood` (intervalos asimétricos 1σ/2σ) y serie con warm-start
+al pasar varios espectros. Ambos CLIs están documentados en el manual
+(`docs/manual_en/main.pdf`, apéndice «Command-line tools»).
 
 ## Mezcla con componentes nítidos
 

@@ -1,14 +1,32 @@
 #!/usr/bin/env python3
-"""CLI de prueba para ajuste P(BHF) sin GUI.
+"""CLI de ajuste de distribuciones hiperfinas sin GUI.
 
-Ejemplo:
+Cubre los mismos modos que la GUI (mismo motor, ``mossbauer_distribution``):
+
+- Variable: ``--variable bhf`` (P(BHF), por defecto) o ``--variable quad``
+  (P(ΔEQ) con BHF fijo en ``--fixed-bhf``, 0 por defecto → doblete).
+- Forma: ``--shape histograma|gaussiana|vbf|binomial`` (Gaussiana = VBF con
+  N=1 y línea Lorentziana; ``--vbf-components`` fija N para VBF).
+- Regularizador (solo histograma): ``--reg-mode tikhonov|tv|maxent``.
+- Perfil de línea del kernel: ``--profile Lorentziana|Voigt`` + ``--voigt-sigma``.
+- Correlación con la variable de la malla: ``--delta-slope``/``--quad-slope``.
+- Distribución 2D P(BHF, ΔEQ): ``--dist-2d`` (+ ``--qmin/--qmax/--nbins-quad/
+  --alpha-quad``).
+
+Ejemplos:
 
     python3 fit_bhf_distribution_cli.py JA271025.ws5 --alpha 0.01 --nbins 50 --plot
+    python3 fit_bhf_distribution_cli.py muestra.adt --variable quad --bmin 0 --bmax 3
+    python3 fit_bhf_distribution_cli.py muestra.adt --shape vbf --vbf-components 2
+    python3 fit_bhf_distribution_cli.py muestra.adt --reg-mode maxent
+    python3 fit_bhf_distribution_cli.py muestra.adt --dist-2d --qmin -1 --qmax 1
 
-Genera tres ficheros:
+Genera tres ficheros (1D):
   *_bhf_spectrum.dat       velocidad, datos, ajuste, residuo, cuentas dobladas
-  *_bhf_distribution.dat   BHF, P, P_normalizada
+  *_bhf_distribution.dat   variable, P, P_normalizada
   *_bhf_summary.json       parametros y metricas
+En modo 2D, la distribución se guarda como matriz *_distribution2d.dat con las
+mallas en *_bhf_axis.dat / *_quad_axis.dat.
 """
 from __future__ import annotations
 
@@ -19,24 +37,61 @@ from pathlib import Path
 import numpy as np
 
 from mossbauer_bhf_pipeline import make_sharp_components
-from mossbauer_distribution import fit_bhf_distribution, scan_alpha, second_difference_matrix
+from mossbauer_distribution import (
+    fit_bhf_quad_distribution,
+    fit_binomial_hyperfine_distribution,
+    fit_hyperfine_distribution,
+    fit_vbf_hyperfine_distribution,
+    second_difference_matrix,
+)
 from mossbauer_ws5 import folded_velocity_data, read_normos_sidecar_params
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Ajusta una distribucion P(BHF) Hesse-Ruebartsch a un WS5 doblado.")
+    parser = argparse.ArgumentParser(
+        description="Ajusta una distribucion hiperfina P(BHF)/P(ΔEQ) a un WS5 doblado.")
     parser.add_argument("input", type=Path, help="Fichero .ws5/.ADT")
     parser.add_argument("--out-prefix", type=Path, default=None, help="Prefijo de salida; por defecto <input>_bhf")
     parser.add_argument("--center", type=float, default=None, help="Centro interno de doblado. Si se omite usa .RES o busqueda chi2.")
     parser.add_argument("--vmax", type=float, default=None, help="Velocidad maxima mm/s. Si se omite usa .JOB/.PLT o 12.")
     parser.add_argument("--norm-percentile", type=float, default=90.0, help="Percentil para normalizar cuentas dobladas.")
 
+    parser.add_argument("--variable", choices=["bhf", "quad"], default="bhf",
+                        help="Variable de la distribucion: bhf → P(BHF); quad → P(ΔEQ) con BHF fijo.")
+    parser.add_argument("--fixed-bhf", type=float, default=0.0,
+                        help="BHF fijo (T) del kernel cuando --variable quad (0 = doblete).")
+    parser.add_argument("--shape", choices=["histograma", "gaussiana", "vbf", "binomial"],
+                        default="histograma",
+                        help="Forma de la distribucion (gaussiana = VBF con N=1 y linea Lorentziana).")
+    parser.add_argument("--vbf-components", type=int, default=2,
+                        help="Numero de gaussianas del VBF (solo --shape vbf).")
+    parser.add_argument("--reg-mode", choices=["tikhonov", "tv", "maxent"], default="tikhonov",
+                        help="Regularizador del histograma Hesse-Rübartsch.")
+    parser.add_argument("--profile", choices=["Lorentziana", "Voigt"], default="Lorentziana",
+                        help="Perfil de linea del kernel.")
+    parser.add_argument("--voigt-sigma", type=float, default=0.05,
+                        help="Anchura gaussiana instrumental (mm/s) con --profile Voigt.")
+    parser.add_argument("--delta-slope", type=float, default=0.0,
+                        help="Correlacion lineal δ(H): dδ/dH (mm/s por unidad de la malla). 0 = clasico.")
+    parser.add_argument("--quad-slope", type=float, default=0.0,
+                        help="Correlacion lineal ΔEQ(H): dΔEQ/dH. 0 = clasico.")
+
+    parser.add_argument("--dist-2d", action="store_true",
+                        help="Distribucion bidimensional P(BHF, ΔEQ) regularizada.")
+    parser.add_argument("--qmin", type=float, default=-1.0, help="ΔEQ minimo (mm/s) en modo 2D.")
+    parser.add_argument("--qmax", type=float, default=1.0, help="ΔEQ maximo (mm/s) en modo 2D.")
+    parser.add_argument("--nbins-quad", type=int, default=21, help="Bins de ΔEQ en modo 2D.")
+    parser.add_argument("--alpha-quad", type=float, default=None,
+                        help="Regularizacion en la direccion ΔEQ (2D); por defecto igual a --alpha.")
+
     parser.add_argument("--delta", type=float, default=None, help="CS/delta fijo. Por defecto intenta .RES o 0.")
     parser.add_argument("--quad", type=float, default=None, help="DeltaEQ fijo. Por defecto intenta .RES/.JOB o 0.")
     parser.add_argument("--gamma", type=float, default=None, help="Gamma FWHM fija. Por defecto intenta WID de .RES o 0.36.")
-    parser.add_argument("--bmin", type=float, default=0.0, help="BHF minimo, T")
-    parser.add_argument("--bmax", type=float, default=50.0, help="BHF maximo, T")
-    parser.add_argument("--nbins", type=int, default=50, help="Numero de bins BHF")
+    parser.add_argument("--bmin", type=float, default=None,
+                        help="Minimo de la malla (T para bhf, mm/s para quad). Por defecto 0.")
+    parser.add_argument("--bmax", type=float, default=None,
+                        help="Maximo de la malla (T para bhf, mm/s para quad). Por defecto 50 T / 3 mm/s.")
+    parser.add_argument("--nbins", type=int, default=50, help="Numero de bins de la malla")
     parser.add_argument("--alpha", type=float, default=1e-2, help="Regularizacion")
     parser.add_argument("--no-fit-baseline", action="store_true", help="Fija baseline")
     parser.add_argument("--no-fit-slope", action="store_true", help="Fija slope")
@@ -155,6 +210,60 @@ def maybe_plot(path: Path, v: np.ndarray, y: np.ndarray, fit: np.ndarray, B: np.
     plt.close(fig)
 
 
+def run_fit_2d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
+    """Ajuste 2D P(BHF, ΔEQ) y volcado de ficheros. Devuelve el summary parcial."""
+    result = fit_bhf_quad_distribution(
+        v, y,
+        delta=delta, quad=quad, gamma=gamma,
+        bmin=bmin, bmax=bmax, nbins_bhf=args.nbins,
+        qmin=args.qmin, qmax=args.qmax, nbins_quad=args.nbins_quad,
+        alpha_bhf=args.alpha,
+        alpha_quad=args.alpha if args.alpha_quad is None else args.alpha_quad,
+        fit_baseline=not args.no_fit_baseline,
+        fit_slope=not args.no_fit_slope,
+        baseline=args.baseline, slope=args.slope,
+        sharp_components=sharp_components,
+        profile=args.profile, voigt_sigma=args.voigt_sigma,
+    )
+    return result
+
+
+def run_fit_1d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
+    """Enruta el ajuste 1D según --shape al motor moderno."""
+    common = dict(
+        variable=args.variable,
+        delta=delta,
+        quad=(0.0 if args.variable == "quad" else quad),
+        bhf=args.fixed_bhf,
+        gamma=gamma,
+        pmin=bmin, pmax=bmax, nbins=args.nbins,
+        baseline=args.baseline, slope=args.slope,
+        sharp_components=sharp_components,
+    )
+    if args.shape == "histograma":
+        return fit_hyperfine_distribution(
+            v, y, alpha=args.alpha,
+            fit_baseline=not args.no_fit_baseline,
+            fit_slope=not args.no_fit_slope,
+            reg_mode=args.reg_mode,
+            profile=args.profile, voigt_sigma=args.voigt_sigma,
+            delta_slope=args.delta_slope, quad_slope=args.quad_slope,
+            **common)
+    if args.shape in ("vbf", "gaussiana"):
+        gaussian = args.shape == "gaussiana"
+        return fit_vbf_hyperfine_distribution(
+            v, y,
+            n_components=1 if gaussian else max(1, args.vbf_components),
+            profile="Lorentziana" if gaussian else args.profile,
+            voigt_sigma=args.voigt_sigma,
+            delta_slope=args.delta_slope, quad_slope=args.quad_slope,
+            shape="Gaussiana" if gaussian else "VBF",
+            **common)
+    if args.shape == "binomial":
+        return fit_binomial_hyperfine_distribution(v, y, **common)
+    raise ValueError(f"forma no reconocida: {args.shape}")
+
+
 def main() -> None:
     args = parse_args()
     in_path = args.input
@@ -165,6 +274,9 @@ def main() -> None:
     delta = float(args.delta if args.delta is not None else sidecar.get("delta", 0.0))
     quad = float(args.quad if args.quad is not None else sidecar.get("quad", 0.0))
     gamma = float(args.gamma if args.gamma is not None else sidecar.get("gamma", 0.36))
+    # Rango de la malla por defecto según la variable (T para BHF, mm/s para ΔEQ).
+    bmin = float(args.bmin) if args.bmin is not None else 0.0
+    bmax = float(args.bmax) if args.bmax is not None else (3.0 if args.variable == "quad" else 50.0)
 
     v, y, folded, center, vmax, norm = folded_velocity_data(
         in_path,
@@ -183,22 +295,18 @@ def main() -> None:
         sharp_gamma=args.sharp_gamma,
     )
 
-    result = fit_bhf_distribution(
-        v,
-        y,
-        delta=delta,
-        quad=quad,
-        gamma=gamma,
-        bmin=args.bmin,
-        bmax=args.bmax,
-        nbins=args.nbins,
-        alpha=args.alpha,
-        fit_baseline=not args.no_fit_baseline,
-        fit_slope=not args.no_fit_slope,
-        baseline=args.baseline,
-        slope=args.slope,
-        sharp_components=sharp_components,
-    )
+    if args.dist_2d:
+        result2d = run_fit_2d(args, v, y, delta=delta, quad=quad, gamma=gamma,
+                              bmin=bmin, bmax=bmax, sharp_components=sharp_components)
+        write_outputs_2d(args, in_path, out_prefix, v, y, folded, center, vmax, norm,
+                         delta, quad, gamma, bmin, bmax, result2d)
+        return
+
+    result = run_fit_1d(args, v, y, delta=delta, quad=quad, gamma=gamma,
+                        bmin=bmin, bmax=bmax, sharp_components=sharp_components)
+
+    var_label = "DeltaEQ_mm_s" if args.variable == "quad" else "BHF_T"
+    var_unit = "mm/s" if args.variable == "quad" else "T"
 
     spectrum_path = out_prefix.with_name(out_prefix.name + "_spectrum.dat")
     distribution_path = out_prefix.with_name(out_prefix.name + "_distribution.dat")
@@ -210,7 +318,7 @@ def main() -> None:
     )
     save_dat(
         distribution_path,
-        "BHF_T P_amplitud P_normalizada",
+        f"{var_label} P_amplitud P_normalizada",
         np.column_stack([result.bhf_centers, result.weights, result.probability]),
     )
 
@@ -227,13 +335,14 @@ def main() -> None:
             "center_normos_equiv": 2.0 * center,
             "vmax": vmax,
             "norm_factor": norm,
+            "variable": args.variable,
             "delta": delta,
             "quad": quad,
             "gamma": gamma,
-            "bmin": args.bmin,
-            "bmax": args.bmax,
+            "bmin": bmin,
+            "bmax": bmax,
             "nbins": args.nbins,
-            "peak_bhf": float(result.bhf_centers[int(np.argmax(result.weights))]),
+            "peak_position": float(result.bhf_centers[int(np.argmax(result.weights))]),
             "area_weights_trapz": float(np.trapezoid(result.weights, result.bhf_centers)),
             "sharp_components": [
                 {"bhf": comp["bhf"], "amplitude": amp}
@@ -241,25 +350,23 @@ def main() -> None:
             ],
         }
     )
+    if args.variable == "bhf":
+        summary["peak_bhf"] = summary["peak_position"]  # compatibilidad
+        summary["fixed_bhf"] = None
+    else:
+        summary["fixed_bhf"] = args.fixed_bhf
+    if result.vbf_components is not None:
+        summary["vbf_components"] = [list(c) for c in result.vbf_components]
 
     if args.scan_alpha:
+        if args.shape != "histograma":
+            raise SystemExit("--scan-alpha solo aplica a --shape histograma "
+                             "(las formas paramétricas no usan alpha).")
         alphas = np.logspace(np.log10(args.alpha_min), np.log10(args.alpha_max), args.alpha_count)
-        scans = scan_alpha(
-            v,
-            y,
-            alphas,
-            delta=delta,
-            quad=quad,
-            gamma=gamma,
-            bmin=args.bmin,
-            bmax=args.bmax,
-            nbins=args.nbins,
-            fit_baseline=not args.no_fit_baseline,
-            fit_slope=not args.no_fit_slope,
-            baseline=args.baseline,
-            slope=args.slope,
-            sharp_components=sharp_components,
-        )
+        scans = [run_fit_1d_alpha(args, v, y, delta=delta, quad=quad, gamma=gamma,
+                                  bmin=bmin, bmax=bmax,
+                                  sharp_components=sharp_components, alpha=float(a))
+                 for a in alphas]
         L = second_difference_matrix(args.nbins)
         curve_rows = []
         for r in scans:
@@ -269,7 +376,7 @@ def main() -> None:
             curve_rows.append((r.alpha, r.rms, misfit, rough, r.baseline, r.slope, r.bhf_centers[int(np.argmax(r.weights))], sharp_total))
         curve_array = np.array(curve_rows)
         lcurve_path = out_prefix.with_name(out_prefix.name + "_alpha_scan.dat")
-        save_dat(lcurve_path, "alpha rms norm_residual norm_LP baseline slope peak_BHF_T sharp_amplitude_sum", curve_array)
+        save_dat(lcurve_path, f"alpha rms norm_residual norm_LP baseline slope peak_{var_label} sharp_amplitude_sum", curve_array)
         suggested_alpha = lcurve_suggest_alpha(curve_array)
         summary["alpha_scan_file"] = str(lcurve_path)
         summary["suggested_alpha_lcurve"] = suggested_alpha
@@ -285,10 +392,85 @@ def main() -> None:
 
     summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    print(f"OK P(BHF): RMS={result.rms:.6g}, peak={summary['peak_bhf']:.3g} T, alpha={args.alpha:g}")
+    dist_name = "P(ΔEQ)" if args.variable == "quad" else "P(BHF)"
+    print(f"OK {dist_name} [{args.shape}]: RMS={result.rms:.6g}, "
+          f"peak={summary['peak_position']:.3g} {var_unit}, alpha={args.alpha:g}")
     print(f"  espectro:     {spectrum_path}")
     print(f"  distribucion: {distribution_path}")
     print(f"  resumen:      {summary_path}")
+
+
+def run_fit_1d_alpha(args, v, y, *, delta, quad, gamma, bmin, bmax,
+                     sharp_components, alpha):
+    """Ajuste de histograma con un alpha concreto (para --scan-alpha)."""
+    return fit_hyperfine_distribution(
+        v, y,
+        variable=args.variable,
+        delta=delta,
+        quad=(0.0 if args.variable == "quad" else quad),
+        bhf=args.fixed_bhf,
+        gamma=gamma,
+        pmin=bmin, pmax=bmax, nbins=args.nbins, alpha=alpha,
+        fit_baseline=not args.no_fit_baseline,
+        fit_slope=not args.no_fit_slope,
+        baseline=args.baseline, slope=args.slope,
+        sharp_components=sharp_components,
+        reg_mode=args.reg_mode,
+        profile=args.profile, voigt_sigma=args.voigt_sigma,
+        delta_slope=args.delta_slope, quad_slope=args.quad_slope,
+    )
+
+
+def write_outputs_2d(args, in_path, out_prefix, v, y, folded, center, vmax, norm,
+                     delta, quad, gamma, bmin, bmax, result) -> None:
+    """Ficheros de salida del modo 2D P(BHF, ΔEQ)."""
+    spectrum_path = out_prefix.with_name(out_prefix.name + "_spectrum.dat")
+    matrix_path = out_prefix.with_name(out_prefix.name + "_distribution2d.dat")
+    bhf_axis_path = out_prefix.with_name(out_prefix.name + "_bhf_axis.dat")
+    quad_axis_path = out_prefix.with_name(out_prefix.name + "_quad_axis.dat")
+    summary_path = out_prefix.with_name(out_prefix.name + "_summary.json")
+
+    save_dat(
+        spectrum_path,
+        "velocidad_mm_s datos_norm ajuste_norm residuo cuentas_dobladas",
+        np.column_stack([v, y, result.fitted_curve, result.residuals, folded]),
+    )
+    save_dat(matrix_path,
+             "P_normalizada[i,j]: filas=BHF (ver _bhf_axis), columnas=DeltaEQ (ver _quad_axis)",
+             np.asarray(result.probability, dtype=float))
+    save_dat(bhf_axis_path, "BHF_T", np.asarray(result.bhf_centers, dtype=float))
+    save_dat(quad_axis_path, "DeltaEQ_mm_s", np.asarray(result.quad_centers, dtype=float))
+
+    summary = result.as_dict()
+    for key in ("BHF_centers", "quad_centers", "P", "probability",
+                "fitted_curve", "residuals", "marginal_bhf", "marginal_quad"):
+        summary.pop(key, None)
+    summary.update(
+        {
+            "input": str(in_path),
+            "spectrum_file": str(spectrum_path),
+            "distribution2d_file": str(matrix_path),
+            "bhf_axis_file": str(bhf_axis_path),
+            "quad_axis_file": str(quad_axis_path),
+            "center_internal": center,
+            "center_normos_equiv": 2.0 * center,
+            "vmax": vmax,
+            "norm_factor": norm,
+            "delta": delta,
+            "quad": quad,
+            "gamma": gamma,
+            "bmin": bmin, "bmax": bmax, "nbins_bhf": args.nbins,
+            "qmin": args.qmin, "qmax": args.qmax, "nbins_quad": args.nbins_quad,
+        }
+    )
+    summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    print(f"OK P(BHF,ΔEQ) 2D: RMS={result.rms:.6g}, "
+          f"<BHF>={result.mean_bhf if result.mean_bhf is None else round(result.mean_bhf, 3)} T, "
+          f"<ΔEQ>={result.mean_quad if result.mean_quad is None else round(result.mean_quad, 4)} mm/s")
+    print(f"  espectro:      {spectrum_path}")
+    print(f"  distribucion:  {matrix_path}")
+    print(f"  resumen:       {summary_path}")
 
 
 if __name__ == "__main__":
