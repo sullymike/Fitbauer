@@ -38,6 +38,21 @@ fitbauer.bat
 - Crea lanzadores:
   - Linux/macOS: `fitbauer`
   - Windows: `fitbauer.bat`
+- **Registra Fitbauer en los menús de aplicaciones del sistema** (por-usuario, sin
+  permisos de administrador), para poder abrirlo desde el menú con su icono:
+  - Linux: fichero `~/.local/share/applications/fitbauer.desktop` (categoría
+    *Education*, + icono en `hicolor`).
+  - Windows: acceso directo en una carpeta *Fitbauer* del menú Inicio
+    (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Fitbauer\Fitbauer.lnk`).
+
+### Opciones
+
+```bash
+python install.py               # instalación completa + registro en menús
+python install.py --menu-only   # solo registra la app en los menús
+python install.py --no-menu     # instala sin tocar los menús
+python install.py --uninstall   # elimina la entrada de menú
+```
 
 ## Actualizar
 

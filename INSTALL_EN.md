@@ -43,10 +43,20 @@ python fitbauer.py        # Qt interface
 The repository includes an installation helper:
 
 ```bash
-python install.py
+python install.py               # full install + register in the app menus
+python install.py --menu-only   # only register the app in the menus
+python install.py --no-menu     # install without touching the menus
+python install.py --uninstall   # remove the menu entry
 ```
 
-It checks Python, installs dependencies and can create a launcher depending on the system.
+It checks Python, installs dependencies, creates a launcher, and **registers
+Fitbauer in the system application menus** (per-user, no administrator rights) so
+it can be launched from the menu with its icon:
+
+- Linux: `~/.local/share/applications/fitbauer.desktop` (*Education* category, plus
+  the icon under `hicolor`).
+- Windows: a shortcut inside a *Fitbauer* Start Menu folder
+  (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Fitbauer\Fitbauer.lnk`).
 
 ## Updating
 

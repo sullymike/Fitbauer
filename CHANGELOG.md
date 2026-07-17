@@ -1,5 +1,23 @@
 # Changelog
 
+## v4.14.3 — el instalador registra Fitbauer en los menús del sistema
+
+`install.py` ahora, además de crear el entorno y los lanzadores, **añade Fitbauer a
+los menús de aplicaciones** del sistema (por-usuario, sin permisos de administrador),
+para poder abrirlo desde el menú con su icono:
+
+- **Linux**: fichero `~/.local/share/applications/fitbauer.desktop` (categoría
+  `Education`, `Exec` al Python del `.venv`) e icono en `hicolor/256x256/apps`;
+  refresca las cachés (`update-desktop-database`, `gtk-update-icon-cache`) si están.
+- **Windows**: acceso directo dentro de una carpeta propia *Fitbauer* del menú Inicio
+  (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Fitbauer\Fitbauer.lnk`) creado con
+  PowerShell/WScript.Shell (sin dependencias extra), apuntando a `pythonw` para no
+  abrir consola, con el icono `.ico`.
+- Nuevas opciones de CLI: `--menu-only` (solo registrar), `--no-menu` (instalar sin
+  tocar menús) y `--uninstall` (eliminar la entrada). `INSTALL.md`/`INSTALL_EN.md`
+  actualizados. Validado en Linux (`desktop-file-validate` sin avisos) e
+  instalar/desinstalar limpio.
+
 ## v4.14.2 — distribución: «Gaussiana» pasa a ser VBF con N=1 (sin duplicar código)
 
 La forma **Gaussiana** era un caso particular estricto de **VBF** (una sola
