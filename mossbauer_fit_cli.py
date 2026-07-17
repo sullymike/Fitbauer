@@ -63,8 +63,10 @@ def fit_spectrum(template_path: Path, spectrum_path: Path,
 
     from core.session import HeadlessSession
     session_engine = HeadlessSession()
-    session_engine.load_ws5(spectrum_path)
+    # La plantilla se aplica ANTES de cargar: load_ws5 decide doblar (triangular)
+    # o no doblar (seno) según drive_form, que viene de la plantilla.
     session_engine.apply_template_model_state(state)
+    session_engine.load_ws5(spectrum_path)
     # --vmax sobrescribe el de la plantilla (útil si la calibración varía).
     if vmax is not None:
         session_engine.set_vmax(vmax)

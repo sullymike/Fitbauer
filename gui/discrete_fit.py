@@ -107,7 +107,7 @@ class DiscreteFitMixin:
         _bs = _fi["bootstrap_nrep"]
         nrep, ok = QtWidgets.QInputDialog.getInt(
             self, tr("msg.bootstrap_title"),
-            tr("dialog.bootstrap_prompt") if hasattr(tr, "_dummy") else "Número de réplicas:",
+            tr("dialog.bootstrap_prompt", default="Número de réplicas:"),
             int(_bs.default), int(_bs.lo), int(_bs.hi), int(_bs.step))
         if not ok:
             return

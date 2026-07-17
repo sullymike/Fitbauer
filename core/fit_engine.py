@@ -192,15 +192,22 @@ def resolve_values(
 
 def _refold_at_center(
     counts: np.ndarray, center: float, fallback_norm: float,
+    n_points: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Re-pliega las cuentas crudas en ``center`` y devuelve (y, σ) normalizados.
 
     Réplica del ``data_for_center`` de la GUI Tk: dobla al estilo Normos, normaliza
     por el percentil 90 (cae a ``fallback_norm`` si es 0) y estima σ Poisson del
     promedio de dos canales (Var ≈ folded/2), con un suelo para evitar pesos
-    infinitos.
+    infinitos. Si ``n_points`` es menor que el espectro doblado en un número par
+    de canales, recorta bordes simétricamente (mismo criterio que
+    ``fold_and_normalize`` con ``edge_trim``) para casar con la malla del modelo.
     """
     folded, _pairs = fold_integer_or_half(counts, center)
+    if n_points is not None and folded.size > n_points:
+        k, rem = divmod(folded.size - n_points, 2)
+        if rem == 0 and k > 0:
+            folded = folded[k:-k]
     if folded.size:
         norm = float(np.percentile(folded, 90))
     else:
@@ -353,7 +360,7 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
         # 4. Datos: re-doblar las cuentas en el centro de prueba si procede; así
         #    el ajuste del centro es físicamente real (cambia y y σ por iteración).
         if can_refold:
-            y_use, sig_fold = _refold_at_center(counts, center, fallback_norm)
+            y_use, sig_fold = _refold_at_center(counts, center, fallback_norm, m.size)
             if y_use.size != m.size:   # malla incompatible → no re-doblar
                 y_use, sig_fold = y, sigma_data
         else:
@@ -721,6 +728,7 @@ def _replica_state(
         likelihood=state.likelihood, robust_loss=state.robust_loss,
         line_profile=state.line_profile, voigt_sigma=state.voigt_sigma,
         absorber_model=state.absorber_model, multistart_n=multistart_n,
+        norm_factor=state.norm_factor,
     )
 
 
