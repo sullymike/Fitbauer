@@ -15,8 +15,8 @@ Spanish version: [`INSTALL.md`](INSTALL.md)
 Clone or download the repository and enter the project directory:
 
 ```bash
-git clone https://github.com/sullymike/Mossbauer.git
-cd Mossbauer
+git clone https://github.com/sullymike/Fitbauer.git
+cd Fitbauer
 ```
 
 Create a virtual environment:

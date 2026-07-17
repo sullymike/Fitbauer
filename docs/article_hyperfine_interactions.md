@@ -26,7 +26,7 @@ hematite (α-Fe₂O₃), siderite (FeCO₃), and magnetite (Fe₃O₄) — shows
 hyperfine parameters to within 0.013 T in $B_\text{hf}$ and 0.004 mm/s in $\delta$,
 confirming the correctness of the physical model and calibration. The program is platform-independent (Windows, Linux, macOS), trilingual
 (Spanish, English, French), and freely available under an open licence at
-https://github.com/sullymike/Mossbauer.
+https://github.com/sullymike/Fitbauer.
 
 **Keywords:** Mössbauer spectroscopy · Spectral fitting · Hyperfine parameters ·
 Distribution analysis · Open source · Python · Uncertainty quantification
@@ -580,7 +580,7 @@ and that results for four reference materials agree with both published values a
 those obtained by NORMOS/SITE (Brand 1987) on the same experimental data files, with
 maximum discrepancies of 0.013 T in $B_\text{hf}$ and 0.004 mm/s in $\delta$ (Table 4).
 
-The program is freely available at https://github.com/sullymike/Mossbauer, together with
+The program is freely available at https://github.com/sullymike/Fitbauer, together with
 a comprehensive suite of example spectra covering 14 common iron-bearing minerals,
 a curated hyperfine parameter database with bibliographic references, and documentation
 in Spanish, English, and French.
