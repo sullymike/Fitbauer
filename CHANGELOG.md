@@ -1,5 +1,20 @@
 # Changelog
 
+## v4.16.0 — renombrado del repositorio a Fitbauer
+
+El repositorio de GitHub se ha renombrado de `Mossbauer` a **`Fitbauer`**, alineándolo
+con el nombre del programa. Se actualizan todas las referencias codificadas al slug del
+repositorio para que apunten a `sullymike/Fitbauer`:
+
+- **Actualizador** (`mossbauer_updater.py`): `GITHUB_REPO = "sullymike/Fitbauer"`, que
+  propaga a las URLs de la API, el feed atom, la página de releases y las descargas. La
+  comprobación de actualizaciones y la descarga de nuevas versiones usan ya el nombre nuevo.
+- **Ayuda** (`gui/help.py`): enlace al manual en inglés (`MANUAL_EN_URL`).
+- **Documentación** (`INSTALL_EN.md`, artículos y paper en `docs/`) y el `git clone`/`cd`.
+
+GitHub mantiene la redirección desde el nombre antiguo, por lo que los enlaces previos
+siguen funcionando; este cambio evita depender de esa redirección.
+
 ## v4.15.0 — todos los ajustes desde línea de comandos, física unificada y correcciones
 
 Auditoría completa del programa (fallos, duplicados, menús, ayuda) y paridad
