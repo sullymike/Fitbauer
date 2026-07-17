@@ -15,7 +15,7 @@ from gui.branding import _logo_pixmap
 # El manual de usuario solo se publica en inglés. Se enlaza al PDF en GitHub
 # (funciona también en builds congelados, que no empaquetan docs/); si existe
 # una copia local junto al repo, se abre esa en su lugar.
-MANUAL_EN_URL = "https://github.com/sullymike/Mossbauer/blob/main/docs/manual_en/main.pdf"
+MANUAL_EN_URL = "https://github.com/sullymike/Fitbauer/blob/main/docs/manual_en/main.pdf"
 
 
 class HelpMixin:

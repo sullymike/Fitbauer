@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
-GITHUB_REPO = "sullymike/Mossbauer"
+GITHUB_REPO = "sullymike/Fitbauer"
 RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
 RELEASES_ATOM = f"https://github.com/{GITHUB_REPO}/releases.atom"
 RELEASES_URL = f"https://github.com/{GITHUB_REPO}/releases"

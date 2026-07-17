@@ -14,14 +14,14 @@ ATOM_SAMPLE = """<?xml version="1.0" encoding="UTF-8"?>
   <entry>
     <id>tag:github.com,2008:Repository/1/v4.14.0</id>
     <link rel="alternate" type="text/html"
-          href="https://github.com/sullymike/Mossbauer/releases/tag/v4.14.0"/>
+          href="https://github.com/sullymike/Fitbauer/releases/tag/v4.14.0"/>
     <title>Fitbauer v4.14.0</title>
     <content type="html">&lt;p&gt;Notas de &lt;b&gt;v4.14.0&lt;/b&gt;&lt;/p&gt;</content>
   </entry>
   <entry>
     <id>tag:github.com,2008:Repository/1/v4.15.0-beta.1</id>
     <link rel="alternate" type="text/html"
-          href="https://github.com/sullymike/Mossbauer/releases/tag/v4.15.0-beta.1"/>
+          href="https://github.com/sullymike/Fitbauer/releases/tag/v4.15.0-beta.1"/>
     <title>Fitbauer v4.15.0-beta.1</title>
     <content type="html">&lt;p&gt;beta&lt;/p&gt;</content>
   </entry>
