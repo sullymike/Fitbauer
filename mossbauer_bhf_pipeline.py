@@ -11,6 +11,7 @@ from typing import Any
 
 import numpy as np
 
+from core.param_overrides import effective_distribution_specs
 from mossbauer_distribution import fit_bhf_distribution, second_difference_matrix
 from mossbauer_ws5 import folded_velocity_data, read_normos_sidecar_params
 
@@ -73,7 +74,10 @@ def fit_ws5_bhf_distribution(
     sidecar = read_normos_sidecar_params(path)
     delta_f = float(delta if delta is not None else sidecar.get("delta", 0.0))
     quad_f = float(quad if quad is not None else sidecar.get("quad", 0.0))
-    gamma_f = float(gamma if gamma is not None else sidecar.get("gamma", 0.18))
+    # Fuente única del default de Γ (core.params, 0.36): antes el pipeline usaba
+    # 0.18 y el CLI/GUI 0.36 — el mismo espectro sin sidecar daba P(BHF) distintas.
+    _gamma_default = float(effective_distribution_specs()["gamma"].default)
+    gamma_f = float(gamma if gamma is not None else sidecar.get("gamma", _gamma_default))
 
     v, y, folded, center_f, vmax_f, norm = folded_velocity_data(
         path,

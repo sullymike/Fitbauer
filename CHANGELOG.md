@@ -70,6 +70,15 @@ placeholders coherentes en los 7 idiomas).
   de P fija previa sobrevivía a sesiones sin ella; `multistart_n: null` de
   sesiones antiguas abortaba la carga completa.
 
+### CLI de distribución
+
+- **Default de Γ unificado (0.36 mm/s, fuente única en `core.params`)**: el
+  pipeline web usaba 0.18 como fallback sin sidecar mientras GUI y CLI usaban
+  0.36 — el mismo espectro daba P(BHF) distintas según el punto de entrada.
+  Nota: los resultados del pipeline web sin `--gamma` ni sidecar cambian
+  respecto a versiones anteriores (kernel más ancho → distribución más
+  estrecha); pasar `--gamma 0.18` reproduce el comportamiento antiguo.
+
 7 tests de regresión nuevos (todos fallan sin los fixes); suite completa: 287
 en verde, golden headless incluido.
 

@@ -36,6 +36,7 @@ from pathlib import Path
 
 import numpy as np
 
+from core.param_overrides import effective_distribution_specs
 from mossbauer_bhf_pipeline import make_sharp_components
 from mossbauer_distribution import (
     fit_bhf_quad_distribution,
@@ -273,7 +274,9 @@ def main() -> None:
     sidecar = read_normos_sidecar_params(in_path)
     delta = float(args.delta if args.delta is not None else sidecar.get("delta", 0.0))
     quad = float(args.quad if args.quad is not None else sidecar.get("quad", 0.0))
-    gamma = float(args.gamma if args.gamma is not None else sidecar.get("gamma", 0.36))
+    # Mismo default de Γ que la GUI y el pipeline web (fuente única en core.params).
+    _gamma_default = float(effective_distribution_specs()["gamma"].default)
+    gamma = float(args.gamma if args.gamma is not None else sidecar.get("gamma", _gamma_default))
     # Rango de la malla por defecto según la variable (T para BHF, mm/s para ΔEQ).
     bmin = float(args.bmin) if args.bmin is not None else 0.0
     bmax = float(args.bmax) if args.bmax is not None else (3.0 if args.variable == "quad" else 50.0)
