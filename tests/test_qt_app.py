@@ -366,6 +366,16 @@ def test_absorber_menu_syncs_panel_combo(win):
     assert not win.calib.sat_scale.isEnabled()
 
 
+def test_init_from_minima_proposes_physical_gamma(win):
+    """Regresión: el estimador CWT proponía Γ ~3× demasiado grande (0.75 en
+    α-Fe frente al real ≈0.28) por no calibrar escala Ricker → FWHM."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.on_init_from_minima(show_message=False)
+    cp = win.components_panels[0]
+    gamma = float(cp.params["gamma1"].value())
+    assert 0.15 <= gamma <= 0.45, f"Γ inicial no físico: {gamma}"
+
+
 def test_init_from_minima_proposes_sextet(win):
     """Init from minima sobre α-Fe propone un sextete con BHF razonable."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")

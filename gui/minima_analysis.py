@@ -16,6 +16,13 @@ _PD = _eff_pd()
 
 MAX_QT_COMPONENTS = 6
 
+# Calibración del estimador de anchura CWT: para una Lorentziana de FWHM Γ, la
+# escala Ricker de máxima respuesta cumple 2·a·dv ≈ 2.85·Γ (ratio empírico
+# estable 2.6–3.0 para Γ = 0.2–1.0 mm/s con las mallas típicas). Se divide por
+# este factor para que la rama CWT devuelva FWHM reales, consistentes con la
+# rama directa a media altura.
+_CWT_LORENTZ_WIDTH_RATIO = 2.85
+
 
 class MinimaAnalysisMixin:
     # ── Auto-inicialización desde mínimos ───────────────────────────────
@@ -194,7 +201,15 @@ class MinimaAnalysisMixin:
                     ri += 1
                 width = max(abs(float(v[ri] - v[li])), 2.0 * dv)
             else:
-                width = max(float(scales[best_sc]) * dv * 2.0, 2.0 * dv)
+                # Calibración empírica del estimador CWT: para una Lorentziana
+                # de FWHM Γ, la escala Ricker de máxima respuesta cumple
+                # 2·a·dv ≈ 2.85·Γ (ratio estable 2.6–3.0 en Γ=0.2–1.0 mm/s).
+                # Sin este factor, Γ inicial salía ~3× demasiado grande (0.75
+                # en α-Fe, 2.0 recortado en magnetita) y además era
+                # inconsistente con la rama directa a media altura (que sí
+                # mide FWHM).
+                width = max(float(scales[best_sc]) * dv * 2.0 / _CWT_LORENTZ_WIDTH_RATIO,
+                            2.0 * dv)
             smooth_d = float(fine_smooth[i]) if fine_smooth[i] > 0 else float(abs_fine_norm[i])
             peaks.append({"i": float(i), "pos": float(v[i]),
                           "depth": float(absorption[i]),
