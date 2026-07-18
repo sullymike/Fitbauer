@@ -349,8 +349,11 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
         # 3. Evaluar el modelo.
         if is_sine:
             # Eje senoidal por canal con el vmax/fase de prueba (no monótono).
+            # El optimizador maneja |vmax|; se restaura el signo de la convención
+            # de eje del estado (vmax negativo invierte el eje, como en triangular).
+            _sign = -1.0 if float(base_values.get("vmax", 0.0)) < 0 else 1.0
             c0 = symmetry_center_to_c0(center, n_channels)
-            v = sine_velocity_axis(n_channels, vmax, c0)
+            v = sine_velocity_axis(n_channels, _sign * abs(vmax), c0)
         elif velocity_scaler is not None:
             v = velocity_scaler(vmax)
         else:
@@ -373,7 +376,10 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
             # normalizado), preservando el comportamiento previo del motor.
             if norm_factor:
                 predicted_counts = np.maximum(np.abs(m) * norm_factor, 1.0)
-                sig = np.maximum(np.sqrt(predicted_counts / 2.0) / norm_factor, 1e-9)
+                # El ÷2 corresponde al promedio de dos canales del doblado
+                # triangular; en seno no se dobla (cada canal es una cuenta única).
+                _pair_avg = 1.0 if is_sine else 2.0
+                sig = np.maximum(np.sqrt(predicted_counts / _pair_avg) / norm_factor, 1e-9)
             else:
                 sig = np.sqrt(np.maximum(np.abs(m), 1e-12))
         else:
@@ -403,7 +409,10 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
         def velocity_scaler(vmax: float) -> np.ndarray:
             if vmax == 0:
                 return v_ref
-            return v_ref * (vmax / vmax_ref)
+            # El optimizador maneja |vmax| (límites positivos); el signo de la
+            # convención de eje ya vive en v_ref, así que se escala por |vmax_ref|
+            # para no invertir el eje cuando vmax_ref es negativo.
+            return v_ref * (vmax / abs(vmax_ref))
     else:
         velocity_scaler = None
 
@@ -622,7 +631,10 @@ def fit_discrete(state: FitState, progress_cb: Callable[[object], None] | None =
             cov_all = (vt.T / (sv ** 2)) @ vt
             cov_all *= 2.0 * result.cost / max(1, n_obs - n_par)
             cov = cov_all[:len(free_keys), :len(free_keys)]
-            for key, err in zip(free_keys, np.sqrt(np.maximum(np.diag(cov), 0.0))):
+            # Errores también para los globales ajustados (vmax/center/σ), que
+            # van al final del vector x: antes se calculaban y se descartaban.
+            for key, err in zip(progress_keys,
+                                np.sqrt(np.maximum(np.diag(cov_all), 0.0))):
                 errors[key] = float(err)
             correlations = _correlation_summary(cov, free_keys)
         except Exception:
@@ -637,7 +649,10 @@ def fit_discrete(state: FitState, progress_cb: Callable[[object], None] | None =
                                    state.constraints or [], state.bounds)
     pos = len(free_keys)
     if state.fit_velocity and "vmax" in state.values:
-        values_final["vmax"] = float(result.x[pos]); pos += 1
+        # El optimizador trabaja con |vmax|; se restaura el signo de la
+        # convención de eje original (vmax negativo = eje invertido).
+        _vmax_sign = -1.0 if float(state.values.get("vmax", 0.0)) < 0 else 1.0
+        values_final["vmax"] = _vmax_sign * float(result.x[pos]); pos += 1
     if state.fit_center and "center" in state.values:
         values_final["center"] = float(result.x[pos]); pos += 1
     if (state.fit_sigma and state.line_profile == "Voigt"
@@ -726,9 +741,13 @@ def _replica_state(
         values=dict(values), fixed=fixed, bounds=dict(state.bounds),
         components=state.components, constraints=state.constraints,
         likelihood=state.likelihood, robust_loss=state.robust_loss,
-        line_profile=state.line_profile, voigt_sigma=state.voigt_sigma,
+        line_profile=state.line_profile,
+        # σ-Voigt del ajuste base si se refinó (con fit_sigma, values trae la
+        # ajustada); si no, la del estado. Evita réplicas generadas con una σ
+        # y re-ajustadas con otra.
+        voigt_sigma=float(values.get("voigt_sigma", state.voigt_sigma)),
         absorber_model=state.absorber_model, multistart_n=multistart_n,
-        norm_factor=state.norm_factor,
+        norm_factor=state.norm_factor, drive_form=state.drive_form,
     )
 
 
@@ -764,9 +783,11 @@ def bootstrap_errors(
     for i in range(int(n_rep)):
         progress_cb(f"Bootstrap {i + 1}/{n_rep}", i + 1, n_rep)
         if poisson:
-            # c_sim ~ Poisson(λ = model0·norm·2) / 2  (promedio de dos canales).
-            lam = np.maximum(model0 * norm * 2.0, 0.0)
-            y_sim = (rng.poisson(lam).astype(float) / 2.0) / norm
+            # c_sim ~ Poisson(λ = model0·norm·k) / k, con k=2 por el promedio de
+            # dos canales del doblado triangular; en seno no se dobla (k=1).
+            _k = 1.0 if state.drive_form == "sine" else 2.0
+            lam = np.maximum(model0 * norm * _k, 0.0)
+            y_sim = (rng.poisson(lam).astype(float) / _k) / norm
         else:
             y_sim = model0 + rng.normal(0.0, sigma)
         sub = _replica_state(state, base.values, y_sim, sigma, multistart_n=1)
@@ -806,13 +827,30 @@ def profile_likelihood(
         base = fit_discrete(state)
     if not base.free_keys:
         return {}
-    chi2_min = float(base.stats.get("chi2", 0.0))
+    # Condicionar el perfil al dataset del óptimo. Con fit_center, el χ² del
+    # ajuste base se calcula sobre los datos re-doblados en el centro ajustado
+    # c*, mientras que los puntos del perfil (réplicas sin cuentas crudas)
+    # usarían y(c_inicial): Δχ² compararía dos datasets distintos (podía salir
+    # incluso negativo). Se re-dobla en c* y se recalcula el χ² mínimo sobre ese
+    # mismo dataset con la calibración fijada (intervalos condicionales a c*).
+    y_prof, sig_prof = state.y_data, state.sigma_data
+    if (state.fit_center and state.counts is not None
+            and state.drive_form != "sine" and "center" in base.values):
+        _fallback = float(state.norm_factor) if state.norm_factor else 1.0
+        y_ref, sig_ref = _refold_at_center(
+            np.asarray(state.counts, dtype=float),
+            float(base.values["center"]), _fallback, state.y_data.size)
+        if y_ref.size == state.y_data.size:
+            y_prof, sig_prof = y_ref, sig_ref
+    base_cond = fit_discrete(_replica_state(
+        state, base.values, y_prof, sig_prof, multistart_n=2))
+    chi2_min = float(base_cond.stats.get("chi2", 0.0))
     free_keys = list(base.free_keys)
 
     def _cost_with_fixed(key: str, val: float) -> float:
         sub = _replica_state(
-            state, {**base.values, key: float(val)}, state.y_data,
-            state.sigma_data, extra_fixed={key: True}, multistart_n=2,
+            state, {**base.values, key: float(val)}, y_prof,
+            sig_prof, extra_fixed={key: True}, multistart_n=2,
         )
         try:
             r = fit_discrete(sub)

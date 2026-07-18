@@ -309,6 +309,63 @@ def test_session_payload_full_roundtrip(win, make_window):
     assert payload2.get("calibration") == payload1.get("calibration")
 
 
+def test_session_restore_kind_change_keeps_values(win, make_window):
+    """Regresión: restaurar un Doblete sobre un panel en Sextete machacaba
+    int1/int2 recién restaurados (apply_values antes que setCurrentText)."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    cp = win.components_panels[0]
+    cp.type_combo.setCurrentText("Doblete")
+    cp.params["int2"].set_value(1.3)      # ratio de ramas asimétrico
+    payload = win._session_payload()
+    win2 = make_window()                   # panel fresco: arranca en Sextete
+    win2._apply_session_payload(payload)
+    cp2 = win2.components_panels[0]
+    assert cp2.kind == "Doblete"
+    assert float(cp2.params["int2"].value()) == pytest.approx(1.3)
+
+
+def test_session_restore_from_other_mode_keeps_enabled_pattern(win, make_window):
+    """Regresión: restaurar desde otro modo pisaba el patrón activo/inactivo
+    (mode_combo al final disparaba _sync_component_count)."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win._sync_component_count(3)
+    win.components_panels[1].enabled.setChecked(False)   # {1:T, 2:F, 3:T}
+    payload = win._session_payload()
+    win2 = make_window()
+    win2._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win2.mode_combo.setCurrentIndex(1)     # P(BHF): modo distinto al guardado
+    win2._apply_session_payload(payload)
+    assert win2.mode_combo.currentIndex() == 0
+    flags = [cp.enabled.isChecked() for cp in win2.components_panels[:3]]
+    assert flags == [True, False, True]
+
+
+def test_session_restore_dist_values_not_clamped_by_old_variable(win, make_window):
+    """Regresión: los valores de la malla se restauraban antes de configurar la
+    variable → set_value recortaba con los rangos de la variable anterior."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.dist_panel.bmax.set_value(40.0)    # rango BHF (0-60)
+    payload = win._session_payload()
+    win2 = make_window()
+    win2._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win2.mode_combo.setCurrentIndex(2)     # P(ΔEQ): rangos 0-7
+    win2._apply_session_payload(payload)
+    assert float(win2.dist_panel.bmax.value()) == pytest.approx(40.0)
+
+
+def test_absorber_menu_syncs_panel_combo(win):
+    """Regresión: el menú Modelo de absorbente solo escribía el atributo y el
+    ajuste seguía usando el combo del panel (modelo antiguo)."""
+    actions = win.absorber_action_group.actions()
+    actions[1].trigger()                   # "thickness"
+    assert win.calib.absorber_model == "thickness"
+    assert win.absorber_model == "thickness"
+    assert win.calib.sat_scale.isEnabled()
+    actions[0].trigger()                   # vuelta a "thin"
+    assert win.calib.absorber_model == "thin"
+    assert not win.calib.sat_scale.isEnabled()
+
+
 def test_init_from_minima_proposes_sextet(win):
     """Init from minima sobre α-Fe propone un sextete con BHF razonable."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")

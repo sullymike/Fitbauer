@@ -1,5 +1,78 @@
 # Changelog
 
+## v4.17.0 — caza de bugs multi-agente: motor, GUI, sesiones y CLI
+
+Auditoría en profundidad con cuatro revisores independientes (motor de ajuste,
+GUI, sesiones/estado, CLI+i18n) y verificación manual de cada hallazgo.
+Corregidos 20 fallos; i18n resultó estar limpio (793 claves idénticas y
+placeholders coherentes en los 7 idiomas).
+
+### Motor de ajuste (`core/fit_engine.py`, `core/session.py`)
+
+- **Vmax negativo + «Ajustar velocidad» invertía el eje**: el optimizador
+  trabaja con |vmax| pero el reescalado dividía por el vmax de referencia con
+  signo → el eje quedaba des-invertido en todas las iteraciones (δ espejado) y
+  el signo se perdía al terminar. Ahora el signo de la convención de eje se
+  conserva (triangular y seno).
+- **`fit_center` roto fuera de 512 canales**: los límites del centro caían al
+  default (250, 263); con otros tamaños el centro quedaba clavado en el límite
+  y el re-doblado destruía el ajuste. Ahora los límites derivan de N (N/2 ± 7).
+- **σ Poisson en modo seno**: la fórmula asumía el promedio de dos canales del
+  doblado (÷2) también en seno (sin doblar) → σ subestimada ×√2 y χ² inflado
+  ×2; ídem en la generación de réplicas bootstrap. Corregido en ambos sitios.
+- **Perfil de verosimilitud con `fit_center` comparaba datasets distintos**: el
+  χ² mínimo venía de los datos re-doblados en el centro ajustado c\*, pero los
+  puntos del perfil usaban los datos del centro inicial → Δχ² con offset
+  constante (verificado: +72.5 en α-Fe) e intervalos `null` silenciosos en el
+  CLI. Ahora el perfil se condiciona al dataset de c\* (re-doblado + χ² mínimo
+  recalculado sobre él).
+- **Los errores de vmax/centro/σ ajustados se descartaban**: la covarianza los
+  calculaba pero se truncaba a los parámetros libres «normales». Ahora se
+  informan (GUI, informes y CLI).
+- **Réplicas bootstrap/perfil**: usaban la σ-Voigt pre-ajuste con «Ajustar σ»
+  activo y no heredaban la forma de onda. Corregido.
+- **`HeadlessSession` no re-doblaba tras `fit_center`** (el análogo headless
+  del bug de GUI de v4.16.1): sesión y stats quedaban incoherentes; en seno el
+  eje usaba la fase vieja. Ahora re-dobla (o actualiza la fase) y además la
+  salida del CLI muestra centro/vmax/σ ajustados (antes invisibles).
+- **«Propagar incertidumbre de calibración» era un no-op**: `sigma_vmax` no se
+  cableaba nunca. Ahora se toma de la calibración asociada (si consta σ de
+  vmax) y el inflado de errores funciona.
+
+### GUI
+
+- **Menú Ajuste → Avanzado → Modelo de absorbente no hacía nada**: solo
+  escribía un atributo que el siguiente cambio de parámetro machacaba; el
+  ajuste seguía usando el modelo del combo del panel. Ahora sincroniza el
+  panel (y `sat_scale` se activa/agrisa correctamente).
+- **Ajuste en serie (batch)**: el warm-start descartaba vmax/σ/sat_scale
+  ajustados y al cerrar el diálogo el plot y el panel de info no se
+  refrescaban (quedaban con el modelo previo al batch). Corregido.
+- **Bootstrap sin ajuste previo**: el ajuste base calculado internamente se
+  registraba como resultado pero no se volcaba a los widgets ni al plot.
+- **`_sync_constraint_targets` desbloqueaba las señales a mitad de carga de
+  sesión** (ponía `_building=False` incondicionalmente): con restricciones
+  activas, la restauración podía re-detectar el centro y pisar el guardado.
+- Menores: «Buscar centro» no actualizaba la etiqueta del fichero; exportar
+  ajuste de distribución tras re-doblar podía desalinear el modelo guardado.
+
+### Sesiones (guardar/cargar, historial, deshacer)
+
+- **Restaurar un componente con tipo distinto machacaba valores recién
+  restaurados** (int1/int2 del doblete asimétrico): ahora se restaura primero
+  el tipo y los modos (con re-layout del grid, que antes quedaba agrisado
+  obsoleto) y después valores y casillas «Fijo».
+- **Restaurar desde otro modo pisaba el patrón activo/inactivo de componentes**
+  y **recortaba los valores de la malla con los rangos de la variable
+  anterior**: el modo se restaura ahora antes que las casillas y valores.
+- Menores: la rama de cuentas embebidas no limpiaba resultados runtime ni el
+  mapa 2D; una sesión sin calibración heredaba la calibración previa; una ruta
+  de P fija previa sobrevivía a sesiones sin ella; `multistart_n: null` de
+  sesiones antiguas abortaba la carga completa.
+
+7 tests de regresión nuevos (todos fallan sin los fixes); suite completa: 287
+en verde, golden headless incluido.
+
 ## v4.16.3 — auditoría de sesiones: todo se guarda y se restaura
 
 Auditoría de la persistencia (sesiones, historial de ajustes, undo) comprobando

@@ -329,3 +329,45 @@ def test_fit_discrete_respects_fixed():
     result = fit_discrete(state)
     # Como BHF está fijo, debe quedarse en 35.0
     assert abs(result.values["s1_bhf"] - 35.0) < 1e-6
+
+
+def test_fit_velocity_preserves_negative_vmax_sign():
+    """Regresión: con vmax negativo (eje invertido) y fit_velocity, el eje no
+    debe des-invertirse durante el ajuste ni perderse el signo al final."""
+    v, y, sigma = _load_alpha_fe()
+    state = _alpha_fe_state(-v, y, sigma)   # eje invertido: +VMAX → −VMAX
+    state.values["vmax"] = -VMAX
+    state.fit_velocity = True
+    state.fixed["s1_bhf"] = True            # evita la degeneración vmax↔BHF
+    result = fit_discrete(state)
+    assert result.values["vmax"] < 0        # conserva la convención de eje
+    assert abs(abs(result.values["vmax"]) - VMAX) < 0.5
+    # Con el eje invertido, los mismos datos doblados equivalen a un espectro
+    # espejado: δ debe salir en −ISO_REF. Con el bug (eje des-invertido en las
+    # iteraciones) convergía a ISO_REF y vmax positivo.
+    assert abs(result.values["s1_delta"] - (-ISO_REF)) < 0.05
+
+
+def test_center_bounds_scale_with_channel_count():
+    """Regresión: los límites de fit_center deben derivar del nº de canales,
+    no del default (250, 263) válido solo para 512 canales."""
+    from core.session import ModelState
+
+    ms = ModelState.defaults(n_components=1)
+    counts = np.full(1024, 1000.0)
+    n_half = 510
+    state = ms.build_fit_state(
+        velocity=np.linspace(-8, 8, n_half),
+        y_data=np.ones(n_half), sigma_data=np.full(n_half, 0.01),
+        counts=counts, norm_factor=1.0)
+    lo, hi = state.bounds["center"]
+    assert lo <= 512.0 <= hi                # el centro real (~N/2) es alcanzable
+    assert abs((lo + hi) / 2.0 - 512.0) < 1.0
+
+
+def test_fitted_globals_have_errors():
+    """Regresión: los globales ajustados (center) tenían σ calculada en la
+    covarianza pero se descartaba al truncar a free_keys."""
+    state, _c0, _counts, _norm = _alpha_fe_counts_state(cstart=256.0)
+    result = fit_discrete(state)
+    assert "center" in result.errors and result.errors["center"] >= 0.0

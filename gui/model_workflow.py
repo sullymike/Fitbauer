@@ -141,6 +141,10 @@ class ModelWorkflowMixin:
         if not target_keys:
             return
         target_resolved = {k: v for k, v in resolved.items() if k in target_keys}
+        # Preserva el valor previo de _building: este método puede ejecutarse
+        # dentro de una carga de sesión (paramChanged en cascada) y un False
+        # incondicional en el finally desbloqueaba las señales a mitad de carga.
+        _prev_building = self._building
         self._building = True
         try:
             for cp in getattr(self, "components_panels", []):
@@ -152,7 +156,7 @@ class ModelWorkflowMixin:
                 if "slope" in target_keys and "slope" in resolved:
                     calib.slope.set_value(resolved["slope"])
         finally:
-            self._building = False
+            self._building = _prev_building
 
     def _sync_absorber_model_from_panel(self, *args) -> None:
         if hasattr(self, "calib"):
@@ -619,6 +623,24 @@ class ModelWorkflowMixin:
         ms.constraints = list(self.constraints)
         return ms
 
+    def _calibration_sigma_vmax(self) -> float | None:
+        """σ(vmax) numérica de la calibración asociada, si consta."""
+        info = self.calibration_info
+        if not info:
+            return None
+        for key in ("velocity_uncertainty", "vmax_uncertainty", "velocity_error",
+                    "vmax_error", "sigma_vmax"):
+            val = info.get(key)
+            if val is None:
+                continue
+            try:
+                f = float(val)
+            except (TypeError, ValueError):
+                continue
+            if f > 0:
+                return f
+        return None
+
     def _build_state(self, *, validate_params: bool = False) -> FitState | None:
         if self.file.velocity is None or self.file.y_data is None:
             return None
@@ -626,6 +648,9 @@ class ModelWorkflowMixin:
             velocity=self.file.velocity, y_data=self.file.y_data,
             sigma_data=self.file.sigma, counts=self.file.counts,
             norm_factor=self.file.norm_factor)
+        # «Propagar incertidumbre de calibración» necesita σ(vmax): sin este
+        # cableado el flag era un no-op silencioso (sigma_vmax quedaba None).
+        state.sigma_vmax = self._calibration_sigma_vmax()
         if validate_params:
             issues = validate_fit_state(state)
             if issues:

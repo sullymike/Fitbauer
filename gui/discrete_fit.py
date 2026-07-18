@@ -10,6 +10,34 @@ from gui.fit_workflow import GuiFitResult
 
 
 class DiscreteFitMixin:
+    def _apply_discrete_result_values(self, state, result) -> None:
+        """Vuelca los valores de un ``FitResult`` discreto a los widgets.
+
+        Cubre componentes y todos los globales ajustables (baseline, slope,
+        vmax, σ-Voigt, sat_scale y centro de doblado, con re-doblado explícito
+        porque ``set_value`` bloquea señales). Compartido por ``on_fit`` y por
+        el bootstrap sin ajuste previo.
+        """
+        self._building = True
+        calib_state = self.calib.to_view_state()
+        self.calib.baseline.set_value(result.values.get("baseline", calib_state.baseline))
+        self.calib.slope.set_value(result.values.get("slope", calib_state.slope))
+        if state.fit_velocity:
+            self.calib.vmax.set_value(result.values.get("vmax", calib_state.vmax))
+        if state.fit_sigma:
+            self.calib.voigt_sigma.set_value(result.values.get("voigt_sigma", calib_state.voigt_sigma))
+        if "sat_scale" in result.free_keys:
+            self.calib.sat_scale.set_value(result.values.get("sat_scale", calib_state.sat_scale))
+        if state.fit_center and "center" in result.values:
+            self.calib.center.set_value(result.values["center"])
+        for cp in self.components_panels:
+            cp.apply_values(result.values)
+        self._building = False
+        # set_value no emite valueChanged (bloquea señales): re-dobla explícitamente
+        # los datos con el centro ajustado para que GUI y motor queden coherentes.
+        if state.fit_center and "center" in result.values and self.file.counts is not None:
+            self._on_center_value_changed(float(result.values["center"]))
+
     def on_fit(self) -> None:
         if self.is_distribution_mode:
             self._simulate_enabled = True
@@ -57,26 +85,7 @@ class DiscreteFitMixin:
             return
         if hasattr(self, "act_undo_fit"):
             self.act_undo_fit.setEnabled(True)
-        # Aplica resultados
-        self._building = True
-        calib_state = self.calib.to_view_state()
-        self.calib.baseline.set_value(result.values.get("baseline", calib_state.baseline))
-        self.calib.slope.set_value(result.values.get("slope", calib_state.slope))
-        if state.fit_velocity:
-            self.calib.vmax.set_value(result.values.get("vmax", calib_state.vmax))
-        if state.fit_sigma:
-            self.calib.voigt_sigma.set_value(result.values.get("voigt_sigma", calib_state.voigt_sigma))
-        if "sat_scale" in result.free_keys:
-            self.calib.sat_scale.set_value(result.values.get("sat_scale", calib_state.sat_scale))
-        if state.fit_center and "center" in result.values:
-            self.calib.center.set_value(result.values["center"])
-        for cp in self.components_panels:
-            cp.apply_values(result.values)
-        self._building = False
-        # set_value no emite valueChanged (bloquea señales): re-dobla explícitamente
-        # los datos con el centro ajustado para que GUI y motor queden coherentes.
-        if state.fit_center and "center" in result.values and self.file.counts is not None:
-            self._on_center_value_changed(float(result.values["center"]))
+        self._apply_discrete_result_values(state, result)
         red = result.stats.get("red_chi2", float("nan"))
         chi2 = result.stats.get("chi2", float("nan"))
         import math
@@ -149,6 +158,12 @@ class DiscreteFitMixin:
                 errors=res.std,
                 error_source=error_source,
             )
+            # Sin ajuste previo, el ajuste base calculado dentro del bootstrap
+            # es el resultado vigente: volcarlo a los widgets y refrescar para
+            # que plot/panel no queden en la conjetura inicial.
+            self._apply_discrete_result_values(state, res.base)
+            self._simulate_enabled = True
+            self._refresh_plot()
         self.act_export_report.setEnabled(True)
         self.act_export_short_report.setEnabled(True)
         msg_lines = [tr("msg.bootstrap_done", ok=res.n_ok, total=res.n_rep), ""]

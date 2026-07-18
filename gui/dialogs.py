@@ -264,10 +264,22 @@ class BatchFitDialog(QtWidgets.QDialog):
                     for cp in self.parent_win.components_panels:
                         cp.apply_values(result.values)
                     calib_state = self.parent_win.calib.to_view_state()
-                    self.parent_win.calib.baseline.set_value(
+                    calib = self.parent_win.calib
+                    calib.baseline.set_value(
                         result.values.get("baseline", calib_state.baseline))
-                    self.parent_win.calib.slope.set_value(
+                    calib.slope.set_value(
                         result.values.get("slope", calib_state.slope))
+                    # Globales de calibración ajustados: sin esto el warm-start
+                    # descartaba vmax/σ/sat_scale del espectro anterior (misma
+                    # clase de bug que el del centro corregido en on_fit).
+                    if state.fit_velocity:
+                        calib.vmax.set_value(result.values.get("vmax", calib_state.vmax))
+                    if state.fit_sigma:
+                        calib.voigt_sigma.set_value(
+                            result.values.get("voigt_sigma", calib_state.voigt_sigma))
+                    if "sat_scale" in result.free_keys:
+                        calib.sat_scale.set_value(
+                            result.values.get("sat_scale", calib_state.sat_scale))
                 finally:
                     self.parent_win._building = False
             except Exception as exc:

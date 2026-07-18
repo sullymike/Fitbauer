@@ -33,6 +33,10 @@ class FileActionsMixin:
         self._building = True
         self.calib.center.set_value(center)
         self._building = False
+        if self.file.path is not None:
+            self.file_label.setText(f"<b>{self.file.path.name}</b><br>"
+                                    f"{self.file.counts.size} canales · centro={float(center):.3f} · "
+                                    f"norm={self.file.norm_factor:.4g}")
         self.statusBar().showMessage(tr("status.center_found", center=f"{center:.4f}", default=f"Center detected: {center:.4f}"), 5000)
         self._refresh_plot()
 
@@ -73,7 +77,8 @@ class FileActionsMixin:
         dist_res = None
         if is_dist:
             dist_res = getattr(self.runtime_results, "distribution_result", None)
-            if dist_res is not None and hasattr(dist_res, "model_at_v"):
+            if (dist_res is not None and hasattr(dist_res, "model_at_v")
+                    and np.asarray(dist_res.model_at_v).size == v.size):
                 model = np.asarray(dist_res.model_at_v, dtype=float)
                 residual = y - model
             elif dist_res is not None and hasattr(dist_res, "model"):

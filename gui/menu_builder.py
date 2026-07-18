@@ -357,7 +357,10 @@ class MenuBuilderMixin:
             a = QtGui.QAction(tr(key), self, checkable=True)
             if val == self.absorber_model:
                 a.setChecked(True)
-            a.triggered.connect(lambda _c=False, v=val: setattr(self, "absorber_model", v))
+            # Sincroniza el combo del panel (fuente que lee el motor); el combo
+            # emite paramChanged, que re-sincroniza el atributo y refresca el
+            # plot. Un setattr directo dejaba el fit usando el modelo antiguo.
+            a.triggered.connect(lambda _c=False, v=val: self.calib.set_absorber_model(v))
             abs_menu.addAction(a); self.absorber_action_group.addAction(a)
         adv_menu.addSeparator()
         # P(BHF) extras

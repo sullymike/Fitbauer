@@ -105,11 +105,26 @@ class SessionIOMixin:
                 f"{counts.size} canales (sesión)")
             self.act_fit.setEnabled(True)
             self._set_quick_action_buttons_enabled(True)
+            # Igual que _load_file: los resultados runtime (y el mapa 2D) del
+            # estado anterior no pertenecen a la sesión restaurada.
+            self.runtime_results.clear()
+            self._dist_map_2d = None
+            _prev_fig = getattr(self, "_dist_map_2d_fig", None)
+            if _prev_fig is not None:
+                _prev_fig.clf()
+            self._dist_map_2d_fig = None
+            if hasattr(self, "dist_panel"):
+                self.dist_panel.btn_show_map.setVisible(False)
 
         # 2. Calibración guardada
         calib = project.calibration.info
         if isinstance(calib, dict):
             self.calibration_info = dict(calib)
+            self._refresh_calib_label()
+        else:
+            # Sesión sin calibración: no heredar la de la GUI actual (afectaría
+            # al δ corregido y a la incertidumbre de vmax en panel e informes).
+            self.calibration_info = None
             self._refresh_calib_label()
 
         # 3. Modelo: aplicar vars / fixed / sextet_enabled / component_kind.
@@ -131,20 +146,55 @@ class SessionIOMixin:
                                if str(k).isdigit() and bool(v)]
                 n_saved = max(enabled_idx, default=1)
             self._sync_component_count(int(n_saved))
+            # Restaurar el modo ANTES de las casillas «activo» y de los valores
+            # del panel de distribución: _on_mode_changed re-sincroniza el nº de
+            # componentes (pisaría el patrón enabled restaurado) y configura los
+            # rangos de la variable de distribución (con los rangos de la
+            # variable anterior, set_value recortaba los valores guardados).
+            mode_idx_saved = state.get("mode_combo_idx")
+            if mode_idx_saved is not None:
+                # Índice guardado explícitamente: cubre el modo discreto (0) y 2D (4/5/6)
+                self.mode_combo.setCurrentIndex(int(mode_idx_saved))
+            else:
+                # Compatibilidad con sesiones antiguas sin mode_combo_idx
+                var_saved = state.get("dist_variable")
+                _2d_var_to_idx = {"BHF-ΔEQ": 4, "IS-ΔEQ": 5, "BHF-IS": 6}
+                if var_saved in _2d_var_to_idx:
+                    self.mode_combo.setCurrentIndex(_2d_var_to_idx[var_saved])
+                elif var_saved in ("BHF", "bhf"):
+                    self.mode_combo.setCurrentIndex(1)
+                elif var_saved in ("ΔEQ", "quad"):
+                    self.mode_combo.setCurrentIndex(2)
+                elif var_saved in ("IS", "delta"):
+                    self.mode_combo.setCurrentIndex(3)
+            # En modo discreto _on_mode_changed no toca la variable del panel de
+            # distribución: alinearla con la guardada para que los rangos de los
+            # controles casen con los valores que se restauran después.
+            if self.mode_combo.currentIndex() == 0 and hasattr(self, "dist_panel"):
+                _var_map = {"BHF": "bhf", "ΔEQ": "quad", "IS": "delta"}
+                _var_lbl = state.get("dist_variable", "BHF")
+                if _var_lbl in _var_map and hasattr(self.dist_panel, "set_distribution_variable"):
+                    self.dist_panel.set_distribution_variable(_var_map[_var_lbl])
             for cp in self.components_panels:
-                cp.apply_values(vmap)
+                # Orden: primero tipo y modos (cambiar el tipo resetea valores
+                # vía _on_type_changed, y los setters de modo re-layoutan el
+                # grid); después los valores y las casillas «Fijo» guardados.
+                # Con el orden antiguo (valores→tipo) un kind distinto al actual
+                # machacaba int1/int2 recién restaurados, y la asignación
+                # directa de los modos dejaba el grid agrisado obsoleto.
                 ki = state.get("component_kind", {}).get(str(cp.idx))
                 if ki in COMPONENT_KINDS:
                     cp.type_combo.setCurrentText(ki)
+                im = state.get("intensity_mode", {}).get(str(cp.idx))
+                if im in INTENSITY_MODES:
+                    cp._set_intensity_mode(im)
+                qt_v = state.get("quad_treatment", {}).get(str(cp.idx))
+                if qt_v in QUAD_TREATMENTS:
+                    cp._set_quad_treatment(qt_v)
+                cp.apply_values(vmap)
                 en = state.get("sextet_enabled", {}).get(str(cp.idx))
                 if en is not None:
                     cp.enabled.setChecked(bool(en))
-                im = state.get("intensity_mode", {}).get(str(cp.idx))
-                if im in INTENSITY_MODES:
-                    cp.intensity_mode = im
-                qt_v = state.get("quad_treatment", {}).get(str(cp.idx))
-                if qt_v in QUAD_TREATMENTS:
-                    cp.quad_treatment = qt_v
                 for name, ctl in cp.params.items():
                     f = state.get("fixed", {}).get(f"s{cp.idx}_{name}")
                     if f is not None:
@@ -182,7 +232,7 @@ class SessionIOMixin:
                 self.propagate_calib = bool(state["propagate_calib"])
             if "global_opt" in state:
                 self.global_opt = bool(state["global_opt"])
-            if "multistart_n" in state:
+            if state.get("multistart_n") is not None:
                 self.multistart_n = int(state["multistart_n"])
                 spin = getattr(self, "_multistart_spin", None)
                 if spin is not None:
@@ -205,9 +255,11 @@ class SessionIOMixin:
             reg_saved = state.get("dist_reg_mode")
             if reg_saved in ("tikhonov", "tv", "maxent") and hasattr(self, "dist_panel"):
                 self.dist_panel.reg_mode_combo.setCurrentText(reg_saved)
-            fixed_path = state.get("fixed_distribution_path")
-            if fixed_path and hasattr(self, "dist_panel"):
-                self.dist_panel.fixed_path = Path(fixed_path)
+            if hasattr(self, "dist_panel"):
+                fixed_path = state.get("fixed_distribution_path")
+                # None también resetea: una ruta fijada previamente no debe
+                # sobrevivir a una sesión que no la contiene.
+                self.dist_panel.fixed_path = Path(fixed_path) if fixed_path else None
             if shape_saved in DISTRIBUTION_SHAPES and hasattr(self, "dist_panel"):
                 idx_shape = self.dist_panel.shape_combo.findData(shape_saved)
                 if idx_shape >= 0:
@@ -244,22 +296,6 @@ class SessionIOMixin:
                 for name, ctl in _fix_ctls.items():
                     if name in fixed_map:
                         ctl.set_fixed(bool(fixed_map[name]))
-            mode_idx_saved = state.get("mode_combo_idx")
-            if mode_idx_saved is not None:
-                # Índice guardado explícitamente: cubre el modo discreto (0) y 2D (4/5/6)
-                self.mode_combo.setCurrentIndex(int(mode_idx_saved))
-            else:
-                # Compatibilidad con sesiones antiguas sin mode_combo_idx
-                var_saved = state.get("dist_variable")
-                _2d_var_to_idx = {"BHF-ΔEQ": 4, "IS-ΔEQ": 5, "BHF-IS": 6}
-                if var_saved in _2d_var_to_idx:
-                    self.mode_combo.setCurrentIndex(_2d_var_to_idx[var_saved])
-                elif var_saved in ("BHF", "bhf"):
-                    self.mode_combo.setCurrentIndex(1)
-                elif var_saved in ("ΔEQ", "quad"):
-                    self.mode_combo.setCurrentIndex(2)
-                elif var_saved in ("IS", "delta"):
-                    self.mode_combo.setCurrentIndex(3)
             # Sincroniza las acciones del menú avanzado si ya existen
             for grp_attr, val, items in (
                 ("likelihood_action_group", self.likelihood, ("gauss", "poisson")),

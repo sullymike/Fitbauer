@@ -246,7 +246,8 @@ class FitOptionsState:
             fit_velocity=bool(state.get("fit_velocity", False)),
             fit_center=bool(state.get("fit_center", False)),
             fit_sigma=bool(state.get("fit_sigma", False)),
-            multistart_n=max(0, min(int(_FI["multistart_n_max"].default), int(state.get("multistart_n", 8)))),
+            multistart_n=max(0, min(int(_FI["multistart_n_max"].default),
+                                    int(state.get("multistart_n") or 8))),
         )
 
     def apply_to_model_state(self, model_state) -> None:
@@ -469,7 +470,7 @@ class UiPreferencesState:
             custom_shortcuts={
                 str(k): str(v) for k, v in cs.items() if isinstance(v, str)
             } if isinstance(cs, dict) else {},
-            multistart_n=int(data.get("multistart_n", 8)),
+            multistart_n=int(data.get("multistart_n") or 8),
         )
 
     def to_settings_dict(self, *, base: dict[str, Any] | None = None) -> dict[str, Any]:

@@ -172,12 +172,20 @@ class ModelState:
         for idx in self.sextet_enabled:
             for name, rng in _PARAM_BOUNDS.items():
                 bounds[f"s{idx}_{name}"] = rng
-        # En modo seno el "centro" es la fase (~N/4), fuera del rango triangular
-        # (~N/2): límites propios para que fit_center (ajuste de fase) no se recorte.
-        if self.drive_form == "sine" and counts is not None:
+        # Límites del centro de doblado según el nº de canales real. Sin esto,
+        # fit_center caía al default (250, 263) del motor, válido solo para 512
+        # canales: con otros tamaños el centro quedaba clavado en el límite.
+        if counts is not None:
             n = int(np.asarray(counts).size)
             if n > 0:
-                bounds["center"] = (0.05 * n, 0.45 * n)
+                if self.drive_form == "sine":
+                    # En seno el "centro" es la fase (~N/4), fuera del rango
+                    # triangular (~N/2): límites propios para el ajuste de fase.
+                    bounds["center"] = (0.05 * n, 0.45 * n)
+                else:
+                    # Triangular: ventana ±7 canales alrededor de N/2 (para 512
+                    # reproduce el rango histórico ≈(250, 263)).
+                    bounds["center"] = (0.5 * n - 7.0, 0.5 * n + 7.0)
         return FitState(
             velocity=velocity, y_data=y_data, sigma_data=sigma_data,
             values=values, fixed=fixed, bounds=bounds, components=components,
@@ -314,6 +322,25 @@ class HeadlessSession:
         for k, v in result.values.items():
             if k in self.model.vars:
                 self.model.vars[k] = float(v)
+        # Con fit_center, re-dobla el espectro con el centro ajustado para que
+        # y_data/σ/norm de la sesión queden coherentes con el resultado (espejo
+        # del comportamiento de la GUI; en seno no se dobla y el centro es fase).
+        sp = self.spectrum
+        new_center = float(self.model.vars.get("center", 0.0))
+        if (self.model.fit_center and sp is not None
+                and abs(new_center - float(sp.center)) > 1e-9):
+            if self.model.drive_form == "sine":
+                # En seno no se dobla: basta actualizar la fase para que
+                # _velocity() construya el eje con el centro ajustado.
+                self.spectrum = LoadedSpectrum(
+                    path=sp.path, counts=sp.counts, center=new_center,
+                    folded=sp.folded, y_data=sp.y_data, sigma=sp.sigma,
+                    norm_factor=sp.norm_factor)
+            else:
+                folded, sigma, y, norm = fold_and_normalize(sp.counts, new_center, _EDGE_TRIM)
+                self.spectrum = LoadedSpectrum(
+                    path=sp.path, counts=sp.counts, center=new_center,
+                    folded=folded, y_data=y, sigma=sigma, norm_factor=norm)
         self.last_fit_free_keys = list(result.free_keys)
         self.last_fit_cov = result.cov
         self.last_fit_param_errors = dict(result.errors)
@@ -324,8 +351,15 @@ class HeadlessSession:
         self.last_fit_stats = stats
         self.last_fit_correlations = dict(result.correlations)
         active = self.model.active_param_keys()
+        values_out = {k: float(self.model.vars[k]) for k in active}
+        # Globales de calibración ajustados: antes eran invisibles en la salida
+        # (active_param_keys no los incluye) aunque sí iban a la sesión.
+        for flag, key in (("fit_center", "center"), ("fit_velocity", "vmax"),
+                          ("fit_sigma", "voigt_sigma")):
+            if getattr(self.model, flag, False) and key in self.model.vars:
+                values_out[key] = float(self.model.vars[key])
         return {
-            "values": {k: float(self.model.vars[k]) for k in active},
+            "values": values_out,
             "errors": dict(result.errors),
             "stats": stats,
             "free_keys": list(result.free_keys),

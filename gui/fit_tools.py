@@ -140,6 +140,10 @@ class FitToolsMixin:
     def on_batch_fit(self) -> None:
         dlg = BatchFitDialog(self)
         dlg.exec()
+        # El warm-start del batch escribe en los widgets con señales bloqueadas:
+        # al cerrar, sincroniza plot y panel de info con el último ajuste.
+        self._simulate_enabled = True
+        self._refresh_plot()
 
     # ── Ajuste global Néel-Arrhenius multi-temperatura ──────────────────
     def on_global_neel_fit(self) -> None:
