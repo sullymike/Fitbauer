@@ -74,6 +74,14 @@ folded.
   \item The \param{Centre} control of the calibration panel adjusts it by hand:
         the spectrum is \textbf{re-folded live} when it is changed.
   \item \menu{Fit > Find centre} refines it by minimisation.
+  \item The \param{Fit folding point during the fit} checkbox includes it as a
+        \textbf{free parameter of the discrete fit}: at each iteration the
+        spectrum is refolded at the proposed centre, renormalised and the
+        statistical weights are recomputed; when the fit finishes, the fitted
+        value is written back to the \param{Centre} control and the data stay
+        folded with it. Useful when the residual shows antisymmetric pairs
+        around the lines; start from a reasonable value and keep few free
+        parameters.
 \end{itemize}
 
 \paragraph{Why the ends are trimmed.} After folding, Fitbauer discards a few

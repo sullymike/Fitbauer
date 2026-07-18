@@ -289,6 +289,10 @@ class DistributionPanel(QtWidgets.QGroupBox):
             delta_slope=self.delta_slope.value(),
             quad_slope=self.quad_slope.value(),
             vbf_n_components=int(self.vbf_ncomp.value()),
+            qmin=self.qmin.value(),
+            qmax=self.qmax.value(),
+            qbins=max(1, int(round(self.qbins.value()))),
+            log_alpha_q=self.log_alpha_q.value(),
             fixed={
                 "delta": self.delta.is_fixed(),
                 "quad": self.quad.is_fixed(),

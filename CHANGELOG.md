@@ -1,5 +1,36 @@
 # Changelog
 
+## v4.16.3 — auditoría de sesiones: todo se guarda y se restaura
+
+Auditoría de la persistencia (sesiones, historial de ajustes, undo) comprobando
+que cada ajuste de la GUI se guarda en el payload y se restaura al cargarlo.
+Dos huecos encontrados y corregidos:
+
+- **La malla 2D no se persistía**: los controles del eje Y de la distribución 2D
+  (`qmin`/`qmax`/`qbins`/`log α_q`) no formaban parte del estado de sesión — al
+  recargar volvían a sus valores por defecto. Ahora se guardan y restauran
+  (`dist_qmin`/`dist_qmax`/`dist_qbins`/`dist_log_alpha_q`).
+- **Las casillas «Fijo» de calibración no se restauraban**: `baseline`, `slope` y
+  `sat_scale` guardaban su estado fijo/libre en la sesión pero al cargarla solo
+  se restauraban las de los componentes (y σ vía «Ajustar σ»). Ahora se restauran
+  también las tres de calibración.
+
+Como el historial de ajustes y «Deshacer ajuste» reutilizan el mismo payload,
+ambos quedan corregidos a la vez. Test nuevo de **ida y vuelta completa**
+(`test_session_payload_full_roundtrip`): guardar → cargar → guardar debe
+reproducir el `model_state` exactamente, con lo que cualquier deriva futura
+entre guardado y restauración hará fallar la suite.
+
+### Documentación
+
+- Manuales ES y EN: documentadas la casilla «Ajustar folding point dentro del
+  ajuste» (§ El folding y el centro) y el diálogo «Historial de ajustes»
+  (§ Herramientas de ayuda al ajuste); PDFs recompilados.
+- Verificado que la ayuda in-app cubre en los 7 idiomas el folding point
+  ajustable, sesiones, historial, absorbente grueso/saturación, L-curve,
+  bootstrap, verosimilitud perfilada, CLI, mínimos y batch (misma estructura de
+  30 capítulos por idioma).
+
 ## v4.16.2 — auditoría: todo lo ajustable se vuelca a la GUI
 
 Auditoría sistemática del camino widget → estado → motor → resultado → widget para

@@ -317,6 +317,12 @@ you are going to publish, especially if the panel warns of high correlations.
         \emph{warm-start} (each fit starts from the previous one), ideal for
         temperature or treatment series.
   \item \menu{Fit > Undo fit}: reverts to the previous state.
+  \item \menu{Fit > Fit history…}: a table with the latest finished fits
+        (time, file, mode, $\chi^2_r$ and components). Each entry stores a
+        \textbf{complete session snapshot}, so \param{Restore} brings that
+        fit back in full (data, calibration, model and options). The history
+        persists across sessions and its maximum size is configurable from
+        the dialog itself.
   \item \menu{Fit > Local Ollama AI: suggest start…}: if you have a
         local model, it proposes initial values from a summary of the spectrum.
 \end{itemize}

@@ -149,6 +149,15 @@ class SessionIOMixin:
                     f = state.get("fixed", {}).get(f"s{cp.idx}_{name}")
                     if f is not None:
                         ctl.set_fixed(bool(f))
+            # Casillas «Fijo» de calibración (antes solo se restauraban las de
+            # los componentes y la de σ; baseline/slope/sat_scale se perdían).
+            fixed_map_calib = state.get("fixed", {})
+            for name, ctl in (("baseline", self.calib.baseline),
+                              ("slope", self.calib.slope),
+                              ("sat_scale", self.calib.sat_scale)):
+                f = fixed_map_calib.get(name)
+                if f is not None:
+                    ctl.set_fixed(bool(f))
             self.calib.fit_velocity.setChecked(bool(state.get("fit_velocity", False)))
             self.calib.fit_center.setChecked(bool(state.get("fit_center", False)))
             # 'Ajustar σ' se controla ahora con la casilla 'Fijo' de σ.
@@ -213,6 +222,8 @@ class SessionIOMixin:
                     "dist_bmin": dp.bmin, "dist_bmax": dp.bmax,
                     "dist_nbins": dp.nbins, "dist_log_alpha": dp.log_alpha,
                     "dist_delta_slope": dp.delta_slope, "dist_quad_slope": dp.quad_slope,
+                    "dist_qmin": dp.qmin, "dist_qmax": dp.qmax,
+                    "dist_qbins": dp.qbins, "dist_log_alpha_q": dp.log_alpha_q,
                 }
                 for key, ctl in _num_ctls.items():
                     if key in state:

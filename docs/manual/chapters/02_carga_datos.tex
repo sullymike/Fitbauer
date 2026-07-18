@@ -73,6 +73,14 @@ relación señal/ruido y produce un único espectro simétrico. El punto clave e
   \item El control \param{Centro} del panel de calibración lo ajusta a mano: el
         espectro se \textbf{re-dobla en vivo} al cambiarlo.
   \item \menu{Ajuste > Buscar centro} lo refina por minimización.
+  \item La casilla \param{Ajustar folding point dentro del ajuste} lo incluye
+        como \textbf{parámetro libre del ajuste discreto}: en cada iteración el
+        espectro se re-dobla con el centro propuesto, se renormaliza y se
+        recalculan los pesos estadísticos; al terminar, el valor ajustado se
+        vuelca al control \param{Centro} y los datos quedan doblados con él.
+        Útil cuando el residuo muestra pares antisimétricos alrededor de las
+        líneas; conviene partir de un valor razonable y con pocos parámetros
+        libres.
 \end{itemize}
 
 \paragraph{Por qué se recortan los extremos.} Tras doblar, Fitbauer descarta

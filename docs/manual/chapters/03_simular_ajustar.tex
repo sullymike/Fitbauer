@@ -316,6 +316,12 @@ que vaya a publicar, sobre todo si el panel avisa de correlaciones altas.
         \emph{warm-start} (cada ajuste parte del anterior), ideal para series de
         temperatura o de tratamiento.
   \item \menu{Ajuste > Deshacer ajuste}: revierte al estado previo.
+  \item \menu{Ajuste > Historial de ajustes…}: tabla con los últimos ajustes
+        terminados (hora, fichero, modo, $\chi^2_r$ y componentes). Cada entrada
+        guarda una \textbf{instantánea completa de la sesión}, de modo que
+        \param{Restaurar} recupera aquel ajuste íntegro (datos, calibración,
+        modelo y opciones). El historial persiste entre sesiones y su tamaño
+        máximo es configurable desde el propio diálogo.
   \item \menu{Ajuste > IA local Ollama: sugerir inicio…}: si tiene un modelo
         local, propone valores iniciales a partir de un resumen del espectro.
 \end{itemize}

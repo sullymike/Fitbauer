@@ -257,6 +257,58 @@ def test_session_restore_refolds_at_saved_center(win, make_window):
     assert float(win2.file.center) == pytest.approx(saved_center)
 
 
+def test_session_payload_full_roundtrip(win, make_window):
+    """Guardar → cargar → guardar reproduce el model_state exactamente.
+
+    Regresión de completitud: cualquier ajuste de la GUI que se guarde pero no
+    se restaure (o viceversa) rompe esta igualdad. Cubre los huecos históricos:
+    casillas «Fijo» de baseline/slope/sat_scale y la malla 2D (qmin/qmax/qbins/α_q).
+    """
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    # Calibración: valores y casillas «Fijo» fuera de sus valores por defecto.
+    win.calib.baseline.set_value(0.98)
+    win.calib.baseline.set_fixed(True)
+    win.calib.slope.set_value(0.001)
+    win.calib.slope.set_fixed(True)
+    win.calib.set_absorber_model("thickness")
+    win.calib.sat_scale.set_value(2.5)
+    win.calib.sat_scale.set_fixed(False)
+    win.calib.fit_center.setChecked(True)
+    # Componente con valores propios.
+    cp = win.components_panels[0]
+    cp.params["bhf"].set_value(30.5)
+    cp.params["delta"].set_value(0.21)
+    cp.params["bhf"].set_fixed(True)
+    # Opciones avanzadas.
+    win.likelihood = "poisson"
+    win.robust_loss = "soft_l1"
+    win.propagate_calib = True
+    win.global_opt = True
+    win.multistart_n = 3
+    # Panel de distribución, incluida la malla 2D.
+    dp = win.dist_panel
+    dp.delta.set_value(0.2)
+    dp.delta.set_fixed(True)
+    dp.gamma.set_value(0.4)
+    dp.bmin.set_value(5.0)
+    dp.bmax.set_value(40.0)
+    dp.qmin.set_value(-0.8)
+    dp.qmax.set_value(0.9)
+    dp.qbins.set_value(15)
+    dp.log_alpha_q.set_value(-1.5)
+
+    payload1 = win._session_payload()
+    win2 = make_window()
+    win2._apply_session_payload(payload1)
+    payload2 = win2._session_payload()
+
+    ms1, ms2 = payload1["model_state"], payload2["model_state"]
+    assert set(ms1) == set(ms2)
+    diffs = {k: (ms1[k], ms2[k]) for k in ms1 if ms1[k] != ms2[k]}
+    assert diffs == {}
+    assert payload2.get("calibration") == payload1.get("calibration")
+
+
 def test_init_from_minima_proposes_sextet(win):
     """Init from minima sobre α-Fe propone un sextete con BHF razonable."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")

@@ -300,6 +300,11 @@ class DistributionViewState:
     delta_slope: float = 0.0
     quad_slope:  float = 0.0
     vbf_n_components: int = 2
+    # Malla del eje Y de la distribución 2D (antes no se persistían).
+    qmin:        float = _DSPEC["qmin"].default
+    qmax:        float = _DSPEC["qmax"].default
+    qbins:       int   = int(_DSPEC["qbins"].default)
+    log_alpha_q: float = _DSPEC["log_alpha_q"].default
     fixed: dict[str, bool] = field(default_factory=dict)
 
     @property
@@ -337,6 +342,10 @@ class DistributionViewState:
             delta_slope=_num("dist_delta_slope", d.delta_slope),
             quad_slope=_num("dist_quad_slope", d.quad_slope),
             vbf_n_components=int(_num("dist_vbf_n_components", d.vbf_n_components)),
+            qmin=_num("dist_qmin", d.qmin),
+            qmax=_num("dist_qmax", d.qmax),
+            qbins=int(_num("dist_qbins", d.qbins)),
+            log_alpha_q=_num("dist_log_alpha_q", d.log_alpha_q),
             fixed=dict(state.get("dist_fixed") or {}),
         )
 
@@ -363,6 +372,10 @@ class DistributionViewState:
             "dist_delta_slope": float(self.delta_slope),
             "dist_quad_slope": float(self.quad_slope),
             "dist_vbf_n_components": int(self.vbf_n_components),
+            "dist_qmin": float(self.qmin),
+            "dist_qmax": float(self.qmax),
+            "dist_qbins": int(self.qbins),
+            "dist_log_alpha_q": float(self.log_alpha_q),
             "dist_fixed": dict(self.fixed),
         }
 
