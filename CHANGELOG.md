@@ -1,5 +1,15 @@
 # Changelog
 
+## v4.16.1 — el centro ajustado vuelve a la GUI
+
+- **«Ajustar centro» no se reflejaba en la interfaz**: el motor de ajuste sí
+  optimizaba el folding point (corregido en v4.15.0), pero la GUI descartaba el
+  resultado — no volcaba el centro ajustado al widget de calibración ni re-doblaba
+  los datos con él, por lo que el usuario veía siempre el mismo valor. Ahora, tras
+  el ajuste discreto con «Ajustar centro» activo, el widget muestra el centro
+  ajustado y los datos se re-doblan con él (GUI y motor quedan coherentes).
+  Test de regresión en `tests/test_qt_app.py::test_fit_center_updates_widget_and_refolds`.
+
 ## v4.16.0 — renombrado del repositorio a Fitbauer (release acumulativa)
 
 > **Nota de release.** Ésta es la primera versión publicada en GitHub desde `v4.14.2`:

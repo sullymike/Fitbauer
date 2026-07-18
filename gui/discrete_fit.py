@@ -66,9 +66,15 @@ class DiscreteFitMixin:
             self.calib.vmax.set_value(result.values.get("vmax", calib_state.vmax))
         if state.fit_sigma:
             self.calib.voigt_sigma.set_value(result.values.get("voigt_sigma", calib_state.voigt_sigma))
+        if state.fit_center and "center" in result.values:
+            self.calib.center.set_value(result.values["center"])
         for cp in self.components_panels:
             cp.apply_values(result.values)
         self._building = False
+        # set_value no emite valueChanged (bloquea señales): re-dobla explícitamente
+        # los datos con el centro ajustado para que GUI y motor queden coherentes.
+        if state.fit_center and "center" in result.values and self.file.counts is not None:
+            self._on_center_value_changed(float(result.values["center"]))
         red = result.stats.get("red_chi2", float("nan"))
         chi2 = result.stats.get("chi2", float("nan"))
         import math

@@ -189,6 +189,33 @@ def test_load_file_then_fit_recovers_alpha_fe(win):
     assert abs(delta - (-0.1092)) < 0.05
 
 
+def test_fit_center_updates_widget_and_refolds(win):
+    """Con «Ajustar centro» activo, el centro ajustado vuelve al widget y re-dobla.
+
+    Regresión: el motor ajustaba el centro pero la GUI no volcaba el resultado
+    al widget ni re-doblaba los datos (el folding point «no cambiaba»).
+    """
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    auto_center = float(win.calib.center.value())
+    # Desplaza el centro medio canal y pide ajustarlo.
+    offset_center = auto_center + 0.5
+    win.calib.center.set_value(offset_center)
+    win._on_center_value_changed(offset_center)
+    win.calib.fit_center.setChecked(True)
+    cp = win.components_panels[0]
+    cp.params["delta"].set_value(-0.11)
+    cp.params["bhf"].set_value(33.0)
+    cp.params["gamma1"].set_value(0.28)
+    cp.params["depth"].set_value(0.013)
+    win.on_fit()
+    fitted_center = float(win.calib.center.value())
+    # El widget debe reflejar el centro ajustado (ya no el valor desplazado)…
+    assert fitted_center != pytest.approx(offset_center, abs=1e-9)
+    assert abs(fitted_center - auto_center) < 0.5
+    # …y los datos deben haberse re-doblado con ese centro.
+    assert float(win.file.center) == pytest.approx(fitted_center)
+
+
 def test_init_from_minima_proposes_sextet(win):
     """Init from minima sobre α-Fe propone un sextete con BHF razonable."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
