@@ -1,6 +1,13 @@
 # Changelog
 
-## v4.16.0 — renombrado del repositorio a Fitbauer
+## v4.16.0 — renombrado del repositorio a Fitbauer (release acumulativa)
+
+> **Nota de release.** Ésta es la primera versión publicada en GitHub desde `v4.14.2`:
+> las versiones intermedias `v4.14.3` y `v4.15.0` se documentaron en este CHANGELOG pero
+> nunca se tagearon/publicaron por separado. Por tanto, las notas de la release `v4.16.0`
+> agrupan **todo** lo hecho desde `v4.14.2`: el renombrado del repositorio (abajo), la
+> paridad completa GUI ↔ línea de comandos y la física unificada (ver [v4.15.0](#v4150--todos-los-ajustes-desde-línea-de-comandos-física-unificada-y-correcciones))
+> y el registro en los menús del sistema (ver [v4.14.3](#v4143--el-instalador-registra-fitbauer-en-los-menús-del-sistema)).
 
 El repositorio de GitHub se ha renombrado de `Mossbauer` a **`Fitbauer`**, alineándolo
 con el nombre del programa. Se actualizan todas las referencias codificadas al slug del
