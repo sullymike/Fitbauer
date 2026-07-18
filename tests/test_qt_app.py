@@ -366,6 +366,40 @@ def test_absorber_menu_syncs_panel_combo(win):
     assert not win.calib.sat_scale.isEnabled()
 
 
+def test_pbhf_fit_free_params_move_and_roundtrip(win, make_window):
+    """P(BHF): todo lo libre (δ, Γ, κδ, baseline) varía en el ajuste y se
+    recupera tras guardar/cargar la sesión (verificación E2E por modalidad)."""
+    win._show_distribution_dialog = lambda r: None
+    win._load_file(DATA / "sintetico_dist_bhf_gaussiana.adt")
+    win.mode_combo.setCurrentIndex(1)
+    dp = win.dist_panel
+    dp.nbins.set_value(24)
+    dp.delta.set_value(0.15)
+    dp.gamma.set_value(0.55)
+    dp.delta_slope.set_fixed(False)          # κδ libre
+    win.calib.baseline.set_value(0.99)
+
+    def _snap(w):
+        return {
+            "baseline": float(w.calib.baseline.value()),
+            "dist_delta": float(w.dist_panel.delta.value()),
+            "dist_gamma": float(w.dist_panel.gamma.value()),
+            "dist_delta_slope": float(w.dist_panel.delta_slope.value()),
+        }
+
+    before = _snap(win)
+    win.on_fit()
+    after = _snap(win)
+    for k, v0 in before.items():
+        assert abs(after[k] - v0) > 1e-4, f"{k} no varió pese a estar libre"
+    payload = win._session_payload()
+    win2 = make_window()
+    win2._apply_session_payload(payload)
+    rec = _snap(win2)
+    for k in after:
+        assert rec[k] == pytest.approx(after[k], abs=5e-4), f"{k} no recuperado"
+
+
 def test_init_from_minima_proposes_physical_gamma(win):
     """Regresión: el estimador CWT proponía Γ ~3× demasiado grande (0.75 en
     α-Fe frente al real ≈0.28) por no calibrar escala Ricker → FWHM."""
