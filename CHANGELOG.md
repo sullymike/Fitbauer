@@ -1,5 +1,26 @@
 # Changelog
 
+## v4.16.2 — auditoría: todo lo ajustable se vuelca a la GUI
+
+Auditoría sistemática del camino widget → estado → motor → resultado → widget para
+todos los parámetros ajustables (calibración, componentes, distribución, sesiones).
+Dos huecos encontrados y corregidos (mismo patrón que el del centro en v4.16.1):
+
+- **`sat_scale` no se volcaba tras el ajuste**: con absorbente grueso y la casilla
+  «Fijo» desmarcada, el motor ajustaba la escala de saturación pero `on_fit` no
+  escribía el valor ajustado en el widget de calibración. Ahora sí.
+- **Cargar sesión / deshacer ajuste no re-doblaba con el centro guardado**: la
+  restauración doblaba los datos con el centro auto-detectado y luego ponía el
+  centro de la sesión solo en el widget — datos y widget quedaban incoherentes
+  (relevante tras guardar una sesión con centro ajustado). Ahora, si el centro de
+  la sesión difiere del auto-detectado, se re-dobla con él.
+
+Verificado además (sin cambios): baseline, slope, vmax («Ajustar velocidad», con
+recálculo del eje), σ-Voigt («Ajustar σ»), parámetros de componentes y targets de
+restricciones en modo discreto; y en modo distribución δ/ΔEQ/Γ, pendientes de
+correlación, parámetros de nítidos y pesos, respetando las casillas «Fijo».
+Tests de regresión nuevos en `tests/test_qt_app.py`.
+
 ## v4.16.1 — el centro ajustado vuelve a la GUI
 
 - **«Ajustar centro» no se reflejaba en la interfaz**: el motor de ajuste sí

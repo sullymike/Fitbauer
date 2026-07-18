@@ -274,6 +274,13 @@ class SessionIOMixin:
                 self.dist_panel.use_sharp.setChecked(bool(self.dist_use_sharp))
         finally:
             self._building = False
+        # Los datos se doblaron con el centro auto-detectado; si la sesión trae
+        # otro folding point (p. ej. ajustado con «Ajustar centro»), re-dobla con
+        # él para que datos y widget queden coherentes.
+        saved_center = float(self.calib.center.value())
+        if (self.file.counts is not None and self.file.center is not None
+                and abs(saved_center - float(self.file.center)) > 1e-9):
+            self._refold_current_data(saved_center)
         self._simulate_enabled = True
         self._refresh_plot()
 

@@ -216,6 +216,47 @@ def test_fit_center_updates_widget_and_refolds(win):
     assert float(win.file.center) == pytest.approx(fitted_center)
 
 
+def test_fit_sat_scale_updates_widget(win):
+    """Con absorbente grueso y sat_scale libre, el valor ajustado vuelve al widget.
+
+    Regresión: el motor ajustaba sat_scale pero on_fit no lo volcaba a la GUI.
+    """
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.calib.set_absorber_model("thickness")
+    win.calib.sat_scale.set_fixed(False)
+    win.calib.sat_scale.set_value(0.5)
+    cp = win.components_panels[0]
+    cp.params["delta"].set_value(-0.11)
+    cp.params["bhf"].set_value(33.0)
+    cp.params["gamma1"].set_value(0.28)
+    cp.params["depth"].set_value(0.013)
+    win.on_fit()
+    result = win.runtime_results.fit_result
+    assert "sat_scale" in result.free_keys
+    # El spinbox redondea a sus decimales; basta con que refleje el ajustado.
+    assert float(win.calib.sat_scale.value()) == pytest.approx(
+        float(result.values["sat_scale"]), abs=1e-2)
+    assert float(win.calib.sat_scale.value()) != pytest.approx(0.5, abs=1e-2)
+
+
+def test_session_restore_refolds_at_saved_center(win, make_window):
+    """Cargar una sesión con folding point propio re-dobla los datos con él.
+
+    Regresión: la restauración doblaba con el centro auto-detectado y luego
+    ponía el centro guardado solo en el widget (datos y widget incoherentes).
+    """
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    auto_center = float(win.calib.center.value())
+    saved_center = auto_center + 0.5
+    win.calib.center.set_value(saved_center)
+    win._on_center_value_changed(saved_center)
+    payload = win._session_payload()
+    win2 = make_window()
+    win2._apply_session_payload(payload)
+    assert float(win2.calib.center.value()) == pytest.approx(saved_center)
+    assert float(win2.file.center) == pytest.approx(saved_center)
+
+
 def test_init_from_minima_proposes_sextet(win):
     """Init from minima sobre α-Fe propone un sextete con BHF razonable."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")

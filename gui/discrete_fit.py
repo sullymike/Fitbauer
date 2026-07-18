@@ -66,6 +66,8 @@ class DiscreteFitMixin:
             self.calib.vmax.set_value(result.values.get("vmax", calib_state.vmax))
         if state.fit_sigma:
             self.calib.voigt_sigma.set_value(result.values.get("voigt_sigma", calib_state.voigt_sigma))
+        if "sat_scale" in result.free_keys:
+            self.calib.sat_scale.set_value(result.values.get("sat_scale", calib_state.sat_scale))
         if state.fit_center and "center" in result.values:
             self.calib.center.set_value(result.values["center"])
         for cp in self.components_panels:
