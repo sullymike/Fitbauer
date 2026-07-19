@@ -114,7 +114,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--alpha-max", type=float, default=1e2)
     parser.add_argument("--alpha-count", type=int, default=33)
     parser.add_argument("--plot", action="store_true", help="Guarda PNG con espectro y P(BHF)")
-    return parser.parse_args()
+    args = parser.parse_args()
+    # Validación temprana: antes se detectaba tras completar el ajuste y
+    # escribir 2 de los 3 ficheros de salida (cómputo perdido, salida parcial).
+    if args.scan_alpha and args.shape != "histograma":
+        parser.error("--scan-alpha solo aplica a --shape histograma "
+                     "(las formas paramétricas no usan alpha).")
+    if args.scan_alpha and args.dist_2d:
+        parser.error("--scan-alpha no aplica en modo --dist-2d.")
+    return args
 
 
 def save_dat(path: Path, header: str, data: np.ndarray) -> None:
@@ -231,6 +239,9 @@ def run_fit_2d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
 
 def run_fit_1d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
     """Enruta el ajuste 1D según --shape al motor moderno."""
+    # --no-fit-baseline/--no-fit-slope aplican a TODAS las formas: antes solo
+    # el histograma los recibía y en vbf/gaussiana/binomial se ignoraban en
+    # silencio (el baseline se ajustaba libre aunque el usuario lo fijara).
     common = dict(
         variable=args.variable,
         delta=delta,
@@ -239,13 +250,13 @@ def run_fit_1d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
         gamma=gamma,
         pmin=bmin, pmax=bmax, nbins=args.nbins,
         baseline=args.baseline, slope=args.slope,
+        fit_baseline=not args.no_fit_baseline,
+        fit_slope=not args.no_fit_slope,
         sharp_components=sharp_components,
     )
     if args.shape == "histograma":
         return fit_hyperfine_distribution(
             v, y, alpha=args.alpha,
-            fit_baseline=not args.no_fit_baseline,
-            fit_slope=not args.no_fit_slope,
             reg_mode=args.reg_mode,
             profile=args.profile, voigt_sigma=args.voigt_sigma,
             delta_slope=args.delta_slope, quad_slope=args.quad_slope,
@@ -261,13 +272,16 @@ def run_fit_1d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
             shape="Gaussiana" if gaussian else "VBF",
             **common)
     if args.shape == "binomial":
-        return fit_binomial_hyperfine_distribution(v, y, **common)
+        return fit_binomial_hyperfine_distribution(
+            v, y, profile=args.profile, voigt_sigma=args.voigt_sigma, **common)
     raise ValueError(f"forma no reconocida: {args.shape}")
 
 
 def main() -> None:
     args = parse_args()
     in_path = args.input
+    if not in_path.exists():
+        raise SystemExit(f"FAIL  {in_path}: fichero de espectro no encontrado")
     out_prefix = args.out_prefix or in_path.with_suffix("")
     out_prefix = Path(str(out_prefix) + "_bhf") if args.out_prefix is None else out_prefix
 
@@ -362,9 +376,6 @@ def main() -> None:
         summary["vbf_components"] = [list(c) for c in result.vbf_components]
 
     if args.scan_alpha:
-        if args.shape != "histograma":
-            raise SystemExit("--scan-alpha solo aplica a --shape histograma "
-                             "(las formas paramétricas no usan alpha).")
         alphas = np.logspace(np.log10(args.alpha_min), np.log10(args.alpha_max), args.alpha_count)
         scans = [run_fit_1d_alpha(args, v, y, delta=delta, quad=quad, gamma=gamma,
                                   bmin=bmin, bmax=bmax,

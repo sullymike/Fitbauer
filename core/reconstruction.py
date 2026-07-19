@@ -154,8 +154,28 @@ def sharp_component_params(component: Mapping[str, Any], weight: float | None = 
     ``component`` usa el formato simple producido por la capa GUI/headless de
     distribución: ``gamma`` e intensidades relativas. Si ``weight`` se indica,
     sustituye la profundidad ajustada.
+
+    En los tipos magnéticos de 6 líneas, las intensidades con claves
+    ``int2_rel``/``int3_rel`` vienen en la convención relativa del engine de
+    distribución (``int2_rel=1`` → I2=(2/3)·I1, líneas [I1, (2/3)·I1·r2,
+    (1/3)·I1·r3]) y aquí se traducen a la convención core de
+    ``component_absorption`` (líneas [I3·I1, I3·I2, I3]); copiarlas tal cual
+    producía un patrón de líneas distinto del ajustado. Para Singlete/Doblete
+    ambas convenciones coinciden y no hay traducción.
     """
     depth = float(component.get("depth", 0.0) if weight is None else weight)
+    kind = str(component.get("kind", "Sextete"))
+    magnetic = kind in ("Sextete", "Relajacion", "BlumeTjon", "NeelSize")
+    int1 = float(component.get("int1", 1.0))
+    if magnetic and ("int2_rel" in component or "int3_rel" in component):
+        i2r = float(component.get("int2_rel", 1.0))
+        i3r = max(float(component.get("int3_rel", 1.0)), 1e-6)
+        int3 = int1 * i3r / 3.0
+        int2 = 2.0 * i2r / i3r
+        int1 = 3.0 / i3r
+    else:
+        int2 = float(component.get("int2", 1.0))
+        int3 = float(component.get("int3", 1.0))
     values = {
         "delta": float(component.get("delta", 0.0)),
         "quad": float(component.get("quad", 0.0)),
@@ -164,9 +184,9 @@ def sharp_component_params(component: Mapping[str, Any], weight: float | None = 
         "gamma2": float(component.get("gamma2_rel", component.get("gamma2", 1.0))),
         "gamma3": float(component.get("gamma3_rel", component.get("gamma3", 1.0))),
         "depth": depth,
-        "int1": float(component.get("int1", 1.0)),
-        "int2": float(component.get("int2_rel", component.get("int2", 1.0))),
-        "int3": float(component.get("int3_rel", component.get("int3", 1.0))),
+        "int1": int1,
+        "int2": int2,
+        "int3": int3,
     }
     return np.array([values[name] for name in SEXTET_PARAM_NAMES], dtype=float)
 

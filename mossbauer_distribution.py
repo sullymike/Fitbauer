@@ -1473,6 +1473,8 @@ def fit_vbf_hyperfine_distribution(
     nbins: int = 80,
     baseline: float | None = None,
     slope: float | None = None,
+    fit_baseline: bool = True,
+    fit_slope: bool = True,
     sharp_components: list[dict[str, float]] | None = None,
     delta_slope: float = 0.0,
     quad_slope: float = 0.0,
@@ -1512,11 +1514,30 @@ def fit_vbf_hyperfine_distribution(
     def gauss_weights(center: float, sigma: float) -> np.ndarray:
         sigma = max(float(sigma), 1e-6)
         w = np.exp(-0.5 * ((centers - center) / sigma) ** 2)
+        if w.size and float(np.max(w)) <= 0.0:
+            # σ ≪ paso de malla con μ entre nodos: la gaussiana discretizada
+            # subdesborda a cero y el componente desaparecería con jacobiano
+            # nulo; se colapsa al nodo más próximo (delta discreta).
+            w = np.zeros_like(w)
+            w[int(np.argmin(np.abs(centers - center)))] = 1.0
         area = np.trapezoid(w, centers) if w.size > 1 else w[0]
         return w / max(float(area), 1e-12)
 
+    # baseline/slope entran en el vector solo si son libres; si están fijos se
+    # usan como constantes (antes se ajustaban siempre, ignorando el fijado).
+    n_lin = int(fit_baseline) + int(fit_slope)
+
+    def lin_part(x: np.ndarray) -> tuple[float, float]:
+        i = 0
+        if fit_baseline:
+            b0 = float(x[0]); i = 1
+        else:
+            b0 = float(baseline)
+        sl = float(x[i]) if fit_slope else float(slope)
+        return b0, sl
+
     def comp_view(x: np.ndarray) -> np.ndarray:
-        return np.asarray(x[2:2 + 3 * N]).reshape(N, 3)
+        return np.asarray(x[n_lin:n_lin + 3 * N]).reshape(N, 3)
 
     def total_w(comp: np.ndarray) -> np.ndarray:
         w = np.zeros(centers.size, dtype=float)
@@ -1525,20 +1546,22 @@ def fit_vbf_hyperfine_distribution(
         return w
 
     def residual(x: np.ndarray) -> np.ndarray:
-        b0, sl = x[0], x[1]
+        b0, sl = lin_part(x)
         w = total_w(comp_view(x))
         r = b0 + sl * v - K @ w - fixed_sharp_abs - y
         if K_sharp is not None and n_sharp:
-            r = r - K_sharp @ np.maximum(x[2 + 3 * N:2 + 3 * N + n_sharp], 0.0)
+            r = r - K_sharp @ np.maximum(x[n_lin + 3 * N:n_lin + 3 * N + n_sharp], 0.0)
         return r
 
     log_sig_lo, log_sig_hi = np.log(1e-3), np.log(rng)
     sig0 = max(rng / (3.0 * N), 1e-3)
     mus0 = (np.linspace(float(pmin) + rng / (N + 1), float(pmax) - rng / (N + 1), N)
             if N > 1 else np.array([0.5 * (float(pmin) + float(pmax))]))
-    lo = [0.0, -np.inf]
-    hi = [np.inf, np.inf]
-    x0 = [float(baseline), float(slope)]
+    lo, hi, x0 = [], [], []
+    if fit_baseline:
+        lo.append(0.0); hi.append(np.inf); x0.append(float(baseline))
+    if fit_slope:
+        lo.append(-np.inf); hi.append(np.inf); x0.append(float(slope))
     for mu in mus0:
         lo += [0.0, float(pmin), log_sig_lo]
         hi += [np.inf, float(pmax), log_sig_hi]
@@ -1552,9 +1575,10 @@ def fit_vbf_hyperfine_distribution(
 
     comp = comp_view(res.x)
     w = total_w(comp)
-    sharp_weights_free = np.maximum(res.x[2 + 3 * N:2 + 3 * N + n_sharp], 0.0) if n_sharp else None
+    b0_fit, sl_fit = lin_part(res.x)
+    sharp_weights_free = np.maximum(res.x[n_lin + 3 * N:n_lin + 3 * N + n_sharp], 0.0) if n_sharp else None
     sharp_weights_arr = merge_sharp_weights(sharp_weights_free, sharp_fixed_mask, fixed_sharp_weights)
-    fitted = float(res.x[0]) + float(res.x[1]) * v - K @ w - fixed_sharp_abs
+    fitted = b0_fit + sl_fit * v - K @ w - fixed_sharp_abs
     if K_sharp is not None and sharp_weights_free is not None:
         fitted = fitted - K_sharp @ sharp_weights_free
     residuals = y - fitted
@@ -1576,8 +1600,8 @@ def fit_vbf_hyperfine_distribution(
         probability=normalize_probability(w, centers),
         fitted_curve=fitted,
         residuals=residuals,
-        baseline=float(res.x[0]),
-        slope=float(res.x[1]),
+        baseline=b0_fit,
+        slope=sl_fit,
         alpha=0.0,
         rms=float(np.sqrt(np.mean(residuals**2))),
         success=bool(res.success),
@@ -1608,6 +1632,10 @@ def fit_binomial_hyperfine_distribution(
     nbins: int = 30,
     baseline: float | None = None,
     slope: float | None = None,
+    fit_baseline: bool = True,
+    fit_slope: bool = True,
+    profile: str = "Lorentz",
+    voigt_sigma: float = 0.05,
     sharp_components: list[dict[str, float]] | None = None,
 ) -> BhfDistributionFit:
     """Ajuste paramétrico sencillo de una distribución binomial sobre la malla.
@@ -1618,9 +1646,12 @@ def fit_binomial_hyperfine_distribution(
     from scipy.special import gammaln
     v = _finite_1d("v", v); y = _finite_1d("y", y)
     centers = parameter_grid(pmin, pmax, nbins)
-    K = build_hyperfine_distribution_kernel(v, centers, variable=variable, delta=delta, quad=quad, bhf=bhf, gamma=gamma)
-    K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
-        v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
+    # Perfil de línea explícito: sin este contexto el kernel heredaba el estado
+    # global que hubiera dejado el último ajuste (p. ej. Voigt de un discreto).
+    with line_profile(profile, voigt_sigma):
+        K = build_hyperfine_distribution_kernel(v, centers, variable=variable, delta=delta, quad=quad, bhf=bhf, gamma=gamma)
+        K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
+            v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
     n_sharp = K_sharp.shape[1] if K_sharp is not None else 0
     if baseline is None:
         baseline = float(np.percentile(y, 90))
@@ -1638,24 +1669,44 @@ def fit_binomial_hyperfine_distribution(
         area = np.trapezoid(w, centers) if w.size > 1 else w[0]
         return w / max(float(area), 1e-12)
 
+    # baseline/slope entran en el vector solo si son libres; si están fijos se
+    # usan como constantes (antes se ajustaban siempre, ignorando el fijado).
+    n_lin = int(fit_baseline) + int(fit_slope)
+
+    def lin_part(x: np.ndarray) -> tuple[float, float]:
+        i = 0
+        if fit_baseline:
+            b0 = float(x[0]); i = 1
+        else:
+            b0 = float(baseline)
+        sl = float(x[i]) if fit_slope else float(slope)
+        return b0, sl
+
     def residual(x: np.ndarray) -> np.ndarray:
-        b0, sl, amp, logit_p = x[:4]
+        b0, sl = lin_part(x)
+        amp, logit_p = x[n_lin], x[n_lin + 1]
         pval = 1.0 / (1.0 + np.exp(-logit_p))
         w = amp * binom_weights(pval)
         r = b0 + sl * v - K @ w - fixed_sharp_abs - y
         if K_sharp is not None and n_sharp:
-            sharp_amps = np.maximum(x[4:4 + n_sharp], 0.0)
+            sharp_amps = np.maximum(x[n_lin + 2:n_lin + 2 + n_sharp], 0.0)
             r = r - K_sharp @ sharp_amps
         return r
 
-    x0 = np.array([baseline, slope, amp0, 0.0] + [amp0 / max(n_sharp, 1)] * n_sharp)
-    lo = np.array([0.0, -np.inf, 0.0, -12.0] + [0.0] * n_sharp)
-    hi = np.array([np.inf, np.inf, np.inf, 12.0] + [np.inf] * n_sharp)
+    x0_lin, lo_lin, hi_lin = [], [], []
+    if fit_baseline:
+        x0_lin.append(float(baseline)); lo_lin.append(0.0); hi_lin.append(np.inf)
+    if fit_slope:
+        x0_lin.append(float(slope)); lo_lin.append(-np.inf); hi_lin.append(np.inf)
+    x0 = np.array(x0_lin + [amp0, 0.0] + [amp0 / max(n_sharp, 1)] * n_sharp)
+    lo = np.array(lo_lin + [0.0, -12.0] + [0.0] * n_sharp)
+    hi = np.array(hi_lin + [np.inf, 12.0] + [np.inf] * n_sharp)
     res = least_squares(residual, x0, bounds=(lo, hi), max_nfev=2000)
-    b0, sl, amp, logit_p = res.x[:4]
+    b0, sl = lin_part(res.x)
+    amp, logit_p = res.x[n_lin], res.x[n_lin + 1]
     pval = 1.0 / (1.0 + np.exp(-logit_p))
     w = float(amp) * binom_weights(float(pval))
-    sharp_weights_free = np.maximum(res.x[4:4 + n_sharp], 0.0) if n_sharp else None
+    sharp_weights_free = np.maximum(res.x[n_lin + 2:n_lin + 2 + n_sharp], 0.0) if n_sharp else None
     sharp_weights_arr = merge_sharp_weights(sharp_weights_free, sharp_fixed_mask, fixed_sharp_weights)
     fitted = float(b0) + float(sl) * v - K @ w - fixed_sharp_abs
     if K_sharp is not None and sharp_weights_free is not None:
@@ -1693,6 +1744,10 @@ def fit_fixed_hyperfine_distribution(
     gamma: float = 0.18,
     baseline: float | None = None,
     slope: float | None = None,
+    fit_baseline: bool = True,
+    fit_slope: bool = True,
+    profile: str = "Lorentz",
+    voigt_sigma: float = 0.05,
     sharp_components: list[dict[str, float]] | None = None,
 ) -> BhfDistributionFit:
     """Ajusta amplitud de una distribución fija dada por centros y pesos.
@@ -1704,34 +1759,57 @@ def fit_fixed_hyperfine_distribution(
     fixed_weights = _finite_1d("fixed_weights", fixed_weights)
     if centers.size != fixed_weights.size:
         raise ValueError("centers y fixed_weights deben tener la misma longitud")
-    K = build_hyperfine_distribution_kernel(v, centers, variable=variable, delta=delta, quad=quad, bhf=bhf, gamma=gamma)
-    K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
-        v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
+    # Perfil de línea explícito: sin este contexto el kernel heredaba el estado
+    # global que hubiera dejado el último ajuste (p. ej. Voigt de un discreto).
+    with line_profile(profile, voigt_sigma):
+        K = build_hyperfine_distribution_kernel(v, centers, variable=variable, delta=delta, quad=quad, bhf=bhf, gamma=gamma)
+        K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
+            v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
     n_sharp = K_sharp.shape[1] if K_sharp is not None else 0
     w0 = np.maximum(fixed_weights, 0.0)
     if not np.any(w0 > 0):
         raise ValueError("La distribución fija no contiene pesos positivos")
     area = np.trapezoid(w0, centers) if w0.size > 1 else w0[0]
     shape = w0 / max(float(area), 1e-12)
-    profile = K @ shape
+    profile_dist = K @ shape
     if baseline is None:
         baseline = float(np.percentile(y, 90))
     if slope is None:
         slope = 0.0
-    # Columnas: [ones, v, -profile_dist, -sharp_0_libre, -sharp_1_libre, ...]
-    # Los nítidos fijos se restan como absorción conocida en el modelo.
-    cols = [np.ones_like(v), v, -profile]
-    lo = [0.0, -np.inf, 0.0]
-    hi = [np.inf, np.inf, np.inf]
+    # Columnas: [ones?, v?, -profile_dist, -sharp_0_libre, -sharp_1_libre, ...]
+    # baseline/slope solo entran como columnas si son libres; fijos se restan
+    # del término independiente. Los nítidos fijos se restan como absorción
+    # conocida en el modelo.
+    cols, lo, hi = [], [], []
+    rhs = y + fixed_sharp_abs
+    if fit_baseline:
+        cols.append(np.ones_like(v)); lo.append(0.0); hi.append(np.inf)
+    else:
+        rhs = rhs - float(baseline)
+    if fit_slope:
+        cols.append(v); lo.append(-np.inf); hi.append(np.inf)
+    else:
+        rhs = rhs - float(slope) * v
+    n_lin = len(cols)
+    cols.append(-profile_dist); lo.append(0.0); hi.append(np.inf)
     if K_sharp is not None:
         for j in range(n_sharp):
             cols.append(-K_sharp[:, j])
             lo.append(0.0)
             hi.append(np.inf)
     X = np.column_stack(cols)
-    result = lsq_linear(X, y + fixed_sharp_abs, bounds=(lo, hi), lsmr_tol="auto")
-    b0, sl, amp = result.x[:3]
-    sharp_weights_free = np.maximum(result.x[3:3 + n_sharp], 0.0) if n_sharp else None
+    result = lsq_linear(X, rhs, bounds=(lo, hi), lsmr_tol="auto")
+    i = 0
+    if fit_baseline:
+        b0 = result.x[0]; i = 1
+    else:
+        b0 = float(baseline)
+    if fit_slope:
+        sl = result.x[i]
+    else:
+        sl = float(slope)
+    amp = result.x[n_lin]
+    sharp_weights_free = np.maximum(result.x[n_lin + 1:n_lin + 1 + n_sharp], 0.0) if n_sharp else None
     sharp_weights_arr = merge_sharp_weights(sharp_weights_free, sharp_fixed_mask, fixed_sharp_weights)
     weights = float(amp) * shape
     fitted = float(b0) + float(sl) * v - K @ weights - fixed_sharp_abs

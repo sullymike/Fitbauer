@@ -55,8 +55,14 @@ def load_velocity_csv(path: str | Path) -> dict:
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
-        # Sustituir comas y tabuladores por espacio para facilitar el split.
-        parts = re.split(r"[,\t\s]+", stripped)
+        # Separar por tabulador/;/espacios; una coma dentro de un campo sin
+        # punto es decimal de locale europeo (es_ES) y se convierte a punto.
+        # Si así no salen ≥2 campos, la coma actúa de separador de columnas.
+        parts = [p.strip(",") for p in re.split(r"[;\t\s]+", stripped) if p.strip(",")]
+        if len(parts) >= 2:
+            parts = [p.replace(",", ".") if ("," in p and "." not in p) else p for p in parts]
+        else:
+            parts = re.split(r"[,\t\s]+", stripped)
         if len(parts) < 2:
             continue
         try:
@@ -130,7 +136,18 @@ def read_ws5_counts(path: Path) -> np.ndarray:
     """
     text = path.read_text(encoding="utf-8", errors="replace")
     m = re.search(r"<data[^>]*>(.*?)</data>", text, re.S | re.I)
-    source = m.group(1) if m else text
+    if m:
+        source = m.group(1)
+    else:
+        m_open = re.search(r"<data[^>]*>", text, re.I)
+        if m_open:
+            # WS5 truncado (descarga parcial, sin </data>): usar lo que sigue
+            # al bloque abierto en vez de tragar números de la cabecera XML.
+            source = text[m_open.end():]
+        elif re.search(r"<\?xml|<ws5|<spectrum", text, re.I):
+            raise ValueError(f"Fichero WS5 sin bloque <data> legible: {path}")
+        else:
+            source = text
     counts = np.array([float(x) for x in re.findall(r"[-+]?\d+(?:\.\d+)?", source)])
     if counts.size < 2:
         raise ValueError(f"No se encontraron cuentas suficientes en {path}")
@@ -170,8 +187,21 @@ def read_normos_plt_velocity(path: Path) -> float | None:
     if not plt.exists():
         return None
     text = plt.read_text(encoding="utf-8", errors="replace")
-    nums = [float(x.replace("D", "E").replace("d", "E")) for x in re.findall(_number_re(), text)]
-    # El primer número suele venir de la cabecera "2d"; después hay bloques de 256.
+    # Solo cuentan las líneas puramente numéricas: la línea 2 es el título del
+    # espectro y puede contener dígitos ("Fe3O4", "T=300K", "Fc211025") que
+    # antes se colaban como velocidades y disparaban vmax.
+    nums: list[float] = []
+    for line in text.splitlines():
+        tokens = line.split()
+        if not tokens:
+            continue
+        try:
+            vals = [float(t.replace("D", "E").replace("d", "e")) for t in tokens]
+        except ValueError:
+            continue
+        nums.extend(vals)
+    # Cabecera residual de un solo número (p. ej. "2" de "2d") antes de los
+    # bloques de 256.
     if len(nums) % 256 == 1:
         nums = nums[1:]
     if len(nums) >= 256:
@@ -219,6 +249,10 @@ def read_normos_sidecar_params(path: Path) -> dict[str, float]:
     return params
 
 
+#: Canales de borde recortados tras el folding (y excluidos del chi² de centro).
+EDGE_TRIM_DEFAULT = 1
+
+
 def interp_channel_1based(counts: np.ndarray, channel: float) -> float:
     """Interpolación lineal C(channel) con canales 1..N; extrapola en bordes.
 
@@ -260,17 +294,38 @@ def fold_integer_or_half(counts: np.ndarray, center: float) -> tuple[np.ndarray,
 
 
 def chi2_for_center(counts: np.ndarray, center: float) -> tuple[float, int]:
-    folded, pairs = fold_integer_or_half(counts, center)
+    """Chi² de simetría por pares para un centro candidato.
+
+    Usa la MISMA interpolación subcanal que el folding (no ``round``, que con
+    centros semienteros generaba pares duplicados o autocomparados) y devuelve
+    el número de pares realmente evaluados: los que caen fuera de rango se
+    saltan y NO deben contar en la normalización, o los candidatos junto al
+    borde de la ventana quedan artificialmente favorecidos.
+
+    Los ``EDGE_TRIM_DEFAULT`` canales extremos se excluyen SIEMPRE de la
+    comparación, igual que el folding los recorta: un canal de borde anómalo
+    (p. ej. canal 1 muerto, habitual en ADT reales) entra solo en parte de los
+    candidatos y desplazaba el centro detectado hasta ±2 canales.
+    """
+    n = counts.size
+    lo_ch = 1.0 + EDGE_TRIM_DEFAULT
+    hi_ch = float(n - EDGE_TRIM_DEFAULT)
     chi2 = 0.0
-    for left, right in pairs:
-        if not (1 <= left <= counts.size and 1 <= right <= counts.size):
+    n_valid = 0
+    for j in range(n // 2):
+        distance = j + 0.5
+        left = center - distance
+        right = center + distance
+        if left < lo_ch or right > hi_ch:
             continue
-        d = counts[left - 1] - counts[right - 1]
+        d = interp_channel_1based(counts, left) - interp_channel_1based(counts, right)
         chi2 += d * d
-    return chi2, len(pairs)
+        n_valid += 1
+    return chi2, n_valid
 
 
-def find_best_integer_or_half_center(counts: np.ndarray, cmin: float = 250.5, cmax: float = 262.5) -> float:
+def find_best_integer_or_half_center(counts: np.ndarray, cmin: float | None = None,
+                                     cmax: float | None = None) -> float:
     """Busca el folding point con interpolación subcanal.
 
     Normos no se queda en canales enteros/semienteros: primero localiza el
@@ -278,7 +333,16 @@ def find_best_integer_or_half_center(counts: np.ndarray, cmin: float = 250.5, cm
     GUI usa el centro de simetría (≈255.77 para un "upper folding point" Normos
     ≈511.55 en 512 canales), por eso el número Normos es aproximadamente el
     doble del mostrado aquí.
+
+    Sin ``cmin``/``cmax`` la ventana es ``N/2 ± 20`` canales: depende del número
+    real de canales (el antiguo default 250.5–262.5 solo valía para 512 y daba
+    centros absurdos con 256 o 1024 canales).
     """
+    half = 0.5 * counts.size
+    if cmin is None:
+        cmin = max(1.5, half - 20.0)
+    if cmax is None:
+        cmax = min(counts.size - 0.5, half + 20.0)
     candidates = np.arange(cmin, cmax + 1e-9, 0.5)
     values: list[tuple[float, float]] = []
     for center in candidates:
@@ -304,8 +368,6 @@ def find_best_integer_or_half_center(counts: np.ndarray, cmin: float = 250.5, cm
 # ── Doblado + normalización + eje de velocidad (compartido GUI/headless) ──────
 # Fuente única usada por la GUI Qt y por core.session (controlador headless),
 # para que ambos doblen, normalicen y construyan el eje exactamente igual.
-
-EDGE_TRIM_DEFAULT = 1
 
 
 def fold_and_normalize(counts: np.ndarray, center: float,

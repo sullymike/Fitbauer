@@ -1,5 +1,105 @@
 # Changelog
 
+## v4.17.2 — caza de bugs multi-agente II: E/S y folding, distribución, sesiones y CLIs
+
+Segunda auditoría con cuatro revisores independientes (E/S+folding,
+distribución, sesiones/estado, CLIs+i18n) y verificación manual de cada
+hallazgo con scripts de reproducción. Corregidos 21 fallos + 1 refuerzo.
+
+### E/S de datos y folding (`core/folding.py`, `mossbauer_ws5.py`)
+
+- **La búsqueda del centro de doblado usaba una ventana fija 250.5–262.5**
+  (válida solo para 512 canales) en la GUI y en `folded_velocity_data`: con
+  256 o 1024 canales el centro detectado era absurdo (256.25 / 255.39) y el
+  espectro se doblaba mal. El default ahora deriva de N (N/2 ± 20, como ya
+  hacía `core.session`).
+- **`chi2_for_center` deflactaba el χ² de los candidatos junto al borde**:
+  saltaba los pares fuera de rango pero normalizaba por el total. En modo seno
+  con absorción débil (≤1 %) el centro se iba hasta 50 canales; ahora se
+  normaliza por los pares realmente evaluados y el centro se recupera.
+- **El χ² de simetría usaba `round` en vez de la interpolación del folding** y
+  no excluía los canales de borde: un canal 1 muerto (habitual en ADT reales)
+  sesgaba el centro ±0.4 canales — con la normalización nueva, hasta +1.8. El
+  χ² ahora interpola igual que el fold y excluye `EDGE_TRIM_DEFAULT` canales
+  extremos; el sesgo queda < 0.01 canales. *(Recalibrados los golden del CLI:
+  el centro se mueve ≤ 0.16 canales; δ/BHF/ΔEQ no cambian a 1e-4.)*
+- **`read_normos_plt_velocity` se envenenaba con títulos con dígitos**
+  (`Fe3O4`, `T=300K`, `Fc211025` → vmax = 211025 mm/s sin error): ahora solo
+  cuentan las líneas puramente numéricas del .PLT.
+- **`load_velocity_csv` corrompía en silencio CSV con decimales de coma**
+  (locale es_ES): la coma dentro de campo sin punto se interpreta ahora como
+  separador decimal; la coma entre columnas sigue funcionando.
+- **`folded_velocity_data` (CLIs de distribución) no recortaba bordes**: el
+  canal muerto de un ADT real entraba como línea de absorción falsa del 8.5 %.
+  Ahora aplica el mismo `edge_trim=1` y eje que GUI/sesión.
+- **Un WS5 truncado (sin `</data>`) anteponía números de la cabecera XML**
+  como cuentas (espectro desplazado en silencio): ahora se usa el contenido
+  tras `<data>` y un XML sin bloque legible da error claro.
+
+### Distribución (`mossbauer_distribution.py`, `gui/distribution_fit.py`, `core/`)
+
+- **Los nítidos Relajación/Blume-Tjon/Néel se ajustaban con un patrón de
+  líneas erróneo** ([3, 4, 1] en vez de [3, 2, 1]): la conversión de
+  intensidades GUI→engine solo se aplicaba al tipo Sextete. Ahora aplica a los
+  cuatro tipos magnéticos y el subespectro dibujado coincide con el ajustado
+  (desajuste 0.665 → ≤ 2.4e-4).
+- **`sharp_component_params` no traducía la convención engine→core** (latente;
+  el test que la consagraba se ha corregido): ahora las intensidades
+  `int2_rel`/`int3_rel` se traducen al vector canónico y la reconstrucción
+  reproduce el kernel del ajuste exactamente.
+- **Gaussiana/VBF/Binomial/Fija ignoraban baseline/slope FIJOS** (los
+  ajustaban libres y sobreescribían el valor fijado por el usuario, también
+  vía CLI `--no-fit-baseline`/`--no-fit-slope`): los cuatro motores aceptan
+  ahora `fit_baseline`/`fit_slope` y la GUI/CLI los pasan siempre.
+- **Binomial y Fija heredaban el perfil de línea de un ajuste anterior**: no
+  envolvían su kernel en `line_profile(...)` y `fit_discrete` dejaba el perfil
+  en el estado global (un discreto Voigt previo cambiaba la curva hasta 0.04).
+  Doble arreglo: ambos motores aceptan `profile`/`voigt_sigma` y
+  `fit_discrete` restaura el estado global al salir.
+- **La L-curve en modo P(IS) escaneaba `variable="bhf"`** con la malla de IS
+  interpretada como teslas: ahora escanea `variable="delta"`.
+- **VBF: σ en la cota inferior subdesbordaba la gaussiana discretizada** (todo
+  ceros con μ entre nodos → componente desaparecido con jacobiano nulo): se
+  colapsa al nodo más próximo.
+
+### Sesiones y estado (`gui/session_io.py`, `gui/state.py`, `core/session.py`)
+
+- **Las 4 sesiones de distribución de ejemplo del repo no cargaban**
+  (`AttributeError`): las sesiones legacy guardan `sextet_enabled`/
+  `component_kind`/`intensity_mode` como listas y el cargador (GUI y
+  `ModelState.apply_template`) asumía dicts. Ahora se normalizan.
+- **Las sesiones legacy perdían los ajustes del panel de distribución**
+  (`dist_bmin/bmax`, `nbins`, Γ, log α… dentro de `vars`): el cargador ahora
+  mira también dentro de `vars`.
+- **Restaurar una sesión de espectro CSV corrompía los datos**: la recarga
+  usaba siempre el lector WS5+folding; ahora bifurca por extensión igual que
+  *Abrir* (las dos columnas ya no se leen como cuentas intercaladas).
+- **Multistart = 0 no sobrevivía al reinicio** (`int(x or 8)` convertía el 0
+  válido en 8): default solo si el valor es None.
+
+### CLIs, i18n y utilidades
+
+- **`mossbauer_fit_cli --out` igual a la plantilla o al espectro los
+  destruía sin aviso** (rc=0): ahora falla con rc=2 antes de ajustar.
+- **`fit_bhf_distribution_cli --scan-alpha` con forma no-histograma** se
+  validaba tras completar el ajuste y escribir 2 de 3 ficheros: ahora es un
+  error de `parse_args` (rc=2, sin salida parcial). Entrada inexistente da
+  mensaje limpio en vez de traceback.
+- **10 claves i18n usadas en el código no existían en ningún locale** (la GUI
+  en EN/FR/DE/JA/RU/CH mostraba el texto español): añadidas a los 7 idiomas
+  con test de paridad de claves. La ayuda además sustituye ahora solo los
+  placeholders conocidos (un capítulo con llaves literales no rompe el
+  formateo).
+- `find_crossing` con barrido vacío devolvía crash (`argmin` de secuencia
+  vacía) → `(None, None)`; el filtro local del navegador web restaura las
+  filas al borrar la búsqueda; cancelar el diálogo «Nota» aborta la subida de
+  sesión; la heurística de prerelease del updater compara tokens (ya no marca
+  `-mac`/`-stable`/`-final` como prerelease); `_iter_paginated` tolera
+  respuestas DRF sin paginación.
+
+21 tests de regresión nuevos (`tests/test_bugfixes_v4_17_2.py`); suite
+completa en verde.
+
 ## v4.17.1 — Γ inicial físico en «Inicializar desde mínimos»
 
 - **El estimador de anchura CWT proponía Γ ~3× demasiado grande**: para una

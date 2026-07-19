@@ -41,13 +41,13 @@ def get_help_sections(voigt_sigma: float = 0.05,
     chapters = load_help_chapters(code)
     rendered: list[tuple[str, str, str]] = []
     for title, heading, content in chapters:
-        try:
-            content = content.format(
-                voigt_sigma=voigt_sigma,
-                settings_path_str=settings_path_str,
-            )
-        except (KeyError, IndexError, ValueError):
-            pass
+        # Sustitución dirigida (no str.format): un capítulo con llaves
+        # literales (fragmentos de código/JSON) hacía fallar el format entero
+        # y dejaba sus placeholders sin resolver.
+        content = (content
+                   .replace("{voigt_sigma:.3g}", f"{voigt_sigma:.3g}")
+                   .replace("{voigt_sigma}", str(voigt_sigma))
+                   .replace("{settings_path_str}", settings_path_str))
         rendered.append((title, heading, content))
     return rendered
 

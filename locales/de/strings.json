@@ -794,5 +794,15 @@
   "history.clear": "Verlauf löschen",
   "history.clear_confirm": "Den gesamten Fit-Verlauf löschen?",
   "history.restored": "Fit wiederhergestellt: {name}",
-  "history.max_label": "Maximale Einträge:"
+  "history.max_label": "Maximale Einträge:",
+  "progress.cancel": "Abbrechen",
+  "progress.detail_wait": "Die Berechnung läuft…",
+  "report.parameter": "Parameter",
+  "report.value": "Wert",
+  "msg.validation_title": "Ungültige Parameter",
+  "msg.no_file": "Laden Sie zuerst ein Spektrum.",
+  "msg.short_report_ask_pdf": "Markdown-Bericht gespeichert. Auch ein PDF erzeugen?",
+  "phase.component_header": "Komponente {idx} ({kind}):  {params}",
+  "bhf.lcurve_hint": "Regularisierung des Histogramms abschätzen",
+  "bhf.lcurve_only_histogram": "Die L-Kurve gilt nur für die Form Histogramm (Gauß/Binomial sind parametrisch und verwenden kein α)."
 }

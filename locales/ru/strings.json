@@ -794,5 +794,15 @@
   "history.clear": "Очистить историю",
   "history.clear_confirm": "Очистить всю историю подгонок?",
   "history.restored": "Подгонка восстановлена: {name}",
-  "history.max_label": "Максимум записей:"
+  "history.max_label": "Максимум записей:",
+  "progress.cancel": "Отмена",
+  "progress.detail_wait": "Идёт вычисление…",
+  "report.parameter": "Параметр",
+  "report.value": "Значение",
+  "msg.validation_title": "Недопустимые параметры",
+  "msg.no_file": "Сначала загрузите спектр.",
+  "msg.short_report_ask_pdf": "Отчёт Markdown сохранён. Также создать PDF?",
+  "phase.component_header": "Компонент {idx} ({kind}):  {params}",
+  "bhf.lcurve_hint": "Оценить регуляризацию гистограммы",
+  "bhf.lcurve_only_histogram": "L-кривая применима только к форме «Гистограмма» (гауссова/биномиальная — параметрические и не используют α)."
 }

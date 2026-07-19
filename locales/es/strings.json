@@ -794,5 +794,15 @@
   "history.clear": "Borrar historial",
   "history.clear_confirm": "¿Borrar todo el historial de ajustes?",
   "history.restored": "Ajuste restaurado: {name}",
-  "history.max_label": "Máximo de entradas:"
+  "history.max_label": "Máximo de entradas:",
+  "progress.cancel": "Cancelar",
+  "progress.detail_wait": "El cálculo está en curso…",
+  "report.parameter": "Parámetro",
+  "report.value": "Valor",
+  "msg.validation_title": "Parámetros no válidos",
+  "msg.no_file": "Carga primero un espectro.",
+  "msg.short_report_ask_pdf": "Informe Markdown guardado. ¿Generar también un PDF?",
+  "phase.component_header": "Componente {idx} ({kind}):  {params}",
+  "bhf.lcurve_hint": "Estimar la regularización del histograma",
+  "bhf.lcurve_only_histogram": "La L-curve solo aplica a la forma Histograma (Gaussiana/Binomial son paramétricas y no usan α)."
 }
