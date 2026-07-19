@@ -794,5 +794,15 @@
   "history.clear": "Effacer l'historique",
   "history.clear_confirm": "Effacer tout l'historique des ajustements ?",
   "history.restored": "Ajustement restauré : {name}",
-  "history.max_label": "Nombre maximum d'entrées :"
+  "history.max_label": "Nombre maximum d'entrées :",
+  "progress.cancel": "Annuler",
+  "progress.detail_wait": "Le calcul est en cours…",
+  "report.parameter": "Paramètre",
+  "report.value": "Valeur",
+  "msg.validation_title": "Paramètres non valides",
+  "msg.no_file": "Chargez d'abord un spectre.",
+  "msg.short_report_ask_pdf": "Rapport Markdown enregistré. Générer aussi un PDF ?",
+  "phase.component_header": "Composante {idx} ({kind}) :  {params}",
+  "bhf.lcurve_hint": "Estimer la régularisation de l'histogramme",
+  "bhf.lcurve_only_histogram": "La courbe en L ne s'applique qu'à la forme Histogramme (Gaussienne/Binomiale sont paramétriques et n'utilisent pas α)."
 }

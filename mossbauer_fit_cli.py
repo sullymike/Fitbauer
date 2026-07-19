@@ -215,6 +215,14 @@ def _print_single_summary(args, session: dict) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
+    # --out no puede pisar la plantilla ni un espectro de entrada: antes el
+    # resultado sobreescribía la plantilla en silencio con rc=0.
+    out_resolved = args.out.resolve()
+    for src in (args.template, *args.spectrum):
+        if src is not None and src.resolve() == out_resolved:
+            print(f"FAIL  --out coincide con el fichero de entrada {src}; "
+                  "elige otra ruta de salida", file=sys.stderr)
+            return 2
     if len(args.spectrum) > 1:
         if args.bootstrap or args.profile_likelihood:
             print("FAIL  --bootstrap/--profile-likelihood solo admiten un espectro",

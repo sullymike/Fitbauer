@@ -159,7 +159,12 @@ class DistributionFitMixin:
             int1_gui = comp_state.value("int1", 1.0)
             int2_gui = comp_state.value("int2", 1.0)
             int3_gui = comp_state.value("int3", 1.0)
-            if comp_state.kind == "Sextete":
+            # Todos los tipos magnéticos de 6 líneas usan la convención relativa
+            # del engine (int2_rel=1 → I2=(2/3)·I1): la conversión desde los
+            # widgets (convención core [I3·I1, I3·I2, I3]) aplica igual a
+            # Sextete, Relajación, Blume-Tjon y Néel — antes solo se convertía
+            # Sextete y el resto se ajustaba con un patrón de líneas erróneo.
+            if comp_state.kind in ("Sextete", "Relajacion", "BlumeTjon", "NeelSize"):
                 engine_int1 = int3_gui * int1_gui
                 if abs(int1_gui) > 1e-12:
                     engine_int2_rel = 1.5 * int2_gui / int1_gui
@@ -240,13 +245,17 @@ class DistributionFitMixin:
                 delta_slope=dist_state.delta_slope, quad_slope=dist_state.quad_slope,
             )
             if var == "quad":
-                fits = [fit_hyperfine_distribution(
-                    self.file.velocity, self.file.y_data, variable="quad",
-                    bhf=dist_state.fixed_bhf, alpha=float(a), reg_mode=dist_state.reg_mode, **common) for a in alphas]
+                extra = dict(variable="quad", bhf=dist_state.fixed_bhf)
+            elif var == "delta":
+                # P(IS): sin esta rama el escaneo caía a variable="bhf" con la
+                # malla de IS interpretada como teslas.
+                extra = dict(variable="delta", quad=dist_state.quad,
+                             bhf=dist_state.fixed_bhf)
             else:
-                fits = [fit_hyperfine_distribution(
-                    self.file.velocity, self.file.y_data, variable="bhf",
-                    quad=dist_state.quad, alpha=float(a), reg_mode=dist_state.reg_mode, **common) for a in alphas]
+                extra = dict(variable="bhf", quad=dist_state.quad)
+            fits = [fit_hyperfine_distribution(
+                self.file.velocity, self.file.y_data, alpha=float(a),
+                reg_mode=dist_state.reg_mode, **extra, **common) for a in alphas]
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("bhf.lcurve_alpha"),
                                             f"{type(exc).__name__}: {exc}")
@@ -457,17 +466,19 @@ class DistributionFitMixin:
                     sigma=self.file.sigma,
                     profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
                 )
+            # fit_baseline/fit_slope van en common: TODAS las formas respetan el
+            # fijado de baseline/slope del panel (antes solo Histograma y 2D).
             common = dict(
                 variable=var, delta=delta_value, gamma=gamma_value,
                 quad=(0.0 if var == "quad" else quad_value),
                 bhf=(dist_state.fixed_bhf if var in ("quad", "delta") else BHF_DEFAULT_T),
                 baseline=calib_state.baseline, slope=calib_state.slope,
+                fit_baseline=fit_baseline, fit_slope=fit_slope,
                 sharp_components=sharp_for_fit,
             )
             if shape == "Histograma":
                 return fit_hyperfine_distribution(
                     v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins, alpha=alpha,
-                    fit_baseline=fit_baseline, fit_slope=fit_slope,
                     sigma=self.file.sigma, reg_mode=dist_state.reg_mode,
                     profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
                     delta_slope=dsl, quad_slope=qsl,
@@ -490,13 +501,17 @@ class DistributionFitMixin:
                     **common)
             if shape == "Binomial":
                 return fit_binomial_hyperfine_distribution(
-                    v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins, **common)
+                    v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins,
+                    profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
+                    **common)
             if shape == "Fija":
                 if dist_state.fixed_distribution_path is None:
                     raise RuntimeError("Carga primero un fichero de P fija.")
                 centers_arr, weights_arr = self._load_fixed_distribution(dist_state.fixed_distribution_path)
                 return fit_fixed_hyperfine_distribution(
-                    v_arr, y_arr, centers_arr, weights_arr, **common)
+                    v_arr, y_arr, centers_arr, weights_arr,
+                    profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
+                    **common)
             raise RuntimeError(f"Forma desconocida: {shape}")
 
         # outer_specs: parámetros globales libres a refinar en la capa exterior

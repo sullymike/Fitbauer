@@ -57,10 +57,21 @@ def _version_key(version: str) -> tuple[tuple[int, ...], int, int]:
     suffix = ""
     if "-" in text:
         suffix = text.split("-", 1)[1]
-    is_prerelease = any(token in suffix for token in ("a", "alpha", "b", "beta", "rc", "pre", "dev"))
+    is_prerelease = _suffix_is_prerelease(suffix)
     pre_num = int(re.findall(r"\d+", suffix)[-1]) if is_prerelease and re.findall(r"\d+", suffix) else 0
     stable_rank = 0 if is_prerelease else 1
     return base, stable_rank, pre_num
+
+
+def _suffix_is_prerelease(suffix: str) -> bool:
+    """Detecta sufijos prerelease por TOKEN, no por subcadena.
+
+    La comprobación antigua (``"a" in suffix``…) marcaba como prerelease
+    sufijos estables tipo ``-mac``, ``-stable`` o ``-final``.
+    """
+    tokens = [t for t in re.split(r"[.\-_+]", suffix) if t]
+    return any(re.fullmatch(r"(?:alpha|beta|rc|pre|preview|dev|a|b)\d*", t)
+               for t in tokens)
 
 
 def is_newer(latest: str, current: str) -> bool:
@@ -71,7 +82,7 @@ def _is_prerelease_tag(tag: str) -> bool:
     """Deduce si un tag es prerelease por su sufijo (para el feed atom, que no lo marca)."""
     text = tag.strip().lower().lstrip("v")
     suffix = text.split("-", 1)[1] if "-" in text else ""
-    return any(token in suffix for token in ("a", "alpha", "b", "beta", "rc", "pre", "dev"))
+    return _suffix_is_prerelease(suffix)
 
 
 def _release_from_json(data: dict) -> ReleaseInfo:

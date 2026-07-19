@@ -21,59 +21,62 @@ DATA = ROOT / "data_sample"
 DATA_PUBLIC = ROOT / "data_sample" / "public"
 
 # Baselines registrados con la implementación headless verificada.
+# Recalibrados en v4.17.2: chi2_for_center pasó a interpolación subcanal con
+# exclusión de bordes, el centro detectado se mueve ≤0.16 canales y con él
+# Γ/depth/χ² en la 3ª cifra; δ/BHF/ΔEQ no cambian a 1e-4.
 GOLDEN = {
     "alphaFe": {
         "template": "template_alphaFe.json",
         "spectrum": "hierro_metalico_alphaFe.adt",
         "values": {
-            "baseline": 0.999748,
-            "s1_delta": -0.110049,
-            "s1_bhf": 33.0446,
-            "s1_gamma1": 0.287096,
-            "s1_depth": 0.0145671,
+            "baseline": 0.999685,
+            "s1_delta": -0.110077,
+            "s1_bhf": 33.0454,
+            "s1_gamma1": 0.279147,
+            "s1_depth": 0.0148640,
         },
-        "red_chi2": 0.97175,
+        "red_chi2": 1.14420,
     },
     "hematita": {
         "template": "template_hematita.json",
         "spectrum": "hematita_Fe2O3.adt",
         "values": {
             "baseline": 1.00002,
-            "s1_delta": 0.261291,
-            "s1_quad": -0.199276,
-            "s1_bhf": 51.5813,
-            "s1_gamma1": 0.320071,
-            "s1_depth": 0.0139081,
+            "s1_delta": 0.261288,
+            "s1_quad": -0.199261,
+            "s1_bhf": 51.5812,
+            "s1_gamma1": 0.320721,
+            "s1_depth": 0.0138880,
         },
-        "red_chi2": 1.03455,
+        "red_chi2": 1.02264,
     },
     "siderita": {
         "template": "template_siderita.json",
         "spectrum": "siderita_FeCO3.adt",
         "values": {
-            "baseline": 0.999557,
-            "s1_delta": 1.12156,
-            "s1_quad": 1.79830,
-            "s1_gamma1": 0.339687,
-            "s1_depth": 0.0448438,
+            "baseline": 0.999558,
+            "s1_delta": 1.12157,
+            "s1_quad": 1.79836,
+            "s1_gamma1": 0.338051,
+            "s1_depth": 0.0450120,
         },
         # ±ΔEQ produce espectros idénticos en un doblete sin BHF; solo verificamos |quad|.
         "sign_invariant": {"s1_quad"},
-        "red_chi2": 0.84981,
+        "red_chi2": 0.88200,
     },
     "jarosita": {
         "template": "template_jarosita.json",
         "spectrum_dir": "public",
         "spectrum": "jarosita_KFe3SO4.adt",
         "values": {
-            "baseline": 0.999857,
-            "s1_delta": 0.260198,
+            "baseline": 0.999856,
+            "s1_delta": 0.260191,
             "s1_bhf": 30.5965,
-            "s1_quad": -0.341154,
-            "s1_gamma1": 0.319105,
-            "s1_depth": 0.0129736,
+            "s1_quad": -0.341146,
+            "s1_gamma1": 0.318761,
+            "s1_depth": 0.0129840,
         },
-        "red_chi2": 0.86495,
+        "red_chi2": 0.87116,
     },
 }
 

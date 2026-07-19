@@ -38,7 +38,14 @@ def test_sharp_component_params_uses_distribution_mapping_and_weight():
     assert params[0] == 0.1
     assert params[3] == 0.36
     assert params[6] == 0.42
-    assert params[8] == 0.7
+    # Traducción engine→core: las profundidades de línea del vector canónico
+    # ([int3·int1, int3·int2, int3]) deben reproducir el patrón del engine
+    # ([i1, (2/3)·i1·r2, (1/3)·i1·r3]); antes int2_rel/int3_rel se copiaban tal
+    # cual y el patrón reconstruido no era el ajustado.
+    int1_c, int2_c, int3_c = params[7], params[8], params[9]
+    engine_lines = np.array([1.0, (2.0 / 3.0) * 1.0 * 0.7, (1.0 / 3.0) * 1.0 * 0.5])
+    core_lines = np.array([int3_c * int1_c, int3_c * int2_c, int3_c])
+    assert np.allclose(core_lines, engine_lines)
 
 
 def test_reconstruct_distribution_curves_returns_envelope_and_sharp_curve():

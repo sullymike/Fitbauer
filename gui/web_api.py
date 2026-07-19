@@ -319,6 +319,10 @@ class WebApiMixin:
         def local_filter(_=None):
             q = e_search.text().strip().lower()
             if not q:
+                # Borrar la búsqueda restaura todas las filas (antes quedaban
+                # ocultas las filtradas hasta el siguiente refresh).
+                for r in range(table.rowCount()):
+                    table.setRowHidden(r, False)
                 return
             for r in range(table.rowCount()):
                 hay = " ".join(
@@ -502,8 +506,11 @@ class WebApiMixin:
             self, tr("file.upload_session"), "medida_id:", text=suggested)
         if not ok or not medida_id.strip():
             return
-        note, _ = QtWidgets.QInputDialog.getText(
+        note, ok_note = QtWidgets.QInputDialog.getText(
             self, tr("file.upload_session"), "Nota (opcional):", text="")
+        if not ok_note:
+            # Cancelar el diálogo de nota aborta la subida (antes se subía igual).
+            return
         try:
             payload = self._session_payload()
             data = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")

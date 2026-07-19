@@ -110,21 +110,28 @@ class ModelState:
         Espejo de ``apply_template_model_state``: ignora ``center`` (cada espectro
         detecta el suyo) y valida los enums de tipo/modo/cuadrupolo.
         """
+        def _per_component(value) -> dict:
+            # Sesiones antiguas guardaban estos mapas como listas
+            # ([v1, v2, v3], índice 0 = componente 1) en vez de dicts.
+            if isinstance(value, (list, tuple)):
+                return {i + 1: v for i, v in enumerate(value)}
+            return dict(value) if isinstance(value, dict) else {}
+
         tvars = dict(state.get("vars", {}))
         tvars.pop("center", None)
         for k, v in tvars.items():
             self.vars[k] = float(v)
         for k, v in state.get("fixed", {}).items():
             self.fixed[k] = bool(v)
-        for k, v in state.get("sextet_enabled", {}).items():
+        for k, v in _per_component(state.get("sextet_enabled", {})).items():
             self.sextet_enabled[int(k)] = bool(v)
-        for k, v in state.get("component_kind", {}).items():
+        for k, v in _per_component(state.get("component_kind", {})).items():
             if v in _KINDS:
                 self.component_kind[int(k)] = v
-        for k, v in state.get("intensity_mode", {}).items():
+        for k, v in _per_component(state.get("intensity_mode", {})).items():
             if v in _INTENSITY_MODES:
                 self.intensity_mode[int(k)] = v
-        for k, v in state.get("quad_treatment", {}).items():
+        for k, v in _per_component(state.get("quad_treatment", {})).items():
             if v in _QUAD_TREATMENTS:
                 self.quad_treatment[int(k)] = v
         for flag in ("fit_velocity", "fit_center", "fit_sigma",

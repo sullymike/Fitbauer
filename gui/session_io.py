@@ -22,6 +22,18 @@ from gui.state import (
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _per_component_map(value) -> dict:
+    """Normaliza mapas por componente del payload a dict {"1": v, ...}.
+
+    Las sesiones antiguas guardaban ``sextet_enabled``/``component_kind``/
+    ``intensity_mode`` como LISTAS ([v1, v2, v3], índice 0 = componente 1);
+    tratarlas como dict rompía la carga con AttributeError.
+    """
+    if isinstance(value, (list, tuple)):
+        return {str(i + 1): v for i, v in enumerate(value)}
+    return dict(value) if isinstance(value, dict) else {}
+
+
 class SessionIOMixin:
     # ── Save / Load session (formato compatible con la GUI Tk) ──────────
     def _project_state(self) -> ProjectState:
@@ -81,7 +93,13 @@ class SessionIOMixin:
         # 1. Datos: si trae un file_path existente o counts embebidos, los carga.
         if spectrum.path and spectrum.path.exists():
             try:
-                self._load_file(spectrum.path)
+                # Misma bifurcación que on_open: un CSV de velocidad NO pasa por
+                # el lector WS5+folding (leería las dos columnas como cuentas
+                # intercaladas y auto-doblaría ruido sin avisar).
+                if spectrum.path.suffix.lower() in self._CSV_EXTENSIONS:
+                    self._load_velocity_csv_file(spectrum.path)
+                else:
+                    self._load_file(spectrum.path)
             except Exception:
                 pass
         elif spectrum.counts is not None:
@@ -139,9 +157,12 @@ class SessionIOMixin:
             self.calib.slope.set_value(vmap.get("slope", calib_state.slope))
             self.calib.voigt_sigma.set_value(vmap.get("voigt_sigma", calib_state.voigt_sigma))
             self.calib.sat_scale.set_value(vmap.get("sat_scale", calib_state.sat_scale))
+            enabled_map = _per_component_map(state.get("sextet_enabled", {}))
+            kind_map = _per_component_map(state.get("component_kind", {}))
+            imode_map = _per_component_map(state.get("intensity_mode", {}))
+            qtreat_map = _per_component_map(state.get("quad_treatment", {}))
             n_saved = state.get("n_components")
             if n_saved is None:
-                enabled_map = state.get("sextet_enabled", {})
                 enabled_idx = [int(k) for k, v in enabled_map.items()
                                if str(k).isdigit() and bool(v)]
                 n_saved = max(enabled_idx, default=1)
@@ -182,17 +203,17 @@ class SessionIOMixin:
                 # Con el orden antiguo (valores→tipo) un kind distinto al actual
                 # machacaba int1/int2 recién restaurados, y la asignación
                 # directa de los modos dejaba el grid agrisado obsoleto.
-                ki = state.get("component_kind", {}).get(str(cp.idx))
+                ki = kind_map.get(str(cp.idx))
                 if ki in COMPONENT_KINDS:
                     cp.type_combo.setCurrentText(ki)
-                im = state.get("intensity_mode", {}).get(str(cp.idx))
+                im = imode_map.get(str(cp.idx))
                 if im in INTENSITY_MODES:
                     cp._set_intensity_mode(im)
-                qt_v = state.get("quad_treatment", {}).get(str(cp.idx))
+                qt_v = qtreat_map.get(str(cp.idx))
                 if qt_v in QUAD_TREATMENTS:
                     cp._set_quad_treatment(qt_v)
                 cp.apply_values(vmap)
-                en = state.get("sextet_enabled", {}).get(str(cp.idx))
+                en = enabled_map.get(str(cp.idx))
                 if en is not None:
                     cp.enabled.setChecked(bool(en))
                 for name, ctl in cp.params.items():
@@ -278,9 +299,13 @@ class SessionIOMixin:
                     "dist_qbins": dp.qbins, "dist_log_alpha_q": dp.log_alpha_q,
                 }
                 for key, ctl in _num_ctls.items():
-                    if key in state:
+                    # Las sesiones antiguas guardaban estos ajustes dentro de
+                    # model_state["vars"]; sin el fallback se reseteaban a los
+                    # defaults en silencio.
+                    val = state.get(key, vmap.get(key))
+                    if val is not None:
                         try:
-                            ctl.set_value(float(state[key]))
+                            ctl.set_value(float(val))
                         except (TypeError, ValueError):
                             pass
                 if "dist_vbf_n_components" in state:

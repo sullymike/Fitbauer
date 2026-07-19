@@ -18,6 +18,8 @@ def find_crossing(scan_values: np.ndarray, d_chi2: np.ndarray,
     """
     v = np.asarray(scan_values, dtype=float)
     d = np.asarray(d_chi2, dtype=float)
+    if v.size == 0 or d.size == 0:
+        return None, None
     order = np.argsort(v)
     v = v[order]; d = d[order]
     best_idx = int(np.argmin(np.abs(v - best_value)))

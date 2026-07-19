@@ -175,12 +175,15 @@ class MatelecLabClient:
             r = self.session.get(url, params=params, timeout=self.timeout)
             r.raise_for_status()
             data = r.json()
-            for item in data["results"]:
+            # DRF sin paginación devuelve una lista plana en vez de
+            # {"results": [...], "next": ...}; tolerar ambos formatos.
+            items = data if isinstance(data, list) else data.get("results", [])
+            for item in items:
                 if limit is not None and yielded >= limit:
                     return
                 yield item
                 yielded += 1
-            url = data.get("next")
+            url = None if isinstance(data, list) else data.get("next")
             params = {}   # 'next' ya lleva los parámetros embebidos
 
     def _download(self, url: str, dest_dir: str) -> Path:

@@ -18,6 +18,11 @@ _DSPEC = _eff_dist_specs()
 _FI = _eff_fi_specs()
 
 
+def _value_or(value, default):
+    """Default solo si el valor es None: 0 es válido (``or`` lo pisaba)."""
+    return default if value is None else value
+
+
 @dataclass
 class FileState:
     """Estado runtime del espectro cargado en la GUI."""
@@ -247,7 +252,7 @@ class FitOptionsState:
             fit_center=bool(state.get("fit_center", False)),
             fit_sigma=bool(state.get("fit_sigma", False)),
             multistart_n=max(0, min(int(_FI["multistart_n_max"].default),
-                                    int(state.get("multistart_n") or 8))),
+                                    int(_value_or(state.get("multistart_n"), 8)))),
         )
 
     def apply_to_model_state(self, model_state) -> None:
@@ -470,7 +475,7 @@ class UiPreferencesState:
             custom_shortcuts={
                 str(k): str(v) for k, v in cs.items() if isinstance(v, str)
             } if isinstance(cs, dict) else {},
-            multistart_n=int(data.get("multistart_n") or 8),
+            multistart_n=int(_value_or(data.get("multistart_n"), 8)),
         )
 
     def to_settings_dict(self, *, base: dict[str, Any] | None = None) -> dict[str, Any]:

@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 
 from core.folding import (  # noqa: F401  (reexports por compatibilidad)
+    EDGE_TRIM_DEFAULT,
     _number_re,
     chi2_for_center,
     find_best_integer_or_half_center,
@@ -23,6 +24,7 @@ from core.folding import (  # noqa: F401  (reexports por compatibilidad)
     read_normos_folding_point,
     read_normos_plt_velocity,
     read_ws5_counts,
+    velocity_axis,
 )
 from core.folding import read_normos_sidecar_params as _core_sidecar_params
 
@@ -65,6 +67,12 @@ def folded_velocity_data(
     if center is None:
         center = find_best_integer_or_half_center(counts)
     folded, _pairs = fold_integer_or_half(counts, center)
+    # Mismo recorte de bordes que GUI/core.session (fold_and_normalize): sin él,
+    # un canal extremo anómalo (p. ej. canal 1 muerto) entra como línea de
+    # absorción falsa en los ajustes de distribución de los CLIs.
+    trim = EDGE_TRIM_DEFAULT
+    if trim > 0 and folded.size > 2 * trim + 2:
+        folded = folded[trim:-trim]
     norm = float(np.percentile(folded, norm_percentile)) or 1.0
     y = folded / norm
     if vmax is None:
@@ -74,5 +82,5 @@ def folded_velocity_data(
         vmax = read_normos_plt_velocity(path)
     if vmax is None or not np.isfinite(vmax) or vmax <= 0:
         vmax = 12.0
-    v = np.linspace(-abs(float(vmax)), abs(float(vmax)), y.size)
+    v = velocity_axis(counts.size, abs(float(vmax)), y.size)
     return v, y, folded, float(center), float(abs(vmax)), norm

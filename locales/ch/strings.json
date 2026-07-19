@@ -794,5 +794,15 @@
   "history.clear": "清除历史",
   "history.clear_confirm": "清除全部拟合历史？",
   "history.restored": "拟合已恢复：{name}",
-  "history.max_label": "最大条目数："
+  "history.max_label": "最大条目数：",
+  "progress.cancel": "取消",
+  "progress.detail_wait": "计算正在进行中…",
+  "report.parameter": "参数",
+  "report.value": "数值",
+  "msg.validation_title": "参数无效",
+  "msg.no_file": "请先加载一个谱。",
+  "msg.short_report_ask_pdf": "Markdown 报告已保存。是否同时生成 PDF？",
+  "phase.component_header": "组分 {idx}（{kind}）：  {params}",
+  "bhf.lcurve_hint": "估计直方图的正则化",
+  "bhf.lcurve_only_histogram": "L 曲线仅适用于直方图形状（高斯/二项为参数形式，不使用 α）。"
 }

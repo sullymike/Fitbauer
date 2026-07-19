@@ -426,8 +426,21 @@ def fit_discrete(state: FitState, progress_cb: Callable[[object], None] | None =
     """Ejecuta el ajuste discreto y devuelve los resultados.
 
     No tiene side effects sobre ``state``: la copia interna de valores se
-    actualiza en el resultado pero ``state.values`` queda intacto.
+    actualiza en el resultado pero ``state.values`` queda intacto. El perfil de
+    línea global (``physics.LINE_PROFILE_KIND``/``VOIGT_SIGMA``) que el residual
+    fija durante la optimización se restaura al salir: sin esto, un ajuste
+    Voigt contaminaba cualquier evaluación posterior que dependiera del estado
+    global (p. ej. distribuciones Binomial/Fija).
     """
+    from core import physics as _phys
+    prev_profile = (_phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA)
+    try:
+        return _fit_discrete_impl(state, progress_cb)
+    finally:
+        _phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA = prev_profile
+
+
+def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | None = None) -> FitResult:
     if progress_cb is None:
         progress_cb = lambda _msg: None
 

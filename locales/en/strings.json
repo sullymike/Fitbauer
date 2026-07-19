@@ -794,5 +794,15 @@
   "history.clear": "Clear history",
   "history.clear_confirm": "Clear the entire fit history?",
   "history.restored": "Fit restored: {name}",
-  "history.max_label": "Maximum entries:"
+  "history.max_label": "Maximum entries:",
+  "progress.cancel": "Cancel",
+  "progress.detail_wait": "The computation is in progress…",
+  "report.parameter": "Parameter",
+  "report.value": "Value",
+  "msg.validation_title": "Invalid parameters",
+  "msg.no_file": "Load a spectrum first.",
+  "msg.short_report_ask_pdf": "Markdown report saved. Also generate a PDF?",
+  "phase.component_header": "Component {idx} ({kind}):  {params}",
+  "bhf.lcurve_hint": "Estimate the histogram regularization",
+  "bhf.lcurve_only_histogram": "The L-curve only applies to the Histogram shape (Gaussian/Binomial are parametric and do not use α)."
 }
