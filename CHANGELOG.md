@@ -1,5 +1,19 @@
 # Changelog
 
+## v4.17.3 — traducción al portugués
+
+- **Nuevo idioma: portugués** (europeo, AO90). Traducción completa desde el
+  español de la interfaz (`locales/pt/strings.json`, 803 claves) y de los 30
+  capítulos de la ayuda (`locales/pt/help.json`), con terminología revisada
+  (Ficheiro, Dobragem, Desvio isomérico, Definições…) y registro formal
+  unificado. Los placeholders de formato y los grupos temáticos de la ayuda
+  se verificaron idénticos a `es`; el test de paridad de locales cubre ahora
+  8 idiomas.
+- `mossbauer_help.py`: fallback «(definições)» para `{settings_path_str}`
+  en portugués. El idioma aparece automáticamente en Vista → Idioma
+  (descubrimiento por carpeta) y se incluye en los ejecutables (el spec ya
+  empaqueta `locales/` completo).
+
 ## v4.17.2 — caza de bugs multi-agente II: E/S y folding, distribución, sesiones y CLIs
 
 Segunda auditoría con cuatro revisores independientes (E/S+folding,
