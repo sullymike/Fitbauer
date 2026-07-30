@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import argparse
 import re
-import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -33,6 +32,11 @@ from core.constants import APP_VERSION  # noqa: E402
 
 REPO_URL = "https://github.com/sullymike/Fitbauer"
 BLOB = f"{REPO_URL}/blob/main"
+# El wiki no sirve sus propios ficheros como estáticos: una ruta relativa
+# ``img/x.png`` se resuelve contra /wiki/ y da un enlace roto. Las imágenes se
+# referencian en crudo desde el repositorio principal, que además evita
+# duplicarlas.
+RAW = "https://raw.githubusercontent.com/sullymike/Fitbauer/main"
 
 
 @dataclass(frozen=True)
@@ -105,15 +109,15 @@ def source_to_page() -> dict[str, str]:
 
 def rewrite_links(text: str, mapping: dict[str, str]) -> str:
     """Adapta enlaces e imágenes del repositorio al espacio plano del wiki."""
-    # Las rutas relativas del repo no resuelven desde el wiki: las imágenes se
-    # copian a img/ y el resto de ficheros apunta al blob de GitHub.
-    text = text.replace("docs/img/", "img/")
-    text = re.sub(r'(<img\s+[^>]*src=")(?!https?:|img/)([^"]+)(")',
-                  rf'\1{BLOB}/\2\3', text)
+    # Las rutas relativas del repo no resuelven desde el wiki: las imágenes van
+    # al raw del repositorio y el resto de ficheros al blob de GitHub.
+    text = text.replace("docs/img/", f"{RAW}/docs/img/")
+    text = re.sub(r'(<img\s+[^>]*src=")(?!https?:)([^"]+)(")',
+                  rf'\1{RAW}/\2\3', text)
 
     def _link(match: re.Match[str]) -> str:
         label, target = match.group(1), match.group(2)
-        if target.startswith(("http://", "https://", "#", "img/", "mailto:")):
+        if target.startswith(("http://", "https://", "#", "mailto:")):
             return match.group(0)
         clean = target.split("#", 1)[0]
         # Un documento que también es página del wiki → enlace interno.
@@ -218,7 +222,7 @@ def page_home(lang: str) -> str:
 
 🇪🇸 [Versión en español](ES-Inicio)
 
-<img src="img/captura-pantalla-principal.png" alt="Fitbauer main window" width="820">
+<img src="{RAW}/docs/img/captura-pantalla-principal.png" alt="Fitbauer main window" width="820">
 
 ## Where to start
 
@@ -256,7 +260,7 @@ ajustar espectros Mössbauer de ⁵⁷Fe. Versión estable actual: **v{APP_VERSI
 
 🇬🇧 [English version](Home)
 
-<img src="img/captura-pantalla-principal.png" alt="Ventana principal de Fitbauer" width="820">
+<img src="{RAW}/docs/img/captura-pantalla-principal.png" alt="Ventana principal de Fitbauer" width="820">
 
 ## Por dónde empezar
 
@@ -317,12 +321,6 @@ def page_footer() -> str:
 def build(out_dir: Path) -> int:
     mapping = source_to_page()
     out_dir.mkdir(parents=True, exist_ok=True)
-
-    img_dir = out_dir / "img"
-    img_dir.mkdir(exist_ok=True)
-    for img in sorted((ROOT / "docs" / "img").iterdir()):
-        if img.suffix.lower() in {".png", ".svg", ".jpg"}:
-            shutil.copy2(img, img_dir / img.name)
 
     written = 0
     for page in PAGES:
