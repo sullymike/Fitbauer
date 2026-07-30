@@ -355,8 +355,12 @@ Para un ajuste **idéntico** al de Fitbauer, la web debe coincidir en: modelo di
 ## 9. Vector de referencia (contrato numérico verificable)
 
 Valores generados ejecutando `core/physics.py` (perfil Lorentziano, modo 1er orden).
-**Parámetros**: `δ=0`, `ΔE_Q=0`, `BHF=33.0`, `Γ₁=0.150`, `Γ₂rel=Γ₃rel=1.0`,
+**Parámetros**: `δ=0`, `ΔE_Q=0`, `BHF=33.0`, `Γ₁=0.300`, `Γ₂rel=Γ₃rel=1.0`,
 `depth=0.02`, `int1=3`, `int2=2`, `int3=1` → pesos `3:2:1:1:2:3`, `baseline=1`, `slope=0`.
+
+> `Γ₁ = 0.300` es el valor **HWHM** que se pasa a `sextet_absorption` (equivale a
+> FWHM = 0.600 mm/s). Ojo con esta distinción: es la misma trampa que describe §7.8
+> para los sidecars de Normos.
 
 **Posiciones de las 6 líneas (mm/s):**
 
