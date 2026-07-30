@@ -65,6 +65,7 @@ PAGES: list[Page] = [
     Page("Batch-fitting", "Batch fitting", "en", "docs/batch_fit.md", "Fitting"),
     Page("Command-line-tools", "Command-line tools", "en", None, "Reference"),
     Page("Session-format", "Session format", "en", "docs/session_format.md", "Reference"),
+    Page("Sextet-model", "Sextet model (spec)", "en", "docs/sextet_model.md", "Reference"),
     Page("Architecture", "Architecture", "en", "docs/architecture_en.md", "Reference"),
     # ── Español ──────────────────────────────────────────────────────────────
     Page("ES-Inicio", "Inicio", "es", None, "Inicio"),
@@ -79,6 +80,7 @@ PAGES: list[Page] = [
     Page("ES-Ajuste-en-serie", "Ajuste en serie", "es", "docs/ajuste_batch.md", "Ajuste"),
     Page("ES-Linea-de-comandos", "Línea de comandos", "es", None, "Referencia"),
     Page("ES-Formato-de-sesion", "Formato de sesión", "es", "docs/formato_sesion.md", "Referencia"),
+    Page("ES-Modelo-de-sextete", "Modelo de sextete (spec)", "es", "docs/modelo_sextete.md", "Referencia"),
     Page("ES-Arquitectura", "Arquitectura", "es", "docs/architecture.md", "Referencia"),
     Page("ES-NORMOS-DOSBox", "NORMOS bajo DOSBox", "es", "docs/normos_dosbox_guide.md", "Referencia"),
 ]

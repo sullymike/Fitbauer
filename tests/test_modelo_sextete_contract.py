@@ -23,7 +23,10 @@ from core import folding as F  # noqa: E402
 from core import physics as p  # noqa: E402
 from core.constants import LINE_POS_33T  # noqa: E402
 
-DOC = Path(__file__).resolve().parents[1] / "docs" / "modelo_sextete.md"
+DOCS_DIR = Path(__file__).resolve().parents[1] / "docs"
+DOC = DOCS_DIR / "modelo_sextete.md"
+DOC_EN = DOCS_DIR / "sextet_model.md"
+AMBOS = (DOC, DOC_EN)
 
 # §7.7 — Contrato numérico de folding.
 COUNTS = np.array([100, 90, 70, 95, 98, 60, 88, 105], dtype=float)
@@ -35,8 +38,9 @@ REF_A = np.array([0.060236, 0.040427, 0.020497, 0.001524,
                   0.020497, 0.040427, 0.060236])
 
 
-def test_documento_presente():
-    assert DOC.exists(), "falta docs/modelo_sextete.md"
+@pytest.mark.parametrize("doc", AMBOS, ids=["es", "en"])
+def test_documento_presente(doc):
+    assert doc.exists(), f"falta {doc.name}"
 
 
 def test_posiciones_de_las_seis_lineas():
@@ -54,13 +58,34 @@ def test_absorcion_de_referencia():
     np.testing.assert_allclose(obtenido, REF_A, atol=1e-6)
 
 
-def test_gamma_declarada_coincide_con_la_tabla():
+@pytest.mark.parametrize("doc", AMBOS, ids=["es", "en"])
+def test_gamma_declarada_coincide_con_la_tabla(doc):
     """La Γ que declara §9 debe ser la que genera su tabla, no otra.
 
     Es la deriva concreta que tenía el documento al integrarlo.
     """
-    texto = DOC.read_text(encoding="utf-8")
-    assert "`Γ₁=0.300`" in texto, "§9 declara una Γ distinta de la que usa su tabla"
+    texto = doc.read_text(encoding="utf-8")
+    assert "`Γ₁=0.300`" in texto, f"{doc.name}: §9 declara una Γ distinta de su tabla"
+
+
+def test_las_dos_versiones_dicen_los_mismos_numeros():
+    """La traducción no puede alterar los contratos: mismos bloques de código.
+
+    Las dos versiones son especificaciones del mismo cálculo; si una deriva de la
+    otra, quien siga la equivocada obtiene una curva distinta. Solo se comparan
+    los literales numéricos: la prosa difiere por definición (y el español usa
+    coma decimal en el texto corrido, que aquí no se toca).
+    """
+    def bloques(texto: str) -> list[list[str]]:
+        import re
+        return [re.findall(r'-?\d+\.?\d*', b.replace("−", "-"))
+                for b in re.findall(r'```\n(.*?)```', texto, re.S)]
+
+    es = bloques(DOC.read_text(encoding="utf-8"))
+    en = bloques(DOC_EN.read_text(encoding="utf-8"))
+    assert len(es) == len(en), "las dos versiones tienen distinto número de bloques"
+    for i, (a, b) in enumerate(zip(es, en)):
+        assert a == b, f"bloque {i}: los números divergen entre ES y EN"
 
 
 @pytest.mark.parametrize("center, esperado", [
