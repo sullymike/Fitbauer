@@ -24,6 +24,8 @@
 !docs/**
 !tests/
 !tests/**
+!scripts/
+!scripts/**
 
 # Cachés/temporales habituales si aparecen en la raíz
 __pycache__/

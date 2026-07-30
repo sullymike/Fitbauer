@@ -1,0 +1,61 @@
+name: Sincronizar wiki
+
+# El wiki se genera desde docs/ con scripts/build_wiki.py, nunca a mano: así no
+# puede divergir del código. Este workflow lo regenera cuando cambia la
+# documentación en main.
+#
+# Requiere un secreto WIKI_TOKEN: GITHUB_TOKEN no tiene permiso de escritura
+# sobre el repositorio del wiki (es un repo aparte). Crea un Personal Access
+# Token con permiso `repo` y guárdalo en Settings ▸ Secrets ▸ Actions.
+# Sin ese secreto el job se salta sin fallar, y el wiki se puede regenerar a
+# mano siguiendo las instrucciones de scripts/build_wiki.py.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'INSTALL.md'
+      - 'INSTALL_EN.md'
+      - 'BHF_DISTRIBUTION.md'
+      - 'BHF_DISTRIBUTION_EN.md'
+      - 'core/constants.py'
+      - 'mossbauer_fit_cli.py'
+      - 'fit_bhf_distribution_cli.py'
+      - 'scripts/build_wiki.py'
+      - '.github/workflows/wiki.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.WIKI_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Clonar el wiki
+        run: |
+          git clone https://x-access-token:${{ secrets.WIKI_TOKEN }}@github.com/${{ github.repository }}.wiki.git wiki
+
+      - name: Generar páginas
+        run: python scripts/build_wiki.py --out wiki
+
+      - name: Publicar
+        working-directory: wiki
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "El wiki ya está al día."
+          else
+            git commit -m "docs(wiki): regenerado desde ${GITHUB_SHA:0:7}"
+            git push
+          fi
