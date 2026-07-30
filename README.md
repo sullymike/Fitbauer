@@ -12,9 +12,9 @@
 
 Stable desktop application to load, fold, simulate and fit ⁵⁷Fe Mössbauer spectra.
 
-Current stable version: **v4.8.1**  
+Current stable version: **v4.17.3**  
 Launch: `python fitbauer.py`  
-Headless CLI fitting: `mossbauer_fit_cli.py`
+Headless CLI fitting: `mossbauer_fit_cli.py` (discrete) · `fit_bhf_distribution_cli.py` (distributions)
 
 **Authors:** Jorge Sánchez Marcos · Nieves Menéndez González  
 Department of Physical Chemistry · UAM
@@ -33,19 +33,19 @@ Department of Physical Chemistry · UAM
 - Physical constraint presets (3:2:1 powder, tied widths, linked δ/Γ across components).
 - Relaxation models: phenomenological, Blume–Tjon two-state, Néel–Arrhenius with lognormal size distribution.
 - Parameter limits fully configurable through the GUI (View → Parameter limits…).
-- Interactive Plotly figure with semi-manual minimum editor.
+- Interactive Matplotlib figure with semi-manual minimum editor.
 - Batch fitting across a series of files with warm-start.
 - Fit export as TSV with **per-component subspectra** and an informative header.
 - Markdown/PDF reports: full report and condensed short report.
 - Complete JSON session save/load; persistent settings across restarts.
 - Update checking and one-click download from GitHub Releases.
-- Interface and integrated help in **English**, Spanish and French.
+- Interface and integrated help in **English**, Spanish, French, German, Portuguese, Russian, Japanese and Chinese.
 
 ---
 
 ## Screenshots
 
-> Screenshots below were taken with v4.8.1. The interface language is English by default.
+> The interface language is English by default.
 
 ### Main window
 
@@ -146,8 +146,8 @@ pyinstaller Fitbauer.spec    # → dist/Fitbauer/
 
 ```
 core/          Physics and fitting engine (no GUI dependency)
-gui/           Modular Qt/Plotly GUI — thin controllers only
-locales/       Translations: en / es / fr
+gui/           Modular Qt/Matplotlib GUI — thin controllers only
+locales/       Translations: en / es / fr / de / pt / ru / ja / ch
 data_sample/   Sample spectra and sessions
 tests/         Physics, fitting, CLI and Qt tests
 ```

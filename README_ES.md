@@ -12,9 +12,9 @@
 
 Programa de escritorio estable para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
 
-Versión estable actual: **v4.8.1**  
+Versión estable actual: **v4.17.3**  
 Arranque: `python fitbauer.py`  
-Ajuste por línea de comandos (headless): `mossbauer_fit_cli.py`
+Ajuste por línea de comandos (headless): `mossbauer_fit_cli.py` (discreto) · `fit_bhf_distribution_cli.py` (distribuciones)
 
 **Autores:** Jorge Sánchez Marcos · Nieves Menéndez González  
 Departamento de Química Física · UAM
@@ -33,13 +33,13 @@ Departamento de Química Física · UAM
 - Presets físicos de restricciones (3:2:1 polvo, anchuras ligadas, δ/Γ atados entre componentes).
 - Modelos de relajación: fenomenológico, Blume–Tjon dos estados, Néel–Arrhenius con distribución lognormal de tamaños.
 - Límites de parámetros configurables desde la GUI (Vista → Límites de parámetros…).
-- Figura Plotly interactiva con editor semi-manual de mínimos.
+- Figura Matplotlib interactiva con editor semi-manual de mínimos.
 - Ajuste en serie (batch) con warm-start.
 - Exportación del ajuste como TSV con **subespectros por componente** y cabecera informativa.
 - Informes Markdown/PDF: informe completo e informe reducido.
 - Guardado/carga de sesión JSON completa; ajustes persistentes entre arranques.
 - Comprobación de actualizaciones y descarga desde GitHub Releases.
-- Interfaz y ayuda integrada en **inglés**, español y francés.
+- Interfaz y ayuda integrada en **inglés**, español, francés, alemán, portugués, ruso, japonés y chino.
 
 ---
 
