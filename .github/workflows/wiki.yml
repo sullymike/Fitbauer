@@ -29,25 +29,45 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: ${{ secrets.WIKI_TOKEN != '' }}
     steps:
+      # El contexto `secrets` no se puede usar en un `if:` (ni de job ni de paso):
+      # Actions lo rechaza con "Unrecognized named-value: 'secrets'". Se comprueba
+      # aquí, pasándolo por env, y los pasos siguientes cuelgan de este resultado.
+      - name: Comprobar el secreto
+        id: token
+        env:
+          WIKI_TOKEN: ${{ secrets.WIKI_TOKEN }}
+        run: |
+          if [ -n "$WIKI_TOKEN" ]; then
+            echo "presente=si" >> "$GITHUB_OUTPUT"
+          else
+            echo "presente=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::Sin WIKI_TOKEN: el wiki no se sincroniza. Regenéralo a mano con scripts/build_wiki.py."
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.token.outputs.presente == 'si'
 
       - uses: actions/setup-python@v5
+        if: steps.token.outputs.presente == 'si'
         with:
           python-version: '3.12'
 
       - name: Instalar dependencias
+        if: steps.token.outputs.presente == 'si'
         run: pip install -r requirements.txt
 
       - name: Clonar el wiki
+        if: steps.token.outputs.presente == 'si'
         run: |
           git clone https://x-access-token:${{ secrets.WIKI_TOKEN }}@github.com/${{ github.repository }}.wiki.git wiki
 
       - name: Generar páginas
+        if: steps.token.outputs.presente == 'si'
         run: python scripts/build_wiki.py --out wiki
 
       - name: Publicar
+        if: steps.token.outputs.presente == 'si'
         working-directory: wiki
         run: |
           git config user.name  "github-actions[bot]"
