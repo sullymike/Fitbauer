@@ -121,7 +121,10 @@ El panel de calibración incluye además una \param{Curvatura base} opcional
 (término $v^2$, fijo a 0 por defecto): absorbe el efecto geométrico parabólico
 residual que sobrevive al doblado. Si los residuos muestran una curvatura suave
 a lo ancho de todo el espectro, libérela en lugar de dejar que $\Gamma$ y las
-profundidades la compensen.
+profundidades la compensen. Desde v4.19 hay además términos \param{Base v$^3$} y
+\param{Base v$^4$} (fijos a 0 por defecto): completan la paridad con el fondo
+polinómico de NORMOS (coeficientes BKG(4)/BKG(5)) para fondos instrumentales de
+orden alto.
 
 \subsection{Intensidades y textura del sexteto}
 \label{sec:textura}
@@ -153,6 +156,17 @@ sobre el control $\Delta E_Q$ del componente:
         cuadrupolar es comparable a la magnética o el EFG no es axial; se
         validó frente a NORMOS-SITE y es exacto (invariante bajo rotaciones)
         también donde aquel código aproxima.
+  \item \textbf{Hamiltoniano cristal único} (v4.19): como el anterior, pero
+        sin promediar el haz $\gamma$: su dirección queda fija por los ángulos
+        $\theta_\gamma$ y $\varphi_\gamma$ del componente (polar y azimutal
+        en el marco de ejes principales del EFG), con la suma \emph{coherente}
+        entre canales de radiación. Es el modo para monocristales o muestras
+        orientadas: en el límite axial con $\vec B \parallel z$ reproduce los
+        patrones clásicos $3\!:\!0\!:\!1$ (haz $\parallel \vec B$) y
+        $3\!:\!4\!:\!1$ (haz $\perp \vec B$), y su promedio isótropo
+        recupera exactamente el modo polvo. Equivale al IFSC/BEX/GAX de
+        NORMOS-SITE (nota: el GAX de NORMOS está desplazado $90^\circ$
+        respecto a $\varphi_\gamma$, medido en el banco de validación).
 \end{itemize}
 
 \section{Simular sin ajustar}

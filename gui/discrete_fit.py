@@ -30,6 +30,10 @@ class DiscreteFitMixin:
             self.calib.sat_scale.set_value(result.values.get("sat_scale", calib_state.sat_scale))
         if "curv" in result.free_keys:
             self.calib.curv.set_value(result.values.get("curv", calib_state.curv))
+        if "curv3" in result.free_keys:
+            self.calib.curv3.set_value(result.values.get("curv3", calib_state.curv3))
+        if "curv4" in result.free_keys:
+            self.calib.curv4.set_value(result.values.get("curv4", calib_state.curv4))
         if "src_fwhm" in result.free_keys:
             self.calib.src_fwhm.set_value(result.values.get("src_fwhm", calib_state.src_fwhm))
         if state.fit_center and "center" in result.values:

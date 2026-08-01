@@ -8,6 +8,9 @@ Cubre los mismos modos que la GUI (mismo motor, ``mossbauer_distribution``):
 - Forma: ``--shape histograma|gaussiana|vbf|binomial`` (Gaussiana = VBF con
   N=1 y línea Lorentziana; ``--vbf-components`` fija N para VBF).
 - Regularizador (solo histograma): ``--reg-mode tikhonov|tv|maxent``.
+- Física del kernel (solo histograma): ``--kernel-treatment
+  1er_orden|hamiltoniano`` (+ ``--kernel-eta``) y textura ``--d13``/``--d23``
+  (convenio de áreas NORMOS).
 - Perfil de línea del kernel: ``--profile Lorentziana|Voigt`` + ``--voigt-sigma``.
 - Correlación con la variable de la malla: ``--delta-slope``/``--quad-slope``.
 - Distribución 2D P(BHF, ΔEQ): ``--dist-2d`` (+ ``--qmin/--qmax/--nbins-quad/
@@ -84,6 +87,18 @@ def parse_args() -> argparse.Namespace:
                         help="Ratio de area lineas (2,5)/(3,4) del kernel "
                              "sextete (convenio NORMOS D23; 2 = polvo, 0-4 = "
                              "textura). Solo --shape histograma.")
+    parser.add_argument("--kernel-treatment",
+                        choices=["1er_orden", "hamiltoniano"],
+                        default="1er_orden",
+                        help="Física del kernel sextete: '1er_orden' clásico "
+                             "o 'hamiltoniano' (promedio de polvo del "
+                             "Hamiltoniano completo; --quad pasa a ser el "
+                             "módulo del EFG aleatorio, análogo exacto del "
+                             "EXACT/QUP de NORMOS-DIST). Solo --shape "
+                             "histograma.")
+    parser.add_argument("--kernel-eta", type=float, default=0.0,
+                        help="Asimetría η del EFG con --kernel-treatment "
+                             "hamiltoniano.")
 
     parser.add_argument("--dist-2d", action="store_true",
                         help="Distribucion bidimensional P(BHF, ΔEQ) regularizada.")
@@ -133,6 +148,9 @@ def parse_args() -> argparse.Namespace:
     if (args.d13 != 3.0 or args.d23 != 2.0) and (
             args.shape != "histograma" or args.dist_2d):
         parser.error("--d13/--d23 solo aplican a --shape histograma 1D.")
+    if (args.kernel_treatment != "1er_orden" and
+            (args.shape != "histograma" or args.dist_2d)):
+        parser.error("--kernel-treatment solo aplica a --shape histograma 1D.")
     return args
 
 
@@ -280,6 +298,10 @@ def run_fit_1d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
             profile=args.profile, voigt_sigma=args.voigt_sigma,
             delta_slope=args.delta_slope, quad_slope=args.quad_slope,
             int2_rel=int2_rel, int3_rel=int3_rel,
+            kernel_treatment=("hamiltonian"
+                              if args.kernel_treatment == "hamiltoniano"
+                              else "1st_order"),
+            kernel_eta=args.kernel_eta,
             **common)
     if args.shape in ("vbf", "gaussiana"):
         gaussian = args.shape == "gaussiana"

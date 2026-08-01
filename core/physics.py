@@ -9,6 +9,7 @@ from scipy.special import wofz
 from .constants import LINE_POS_33T, LINE_QUAD_PATTERN, BHF_DEFAULT_T, E_GAMMA
 from .hamiltonian import (
     full_hamiltonian_lines,
+    full_hamiltonian_lines_sc,
     kundig_sextet_positions,
     kundig_sextet_positions_batch,
     polycrystal_kundig_positions,
@@ -85,6 +86,8 @@ def sextet_absorption(
     n_quad: int = 20,
     eta: float = 0.0,
     phi: float = 0.0,
+    beam_theta: float = 0.0,
+    beam_phi: float = 0.0,
 ) -> np.ndarray:
     """Absorción del sextete.
 
@@ -101,6 +104,10 @@ def sextet_absorption(
         pesos int1/int2 fijan la textura de los canales q (int1→q=±1,
         int2→q=0); int3 no aplica (la relación 1,6/3,4 = 3 es física).
         Validado contra NORMOS-SITE HAMILT (banco de validación, §6.1).
+      * ``"hamiltonian_sc"``: cristal único — como ``"hamiltonian"`` pero con
+        el haz γ en dirección fija (``beam_theta``, ``beam_phi``, rad, marco
+        del EFG; BEX/GAX de NORMOS-SITE) y suma coherente entre canales q.
+        int1/int2 no aplican. Banco de validación banco-2 §K3.
     """
     i3 = int3
     i2 = int3 * int2
@@ -115,6 +122,17 @@ def sextet_absorption(
         positions, inten, wclass = full_hamiltonian_lines(
             bhf, delta, quad, eta=eta, theta=beta, phi=phi,
             int1=i1, int2=i2)
+        g_by_class = {1: g1, 2: g2, 3: g3}
+        gam8 = np.array([g_by_class[int(c)] for c in wclass], dtype=float)
+        return depth * sum_lorentzian_lines(v, positions, inten, gam8)
+
+    if treatment == "hamiltonian_sc":
+        # Cristal único (mejora banco-2 §K3): haz γ en dirección fija
+        # (beam_theta, beam_phi) en el marco del EFG; int1/int2 no aplican
+        # (la geometría de intensidades es explícita).
+        positions, inten, wclass = full_hamiltonian_lines_sc(
+            bhf, delta, quad, eta=eta, theta=beta, phi=phi,
+            beam_theta=beam_theta, beam_phi=beam_phi)
         g_by_class = {1: g1, 2: g2, 3: g3}
         gam8 = np.array([g_by_class[int(c)] for c in wclass], dtype=float)
         return depth * sum_lorentzian_lines(v, positions, inten, gam8)
@@ -441,6 +459,8 @@ def component_absorption(
             n_quad=int(extras.get("n_quad", 20)),
             eta=float(extras.get("eta", 0.0)),
             phi=float(extras.get("phi", 0.0)),
+            beam_theta=float(extras.get("beam_theta", 0.0)),
+            beam_phi=float(extras.get("beam_phi", 0.0)),
         )
     return sextet_absorption(v, *p)
 
@@ -474,6 +494,8 @@ def total_model(
     sat_scale: float | None = None,
     curv: float = 0.0,
     transmission_src: float | None = None,
+    curv3: float = 0.0,
+    curv4: float = 0.0,
 ) -> np.ndarray:
     """Modelo de transmisión.
 
@@ -498,7 +520,9 @@ def total_model(
     (τ≪1, fuente estrecha) reproduce el modelo delgado.
 
     ``curv`` añade un término cuadrático de base (efecto geométrico residual
-    tras el doblado; mejora banco NORMOS §6.8). Con ``curv=0`` no hay cambio.
+    tras el doblado; mejora banco NORMOS §6.8). ``curv3``/``curv4`` añaden
+    los términos cúbico y cuártico (paridad con los fondos BKG(4)/BKG(5) de
+    NORMOS, banco-2 §K2). Con todos a 0 no hay cambio.
     """
     a_tot = np.zeros_like(v, dtype=float)
     for comp in components:
@@ -524,6 +548,8 @@ def total_model(
     else:
         a_eff = a_tot
     out = baseline + slope * v - a_eff
-    if curv:
-        out = out + curv * np.asarray(v, dtype=float) ** 2
+    if curv or curv3 or curv4:
+        # Fondo polinómico hasta v⁴ (banco NORMOS-2 §K2: BKG(3..5) de SITE).
+        vv = np.asarray(v, dtype=float)
+        out = out + curv * vv ** 2 + curv3 * vv ** 3 + curv4 * vv ** 4
     return out

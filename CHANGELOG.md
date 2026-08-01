@@ -1,5 +1,44 @@
 # Changelog
 
+## v4.19.0 — tres capacidades de paridad con NORMOS: cristal único, kernel Hamiltoniano en distribuciones y fondo v³/v⁴
+
+Cierra tres de las cuatro capacidades que el veredicto del banco
+(validacion/informe/VEREDICTO.md) señalaba como "lo que le falta a Fitbauer
+para llegar a NORMOS" (queda solo la fuente polarizada, bajo demanda):
+
+- **Cristal único / muestra orientada** (`quad_treatment="hamiltonian_sc"`):
+  el haz γ deja de promediarse isótropo y toma dirección fija (parámetros por
+  componente `bex`/`gax`, polar/azimutal en el marco del EFG) con suma
+  COHERENTE entre canales de radiación (matriz de Wigner d¹). En el límite
+  axial reproduce los patrones clásicos 3:0:1 (haz ∥ B) y 3:4:1 (haz ⊥ B) y
+  su promedio isótropo recupera el polvo a 1e-15. Equivale al IFSC/BEX/GAX de
+  SITE; re-ajuste del banco K3: χ²red 3.5–20 → 2.3–3.4 con intensidades
+  FIJAS (el residuo restante es la aproximación de SITE-1994). Convención
+  descubierta: el GAX del demo está desplazado 90° del azimut geométrico.
+- **Kernel Hamiltoniano en distribuciones** (`kernel_treatment="hamiltonian"`
+  en el panel de distribución y `--kernel-treatment hamiltoniano` en el CLI):
+  cada columna del kernel P(BHF) es el promedio de polvo del Hamiltoniano
+  completo (EFG aleatorio, control η); ΔEQ pasa a ser el módulo del EFG —
+  análogo exacto (no perturbativo) del EXACT/QUP de NORMOS-DIST. La textura
+  del kernel va ligada a B (marco del campo, nueva
+  `full_hamiltonian_lines_field`). Round-trip sintético: momentos exactos;
+  banco L4: σ a QUP=1 pasa de +2.4 T (1er orden) a +1.0 T (resto =
+  aproximación perturbativa del propio EXACT).
+- **Fondo cúbico/cuártico** (`curv3`/`curv4`, panel de calibración): paridad
+  con BKG(4)/BKG(5) de NORMOS; banco K2: el fondo cúbico pasa de χ²red 2.5
+  (sesgo documentado) a exacto, y el cuártico nuevo se recupera a 3 cifras.
+
+Todo expuesto en la GUI Qt (menú contextual de ΔEQ, panel de distribución,
+calibración) con sesiones, i18n en 8 idiomas y manuales ES/EN recompilados.
+Tests nuevos: tests/test_mejoras_v4_19.py (11). Validación:
+validacion/generador/valida_v4_19.py e informe §18.
+
+Corrección: si el layout guardado en los ajustes referenciaba un preset o
+layout personalizado que ya no existe tras actualizar, la ventana arrancaba
+EN BLANCO (todos los paneles ocultos). Ahora un nombre huérfano o un spec
+sin paneles cae automáticamente al preset por defecto (test de regresión en
+tests/test_qt_app.py).
+
 ## v4.18.1 — 2ª ampliación del banco NORMOS (series K/L) y tres ajustes de paridad
 
 Con el manual de NORMOS (Brand 1990) se amplió el banco de validación con

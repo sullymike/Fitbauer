@@ -22,7 +22,7 @@ MAX_COMPONENTS = 10
 PARAM_ORDER = (
     "delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
     "depth", "int1", "int2", "int3", "texture", "beta",
-    "eta", "phi",
+    "eta", "phi", "bex", "gax",
     "relax_fraction", "relax_log_nu",
     "neel_temp_k", "neel_log10_keff", "neel_mean_d_nm",
     "neel_sigma", "neel_log10_tau0", "neel_bins",
@@ -38,7 +38,8 @@ ACTIVE_PARAM_ORDER = (
 # Conjunto de parámetros realmente usados por cada tipo de componente.
 USED_BY = {
     "Sextete": {"delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
-                "depth", "int1", "int2", "texture", "beta", "eta", "phi"},
+                "depth", "int1", "int2", "texture", "beta", "eta", "phi",
+                "bex", "gax"},
     "Doblete": {"delta", "quad", "gamma1", "gamma2", "depth", "int2"},
     "Singlete": {"delta", "gamma1", "depth"},
     # Modelo fenomenológico de relajación: mezcla de sextete bloqueado y
@@ -67,9 +68,13 @@ DISTRIBUTION_SHAPES = ("Histograma", "Gaussiana", "VBF", "Binomial", "Fija", "2D
 INTENSITY_MODES = ("free", "texture")
 
 # Tratamientos cuadrupolares válidos para sextetes. "hamiltonian" =
+# Hamiltoniano completo con promedio isótropo del haz (polvo);
+# "hamiltonian_sc" = cristal único con haz γ en dirección fija (bex/gax,
+# convenio BEX/GAX de NORMOS-SITE; banco-2 §K3).
 # Hamiltoniano estático completo con intensidades desde autovectores y EFG
 # no axial (eta, phi); validado contra NORMOS-SITE (banco de validación).
-QUAD_TREATMENTS = ("1st_order", "kundig_fixed", "kundig_powder", "hamiltonian")
+QUAD_TREATMENTS = ("1st_order", "kundig_fixed", "kundig_powder", "hamiltonian",
+                   "hamiltonian_sc")
 
 
 @dataclass(frozen=True)
@@ -98,6 +103,12 @@ COMPONENT_PARAM_SPECS = {
     "beta":    ParamSpec(0.0, 0.0, 90.0, 0.1, 2),
     "eta":     ParamSpec(0.0, 0.0, 1.0, 0.01, 3),
     "phi":     ParamSpec(0.0, 0.0, 90.0, 0.1, 2),
+    # Dirección del haz γ en el marco del EFG (cristal único, hamiltonian_sc).
+    # gax: azimut desde el eje x del EFG (mismo convenio que phi para B);
+    # nota: el GAX de NORMOS-SITE está desplazado 90° (GAX = gax − 90,
+    # medido en el banco-2 §K3).
+    "bex":     ParamSpec(0.0, 0.0, 90.0, 0.1, 2),
+    "gax":     ParamSpec(0.0, 0.0, 180.0, 0.1, 2),
     "relax_fraction": ParamSpec(1.0, 0.0, 1.0, 0.001, 4),
     "relax_log_nu": ParamSpec(5.0, 3.0, 12.0, 0.1, 2),
     "neel_temp_k": ParamSpec(300.0, 1.0, 800.0, 1.0, 1),
@@ -116,6 +127,7 @@ COMPONENT_PARAM_SPECS = {
 COMPONENT_PARAM_LAYOUT = {
     "left": ("delta", "quad", "bhf", "gamma1", "gamma2", "gamma3"),
     "right": ("depth", "int1", "int2", "texture", "beta", "eta", "phi",
+              "bex", "gax",
               "relax_fraction", "relax_log_nu",
               "neel_mean_d_nm", "neel_sigma", "neel_bins",
               "neel_temp_k", "neel_log10_keff", "neel_log10_tau0"),
@@ -136,6 +148,9 @@ GLOBAL_FIT_BOUNDS = {
     # de la integral de transmisión (§6.3). Por defecto van FIJOS a su valor
     # neutro y no cambian el comportamiento histórico.
     "curv": (-0.02, 0.02), "src_fwhm": (0.0, 1.0),
+    # Fondo cúbico/cuártico (paridad con BKG(4)/BKG(5) de NORMOS, banco-2
+    # §K2). Fijos a 0 por defecto: no cambian el comportamiento histórico.
+    "curv3": (-0.005, 0.005), "curv4": (-0.005, 0.005),
 }
 COMPONENT_FIT_BOUNDS = {
     "delta": (-2.0, 3.0), "quad": (-4.0, 4.0), "bhf": (0.0, 60.0),
@@ -143,6 +158,7 @@ COMPONENT_FIT_BOUNDS = {
     "depth": (0.0, 0.30), "int1": (0.0, 9.0), "int2": (0.0, 6.0),
     "int3": (0.0, 3.0), "texture": (0.0, 1.0), "beta": (0.0, 90.0),
     "eta": (0.0, 1.0), "phi": (0.0, 90.0),
+    "bex": (0.0, 90.0), "gax": (0.0, 180.0),
     "relax_fraction": (0.0, 1.0), "relax_log_nu": (3.0, 12.0),
     "neel_temp_k": (1.0, 800.0), "neel_log10_keff": (2.0, 7.0),
     "neel_mean_d_nm": (0.5, 100.0), "neel_sigma": (0.01, 1.5),
@@ -162,6 +178,9 @@ CALIBRATION_PARAM_SPECS: dict[str, ParamSpec] = {
     # la fuente para la integral de transmisión (§6.3). Fijos por defecto.
     "curv":        ParamSpec(0.0,   -0.02,  0.02,   1e-5,  6),
     "src_fwhm":    ParamSpec(0.097,   0.0,   1.0,   0.001, 4),
+    # Fondo cúbico/cuártico (BKG(4)/BKG(5) de NORMOS, banco-2 §K2).
+    "curv3":       ParamSpec(0.0,  -0.005, 0.005,   1e-6,  7),
+    "curv4":       ParamSpec(0.0,  -0.005, 0.005,   1e-6,  7),
 }
 
 # Especificación de los controles del panel de distribución.
@@ -272,14 +291,25 @@ def relevant_params(kind: str, intensity_mode: str, quad_treatment: str) -> set[
             used.discard("int2")
         else:
             used.discard("texture")
-        if quad_treatment not in ("kundig_fixed", "hamiltonian"):
+        if quad_treatment not in ("kundig_fixed", "hamiltonian",
+                                  "hamiltonian_sc"):
             used.discard("beta")
-        if quad_treatment != "hamiltonian":
+        if quad_treatment not in ("hamiltonian", "hamiltonian_sc"):
             used.discard("eta")
             used.discard("phi")
+        if quad_treatment != "hamiltonian_sc":
+            used.discard("bex")
+            used.discard("gax")
+        else:
+            # Cristal único: la geometría de intensidades es explícita;
+            # los pesos de textura int1/int2 no aplican.
+            used.discard("int1")
+            used.discard("int2")
     else:
         used.discard("texture")
         used.discard("beta")
         used.discard("eta")
         used.discard("phi")
+        used.discard("bex")
+        used.discard("gax")
     return used

@@ -249,6 +249,60 @@ _M2_E = np.array([3, 1, -1, -3], dtype=int)   # 2·m_e por índice de base
 _M2_G = np.array([1, -1], dtype=int)          # 2·m_g por índice de base
 
 
+def _full_hamiltonian_amplitudes(
+    bhf_T: float, delta: float, deq: float,
+    eta: float = 0.0, theta: float = 0.0, phi: float = 0.0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Posiciones, amplitudes M1 por canal q y clase de anchura (8 transiciones).
+
+    Devuelve ``(positions(8), amps(8, 3) complejas, width_class(8))`` SIN
+    ordenar por posición: amps[k, qi] = ⟨ψ_e|T_q|ψ_g⟩ con qi ∈ {0,1,2} ↔
+    q ∈ {−1, 0, +1}. Es la pieza común del promedio isótropo
+    (:func:`full_hamiltonian_lines`) y del cristal único
+    (:func:`full_hamiltonian_lines_sc`).
+    """
+    omega_e = bhf_T / BHF_REF_T * OMEGA_E_33T
+    omega_g = bhf_T / BHF_REF_T * OMEGA_G_33T
+    st, ct = float(np.sin(theta)), float(np.cos(theta))
+    sp, cp = float(np.sin(phi)), float(np.cos(phi))
+    nx, ny, nz = st * cp, st * sp, ct
+
+    He = (omega_e * (nx * _Ix + ny * _Iy + nz * _Iz)
+          + (deq / 6.0) * (3.0 * (_Iz @ _Iz) - _I_squared * _EYE4
+                           + float(eta) * (_Ix @ _Ix - _Iy @ _Iy)))
+    E_e, A = np.linalg.eigh(He)
+    Hg = omega_g * (nx * _gIx + ny * _gIy + nz * _gIz)
+    E_g, Bv = np.linalg.eigh(Hg)
+
+    m2_e_dom = _M2_E[np.argmax(np.abs(A) ** 2, axis=0)]     # (4,)
+    m2_g_dom = _M2_G[np.argmax(np.abs(Bv) ** 2, axis=0)]    # (2,)
+
+    positions = np.empty(8)
+    amps = np.zeros((8, 3), dtype=complex)
+    width_class = np.empty(8, dtype=int)
+    k = 0
+    for gi in range(2):
+        for ek in range(4):
+            for qi in range(3):
+                m = 0.0 + 0.0j
+                for g_base in range(2):
+                    for e_base in range(4):
+                        cg = _CG[qi, g_base, e_base]
+                        if cg:
+                            m += np.conj(A[e_base, ek]) * cg * Bv[g_base, gi]
+                amps[k, qi] = m
+            positions[k] = float(E_e[ek] - E_g[gi]) + float(delta)
+            me, mg = int(m2_e_dom[ek]), int(m2_g_dom[gi])
+            if abs(me) == 3:
+                width_class[k] = 1
+            elif me == mg:
+                width_class[k] = 2
+            else:
+                width_class[k] = 3
+            k += 1
+    return positions, amps, width_class
+
+
 def full_hamiltonian_lines(
     bhf_T: float, delta: float, deq: float,
     eta: float = 0.0, theta: float = 0.0, phi: float = 0.0,
@@ -282,41 +336,65 @@ def full_hamiltonian_lines(
     width_class : (8,) enteros {1, 2, 3} → anchura gamma1/gamma2/gamma3
                   según la transición dominante (las ΔmI=±2 usan gamma1).
     """
+    positions, amps, width_class = _full_hamiltonian_amplitudes(
+        bhf_T, delta, deq, eta=eta, theta=theta, phi=phi)
+    w_q = np.array([float(int1), 1.5 * float(int2), float(int1)])
+    intensities = (np.abs(amps) ** 2 @ w_q).astype(float)
+    order = np.argsort(positions)
+    return positions[order], intensities[order], width_class[order]
+
+
+def full_hamiltonian_lines_field(
+    bhf_T: float, delta: float, deq: float,
+    eta: float = 0.0, theta: float = 0.0, phi: float = 0.0,
+    int1: float = 3.0, int2: float = 2.0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Como :func:`full_hamiltonian_lines` pero en el MARCO DEL CAMPO.
+
+    B queda a lo largo de z y es el EFG el que se inclina (θ, φ): los canales
+    q de la radiación — y por tanto los pesos de textura int1/int2 — quedan
+    ligados a la dirección de B, que es lo físico cuando la textura describe
+    la orientación de la imanación respecto al haz (banco NORMOS-2, serie
+    L4/L6: EXACT de DIST). Con pesos isótropos (int2 = 2·int1/3 → W_q
+    iguales) coincide exactamente con el promedio del marco del EFG; con
+    textura, el marco del EFG la diluiría al promediar orientaciones.
+
+    El estado fundamental es Zeeman puro (autoestados |±1/2⟩ exactos).
+    """
     omega_e = bhf_T / BHF_REF_T * OMEGA_E_33T
     omega_g = bhf_T / BHF_REF_T * OMEGA_G_33T
     st, ct = float(np.sin(theta)), float(np.cos(theta))
     sp, cp = float(np.sin(phi)), float(np.cos(phi))
-    nx, ny, nz = st * cp, st * sp, ct
+    # Ejes principales del EFG expresados en el marco del campo (zyz):
+    Iz_p = st * cp * _Ix + st * sp * _Iy + ct * _Iz
+    Ix_p = ct * cp * _Ix + ct * sp * _Iy - st * _Iz
+    Iy_p = -sp * _Ix + cp * _Iy
 
-    He = (omega_e * (nx * _Ix + ny * _Iy + nz * _Iz)
-          + (deq / 6.0) * (3.0 * (_Iz @ _Iz) - _I_squared * _EYE4
-                           + float(eta) * (_Ix @ _Ix - _Iy @ _Iy)))
+    He = (omega_e * _Iz
+          + (deq / 6.0) * (3.0 * (Iz_p @ Iz_p) - _I_squared * _EYE4
+                           + float(eta) * (Ix_p @ Ix_p - Iy_p @ Iy_p)))
     E_e, A = np.linalg.eigh(He)
-    Hg = omega_g * (nx * _gIx + ny * _gIy + nz * _gIz)
-    E_g, Bv = np.linalg.eigh(Hg)
+    E_g = np.array([+omega_g / 2.0, -omega_g / 2.0])   # m_g = +1/2, −1/2
+    m2_e_dom = _M2_E[np.argmax(np.abs(A) ** 2, axis=0)]
 
     w_q = np.array([float(int1), 1.5 * float(int2), float(int1)])
-    m2_e_dom = _M2_E[np.argmax(np.abs(A) ** 2, axis=0)]     # (4,)
-    m2_g_dom = _M2_G[np.argmax(np.abs(Bv) ** 2, axis=0)]    # (2,)
-
     positions = np.empty(8)
     intensities = np.empty(8)
     width_class = np.empty(8, dtype=int)
     k = 0
-    for gi in range(2):
+    for gi, mg in ((0, 1), (1, -1)):        # índice base fundamental, 2·m_g
         for ek in range(4):
             inten = 0.0
             for qi in range(3):
                 m = 0.0 + 0.0j
-                for g_base in range(2):
-                    for e_base in range(4):
-                        cg = _CG[qi, g_base, e_base]
-                        if cg:
-                            m += np.conj(A[e_base, ek]) * cg * Bv[g_base, gi]
+                for e_base in range(4):
+                    cg = _CG[qi, gi, e_base]
+                    if cg:
+                        m += np.conj(A[e_base, ek]) * cg
                 inten += w_q[qi] * float(np.abs(m) ** 2)
             positions[k] = float(E_e[ek] - E_g[gi]) + float(delta)
             intensities[k] = inten
-            me, mg = int(m2_e_dom[ek]), int(m2_g_dom[gi])
+            me = int(m2_e_dom[ek])
             if abs(me) == 3:
                 width_class[k] = 1
             elif me == mg:
@@ -326,6 +404,53 @@ def full_hamiltonian_lines(
             k += 1
     order = np.argsort(positions)
     return positions[order], intensities[order], width_class[order]
+
+
+def _d1_matrix(theta: float) -> np.ndarray:
+    """Matriz de Wigner d¹(θ), filas m ∈ {−1, 0, +1}, columnas m' ∈ {−1, 0, +1}."""
+    c, s = float(np.cos(theta)), float(np.sin(theta))
+    r2 = np.sqrt(2.0)
+    return np.array([
+        [(1 + c) / 2.0, s / r2, (1 - c) / 2.0],
+        [-s / r2, c, s / r2],
+        [(1 - c) / 2.0, -s / r2, (1 + c) / 2.0],
+    ])
+
+
+def full_hamiltonian_lines_sc(
+    bhf_T: float, delta: float, deq: float,
+    eta: float = 0.0, theta: float = 0.0, phi: float = 0.0,
+    beam_theta: float = 0.0, beam_phi: float = 0.0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Transiciones para CRISTAL ÚNICO: haz γ en dirección fija (mejora banco-2).
+
+    Igual que :func:`full_hamiltonian_lines` pero sin promediar el haz: la
+    radiación M1 se proyecta sobre la dirección (``beam_theta``,
+    ``beam_phi``) — ángulos polar/azimutal del rayo γ en el marco de ejes
+    principales del EFG, equivalentes a BEX/GAX de NORMOS-SITE. La suma
+    sobre canales q es COHERENTE (las interferencias entre q y q′ son las
+    que SITE-1994 trata de forma aproximada):
+
+        A_λ(k̂) = Σ_q e^{−i q φ_γ} d¹_{qλ}(θ_γ) ⟨ψ_e|T_q|ψ_g⟩,  λ = ±1
+        I(k̂) = (9/2)·(|A_{+1}|² + |A_{−1}|²)
+
+    El factor 9/2 hace que el promedio isótropo de I(k̂) reproduzca la
+    normalización 3:2:1 del caso polvo (int1=3, int2=2): la regla de suma y
+    el papel de ``depth`` se conservan. En el límite axial B∥z el patrón es
+    el clásico 3:(4sin²Θ/(1+cos²Θ)):1 → 3:0:1 con haz ∥ B y 3:4:1 con haz ⊥.
+    Los pesos de textura int1/int2 no aplican (la geometría es explícita).
+    """
+    positions, amps, width_class = _full_hamiltonian_amplitudes(
+        bhf_T, delta, deq, eta=eta, theta=theta, phi=phi)
+    d1 = _d1_matrix(float(beam_theta))
+    q_vals = np.array([-1.0, 0.0, 1.0])
+    phase = np.exp(-1j * q_vals * float(beam_phi))          # (3,)
+    rot = amps * phase[None, :]                             # (8, 3)
+    a_minus = rot @ d1[:, 0]                                # λ = −1
+    a_plus = rot @ d1[:, 2]                                 # λ = +1
+    intensities = 4.5 * (np.abs(a_plus) ** 2 + np.abs(a_minus) ** 2)
+    order = np.argsort(positions)
+    return positions[order], intensities[order].astype(float), width_class[order]
 
 
 def polycrystal_kundig_positions(

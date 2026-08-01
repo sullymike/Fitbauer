@@ -193,6 +193,9 @@ def sextet_absorption(
     int1: float = 1.0,
     int2_rel: float = 1.0,
     int3_rel: float = 1.0,
+    treatment: str = "1st_order",
+    eta: float = 0.0,
+    n_orient: int = 12,
 ) -> np.ndarray:
     """Absorcion positiva de un sextete Fe-57 con profundidad unitaria.
 
@@ -200,10 +203,42 @@ def sextet_absorption(
     int2_rel=1 -> I2=(2/3)*I1; int3_rel=1 -> I3=(1/3)*I1.
     La física (posiciones y suma de líneas) vive en ``core.physics``; aquí
     solo se traduce la convención de pesos.
+
+    ``treatment="hamiltonian"`` (banco NORMOS-2, serie L4): en lugar del
+    patrón rígido de 1er orden, cada evaluación es el promedio de polvo del
+    Hamiltoniano completo (EFG aleatorio respecto a B): cuadratura
+    Gauss-Legendre en cosβ (``n_orient`` nodos) y, si ``eta``>0, promedio en
+    φ ∈ [0, π/2]. Es el análogo exacto del EXACT de NORMOS-DIST (orden
+    mixto), sin truncar a teoría de perturbaciones.
     """
     v = np.asarray(v, dtype=float)
     weights, gammas = _rel_weights_gammas(gamma, gamma2_rel, gamma3_rel,
                                           int1, int2_rel, int3_rel)
+    if str(treatment) == "hamiltonian":
+        # Promedio de polvo en el MARCO DEL CAMPO (B∥z, EFG inclinado): los
+        # canales q — y la textura int1/int2 — quedan ligados a B, que es lo
+        # físico para el análogo del EXACT de DIST (con textura en el marco
+        # del EFG el promedio la diluiría a isótropa).
+        from core.hamiltonian import full_hamiltonian_lines_field
+        w1, w2 = float(weights[0]), float(weights[1])
+        x, wq = np.polynomial.legendre.leggauss(max(4, int(n_orient)))
+        thetas = np.arccos(np.clip(x, -1.0, 1.0))
+        # El término η del EFG tiene simetría C2v: basta φ ∈ [0, π/2].
+        phis = ([np.pi / 16, 3 * np.pi / 16, 5 * np.pi / 16, 7 * np.pi / 16]
+                if abs(float(eta)) > 1e-9 else [0.0])
+        g_by_class = {1: float(gammas[0]), 2: float(gammas[1]),
+                      3: float(gammas[2])}
+        acc = np.zeros_like(v)
+        for th, wt in zip(thetas, 0.5 * wq):
+            for ph in phis:
+                pos, inten, wcls = full_hamiltonian_lines_field(
+                    float(bhf), float(delta), float(quad), eta=float(eta),
+                    theta=float(th), phi=float(ph),
+                    int1=w1, int2=w2)
+                gam8 = np.array([g_by_class[int(c)] for c in wcls])
+                acc += (wt / len(phis)) * core_physics.sum_lorentzian_lines(
+                    v, pos, inten, gam8)
+        return acc
     positions = core_physics.sextet_line_positions(delta, quad, bhf)
     return core_physics.sum_lorentzian_lines(v, positions, weights, gammas)
 
@@ -353,6 +388,9 @@ def build_bhf_kernel(
     delta_slope: float = 0.0,
     quad_slope: float = 0.0,
     h_ref: float | None = None,
+    treatment: str = "1st_order",
+    eta: float = 0.0,
+    n_orient: int = 12,
 ) -> np.ndarray:
     """Matriz K[i,j] = absorcion de un sextete unitario con BHF_j.
 
@@ -380,6 +418,9 @@ def build_bhf_kernel(
             int1=int1,
             int2_rel=int2_rel,
             int3_rel=int3_rel,
+            treatment=treatment,
+            eta=eta,
+            n_orient=n_orient,
         )
         for bhf in bhf_centers
     ]
@@ -747,6 +788,9 @@ def build_hyperfine_distribution_kernel(
     delta_slope: float = 0.0,
     quad_slope: float = 0.0,
     h_ref: float | None = None,
+    treatment: str = "1st_order",
+    eta: float = 0.0,
+    n_orient: int = 12,
 ) -> np.ndarray:
     """Kernel de distribución 1D en BHF o ΔEQ.
 
@@ -765,7 +809,8 @@ def build_hyperfine_distribution_kernel(
         return build_bhf_kernel(v, centers_arr, delta=delta, quad=quad, gamma=gamma,
                                 gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel,
                                 int1=int1, int2_rel=int2_rel, int3_rel=int3_rel,
-                                delta_slope=delta_slope, quad_slope=quad_slope, h_ref=href)
+                                delta_slope=delta_slope, quad_slope=quad_slope, h_ref=href,
+                                treatment=treatment, eta=eta, n_orient=n_orient)
     if variable in {"quad", "deq", "deltaeq", "qs", "Δeq"}:
         return np.column_stack([
             sextet_absorption(v, delta=float(delta) + float(delta_slope) * (float(q) - href),
@@ -1164,6 +1209,9 @@ def fit_hyperfine_distribution(
     delta_slope: float = 0.0,
     quad_slope: float = 0.0,
     h_ref: float | None = None,
+    kernel_treatment: str = "1st_order",
+    kernel_eta: float = 0.0,
+    kernel_n_orient: int = 12,
 ) -> BhfDistributionFit:
     """Ajusta una distribución Hesse-Rübartsch de BHF o ΔEQ.
 
@@ -1218,6 +1266,9 @@ def fit_hyperfine_distribution(
             delta_slope=delta_slope,
             quad_slope=quad_slope,
             h_ref=h_ref,
+            treatment=kernel_treatment,
+            eta=kernel_eta,
+            n_orient=kernel_n_orient,
         )
         K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
             v,

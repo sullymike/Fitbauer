@@ -70,6 +70,28 @@ class DistributionPanel(QtWidgets.QGroupBox):
         reg_row.addWidget(self.reg_mode_combo, stretch=1)
         left_v.addLayout(reg_row)
 
+        # Física del kernel (solo histograma): 1er orden clásico o promedio
+        # de polvo del Hamiltoniano completo (análogo del EXACT de
+        # NORMOS-DIST; con él, ΔEQ es el módulo del EFG aleatorio).
+        kt_row = QtWidgets.QHBoxLayout()
+        kt_row.addWidget(QtWidgets.QLabel(
+            tr("bhf.kernel_treatment_label", default="Kernel") + ":"))
+        self.kernel_combo = QtWidgets.QComboBox()
+        for code, key in (("1st_order", "bhf.kernel_1st_order"),
+                          ("hamiltonian", "bhf.kernel_hamiltonian")):
+            self.kernel_combo.addItem(
+                tr(key, default=("1er orden" if code == "1st_order"
+                                 else "Hamiltoniano (polvo)")), code)
+        self.kernel_combo.currentIndexChanged.connect(lambda *_: self.paramChanged.emit())
+        kt_row.addWidget(self.kernel_combo, stretch=1)
+        left_v.addLayout(kt_row)
+        self.kernel_eta = ParamControl(
+            tr("slider.dist_kernel_eta", default="η EFG (kernel HC)"),
+            0.0, 0.0, 1.0, 0.01, 3)
+        self.kernel_eta.set_fixed(True)
+        left_v.addWidget(self.kernel_eta)
+        self.kernel_eta.valueChanged.connect(lambda *_: self.paramChanged.emit())
+
         # Nº de gaussianas para la forma VBF (Rancourt–Ping). Oculto salvo VBF.
         self.vbf_row = QtWidgets.QHBoxLayout()
         self.vbf_row.addWidget(QtWidgets.QLabel(tr("bhf.vbf_ncomp", default="Componentes VBF") + ":"))
@@ -288,6 +310,8 @@ class DistributionPanel(QtWidgets.QGroupBox):
             log_alpha=self.log_alpha.value(),
             delta_slope=self.delta_slope.value(),
             quad_slope=self.quad_slope.value(),
+            kernel_treatment=self.kernel_treatment,
+            kernel_eta=self.kernel_eta.value(),
             vbf_n_components=int(self.vbf_ncomp.value()),
             qmin=self.qmin.value(),
             qmax=self.qmax.value(),
@@ -305,6 +329,10 @@ class DistributionPanel(QtWidgets.QGroupBox):
     @property
     def shape(self) -> str:
         return self.shape_combo.currentData() or "Histograma"
+
+    @property
+    def kernel_treatment(self) -> str:
+        return self.kernel_combo.currentData() or "1st_order"
 
     @property
     def reg_mode(self) -> str:

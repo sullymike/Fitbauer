@@ -256,6 +256,24 @@ the distribution looks smoother but loses detail. A physically reasonable value
 the L-curve give the best compromise.
 \end{aviso}
 
+\subsection{Kernel physics: 1st order or Hamiltonian (v4.19)}
+\label{sec:kernel-hc}
+
+By default each subspectrum of the grid is the rigid 1st-order sextet. The
+\menu{Kernel} selector of the panel switches it to the \textbf{powder
+average of the full Hamiltonian}: each kernel column is computed by
+diagonalising the magnetic+quadrupole Hamiltonian over all orientations of
+the EFG with respect to $\vec B$ (with the $\eta$ control for non-axial
+EFG). With this kernel, $\dEQ$ is no longer a rigid shift but the
+\textbf{magnitude of the random EFG} —the exact analogue of the EXACT/QUP
+mode of NORMOS-DIST, without truncating to perturbation theory—. Use it when
+the quadrupole interaction is not small compared with the magnetic splitting
+at the low end of the grid ($R = \dEQ/(0.323\,B) \gtrsim 0.2$): with the
+1st-order kernel those spectra bias $\langle B\rangle$ and artificially
+broaden $\sigma$. With $\dEQ = 0$ both kernels are identical. In powder
+mode the kernel texture (area ratio of lines 2,5) is tied to the direction
+of $\vec B$, as it should be.
+
 \subsection{Correlation with the field: $\kappa_\delta$ and $\kappa_q$}
 
 Two optional slopes that couple $\delta$ and $\dEQ$ to the value of the field

@@ -76,6 +76,13 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         self.curv = ParamControl(tr("slider.curv", default="Curvatura base"),
                                  *astuple(_cs["curv"]), with_fixed=True)
         self.curv.set_fixed(True)
+        # Fondo cúbico/cuártico (BKG(4)/BKG(5) de NORMOS), fijos a 0.
+        self.curv3 = ParamControl(tr("slider.curv3", default="Base v³"),
+                                  *astuple(_cs["curv3"]), with_fixed=True)
+        self.curv3.set_fixed(True)
+        self.curv4 = ParamControl(tr("slider.curv4", default="Base v⁴"),
+                                  *astuple(_cs["curv4"]), with_fixed=True)
+        self.curv4.set_fixed(True)
 
         # Forma de onda del drive: triangular (aceleración cte, se dobla + eje
         # lineal) o senoidal (NORMOS FOLD=.FALSE.: sin doblar, v = vmax·sin).
@@ -91,7 +98,8 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         drive_row.addWidget(self.drive_combo, stretch=1)
 
         for w in (self.vmax, self.fit_velocity, self.center, self.fit_center,
-                  self.baseline, self.slope, self.curv, self.voigt_sigma):
+                  self.baseline, self.slope, self.curv, self.curv3,
+                  self.curv4, self.voigt_sigma):
             v.addWidget(w)
         v.addLayout(drive_row)
         v.addLayout(absorber_row)
@@ -101,6 +109,7 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         v.addStretch(1)
 
         for w in (self.vmax, self.center, self.baseline, self.slope, self.curv,
+                  self.curv3, self.curv4,
                   self.voigt_sigma, self.sat_scale, self.src_fwhm):
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
             w.fixedChanged.connect(lambda *_: self.paramChanged.emit())
@@ -160,6 +169,8 @@ class CalibrationPanel(QtWidgets.QGroupBox):
             voigt_sigma=self.voigt_sigma.value(),
             sat_scale=self.sat_scale.value(),
             curv=self.curv.value(),
+            curv3=self.curv3.value(),
+            curv4=self.curv4.value(),
             src_fwhm=self.src_fwhm.value(),
             line_profile=self.line_profile,
             absorber_model=self.absorber_model,
@@ -172,6 +183,8 @@ class CalibrationPanel(QtWidgets.QGroupBox):
                 "slope": self.slope.is_fixed(),
                 "sat_scale": self.sat_scale.is_fixed(),
                 "curv": self.curv.is_fixed(),
+                "curv3": self.curv3.is_fixed(),
+                "curv4": self.curv4.is_fixed(),
                 "src_fwhm": self.src_fwhm.is_fixed(),
                 "vmax": True,
                 "center": True,
@@ -351,7 +364,8 @@ class ComponentPanel(QtWidgets.QWidget):
                             ("context.quad_treatment_1st_order",
                              "context.quad_treatment_kundig_fixed",
                              "context.quad_treatment_kundig_powder",
-                             "context.quad_treatment_hamiltonian")):
+                             "context.quad_treatment_hamiltonian",
+                             "context.quad_treatment_hamiltonian_sc")):
             act = menu.addAction(tr(key))
             act.setCheckable(True)
             act.setChecked(self.quad_treatment == val)

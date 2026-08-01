@@ -255,6 +255,24 @@ distribución se ve más lisa pero pierde detalle. Un valor físico razonable
 la L-curve dan el mejor compromiso.
 \end{aviso}
 
+\subsection{Física del kernel: 1er orden o Hamiltoniano (v4.19)}
+\label{sec:kernel-hc}
+
+Por defecto cada subespectro de la malla es el sexteto rígido de 1er orden.
+El selector \menu{Kernel} del panel permite cambiarlo por el \textbf{promedio
+de polvo del Hamiltoniano completo}: cada columna del kernel se calcula
+diagonalizando el hamiltoniano magnético+cuadrupolar sobre todas las
+orientaciones del EFG respecto a $\vec B$ (con el control $\eta$ para EFG no
+axial). Con este kernel, $\dEQ$ deja de ser un desplazamiento rígido y pasa a
+ser el \textbf{módulo del EFG aleatorio} —el análogo exacto del modo
+EXACT/QUP de NORMOS-DIST, sin truncar a teoría de perturbaciones—. Úselo
+cuando la interacción cuadrupolar no sea pequeña frente al desdoblamiento
+magnético en la parte baja de la malla ($R = \dEQ/(0{,}323\,B) \gtrsim
+0{,}2$): con el kernel de 1er orden esos espectros sesgan $\langle B\rangle$
+y ensanchan $\sigma$ artificialmente. Con $\dEQ = 0$ ambos kernels son
+idénticos. En modo polvo la textura del kernel (relación de áreas de las
+líneas 2,5) queda ligada a la dirección de $\vec B$, como corresponde.
+
 \subsection{Correlación con el campo: $\kappa_\delta$ y $\kappa_q$}
 
 Dos pendientes opcionales que acoplan $\delta$ y $\dEQ$ al valor del campo

@@ -124,6 +124,8 @@ class CalibrationViewState:
     voigt_sigma: float
     sat_scale: float
     curv: float = 0.0
+    curv3: float = 0.0
+    curv4: float = 0.0
     src_fwhm: float = 0.097
     line_profile: str = "Lorentziana"
     absorber_model: str = "thin"
@@ -148,6 +150,8 @@ class CalibrationViewState:
             "voigt_sigma": self.voigt_sigma,
             "sat_scale": self.sat_scale,
             "curv": self.curv,
+            "curv3": self.curv3,
+            "curv4": self.curv4,
             "src_fwhm": self.src_fwhm,
         }
 
@@ -321,6 +325,8 @@ class DistributionViewState:
     # Correlación δ(H)/ΔEQ(H) (mm/s·T⁻¹) y nº de gaussianas del VBF (opt-in).
     delta_slope: float = 0.0
     quad_slope:  float = 0.0
+    kernel_treatment: str = "1st_order"
+    kernel_eta: float = 0.0
     vbf_n_components: int = 2
     # Malla del eje Y de la distribución 2D (antes no se persistían).
     qmin:        float = _DSPEC["qmin"].default
@@ -363,6 +369,9 @@ class DistributionViewState:
             log_alpha=_num("dist_log_alpha", d.log_alpha),
             delta_slope=_num("dist_delta_slope", d.delta_slope),
             quad_slope=_num("dist_quad_slope", d.quad_slope),
+            kernel_treatment=str(state.get("dist_kernel_treatment",
+                                           d.kernel_treatment)),
+            kernel_eta=_num("dist_kernel_eta", d.kernel_eta),
             vbf_n_components=int(_num("dist_vbf_n_components", d.vbf_n_components)),
             qmin=_num("dist_qmin", d.qmin),
             qmax=_num("dist_qmax", d.qmax),
@@ -393,6 +402,8 @@ class DistributionViewState:
             "dist_log_alpha": float(self.log_alpha),
             "dist_delta_slope": float(self.delta_slope),
             "dist_quad_slope": float(self.quad_slope),
+            "dist_kernel_treatment": str(self.kernel_treatment),
+            "dist_kernel_eta": float(self.kernel_eta),
             "dist_vbf_n_components": int(self.vbf_n_components),
             "dist_qmin": float(self.qmin),
             "dist_qmax": float(self.qmax),

@@ -96,11 +96,14 @@ class ModelState:
             # curv/src_fwhm: fijos a su valor neutro (curvatura nula; anchura
             # de fuente natural de 57Fe) salvo que el usuario los libere.
             "curv": 0.0, "src_fwhm": 0.097,
+            # Fondo cúbico/cuártico (BKG(4)/BKG(5) de NORMOS): neutro y fijo.
+            "curv3": 0.0, "curv4": 0.0,
         }
         fixed: dict[str, bool] = {
             "vmax": True, "center": True, "baseline": False, "slope": False,
             "voigt_sigma": False, "sat_scale": True,
             "curv": True, "src_fwhm": True,
+            "curv3": True, "curv4": True,
         }
         se: dict[int, bool] = {}
         ck: dict[int, str] = {}
@@ -405,7 +408,7 @@ class HeadlessSession:
                 values_out[key] = float(self.model.vars[key])
         # Globales opcionales de modelo (saturación/transmisión/curvatura):
         # se reportan cuando participaron en el ajuste.
-        for key in ("sat_scale", "curv", "src_fwhm"):
+        for key in ("sat_scale", "curv", "src_fwhm", "curv3", "curv4"):
             if key in self.model.vars and not self.model.fixed.get(key, True):
                 values_out[key] = float(self.model.vars[key])
         return {

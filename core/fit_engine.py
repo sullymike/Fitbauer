@@ -264,10 +264,17 @@ def _build_components_list(values: dict[str, float], components: list[Component]
                 "beta": float(np.deg2rad(beta_deg)),
                 "n_quad": 20,
             }
-            if comp.quad_treatment == "hamiltonian":
+            if comp.quad_treatment in ("hamiltonian", "hamiltonian_sc"):
                 extras["eta"] = float(values.get(f"s{comp.idx}_eta", 0.0))
                 extras["phi"] = float(np.deg2rad(
                     float(values.get(f"s{comp.idx}_phi", 0.0))))
+            if comp.quad_treatment == "hamiltonian_sc":
+                # Cristal único: dirección del haz γ en el marco del EFG
+                # (BEX/GAX de NORMOS-SITE, en grados).
+                extras["beam_theta"] = float(np.deg2rad(
+                    float(values.get(f"s{comp.idx}_bex", 0.0))))
+                extras["beam_phi"] = float(np.deg2rad(
+                    float(values.get(f"s{comp.idx}_gax", 0.0))))
             out.append((comp.kind, params, extras))
         else:
             out.append((comp.kind, params))
@@ -295,6 +302,8 @@ def model_from_values(
     baseline = float(vals.get("baseline", 1.0))
     slope = float(vals.get("slope", 0.0))
     curv = float(vals.get("curv", 0.0) or 0.0)
+    curv3 = float(vals.get("curv3", 0.0) or 0.0)
+    curv4 = float(vals.get("curv4", 0.0) or 0.0)
     sat_scale: float | None = None
     transmission_src: float | None = None
     if absorber_model == "thickness":
@@ -313,7 +322,8 @@ def model_from_values(
     if n_sub == 1:
         return total_model(velocity, baseline, slope, comps,
                            sat_scale=sat_scale, curv=curv,
-                           transmission_src=transmission_src)
+                           transmission_src=transmission_src,
+                           curv3=curv3, curv4=curv4)
     vel = np.asarray(velocity, dtype=float)
     dv = float(np.median(np.diff(vel))) if vel.size > 1 else 0.0
     x, w = np.polynomial.legendre.leggauss(n_sub)
@@ -321,7 +331,8 @@ def model_from_values(
     for xk, wk in zip(x, w):
         acc = acc + 0.5 * wk * total_model(
             vel + 0.5 * dv * float(xk), baseline, slope, comps,
-            sat_scale=sat_scale, curv=curv, transmission_src=transmission_src)
+            sat_scale=sat_scale, curv=curv, transmission_src=transmission_src,
+            curv3=curv3, curv4=curv4)
     return acc
 
 

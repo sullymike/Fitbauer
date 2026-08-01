@@ -313,7 +313,7 @@ class ModelWorkflowMixin:
 
     def active_param_keys(self) -> list[str]:
         keys = list(GLOBAL_PARAM_NAMES)
-        keys.append("curv")
+        keys.extend(("curv", "curv3", "curv4"))
         if self.absorber_model == "thickness":
             keys.append("sat_scale")
         elif self.absorber_model == "transmission":
@@ -322,7 +322,8 @@ class ModelWorkflowMixin:
             keys.extend(f"s{comp_state.idx}_{name}" for name in SEXTET_PARAM_NAMES)
             if comp_state.kind == "Sextete":
                 keys.extend((f"s{comp_state.idx}_texture", f"s{comp_state.idx}_beta",
-                             f"s{comp_state.idx}_eta", f"s{comp_state.idx}_phi"))
+                             f"s{comp_state.idx}_eta", f"s{comp_state.idx}_phi",
+                             f"s{comp_state.idx}_bex", f"s{comp_state.idx}_gax"))
         return keys
 
     def _fixed_param_keys(self) -> list[str]:
@@ -336,6 +337,10 @@ class ModelWorkflowMixin:
             fixed.append("sat_scale")
         if calib_state.is_fixed("curv"):
             fixed.append("curv")
+        if calib_state.is_fixed("curv3"):
+            fixed.append("curv3")
+        if calib_state.is_fixed("curv4"):
+            fixed.append("curv4")
         if calib_state.absorber_model == "transmission" and calib_state.is_fixed("src_fwhm"):
             fixed.append("src_fwhm")
         for comp_state in self._active_component_states():
@@ -411,7 +416,7 @@ class ModelWorkflowMixin:
 
     def enabled_constraints(self) -> list[dict]:
         keys = {"vmax", "center", "baseline", "slope", "voigt_sigma", "sat_scale",
-                "curv", "src_fwhm"}
+                "curv", "curv3", "curv4", "src_fwhm"}
         for comp_state in self._component_states():
             keys.update(f"s{comp_state.idx}_{name}" for name in comp_state.values)
         return [
@@ -623,6 +628,8 @@ class ModelWorkflowMixin:
             "slope": calib_state.is_fixed("slope"),
             "sat_scale": calib_state.is_fixed("sat_scale"),
             "curv": calib_state.is_fixed("curv"),
+            "curv3": calib_state.is_fixed("curv3"),
+            "curv4": calib_state.is_fixed("curv4"),
             "src_fwhm": calib_state.is_fixed("src_fwhm"),
         })
         for cp in self.components_panels:

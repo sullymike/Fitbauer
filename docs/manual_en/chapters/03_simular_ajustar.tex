@@ -120,7 +120,10 @@ The calibration panel also includes an optional \param{Baseline curvature}
 ($v^2$ term, fixed at 0 by default): it absorbs the residual parabolic
 geometric effect that survives folding. If the residuals show a smooth
 curvature across the whole spectrum, free it instead of letting $\Gamma$ and
-the depths compensate for it.
+the depths compensate for it. Since v4.19 there are also \param{Baseline v$^3$} and
+\param{Baseline v$^4$} terms (fixed at 0 by default): they complete parity
+with NORMOS's polynomial background (BKG(4)/BKG(5) coefficients) for
+high-order instrumental baselines.
 
 \subsection{Sextet intensities and texture}
 \label{sec:textura}
@@ -152,6 +155,18 @@ right-clicking the $\Delta E_Q$ control of the component:
         interaction is comparable to the magnetic one or the EFG is not axial;
         it was validated against NORMOS-SITE and is exact (rotationally
         invariant) even where that code approximates.
+  \item \textbf{Single-crystal Hamiltonian} (v4.19): like the previous one,
+        but without averaging the $\gamma$ beam: its direction is fixed by
+        the component angles $\theta_\gamma$ and $\varphi_\gamma$ (polar
+        and azimuthal in the EFG principal-axes frame), with the
+        \emph{coherent} sum over radiation channels. This is the mode for
+        single crystals or oriented samples: in the axial limit with
+        $\vec B \parallel z$ it reproduces the classic
+        $3\!:\!0\!:\!1$ (beam $\parallel \vec B$) and $3\!:\!4\!:\!1$
+        (beam $\perp \vec B$) patterns, and its isotropic average recovers
+        the powder mode exactly. It is the counterpart of NORMOS-SITE's
+        IFSC/BEX/GAX (note: NORMOS's GAX is offset by $90^\circ$ from
+        $\varphi_\gamma$, as measured in the validation bench).
 \end{itemize}
 
 \section{Simulating without fitting}

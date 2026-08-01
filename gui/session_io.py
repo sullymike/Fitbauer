@@ -158,6 +158,8 @@ class SessionIOMixin:
             self.calib.voigt_sigma.set_value(vmap.get("voigt_sigma", calib_state.voigt_sigma))
             self.calib.sat_scale.set_value(vmap.get("sat_scale", calib_state.sat_scale))
             self.calib.curv.set_value(vmap.get("curv", calib_state.curv))
+            self.calib.curv3.set_value(vmap.get("curv3", calib_state.curv3))
+            self.calib.curv4.set_value(vmap.get("curv4", calib_state.curv4))
             self.calib.src_fwhm.set_value(vmap.get("src_fwhm", calib_state.src_fwhm))
             enabled_map = _per_component_map(state.get("sextet_enabled", {}))
             kind_map = _per_component_map(state.get("component_kind", {}))
@@ -229,6 +231,8 @@ class SessionIOMixin:
                               ("slope", self.calib.slope),
                               ("sat_scale", self.calib.sat_scale),
                               ("curv", self.calib.curv),
+                              ("curv3", self.calib.curv3),
+                              ("curv4", self.calib.curv4),
                               ("src_fwhm", self.calib.src_fwhm)):
                 f = fixed_map_calib.get(name)
                 if f is not None:
@@ -310,6 +314,7 @@ class SessionIOMixin:
                     "dist_bmin": dp.bmin, "dist_bmax": dp.bmax,
                     "dist_nbins": dp.nbins, "dist_log_alpha": dp.log_alpha,
                     "dist_delta_slope": dp.delta_slope, "dist_quad_slope": dp.quad_slope,
+                    "dist_kernel_eta": dp.kernel_eta,
                     "dist_qmin": dp.qmin, "dist_qmax": dp.qmax,
                     "dist_qbins": dp.qbins, "dist_log_alpha_q": dp.log_alpha_q,
                 }
@@ -323,6 +328,11 @@ class SessionIOMixin:
                             ctl.set_value(float(val))
                         except (TypeError, ValueError):
                             pass
+                kt = state.get("dist_kernel_treatment")
+                if kt is not None:
+                    ki = dp.kernel_combo.findData(str(kt))
+                    if ki >= 0:
+                        dp.kernel_combo.setCurrentIndex(ki)
                 if "dist_vbf_n_components" in state:
                     try:
                         dp.vbf_ncomp.setValue(int(state["dist_vbf_n_components"]))

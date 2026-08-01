@@ -243,6 +243,8 @@ class DistributionFitMixin:
                 sharp_components=sharp_components,
                 profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
                 delta_slope=dist_state.delta_slope, quad_slope=dist_state.quad_slope,
+                kernel_treatment=dist_state.kernel_treatment,
+                kernel_eta=dist_state.kernel_eta,
             )
             if var == "quad":
                 extra = dict(variable="quad", bhf=dist_state.fixed_bhf)
@@ -482,6 +484,8 @@ class DistributionFitMixin:
                     sigma=self.file.sigma, reg_mode=dist_state.reg_mode,
                     profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
                     delta_slope=dsl, quad_slope=qsl,
+                    kernel_treatment=dist_state.kernel_treatment,
+                    kernel_eta=dist_state.kernel_eta,
                     **common)
             if shape == "VBF":
                 return fit_vbf_hyperfine_distribution(
