@@ -1,5 +1,32 @@
 # Changelog
 
+## Sin publicar — auditoría y endurecimiento de la suite de tests
+
+Tras cazar el bug de la ventana en blanco (un test de presets usaba nombres
+inexistentes y pasaba ejercitando el fallo), se auditó la suite completa
+buscando esa clase de problema (tests que pasan sin verificar lo que dicen),
+con verificación por mutaciones deliberadas del código:
+
+- **Validación estricta de `treatment`** en `core.physics.sextet_absorption`
+  y en el kernel de distribución: un tratamiento desconocido (typo, valor
+  antiguo) caía EN SILENCIO al 1er orden — misma clase que el bug de
+  presets; ahora lanza `ValueError`.
+- **Test nuevo del sector de interferencia** del cristal único: una mutación
+  del signo de la matriz d¹ (o de la fase e^{−iqφ}) pasaba la suite porque
+  los tests axial/isótropo no ven la interferencia; ahora se compara contra
+  la fórmula independiente de radiación M1 transversal (|A|²−|k̂·A|²).
+- **Test de cobertura i18n**: toda clave `tr("...")` estática del código
+  debe existir en el catálogo (antes una clave inexistente caía al default
+  sin detectarse).
+- ~20 endurecimientos más: el test del preset 3:2:1 ahora ejecuta el código
+  de producto (extraído como `apply_preset_321`); los Monte Carlo de
+  calibración de σ fallan ruidosamente si el motor deja de reportar errores
+  (antes pasaban con cero aserciones); la familia "recuperación" arranca
+  desplazada de la verdad (un ajuste no-op ya no pasa); estilos de gráfico
+  verificados contra el registro y el rc aplicado; aserciones tautológicas o
+  invertibles corregidas; fugas de estado global (Qt estáticos, perfil
+  Voigt) restauradas en finally. Suite: 352 tests.
+
 ## v4.19.0 — tres capacidades de paridad con NORMOS: cristal único, kernel Hamiltoniano en distribuciones y fondo v³/v⁴
 
 Cierra tres de las cuatro capacidades que el veredicto del banco

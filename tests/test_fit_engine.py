@@ -86,8 +86,13 @@ def test_model_from_values_returns_baseline_for_disabled_components():
 def test_fit_discrete_recovers_alpha_fe():
     v, y, sigma = _load_alpha_fe()
     state = _alpha_fe_state(v, y, sigma)
+    # Auditoría 2026-08-02: el inicio ERA la verdad (bhf=33, δ=-0.1): un motor
+    # que no moviera nada pasaba. Arranque desplazado fuera de tolerancia.
+    state.values["s1_bhf"] = 31.0
+    state.values["s1_delta"] = -0.25
     result = fit_discrete(state)
-    assert result.success or result.values  # debe converger
+    assert result.success
+    assert result.stats["red_chi2"] < 5.0
     bhf = result.values["s1_bhf"]
     delta = result.values["s1_delta"]
     assert abs(bhf - 33.0) < 1.0
@@ -159,9 +164,14 @@ def test_fit_center_without_counts_does_not_harm_model():
     state.bounds["center"] = (255.0, 258.0)
     state.fit_center = True
     state.counts = None  # sin cuentas → sin re-folding (center inerte)
+    # inicio desplazado: el assert exige que el ajuste MUEVA los parámetros
+    # (antes partía de la verdad; auditoría 2026-08-02)
+    state.values["s1_bhf"] = 31.0
+    state.values["s1_delta"] = -0.25
     result = fit_discrete(state)
     assert abs(result.values["s1_bhf"] - 33.0) < 1.0
     assert abs((result.values["s1_delta"] - ISO_REF)) < 0.05
+    assert result.stats["red_chi2"] < 5.0
 
 
 def test_poisson_norm_factor_gives_meaningful_chi2():
@@ -217,8 +227,9 @@ def test_profile_likelihood_brackets_one_sigma():
     assert results
     for key, r in results.items():
         d = np.array(r["d_chi2"])
-        assert np.min(d) <= 1e-6 + 0.0       # el mínimo (óptimo) es ~0
-        assert d.max() >= 0.0
+        # el óptimo es ~0 por AMBOS lados: un Δχ² muy negativo (perfil
+        # encontró un mínimo mejor) también debe fallar (auditoría 2026-08-02)
+        assert -0.05 <= np.min(d) <= 1e-6
         # los valores de escaneo rodean al óptimo
         assert min(r["scan_values"]) <= r["best"] <= max(r["scan_values"])
     # Para BHF (bien determinado) debe existir al menos un cruce 1σ.
@@ -296,9 +307,11 @@ def test_free_keys_mapping_like_tk_gui():
     v, y, sigma = _load_alpha_fe()
     names = ["delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
              "depth", "int1", "int2", "int3", "texture", "beta"]
-    defaults = {"bhf": 33.0, "gamma1": 0.28, "gamma2": 1.0, "gamma3": 1.0,
+    # bhf/delta iniciales desplazados de la verdad (33.0 / −0.109): el assert
+    # final exige recuperación real (auditoría 2026-08-02).
+    defaults = {"bhf": 31.0, "gamma1": 0.28, "gamma2": 1.0, "gamma3": 1.0,
                 "depth": 0.013, "int1": 3.0, "int2": 2.0, "int3": 1.0,
-                "delta": -0.1, "texture": 0.667}
+                "delta": -0.25, "texture": 0.667}
     values = {"baseline": 1.0, "slope": 0.0, "vmax": VMAX, "center": 256.0,
               "voigt_sigma": 0.05, "sat_scale": 1.0}
     for idx in (1, 2, 3):
@@ -326,9 +339,13 @@ def test_fit_discrete_respects_fixed():
     # Fija BHF
     state.fixed["s1_bhf"] = True
     state.values["s1_bhf"] = 35.0  # valor incorrecto
+    start_depth = state.values["s1_depth"]
     result = fit_discrete(state)
     # Como BHF está fijo, debe quedarse en 35.0
     assert abs(result.values["s1_bhf"] - 35.0) < 1e-6
+    # …y los parámetros LIBRES deben haberse movido (un ajuste no-op también
+    # dejaría bhf=35; auditoría 2026-08-02)
+    assert abs(result.values["s1_depth"] - start_depth) > 1e-6
 
 
 def test_fit_velocity_preserves_negative_vmax_sign():

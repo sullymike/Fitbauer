@@ -77,6 +77,7 @@ def test_window_starts_and_menus_exist(win):
     assert any("File" in t or "Archivo" in t for t in titles)
     assert any("Fit" in t or "Ajuste" in t for t in titles)
     assert any("View" in t or "Vista" in t for t in titles)
+    assert any("Help" in t or "Ayuda" in t for t in titles)
 
 
 def test_help_dialog_is_modeless(win, app, monkeypatch):
@@ -523,6 +524,10 @@ def test_pbhf_maxent_reg_mode_fits(win):
     r = captured["r"]
     assert r.success
     assert np.all(np.asarray(r.weights) >= -1e-9)
+    # el modo debe llegar al motor (los pesos son >=0 en TODOS los reg_mode:
+    # sin esto el test pasaba aunque la GUI dejara de propagar reg_mode;
+    # auditoría 2026-08-02).
+    assert getattr(r, "reg_mode", None) == "maxent"
 
 
 def test_2d_distribution_fit_renders_topographic_map(win):
@@ -574,11 +579,22 @@ def test_session_save_load_roundtrip(win, make_window, tmp_path):
 
 
 def test_plot_styles_apply(win):
-    """Los 4 estilos se aplican sin error."""
+    """Los 4 estilos existen en el registro y cambian el rc de matplotlib.
+
+    Auditoría 2026-08-02: _set_plot_style acepta cualquier nombre y apply_rc
+    hace no-op silencioso con nombres desconocidos; asertar solo
+    plot_style_name era tautológico (clase del bug de presets huérfanos).
+    """
+    import matplotlib
+    from core.plot_styles import STYLES
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
     for style in ("classic", "modern", "publication", "dark"):
+        assert style in STYLES, f"estilo inexistente en el registro: {style}"
         win._set_plot_style(style)
         assert win.plot_style_name == style
+        for k, v in (STYLES[style].get("rc") or {}).items():
+            assert str(v) in str(matplotlib.rcParams[k]), (
+                f"{style}: rc {k}={v} no aplicado")
 
 
 def test_sigma_context_menu_toggle_profile(win):
@@ -586,8 +602,15 @@ def test_sigma_context_menu_toggle_profile(win):
     win.calib._set_line_profile("Voigt")
     assert win.calib.line_profile == "Voigt"
     assert win.calib.voigt_sigma.spin.isEnabled()
+    # con σ libre y perfil Voigt, fit_sigma queda activo…
+    win.calib.voigt_sigma.set_fixed(False)
+    win.calib._refresh_fit_sigma()
+    assert win.calib.fit_sigma.isChecked()
+    # …y volver a Lorentziana debe desactivarlo (antes se comprobaba sobre un
+    # estado que ya era False: aserción vacía; auditoría 2026-08-02).
     win.calib._set_line_profile("Lorentziana")
     assert not win.calib.fit_sigma.isChecked()
+    win.calib.voigt_sigma.set_fixed(True)
 
 
 def test_find_center_updates_calibration(win):
@@ -794,17 +817,24 @@ def test_propose_with_no_selection_warns_and_keeps_mode(win):
 
 
 def test_physical_preset_3_2_1_fixes_intensities(win):
-    """Aplicar 3:2:1 fija int1=3, int2=2, int3=1 en componentes activas."""
+    """Aplicar 3:2:1 fija int1=3, int2=2, int3=1 en componentes activas.
+
+    Auditoría 2026-08-02: la versión anterior "simulaba el botón" escribiendo
+    ella misma en los widgets y asertando sus propias escrituras (no ejecutaba
+    ningún código de producto). Ahora invoca apply_preset_321().
+    """
     cp = win.components_panels[0]
     cp.enabled.setChecked(True)
-    # Cambia a valores arbitrarios
     cp.params["int1"].set_value(5.0); cp.params["int1"].set_fixed(False)
-    # Simula el botón
-    cp.params["int1"].set_value(3.0); cp.params["int1"].set_fixed(True)
-    cp.params["int2"].set_value(2.0); cp.params["int2"].set_fixed(True)
-    cp.params["int3"].set_value(1.0); cp.params["int3"].set_fixed(True)
-    assert cp.params["int1"].value() == 3.0
-    assert cp.params["int1"].is_fixed()
+    cp.params["int2"].set_value(1.3); cp.params["int2"].set_fixed(False)
+    win.apply_preset_321()
+    assert cp.params["int1"].value() == 3.0 and cp.params["int1"].is_fixed()
+    assert cp.params["int2"].value() == 2.0 and cp.params["int2"].is_fixed()
+    assert cp.params["int3"].value() == 1.0 and cp.params["int3"].is_fixed()
+    # y el preset de anchuras iguales
+    cp.params["gamma2"].set_value(1.4); cp.params["gamma2"].set_fixed(False)
+    win.apply_preset_equal_widths()
+    assert cp.params["gamma2"].value() == 1.0 and cp.params["gamma2"].is_fixed()
 
 
 def test_export_report_writes_markdown(win, tmp_path):
@@ -837,11 +867,22 @@ def test_auto_fit_from_minima(win):
 
 def test_ai_summary_dialog_builds(win, monkeypatch):
     """AI summary construye un JSON con los picos detectados sin bloquear modal."""
+    import json as _json
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
     monkeypatch.setattr(
         QtWidgets.QDialog, "exec",
         lambda self_: QtWidgets.QDialog.Accepted)
-    win.on_ai_summary()  # No debe lanzar
+    captured = {}
+    orig_set = QtWidgets.QTextEdit.setPlainText
+    monkeypatch.setattr(
+        QtWidgets.QTextEdit, "setPlainText",
+        lambda self_, s: (captured.setdefault("json", s), orig_set(self_, s))[1])
+    win.on_ai_summary()
+    # antes no había NINGUNA aserción (auditoría 2026-08-02)
+    data = _json.loads(captured["json"])
+    assert data["n_channels"] > 0
+    assert data["detected_minima"], "sin mínimos detectados en alfa-Fe"
+    assert {"v_mm_s", "depth", "fwhm_mm_s"} <= set(data["detected_minima"][0])
 
 
 def test_recent_files_updates_on_load(win, monkeypatch):
@@ -998,13 +1039,18 @@ def test_bootstrap_returns_sigma_estimates(win):
     cp.params["bhf"].set_value(33.0)
     cp.params["gamma1"].set_value(0.28)
     cp.params["depth"].set_value(0.013)
-    # Override del input dialog para no bloquear
+    # Override del input dialog para no bloquear (restaurado en finally:
+    # antes quedaba fugado a todos los tests posteriores; auditoría 2026-08-02)
+    _orig_getint = QtWidgets.QInputDialog.getInt
     QtWidgets.QInputDialog.getInt = staticmethod(lambda *a, **k: (5, True))
     captured = {}
     QtWidgets.QMessageBox.information = staticmethod(
         lambda *a, **k: captured.setdefault("msg", a[-1]))
-    win.on_bootstrap()
-    assert "σ(MC)" in captured.get("msg", "") or "MC)" in captured.get("msg", "")
+    try:
+        win.on_bootstrap()
+    finally:
+        QtWidgets.QInputDialog.getInt = _orig_getint
+    assert "σ(MC)" in captured.get("msg", "")
 
 
 def test_save_fit_writes_tsv(win, tmp_path):

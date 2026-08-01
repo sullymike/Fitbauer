@@ -148,7 +148,11 @@ def sextet_absorption(
             absorption += w_grid[k] * sum_lorentzian_lines(v, pos_grid[k], weights, gammas)
         return depth * absorption
 
-    # Default: 1er orden (modelo histórico)
+    if treatment != "1st_order":
+        # Sin esto, un tratamiento desconocido (typo, valor antiguo) caía en
+        # SILENCIO al 1er orden — la misma clase de fallo que el preset de
+        # layout huérfano (auditoría de tests 2026-08-02).
+        raise ValueError(f"treatment desconocido: {treatment!r}")
     positions = sextet_line_positions(delta, quad, bhf)
     return depth * sum_lorentzian_lines(v, positions, weights, gammas)
 

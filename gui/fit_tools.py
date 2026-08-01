@@ -154,6 +154,29 @@ class FitToolsMixin:
         dlg = ConstraintsDialog(self)
         dlg.exec()
 
+    def apply_preset_321(self) -> None:
+        """Preset físico 3:2:1 fijado en int1=3, int2=2, int3=1 (polvo)."""
+        self._building = True
+        for cp in self.components_panels:
+            if not cp.to_view_state().enabled:
+                continue
+            cp.params["int1"].set_value(3.0); cp.params["int1"].set_fixed(True)
+            cp.params["int2"].set_value(2.0); cp.params["int2"].set_fixed(True)
+            cp.params["int3"].set_value(1.0); cp.params["int3"].set_fixed(True)
+        self._building = False
+        self._refresh_plot()
+
+    def apply_preset_equal_widths(self) -> None:
+        """Preset físico Γ2 = Γ3 = 1 (misma anchura en todas las líneas)."""
+        self._building = True
+        for cp in self.components_panels:
+            if not cp.to_view_state().enabled:
+                continue
+            cp.params["gamma2"].set_value(1.0); cp.params["gamma2"].set_fixed(True)
+            cp.params["gamma3"].set_value(1.0); cp.params["gamma3"].set_fixed(True)
+        self._building = False
+        self._refresh_plot()
+
     def on_physical_presets(self) -> None:
         """Cuatro botones rápidos para imponer relaciones físicas habituales."""
         dlg = QtWidgets.QDialog(self)
@@ -163,29 +186,8 @@ class FitToolsMixin:
         v.addWidget(QtWidgets.QLabel(tr(
             "dialog.physical_presets_desc",
             default="Click to apply common physical constraints to active components.")))
-
-        def _apply_321() -> None:
-            """3:2:1 fijado en int1=3, int2=2, int3=1."""
-            self._building = True
-            for cp in self.components_panels:
-                if not cp.to_view_state().enabled:
-                    continue
-                cp.params["int1"].set_value(3.0); cp.params["int1"].set_fixed(True)
-                cp.params["int2"].set_value(2.0); cp.params["int2"].set_fixed(True)
-                cp.params["int3"].set_value(1.0); cp.params["int3"].set_fixed(True)
-            self._building = False
-            self._refresh_plot()
-
-        def _equal_widths() -> None:
-            """Γ2 = Γ3 = 1 (misma anchura)."""
-            self._building = True
-            for cp in self.components_panels:
-                if not cp.to_view_state().enabled:
-                    continue
-                cp.params["gamma2"].set_value(1.0); cp.params["gamma2"].set_fixed(True)
-                cp.params["gamma3"].set_value(1.0); cp.params["gamma3"].set_fixed(True)
-            self._building = False
-            self._refresh_plot()
+        _apply_321 = self.apply_preset_321
+        _equal_widths = self.apply_preset_equal_widths
 
         def _link_delta() -> None:
             """δ de las componentes 2 y 3 atados al δ del componente 1."""

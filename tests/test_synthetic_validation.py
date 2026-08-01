@@ -602,9 +602,13 @@ class TestMonteCarlo:
         errors = data["errors"]
         true_vals = data["true"]
 
+        n_ok = sum(1 for vals in samples.values() if len(vals) >= 50)
+        assert n_ok >= 2, (
+            f"solo {n_ok} parámetros con >=50 réplicas válidas: el motor no "
+            "está reportando errores (auditoría 2026-08-02)")
         for k, vals in samples.items():
             if len(vals) < 50:
-                pytest.skip(f"Demasiadas réplicas fallidas para '{k}' ({len(vals)}).")
+                continue
             vals_arr = np.array(vals)
             errs_arr = np.array(errors[k])
             pulls = (vals_arr - true_vals[k]) / errs_arr
@@ -625,9 +629,11 @@ class TestMonteCarlo:
         errors = data["errors"]
         true_vals = data["true"]
 
+        evaluados = 0
         for k, vals in samples.items():
             if len(vals) < 50:
                 continue
+            evaluados += 1
             vals_arr = np.array(vals)
             errs_arr = np.array(errors[k])
             pulls = (vals_arr - true_vals[k]) / errs_arr
@@ -639,6 +645,11 @@ class TestMonteCarlo:
                 f"Esperado ∈ (0.5, 2.0).  Las incertidumbres reportadas no reflejan "
                 f"la dispersión real de Monte Carlo."
             )
+        # Auditoría 2026-08-02: si el motor deja de reportar errores, samples
+        # queda vacío y el bucle no ejecuta NINGUNA aserción → fallo ruidoso.
+        assert evaluados >= 2, (
+            f"solo {evaluados} parámetros con réplicas suficientes: el motor "
+            "no está reportando errores (test vacío)")
 
     def test_cobertura_intervalo_un_sigma(self):
         """~68 % de las réplicas caen dentro de ±1σ reportado."""
@@ -647,9 +658,11 @@ class TestMonteCarlo:
         errors = data["errors"]
         true_vals = data["true"]
 
+        evaluados = 0
         for k, vals in samples.items():
             if len(vals) < 50:
                 continue
+            evaluados += 1
             vals_arr = np.array(vals)
             errs_arr = np.array(errors[k])
             within = np.mean(np.abs(vals_arr - true_vals[k]) <= errs_arr)
@@ -657,6 +670,9 @@ class TestMonteCarlo:
             assert 0.48 < within < 0.88, (
                 f"Cobertura 1σ de '{k}': {within:.2%} (esperado ~68 %)."
             )
+        assert evaluados >= 2, (
+            f"solo {evaluados} parámetros con réplicas suficientes: el motor "
+            "no está reportando errores (test vacío)")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -708,12 +724,14 @@ class TestCasosDificiles:
 
         finite = [(e, q) for e, q in zip(errors_quad, [1.5, 0.8, 0.4, 0.20])
                   if np.isfinite(e) and e > 0]
-        if len(finite) >= 2:
-            # El error del ΔEQ más pequeño debe ser ≥ al de la separación mayor
-            errs = [e for e, _ in finite]
-            assert errs[-1] >= errs[0] * 0.5, (
-                f"Las incertidumbres no crecen con el solapamiento: {errors_quad}"
-            )
+        # Auditoría 2026-08-02: el guard condicional dejaba pasar el test en
+        # vacío si el motor dejaba de reportar errores, y el factor 0.5
+        # admitía justo lo contrario de lo que el test afirma.
+        assert len(finite) >= 3, (
+            f"errores de ΔEQ no reportados: {errors_quad}")
+        errs = [e for e, _ in finite]
+        assert errs[-1] > errs[0], (
+            f"Las incertidumbres no crecen con el solapamiento: {errors_quad}")
 
     # ── 4b. Sextete con líneas internas no resueltas ──────────────────────────
 
@@ -889,6 +907,10 @@ class TestRestriccionesFisicas:
         # El mínimo exterior debe desplazarse a velocidades > |v_max_33T|
         pos_33 = np.abs(V_TEST[np.argmin(y_33)])
         pos_50 = np.abs(V_TEST[np.argmin(y_50)])
+        # escalado LINEAL: la razón de posiciones debe ser 50/33 (±1 canal)
+        dv = float(V_TEST[1] - V_TEST[0])
+        assert abs(pos_50 - pos_33 * 50.0 / 33.0) < 2 * dv, (
+            f"posiciones no escalan linealmente: {pos_33:.3f} -> {pos_50:.3f}")
         assert pos_50 > pos_33, (
             "A mayor BHF las líneas externas deben estar más separadas."
         )

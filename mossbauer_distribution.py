@@ -239,6 +239,10 @@ def sextet_absorption(
                 acc += (wt / len(phis)) * core_physics.sum_lorentzian_lines(
                     v, pos, inten, gam8)
         return acc
+    if str(treatment) != "1st_order":
+        # Un tratamiento desconocido caía en silencio al 1er orden
+        # (auditoría de tests 2026-08-02).
+        raise ValueError(f"treatment de kernel desconocido: {treatment!r}")
     positions = core_physics.sextet_line_positions(delta, quad, bhf)
     return core_physics.sum_lorentzian_lines(v, positions, weights, gammas)
 

@@ -54,7 +54,9 @@ def test_fit_alpha_fe_recovers_bhf_and_corrected_iso():
         return base - physics.sextet_absorption(
             v, delta, 0.0, bhf, gamma, 1.0, 1.0, depth, 3.0, 2.0, 1.0)
 
-    p0 = [1.0, -0.1, 33.0, 0.15, 0.013]
+    # bhf/δ iniciales desplazados: el assert exige recuperación real
+    # (auditoría 2026-08-02)
+    p0 = [1.0, -0.3, 30.0, 0.15, 0.013]
     bounds = ([0.9, -2.0, 20.0, 0.05, 0.0], [1.1, 3.0, 60.0, 1.0, 0.3])
     popt, _ = curve_fit(model, v, y, p0=p0, bounds=bounds, maxfev=20000)
     delta, bhf = popt[1], popt[2]
@@ -81,7 +83,7 @@ def test_fit_hematite_allows_high_bhf_and_negative_quad():
 
 
 def test_voigt_sigma_fit_drives_sigma_small_on_lorentzian_data():
-    # Datos sintéticos lorentzianos puros → el σ gaussiano debe quedar pequeño.
+    # Espectro real (hematita) de líneas ~lorentzianas → σ gaussiano pequeño.
     v, y, _c, _ = _load_folded("hematita_Fe2O3.adt")
     physics.LINE_PROFILE_KIND = "Voigt"
 
@@ -95,5 +97,6 @@ def test_voigt_sigma_fit_drives_sigma_small_on_lorentzian_data():
               [1.1, 3.0, 4.0, 60.0, 1.0, 0.3, 1.0])
     popt, _ = curve_fit(model, v, y, p0=p0, bounds=bounds, maxfev=20000)
     sigma = popt[6]
-    assert sigma < 0.10
     physics.LINE_PROFILE_KIND = "Lorentziana"
+    physics.VOIGT_SIGMA = 0.05   # antes quedaba mutado (auditoría 2026-08-02)
+    assert sigma < 0.10

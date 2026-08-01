@@ -252,3 +252,30 @@ def test_updater_prerelease_tokens():
     assert _is_prerelease_tag("v4.18.0-beta.1")
     assert _is_prerelease_tag("v4.18.0-rc2")
     assert not _is_prerelease_tag("v4.18.0")
+
+
+def test_claves_tr_usadas_existen_en_catalogo():
+    """Toda clave estática tr("...") del código existe en el catálogo ES.
+
+    tr() cae en silencio al default o a la propia clave si falta del catálogo:
+    sin este test, una clave inexistente pasaba toda la suite (auditoría
+    2026-08-02; misma clase que el bug de presets huérfanos).
+    """
+    import json as _json
+    import re as _re
+    from pathlib import Path as _P
+    root = _P(__file__).resolve().parent.parent
+    catalogo = set(_json.loads(
+        (root / "locales/es/strings.json").read_text(encoding="utf-8")))
+    usadas = {}
+    fuentes = list((root / "gui").glob("*.py")) + [
+        root / "mossbauer_qt.py", root / "mossbauer_help.py"]
+    for f in fuentes:
+        if not f.exists():
+            continue
+        for m in _re.finditer(r'(?<![A-Za-z_])tr\(\s*"([^"{}]+)"',
+                              f.read_text(encoding="utf-8")):
+            usadas.setdefault(m.group(1), set()).add(f.name)
+    faltan = {k: sorted(v) for k, v in usadas.items() if k not in catalogo}
+    assert len(usadas) > 300, "el barrido de claves tr() no encontró casi nada"
+    assert not faltan, f"claves tr() sin entrada en el catálogo ES: {faltan}"

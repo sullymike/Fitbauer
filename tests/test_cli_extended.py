@@ -27,11 +27,16 @@ def test_fit_spectrum_bootstrap_section(tmp_path):
     assert bs["std"], "sin sigmas bootstrap"
     # Las σ_MC deben ser positivas y del orden del error de covarianza.
     errors = session["batch_fit_result"]["errors"]
+    comparadas = 0
     for key, std in bs["std"].items():
         assert std >= 0.0
         cov_err = errors.get(key)
         if cov_err:
             assert std < 20 * cov_err
+            comparadas += 1
+    # sin esto, si la covarianza desapareciera no se compararía nada
+    # (auditoría 2026-08-02)
+    assert comparadas >= 2
     # Y la sección debe persistir en el fichero.
     saved = json.loads(out.read_text(encoding="utf-8"))
     assert "bootstrap" in saved

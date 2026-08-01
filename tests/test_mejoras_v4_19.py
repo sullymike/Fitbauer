@@ -132,6 +132,14 @@ def test_kernel_hc_textura_ligada_al_campo():
         ratios.append(h2 / h3)
     assert abs(ratios[0] - 2.0) < 0.1
     assert abs(ratios[1] - 3.0) < 0.15
+    # y con quad≠0 (donde los marcos difieren de verdad): en el marco del
+    # CAMPO la textura sobrevive (~2.9); en el del EFG se diluía a ~2.0
+    # (bug corregido en v4.19; auditoría 2026-08-02).
+    a = dist_sextet(v, delta=0.0, quad=1.0, bhf=25, gamma=0.3,
+                    int2_rel=1.5, treatment="hamiltonian")
+    h2 = a[np.argmin(np.abs(v - (-25 / 33 * 3.084)))]
+    h3 = a[np.argmin(np.abs(v - (-25 / 33 * 0.839)))]
+    assert h2 / h3 > 2.5
 
 
 def test_field_frame_isotropo_coincide_con_marco_efg():
@@ -166,3 +174,37 @@ def test_kernel_hc_round_trip_momentos():
     std = float(np.sqrt(np.sum(w * (fit.bhf_centers - avg) ** 2)))
     assert abs(avg - 25.0) < 0.15
     assert abs(std - 3.0) < 0.35
+
+
+def test_sc_interferencia_formula_transversal():
+    """Fija el sector de INTERFERENCIA entre canales q del cristal único.
+
+    Los tests axial/isótropo no lo cubren (un solo canal q, o el promedio
+    mata los términos cruzados): una mutación del signo de la matriz d¹
+    pasaba la suite. Aquí se compara contra la fórmula independiente de
+    radiación M1 transversal, I ∝ |A|² − |k̂·A|² con A = Σ_q m_q e_q*
+    (base esférica covariante), que fija todos los signos y fases.
+    """
+    from core.hamiltonian import _full_hamiltonian_amplitudes
+    rng = np.random.default_rng(7)
+    e_conj = {-1: np.array([1, 1j, 0]) / np.sqrt(2),
+              0: np.array([0, 0, 1.0 + 0j]),
+              1: np.array([-1, 1j, 0]) / np.sqrt(2)}
+    for _ in range(5):
+        th, ph = rng.uniform(0, np.pi), rng.uniform(0, 2 * np.pi)
+        bt, bp = rng.uniform(0, np.pi), rng.uniform(0, 2 * np.pi)
+        eta = rng.uniform(0, 1)
+        pos, amps, _ = _full_hamiltonian_amplitudes(20.0, 0.0, 1.5, eta=eta,
+                                                    theta=th, phi=ph)
+        k = np.array([np.sin(bt) * np.cos(bp), np.sin(bt) * np.sin(bp),
+                      np.cos(bt)])
+        ind = []
+        for j in range(8):
+            A = sum(amps[j, qi] * e_conj[q]
+                    for qi, q in enumerate((-1, 0, 1)))
+            ind.append(4.5 * (np.vdot(A, A).real - abs(np.dot(k, A)) ** 2))
+        ind = np.array(ind)[np.argsort(pos)]
+        _, i_sc, _ = full_hamiltonian_lines_sc(
+            20.0, 0.0, 1.5, eta=eta, theta=th, phi=ph,
+            beam_theta=bt, beam_phi=bp)
+        assert np.max(np.abs(ind - i_sc)) < 1e-10

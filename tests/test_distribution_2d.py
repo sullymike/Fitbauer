@@ -175,23 +175,25 @@ def test_distribution_voigt_profile_differs_and_restores_global_state():
     _phys.VOIGT_SIGMA = 0.9
     before = (_phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA)
 
-    common = dict(variable="bhf", gamma=0.30, pmin=20.0, pmax=45.0,
-                  nbins=40, alpha=1e-3, fit_slope=False)
-    fit_lorentz = fit_hyperfine_distribution(v, y, profile="Lorentziana", **common)
-    assert (_phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA) == before  # restaurado
+    try:
+        common = dict(variable="bhf", gamma=0.30, pmin=20.0, pmax=45.0,
+                      nbins=40, alpha=1e-3, fit_slope=False)
+        fit_lorentz = fit_hyperfine_distribution(v, y, profile="Lorentziana", **common)
+        assert (_phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA) == before  # restaurado
 
-    fit_voigt = fit_hyperfine_distribution(v, y, profile="Voigt",
-                                           voigt_sigma=0.10, **common)
-    assert (_phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA) == before  # restaurado
+        fit_voigt = fit_hyperfine_distribution(v, y, profile="Voigt",
+                                               voigt_sigma=0.10, **common)
+        assert (_phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA) == before  # restaurado
 
-    # Los dos perfiles dan curvas distintas.
-    assert not np.allclose(fit_lorentz.fitted_curve, fit_voigt.fitted_curve)
-    # Los datos son Lorentzianos: el ajuste Lorentz no es peor que el Voigt.
-    assert fit_lorentz.rms <= fit_voigt.rms + 1e-9
-
-    # Restaura el default para no afectar a otros tests.
-    _phys.LINE_PROFILE_KIND = "Lorentziana"
-    _phys.VOIGT_SIGMA = 0.05
+        # Los dos perfiles dan curvas distintas.
+        assert not np.allclose(fit_lorentz.fitted_curve, fit_voigt.fitted_curve)
+        # Los datos son Lorentzianos: el ajuste Lorentz no es peor que el Voigt.
+        assert fit_lorentz.rms <= fit_voigt.rms + 1e-9
+    finally:
+        # Restaura SIEMPRE (antes, un assert fallido dejaba Voigt/0.9 fugado
+        # a los tests posteriores; auditoría 2026-08-02).
+        _phys.LINE_PROFILE_KIND = "Lorentziana"
+        _phys.VOIGT_SIGMA = 0.05
 
 
 def test_distribution_2d_voigt_profile_differs():

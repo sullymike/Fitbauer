@@ -67,7 +67,9 @@ def test_collect_trend_data_sorts_and_filters():
     assert list(trend["bhf"]) == [(50.0, 33.0, 0.05), (100.0, 32.0, 0.10)]
 
 
-@pytest.mark.parametrize("name", ["sample_298K.adt", "sample_300K_run2.adt"])
-def test_extract_metadata_handles_suffixes(name):
+@pytest.mark.parametrize("name,esperado", [("sample_298K.adt", 298.0),
+                                           ("sample_300K_run2.adt", 300.0)])
+def test_extract_metadata_handles_suffixes(name, esperado):
     val = extract_metadata(name, r"(?P<v>\d+(?:\.\d+)?)\s*K")
-    assert val in (298.0, 300.0)
+    # exacto: 'in (298, 300)' aceptaba la respuesta cruzada (auditoría 2026-08-02)
+    assert val == esperado

@@ -71,3 +71,17 @@ def test_distribution_result_view_curves_metrics_and_parameters():
     assert np.allclose(view.sharp_weights(), [0.02])
     assert any(m.key == "rms" and m.value == 0.05 for m in view.metrics())
     assert [param.key for param in view.parameters()] == ["baseline", "slope", "alpha"]
+
+
+def test_contrato_atributos_reales():
+    """Los nombres que las vistas leen con getattr(default) existen en las
+    clases REALES (los stubs SimpleNamespace no detectan renombrados;
+    auditoría 2026-08-02)."""
+    import dataclasses
+    from core.fit_engine import FitResult
+    from mossbauer_distribution import BhfDistributionFit
+    campos_fit = {f.name for f in dataclasses.fields(FitResult)}
+    assert {"values", "errors", "stats", "free_keys", "success"} <= campos_fit
+    campos_dist = {f.name for f in dataclasses.fields(BhfDistributionFit)}
+    assert {"bhf_centers", "weights", "baseline", "slope", "rms",
+            "success"} <= campos_dist
