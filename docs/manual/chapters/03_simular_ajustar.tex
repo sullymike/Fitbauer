@@ -99,13 +99,29 @@ se convierte la absorción $A(v)$ en transmisión:
         de crecer linealmente y se ensanchan—; este modo lo corrige para no
         sesgar áreas ni anchuras. La corrección completa está en el
         anexo~\ref{ap:espesor}.
+  \item \textbf{Integral de transmisión} (v4.18): el modelo exacto
+        $T = \text{base} - L_{\text{fuente}} \otimes \bigl(1 - e^{-\tau(v)}\bigr)$,
+        donde $\tau$ es la profundidad \emph{óptica} (el papel que pasa a tener
+        la profundidad de cada componente) y $L_{\text{fuente}}$ es la línea de
+        la fuente, de anchura \param{$\Gamma$ fuente} (fija por defecto en
+        0.097~mm/s, la anchura natural; desmarque «Fijo» para refinarla). Es el
+        modo recomendado con absorbentes gruesos (espesor efectivo
+        $t_a \gtrsim 1$): en la validación frente a NORMOS recupera $\Gamma$
+        correctamente hasta $t_a = 30$, donde la saturación exponencial ya se
+        sesga.
 \end{itemize}
 
 \begin{truco}
-Ante muestras densas o líneas muy profundas ($>15$--$20\%$), use \textbf{Grueso}:
-con el modelo delgado las áreas relativas (y por tanto las proporciones de fase)
-saldrían sesgadas.
+Ante muestras densas o líneas muy profundas ($>15$--$20\%$), use \textbf{Grueso}
+o la \textbf{integral de transmisión}: con el modelo delgado las áreas relativas
+(y por tanto las proporciones de fase) y las anchuras saldrían sesgadas.
 \end{truco}
+
+El panel de calibración incluye además una \param{Curvatura base} opcional
+(término $v^2$, fijo a 0 por defecto): absorbe el efecto geométrico parabólico
+residual que sobrevive al doblado. Si los residuos muestran una curvatura suave
+a lo ancho de todo el espectro, libérela en lugar de dejar que $\Gamma$ y las
+profundidades la compensen.
 
 \subsection{Intensidades y textura del sexteto}
 \label{sec:textura}
@@ -120,10 +136,24 @@ $x$ (líneas 2 y 5) depende de la orientación de los momentos respecto al haz:
         láminas. El panel muestra $\theta$ y $R_{23}$ derivados de $t$.
 \end{itemize}
 
-El tratamiento del \textbf{cuadrupolo} en el sexteto puede ser de primer orden
-(perturbativo) o completo; se selecciona en \menu{Ajuste > Modo de ajuste}. El
-detalle (tratamiento tipo Kündig del hamiltoniano magnético+cuadrupolar) está en
-el anexo~\ref{ap:mates}.
+El tratamiento del \textbf{cuadrupolo} en el sexteto se elige con clic derecho
+sobre el control $\Delta E_Q$ del componente:
+
+\begin{itemize}[nosep]
+  \item \textbf{1er orden} (perturbativo): el patrón rígido clásico.
+  \item \textbf{Kündig fijo / polvo}: posiciones por diagonalización del
+        hamiltoniano magnético+cuadrupolar con EFG axial y ángulo $\beta$
+        (anexo~\ref{ap:mates}).
+  \item \textbf{Hamiltoniano completo} (v4.18): diagonalización general con EFG
+        \emph{no axial} —parámetros $\eta$ (asimetría) y $\varphi$ del
+        componente— y con las \textbf{intensidades de las 8 transiciones
+        calculadas desde los autovectores} (coeficientes de Clebsch--Gordan,
+        promedio de polvo), incluidas las transiciones $\Delta m_I = \pm 2$ que
+        aparecen con mezcla fuerte. Es el modo correcto cuando la interacción
+        cuadrupolar es comparable a la magnética o el EFG no es axial; se
+        validó frente a NORMOS-SITE y es exacto (invariante bajo rotaciones)
+        también donde aquel código aproxima.
+\end{itemize}
 
 \section{Simular sin ajustar}
 
@@ -212,9 +242,28 @@ Los criterios estadísticos se eligen en el menú \menu{Ajuste} / panel de opcio
         atípicos (\emph{outliers}).
   \item \textbf{Multistart}: repite el ajuste desde varios puntos de partida para
         no quedar atrapado en un mínimo local.
+  \item \textbf{Escalado global automático} (v4.18, activo por defecto): si tras
+        el multistart el $\chi^2$ reducido sigue siendo alto, se lanza
+        automáticamente una pasada de evolución diferencial (DE) y un refinado
+        local. En el banco de validación eliminó por completo los fallos de
+        convergencia en multisitio solapado (de $\sim$40\,\% a 0 con arranques
+        perturbados $\pm 15\,\%$).
+  \item \textbf{Integración por canal} (v4.18): con canales anchos (anchura de
+        canal $\gtrsim \Gamma/3$) la evaluación clásica en el centro del canal
+        sobreestima $\Gamma$; un valor $>1$ integra el modelo sobre la anchura
+        del canal con cuadratura de Gauss--Legendre de ese orden.
+  \item \textbf{Líneas sueltas} (v4.18): amplía los límites de $\delta$ a
+        $\pm(v_{\max}+2)$~mm/s para usar singletes como líneas Lorentzianas
+        libres en cualquier posición (fuera del rango físico de $\delta$ del
+        \textsuperscript{57}Fe).
   \item \menu{Propagar $\sigma$ de calibración (vmax)}: propaga la incertidumbre
         de la \param{Vmax} calibrada a los parámetros ajustados.
 \end{itemize}
+
+\begin{nota}
+Desde v4.18 pueden activarse hasta \textbf{10 componentes} (antes 6); el banco
+de validación demostró la recuperación correcta de 10 sitios simultáneos.
+\end{nota}
 
 \begin{nota}
 Cuando se activa \emph{Ajustar Vmax}, la calibración interviene en el ajuste; por

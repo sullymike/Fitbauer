@@ -99,13 +99,28 @@ the absorption $A(v)$ is converted into transmission:
         stop growing linearly and broaden—; this mode corrects for that so as not
         to bias areas or linewidths. The full correction is in
         appendix~\ref{ap:espesor}.
+  \item \textbf{Transmission integral} (v4.18): the exact model
+        $T = \text{base} - L_{\text{source}} \otimes \bigl(1 - e^{-\tau(v)}\bigr)$,
+        where $\tau$ is the \emph{optical} depth (the role the depth of each
+        component takes on) and $L_{\text{source}}$ is the source line, of width
+        \param{Source $\Gamma$} (fixed by default at 0.097~mm/s, the natural
+        width; untick ``Fixed'' to refine it). Recommended for thick absorbers
+        (effective thickness $t_a \gtrsim 1$): in the validation against NORMOS
+        it recovers $\Gamma$ correctly up to $t_a = 30$, where the exponential
+        saturation already biases.
 \end{itemize}
 
 \begin{truco}
-For dense samples or very deep lines ($>15$--$20\%$), use \textbf{Thick}:
-with the thin model the relative areas (and therefore the phase proportions)
-would come out biased.
+For dense samples or very deep lines ($>15$--$20\%$), use \textbf{Thick} or the
+\textbf{transmission integral}: with the thin model the relative areas (and
+therefore the phase proportions) and the linewidths would come out biased.
 \end{truco}
+
+The calibration panel also includes an optional \param{Baseline curvature}
+($v^2$ term, fixed at 0 by default): it absorbs the residual parabolic
+geometric effect that survives folding. If the residuals show a smooth
+curvature across the whole spectrum, free it instead of letting $\Gamma$ and
+the depths compensate for it.
 
 \subsection{Sextet intensities and texture}
 \label{sec:textura}
@@ -120,10 +135,24 @@ $x$ (lines 2 and 5) depends on the orientation of the moments with respect to th
         thin films. The panel shows $\theta$ and $R_{23}$ derived from $t$.
 \end{itemize}
 
-The treatment of the \textbf{quadrupole} in the sextet can be first-order
-(perturbative) or complete; it is selected in \menu{Fit > Fit mode}. The
-detail (Kündig-type treatment of the magnetic+quadrupolar Hamiltonian) is in
-appendix~\ref{ap:mates}.
+The treatment of the \textbf{quadrupole} in the sextet is chosen by
+right-clicking the $\Delta E_Q$ control of the component:
+
+\begin{itemize}[nosep]
+  \item \textbf{1st order} (perturbative): the classic rigid pattern.
+  \item \textbf{Kündig fixed / powder}: positions by diagonalisation of the
+        magnetic+quadrupolar Hamiltonian with axial EFG and angle $\beta$
+        (appendix~\ref{ap:mates}).
+  \item \textbf{Full Hamiltonian} (v4.18): general diagonalisation with a
+        \emph{non-axial} EFG —component parameters $\eta$ (asymmetry) and
+        $\varphi$— and with the \textbf{intensities of the 8 transitions
+        computed from the eigenvectors} (Clebsch--Gordan coefficients, powder
+        average), including the $\Delta m_I = \pm 2$ transitions that appear
+        under strong mixing. It is the correct mode when the quadrupole
+        interaction is comparable to the magnetic one or the EFG is not axial;
+        it was validated against NORMOS-SITE and is exact (rotationally
+        invariant) even where that code approximates.
+\end{itemize}
 
 \section{Simulating without fitting}
 
@@ -213,9 +242,28 @@ The statistical criteria are chosen in the \menu{Fit} menu / options panel:
         outliers.
   \item \textbf{Multistart}: repeats the fit from several starting points so as
         not to get trapped in a local minimum.
+  \item \textbf{Automatic global escalation} (v4.18, on by default): if the
+        reduced $\chi^2$ is still high after the multistart, a differential
+        evolution (DE) pass plus a local refinement is launched automatically.
+        In the validation bank it completely removed the convergence failures
+        in overlapped multi-site fits (from $\sim$40\,\% to 0 with $\pm 15\,\%$
+        perturbed starts).
+  \item \textbf{Channel integration} (v4.18): with wide channels (channel width
+        $\gtrsim \Gamma/3$) the classic evaluation at the channel centre
+        overestimates $\Gamma$; a value $>1$ integrates the model over the
+        channel width with a Gauss--Legendre quadrature of that order.
+  \item \textbf{Free lines} (v4.18): widens the $\delta$ limits to
+        $\pm(v_{\max}+2)$~mm/s so that singlets can be used as free Lorentzian
+        lines at any position (outside the physical $\delta$ range of
+        \textsuperscript{57}Fe).
   \item \menu{Propagate calibration $\sigma$ (vmax)}: propagates the uncertainty
         of the calibrated \param{Vmax} to the fitted parameters.
 \end{itemize}
+
+\begin{nota}
+Since v4.18 up to \textbf{10 components} can be enabled (previously 6); the
+validation bank demonstrated correct recovery of 10 simultaneous sites.
+\end{nota}
 
 \begin{nota}
 When \emph{Fit Vmax} is enabled, the calibration takes part in the fit; that
