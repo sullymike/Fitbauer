@@ -26,6 +26,17 @@
 !tests/**
 !scripts/
 !scripts/**
+# Banco de validación NORMOS: solo scripts, informe y resumen (los ~300
+# directorios de casos, los staging de DOSBox, los .EXE de WissEl y el manual
+# de NORMOS se quedan fuera del repositorio).
+!validacion/
+validacion/*
+!validacion/generador/
+!validacion/generador/**
+!validacion/informe/
+!validacion/informe/**
+!validacion/plan_validacion_fitbauer_normos.md
+!validacion/resumen.csv
 
 # Cachés/temporales habituales si aparecen en la raíz
 __pycache__/
