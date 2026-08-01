@@ -1,5 +1,72 @@
 # Changelog
 
+## v4.18.0 — cuatro extensiones de modelo derivadas del banco de validación NORMOS
+
+Un banco round-trip contra NORMOS-SITE/DIST (327 espectros sintéticos, ~850
+ajustes; `validacion/informe/INFORME.md`) localizó los sesgos de modelo de
+Fitbauer. Esta versión los elimina con cuatro extensiones **opt-in** (el
+comportamiento por defecto no cambia; los 310 tests previos pasan intactos):
+
+- **Hamiltoniano estático completo** (`quad_treatment="hamiltonian"`):
+  diagonalización general con EFG no axial (nuevos parámetros por componente
+  `eta`, `phi`) e **intensidades de transición calculadas desde los
+  autovectores** (Clebsch-Gordan, promedio isótropo del haz, 8 líneas con las
+  ΔmI=±2 incluidas; regla de suma conservada). Sesgo mediano del banco:
+  |ΔBhf| ×23 menor en A4 (axial) y ×33 en A5 (η≠0). Nota: a mezcla fuerte la
+  implementación es MÁS exacta que NORMOS-SITE 1994, que omite los términos
+  de interferencia del estado fundamental y viola la invariancia rotacional
+  (demostrado en el informe §13).
+- **Integral de transmisión** (`absorber_model="transmission"`): T = base −
+  L_fuente ⊗ (1 − exp(−τ)) con kernel de fuente integrado por canal
+  (`src_fwhm`, fijo por defecto en 0.097 mm/s) y `depth` como profundidad
+  óptica (límite del ajuste relajado a 5 en este modo). Γ recuperada a
+  ≤0.02 mm/s hasta t_a=30 (antes: +0.09 a t_a=10 con modelo fino).
+- **Curvatura de base** (global `curv`, fijo a 0 por defecto): absorbe el
+  efecto geométrico parabólico residual tras el doblado (sesgo de Γ 0.034 →
+  8·10⁻⁵ con parábola del 1.5 %).
+- **Integración del modelo sobre el canal** (`channel_sub`, por defecto 1):
+  cuadratura Gauss-Legendre sobre la anchura del canal; con canal ≈ 1.3Γ el
+  sesgo de Γ pasa de +0.091 a <0.002.
+
+`core/session.py` expone todo en la capa headless (`channel_sub`, `curv`,
+`src_fwhm` en plantillas/sesión); tests nuevos en
+`tests/test_mejoras_normos.py` (límites exactos: θ=0 ≡ 1er orden, regla de
+suma, invariancia rotacional, límite fino, identidades por defecto).
+
+**GUI, ayudas y robustez** (3ª fase):
+
+- Todo lo anterior queda expuesto en la GUI Qt: tratamiento «Hamiltoniano
+  completo» en el menú contextual de ΔEQ (con controles η y φ del componente),
+  «Integral de transmisión» en el selector de absorbente (+ control «Γ fuente»),
+  «Curvatura base» en calibración, e «Integración por canal», «Líneas sueltas»
+  y «Escalado global automático» en Opciones avanzadas. Persistencia en
+  settings y sesiones; los ajustes devuelven curv/src_fwhm al panel.
+- **Robustez del motor** (banco §6.10): (1) el corte por estancamiento del
+  multistart ya no abandona mientras el mejor χ²red siga alto; (2) escalado
+  automático a evolución diferencial + refinado local cuando el multistart
+  acaba con χ²red>10 (`auto_global`, activo por defecto en sesión/GUI).
+  Re-medido el experimento de 20 semillas de dos sextetos solapados con
+  arranques ±15 %: **de 8/20 fallos a 0/20**.
+- Manuales de usuario ES/EN actualizados (capítulo Simular y ajustar:
+  absorbente, cuadrupolo, opciones) y recompilados; cadenas i18n y capítulos
+  de ayuda en los 8 idiomas.
+
+Con el manual de NORMOS (R.A. Brand, 1990; `validacion/sitedistmanual.odt`)
+se cerró además el resto de la lista de capacidades:
+
+- **`wide_delta`** (`ModelState`, opt-in): límites de δ ampliados a ±(vmax+2)
+  para usar singletes como líneas Lorentzianas libres en cualquier posición
+  (caso C3 fuera de rango: χ²red 1702 → 0.0002).
+- **GUI hasta 10 componentes**: `MAX_COMPONENTS` = 10 como fuente única en
+  `core/params.py`, importado por los módulos Qt (antes 6 duplicado en tres
+  ficheros); el banco había demostrado que el motor ajusta 10 sitios.
+- El manual confirmó que la convención θ/φ y el promedio de polvo del nuevo
+  Hamiltoniano coinciden con los de SITE, que las ligaduras de SITE
+  (`NDEX/FACTOR/CONST`) son formalmente idénticas a las de Fitbauer, y
+  permitió validar el kernel P(ΔEQ) contra la distribución continua real de
+  DIST (`METHOD=6`). La relajación Ising del demo resultó no monotónica en
+  OME y no permite verificar el mapeo cuantitativo OME(MHz)↔ν.
+
 ## v4.17.3 — traducción al portugués
 
 - **Nuevo idioma: portugués** (europeo, AO90). Traducción completa desde el
