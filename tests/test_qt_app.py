@@ -859,13 +859,19 @@ def test_recent_files_updates_on_load(win, monkeypatch):
 
 
 def test_layout_presets_change_splitter_sizes(win):
-    """Aplicar un preset cambia las proporciones del splitter principal."""
-    win._apply_layout_preset("Wide plot")
+    """Aplicar un preset cambia las proporciones del splitter principal.
+
+    Nota: antes este test usaba nombres de preset INEXISTENTES ("Wide plot",
+    "Balanced") y pasaba porque el bug de presets huérfanos los aceptaba
+    dejando la ventana en blanco; ahora usa presets reales y el caso huérfano
+    tiene su propio test de regresión.
+    """
+    win._apply_layout_preset("Tres columnas")
     sizes = win._main_splitter.sizes()
     assert sizes  # se aplicó algo
-    assert win.layout_preset == "Wide plot"
-    win._apply_layout_preset("Balanced")
-    assert win.layout_preset == "Balanced"
+    assert win.layout_preset == "Tres columnas"
+    win._apply_layout_preset("Compacto")
+    assert win.layout_preset == "Compacto"
 
 
 def test_login_dialog_cancel_returns_false(win, monkeypatch):
@@ -1362,3 +1368,24 @@ def test_qt_new_model_options_wiring(win):
     assert {"eta", "phi"} <= cp.relevant_params()
     cp._set_quad_treatment("1st_order")
     assert not ({"eta", "phi"} & cp.relevant_params())
+
+
+def test_qt_layout_preset_huerfano_no_deja_ventana_en_blanco(win):
+    """Regresión: un preset guardado que ya no existe dejaba TODOS los
+    paneles ocultos (ventana en blanco tras actualizar). Debe caer al
+    preset por defecto y mantener los paneles colocados."""
+    win._apply_layout_preset("PresetQueYaNoExiste")
+    colocados = [pid for pid, wdg in win._layout_panel_widgets.items()
+                 if wdg.parent() is not None]
+    assert colocados, "ningún panel colocado: ventana en blanco"
+    assert "calibration" in colocados
+    assert win.layout_preset in win._all_presets()
+
+    # La restauración de preferencias tampoco debe aceptar nombres huérfanos.
+    from gui.state import UiPreferencesState
+    antes = win.layout_preset
+    prefs = win._ui_preferences_state()
+    prefs = type(prefs)(**{**prefs.__dict__, "layout_preset": "OtroInexistente",
+                           "custom_layouts": {}})
+    win._apply_ui_preferences_state(prefs)
+    assert win.layout_preset == antes

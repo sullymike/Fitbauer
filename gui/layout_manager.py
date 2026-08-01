@@ -126,8 +126,22 @@ class LayoutSettingsMixin:
         return name
 
     def _apply_layout_preset(self, name: str) -> None:
-        """Aplica preset al QSplitter principal usando 3 columnas."""
-        spec = self._all_presets().get(name, {})
+        """Aplica preset al QSplitter principal usando 3 columnas.
+
+        Si el nombre guardado ya no existe (preset renombrado, layout
+        personalizado perdido en una actualización…) o su spec no coloca
+        ningún panel, se cae al preset por defecto: con el spec vacío la
+        ventana quedaba EN BLANCO (todos los paneles ocultos).
+        """
+        presets = self._all_presets()
+        spec = presets.get(name, {})
+        if not (spec.get("left") or spec.get("center") or spec.get("right")):
+            try:
+                from layout.presets import DEFAULT_PRESET
+            except Exception:
+                DEFAULT_PRESET = "Estándar"
+            name = DEFAULT_PRESET if DEFAULT_PRESET in presets else next(iter(presets), name)
+            spec = presets.get(name, {})
         self._apply_panel_layout(spec)
         left_w = int(spec.get("left_width", 430))
         right_w = int(spec.get("right_width", 0))
@@ -493,12 +507,15 @@ class LayoutSettingsMixin:
         if prefs.color_theme in COLOR_THEMES:
             self.color_theme = prefs.color_theme
         self._show_residual_pref = bool(prefs.show_residual)
-        if prefs.layout_preset:
-            self.layout_preset = prefs.layout_preset
         self.custom_layouts = {
             str(k): v for k, v in prefs.custom_layouts.items()
             if isinstance(v, dict) and "left_width" in v
         }
+        # Solo se acepta un preset que exista tras la migración (los layouts
+        # personalizados descartados arriba o los presets renombrados dejaban
+        # un nombre huérfano → ventana en blanco al arrancar).
+        if prefs.layout_preset and prefs.layout_preset in self._all_presets():
+            self.layout_preset = prefs.layout_preset
         if prefs.qt_style:
             self.qt_style = prefs.qt_style
         if prefs.custom_shortcuts:
