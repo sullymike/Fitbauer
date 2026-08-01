@@ -1435,3 +1435,22 @@ def test_qt_layout_preset_huerfano_no_deja_ventana_en_blanco(win):
                            "custom_layouts": {}})
     win._apply_ui_preferences_state(prefs)
     assert win.layout_preset == antes
+
+
+def test_open_dat_una_columna_carga_como_cuentas_crudas(win, tmp_path, monkeypatch):
+    """Un .dat de una sola columna (cuentas crudas, como los v0/v1.dat del
+    banco NORMOS) debe abrirse por Archivo→Abrir: el cargador CSV-velocidad
+    lo rechazaba ("0 puntos válidos") y no había fallback."""
+    import numpy as np
+    n = 512
+    i = np.arange(1, n + 1)
+    prof = 1e6 * (1.0 - 0.05 * np.exp(-0.5 * ((np.abs(i - (n / 2 + 0.5)) - 60) / 6) ** 2))
+    f = tmp_path / "v1.dat"
+    f.write_text("\n".join(str(int(c)) for c in prof) + "\n")
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName",
+                        staticmethod(lambda *a, **k: (str(f), "")))
+    win.on_open()
+    assert win.file.counts is not None and win.file.counts.size == n
+    # doblado automático (el recorte de bordes deja n/2 − 2 canales)
+    assert win.file.velocity is not None
+    assert n // 2 - 4 <= win.file.velocity.size <= n // 2

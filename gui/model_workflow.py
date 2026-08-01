@@ -699,7 +699,14 @@ class ModelWorkflowMixin:
         p = Path(path)
         try:
             if p.suffix.lower() in self._CSV_EXTENSIONS:
-                self._load_velocity_csv_file(p)
+                try:
+                    self._load_velocity_csv_file(p)
+                except ValueError:
+                    # .dat/.txt de UNA sola columna (cuentas crudas sin doblar,
+                    # como los v0/v1.dat del banco de validación NORMOS): el
+                    # cargador CSV espera velocidad+cuentas; caer a la ruta de
+                    # cuentas crudas con doblado automático.
+                    self._load_file(p)
             else:
                 self._load_file(p)
         except Exception as exc:
