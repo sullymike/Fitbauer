@@ -127,7 +127,10 @@ DEPTH_DEFAULT_OTHERS = 0.005
 
 # Límites del AJUSTE (más amplios que los rangos de los controles de la GUI).
 GLOBAL_FIT_BOUNDS = {
-    "baseline": (0.70, 1.30), "slope": (-0.005, 0.005),
+    # slope hasta ±0.02: los fondos lineales de NORMOS (BKG(2)) alcanzan
+    # 7.5e-3 mm/s⁻¹ y la cota histórica ±0.005 degeneraba el ajuste
+    # (banco NORMOS-2, caso K2_lin_p60).
+    "baseline": (0.70, 1.30), "slope": (-0.02, 0.02),
     "vmax": (1.0, 15.0), "voigt_sigma": (0.0, 1.0), "sat_scale": (0.05, 50.0),
     # Mejoras banco NORMOS: curvatura de base (§6.8) y anchura de la fuente
     # de la integral de transmisión (§6.3). Por defecto van FIJOS a su valor
@@ -152,7 +155,7 @@ CALIBRATION_PARAM_SPECS: dict[str, ParamSpec] = {
     "vmax":        ParamSpec(12.007, -15.0,  15.0,  0.0001, 4),
     "center":      ParamSpec(256.5,  250.0, 263.0,  0.0001, 4),
     "baseline":    ParamSpec(1.0,      0.70,  1.30, 0.0005, 4),
-    "slope":       ParamSpec(0.0,    -0.002, 0.002,  1e-5,  6),
+    "slope":       ParamSpec(0.0,    -0.02,  0.02,   1e-5,  6),
     "voigt_sigma": ParamSpec(0.05,    0.0,   1.0,    0.001, 4),
     "sat_scale":   ParamSpec(5.0,     0.05, 50.0,    0.01,  3),
     # Curvatura de base (término v², mejora banco NORMOS §6.8) y anchura de

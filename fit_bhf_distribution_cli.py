@@ -76,6 +76,14 @@ def parse_args() -> argparse.Namespace:
                         help="Correlacion lineal δ(H): dδ/dH (mm/s por unidad de la malla). 0 = clasico.")
     parser.add_argument("--quad-slope", type=float, default=0.0,
                         help="Correlacion lineal ΔEQ(H): dΔEQ/dH. 0 = clasico.")
+    parser.add_argument("--d13", type=float, default=3.0,
+                        help="Ratio de area lineas (1,6)/(3,4) del kernel "
+                             "sextete (convenio NORMOS D13; 3 = patron "
+                             "estandar). Solo --shape histograma.")
+    parser.add_argument("--d23", type=float, default=2.0,
+                        help="Ratio de area lineas (2,5)/(3,4) del kernel "
+                             "sextete (convenio NORMOS D23; 2 = polvo, 0-4 = "
+                             "textura). Solo --shape histograma.")
 
     parser.add_argument("--dist-2d", action="store_true",
                         help="Distribucion bidimensional P(BHF, ΔEQ) regularizada.")
@@ -122,6 +130,9 @@ def parse_args() -> argparse.Namespace:
                      "(las formas paramétricas no usan alpha).")
     if args.scan_alpha and args.dist_2d:
         parser.error("--scan-alpha no aplica en modo --dist-2d.")
+    if (args.d13 != 3.0 or args.d23 != 2.0) and (
+            args.shape != "histograma" or args.dist_2d):
+        parser.error("--d13/--d23 solo aplican a --shape histograma 1D.")
     return args
 
 
@@ -255,11 +266,20 @@ def run_fit_1d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
         sharp_components=sharp_components,
     )
     if args.shape == "histograma":
+        # Textura del kernel (convenio NORMOS D13/D23, ratios de área con
+        # anchuras iguales): int3_rel = 3/D13, int2_rel = 3·D23/(2·D13)
+        # (banco NORMOS-2, serie L6: DIST admite D23≠2 y el kernel clásico
+        # 3:2:1 sesgaba ⟨B⟩ ~1.5 T y σ hasta +4 T).
+        if args.d13 <= 0:
+            raise SystemExit("FAIL  --d13 debe ser > 0")
+        int3_rel = 3.0 / args.d13
+        int2_rel = 3.0 * args.d23 / (2.0 * args.d13)
         return fit_hyperfine_distribution(
             v, y, alpha=args.alpha,
             reg_mode=args.reg_mode,
             profile=args.profile, voigt_sigma=args.voigt_sigma,
             delta_slope=args.delta_slope, quad_slope=args.quad_slope,
+            int2_rel=int2_rel, int3_rel=int3_rel,
             **common)
     if args.shape in ("vbf", "gaussiana"):
         gaussian = args.shape == "gaussiana"

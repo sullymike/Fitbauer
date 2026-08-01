@@ -1,5 +1,23 @@
 # Changelog
 
+## v4.18.1 — 2ª ampliación del banco NORMOS (series K/L) y tres ajustes de paridad
+
+Con el manual de NORMOS (Brand 1990) se amplió el banco de validación con
+pruebas de **extremos y centro** de cada capacidad de SITE/DIST que faltaba
+(octetes NLINE=8, fondos BKG(k), cristal único IFSC, ligaduras nativas NDEX,
+binomial CONC, Czjzek, PNEG, EXACT, textura D23 en distribuciones; informe
+§16, ~50 espectros y ~230 filas nuevas). Tres huecos de paridad detectados y
+corregidos (tests en `tests/test_mejoras_banco_normos2.py`; suite 337):
+
+- **`wide_delta` amplía también ΔEQ** a ±2·(v_max+2): SITE admite dobletes
+  con ΔEQ=5 y la cota clásica ±4 degeneraba el ajuste (caso K5_dob_q5:
+  χ²red 82 → 1e-7).
+- **Cota de `slope` ±0.005 → ±0.02**: los fondos lineales de NORMOS
+  (BKG(2)) alcanzan 7.5e-3 mm/s⁻¹ (caso K2_lin_p60: χ²red 61 → 3e-7).
+- **`--d13`/`--d23` en `fit_bhf_distribution_cli.py`**: textura del kernel
+  de distribución (convenio de áreas NORMOS-DIST; el kernel 3:2:1 fijo
+  sesgaba σ hasta +134 % con D23≠2, serie L6).
+
 ## v4.18.0 — cuatro extensiones de modelo derivadas del banco de validación NORMOS
 
 Un banco round-trip contra NORMOS-SITE/DIST (327 espectros sintéticos, ~850

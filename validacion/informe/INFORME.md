@@ -1,6 +1,6 @@
 # Informe de validación de Fitbauer contra NORMOS-SITE
 
-**Sesión de agente autónomo, 2026-07-31.** Plan de referencia:
+**Sesión de agente autónomo, 2026-07-31; 2ª ampliación (series K/L, manual de NORMOS) el 2026-08-01 — ver §16.** Plan de referencia:
 `validacion/plan_validacion_fitbauer_normos.md`. Todos los datos, scripts y
 figuras citados viven bajo `validacion/`.
 
@@ -13,9 +13,9 @@ comparación con la verdad**: **327 espectros base** (SITE.EXE, DIST.EXE para el
 derivados por binning exacto), más
 **285 réplicas v1 con ruido Poisson**, **150 réplicas de cobertura (H3)**,
 32 ajustes de barrido de estadística (H1) y los bloques adversarios (I). En
-total **~850 ajustes** (815 discretos + 35 de distribución) con valores
-iniciales perturbados y semilla registrada (5.385 filas de comparación en
-`resumen.csv`).
+total **~910 ajustes** (850 de la fase 1 + ~60 de las series K/L de la
+2ª ampliación, §16) con valores iniciales perturbados y semilla registrada
+(6.188 filas de comparación en `resumen.csv`).
 
 **Veredicto global**: el núcleo discreto de Fitbauer (singlete / doblete /
 sextete a 1er orden, anchuras por pares, textura, multisitio, ligaduras,
@@ -532,3 +532,128 @@ del motor anterior (~5 s/ajuste de media; el coste solo se paga cuando el
 ajuste local fracasa). El caso C4 (Γ≈1 canal) queda cubierto por el mismo
 mecanismo. Todas las funciones nuevas están además expuestas en la GUI Qt con
 ayuda y manuales (ES/EN recompilados; 8 idiomas de interfaz).
+
+## 16. Segunda ampliación con el manual: extremos y centro de cada capacidad (series K y L)
+
+Con el manual completo (R.A. Brand, 1990) se re-inventarió TODO lo que los
+binarios de demostración pueden hacer y se añadieron pruebas con **extremos y
+centro** de cada capacidad que el banco v1 no cubría. Sondas en
+`validacion/paso2/` (`paso2_sondas_manual.py`, `paso2b_voigt_bkg.py`);
+series nuevas `K1`–`K5` (SITE, `series_KL.py`) y `L1`–`L6` (DIST,
+`serie_L.py`), más re-ajustes paramétricos del bloque J. Total añadido:
+**34 espectros SITE + 15 DIST + 2 ajustes nativos de SITE**, ~230 filas
+nuevas en `resumen.csv`.
+
+### 16.1 Inventario de capacidades del demo (sondas)
+
+| Capacidad (manual) | ¿Demo? | Serie | Resultado |
+|---|---|---|---|
+| Octetes `NLINE=8` + `D73` | ✔ | K1 | ✔ sexteto+2 singletes, χ²red≈0.003 |
+| Fondo no constante `BKG(2..5)` | ✔ | K2 | ✔ (slope/curv); v³ no existe en Fitbauer |
+| Cristal único `IFSC`+`BEX/GAX` | ✔ | K3 | ✘ documentado (Fitbauer promedia el haz) |
+| Ligaduras `NDEX/FACTOR/CONST` | ✔ | K4 | ✔ equivalentes a las constraints |
+| Binomial `DISTRI=3`+`CONC` | ✔ | L1 | ✔ (forma binomial); histograma sobre-suaviza extremos |
+| Czjzek `METHOD=6`+`DISTRI=4` | ✔ | L2 | ✔ histograma recupera forma y momentos |
+| Espejo negativo `PNEG` | ✔ | L3 | ✔ (degenerado: inobservable en polvo, verdad analítica) |
+| `EXACT` (orden mixto, `QUP`) | ✔ | L4 | parcial: textura efectiva corregible, residuo crece con QUP |
+| Textura en distribución `D13/D23` | ✔ | L6 | ✔ tras exponer `--d13/--d23` en el CLI |
+| Perfil Voigt `VOIGT/WDLOR` | ✘ inoperante | — | Γ=WID Lorentziana pura en todos los casos (paso2b) |
+| `STI` (distribución de δ) | ✘ inoperante | — | espectro idéntico con y sin STI |
+| `DEPSUB` (perfil fijo arbitrario) | ✘ no existe en namelist | — | solo vía CONC (binomial) o SITE (J3) |
+| Goldanskii-Karyagin `IFGK`+`G2x` | ✘ inoperante | — | PLT idéntico al polvo |
+| `S2T` (⟨sin²θ⟩ de EXACT) | ✘ no existe en namelist | — | intensidades EXACT no configurables |
+
+### 16.2 Aciertos (mención)
+
+- **K1 octetes**: las líneas ΔmI=±2 se modelan exactamente con sexteto + 2
+  singletes (χ²red 0.003–0.006 en D73∈{0.087,0.25,0.5} y B∈{33,46}); la
+  partición de áreas DEP·D73/(2·ΣD) se recupera al 10⁻³
+  (`fig_K1_octete`).
+- **K2 fondos**: lineal, parabólico y combinado exactos una vez descifrado el
+  convenio (fondo = 1 + Σ (BKG(k)/1000)·(v/2v_max)^(k−1); el ~2 % de sesgo
+  residual de slope es la normalización P90, documentada en §3).
+- **K4 ligaduras nativas**: SITE ajustando con `NDEX/FACTOR/CONST` y
+  Fitbauer con `constraints` recuperan la misma verdad sobre el mismo v1
+  (δ ligada: |Δδ|≤1.4e-3 ambos; áreas 2:1: |Δdepth|/depth <2 %): **los dos
+  motores de ligaduras son semánticamente idénticos**
+  (PAR(i)=FACTOR·PAR(j)+CONST ≡ target=factor·source+offset).
+- **K5 extremos**: QUA=±0.6, BHF=1 T (colapso) y 60 T, D13∈{1.5,4.5},
+  W13=2.5/W23=0.6, Γ=0.16 subnatural, profundidad 40 % y dobletes con
+  δ=−2.5/+3.4 vía `wide_delta`: todo dentro de tolerancias v0.
+- **L1–L3**: binomial (forma paramétrica: p recuperado a ±0.026 incluso en
+  CONC=10/90 %), Czjzek (σ a ±0.04) y PNEG (la verdad analítica plegada
+  confirma que el espejo negativo es espectralmente inobservable: espectros
+  de PNEG=0.2 y 0.5 idénticos).
+- **L5 formas paramétricas**: `--shape gaussiana` recupera ⟨B⟩ a <0.02 T y σ
+  a <0.18 T en la rejilla J1; `--shape vbf` N=2 clava momentos y picos
+  (±0.5 T = resolución de la malla) en los bimodales J2. Los
+  regularizadores `tv` y `maxent` sobre J1_b30_s3 v1 dan σ +0.42 (comparable
+  al Tikhonov de referencia).
+
+### 16.3 Fallos documentados
+
+1. **Cristal único (K3, `fig_K3_cristal_unico`)**. Con `IFSC=.TRUE.` SITE
+   fija la orientación del rayo γ en el sistema del EFG (BEX/GAX) y las
+   intensidades de línea cambian; el tratamiento hamiltoniano de Fitbauer
+   promedia el haz isotrópicamente (muestra en polvo). Posiciones ✔,
+   intensidades ✘ → χ²red 3.4–8.0 y sesgos aparentes (BHF −0.9 T) en las
+   orientaciones extremas (β_γ=0 y β_γ=φ_γ=90). Causa: capacidad no
+   modelada; hoja de ruta si algún día interesa (requiere W(θ,φ) del haz por
+   componente). En el caso de POLVO el residuo restante (máx 6.0e-3 = 20 %
+   del pico en η=0.5, θ=30°) NO es de Fitbauer: es la aproximación de
+   SITE-1994 (omite términos de interferencia del estado fundamental, §13);
+   el ajuste lo redistribuye en BHF −0.38 T y ΔEQ +0.14.
+2. **Fondo cúbico (K2_cubico, `fig_K2_fondo`)**. `BKG(4)` genera un término
+   v³ que Fitbauer no tiene (baseline+slope·v+curv·v²): slope/curv absorben
+   parte y queda χ²red 2.5. Extremo raro en la práctica; documentado como
+   límite consciente.
+3. **Cota de slope (K2_lin_p60)**. El extremo BKG(2)=60 (slope verdadero
+   7.5e-3) excedía la cota histórica ±0.005 → χ²red 61 con el ajuste
+   degenerado. **Corregido**: cota ±0.02 (χ²red → 3e-7).
+4. **Cota de ΔEQ (K5_dob_q5)**. SITE admite ΔEQ=5; la cota clásica ±4 de
+   Fitbauer degeneraba el ajuste (χ²red 82, δ→2.85). **Corregido**:
+   `wide_delta` amplía también ΔEQ a ±2(v_max+2) (χ²red → 1e-7).
+5. **Textura en distribuciones (L6, `fig_L_textura_exact`)**. DIST admite
+   `D23≠2` por bloque; el kernel del CLI fijaba 3:2:1 → pico fantasma a
+   ~15 T y σ +47 % (D23=3), σ +134 % (D23=1). **Corregido**: el kernel ya
+   soportaba intensidades (mossbauer_distribution) y se exponen
+   `--d13/--d23` en el CLI (mapeo int3_rel=3/D13, int2_rel=3·D23/(2·D13));
+   con `--d23 3` el sesgo desaparece (σ 3.21 vs 3.0).
+6. **EXACT de DIST (L4, `fig_L_textura_exact`)**. Con `EXACT=.TRUE.` el
+   demo aplica un patrón de intensidades efectivo ≈3:3:1 **independiente de
+   QUP** (medido con QUP=0; S2T no está en el namelist) más correcciones de
+   orden mixto que sí crecen con QUP. Con `--d23 3` Fitbauer captura el
+   límite QUP→0 (σ 3.38 vs 4.55); el residuo restante crece con QUP
+   (σ +0.4/+0.8/+2.4 para QUP=0.2/0.5/1.0): dominio de validez del kernel
+   de 1er orden, como el mapa R de §5.
+7. **Histograma en binomiales extremas (L1, `fig_L1_binomial`)**. Con
+   CONC=10/90 % la distribución es estrecha y pegada al borde de la malla:
+   la regularización del histograma la sobre-suaviza (σ +71/+20 %). No es
+   un fallo del modelo sino del regularizador con verdad casi-delta (ya
+   visto en J5); la forma paramétrica binomial lo resuelve (p a ±0.026).
+
+### 16.4 Mejoras implementadas en esta fase (post-v4.18.0)
+
+1. `wide_delta` amplía también la cota de ΔEQ (core/session.py).
+2. Cota de `slope` ±0.005 → ±0.02 (core/params.py, GUI incluida).
+3. `--d13/--d23` en `fit_bhf_distribution_cli.py` (textura del kernel de
+   distribución, convenio NORMOS).
+
+Tests nuevos: `tests/test_mejoras_banco_normos2.py` (5); suite completa
+**337 tests** en verde.
+
+### 16.5 Convenciones nuevas de SITE/DIST descifradas
+
+- **Líneas 7,8 del octete**: el demo las coloca en ±1.40108·(B/33) mm/s,
+  un 0.32 % por debajo del valor implicado por su propio patrón sextete
+  (±1.4055 = (1.5a_e−0.5a_g)·k). Medido por ajuste de 8 Lorentzianas; se
+  usa el valor empírico como verdad.
+- **Fondo**: `1 + Σ_{k≥2} (BKG(k)/1000)·(v/(2·VMAX))^{k−1}` (el "V1" del
+  manual resulta ser 2·VMAX en el demo); verificado con ±BKG a dos
+  amplitudes en lineal y parabólico.
+- **NDEX**: numeración por índice GLOBAL de la tabla "Index" del RES
+  (BKG(1)=1; subespectro k: WID=14+15(k−1), ARE=+1, ISO=+2, …). El RES
+  imprime la ligadura ("Variable31(ISO) = 1.0·Variable16(ISO)+0.4") y
+  reduce NVAR.
+- **EXACT**: intensidades efectivas ≈3:3:1 fijas (D13/D23 ignoradas, S2T
+  inaccesible); las correcciones de posición/anchura sí escalan con QUP.

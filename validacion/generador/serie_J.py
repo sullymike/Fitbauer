@@ -238,7 +238,7 @@ def fit_case(cid: str, version: str, extra: list[str] | None = None,
     vmax = "6" if "site_doublets" in spec else "10"
     cmd = [py, str(FITBAUER_ROOT / "fit_bhf_distribution_cli.py"),
            str(dat), "--out-prefix", str(prefix), "--vmax", vmax]
-    if not (extra and "--alpha" in extra):
+    if not (extra and ("--alpha" in extra or "--shape" in extra)):
         cmd.append("--scan-alpha")
     if spec["var"] == "bhf":
         cmd += ["--variable", "bhf", "--bmin", "5", "--bmax", "52",

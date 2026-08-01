@@ -124,7 +124,8 @@ def site_params(nsub: int, comps: list[dict], extra: list[str] | None = None,
                           ("wid", "WID"), ("dep", "DEP"), ("d13", "D13"),
                           ("d23", "D23"), ("the", "THE"), ("eta", "ETA"),
                           ("phi", "PHI"), ("w13", "W13"), ("w23", "W23"),
-                          ("d21", "D21"), ("w21", "W21"), ("tab", "TAB")):
+                          ("d21", "D21"), ("w21", "W21"), ("tab", "TAB"),
+                          ("d73", "D73")):
             if key in c:
                 out.append(f"{name}({i})={c[key]}, {name}FIT({i})={f},")
         for raw in c.get("raw", []):

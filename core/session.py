@@ -206,6 +206,12 @@ class ModelState:
             vmax_abs = abs(float(self.vars.get("vmax", 12.0)))
             for idx in self.sextet_enabled:
                 bounds[f"s{idx}_delta"] = (-(vmax_abs + 2.0), vmax_abs + 2.0)
+                # ΔEQ acompaña a δ: un doblete con líneas dentro de ±vmax
+                # puede tener |ΔEQ| hasta ~2·vmax (banco NORMOS-2, caso
+                # K5_dob_q5: SITE admite ΔEQ=5 y la cota clásica ±4 degeneraba
+                # el ajuste).
+                bounds[f"s{idx}_quad"] = (-2.0 * (vmax_abs + 2.0),
+                                          2.0 * (vmax_abs + 2.0))
         # Límites del centro de doblado según el nº de canales real. Sin esto,
         # fit_center caía al default (250, 263) del motor, válido solo para 512
         # canales: con otros tamaños el centro quedaba clavado en el límite.
