@@ -197,3 +197,62 @@ if __name__ == "__main__":
     fig_L1_binomial()
     fig_L_textura_exact()
     fig_K1_octete()
+
+
+def fig_v419_mejoras() -> None:
+    """v4.19: cristal único, kernel HC en distribuciones y fondo v³/v⁴."""
+    from analisis import load_rows
+    rows = load_rows()
+
+    def chi2(serie, caso, ver):
+        r = json.loads((VALID / f"{serie}/{caso}/fitbauer_{ver}.json")
+                       .read_text())
+        return r["stats"]["red_chi2"]
+
+    fig, axes = plt.subplots(1, 3, figsize=(12.5, 3.6))
+    # (a) K3 cristal único: chi2 antes (polvo+int libres) vs despues (sc)
+    ax = axes[0]
+    cases = ["K3_sc_b0_g0", "K3_sc_b547_g0", "K3_sc_b90_g0", "K3_sc_b90_g90"]
+    labels = ["β=0", "β=54.7", "β=90\nφ=0", "β=90\nφ=90"]
+    antes = [chi2("K3", c, "v0") for c in cases]
+    despues = [chi2("K3", c, "v0m") for c in cases]
+    xx = np.arange(len(cases))
+    ax.bar(xx - 0.18, antes, 0.36, color="#c44",
+           label="polvo + int. libres (v0)")
+    ax.bar(xx + 0.18, despues, 0.36, color="#4a4",
+           label="hamiltonian_sc, int. FIJAS (v0m)")
+    ax.axhline(1.0, color="k", lw=0.8, ls=":")
+    ax.set_xticks(xx, labels, fontsize=7)
+    ax.set_ylabel("χ²red"), ax.legend(fontsize=7)
+    ax.set_title("K3 — cristal único (v4.19):\nresiduo restante = aprox. SITE-1994")
+    # (b) L4: sigma vs QUP con los tres kernels
+    ax = axes[1]
+    qups = [0.2, 0.5, 1.0]
+    curvas = (("v0", "kernel 1er orden", "#c44"),
+              ("v0m", "1er orden + --d23 3", "#c84"),
+              ("v0h", "kernel hamiltoniano (v4.19)", "#4a4"))
+    for ver, lab, col in curvas:
+        ys = []
+        for q in qups:
+            r = [x for x in rows if x["caso"] == f"L4_exact_q{q:g}"
+                 and x["version"] == ver and x["parametro"] == "dist_std"]
+            ys.append(r[0]["ajustado"] if r else np.nan)
+        ax.plot(qups, ys, "o-", color=col, label=lab)
+    ax.axhline(3.0, color="k", lw=1, label="σ verdadera")
+    ax.set_xlabel("QUP (mm/s)"), ax.set_ylabel("σ ajustada (T)")
+    ax.legend(fontsize=7)
+    ax.set_title("L4 — EXACT de DIST:\nel kernel HC captura el orden mixto")
+    # (c) K2: fondos de orden alto
+    ax = axes[2]
+    labels = ["cúbico\n(solo v²)", "cúbico\n(curv3, v4.19)",
+              "cuártico\n(curv4, v4.19)"]
+    vals = [chi2("K2", "K2_cubico", "v0"), chi2("K2", "K2_cubico", "v0m"),
+            chi2("K2", "K2_cuartico", "v0")]
+    bars = ax.bar(labels, np.maximum(vals, 1e-8),
+                  color=["#c44", "#4a4", "#4a4"])
+    for b, c in zip(bars, vals):
+        ax.text(b.get_x() + b.get_width() / 2, max(c, 1e-8) * 1.3,
+                f"{c:.2g}", ha="center", fontsize=8)
+    ax.set_yscale("log"), ax.set_ylabel("χ²red (v0)")
+    ax.set_title("K2 — fondo BKG(4)/BKG(5):\nparidad completa")
+    save(fig, "fig_v419_mejoras")

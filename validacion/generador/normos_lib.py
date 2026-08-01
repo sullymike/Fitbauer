@@ -297,8 +297,9 @@ def fitbauer_fit(adt_path: Path, comps: list[dict], vmax: float,
     elif absorber_model == "transmission":
         # integral de transmisión: anchura de la fuente libre.
         ms.fixed["src_fwhm"] = False
-    if (extra_model or {}).get("free_curv"):
-        ms.fixed["curv"] = False
+    for fk in ("curv", "curv3", "curv4"):
+        if (extra_model or {}).get(f"free_{fk}"):
+            ms.fixed[fk] = False
     if (extra_model or {}).get("src_fwhm_fixed") is not None:
         ms.vars["src_fwhm"] = float(extra_model["src_fwhm_fixed"])
         ms.fixed["src_fwhm"] = True
@@ -306,7 +307,8 @@ def fitbauer_fit(adt_path: Path, comps: list[dict], vmax: float,
         ms.constraints = list(constraints)
     if extra_model:
         for key, val in extra_model.items():
-            if key not in ("free_curv", "src_fwhm_fixed"):
+            if key not in ("free_curv", "free_curv3", "free_curv4",
+                           "src_fwhm_fixed"):
                 setattr(ms, key, val)
 
     def pert(v, rel=perturb, absmin=0.0):
@@ -333,13 +335,20 @@ def fitbauer_fit(adt_path: Path, comps: list[dict], vmax: float,
             v[f"s{i}_bhf"] = max(0.5, pert(c.get("bhf", 33.0), absmin=0.3))
             v[f"s{i}_int1"] = c.get("d13", 3.0)
             v[f"s{i}_int2"] = c.get("d23", 2.0)
-            if "the" in c and quad_treatment in ("kundig_fixed", "hamiltonian"):
+            if "the" in c and quad_treatment in ("kundig_fixed", "hamiltonian",
+                                                 "hamiltonian_sc"):
                 v[f"s{i}_beta"] = float(c["the"])
-            if quad_treatment == "hamiltonian":
+            if quad_treatment in ("hamiltonian", "hamiltonian_sc"):
                 v[f"s{i}_eta"] = float(c.get("eta", 0.0))
                 v[f"s{i}_phi"] = float(c.get("phi", 0.0))
                 ms.fixed[f"s{i}_eta"] = True
                 ms.fixed[f"s{i}_phi"] = True
+            if quad_treatment == "hamiltonian_sc":
+                # Cristal único: dirección del haz (BEX/GAX de SITE), fija.
+                v[f"s{i}_bex"] = float(c.get("bex", 0.0))
+                v[f"s{i}_gax"] = float(c.get("gax", 0.0))
+                ms.fixed[f"s{i}_bex"] = True
+                ms.fixed[f"s{i}_gax"] = True
         elif kind == "Doblete":
             v[f"s{i}_int2"] = 1.0
         # Fijar lo no ajustado: anchuras acopladas e intensidades nominales

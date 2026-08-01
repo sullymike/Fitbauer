@@ -1,6 +1,6 @@
 # Informe de validación de Fitbauer contra NORMOS-SITE
 
-**Sesión de agente autónomo, 2026-07-31; 2ª ampliación (series K/L, manual de NORMOS) el 2026-08-01 — ver §16.** Plan de referencia:
+**Sesión de agente autónomo, 2026-07-31; 2ª ampliación (series K/L, manual de NORMOS) y 3ª tanda (extremos sobre las series originales) el 2026-08-01 — ver §16–§17 y el veredicto final en `VEREDICTO.md`.** Plan de referencia:
 `validacion/plan_validacion_fitbauer_normos.md`. Todos los datos, scripts y
 figuras citados viven bajo `validacion/`.
 
@@ -13,9 +13,10 @@ comparación con la verdad**: **327 espectros base** (SITE.EXE, DIST.EXE para el
 derivados por binning exacto), más
 **285 réplicas v1 con ruido Poisson**, **150 réplicas de cobertura (H3)**,
 32 ajustes de barrido de estadística (H1) y los bloques adversarios (I). En
-total **~910 ajustes** (850 de la fase 1 + ~60 de las series K/L de la
-2ª ampliación, §16) con valores iniciales perturbados y semilla registrada
-(6.188 filas de comparación en `resumen.csv`).
+total **410 espectros y ~1.100 ajustes** (fase 1 + series K/L de la 2ª
+ampliación §16 + extremos de la 3ª tanda §17) con valores iniciales
+perturbados y semilla registrada (6.467 filas de comparación en
+`resumen.csv`).
 
 **Veredicto global**: el núcleo discreto de Fitbauer (singlete / doblete /
 sextete a 1er orden, anchuras por pares, textura, multisitio, ligaduras,
@@ -657,3 +658,78 @@ Tests nuevos: `tests/test_mejoras_banco_normos2.py` (5); suite completa
   reduce NVAR.
 - **EXACT**: intensidades efectivas ≈3:3:1 fijas (D13/D23 ignoradas, S2T
   inaccesible); las correcciones de posición/anchura sí escalan con QUP.
+
+## 17. Tercera tanda: extremos y centro sobre las series originales
+
+Las rejillas de la fase 1 eran deliberadamente centrales; `series_ext.py`
+añade los puntos extremos que faltaban DENTRO de cada serie ya existente
+(24 casos, v0+v1): dobletes con δ=−1.0/+2.0 y ΔEQ de 0.08 (≪Γ) a 5 mm/s,
+sextetos de 0.5 y 58 T, Γ de 0.16 a 2.0, profundidades de 0.5 % a 40 %,
+D21∈{0.3, 3}, pares de anchura invertidos (W13=0.7/W23=1.3), η=0.1,
+QUA=±0.45, dobletes casi degenerados (dΔEQ=0.02), gaussianas P(B) en los
+bordes de la malla y casi-delta (σ≈paso), y DTI negativa (−0.01) y fuerte
+(+0.02).
+
+Resultado: **todo converge (0 no-convergencias) y todo lo identificable
+sale**. Las únicas desviaciones son las esperables y quedan atribuidas:
+
+- `D6_dq0.02` — degeneración práctica real (dos dobletes a 0.02 mm/s:
+  soluciones equivalentes con χ²red≈1; le pasaría igual a NORMOS).
+- `D3_f0.5pc` — por debajo del límite de detección con ruido (χ²red 0.83
+  con el doblete errante; el umbral medido en D3 sigue siendo ~1–2 %).
+- `A5_eta0.1` v0 (Kündig+intensidades libres) hereda el sesgo conocido de
+  int1 (2.1 vs 3); el re-ajuste v0m con `quad_treatment="hamiltonian"`
+  lo elimina, coherente con §13.
+- `J1_b30_s0.8` y `J1_b15_s3` — sobre-suavizado del histograma en
+  casi-delta y borde de malla (compromiso del regularizador, como L1/J5;
+  las formas paramétricas lo resuelven).
+- `J4_dti±` — la correlación δ(B) funciona con signo negativo y pendiente
+  doble; ignorarla (v0_sin_slope) duplica el error de σ.
+
+La sonda adicional `_staging/polar` confirma que la **fuente polarizada**
+(DIST `METHOD=4`) sí funciona en el demo y transforma el espectro por
+completo (max|Δ|≈0.9): capacidad de NORMOS sin equivalente en Fitbauer,
+incorporada al veredicto.
+
+**El veredicto completo (lo que sale, lo que no sale y por qué, y qué tiene
+cada programa que el otro no) está en `VEREDICTO.md`**, con la síntesis
+numérica generada por `veredicto_datos.py`.
+
+## 18. Tres capacidades cerradas (v4.19): cristal único, kernel HC y fondo v³/v⁴
+
+De las cuatro capacidades que el veredicto (§VEREDICTO.md) señalaba como "lo
+que le falta a Fitbauer", se implementaron y validaron las tres primeras
+(`valida_v4_19.py`, `fig_v419_mejoras`); queda solo la fuente polarizada
+(baja demanda, se implementará si hace falta).
+
+1. **Cristal único** (`quad_treatment="hamiltonian_sc"`, parámetros
+   `bex`/`gax`): dirección fija del haz γ con suma coherente entre canales de
+   radiación (matriz de Wigner d¹). Anclas físicas: patrón 3:0:1 con haz∥B y
+   3:4:1 con haz⊥B en el límite axial; el promedio isótropo sobre
+   direcciones reproduce el modo polvo a 1e-15. Re-ajuste del banco K3 con
+   los ángulos verdaderos e intensidades FIJAS: χ²red 3.5/12.4*/20.4* → 
+   2.9/2.3/2.5 (*con la convención corregida; el primer intento con
+   GAX literal empeoraba: el barrido teoría-contra-teoría reveló que el
+   GAX del demo se mide desplazado 90° del azimut geométrico —
+   gax_Fitbauer = GAX_SITE + 90°, nueva convención documentada). El χ²red
+   restante ≈2.5 es el suelo de la aproximación de SITE-1994 (idéntico al
+   caso polvo).
+2. **Kernel Hamiltoniano en distribuciones**
+   (`kernel_treatment="hamiltonian"` + η; CLI `--kernel-treatment`): promedio
+   de polvo del Hamiltoniano completo por columna del kernel; ΔEQ = módulo
+   del EFG aleatorio (análogo no perturbativo del EXACT/QUP de DIST).
+   Detalle físico clave: el promedio se hace en el MARCO DEL CAMPO (B∥z,
+   EFG inclinado; nueva `full_hamiltonian_lines_field`) para que la textura
+   D13/D23 quede ligada a B — en el marco del EFG el promedio la diluía a
+   isótropa (bug detectado y corregido durante la validación). Round-trip
+   sintético: momentos exactos (test). Banco L4 (v0h): σ a QUP=1 pasa de
+   +2.4 T (1er orden) / +2.4 (d23 solo) a **+1.0 T**, y ⟨B⟩ queda a 0.04 T;
+   el residuo restante es la propia truncación perturbativa del EXACT del
+   demo (3er/4º orden) más su patrón 3:3:1 no configurable.
+3. **Fondo v³/v⁴** (`curv3`/`curv4`): K2_cubico pasa de χ²red 2.5 a 2e-7 con
+   curv3 recuperado a 3 cifras; caso nuevo K2_cuartico (BKG(5)=60) exacto.
+
+Todo expuesto en la GUI (menú contextual de ΔEQ con el 5º tratamiento;
+selector "Kernel" + η en el panel de distribución; Base v³/v⁴ en
+calibración), con sesiones, i18n en 8 idiomas y manuales ES/EN actualizados.
+Tests: `tests/test_mejoras_v4_19.py` (11).
