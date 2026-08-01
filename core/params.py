@@ -12,12 +12,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 BHF_DEFAULT_T = 33.0
-MAX_COMPONENTS = 6
+# Máximo de componentes discretos en la GUI. El motor headless no tiene límite
+# propio; el banco de validación NORMOS ajustó 10 sitios (D1_n10) sin
+# problemas, así que la GUI ofrece hasta 10 (los paneles no activos se
+# ocultan; ver gui/layout_manager._component_visibility).
+MAX_COMPONENTS = 10
 
 # Orden canónico de parámetros de componente (incluye ocultos int3/texture/beta).
 PARAM_ORDER = (
     "delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
     "depth", "int1", "int2", "int3", "texture", "beta",
+    "eta", "phi",
     "relax_fraction", "relax_log_nu",
     "neel_temp_k", "neel_log10_keff", "neel_mean_d_nm",
     "neel_sigma", "neel_log10_tau0", "neel_bins",
@@ -33,7 +38,7 @@ ACTIVE_PARAM_ORDER = (
 # Conjunto de parámetros realmente usados por cada tipo de componente.
 USED_BY = {
     "Sextete": {"delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
-                "depth", "int1", "int2", "texture", "beta"},
+                "depth", "int1", "int2", "texture", "beta", "eta", "phi"},
     "Doblete": {"delta", "quad", "gamma1", "gamma2", "depth", "int2"},
     "Singlete": {"delta", "gamma1", "depth"},
     # Modelo fenomenológico de relajación: mezcla de sextete bloqueado y
@@ -61,8 +66,10 @@ DISTRIBUTION_SHAPES = ("Histograma", "Gaussiana", "VBF", "Binomial", "Fija", "2D
 # Modos válidos de intensidad relativa para sextetes.
 INTENSITY_MODES = ("free", "texture")
 
-# Tratamientos cuadrupolares válidos para sextetes.
-QUAD_TREATMENTS = ("1st_order", "kundig_fixed", "kundig_powder")
+# Tratamientos cuadrupolares válidos para sextetes. "hamiltonian" =
+# Hamiltoniano estático completo con intensidades desde autovectores y EFG
+# no axial (eta, phi); validado contra NORMOS-SITE (banco de validación).
+QUAD_TREATMENTS = ("1st_order", "kundig_fixed", "kundig_powder", "hamiltonian")
 
 
 @dataclass(frozen=True)
@@ -89,6 +96,8 @@ COMPONENT_PARAM_SPECS = {
     "int2":    ParamSpec(2.0, 0.0, 4.0, 0.01, 3),
     "texture": ParamSpec(2.0 / 3.0, 0.0, 1.0, 0.001, 4),
     "beta":    ParamSpec(0.0, 0.0, 90.0, 0.1, 2),
+    "eta":     ParamSpec(0.0, 0.0, 1.0, 0.01, 3),
+    "phi":     ParamSpec(0.0, 0.0, 90.0, 0.1, 2),
     "relax_fraction": ParamSpec(1.0, 0.0, 1.0, 0.001, 4),
     "relax_log_nu": ParamSpec(5.0, 3.0, 12.0, 0.1, 2),
     "neel_temp_k": ParamSpec(300.0, 1.0, 800.0, 1.0, 1),
@@ -106,7 +115,7 @@ COMPONENT_PARAM_SPECS = {
 # anchura lognormal, nº de bins) y luego la dinámica de Arrhenius (T, K_eff, τ0).
 COMPONENT_PARAM_LAYOUT = {
     "left": ("delta", "quad", "bhf", "gamma1", "gamma2", "gamma3"),
-    "right": ("depth", "int1", "int2", "texture", "beta",
+    "right": ("depth", "int1", "int2", "texture", "beta", "eta", "phi",
               "relax_fraction", "relax_log_nu",
               "neel_mean_d_nm", "neel_sigma", "neel_bins",
               "neel_temp_k", "neel_log10_keff", "neel_log10_tau0"),
@@ -120,12 +129,17 @@ DEPTH_DEFAULT_OTHERS = 0.005
 GLOBAL_FIT_BOUNDS = {
     "baseline": (0.70, 1.30), "slope": (-0.005, 0.005),
     "vmax": (1.0, 15.0), "voigt_sigma": (0.0, 1.0), "sat_scale": (0.05, 50.0),
+    # Mejoras banco NORMOS: curvatura de base (§6.8) y anchura de la fuente
+    # de la integral de transmisión (§6.3). Por defecto van FIJOS a su valor
+    # neutro y no cambian el comportamiento histórico.
+    "curv": (-0.02, 0.02), "src_fwhm": (0.0, 1.0),
 }
 COMPONENT_FIT_BOUNDS = {
     "delta": (-2.0, 3.0), "quad": (-4.0, 4.0), "bhf": (0.0, 60.0),
     "gamma1": (0.06, 4.0), "gamma2": (0.2, 6.0), "gamma3": (0.2, 6.0),
     "depth": (0.0, 0.30), "int1": (0.0, 9.0), "int2": (0.0, 6.0),
     "int3": (0.0, 3.0), "texture": (0.0, 1.0), "beta": (0.0, 90.0),
+    "eta": (0.0, 1.0), "phi": (0.0, 90.0),
     "relax_fraction": (0.0, 1.0), "relax_log_nu": (3.0, 12.0),
     "neel_temp_k": (1.0, 800.0), "neel_log10_keff": (2.0, 7.0),
     "neel_mean_d_nm": (0.5, 100.0), "neel_sigma": (0.01, 1.5),
@@ -141,6 +155,10 @@ CALIBRATION_PARAM_SPECS: dict[str, ParamSpec] = {
     "slope":       ParamSpec(0.0,    -0.002, 0.002,  1e-5,  6),
     "voigt_sigma": ParamSpec(0.05,    0.0,   1.0,    0.001, 4),
     "sat_scale":   ParamSpec(5.0,     0.05, 50.0,    0.01,  3),
+    # Curvatura de base (término v², mejora banco NORMOS §6.8) y anchura de
+    # la fuente para la integral de transmisión (§6.3). Fijos por defecto.
+    "curv":        ParamSpec(0.0,   -0.02,  0.02,   1e-5,  6),
+    "src_fwhm":    ParamSpec(0.097,   0.0,   1.0,   0.001, 4),
 }
 
 # Especificación de los controles del panel de distribución.
@@ -251,9 +269,14 @@ def relevant_params(kind: str, intensity_mode: str, quad_treatment: str) -> set[
             used.discard("int2")
         else:
             used.discard("texture")
-        if quad_treatment != "kundig_fixed":
+        if quad_treatment not in ("kundig_fixed", "hamiltonian"):
             used.discard("beta")
+        if quad_treatment != "hamiltonian":
+            used.discard("eta")
+            used.discard("phi")
     else:
         used.discard("texture")
         used.discard("beta")
+        used.discard("eta")
+        used.discard("phi")
     return used

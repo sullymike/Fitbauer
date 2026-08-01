@@ -221,6 +221,113 @@ def kundig_sextet_positions_batch(
     return pos
 
 
+# ── Hamiltoniano estático general con intensidades (mejora banco NORMOS §6.1/6.2) ──
+# Extiende el tratamiento Kündig a EFG no axial (η, φ) y calcula las
+# intensidades de transición M1 desde los autovectores (coeficientes de
+# Clebsch-Gordan, promedio isótropo de la dirección del haz): reproduce la
+# redistribución de intensidades y las transiciones ΔmI=±2 que el patrón
+# rígido 3:2:1 no puede dar. Validado contra NORMOS-SITE HAMILT (banco A4/A5).
+
+_Iy = (_Ip - _Im) / 2j                       # I=3/2, compleja
+_gIz = np.diag([0.5, -0.5])
+_gIp = np.array([[0.0, 1.0], [0.0, 0.0]])
+_gIx = (_gIp + _gIp.T) / 2.0
+_gIy = (_gIp - _gIp.T) / 2j
+
+# Amplitudes CG ⟨3/2 m_e | 1/2 m_g; 1 q⟩ en la base excitada
+# {3/2, 1/2, −1/2, −3/2} (índices 0..3) y fundamental {+1/2, −1/2} (0..1).
+# _CG[q+1][g][e]; q ∈ {−1, 0, +1}.
+_CG = np.zeros((3, 2, 4), dtype=float)
+_CG[2, 0, 0] = 1.0                    # m_g=+1/2, q=+1 → m_e=+3/2
+_CG[1, 0, 1] = np.sqrt(2.0 / 3.0)     # m_g=+1/2, q=0  → m_e=+1/2
+_CG[0, 0, 2] = np.sqrt(1.0 / 3.0)     # m_g=+1/2, q=−1 → m_e=−1/2
+_CG[2, 1, 1] = np.sqrt(1.0 / 3.0)     # m_g=−1/2, q=+1 → m_e=+1/2
+_CG[1, 1, 2] = np.sqrt(2.0 / 3.0)     # m_g=−1/2, q=0  → m_e=−1/2
+_CG[0, 1, 3] = 1.0                    # m_g=−1/2, q=−1 → m_e=−3/2
+
+_M2_E = np.array([3, 1, -1, -3], dtype=int)   # 2·m_e por índice de base
+_M2_G = np.array([1, -1], dtype=int)          # 2·m_g por índice de base
+
+
+def full_hamiltonian_lines(
+    bhf_T: float, delta: float, deq: float,
+    eta: float = 0.0, theta: float = 0.0, phi: float = 0.0,
+    int1: float = 3.0, int2: float = 2.0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Transiciones del Hamiltoniano estático completo de ⁵⁷Fe (8 líneas).
+
+    En el marco de ejes principales del EFG, con B en dirección
+    (sinθcosφ, sinθsinφ, cosθ):
+
+        H_e = ω_e (n̂·I) + (ΔE_Q/6)[3I_z² − I(I+1) + η(I_x² − I_y²)]
+        H_g = ω_g (n̂·I_g)                       (sin cuadrupolo, I=1/2)
+
+    Intensidades: elemento de matriz dipolar M1 con coeficientes CG y
+    promedio isótropo de la dirección del haz γ (muestra en polvo con
+    orientación B–EFG fija): I ∝ Σ_q W_q |⟨ψ_e|T_q|ψ_g⟩|², con
+    W_±1 = int1 y W_0 = 1.5·int2, que en el límite sin mezcla reproduce
+    exactamente int1 : int2 : int1/3 (3:2:1 por defecto). La intensidad
+    total Σ = (2·int1 + 1.5·int2)·4/3 se conserva bajo mezcla (regla de
+    suma), de modo que ``depth`` mantiene su papel de amplitud.
+
+    Parameters
+    ----------
+    theta, phi : ángulos de B en el marco del EFG (rad).
+    eta        : asimetría del EFG (0 → axial).
+
+    Returns
+    -------
+    positions   : (8,) posiciones en mm/s (δ incluido), orden ascendente.
+    intensities : (8,) pesos de línea (misma normalización que 3:2:1).
+    width_class : (8,) enteros {1, 2, 3} → anchura gamma1/gamma2/gamma3
+                  según la transición dominante (las ΔmI=±2 usan gamma1).
+    """
+    omega_e = bhf_T / BHF_REF_T * OMEGA_E_33T
+    omega_g = bhf_T / BHF_REF_T * OMEGA_G_33T
+    st, ct = float(np.sin(theta)), float(np.cos(theta))
+    sp, cp = float(np.sin(phi)), float(np.cos(phi))
+    nx, ny, nz = st * cp, st * sp, ct
+
+    He = (omega_e * (nx * _Ix + ny * _Iy + nz * _Iz)
+          + (deq / 6.0) * (3.0 * (_Iz @ _Iz) - _I_squared * _EYE4
+                           + float(eta) * (_Ix @ _Ix - _Iy @ _Iy)))
+    E_e, A = np.linalg.eigh(He)
+    Hg = omega_g * (nx * _gIx + ny * _gIy + nz * _gIz)
+    E_g, Bv = np.linalg.eigh(Hg)
+
+    w_q = np.array([float(int1), 1.5 * float(int2), float(int1)])
+    m2_e_dom = _M2_E[np.argmax(np.abs(A) ** 2, axis=0)]     # (4,)
+    m2_g_dom = _M2_G[np.argmax(np.abs(Bv) ** 2, axis=0)]    # (2,)
+
+    positions = np.empty(8)
+    intensities = np.empty(8)
+    width_class = np.empty(8, dtype=int)
+    k = 0
+    for gi in range(2):
+        for ek in range(4):
+            inten = 0.0
+            for qi in range(3):
+                m = 0.0 + 0.0j
+                for g_base in range(2):
+                    for e_base in range(4):
+                        cg = _CG[qi, g_base, e_base]
+                        if cg:
+                            m += np.conj(A[e_base, ek]) * cg * Bv[g_base, gi]
+                inten += w_q[qi] * float(np.abs(m) ** 2)
+            positions[k] = float(E_e[ek] - E_g[gi]) + float(delta)
+            intensities[k] = inten
+            me, mg = int(m2_e_dom[ek]), int(m2_g_dom[gi])
+            if abs(me) == 3:
+                width_class[k] = 1
+            elif me == mg:
+                width_class[k] = 2
+            else:
+                width_class[k] = 3
+            k += 1
+    order = np.argsort(positions)
+    return positions[order], intensities[order], width_class[order]
+
+
 def polycrystal_kundig_positions(
     bhf_T: float, delta: float, deq: float, n_quad: int = 20
 ) -> tuple[np.ndarray, np.ndarray]:

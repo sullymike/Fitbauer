@@ -75,6 +75,17 @@ class ModelState:
     fit_center: bool = False
     fit_sigma: bool = False
     multistart_n: int = 8
+    channel_sub: int = 1
+    # "Líneas sueltas": amplía los límites de delta de los componentes a
+    # ±(vmax+2) mm/s para usar singletes como líneas Lorentzianas libres en
+    # cualquier posición del espectro (banco NORMOS §6.5). Off por defecto:
+    # los límites físicos de δ de ⁵⁷Fe son los correctos para ajustes normales.
+    wide_delta: bool = False
+    # Escalado global automático (DE) si el multistart acaba con χ²red alto.
+    # Activo por defecto en la capa de sesión: el banco NORMOS §6.10 midió
+    # ~40 % de fallos del multistart local en multisitio solapado y una
+    # recuperación del 100 % con la pasada DE.
+    auto_global: bool = True
     n_components: int = 1
 
     @classmethod
@@ -82,10 +93,14 @@ class ModelState:
         vars_: dict[str, float] = {
             "vmax": 12.0, "center": 256.0, "baseline": 1.0, "slope": 0.0,
             "voigt_sigma": 0.05, "sat_scale": 1.0,
+            # curv/src_fwhm: fijos a su valor neutro (curvatura nula; anchura
+            # de fuente natural de 57Fe) salvo que el usuario los libere.
+            "curv": 0.0, "src_fwhm": 0.097,
         }
         fixed: dict[str, bool] = {
             "vmax": True, "center": True, "baseline": False, "slope": False,
             "voigt_sigma": False, "sat_scale": True,
+            "curv": True, "src_fwhm": True,
         }
         se: dict[int, bool] = {}
         ck: dict[int, str] = {}
@@ -135,11 +150,14 @@ class ModelState:
             if v in _QUAD_TREATMENTS:
                 self.quad_treatment[int(k)] = v
         for flag in ("fit_velocity", "fit_center", "fit_sigma",
-                     "propagate_calib", "global_opt"):
+                     "propagate_calib", "global_opt", "wide_delta",
+                     "auto_global"):
             if flag in state:
                 setattr(self, flag, bool(state[flag]))
         if "multistart_n" in state:
             self.multistart_n = max(0, min(10, int(state["multistart_n"])))
+        if "channel_sub" in state:
+            self.channel_sub = max(1, min(8, int(state["channel_sub"])))
         for skey in ("line_profile", "likelihood", "robust_loss", "absorber_model",
                      "drive_form"):
             if skey in state:
@@ -179,6 +197,15 @@ class ModelState:
         for idx in self.sextet_enabled:
             for name, rng in _PARAM_BOUNDS.items():
                 bounds[f"s{idx}_{name}"] = rng
+        if self.absorber_model == "transmission":
+            # En transmisión "depth" es profundidad ÓPTICA (τ puede superar 1):
+            # se relaja el límite superior solo en este modo.
+            for idx in self.sextet_enabled:
+                bounds[f"s{idx}_depth"] = (0.0, 5.0)
+        if self.wide_delta:
+            vmax_abs = abs(float(self.vars.get("vmax", 12.0)))
+            for idx in self.sextet_enabled:
+                bounds[f"s{idx}_delta"] = (-(vmax_abs + 2.0), vmax_abs + 2.0)
         # Límites del centro de doblado según el nº de canales real. Sin esto,
         # fit_center caía al default (250, 263) del motor, válido solo para 512
         # canales: con otros tamaños el centro quedaba clavado en el límite.
@@ -205,6 +232,8 @@ class ModelState:
             fit_sigma=self.fit_sigma, absorber_model=self.absorber_model,
             drive_form=self.drive_form,
             multistart_n=self.multistart_n,
+            channel_sub=max(1, int(self.channel_sub)),
+            auto_global=bool(self.auto_global),
             counts=counts, norm_factor=norm_factor)
 
     def active_param_keys(self) -> list[str]:
@@ -244,6 +273,9 @@ class ModelState:
             "absorber_model": self.absorber_model,
             "drive_form": self.drive_form,
             "multistart_n": self.multistart_n,
+            "channel_sub": self.channel_sub,
+            "wide_delta": self.wide_delta,
+            "auto_global": self.auto_global,
             "n_components": self.n_components,
             "constraints": list(self.constraints),
         }
@@ -364,6 +396,11 @@ class HeadlessSession:
         for flag, key in (("fit_center", "center"), ("fit_velocity", "vmax"),
                           ("fit_sigma", "voigt_sigma")):
             if getattr(self.model, flag, False) and key in self.model.vars:
+                values_out[key] = float(self.model.vars[key])
+        # Globales opcionales de modelo (saturación/transmisión/curvatura):
+        # se reportan cuando participaron en el ajuste.
+        for key in ("sat_scale", "curv", "src_fwhm"):
+            if key in self.model.vars and not self.model.fixed.get(key, True):
                 values_out[key] = float(self.model.vars[key])
         return {
             "values": values_out,

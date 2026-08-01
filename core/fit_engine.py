@@ -76,9 +76,16 @@ class FitState:
     fit_velocity: bool = False
     fit_center: bool = False
     fit_sigma: bool = False
-    absorber_model: str = "thin"        # "thin" / "thickness"
+    absorber_model: str = "thin"        # "thin" / "thickness" / "transmission"
     drive_form: str = "triangular"      # "triangular" / "sine" (eje v = vmax·sin)
     multistart_n: int = 8               # nº de réplicas perturbadas (+1 base)
+    channel_sub: int = 1                # integración del modelo sobre el canal (1 = centro)
+    # Escalado global automático (banco NORMOS §6.10): si tras el multistart el
+    # mejor χ²red sigue siendo > umbral, se hace una pasada DE + refinado local.
+    # El multistart local fallaba ~40 % con sextetos solapados y arranques
+    # ±15 %; la pre-pasada DE recuperó el 100 % de los casos probados.
+    auto_global: bool = False
+    auto_global_chi2: float = 10.0
     # Re-folding del centro (portado del Tk): cuentas crudas sin doblar y
     # normalización de referencia. Si se proporcionan y fit_center=True, el
     # residuo vuelve a doblar las cuentas en el centro de prueba en cada
@@ -257,6 +264,10 @@ def _build_components_list(values: dict[str, float], components: list[Component]
                 "beta": float(np.deg2rad(beta_deg)),
                 "n_quad": 20,
             }
+            if comp.quad_treatment == "hamiltonian":
+                extras["eta"] = float(values.get(f"s{comp.idx}_eta", 0.0))
+                extras["phi"] = float(np.deg2rad(
+                    float(values.get(f"s{comp.idx}_phi", 0.0))))
             out.append((comp.kind, params, extras))
         else:
             out.append((comp.kind, params))
@@ -270,13 +281,22 @@ def model_from_values(
     constraints: list[dict] | None = None,
     absorber_model: str = "thin",
     bounds: dict[str, tuple[float, float]] | None = None,
+    channel_sub: int = 1,
 ) -> np.ndarray:
-    """Evalúa el modelo total dado un estado de parámetros plano."""
+    """Evalúa el modelo total dado un estado de parámetros plano.
+
+    ``channel_sub`` > 1 integra el modelo sobre la anchura del canal con
+    cuadratura Gauss-Legendre de ese orden (mejora banco NORMOS §6.6: evita
+    el sesgo de Γ cuando el canal no es ≪ Γ). Con 1 (default) evalúa en el
+    centro del canal (comportamiento histórico).
+    """
     vals = resolve_values(values, components, constraints or [], bounds)
     comps = _build_components_list(vals, components)
     baseline = float(vals.get("baseline", 1.0))
     slope = float(vals.get("slope", 0.0))
+    curv = float(vals.get("curv", 0.0) or 0.0)
     sat_scale: float | None = None
+    transmission_src: float | None = None
     if absorber_model == "thickness":
         s = vals.get("sat_scale")
         if s is not None:
@@ -286,7 +306,23 @@ def model_from_values(
                     sat_scale = s
             except (TypeError, ValueError):
                 pass
-    return total_model(velocity, baseline, slope, comps, sat_scale=sat_scale)
+    elif absorber_model == "transmission":
+        transmission_src = max(0.0, float(vals.get("src_fwhm", 0.0) or 0.0))
+
+    n_sub = max(1, int(channel_sub))
+    if n_sub == 1:
+        return total_model(velocity, baseline, slope, comps,
+                           sat_scale=sat_scale, curv=curv,
+                           transmission_src=transmission_src)
+    vel = np.asarray(velocity, dtype=float)
+    dv = float(np.median(np.diff(vel))) if vel.size > 1 else 0.0
+    x, w = np.polynomial.legendre.leggauss(n_sub)
+    acc = np.zeros_like(vel)
+    for xk, wk in zip(x, w):
+        acc = acc + 0.5 * wk * total_model(
+            vel + 0.5 * dv * float(xk), baseline, slope, comps,
+            sat_scale=sat_scale, curv=curv, transmission_src=transmission_src)
+    return acc
 
 
 # ── Construcción del residual ─────────────────────────────────────────────
@@ -359,7 +395,8 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
         else:
             v = state.velocity
         m = model_from_values(v, vals, state.components, state.constraints,
-                              absorber_model=state.absorber_model, bounds=state.bounds)
+                              absorber_model=state.absorber_model, bounds=state.bounds,
+                              channel_sub=state.channel_sub)
         # 4. Datos: re-doblar las cuentas en el centro de prueba si procede; así
         #    el ajuste del centro es físicamente real (cambia y y σ por iteración).
         if can_refold:
@@ -468,6 +505,11 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
     # sat_scale solo libre si modo grueso
     if state.absorber_model == "thickness" and "sat_scale" in state.values and not state.fixed.get("sat_scale"):
         free_keys.append("sat_scale")
+    # src_fwhm (anchura de la fuente) solo participa en modo transmisión; en
+    # otros modos se excluye aunque esté libre para no dejar un parámetro
+    # muerto en el ajuste.
+    if state.absorber_model != "transmission" and "src_fwhm" in free_keys:
+        free_keys.remove("src_fwhm")
 
     # 2. x0 / bounds.
     x0 = [state.values[k] for k in free_keys]
@@ -622,8 +664,42 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
             _stagnation = 0
         else:
             _stagnation += 1
-        if _stagnation >= _stagnation_patience and n_starts >= 2:
+        # El corte por estancamiento solo procede si el mejor ajuste ya es
+        # razonable: abandonar candidatos con χ²red aún malo era una de las
+        # causas de la fragilidad multisitio detectada por el banco NORMOS.
+        _dof = max(1, int(np.asarray(state.y_data).size) - len(free_keys))
+        _best_red = 2.0 * float(result.cost) / _dof if result is not None else float("inf")
+        if (_stagnation >= _stagnation_patience and n_starts >= 2
+                and _best_red < 2.0):
             break
+
+    # 5b. Escalado global automático (banco NORMOS §6.10): si el multistart
+    # local terminó claramente mal, una pasada DE + refinado local. No corre
+    # si global_opt ya hizo la pre-pasada, ni cuando el ajuste es aceptable.
+    if state.auto_global and not state.global_opt and result is not None:
+        _dof = max(1, int(np.asarray(state.y_data).size) - len(free_keys))
+        if 2.0 * float(result.cost) / _dof > float(state.auto_global_chi2):
+            progress_state.update({"phase": "Escalado global (DE)...",
+                                   "detail": "χ²red alto tras multistart",
+                                   "eval": 0, "max_eval": None, "last": 0.0})
+            try:
+                def _de_objective_auto(x: np.ndarray) -> float:
+                    r = residual(x)
+                    return 0.5 * float(np.dot(r, r))
+
+                de = differential_evolution(
+                    _de_objective_auto,
+                    bounds=list(zip(lo_arr.tolist(), hi_arr.tolist())),
+                    seed=12345, maxiter=60, tol=1e-4, polish=False,
+                    init="sobol", updating="deferred")
+                res_de = least_squares(residual, np.clip(de.x, lo_arr, hi_arr),
+                                       bounds=(lo_arr, hi_arr), max_nfev=7000,
+                                       **ls_kwargs)
+                n_starts += 1
+                if res_de.cost < result.cost:
+                    result = res_de
+            except Exception:
+                pass
 
     if result is None:
         return FitResult(values=dict(state.values), errors={}, free_keys=free_keys,

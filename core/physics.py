@@ -8,6 +8,7 @@ from scipy.special import wofz
 
 from .constants import LINE_POS_33T, LINE_QUAD_PATTERN, BHF_DEFAULT_T, E_GAMMA
 from .hamiltonian import (
+    full_hamiltonian_lines,
     kundig_sextet_positions,
     kundig_sextet_positions_batch,
     polycrystal_kundig_positions,
@@ -82,6 +83,8 @@ def sextet_absorption(
     treatment: str = "1st_order",
     beta: float = 0.0,
     n_quad: int = 20,
+    eta: float = 0.0,
+    phi: float = 0.0,
 ) -> np.ndarray:
     """Absorción del sextete.
 
@@ -92,6 +95,12 @@ def sextet_absorption(
         entre B y V_{zz} (EFG axial, η=0). Mejora 8b.
       * ``"kundig_powder"``: promedio policristal por cuadratura
         Gauss–Legendre de ``n_quad`` orientaciones (β ∈ [0, π]).
+      * ``"hamiltonian"``: Hamiltoniano estático completo (EFG con ``eta`` y
+        ángulos β=θ, ``phi`` en rad) con INTENSIDADES calculadas desde los
+        autovectores (8 transiciones, CG + promedio isótropo del haz). Los
+        pesos int1/int2 fijan la textura de los canales q (int1→q=±1,
+        int2→q=0); int3 no aplica (la relación 1,6/3,4 = 3 es física).
+        Validado contra NORMOS-SITE HAMILT (banco de validación, §6.1).
     """
     i3 = int3
     i2 = int3 * int2
@@ -101,6 +110,14 @@ def sextet_absorption(
     g2 = gamma1 * gamma2
     g3 = gamma1 * gamma3
     gammas = np.array([g1, g2, g3, g3, g2, g1], dtype=float)
+
+    if treatment == "hamiltonian":
+        positions, inten, wclass = full_hamiltonian_lines(
+            bhf, delta, quad, eta=eta, theta=beta, phi=phi,
+            int1=i1, int2=i2)
+        g_by_class = {1: g1, 2: g2, 3: g3}
+        gam8 = np.array([g_by_class[int(c)] for c in wclass], dtype=float)
+        return depth * sum_lorentzian_lines(v, positions, inten, gam8)
 
     if treatment == "kundig_fixed":
         positions = kundig_sextet_positions(bhf, delta, quad, beta)
@@ -422,8 +439,31 @@ def component_absorption(
             treatment=str(extras.get("treatment", "1st_order")),
             beta=float(extras.get("beta", 0.0)),
             n_quad=int(extras.get("n_quad", 20)),
+            eta=float(extras.get("eta", 0.0)),
+            phi=float(extras.get("phi", 0.0)),
         )
     return sextet_absorption(v, *p)
+
+
+def _source_kernel(v: np.ndarray, fwhm: float) -> np.ndarray | None:
+    """Kernel Lorentziano de la línea de la fuente, integrado por canal.
+
+    Cada peso es la integral analítica de la Lorentziana sobre la anchura del
+    canal (diferencias de arctan): exacto incluso cuando la FWHM de la fuente
+    es comparable al paso de la malla. Devuelve ``None`` si no procede
+    convolucionar (malla degenerada o fuente ≪ canal).
+    """
+    if v.size < 5 or fwhm <= 0:
+        return None
+    dv = float(np.median(np.diff(v)))
+    if dv <= 0 or fwhm < 0.05 * dv:
+        return None
+    half = max(3, int(np.ceil(20.0 * fwhm / dv)))
+    edges = (np.arange(-half, half + 2, dtype=float) - 0.5) * dv
+    g = fwhm / 2.0
+    cdf = np.arctan(edges / g)
+    ker = np.diff(cdf)
+    return ker / ker.sum()
 
 
 def total_model(
@@ -432,6 +472,8 @@ def total_model(
     slope: float,
     components,
     sat_scale: float | None = None,
+    curv: float = 0.0,
+    transmission_src: float | None = None,
 ) -> np.ndarray:
     """Modelo de transmisión.
 
@@ -444,6 +486,19 @@ def total_model(
 
     En el límite C→∞ se recupera el modelo delgado lineal
     T = baseline + slope·v − A_tot. C es la amplitud de saturación (≈ f_s·baseline).
+
+    Si ``transmission_src`` no es ``None`` (modo ``absorber_model=
+    "transmission"``, mejora banco NORMOS §6.3), se calcula la INTEGRAL DE
+    TRANSMISIÓN: A_tot se interpreta como profundidad óptica τ(E) y
+
+        T = baseline + slope·v + curv·v² − L_src ⊗ [1 − exp(−τ)]
+
+    con L_src la línea de la fuente (Lorentziana de FWHM ``transmission_src``
+    en mm/s, normalizada; 0 → sin convolución). En el límite fino
+    (τ≪1, fuente estrecha) reproduce el modelo delgado.
+
+    ``curv`` añade un término cuadrático de base (efecto geométrico residual
+    tras el doblado; mejora banco NORMOS §6.8). Con ``curv=0`` no hay cambio.
     """
     a_tot = np.zeros_like(v, dtype=float)
     for comp in components:
@@ -456,8 +511,19 @@ def total_model(
                 a_tot += component_absorption(v, kind, p)
         else:
             a_tot += sextet_absorption(v, *comp)
-    if sat_scale is not None and np.isfinite(sat_scale) and sat_scale > 0:
+    if transmission_src is not None:
+        a_eff = 1.0 - np.exp(-a_tot)
+        ker = _source_kernel(np.asarray(v, dtype=float), float(transmission_src))
+        if ker is not None:
+            pad = ker.size // 2
+            padded = np.concatenate([np.full(pad, a_eff[0]), a_eff,
+                                     np.full(pad, a_eff[-1])])
+            a_eff = np.convolve(padded, ker, mode="valid")
+    elif sat_scale is not None and np.isfinite(sat_scale) and sat_scale > 0:
         a_eff = sat_scale * (1.0 - np.exp(-a_tot / sat_scale))
     else:
         a_eff = a_tot
-    return baseline + slope * v - a_eff
+    out = baseline + slope * v - a_eff
+    if curv:
+        out = out + curv * np.asarray(v, dtype=float) ** 2
+    return out
