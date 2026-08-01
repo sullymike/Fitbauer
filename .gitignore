@@ -37,6 +37,10 @@ validacion/*
 !validacion/informe/**
 !validacion/plan_validacion_fitbauer_normos.md
 !validacion/resumen.csv
+# Catálogo de espectros: se versionan el PDF y los .tex; las ~400 figuras
+# PNG se regeneran con generador/catalogo_latex.py
+validacion/informe/catalogo/figs/
+validacion/informe/catalogo/compile.log
 
 # Cachés/temporales habituales si aparecen en la raíz
 __pycache__/
