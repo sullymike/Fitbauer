@@ -61,10 +61,21 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         absorber_row = QtWidgets.QHBoxLayout()
         absorber_row.addWidget(QtWidgets.QLabel(tr("absorber.model_label")))
         self.absorber_combo = QtWidgets.QComboBox()
-        for value, key in (("thin", "absorber.thin"), ("thickness", "absorber.thickness")):
-            self.absorber_combo.addItem(tr(key), value)
+        for value, key in (("thin", "absorber.thin"),
+                           ("thickness", "absorber.thickness"),
+                           ("transmission", "absorber.transmission")):
+            self.absorber_combo.addItem(tr(key, default=value), value)
         absorber_row.addWidget(self.absorber_combo, stretch=1)
         self.sat_scale = ParamControl(tr("slider.sat_scale"), *astuple(_cs["sat_scale"]))
+        # Integral de transmisión: anchura FWHM de la línea de la fuente
+        # (fija por defecto; desmarcar 'Fijo' para refinarla).
+        self.src_fwhm = ParamControl(tr("slider.src_fwhm", default="Γ fuente (mm/s)"),
+                                     *astuple(_cs["src_fwhm"]), with_fixed=True)
+        self.src_fwhm.set_fixed(True)
+        # Curvatura de base (término v²), fija a 0 por defecto.
+        self.curv = ParamControl(tr("slider.curv", default="Curvatura base"),
+                                 *astuple(_cs["curv"]), with_fixed=True)
+        self.curv.set_fixed(True)
 
         # Forma de onda del drive: triangular (aceleración cte, se dobla + eje
         # lineal) o senoidal (NORMOS FOLD=.FALSE.: sin doblar, v = vmax·sin).
@@ -80,15 +91,17 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         drive_row.addWidget(self.drive_combo, stretch=1)
 
         for w in (self.vmax, self.fit_velocity, self.center, self.fit_center,
-                  self.baseline, self.slope, self.voigt_sigma):
+                  self.baseline, self.slope, self.curv, self.voigt_sigma):
             v.addWidget(w)
         v.addLayout(drive_row)
         v.addLayout(absorber_row)
         v.addWidget(self.sat_scale)
+        v.addWidget(self.src_fwhm)
         self._refresh_absorber_widgets()
         v.addStretch(1)
 
-        for w in (self.vmax, self.center, self.baseline, self.slope, self.voigt_sigma, self.sat_scale):
+        for w in (self.vmax, self.center, self.baseline, self.slope, self.curv,
+                  self.voigt_sigma, self.sat_scale, self.src_fwhm):
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
             w.fixedChanged.connect(lambda *_: self.paramChanged.emit())
         self.absorber_combo.currentIndexChanged.connect(lambda *_: (self._refresh_absorber_widgets(), self.paramChanged.emit()))
@@ -135,6 +148,7 @@ class CalibrationPanel(QtWidgets.QGroupBox):
 
     def _refresh_absorber_widgets(self) -> None:
         self.sat_scale.setEnabled(self.absorber_model == "thickness")
+        self.src_fwhm.setEnabled(self.absorber_model == "transmission")
 
     def to_view_state(self) -> CalibrationViewState:
         """Snapshot del panel sin exponer widgets al resto de la GUI."""
@@ -145,6 +159,8 @@ class CalibrationPanel(QtWidgets.QGroupBox):
             slope=self.slope.value(),
             voigt_sigma=self.voigt_sigma.value(),
             sat_scale=self.sat_scale.value(),
+            curv=self.curv.value(),
+            src_fwhm=self.src_fwhm.value(),
             line_profile=self.line_profile,
             absorber_model=self.absorber_model,
             drive_form=self.drive_form,
@@ -155,6 +171,8 @@ class CalibrationPanel(QtWidgets.QGroupBox):
                 "baseline": self.baseline.is_fixed(),
                 "slope": self.slope.is_fixed(),
                 "sat_scale": self.sat_scale.is_fixed(),
+                "curv": self.curv.is_fixed(),
+                "src_fwhm": self.src_fwhm.is_fixed(),
                 "vmax": True,
                 "center": True,
                 "voigt_sigma": self.voigt_sigma.is_fixed(),
@@ -332,7 +350,8 @@ class ComponentPanel(QtWidgets.QWidget):
         for val, key in zip(QUAD_TREATMENTS,
                             ("context.quad_treatment_1st_order",
                              "context.quad_treatment_kundig_fixed",
-                             "context.quad_treatment_kundig_powder")):
+                             "context.quad_treatment_kundig_powder",
+                             "context.quad_treatment_hamiltonian")):
             act = menu.addAction(tr(key))
             act.setCheckable(True)
             act.setChecked(self.quad_treatment == val)

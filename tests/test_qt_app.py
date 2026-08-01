@@ -145,10 +145,16 @@ def test_fit_velocity_requires_bhf_fixed_before_qt_fit(win, monkeypatch):
     assert win.last_fit_result is None
 
 
-def test_qt_component_count_selector_shows_six_components(win):
-    """El selector de Qt permite activar hasta 6 componentes, igual que Tk."""
-    assert len(win.components_panels) == 6
-    assert win.n_components_spin.maximum() == 6
+def test_qt_component_count_selector_shows_max_components(win):
+    """El selector de Qt permite activar hasta MAX_COMPONENTS componentes.
+
+    El límite subió de 6 a 10 (v4.18.0) tras demostrar el banco NORMOS que el
+    motor ajusta 10 sitios; la fuente única es core.params.MAX_COMPONENTS.
+    """
+    from core.params import MAX_COMPONENTS
+    assert MAX_COMPONENTS == 10
+    assert len(win.components_panels) == MAX_COMPONENTS
+    assert win.n_components_spin.maximum() == MAX_COMPONENTS
     win.n_components_spin.setValue(4)
     assert [cp.enabled.isChecked() for cp in win.components_panels[:4]] == [True] * 4
     assert not win.components_panels[4].enabled.isChecked()
@@ -1320,3 +1326,39 @@ def test_sine_drive_toggle_changes_axis_size(win, tmp_path):
     win._simulate_enabled = True
     win._refresh_plot()   # no debe reventar con eje no monótono
     assert win.canvas.last_render["velocity"].size == N
+
+
+def test_qt_new_model_options_wiring(win):
+    """Las opciones v4.18 de la GUI llegan al ModelState headless.
+
+    Cubre: curv/src_fwhm del panel de calibración (valores y flags 'Fijo'),
+    modo de absorbente "transmission", tratamiento "hamiltonian" con eta/phi,
+    y las opciones channel_sub / wide_delta / auto_global.
+    """
+    win.calib.set_absorber_model("transmission")
+    win.calib.curv.set_value(0.001)
+    win.calib.curv.set_fixed(False)
+    win.calib.src_fwhm.set_value(0.12)
+    win.channel_sub = 3
+    win.wide_delta = True
+    win.auto_global = False
+    cp = win.components_panels[0]
+    cp._set_quad_treatment("hamiltonian")
+    cp.params["eta"].set_value(0.5)
+    cp.params["phi"].set_value(30.0)
+
+    ms = win._model_state()
+    assert ms.absorber_model == "transmission"
+    assert ms.vars["curv"] == pytest.approx(0.001)
+    assert ms.fixed["curv"] is False
+    assert ms.vars["src_fwhm"] == pytest.approx(0.12)
+    assert ms.channel_sub == 3
+    assert ms.wide_delta is True
+    assert ms.auto_global is False
+    assert ms.quad_treatment[1] == "hamiltonian"
+    assert ms.vars["s1_eta"] == pytest.approx(0.5)
+    assert ms.vars["s1_phi"] == pytest.approx(30.0)
+    # eta/phi son relevantes (ajustables) solo en modo hamiltonian
+    assert {"eta", "phi"} <= cp.relevant_params()
+    cp._set_quad_treatment("1st_order")
+    assert not ({"eta", "phi"} & cp.relevant_params())

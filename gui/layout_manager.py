@@ -12,7 +12,7 @@ from core.plot_styles import apply_rc
 from gui.state import UiPreferencesState
 from gui.themes import COLOR_THEMES
 
-MAX_QT_COMPONENTS = 6
+from core.params import MAX_COMPONENTS as MAX_QT_COMPONENTS
 _COMP_STACK_H = 300
 _DIST_STACK_H = 340
 _COMP_OVERHEAD_H = 120
@@ -479,6 +479,9 @@ class LayoutSettingsMixin:
             custom_layouts=dict(self.custom_layouts),
             qt_style=getattr(self, "qt_style", None),
             multistart_n=getattr(self, "multistart_n", 8),
+            channel_sub=getattr(self, "channel_sub", 1),
+            wide_delta=getattr(self, "wide_delta", False),
+            auto_global=getattr(self, "auto_global", True),
         )
 
     def _apply_ui_preferences_state(self, prefs: UiPreferencesState) -> None:
@@ -508,6 +511,21 @@ class LayoutSettingsMixin:
             spin.blockSignals(True)
             spin.setValue(self.multistart_n)
             spin.blockSignals(False)
+        self.channel_sub = max(1, int(prefs.channel_sub))
+        cs_spin = getattr(self, "_channel_sub_spin", None)
+        if cs_spin is not None:
+            cs_spin.blockSignals(True)
+            cs_spin.setValue(self.channel_sub)
+            cs_spin.blockSignals(False)
+        self.wide_delta = bool(prefs.wide_delta)
+        self.auto_global = bool(prefs.auto_global)
+        for attr, act_name in (("wide_delta", "act_wide_delta"),
+                               ("auto_global", "act_auto_global")):
+            act = getattr(self, act_name, None)
+            if act is not None:
+                act.blockSignals(True)
+                act.setChecked(bool(getattr(self, attr)))
+                act.blockSignals(False)
 
     # ── Persistencia mínima ──────────────────────────────────────────────
     def _load_settings(self) -> None:

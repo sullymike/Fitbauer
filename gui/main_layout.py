@@ -11,7 +11,7 @@ from gui.canvas import SpectrumCanvas
 from gui.distribution_panel import DistributionPanel
 from gui.panels import CalibrationPanel, ComponentPanel, InfoPanel
 
-MAX_QT_COMPONENTS = 6
+from core.params import MAX_COMPONENTS as MAX_QT_COMPONENTS
 
 
 def fit_mode_labels() -> list[str]:

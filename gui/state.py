@@ -123,6 +123,8 @@ class CalibrationViewState:
     slope: float
     voigt_sigma: float
     sat_scale: float
+    curv: float = 0.0
+    src_fwhm: float = 0.097
     line_profile: str = "Lorentziana"
     absorber_model: str = "thin"
     drive_form: str = "triangular"
@@ -145,6 +147,8 @@ class CalibrationViewState:
             "slope": self.slope,
             "voigt_sigma": self.voigt_sigma,
             "sat_scale": self.sat_scale,
+            "curv": self.curv,
+            "src_fwhm": self.src_fwhm,
         }
 
 
@@ -237,6 +241,9 @@ class FitOptionsState:
     fit_center: bool = False
     fit_sigma: bool = False
     multistart_n: int = 8
+    channel_sub: int = 1
+    wide_delta: bool = False
+    auto_global: bool = True
 
     @classmethod
     def from_model_state(cls, state: dict[str, Any]) -> "FitOptionsState":
@@ -253,6 +260,9 @@ class FitOptionsState:
             fit_sigma=bool(state.get("fit_sigma", False)),
             multistart_n=max(0, min(int(_FI["multistart_n_max"].default),
                                     int(_value_or(state.get("multistart_n"), 8)))),
+            channel_sub=max(1, min(8, int(_value_or(state.get("channel_sub"), 1)))),
+            wide_delta=bool(state.get("wide_delta", False)),
+            auto_global=bool(state.get("auto_global", True)),
         )
 
     def apply_to_model_state(self, model_state) -> None:
@@ -268,6 +278,9 @@ class FitOptionsState:
         model_state.fit_center = bool(self.fit_center)
         model_state.fit_sigma = bool(self.fit_sigma)
         model_state.multistart_n = self.multistart_n
+        model_state.channel_sub = max(1, int(self.channel_sub))
+        model_state.wide_delta = bool(self.wide_delta)
+        model_state.auto_global = bool(self.auto_global)
 
     def to_model_state_fragment(self) -> dict[str, Any]:
         return {
@@ -282,6 +295,9 @@ class FitOptionsState:
             "fit_center": bool(self.fit_center),
             "fit_sigma": bool(self.fit_sigma),
             "multistart_n": self.multistart_n,
+            "channel_sub": self.channel_sub,
+            "wide_delta": bool(self.wide_delta),
+            "auto_global": bool(self.auto_global),
         }
 
 
@@ -454,6 +470,9 @@ class UiPreferencesState:
     qt_style: str | None = None
     custom_shortcuts: dict[str, str] = field(default_factory=dict)
     multistart_n: int = 8
+    channel_sub: int = 1
+    wide_delta: bool = False
+    auto_global: bool = True
 
     @classmethod
     def from_settings_dict(cls, data: dict[str, Any]) -> "UiPreferencesState":
@@ -476,6 +495,9 @@ class UiPreferencesState:
                 str(k): str(v) for k, v in cs.items() if isinstance(v, str)
             } if isinstance(cs, dict) else {},
             multistart_n=int(_value_or(data.get("multistart_n"), 8)),
+            channel_sub=max(1, min(8, int(_value_or(data.get("channel_sub"), 1)))),
+            wide_delta=bool(data.get("wide_delta", False)),
+            auto_global=bool(data.get("auto_global", True)),
         )
 
     def to_settings_dict(self, *, base: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -488,6 +510,9 @@ class UiPreferencesState:
             "layout_preset": self.layout_preset,
             "custom_layouts": dict(self.custom_layouts),
             "multistart_n": self.multistart_n,
+            "channel_sub": self.channel_sub,
+            "wide_delta": bool(self.wide_delta),
+            "auto_global": bool(self.auto_global),
         })
         if self.ui_language:
             out["ui_language"] = self.ui_language

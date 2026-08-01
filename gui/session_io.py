@@ -157,6 +157,8 @@ class SessionIOMixin:
             self.calib.slope.set_value(vmap.get("slope", calib_state.slope))
             self.calib.voigt_sigma.set_value(vmap.get("voigt_sigma", calib_state.voigt_sigma))
             self.calib.sat_scale.set_value(vmap.get("sat_scale", calib_state.sat_scale))
+            self.calib.curv.set_value(vmap.get("curv", calib_state.curv))
+            self.calib.src_fwhm.set_value(vmap.get("src_fwhm", calib_state.src_fwhm))
             enabled_map = _per_component_map(state.get("sextet_enabled", {}))
             kind_map = _per_component_map(state.get("component_kind", {}))
             imode_map = _per_component_map(state.get("intensity_mode", {}))
@@ -225,7 +227,9 @@ class SessionIOMixin:
             fixed_map_calib = state.get("fixed", {})
             for name, ctl in (("baseline", self.calib.baseline),
                               ("slope", self.calib.slope),
-                              ("sat_scale", self.calib.sat_scale)):
+                              ("sat_scale", self.calib.sat_scale),
+                              ("curv", self.calib.curv),
+                              ("src_fwhm", self.calib.src_fwhm)):
                 f = fixed_map_calib.get(name)
                 if f is not None:
                     ctl.set_fixed(bool(f))
@@ -260,8 +264,19 @@ class SessionIOMixin:
                     spin.blockSignals(True)
                     spin.setValue(self.multistart_n)
                     spin.blockSignals(False)
+            if state.get("channel_sub") is not None:
+                self.channel_sub = max(1, min(8, int(state["channel_sub"])))
+                cs_spin = getattr(self, "_channel_sub_spin", None)
+                if cs_spin is not None:
+                    cs_spin.blockSignals(True)
+                    cs_spin.setValue(self.channel_sub)
+                    cs_spin.blockSignals(False)
+            if "wide_delta" in state:
+                self.wide_delta = bool(state["wide_delta"])
+            if "auto_global" in state:
+                self.auto_global = bool(state["auto_global"])
             am = state.get("absorber_model")
-            if am in ("thin", "thickness"):
+            if am in ("thin", "thickness", "transmission"):
                 self.absorber_model = am
                 self.calib.set_absorber_model(am)
             df = state.get("drive_form")
@@ -325,7 +340,8 @@ class SessionIOMixin:
             for grp_attr, val, items in (
                 ("likelihood_action_group", self.likelihood, ("gauss", "poisson")),
                 ("loss_action_group", self.robust_loss, ("linear", "soft_l1", "huber")),
-                ("absorber_action_group", self.absorber_model, ("thin", "thickness")),
+                ("absorber_action_group", self.absorber_model,
+                 ("thin", "thickness", "transmission")),
             ):
                 grp = getattr(self, grp_attr, None)
                 if grp is None:
@@ -338,6 +354,8 @@ class SessionIOMixin:
                 ("act_propagate", self.propagate_calib),
                 ("act_global_opt", self.global_opt),
                 ("act_add_sharp", self.dist_use_sharp),
+                ("act_wide_delta", getattr(self, "wide_delta", False)),
+                ("act_auto_global", getattr(self, "auto_global", True)),
             ):
                 a = getattr(self, attr, None)
                 if a is not None:

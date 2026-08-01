@@ -28,6 +28,10 @@ class DiscreteFitMixin:
             self.calib.voigt_sigma.set_value(result.values.get("voigt_sigma", calib_state.voigt_sigma))
         if "sat_scale" in result.free_keys:
             self.calib.sat_scale.set_value(result.values.get("sat_scale", calib_state.sat_scale))
+        if "curv" in result.free_keys:
+            self.calib.curv.set_value(result.values.get("curv", calib_state.curv))
+        if "src_fwhm" in result.free_keys:
+            self.calib.src_fwhm.set_value(result.values.get("src_fwhm", calib_state.src_fwhm))
         if state.fit_center and "center" in result.values:
             self.calib.center.set_value(result.values["center"])
         for cp in self.components_panels:

@@ -80,7 +80,10 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
         self.robust_loss = "linear"        # "linear" / "soft_l1" / "huber"
         self.propagate_calib = False
         self.global_opt = False
-        self.absorber_model = "thin"       # "thin" / "thickness"
+        self.absorber_model = "thin"       # "thin" / "thickness" / "transmission"
+        self.channel_sub = 1               # integración del modelo por canal (1 = centro)
+        self.wide_delta = False            # líneas sueltas: δ ampliado a ±(vmax+2)
+        self.auto_global = True            # escalado DE automático si χ²red alto
         self._simulate_enabled = False      # igual que Tk: al cargar solo se dibujan datos
         self.runtime_results = RuntimeResultState()
         self._help_dialog: QtWidgets.QDialog | None = None

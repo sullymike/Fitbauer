@@ -349,11 +349,51 @@ class MenuBuilderMixin:
         _ms_h.addWidget(self._multistart_spin)
         _wa.setDefaultWidget(_ms_container)
         adv_menu.addAction(_wa)
+        # Escalado global automático (DE si el multistart acaba con χ²red alto)
+        self.act_auto_global = QtGui.QAction(
+            tr("options.auto_global", default="Escalado global automático (DE)"),
+            self, checkable=True)
+        self.act_auto_global.setChecked(getattr(self, "auto_global", True))
+        self.act_auto_global.toggled.connect(
+            lambda b: (setattr(self, "auto_global", bool(b)), self._save_settings()))
+        adv_menu.addAction(self.act_auto_global)
+        # Integración del modelo sobre el canal (Gauss-Legendre, 1 = centro)
+        _wa2 = QtWidgets.QWidgetAction(self)
+        _cs_container = QtWidgets.QWidget()
+        _cs_h = QtWidgets.QHBoxLayout(_cs_container)
+        _cs_h.setContentsMargins(16, 2, 8, 2)
+        _cs_h.addWidget(QtWidgets.QLabel(
+            tr("options.channel_sub", default="Integración por canal")))
+        _cs_h.addStretch(1)
+        self._channel_sub_spin = QtWidgets.QSpinBox()
+        self._channel_sub_spin.setRange(1, 8)
+        self._channel_sub_spin.setValue(getattr(self, "channel_sub", 1))
+        self._channel_sub_spin.setFixedWidth(50)
+        self._channel_sub_spin.setToolTip(tr(
+            "tooltip.channel_sub",
+            default="1 = evaluar en el centro del canal (clásico). >1 integra el "
+                    "modelo sobre la anchura del canal; útil si el canal no es ≪ Γ."))
+        def _on_channel_sub_changed(v: int) -> None:
+            self.channel_sub = v
+            self._save_settings()
+        self._channel_sub_spin.valueChanged.connect(_on_channel_sub_changed)
+        _cs_h.addWidget(self._channel_sub_spin)
+        _wa2.setDefaultWidget(_cs_container)
+        adv_menu.addAction(_wa2)
+        # Líneas sueltas: δ ampliado a ±(vmax+2)
+        self.act_wide_delta = QtGui.QAction(
+            tr("options.wide_delta", default="Líneas sueltas (δ sin límite físico)"),
+            self, checkable=True)
+        self.act_wide_delta.setChecked(getattr(self, "wide_delta", False))
+        self.act_wide_delta.toggled.connect(
+            lambda b: (setattr(self, "wide_delta", bool(b)), self._save_settings()))
+        adv_menu.addAction(self.act_wide_delta)
         # Modelo de absorbente
         abs_menu = adv_menu.addMenu(tr("absorber.model_label"))
         self.absorber_action_group = QtGui.QActionGroup(self)
         for val, key in (("thin", "absorber.thin"),
-                          ("thickness", "absorber.thickness")):
+                          ("thickness", "absorber.thickness"),
+                          ("transmission", "absorber.transmission")):
             a = QtGui.QAction(tr(key), self, checkable=True)
             if val == self.absorber_model:
                 a.setChecked(True)

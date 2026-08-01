@@ -14,7 +14,7 @@ from gui.panels import ComponentPanel
 _FI = _eff_fi()
 _PD = _eff_pd()
 
-MAX_QT_COMPONENTS = 6
+from core.params import MAX_COMPONENTS as MAX_QT_COMPONENTS
 
 # Calibración del estimador de anchura CWT: para una Lorentziana de FWHM Γ, la
 # escala Ricker de máxima respuesta cumple 2·a·dv ≈ 2.85·Γ (ratio empírico

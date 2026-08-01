@@ -313,12 +313,16 @@ class ModelWorkflowMixin:
 
     def active_param_keys(self) -> list[str]:
         keys = list(GLOBAL_PARAM_NAMES)
+        keys.append("curv")
         if self.absorber_model == "thickness":
             keys.append("sat_scale")
+        elif self.absorber_model == "transmission":
+            keys.append("src_fwhm")
         for comp_state in self._active_component_states():
             keys.extend(f"s{comp_state.idx}_{name}" for name in SEXTET_PARAM_NAMES)
             if comp_state.kind == "Sextete":
-                keys.extend((f"s{comp_state.idx}_texture", f"s{comp_state.idx}_beta"))
+                keys.extend((f"s{comp_state.idx}_texture", f"s{comp_state.idx}_beta",
+                             f"s{comp_state.idx}_eta", f"s{comp_state.idx}_phi"))
         return keys
 
     def _fixed_param_keys(self) -> list[str]:
@@ -330,6 +334,10 @@ class ModelWorkflowMixin:
             fixed.append("slope")
         if calib_state.absorber_model == "thickness" and calib_state.is_fixed("sat_scale"):
             fixed.append("sat_scale")
+        if calib_state.is_fixed("curv"):
+            fixed.append("curv")
+        if calib_state.absorber_model == "transmission" and calib_state.is_fixed("src_fwhm"):
+            fixed.append("src_fwhm")
         for comp_state in self._active_component_states():
             for name in SEXTET_PARAM_NAMES:
                 if comp_state.is_fixed(name):
@@ -402,7 +410,8 @@ class ModelWorkflowMixin:
         return tr("info.calib_no_uncertainty")
 
     def enabled_constraints(self) -> list[dict]:
-        keys = {"vmax", "center", "baseline", "slope", "voigt_sigma", "sat_scale"}
+        keys = {"vmax", "center", "baseline", "slope", "voigt_sigma", "sat_scale",
+                "curv", "src_fwhm"}
         for comp_state in self._component_states():
             keys.update(f"s{comp_state.idx}_{name}" for name in comp_state.values)
         return [
@@ -593,6 +602,9 @@ class ModelWorkflowMixin:
             fit_center=calib_state.fit_center,
             fit_sigma=calib_state.fit_sigma,
             multistart_n=getattr(self, "multistart_n", 8),
+            channel_sub=getattr(self, "channel_sub", 1),
+            wide_delta=getattr(self, "wide_delta", False),
+            auto_global=getattr(self, "auto_global", True),
         )
 
     def _model_state(self) -> ModelState:
@@ -610,6 +622,8 @@ class ModelWorkflowMixin:
             "baseline": calib_state.is_fixed("baseline"),
             "slope": calib_state.is_fixed("slope"),
             "sat_scale": calib_state.is_fixed("sat_scale"),
+            "curv": calib_state.is_fixed("curv"),
+            "src_fwhm": calib_state.is_fixed("src_fwhm"),
         })
         for cp in self.components_panels:
             comp_state = cp.to_view_state()
