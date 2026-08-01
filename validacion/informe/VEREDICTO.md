@@ -1,6 +1,7 @@
 # Veredicto final: Fitbauer frente a NORMOS
 
-**2026-08-01.** Síntesis de las TRES tandas del banco de validación round-trip
+**2026-08-01 (actualizado tras v4.19.0).** Síntesis de las CUATRO tandas del
+banco de validación round-trip
 (NORMOS-SITE/DIST genera → Fitbauer ajusta → comparación con la verdad):
 fase 1 (plan original, §1–§15 del INFORME), 2ª ampliación con el manual
 (series K/L, §16) y 3ª tanda de **extremos y centro sobre las series
@@ -8,11 +9,13 @@ originales** (`series_ext.py`: dobletes con δ=−1/+2 y ΔEQ de 0.08 a 5 mm/s,
 sextetos de 0.5 a 58 T, Γ de 0.16 a 2.0, profundidades del 0.5 al 40 %,
 D21 de 0.3 a 3, pares de anchura invertidos, dobletes casi degenerados,
 gaussianas P(B) en los bordes de malla y casi-delta, correlación δ(B)
-negativa y fuerte).
+negativa y fuerte), más la validación de las capacidades v4.19
+(`valida_v4_19.py`: cristal único, kernel Hamiltoniano y fondos v³/v⁴,
+§18 del INFORME).
 
-**Totales**: 410 espectros sintéticos de NORMOS, ~1.100 ajustes de Fitbauer,
-6.467 filas de comparación (`resumen.csv`), 18 figuras. Los números de este
-documento salen de `veredicto_datos.py`. Suite de tests del programa: 337 en
+**Totales**: 411 espectros sintéticos de NORMOS, ~1.150 ajustes de Fitbauer,
+6.497 filas de comparación (`resumen.csv`), 19 figuras. Los números de este
+documento salen de `veredicto_datos.py`. Suite de tests del programa: 349 en
 verde.
 
 ---
@@ -32,7 +35,8 @@ anchuras), T (BHF).
 | **Multisitio y ligaduras** (39) | 2·10⁻⁴ | 2·10⁻⁴ | 2·10⁻⁴ | hasta 10 sitios; la cola son degeneraciones físicas (D6, §2b) |
 | **Adquisición** (21) | 2·10⁻⁷ | 6·10⁻⁵ | 3·10⁻⁵ | 128–1024 canales, vmax 2–15, bases no planas |
 | **Espesor / transmisión** (14) | 2·10⁻⁵ | 3·10⁻⁴ | 4·10⁻³ | τ de 0.1 a 50; Γ con sesgo p95 7·10⁻³ por la degeneración Γ↔fuente (fuente fijada) |
-| **Octetes y fondos** (13) | 2·10⁻⁷ | 6·10⁻⁵ | 3·10⁻⁵ | NLINE=8 como sexteto+2 singletes; fondos BKG(2)/BKG(3) exactos |
+| **Octetes y fondos** (14) | 2·10⁻⁷ | 6·10⁻⁵ | 3·10⁻⁵ | NLINE=8 como sexteto+2 singletes; fondos BKG(2)…BKG(5) exactos con slope/curv/curv3/curv4 (v4.19) |
+| **Cristal único** (7, v4.19) | 0.04 / 0.22 | 0.38 / 0.71 | 0.014 / 0.024 | `hamiltonian_sc` con BEX/GAX verdaderos e intensidades FIJAS: χ²red 2.3–3.4; la desviación restante es la aproximación de SITE-1994 (idéntica al caso polvo) |
 | **Ligaduras nativas de SITE** (2) | ≤1.4·10⁻³ | 0.02–0.03 | ≤5·10⁻³ | ambos motores (NDEX y constraints) recuperan la misma verdad sobre el mismo espectro con ruido |
 | **Extremos K5** (12) | exacto | ≤9·10⁻³ | ≤7·10⁻⁴ | ΔEQ=5, B=1 y 60 T, δ fuera de rango, Γ subnatural, 40 % |
 
@@ -48,6 +52,7 @@ Distribuciones (momentos de P; |Δ⟨x⟩| / |Δσ| medianos, v0+v1):
 | L2 Czjzek | 0.004 | 0.015 | el histograma reproduce la forma sin necesitarla analítica |
 | L3 PNEG | 0.01 | 0.02 | verdad analítica plegada (la parte negativa es inobservable) |
 | L6 textura D23 (con `--d23`) | 0.004 | 0.21 | corregido en esta fase |
+| L4 EXACT (kernel HC, v4.19) | 0.04–0.20 | 0.34–1.0 | kernel por diagonalización exacta; el residuo (crece con QUP) es la truncación perturbativa del propio EXACT del demo |
 
 La calidad estadística también sale: χ²red mediano 0.976 en v1, pulls
 64/92/96 % dentro de 1σ/2σ/3σ, y la cobertura H3 (50 réplicas × 3 casos)

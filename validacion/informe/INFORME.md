@@ -13,10 +13,10 @@ comparación con la verdad**: **327 espectros base** (SITE.EXE, DIST.EXE para el
 derivados por binning exacto), más
 **285 réplicas v1 con ruido Poisson**, **150 réplicas de cobertura (H3)**,
 32 ajustes de barrido de estadística (H1) y los bloques adversarios (I). En
-total **410 espectros y ~1.100 ajustes** (fase 1 + series K/L de la 2ª
-ampliación §16 + extremos de la 3ª tanda §17) con valores iniciales
-perturbados y semilla registrada (6.467 filas de comparación en
-`resumen.csv`).
+total **411 espectros y ~1.150 ajustes** (fase 1 + series K/L de la 2ª
+ampliación §16 + extremos de la 3ª tanda §17 + validación v4.19 §18) con
+valores iniciales perturbados y semilla registrada (6.497 filas de
+comparación en `resumen.csv`).
 
 **Veredicto global**: el núcleo discreto de Fitbauer (singlete / doblete /
 sextete a 1er orden, anchuras por pares, textura, multisitio, ligaduras,

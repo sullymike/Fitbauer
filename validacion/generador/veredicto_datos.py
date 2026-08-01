@@ -27,8 +27,8 @@ BLOQUES = {
     "Adquisicion (base, canales, rango)": (["E1", "E2", "E3", "E4", "E5"],
                                            ("v0m", "v0")),
     "Espesor / transmision": (["F1", "F2"], ("v0m", "v0")),
-    "Octetes y fondos (manual)": (["K1", "K2"], ("v0m", "v0")),
-    "Cristal unico (no soportado)": (["K3"], ("v0",)),
+    "Octetes y fondos v2-v4 (manual)": (["K1", "K2"], ("v0m", "v0")),
+    "Cristal unico (hamiltonian_sc, v4.19)": (["K3"], ("v0m", "v0")),
     "Ligaduras nativas SITE": (["K4"], ("v1", "v1_site")),
     "Extremos K5": (["K5"], ("v0m", "v0")),
 }
