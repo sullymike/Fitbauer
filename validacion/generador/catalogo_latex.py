@@ -132,18 +132,24 @@ def pick_version(cdir: Path) -> str | None:
 
 
 def folded_data(cdir: Path, version: str, vmax: float):
-    """(v, y) de los datos que usó ese ajuste (v0 = teoría archivada)."""
-    th = np.load(cdir / "teoria_norm.npy")
-    n = th.size
-    if version.startswith("v1"):
-        raw_f = cdir / (version.split("_")[0] + ".dat")
-        raw_f = raw_f if raw_f.exists() else cdir / "v1.dat"
+    """(v, y) de los datos que usó ese ajuste, en el MARCO DE LA SESIÓN.
+
+    Doblado + normalización P90 idénticos a HeadlessSession (incluido el
+    recorte de borde): dibujar la teoría de SITE (base=1) desplazaba el marco
+    y hacía parecer malos ajustes perfectos (fondos, transmisión, E3).
+    """
+    from core.folding import fold_and_normalize, velocity_axis
+    from core.session import _EDGE_TRIM
+    tag = version.split("m")[0] if version in ("v0m", "v0h") else version
+    for cand in (f"{tag}.dat", "v0.dat", "v1.dat"):
+        raw_f = cdir / cand
         if raw_f.exists():
-            raw = np.loadtxt(raw_f)
-            half = (raw[:n][::-1] + raw[n:]) / 2.0
-            th = half / np.percentile(half, 90)
-    v = np.linspace(-vmax, vmax, n)
-    return v, th
+            break
+    counts = np.loadtxt(raw_f)
+    _folded, _sigma, y, _norm = fold_and_normalize(
+        counts, counts.size / 2 + 0.5, _EDGE_TRIM)
+    v = velocity_axis(counts.size, vmax, y.size, _EDGE_TRIM)
+    return v, y
 
 
 def rebuild_model(entry: dict, cdir: Path, version: str):
@@ -305,6 +311,20 @@ def entry_block(serie: str, cid: str, figname: str, ruta: str, tipo: str,
             "\\par\\vspace{8pt}\n")
 
 
+def _nota_final(entry, cid, serie, version, chi2) -> str:
+    """Nota de la entrada: la documentada, la regla SITE-approx, o la del caso."""
+    if cid in NOTAS_DOC:
+        return NOTAS_DOC[cid]
+    qt = entry.get("quad_treatment")
+    if version == "v0m":
+        qt = entry.get("v0m_treatment", qt)
+    hc = qt in ("hamiltonian", "hamiltonian_sc", "kundig_fixed")
+    if hc and serie in ("A4", "A5", "A6", "B3", "D4", "K3") \
+            and chi2 is not None and chi2 > 1.5:
+        return NOTA_SITE_APPROX
+    return entry["case"].nota[:90]
+
+
 # ── Casos discretos ──────────────────────────────────────────────────────────
 
 def make_discrete_entries() -> tuple[list[str], int, int]:
@@ -344,7 +364,8 @@ def make_discrete_entries() -> tuple[list[str], int, int]:
                 + ("v1.dat" if version.startswith("v1") else "v0.dat"),
                 tipo_label(entry, version), version,
                 fnum(chi2) if chi2 is not None else "",
-                rows_to_tabular(rows), entry["case"].nota[:90]))
+                rows_to_tabular(rows),
+                _nota_final(entry, cid, serie, version, chi2)))
             ok += 1
         except Exception as exc:
             print(f"  !! {serie}/{cid}: {type(exc).__name__}: {exc}")
@@ -420,6 +441,30 @@ def dist_entries() -> tuple[list[str], int]:
                 str(info.get("nota", ""))[:90]))
             n += 1
     return out, n
+
+
+# Casos que se muestran con desajuste A PROPÓSITO (evidencia documentada en
+# el INFORME) o cuyo residuo es la aproximación del propio SITE-1994.
+NOTAS_DOC = {
+    "C3_fuera_de_rango": "FALLO DOCUMENTADO (evidencia historica): lineas fuera del rango clasico de delta; resuelto por wide_delta (INFORME 16.2)",
+    "F3_t1_fina": "SESGO DOCUMENTADO: ajuste deliberado con modelo fino sobre datos saturados (INFORME 6.3)",
+    "F3_t5_fina": "SESGO DOCUMENTADO: modelo fino sobre datos saturados",
+    "F3_t10_fina": "SESGO DOCUMENTADO: modelo fino sobre datos saturados",
+    "I1_sat50_fina": "SESGO DOCUMENTADO: transmision t=50 con modelo fino",
+    "I4_limite": "limite de deteccion: 0.2% de area con base 1e5 (ruido > senal)",
+    "E5_sext55_v8": "LIMITACION DOCUMENTADA: lineas fuera del rango de velocidad",
+    "E5_dob_cortado": "LIMITACION DOCUMENTADA: lineas fuera del rango",
+    "E5_sitio_parcial": "una linea fuera del rango (documentado)",
+}
+for _cid in ("X1_ising_ome0.3", "X1_ising_ome1", "X1_ising_ome3", "X1_ising_ome10"):
+    NOTAS_DOC[_cid] = ("comparacion CUALITATIVA: relajacion Ising de SITE vs "
+                       "Blume-Tjon (mapeo no verificable con el demo)")
+NOTA_SITE_APPROX = ("residuo = aproximacion de SITE-1994 (omite interferencia "
+                    "del fundamental); Fitbauer es aqui MAS exacto que la "
+                    "referencia (INFORME 13)")
+for _cid in ("H2_dob_debil", "H2_sext_debil"):
+    NOTAS_DOC[_cid] = ("absorcion 0.5% con base 1e5: el ruido domina la figura "
+                       "(vease resumen.csv)")
 
 
 MASTER = r"""\documentclass[10pt,a4paper]{article}
