@@ -819,3 +819,29 @@ matemática.
   panel de distribución con B fuente y ángulos fuente/absorbente-haz,
   persistencia de sesión y test de cableado; i18n en 8 idiomas y manuales
   ES/EN actualizados (§ nueva en el capítulo de distribuciones).
+
+
+## 21. Revisión del código fuente completo y cierre de cobertura (2026-08-02)
+
+Barrido sistemático de los diez niveles del fuente Fortran (SITE + DIST, 1990)
+contra `core/`, verificando cada uno contra el binario demo o contra
+referencias independientes. Resultado en dos documentos:
+
+- **`COBERTURA_NORMOS.md`** — inventario COMPLETO de capacidades: se extrajo la
+  lista de parámetros e interruptores de los namelist (`sitemdos.for`,
+  `distmdos.for`) y se cruzó una por una. De ~60 capacidades, Fitbauer iguala o
+  mejora todas las del dominio de ⁵⁷Fe salvo seis, y es medibleme mejor en seis
+  puntos concretos.
+- **`PENDIENTE_NORMOS.md`** — hoja de ruta de lo que queda, con referencia del
+  fuente, qué tocar, cómo validarlo y si merece la pena.
+
+Se cerraron en esta revisión: convenio de posiciones del sexteto seleccionable,
+asimetría de línea (AKS), convenio de intensidades por área, doblado con
+interpolación cúbica (Γ salía hasta un 9.5 % alto), efecto geométrico, dos
+ciclos de búsqueda, recuperación de los canales de borde, fracción resonante de
+la fuente (FSO), kernel de la fuente 19× más exacto, barras de error con σ
+absolutas, errores de parámetros ligados, polarización de poblaciones en
+relajación, anclajes de borde en distribuciones con diagnóstico `edge_pileup`,
+P(δ) expuesta y anchuras por dispersión (modelo de Brand).
+
+Suite del programa: 483 tests.

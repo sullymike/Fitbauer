@@ -105,7 +105,9 @@ Veredicto por símbolo:
 ## 6. Lo que falta, por relevancia práctica en ⁵⁷Fe
 
 Los dos huecos con sentido experimental —P(δ) y el modelo de Brand— quedaron
-CERRADOS el 2026-08-02; ver §8. Lo que queda:
+CERRADOS el 2026-08-02; ver §8. Lo que queda está desarrollado en
+**`PENDIENTE_NORMOS.md`**, con la referencia exacta del fuente, qué tocar en
+Fitbauer, cómo validarlo y si merece la pena. Resumen:
 
 1. **Czjzek / Le Caër analíticas** (`DISTRI=4`). El histograma reproduce la
    forma (validado en la serie L2), pero no hay una forma paramétrica de 2-3
