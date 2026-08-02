@@ -708,8 +708,15 @@ class TestCasosDificiles:
         """Las barras de error de ΔEQ crecen al reducir la separación."""
         gamma = 0.28
         errors_quad: list[float] = []
-        for quad in [1.5, 0.8, 0.4, 0.20]:
+        # Ruido determinista a la escala de sigma: con datos SIN ruido el
+        # ajuste converge a residuo máquina y el motor (que escala la
+        # covarianza con chi2red≈0) reporta errores ~1e-16 — en CI las
+        # comparaciones eran entre ceros numéricos y el orden era aleatorio.
+        rng = np.random.default_rng(20260802)
+        # el último punto (0.10 ≪ Γ) es solapamiento real: σ crece ×2-2.5
+        for quad in [1.5, 0.8, 0.4, 0.10]:
             y = ref_doublet(V_TEST, 1.0, 0.0, 0.35, quad, gamma, 0.020)
+            y = y + rng.normal(0.0, 3e-4, size=y.size)
             sigma = np.ones(N_CHAN) * 3e-4
             state = _make_doublet_state(
                 V_TEST, y,
@@ -722,7 +729,7 @@ class TestCasosDificiles:
             err = result.errors.get("s1_quad", float("nan"))
             errors_quad.append(float(err) if np.isfinite(err) else float("nan"))
 
-        finite = [(e, q) for e, q in zip(errors_quad, [1.5, 0.8, 0.4, 0.20])
+        finite = [(e, q) for e, q in zip(errors_quad, [1.5, 0.8, 0.4, 0.10])
                   if np.isfinite(e) and e > 0]
         # Auditoría 2026-08-02: el guard condicional dejaba pasar el test en
         # vacío si el motor dejaba de reportar errores, y el factor 0.5
@@ -730,7 +737,7 @@ class TestCasosDificiles:
         assert len(finite) >= 3, (
             f"errores de ΔEQ no reportados: {errors_quad}")
         errs = [e for e, _ in finite]
-        assert errs[-1] > errs[0], (
+        assert errs[-1] > 1.5 * errs[0], (
             f"Las incertidumbres no crecen con el solapamiento: {errors_quad}")
 
     # ── 4b. Sextete con líneas internas no resueltas ──────────────────────────
