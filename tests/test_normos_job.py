@@ -212,3 +212,67 @@ def test_exporta_transmision():
     assert "IFTRAN=.TRUE." in texto
     assert "WDS=0.11" in texto
     assert "FSO=0.8" in texto
+
+
+# ── Integración con la GUI ───────────────────────────────────────────────────
+
+def test_claves_i18n_en_todos_los_idiomas():
+    """Las 6 claves nuevas deben existir en los 8 catálogos, o la GUI cae al id."""
+    import glob
+    import json
+
+    claves = {"file.normos", "file.import_normos_job", "file.export_normos_job",
+              "file.normos_job_imported", "file.normos_job_exported",
+              "file.normos_job_warnings"}
+    catalogos = glob.glob("locales/*/strings.json")
+    assert len(catalogos) >= 8
+    for ruta in catalogos:
+        with open(ruta, encoding="utf-8") as fh:
+            d = json.load(fh)
+        faltan = claves - set(d)
+        assert not faltan, f"{ruta}: faltan {sorted(faltan)}"
+        for k in claves:
+            assert d[k].strip(), f"{ruta}: «{k}» vacía"
+
+
+def test_la_gui_registra_las_acciones_y_hace_el_ciclo(tmp_path, monkeypatch):
+    """Importar → aplicar al modelo → exportar, sobre la ventana real."""
+    pytest.importorskip("PySide6")
+    from PySide6 import QtWidgets
+
+    import mossbauer_qt
+
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    win = mossbauer_qt.MossbauerQtWindow()
+    try:
+        assert "file.import_normos_job" in win._action_registry
+        assert "file.export_normos_job" in win._action_registry
+
+        entrada = tmp_path / "TRABAJO.JOB"
+        entrada.write_text(JOB_C2, encoding="ascii")
+        monkeypatch.setattr(
+            QtWidgets.QFileDialog, "getOpenFileName",
+            staticmethod(lambda *a, **k: (str(entrada), "")))
+        # El aviso informativo no debe bloquear el test.
+        monkeypatch.setattr(
+            QtWidgets.QMessageBox, "information",
+            staticmethod(lambda *a, **k: None))
+        win.on_import_normos_job()
+
+        # El modelo de la ventana refleja el .JOB (con los convenios traducidos).
+        estado = win._session_payload()["model_state"]
+        assert estado["vars"]["s1_gamma1"] == pytest.approx(0.21, rel=1e-3)
+        assert estado["vars"]["s1_bhf"] == pytest.approx(33.0, rel=1e-4)
+
+        salida = tmp_path / "SALIDA.JOB"
+        monkeypatch.setattr(
+            QtWidgets.QFileDialog, "getSaveFileName",
+            staticmethod(lambda *a, **k: (str(salida), "")))
+        win.on_export_normos_job()
+        assert salida.exists()
+        vuelta = job_to_model_state(salida.read_text(encoding="ascii"))
+        assert vuelta["model_state"]["vars"]["s1_bhf"] == pytest.approx(33.0, rel=1e-3)
+    finally:
+        win.close()
+        win.deleteLater()
+        app.processEvents()

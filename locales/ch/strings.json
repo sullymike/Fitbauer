@@ -827,5 +827,11 @@
   "msg.short_report_ask_pdf": "Markdown 报告已保存。是否同时生成 PDF？",
   "phase.component_header": "组分 {idx}（{kind}）：  {params}",
   "bhf.lcurve_hint": "估计直方图的正则化",
-  "bhf.lcurve_only_histogram": "L 曲线仅适用于直方图形状（高斯/二项为参数形式，不使用 α）。"
+  "bhf.lcurve_only_histogram": "L 曲线仅适用于直方图形状（高斯/二项为参数形式，不使用 α）。",
+  "file.normos": "NORMOS (.JOB)",
+  "file.import_normos_job": "导入 NORMOS 作业...",
+  "file.export_normos_job": "导出 NORMOS 作业...",
+  "file.normos_job_imported": "已导入 NORMOS 作业",
+  "file.normos_job_exported": "已导出 NORMOS 作业",
+  "file.normos_job_warnings": "已导入，但有警告:"
 }

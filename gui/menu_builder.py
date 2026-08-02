@@ -25,6 +25,8 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     ("file.export_short_report",  "menu.file", "file.export_short_report",  ""),
     ("file.save_session",      "menu.file", "file.save_session",      "Ctrl+S"),
     ("file.load_session",      "menu.file", "file.load_session",      "Ctrl+L"),
+    ("file.import_normos_job", "menu.file", "file.import_normos_job", ""),
+    ("file.export_normos_job", "menu.file", "file.export_normos_job", ""),
     ("file.exit",              "menu.file", "file.exit",              "Ctrl+Q"),
     # ── Ajuste ──
     ("fit.run",                "menu.fit",  "fit.run",                "Ctrl+R"),
@@ -156,6 +158,18 @@ class MenuBuilderMixin:
         act_load_session.triggered.connect(self.on_load_session)
         file_menu.addAction(act_load_session)
         self._reg("file.load_session", act_load_session)
+        file_menu.addSeparator()
+        # Interoperabilidad con NORMOS: solo ficheros, no se ejecuta nada suyo.
+        normos_menu = file_menu.addMenu(
+            tr("file.normos", default="NORMOS (.JOB)"))
+        act_import_job = QtGui.QAction(tr("file.import_normos_job"), self)
+        act_import_job.triggered.connect(self.on_import_normos_job)
+        normos_menu.addAction(act_import_job)
+        self._reg("file.import_normos_job", act_import_job)
+        act_export_job = QtGui.QAction(tr("file.export_normos_job"), self)
+        act_export_job.triggered.connect(self.on_export_normos_job)
+        normos_menu.addAction(act_export_job)
+        self._reg("file.export_normos_job", act_export_job)
         file_menu.addSeparator()
         act_exit = QtGui.QAction(tr("file.exit"), self)
         act_exit.triggered.connect(self.close)

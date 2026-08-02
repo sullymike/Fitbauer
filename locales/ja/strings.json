@@ -827,5 +827,11 @@
   "msg.short_report_ask_pdf": "Markdownレポートを保存しました。PDFも生成しますか？",
   "phase.component_header": "成分 {idx}（{kind}）：  {params}",
   "bhf.lcurve_hint": "ヒストグラムの正則化を推定",
-  "bhf.lcurve_only_histogram": "Lカーブはヒストグラム形状にのみ適用されます（ガウス/二項はパラメトリックでαを使いません）。"
+  "bhf.lcurve_only_histogram": "Lカーブはヒストグラム形状にのみ適用されます（ガウス/二項はパラメトリックでαを使いません）。",
+  "file.normos": "NORMOS (.JOB)",
+  "file.import_normos_job": "NORMOS ジョブを読み込む...",
+  "file.export_normos_job": "NORMOS ジョブを書き出す...",
+  "file.normos_job_imported": "NORMOS ジョブを読み込みました",
+  "file.normos_job_exported": "NORMOS ジョブを書き出しました",
+  "file.normos_job_warnings": "読み込みました（警告あり）:"
 }

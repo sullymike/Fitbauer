@@ -407,6 +407,72 @@ class SessionIOMixin:
                 self, tr("file.save_session"),
                 f"{type(exc).__name__}: {exc}")
 
+    # ── Interoperabilidad con NORMOS (.JOB) ─────────────────────────────────
+    # Fitbauer NO ejecuta NORMOS ni lo distribuye: solo lee y escribe su
+    # formato de trabajo, que es texto y no es propietario.
+
+    def on_import_normos_job(self) -> None:
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, tr("file.import_normos_job"), str(ROOT),
+            "NORMOS JOB (*.JOB *.job);;All (*.*)")
+        if not path:
+            return
+        titulo = tr("file.import_normos_job")
+        try:
+            from core.normos_job import job_to_model_state
+            convertido = job_to_model_state(
+                Path(path).read_text(encoding="utf-8", errors="replace"))
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, titulo, f"{type(exc).__name__}: {exc}")
+            return
+        try:
+            # Solo el MODELO: se conserva el espectro y la calibración actuales
+            # (el .JOB de NORMOS apunta a su propio fichero de datos, que aquí
+            # no tiene por qué existir).
+            self._apply_session_payload({
+                "model_state": convertido["model_state"],
+                "calibration": self.calibration_info,
+            })
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, titulo, f"{type(exc).__name__}: {exc}")
+            return
+        self.statusBar().showMessage(
+            tr("file.normos_job_imported", default="Trabajo de NORMOS importado")
+            + f": {Path(path).name}", 5000)
+        avisos = convertido.get("warnings") or []
+        if avisos:
+            # Lo que NO se ha trasladado importa tanto como lo que sí.
+            QtWidgets.QMessageBox.information(
+                self, titulo,
+                tr("file.normos_job_warnings",
+                   default="Importado, con avisos:") + "\n\n• "
+                + "\n\n• ".join(str(a) for a in avisos))
+
+    def on_export_normos_job(self) -> None:
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, tr("file.export_normos_job"), str(ROOT),
+            "NORMOS JOB (*.JOB);;All (*.*)")
+        if not path:
+            return
+        titulo = tr("file.export_normos_job")
+        try:
+            from core.normos_job import model_state_to_job
+            destino = Path(path)
+            estado = self._session_payload().get("model_state", {})
+            nombre = (self.file.path.name if getattr(self, "file", None)
+                      and self.file.path else "")
+            destino.write_text(
+                model_state_to_job(
+                    estado, stem=(destino.stem[:8].upper() or "FITBAUER"),
+                    titles=("Exportado de Fitbauer", nombre[:70])),
+                encoding="ascii", errors="replace")
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, titulo, f"{type(exc).__name__}: {exc}")
+            return
+        self.statusBar().showMessage(
+            tr("file.normos_job_exported", default="Trabajo de NORMOS exportado")
+            + f": {path}", 5000)
+
     def on_load_session(self) -> None:
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, tr("file.load_session"), str(ROOT),

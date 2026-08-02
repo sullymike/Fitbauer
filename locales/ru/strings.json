@@ -827,5 +827,11 @@
   "msg.short_report_ask_pdf": "Отчёт Markdown сохранён. Также создать PDF?",
   "phase.component_header": "Компонент {idx} ({kind}):  {params}",
   "bhf.lcurve_hint": "Оценить регуляризацию гистограммы",
-  "bhf.lcurve_only_histogram": "L-кривая применима только к форме «Гистограмма» (гауссова/биномиальная — параметрические и не используют α)."
+  "bhf.lcurve_only_histogram": "L-кривая применима только к форме «Гистограмма» (гауссова/биномиальная — параметрические и не используют α).",
+  "file.normos": "NORMOS (.JOB)",
+  "file.import_normos_job": "Импортировать задание NORMOS...",
+  "file.export_normos_job": "Экспортировать задание NORMOS...",
+  "file.normos_job_imported": "Задание NORMOS импортировано",
+  "file.normos_job_exported": "Задание NORMOS экспортировано",
+  "file.normos_job_warnings": "Импортировано, с предупреждениями:"
 }

@@ -29,7 +29,13 @@ que compilarlo NO reproduce el NORMOS con el que se publicó nada.
 - Comprobado que **NORMOS acepta el `.JOB` que escribe Fitbauer**: se generó
   uno, se ejecutó SITE bajo DOSBox y reprodujo la teoría original con
   diferencia exactamente 0, sin avisos.
-- Tests: `tests/test_normos_job.py` (18 nuevos).
+- **En la GUI**: submenú *Archivo ▸ NORMOS (.JOB)* con importar y exportar.
+  Al importar se conserva el espectro y la calibración actuales —el `.JOB`
+  apunta a su propio fichero de datos, que aquí no tiene por qué existir— y los
+  avisos de la conversión se muestran en un diálogo, porque lo que NO se
+  traslada importa tanto como lo que sí. Traducido a los 8 idiomas.
+- Tests: `tests/test_normos_job.py` (20 nuevos), incluido el ciclo completo
+  importar → aplicar → exportar sobre la ventana real.
 
 ## Sin publicar — polarización de poblaciones y bloque de distribuciones
 

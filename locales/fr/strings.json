@@ -827,5 +827,11 @@
   "msg.short_report_ask_pdf": "Rapport Markdown enregistré. Générer aussi un PDF ?",
   "phase.component_header": "Composante {idx} ({kind}) :  {params}",
   "bhf.lcurve_hint": "Estimer la régularisation de l'histogramme",
-  "bhf.lcurve_only_histogram": "La courbe en L ne s'applique qu'à la forme Histogramme (Gaussienne/Binomiale sont paramétriques et n'utilisent pas α)."
+  "bhf.lcurve_only_histogram": "La courbe en L ne s'applique qu'à la forme Histogramme (Gaussienne/Binomiale sont paramétriques et n'utilisent pas α).",
+  "file.normos": "NORMOS (.JOB)",
+  "file.import_normos_job": "Importer un travail NORMOS...",
+  "file.export_normos_job": "Exporter un travail NORMOS...",
+  "file.normos_job_imported": "Travail NORMOS importé",
+  "file.normos_job_exported": "Travail NORMOS exporté",
+  "file.normos_job_warnings": "Importé, avec des avertissements :"
 }

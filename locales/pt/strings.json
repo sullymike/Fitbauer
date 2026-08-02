@@ -827,5 +827,11 @@
   "msg.short_report_ask_pdf": "Relatório Markdown guardado. Gerar também um PDF?",
   "phase.component_header": "Componente {idx} ({kind}):  {params}",
   "bhf.lcurve_hint": "Estimar a regularização do histograma",
-  "bhf.lcurve_only_histogram": "A curva L só se aplica à forma Histograma (Gaussiana/Binomial são paramétricas e não usam α)."
+  "bhf.lcurve_only_histogram": "A curva L só se aplica à forma Histograma (Gaussiana/Binomial são paramétricas e não usam α).",
+  "file.normos": "NORMOS (.JOB)",
+  "file.import_normos_job": "Importar trabalho do NORMOS...",
+  "file.export_normos_job": "Exportar trabalho do NORMOS...",
+  "file.normos_job_imported": "Trabalho do NORMOS importado",
+  "file.normos_job_exported": "Trabalho do NORMOS exportado",
+  "file.normos_job_warnings": "Importado, com avisos:"
 }
