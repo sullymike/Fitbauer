@@ -229,6 +229,9 @@ class LayoutSettingsMixin:
                     panel_lists["available"].addItem(item)
             left_width_spin.setValue(int(spec.get("left_width", 430)))
             right_width_spin.setValue(int(spec.get("right_width", 0)))
+            # No depender solo de las señales: si el ancho no cambia de valor,
+            # setValue no emite y el rótulo se quedaría del preset anterior.
+            sync_right_label()
 
         def current_spec(description: str = "Custom") -> dict:
             return self._collect_layout_spec(
@@ -260,14 +263,18 @@ class LayoutSettingsMixin:
         edit_box = QtWidgets.QGroupBox(tr("layout.cfg.column_editor", default="Column editor"))
         edit_v = QtWidgets.QVBoxLayout(edit_box)
         edit_row = QtWidgets.QHBoxLayout()
+        titulo_derecha = tr("layout.col.right", default="Right")
+        col_labels: dict[str, QtWidgets.QLabel] = {}
         for key, title in (
             ("available", tr("layout.col.available", default="Available (unassigned)")),
             ("left",   tr("layout.col.left",   default="Left")),
             ("center", tr("layout.col.center", default="Center")),
-            ("right",  tr("layout.col.right",  default="Right")),
+            ("right",  titulo_derecha),
         ):
             col = QtWidgets.QVBoxLayout()
-            col.addWidget(QtWidgets.QLabel(f"<b>{title}</b>"))
+            lbl = QtWidgets.QLabel(f"<b>{title}</b>")
+            col.addWidget(lbl)
+            col_labels[key] = lbl
             lw_col = QtWidgets.QListWidget()
             lw_col.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
             lw_col.currentItemChanged.connect(lambda _cur, _prev, lw=lw_col: clear_selection_except(lw))
@@ -275,6 +282,28 @@ class LayoutSettingsMixin:
             edit_row.addLayout(col)
             panel_lists[key] = lw_col
         edit_v.addLayout(edit_row)
+
+        def sync_right_label() -> None:
+            """Avisa EN LA COLUMNA de que con anchura 0 su contenido va al centro.
+
+            Con ``right_width = 0`` la columna derecha se oculta y sus paneles
+            se anclan debajo del gráfico (``_apply_panel_layout``). Es el caso
+            del preset «Estándar», y ver algo listado en «Derecha» que luego
+            aparece en el centro despista si el aviso solo está en la nota de
+            cabecera.
+            """
+            anclado = (right_width_spin.value() == 0
+                       and panel_lists["right"].count() > 0)
+            aviso = tr("layout.col.right_below",
+                       default="0 px → below the plot")
+            col_labels["right"].setText(
+                f"<b>{titulo_derecha}</b> · <i>{aviso}</i>" if anclado
+                else f"<b>{titulo_derecha}</b>")
+
+        right_width_spin.valueChanged.connect(lambda *_: sync_right_label())
+        _modelo_derecha = panel_lists["right"].model()
+        _modelo_derecha.rowsInserted.connect(lambda *_: sync_right_label())
+        _modelo_derecha.rowsRemoved.connect(lambda *_: sync_right_label())
 
         move_row = QtWidgets.QHBoxLayout()
         for key, label in (

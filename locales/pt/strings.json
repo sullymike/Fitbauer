@@ -199,6 +199,7 @@
   "layout.col.left": "Esquerda",
   "layout.col.center": "Centro",
   "layout.col.right": "Direita",
+  "layout.col.right_below": "0 px → abaixo do gráfico",
   "layout.cfg.set_aside": "Pôr de lado",
   "layout.cfg.move_left": "Mover para a esquerda",
   "layout.cfg.move_center": "Mover para o centro",

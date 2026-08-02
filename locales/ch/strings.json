@@ -199,6 +199,7 @@
   "layout.col.left": "左",
   "layout.col.center": "中",
   "layout.col.right": "右",
+  "layout.col.right_below": "0 px → 图形下方",
   "layout.cfg.set_aside": "搁置",
   "layout.cfg.move_left": "移到左侧",
   "layout.cfg.move_center": "移到中间",

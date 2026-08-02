@@ -199,6 +199,7 @@
   "layout.col.left": "Links",
   "layout.col.center": "Mitte",
   "layout.col.right": "Rechts",
+  "layout.col.right_below": "0 px → unter dem Diagramm",
   "layout.cfg.set_aside": "Beiseitelegen",
   "layout.cfg.move_left": "Nach links verschieben",
   "layout.cfg.move_center": "In die Mitte verschieben",

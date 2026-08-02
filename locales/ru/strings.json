@@ -199,6 +199,7 @@
   "layout.col.left": "Слева",
   "layout.col.center": "По центру",
   "layout.col.right": "Справа",
+  "layout.col.right_below": "0 px → под графиком",
   "layout.cfg.set_aside": "Отложить",
   "layout.cfg.move_left": "Переместить влево",
   "layout.cfg.move_center": "Переместить в центр",

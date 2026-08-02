@@ -1471,3 +1471,96 @@ def test_qt_fuente_polarizada_wiring(win):
     d.source_polarized.setChecked(False)
     assert d.kernel_combo.isEnabled()
     assert d.to_view_state(variable="BHF").kernel_treatment != "polarized"
+
+
+def _abrir_editor_de_layout(win, monkeypatch):
+    """Abre el editor de layouts y devuelve el diálogo sin bloquear."""
+    from PySide6 import QtWidgets
+
+    capturado = {}
+
+    def _exec(self):
+        capturado["dlg"] = self
+        return QtWidgets.QDialog.Rejected
+
+    monkeypatch.setattr(QtWidgets.QDialog, "exec", _exec)
+    win.on_configure_layout()
+    return capturado["dlg"]
+
+
+def test_el_editor_de_layout_refleja_el_preset_seleccionado(win, monkeypatch, app):
+    """Elegir otro preset debe recargar las cuatro columnas y los anchos."""
+    from PySide6 import QtCore, QtWidgets
+
+    dlg = _abrir_editor_de_layout(win, monkeypatch)
+    listas = dlg.findChildren(QtWidgets.QListWidget)
+    presets, columnas = listas[0], listas[1:]
+    spins = dlg.findChildren(QtWidgets.QSpinBox)
+
+    vistas = []
+    for fila in range(presets.count()):
+        presets.setCurrentRow(fila)
+        app.processEvents()
+        nombre = presets.currentItem().data(QtCore.Qt.UserRole)
+        spec = win._all_presets()[nombre]
+        contenido = [[c.item(i).data(QtCore.Qt.UserRole) for i in range(c.count())]
+                     for c in columnas]
+        vistas.append(tuple(map(tuple, contenido)))
+        # Las columnas del editor son las del preset…
+        assert contenido[1:] == [list(spec.get(k, []))
+                                 for k in ("left", "center", "right")]
+        # …y los anchos también.
+        assert spins[0].value() == spec["left_width"]
+        assert spins[1].value() == spec["right_width"]
+
+    # Y de verdad hay más de una disposición: si todas salieran iguales, el
+    # test anterior pasaría con un editor que nunca se recarga.
+    assert len(set(vistas)) > 1
+
+
+def test_la_columna_derecha_avisa_de_que_ancla_bajo_el_grafico(win, monkeypatch, app):
+    """Con anchura 0 la columna derecha se oculta y su contenido va al centro.
+
+    Verlo listado en «Derecha» y aparecer en el centro despista, así que el
+    rótulo de la columna lo dice (antes solo estaba en la nota de cabecera).
+    """
+    from PySide6 import QtCore, QtWidgets
+
+    dlg = _abrir_editor_de_layout(win, monkeypatch)
+    presets = dlg.findChildren(QtWidgets.QListWidget)[0]
+    derecha = dlg.findChildren(QtWidgets.QListWidget)[4]
+    spin_derecha = dlg.findChildren(QtWidgets.QSpinBox)[1]
+
+    def rotulo_derecha():
+        # El rótulo de la columna derecha es el único que menciona su título
+        # y puede llevar el sufijo del anclaje.
+        from mossbauer_i18n import tr
+        base = tr("layout.col.right", default="Right")
+        return next(l.text() for l in dlg.findChildren(QtWidgets.QLabel)
+                    if l.text().startswith(f"<b>{base}</b>"))
+
+    def elegir(nombre):
+        for fila in range(presets.count()):
+            if presets.item(fila).data(QtCore.Qt.UserRole) == nombre:
+                presets.setCurrentRow(fila)
+                app.processEvents()
+                return
+        raise AssertionError(f"preset {nombre} no está en la lista")
+
+    # «Estándar»: right_width=0 y sim_controls en la derecha → avisa.
+    elegir("Estándar")
+    assert spin_derecha.value() == 0 and derecha.count() > 0
+    assert "0 px" in rotulo_derecha()
+
+    # «Tres columnas»: la derecha tiene anchura propia → sin aviso.
+    elegir("Tres columnas")
+    assert spin_derecha.value() > 0
+    assert "0 px" not in rotulo_derecha()
+
+    # Y reacciona a editar la anchura a mano, no solo a cambiar de preset.
+    spin_derecha.setValue(0)
+    app.processEvents()
+    assert "0 px" in rotulo_derecha()
+    spin_derecha.setValue(400)
+    app.processEvents()
+    assert "0 px" not in rotulo_derecha()

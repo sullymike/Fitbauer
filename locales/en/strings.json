@@ -199,6 +199,7 @@
   "layout.col.left": "Left",
   "layout.col.center": "Center",
   "layout.col.right": "Right",
+  "layout.col.right_below": "0 px → below the plot",
   "layout.cfg.set_aside": "Set aside",
   "layout.cfg.move_left": "Move to left",
   "layout.cfg.move_center": "Move to center",
