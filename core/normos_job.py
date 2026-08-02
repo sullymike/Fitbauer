@@ -74,7 +74,24 @@ _NUM = r"[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[EeDd][-+]?\d+)?"
 
 
 class NormosJobError(ValueError):
-    """El fichero no es un ``.JOB`` de NORMOS legible."""
+    """El fichero no es un ``.JOB`` de NORMOS-SITE legible."""
+
+
+#: Claves que solo existen en los ``.JOB`` de NORMOS-**DIST** (distribuciones).
+#: Un fichero de DIST tiene la misma pinta que uno de SITE, pero su ``NSUB`` son
+#: los puntos de la MALLA de la distribución y no sitios discretos: importarlo
+#: como SITE crea decenas de sextetos sin sentido.
+_CLAVES_DIST = frozenset({
+    "DISTRI", "METHOD", "NSB", "LAMDA", "BETA1", "BETA2", "EXACT",
+    "DTB", "DTI", "DTQ", "AREREL", "DEPREL", "H1P", "H2P", "ISP", "QUP",
+    "AVG", "STG", "CONC", "PNEG", "NXLS", "NXLL", "S2T", "STI",
+})
+
+
+def es_job_de_dist(param: dict) -> bool:
+    """¿El bloque ``&PARAM`` es de NORMOS-DIST en vez de NORMOS-SITE?"""
+    raiz = {re.sub(r"\(.*", "", k) for k in param}
+    return bool(raiz & _CLAVES_DIST)
 
 
 # ── Lectura ──────────────────────────────────────────────────────────────────
@@ -161,6 +178,11 @@ def job_to_model_state(text: str) -> dict:
     data, param = j["data"], j["param"]
     avisos: list[str] = []
 
+    if es_job_de_dist(param):
+        raise NormosJobError(
+            "es un trabajo de NORMOS-DIST (distribuciones), no de NORMOS-SITE: "
+            "su NSUB son los puntos de la malla de la distribución, no sitios "
+            "discretos. Configura la distribución desde el panel de Fitbauer.")
     nsub = int(_f(param.get("NSUB"), 1))
     if nsub < 1:
         raise NormosJobError("NSUB no válido")

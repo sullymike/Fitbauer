@@ -238,3 +238,32 @@ def test_sesion_headless_expone_el_efecto_geometrico(tmp_path):
     assert sesion.geometry_effect["relative"] == pytest.approx(0.015, rel=0.05)
     assert sesion.session_payload()["geometry_effect"]["relative"] == pytest.approx(
         sesion.geometry_effect["relative"])
+
+
+def test_canal_muerto_diluido_se_detecta_por_sigmas():
+    """Caso real (jobs/C0096): el canal muerto se promedia con uno sano.
+
+    El punto doblado del borde cae solo un 19.4 % —por debajo del umbral
+    relativo del 20 %— pero eso son 210 σ de Poisson. Ese único punto
+    arrastraba el ajuste hasta χ²red ≈ 70. El criterio estadístico lo caza.
+    """
+    from core.folding import edge_outlier_trim
+
+    base = 593504.0
+    f = np.full(60, base)
+    f += np.random.default_rng(5).normal(0.0, np.sqrt(base / 2.0), f.size)
+    f[-1] = 478749.0                      # −19.4 %, pero ≈210 σ
+    assert (base - f[-1]) / base < 0.20   # el criterio relativo NO basta
+    assert edge_outlier_trim(f) >= 1
+
+
+def test_una_linea_de_absorcion_en_el_borde_no_se_recorta():
+    """El contraste: una caída real arrastra al vecino y debe conservarse."""
+    from core.folding import edge_outlier_trim
+
+    base = 593504.0
+    f = np.full(60, base)
+    # Flanco suave de una línea ancha que asoma por el borde.
+    for i, factor in enumerate((0.88, 0.90, 0.93, 0.96, 0.98)):
+        f[-1 - i] = base * factor
+    assert edge_outlier_trim(f) == 0

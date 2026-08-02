@@ -618,15 +618,26 @@ def fold_and_normalize(counts: np.ndarray, center: float,
 
 def edge_outlier_trim(folded: np.ndarray,
                       max_trim: int = 3,
-                      rel_threshold: float = 0.2) -> int:
+                      rel_threshold: float = 0.2,
+                      sigmas: float = 25.0) -> int:
     """Cuántos puntos hay que recortar de CADA extremo del espectro doblado.
 
-    Devuelve 0 con datos sanos. Solo dispara con canales muertos: un punto del
-    borde cuenta como tal si cae más de ``rel_threshold`` (20 % por defecto)
-    por debajo de la mediana de sus vecinos. Un canal a cero deja el punto
-    doblado a la mitad de la base (−50 %), muy por encima del umbral, mientras
-    que una línea de absorción real en el extremo del rango de velocidad rara
-    vez llega al 20 %.
+    Devuelve 0 con datos sanos. Un punto del borde se descarta si:
+
+    * cae más de ``rel_threshold`` (20 %) respecto a la mediana de sus
+      vecinos — un canal a cero deja el punto doblado al 50 %; **o**
+    * se desvía más de ``sigmas`` veces la σ de Poisson **y la desviación no
+      la acompaña su vecino**, es decir es un salto de UN punto.
+
+    El segundo criterio hace falta porque el primero se queda corto en cuanto
+    el canal muerto se promedia con uno sano: medido sobre datos reales
+    (``jobs/C0096``, con los canales 1 y 2 muertos), el punto extremo cae un
+    19.4 % —por debajo del umbral relativo— pero eso son **210 σ**. Ese único
+    punto arrastraba el ajuste hasta χ²red ≈ 70.
+
+    La condición de «salto de un punto» es lo que distingue un canal muerto de
+    una línea de absorción real en el extremo del rango: la línea baja de forma
+    continua y arrastra a sus vecinos, el canal muerto no.
 
     El recorte es simétrico (se aplica el mayor de los dos lados) para no
     romper la correspondencia con el eje de velocidad.
@@ -640,13 +651,32 @@ def edge_outlier_trim(folded: np.ndarray,
         rest = f[trim:f.size - trim]
         if rest.size < 10:
             break
-        ref = float(np.median(rest[2:10])), float(np.median(rest[-10:-2]))
-        lo_bad = ref[0] > 0 and (ref[0] - rest[0]) / ref[0] > rel_threshold
-        hi_bad = ref[1] > 0 and (ref[1] - rest[-1]) / ref[1] > rel_threshold
-        if not (lo_bad or hi_bad):
-            break
-        trim += 1
+        if _borde_malo(rest[0], rest[1], float(np.median(rest[2:10])),
+                       rel_threshold, sigmas) or \
+           _borde_malo(rest[-1], rest[-2], float(np.median(rest[-10:-2])),
+                       rel_threshold, sigmas):
+            trim += 1
+            continue
+        break
     return trim
+
+
+def _borde_malo(punto: float, vecino: float, ref: float,
+                rel_threshold: float, sigmas: float) -> bool:
+    """¿El punto del borde es un canal muerto y no señal?"""
+    if not np.isfinite(ref) or ref <= 0:
+        return False
+    if (ref - punto) / ref > rel_threshold:
+        return True
+    # σ de Poisson del espectro DOBLADO: cada punto es el promedio de dos
+    # canales, así que la varianza es la mitad.
+    sigma = np.sqrt(max(ref, 1.0) / 2.0)
+    desv = abs(punto - ref)
+    if desv <= sigmas * sigma:
+        return False
+    # Salto de un solo punto: el vecino se queda mucho más cerca de la
+    # referencia. Una línea de absorción real arrastraría también al vecino.
+    return abs(vecino - ref) < 0.5 * desv
 
 
 def velocity_axis(counts_size: int, vmax: float, n_points: int,

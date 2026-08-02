@@ -276,3 +276,43 @@ def test_la_gui_registra_las_acciones_y_hace_el_ciclo(tmp_path, monkeypatch):
         win.close()
         win.deleteLater()
         app.processEvents()
+
+
+# ── Ficheros de NORMOS-DIST ──────────────────────────────────────────────────
+
+JOB_DIST = """D.MOS
+D.JOB
+D.RES
+D.PLT
+ &DATA
+ NLTEXT=4, TRIANG=.TRUE., VMAX=10.0,
+ &END
+distribucion
+de campo
+ &PARAM
+ NSUB=20, NSB(1)=20, DISTRI(1)=1, METHOD(1)=1, LAMDA(1)=0.01,
+ BHF(1)=10.0, DTB(1)=2.0, WID(1)=0.25,
+ &END
+"""
+
+
+def test_un_job_de_dist_se_rechaza_con_mensaje_claro():
+    """No debe importarse como 20 sextetos discretos, que es lo que parece.
+
+    Un ``.JOB`` de NORMOS-DIST tiene la misma estructura que uno de SITE, pero
+    su ``NSUB`` son los puntos de la malla de la distribución.
+    """
+    from core.normos_job import es_job_de_dist, parse_job
+
+    assert es_job_de_dist(parse_job(JOB_DIST)["param"]) is True
+    assert es_job_de_dist(parse_job(JOB_C2)["param"]) is False
+    with pytest.raises(NormosJobError, match="NORMOS-DIST"):
+        job_to_model_state(JOB_DIST)
+
+
+@pytest.mark.parametrize("clave", ["DISTRI(1)=1", "METHOD(1)=6", "NSB(1)=20",
+                                   "LAMDA(1)=0.01", "QUP(1)=0.3", "AVG(1)=30"])
+def test_cada_marcador_de_dist_dispara(clave):
+    job = JOB_C2.replace(" NSUB=1,", f" NSUB=1, {clave},")
+    with pytest.raises(NormosJobError, match="NORMOS-DIST"):
+        job_to_model_state(job)
