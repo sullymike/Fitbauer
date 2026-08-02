@@ -72,3 +72,15 @@ docs/svg-inkscape/
 
 # Estado de runtime de la app (disposición de paneles guardada por el usuario)
 layout.json
+
+# Derivados de compilar el artículo con \includesvg: la FUENTE de estas figuras
+# son los .svg de docs/img/, que sí están versionados. Nunca deben entrar.
+docs/img/fig_magnetita_fit.pdf
+docs/img/fig_magnetita_fit.png
+docs/img/fig_normos_comparison.pdf
+docs/img/fig_normos_comparison.png
+docs/img/fig_reference_fits.pdf
+docs/img/fig_reference_fits.png
+
+# PDF compilado del borrador antiguo del paper (su .tex sí está versionado).
+docs/paper_hyperfine_interactions.pdf
