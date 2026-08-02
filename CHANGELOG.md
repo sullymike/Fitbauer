@@ -1,5 +1,36 @@
 # Changelog
 
+## Sin publicar — interoperabilidad con los ficheros .JOB de NORMOS
+
+Fitbauer lee y escribe el formato de trabajo de NORMOS-SITE. **No ejecuta
+NORMOS ni lo distribuye**: solo habla su formato de texto, que no es
+propietario. Se descartó la alternativa de compilar el fuente como backend
+—ver `validacion/informe/PENDIENTE_NORMOS.md`— porque el fuente de 1990 y el
+binario de 1993/94 difieren de forma demostrada en al menos cinco puntos, así
+que compilarlo NO reproduce el NORMOS con el que se publicó nada.
+
+- **`core/normos_job.py`**: `job_to_model_state()` y `model_state_to_job()`.
+- **Importar**: `mossbauer_fit_cli.py --template MI_TRABAJO.JOB` acepta
+  directamente un `.JOB` (se detecta por contenido, no por extensión). Un
+  usuario que viene de NORMOS abre su fichero de siempre y ajusta con Fitbauer.
+- **Exportar**: `--export-job FICHERO` escribe el modelo ajustado en formato
+  NORMOS, para comparar allí o compartir la configuración.
+- Traslada las conversiones de convenio que salieron de la revisión del fuente,
+  que es la parte delicada: `WID` es la anchura de las líneas 3,4 y `gamma1` la
+  de las 1,6 (`gamma1 = WID·W13`); `D13`/`D23` son razones de ÁREA e
+  `int1`/`int2` de PROFUNDIDAD; `DEP` es el área del subespectro. Verificado
+  contra los valores que el banco calculaba a mano para `C2_invertida_b33`, el
+  caso con anchuras por par invertidas donde más se separan los convenios.
+- Ligaduras `NDEX`/`FACTOR`/`CONST` con la numeración GLOBAL de NORMOS
+  (13 + 15·(n−1)), que si se equivoca liga el parámetro que no es en silencio.
+- **Avisa de lo que NO traslada** (`POLAR`, `IFSC`, `EFGB`, relajación,
+  octete, otros isótopos) y de que `BHF` viene en la escala de NORMOS, que se
+  reproduce con `sextet_pattern("normos")`.
+- Comprobado que **NORMOS acepta el `.JOB` que escribe Fitbauer**: se generó
+  uno, se ejecutó SITE bajo DOSBox y reprodujo la teoría original con
+  diferencia exactamente 0, sin avisos.
+- Tests: `tests/test_normos_job.py` (18 nuevos).
+
 ## Sin publicar — polarización de poblaciones y bloque de distribuciones
 
 ### Relajación: poblaciones desiguales (cierra el hueco del nivel 9)

@@ -71,11 +71,23 @@ def _apply_model_overrides(session_engine, overrides: dict | None) -> None:
 
 
 def _load_template_state(template_path: Path) -> dict:
+    """Plantilla desde una sesión .json de Fitbauer o un .JOB de NORMOS.
+
+    El ``.JOB`` se detecta por contenido (bloque ``&PARAM``), no por extensión,
+    porque NORMOS no impone una. Los avisos de la conversión se emiten por
+    stderr: dicen lo que NO se ha podido trasladar, que es lo que hay que
+    revisar a mano.
+    """
     if not template_path.exists():
         raise FileNotFoundError(f"Plantilla no encontrada: {template_path}")
-    with template_path.open("r", encoding="utf-8") as fh:
-        template = json.load(fh)
-    return template.get("model_state", template)
+    texto = template_path.read_text(encoding="utf-8", errors="replace")
+    if "&PARAM" in texto.upper():
+        from core.normos_job import job_to_model_state
+        convertido = job_to_model_state(texto)
+        for aviso in convertido["warnings"]:
+            print(f"  aviso (.JOB): {aviso}", file=sys.stderr)
+        return convertido["model_state"]
+    return json.loads(texto).get("model_state", json.loads(texto))
 
 
 def _write_json(output_path: Path, payload: dict | list) -> None:
@@ -225,6 +237,10 @@ def _build_parser() -> argparse.ArgumentParser:
                         "es lo que son físicamente las probabilidades 3:2:1 y "
                         "lo que significan D13/D23 en NORMOS). Solo difieren "
                         "si las anchuras relativas no son 1.")
+    p.add_argument("--export-job", type=Path, default=None, metavar="FICHERO",
+                   help="Escribe el modelo ajustado como fichero .JOB de "
+                        "NORMOS-SITE (para comparar en NORMOS o compartir la "
+                        "configuración). No ejecuta NORMOS.")
     p.add_argument("--src-frac", type=float, default=None, metavar="F",
                    help="Fracción RESONANTE de la fuente (FSO de NORMOS-SITE), "
                         "solo con el modelo de absorbente 'transmission': la "
@@ -327,6 +343,17 @@ def _run(args) -> int:
         return 1
     if not args.quiet:
         _print_single_summary(args, session)
+    if args.export_job is not None:
+        from core.normos_job import model_state_to_job
+        estado = session.get("model_state", {})
+        args.export_job.parent.mkdir(parents=True, exist_ok=True)
+        args.export_job.write_text(
+            model_state_to_job(estado, stem=args.export_job.stem[:8].upper() or "FITBAUER",
+                               titles=("Exportado de Fitbauer",
+                                       args.spectrum[0].name[:70])),
+            encoding="ascii", errors="replace")
+        if not args.quiet:
+            print(f"  .JOB de NORMOS escrito en {args.export_job}")
     return 0
 
 
