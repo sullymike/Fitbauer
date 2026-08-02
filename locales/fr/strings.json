@@ -833,6 +833,7 @@
   "file.export_normos_job": "Exporter un travail NORMOS...",
   "file.normos_job_imported": "Travail NORMOS importé",
   "file.normos_dist_job_imported": "Travail NORMOS-DIST importé dans le panneau de distribution",
+  "file.normos_job_no_data": "Le spectre n'a pas été trouvé à côté du .JOB : celui déjà chargé est conservé. NORMOS attend tous les fichiers dans le même dossier.",
   "file.normos_job_exported": "Travail NORMOS exporté",
   "file.normos_job_warnings": "Importé, avec des avertissements :"
 }

@@ -40,6 +40,7 @@ Las conversiones de convenio salen de la revisión del código fuente de NORMOS
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import numpy as np
 
@@ -153,6 +154,90 @@ def parse_job(text: str) -> dict:
 
     return {"files": files, "titles": titles,
             "data": _pares(bloques["DATA"]), "param": _pares(bloques["PARAM"])}
+
+
+#: Extensiones que un ``.JOB`` nombra pero que NO son el espectro: son las
+#: SALIDAS que NORMOS escribe (resultados, gráfico) y el propio trabajo.
+_EXT_DE_SALIDA = frozenset({".job", ".res", ".plt", ".lst", ".dmp"})
+
+#: Extensiones de espectro que se buscan cuando el nombre declarado no aparece.
+_EXT_DE_DATOS = (".ws5", ".adt", ".mos", ".csv", ".txt", ".dat", ".exp")
+
+
+def punto_de_doblado_normos(pfp: float) -> float:
+    """Punto en el que NORMOS dobla de verdad, dado el que imprime.
+
+    El ``.RES`` informa de un punto refinado y continuo —lo saca de una
+    parábola de mínimos cuadrados sobre 9 puntos del barrido de simetría,
+    ``normospr.for:1268``— pero el doblado **no** usa ese valor. La rutina
+    final (601-604, «gefaltetes Spektrum ohne Interpolation», Hoersten 1989)
+    lo TRUNCA a entero y suma canales enteros, sin interpolar::
+
+        IPFA = PFA + 1.0E-4          ! asignación real→entero: trunca
+        IPFP = PFP + 1.0E-4
+        DO 602 L=1,NP
+          TEMP(L) = Y(IPFA-L+1) + Y(IPFA+L)
+
+    Los pares suman ``2·IPFA+1``, así que el eje de simetría cae en el
+    semientero ``⌊PFP⌋ + 0.5``. Por eso un ``Final folding point =
+    257.23656`` dobla en 257.5, y comparar con sus resultados exige doblar
+    donde dobla de verdad y no donde dice que dobla.
+
+    (La cuantización con umbral 0.25 de las líneas 1136-1170 es otra cosa:
+    afecta solo a la SEMILLA de cada ciclo de barrido, no al doblado final.)
+    """
+    return float(np.floor(float(pfp))) + 0.5
+
+
+def resuelve_fichero_de_datos(job: Path, texto: str | None = None) -> Path | None:
+    """Espectro al que apunta un ``.JOB``, buscado **junto al propio ``.JOB``**.
+
+    Las cuatro primeras líneas de un ``.JOB`` son nombres de fichero (datos,
+    trabajo, resultados, gráfico) sin ruta: NORMOS corría en DOS con todo en el
+    mismo directorio. Se busca ahí, sin distinguir mayúsculas —los ficheros
+    vienen de DOS y el nombre declarado rara vez coincide en caja con el del
+    disco— y cayendo al nombre del propio ``.JOB`` si el declarado no está.
+
+    Devuelve ``None`` si no se encuentra nada; nunca devuelve una salida de
+    NORMOS (``.RES``/``.PLT``) ni el ``.JOB`` mismo.
+    """
+    job = Path(job)
+    carpeta = job.parent
+    try:
+        vecinos = {p.name.lower(): p for p in carpeta.iterdir() if p.is_file()}
+    except OSError:
+        return None
+
+    def util(p: Path | None) -> Path | None:
+        if p is None or p.suffix.lower() in _EXT_DE_SALIDA:
+            return None
+        return p if p.resolve() != job.resolve() else None
+
+    # 1. El nombre que declara el .JOB (primera línea que no sea una salida).
+    if texto is None:
+        try:
+            texto = job.read_text(encoding="latin-1", errors="replace")
+        except OSError:
+            texto = ""
+    try:
+        declarados = parse_job(texto)["files"] if texto else []
+    except NormosJobError:
+        declarados = []
+    for nombre in declarados:
+        hallado = util(vecinos.get(Path(nombre).name.lower()))
+        if hallado is not None:
+            return hallado
+
+    # 2. El nombre del propio trabajo con una extensión de espectro.
+    for ext in _EXT_DE_DATOS:
+        hallado = util(vecinos.get((job.stem + ext).lower()))
+        if hallado is not None:
+            return hallado
+
+    # 3. Un único espectro en la carpeta: no hay ambigüedad posible.
+    sueltos = [p for n, p in sorted(vecinos.items())
+               if Path(n).suffix in _EXT_DE_DATOS and util(p) is not None]
+    return sueltos[0] if len(sueltos) == 1 else None
 
 
 def _pares(lineas: list[str]) -> dict[str, str]:
@@ -348,14 +433,34 @@ def job_to_model_state(text: str) -> dict:
         "drive_form": "triangular" if _b(data.get("TRIANG"), True) else "sine",
     }
     vmax = _f(data.get("VMAX"), 0.0) or None
-    pfp = _f(data.get("PFP"), 0.0) or None
     if vmax:
         estado["vars"]["vmax"] = abs(vmax)
-    if pfp:
-        # NORMOS da el punto de doblado SUPERIOR (~2× el centro interno).
-        estado["vars"]["center"] = pfp / 2.0 if pfp >= 400.0 else pfp
+    centro = _centro_desde_pfp(data, avisos)
     return {"model_state": estado, "vmax": abs(vmax) if vmax else None,
-            "center": estado["vars"].get("center"), "warnings": avisos}
+            "center": centro, "warnings": avisos}
+
+
+def _centro_desde_pfp(data: dict, avisos: list[str]) -> float | None:
+    """Punto de doblado que declara el ``&DATA``, como METADATO.
+
+    A propósito NO se mete en ``vars["center"]``: en NORMOS ``PFP`` es la
+    SEMILLA de la búsqueda, no el punto final. ``normospr.for`` la refina en
+    dos ciclos y la cuantiza (:func:`punto_de_doblado_normos`), así que
+    imponerla congelaría un valor que el propio NORMOS no usó — en varios de
+    los trabajos reales el ``.RES`` acaba a más de un canal del ``PFP`` que
+    pedía el ``.JOB``. Fitbauer hace su propia búsqueda, que es el análogo.
+    """
+    pfp = _f(data.get("PFP"), 0.0) or None
+    if not pfp:
+        return None
+    # NORMOS da el punto de doblado SUPERIOR (~2× el centro interno).
+    centro = pfp / 2.0 if pfp >= 400.0 else pfp
+    avisos.append(
+        f"PFP={pfp:g} es la SEMILLA de la búsqueda del punto de doblado, no el "
+        "punto final: NORMOS lo refina en dos ciclos y lo cuantiza a múltiplos "
+        "de medio canal. No se impone — Fitbauer hace su propia búsqueda. Si "
+        "quieres forzarlo, ponlo a mano en «Centro».")
+    return centro
 
 
 def job_to_distribution_state(text: str) -> dict:
@@ -611,13 +716,11 @@ def job_to_distribution_state(text: str) -> dict:
         "core.constants.sextet_pattern(\"normos\").")
 
     vmax = _f(data.get("VMAX"), 0.0) or None
-    pfp = _f(data.get("PFP"), 0.0) or None
     if vmax:
         estado["vars"]["vmax"] = abs(vmax)
-    if pfp:
-        estado["vars"]["center"] = pfp / 2.0 if pfp >= 400.0 else pfp
+    centro = _centro_desde_pfp(data, avisos)
     return {"model_state": estado, "vmax": abs(vmax) if vmax else None,
-            "center": estado["vars"].get("center"), "warnings": avisos,
+            "center": centro, "warnings": avisos,
             "edge_anchor": edge_anchor, "n_sharp": n_sharp,
             "variable": variable}
 

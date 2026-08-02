@@ -833,6 +833,7 @@
   "file.export_normos_job": "NORMOS-Auftrag exportieren...",
   "file.normos_job_imported": "NORMOS-Auftrag importiert",
   "file.normos_dist_job_imported": "NORMOS-DIST-Job in das Verteilungspanel importiert",
+  "file.normos_job_no_data": "Das Spektrum wurde neben der .JOB nicht gefunden: das bereits geladene bleibt erhalten. NORMOS erwartet alle Dateien im selben Ordner.",
   "file.normos_job_exported": "NORMOS-Auftrag exportiert",
   "file.normos_job_warnings": "Importiert, mit Hinweisen:"
 }

@@ -833,6 +833,7 @@
   "file.export_normos_job": "Экспортировать задание NORMOS...",
   "file.normos_job_imported": "Задание NORMOS импортировано",
   "file.normos_dist_job_imported": "Задание NORMOS-DIST загружено в панель распределения",
+  "file.normos_job_no_data": "Спектр не найден рядом с .JOB: сохраняется уже загруженный. NORMOS ожидает все файлы в одной папке.",
   "file.normos_job_exported": "Задание NORMOS экспортировано",
   "file.normos_job_warnings": "Импортировано, с предупреждениями:"
 }

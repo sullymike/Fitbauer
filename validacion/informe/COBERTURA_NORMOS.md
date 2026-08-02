@@ -137,6 +137,12 @@ Ninguna es un error; todas están cubiertas por un parámetro o documentadas.
 - **Relajación**: `k = OME/2`, y NORMOS reparte la anchura entre `WD`
   (autovalores) y `WDS` (convolución) mientras aquí hay una sola.
 - **χ²**: NORMOS divide por los datos con DF = NP−1−NVAR.
+- **Punto de doblado**: `PFP` del `&DATA` es solo la SEMILLA de la búsqueda, no
+  el punto final; NORMOS la refina en dos ciclos. Y el punto continuo que
+  imprime en el `.RES` tampoco es donde dobla: la rutina final
+  (`normospr.for:601-604`) lo TRUNCA y suma canales enteros, con el eje en
+  `⌊PFP⌋ + 0.5` (`core.normos_job.punto_de_doblado_normos`). Fitbauer sí
+  interpola, así que su centro no tiene por qué coincidir.
 - **Malla de DIST**: los subespectros son `x_k = X + (k−1)·DTX`, `k = 1..NSB`,
   con `X`/`DTX` = `BHF`/`DTB`, `QUA`/`DTQ` o `ISO`/`DTI` según el `METHOD`.
   El origen y el paso son PARÁMETROS AJUSTABLES (`BHFFIT`, `DTBFIT`…), así que

@@ -833,6 +833,7 @@
   "file.export_normos_job": "导出 NORMOS 作业...",
   "file.normos_job_imported": "已导入 NORMOS 作业",
   "file.normos_dist_job_imported": "NORMOS-DIST 作业已导入分布面板",
+  "file.normos_job_no_data": "未在 .JOB 旁找到谱文件：保留已加载的谱。NORMOS 要求所有文件位于同一文件夹。",
   "file.normos_job_exported": "已导出 NORMOS 作业",
   "file.normos_job_warnings": "已导入，但有警告:"
 }

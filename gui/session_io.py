@@ -421,7 +421,8 @@ class SessionIOMixin:
         try:
             from core.normos_job import (es_job_de_dist,
                                          job_to_distribution_state,
-                                         job_to_model_state, parse_job)
+                                         job_to_model_state, parse_job,
+                                         resuelve_fichero_de_datos)
             texto = Path(path).read_text(encoding="utf-8", errors="replace")
             # Los .JOB de NORMOS-DIST tienen la misma pinta que los de SITE
             # pero su NSUB son los puntos de la MALLA de una distribución: van
@@ -432,24 +433,36 @@ class SessionIOMixin:
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, titulo, f"{type(exc).__name__}: {exc}")
             return
+
+        # El .JOB nombra su espectro en la primera línea, sin ruta: NORMOS
+        # corría en DOS con todo en el mismo directorio. Se carga de ahí.
+        datos = resuelve_fichero_de_datos(Path(path), texto)
+        payload = {"model_state": convertido["model_state"],
+                   "calibration": self.calibration_info}
+        if datos is not None:
+            payload["file_path"] = str(datos)
+            payload["file_name"] = datos.name
         try:
-            # Solo el MODELO: se conserva el espectro y la calibración actuales
-            # (el .JOB de NORMOS apunta a su propio fichero de datos, que aquí
-            # no tiene por qué existir).
-            self._apply_session_payload({
-                "model_state": convertido["model_state"],
-                "calibration": self.calibration_info,
-            })
+            self._apply_session_payload(payload)
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, titulo, f"{type(exc).__name__}: {exc}")
             return
+
+        avisos = list(convertido.get("warnings") or [])
+        if datos is None:
+            avisos.insert(0, tr(
+                "file.normos_job_no_data",
+                default="No se ha encontrado el espectro junto al .JOB: se "
+                        "conserva el que ya estaba cargado. NORMOS espera "
+                        "todos los ficheros en la misma carpeta."))
         clave = ("file.normos_dist_job_imported" if es_dist
                  else "file.normos_job_imported")
         defecto = ("Trabajo de NORMOS-DIST importado en el panel de distribución"
                    if es_dist else "Trabajo de NORMOS importado")
-        self.statusBar().showMessage(
-            tr(clave, default=defecto) + f": {Path(path).name}", 5000)
-        avisos = convertido.get("warnings") or []
+        mensaje = tr(clave, default=defecto) + f": {Path(path).name}"
+        if datos is not None:
+            mensaje += f" + {datos.name}"
+        self.statusBar().showMessage(mensaje, 5000)
         if avisos:
             # Lo que NO se ha trasladado importa tanto como lo que sí.
             QtWidgets.QMessageBox.information(

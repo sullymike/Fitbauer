@@ -70,6 +70,29 @@ sin sentido). Ahora se traducen al panel de distribución.
 - Tests: 12 nuevos en `tests/test_normos_job.py`, incluido que la GUI abre el
   panel de distribución con la malla correcta.
 
+### Al importar un `.JOB` se carga también su espectro
+
+Un `.JOB` nombra sus ficheros en las cuatro primeras líneas, sin ruta: NORMOS
+corría en DOS con todo en el mismo directorio. Antes se importaba solo el
+modelo y había que abrir el espectro a mano.
+
+- **`resuelve_fichero_de_datos()`**: busca el espectro declarado junto al
+  propio `.JOB`, sin distinguir mayúsculas —vienen de DOS y la caja rara vez
+  casa—, cayendo al nombre del trabajo y, si no, al único espectro de la
+  carpeta. Nunca devuelve una salida de NORMOS (`.RES`/`.PLT`). Resuelve casos
+  como `YU30031D.JOB → YU300317.ADT`, donde el nombre no coincide con el del
+  trabajo. Si no encuentra nada, conserva el espectro cargado y lo avisa.
+- **`PFP` deja de imponerse como centro.** En NORMOS es la SEMILLA de la
+  búsqueda del punto de doblado, no el punto final: `normospr.for` la refina en
+  dos ciclos, y en varios trabajos reales el `.RES` acaba a más de un canal del
+  `PFP` que pedía el `.JOB`. Se informa como metadato y se avisa, pero manda la
+  búsqueda de Fitbauer, que es el análogo correcto.
+- **`punto_de_doblado_normos()`**: el punto continuo que NORMOS imprime tampoco
+  es donde dobla. Su rutina final (`normospr.for:601-604`, «ohne
+  Interpolation», Hoersten 1989) lo trunca y suma canales enteros
+  (`Y(IPFA-L+1) + Y(IPFA+L)`), con el eje en `⌊PFP⌋ + 0.5`. Reproducir sus
+  ajustes exige doblar ahí.
+
 ## Sin publicar — polarización de poblaciones y bloque de distribuciones
 
 ### Relajación: poblaciones desiguales (cierra el hueco del nivel 9)

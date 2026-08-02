@@ -500,3 +500,117 @@ def test_la_gui_importa_un_job_de_dist_en_el_panel(tmp_path, monkeypatch):
         win.close()
         win.deleteLater()
         app.processEvents()
+
+
+# ── El .JOB trae consigo su espectro ─────────────────────────────────────────
+
+@pytest.mark.parametrize("pfp, esperado", [
+    # normospr.for:601-604 — IPFP=PFP+1e-4 trunca, y los pares Y(IPFA-L+1) +
+    # Y(IPFA+L) suman 2·IPFA+1: el eje cae en ⌊PFP⌋ + 0.5.
+    (257.23656, 257.5),    # YU16051D
+    (257.35935, 257.5),    # YU30031D
+    (512.50813, 512.5),
+    (258.08755, 258.5),
+    (256.5, 256.5),
+    (257.0, 257.5),        # un entero exacto sigue doblando medio canal arriba
+])
+def test_el_punto_de_doblado_cae_en_el_medio_canal_inferior(pfp, esperado):
+    from core.normos_job import punto_de_doblado_normos
+
+    assert punto_de_doblado_normos(pfp) == pytest.approx(esperado)
+
+
+def test_pfp_es_semilla_y_no_se_impone_como_centro():
+    """NORMOS refina PFP en dos ciclos; congelarlo daría otro doblado."""
+    r = job_to_model_state(JOB_C2)
+    assert r["center"] == pytest.approx(256.5)          # se informa…
+    assert "center" not in r["model_state"]["vars"]     # …pero no se impone
+    assert any("SEMILLA" in a for a in r["warnings"])
+
+
+def test_resuelve_el_espectro_declarado_en_el_job(tmp_path):
+    from core.normos_job import resuelve_fichero_de_datos
+
+    job = tmp_path / "TRABAJO.JOB"
+    job.write_text(JOB_C2, encoding="ascii")
+    # JOB_C2 declara «C0000.MOS» en su primera línea.
+    datos = tmp_path / "C0000.MOS"
+    datos.write_text("0\n", encoding="ascii")
+    (tmp_path / "TRABAJO.RES").write_text("", encoding="ascii")
+    assert resuelve_fichero_de_datos(job) == datos
+
+
+def test_el_nombre_del_espectro_no_distingue_mayusculas(tmp_path):
+    """Los .JOB vienen de DOS: la caja del nombre rara vez casa con el disco."""
+    from core.normos_job import resuelve_fichero_de_datos
+
+    job = tmp_path / "TRABAJO.JOB"
+    job.write_text(JOB_C2, encoding="ascii")
+    datos = tmp_path / "c0000.mos"
+    datos.write_text("0\n", encoding="ascii")
+    assert resuelve_fichero_de_datos(job) == datos
+
+
+def test_nunca_devuelve_una_salida_de_normos(tmp_path):
+    """.RES y .PLT también se nombran en la cabecera; no son el espectro."""
+    from core.normos_job import resuelve_fichero_de_datos
+
+    job = tmp_path / "TRABAJO.JOB"
+    job.write_text(JOB_C2, encoding="ascii")
+    for nombre in ("C0000.RES", "C0000.PLT"):
+        (tmp_path / nombre).write_text("", encoding="ascii")
+    assert resuelve_fichero_de_datos(job) is None
+
+
+def test_cae_al_unico_espectro_de_la_carpeta(tmp_path):
+    from core.normos_job import resuelve_fichero_de_datos
+
+    job = tmp_path / "TRABAJO.JOB"
+    job.write_text(JOB_C2, encoding="ascii")
+    datos = tmp_path / "OTRO_NOMBRE.ws5"
+    datos.write_text("0\n", encoding="ascii")
+    assert resuelve_fichero_de_datos(job) == datos
+    # Pero con DOS candidatos la elección sería una adivinanza: mejor nada.
+    (tmp_path / "TERCERO.ws5").write_text("0\n", encoding="ascii")
+    assert resuelve_fichero_de_datos(job) is None
+
+
+def test_la_gui_carga_el_espectro_junto_al_job(tmp_path, monkeypatch):
+    """Importar un .JOB debe traer también sus datos, no solo el modelo."""
+    pytest.importorskip("PySide6")
+    import numpy as np
+    from PySide6 import QtWidgets
+
+    import mossbauer_qt
+
+    # Espectro sintético de una columna, con el nombre que declara JOB_C2.
+    rng = np.random.default_rng(0)
+    cuentas = rng.poisson(10000, 512)
+    (tmp_path / "C0000.MOS").write_text(
+        "\n".join(str(int(c)) for c in cuentas) + "\n", encoding="ascii")
+    entrada = tmp_path / "TRABAJO.JOB"
+    entrada.write_text(JOB_C2, encoding="ascii")
+
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    win = mossbauer_qt.MossbauerQtWindow()
+    try:
+        monkeypatch.setattr(
+            QtWidgets.QFileDialog, "getOpenFileName",
+            staticmethod(lambda *a, **k: (str(entrada), "")))
+        monkeypatch.setattr(
+            QtWidgets.QMessageBox, "information",
+            staticmethod(lambda *a, **k: None))
+        win.on_import_normos_job()
+
+        assert win.file.path is not None
+        assert win.file.path.name == "C0000.MOS"
+        assert win.file.counts is not None and win.file.counts.size == 512
+        assert win.file.y_data is not None      # doblado y normalizado
+        # Y el modelo del .JOB sigue aplicado sobre esos datos.
+        estado = win._session_payload()["model_state"]
+        assert estado["vars"]["s1_bhf"] == pytest.approx(33.0, rel=1e-4)
+        assert win.calib.vmax.value() == pytest.approx(10.0)
+    finally:
+        win.close()
+        win.deleteLater()
+        app.processEvents()
