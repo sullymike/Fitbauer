@@ -316,3 +316,187 @@ def test_cada_marcador_de_dist_dispara(clave):
     job = JOB_C2.replace(" NSUB=1,", f" NSUB=1, {clave},")
     with pytest.raises(NormosJobError, match="NORMOS-DIST"):
         job_to_model_state(job)
+
+
+# ── NORMOS-DIST: carga en el panel de distribución ───────────────────────────
+
+JOB_DIST_XL = """D.MOS
+D.JOB
+D.RES
+D.PLT
+ &DATA
+ NLTEXT=4, TRIANG=.TRUE., VMAX=10.0, PFP=256.5,
+ &END
+distribucion
+con sitios nitidos
+ &PARAM
+ METHOD=1, DISTRI=1, NSUB=10,
+ WID=.3, LAMDA=1.2, BETA1=.0, BETA2=20.0,
+ ISO=.5, ISOFIT=.true., QUA=-0.015, QUAFIT=.false.,
+ BHF=0., BHFFIT=.false., DTB=5.0, DTBFIT=.true.,
+ DTI=0.01, DTIFIT=.false.,
+ NXLS=2,
+ NXLL(1)=6, DEX(1)=0.05, DEXFIT(1)=.TRUE., ISX(1)=0.2, ISXFIT(1)=.TRUE.,
+ QUX(1)=-0.029, BHX(1)=44, BHXFIT(1)=.TRUE., WIX(1)=0.4, WIXFIT(1)=.TRUE.,
+ NXLL(2)=2, DEX(2)=0.1, ISX(2)=0.3, QUX(2)=0.7, WIX(2)=0.4,
+ &END
+"""
+
+
+def test_un_job_de_dist_se_carga_en_el_panel_de_distribucion():
+    from core.normos_job import job_to_distribution_state
+
+    r = job_to_distribution_state(JOB_DIST_XL)
+    s = r["model_state"]
+    assert r["variable"] == "bhf"
+    assert s["dist_shape"] == "Histograma"
+    # La malla es BHF + (k-1)·DTB, k = 1..NSB (distcalf.for: RH = BHF+PP*DTB).
+    assert s["dist_bmin"] == pytest.approx(0.0)
+    assert s["dist_bmax"] == pytest.approx(45.0)
+    assert s["dist_nbins"] == 10
+    assert s["dist_gamma"] == pytest.approx(0.3)
+    assert s["dist_delta"] == pytest.approx(0.5)
+    # El panel de distribución, no el modo discreto.
+    assert s["mode_combo_idx"] == 1
+    assert s["dist_variable"] == "BHF"
+
+
+@pytest.mark.parametrize("method, variable", [(1, "bhf"), (2, "bhf"), (4, "bhf"),
+                                              (6, "quad"), (7, "quad"), (8, "delta")])
+def test_method_elige_la_variable_distribuida(method, variable):
+    """``distinif.for``: 1-5 campo, 6-7 cuadrupolo, 8 desplazamiento isomérico."""
+    from core.normos_job import job_to_distribution_state
+
+    job = JOB_DIST_XL.replace("METHOD=1,", f"METHOD={method},")
+    assert job_to_distribution_state(job)["variable"] == variable
+
+
+def test_la_malla_de_cuadrupolo_usa_qua_y_dtq():
+    from core.normos_job import job_to_distribution_state
+
+    job = (JOB_DIST_XL.replace("METHOD=1,", "METHOD=6,")
+                      .replace("QUA=-0.015", "QUA=0.25")
+                      .replace("DTB=5.0", "DTB=5.0, DTQ=0.05"))
+    s = job_to_distribution_state(job)["model_state"]
+    assert s["dist_bmin"] == pytest.approx(0.25)
+    assert s["dist_bmax"] == pytest.approx(0.25 + 9 * 0.05)
+
+
+def test_dtq_no_se_traslada_en_distribuciones_de_campo():
+    """NORMOS solo aplica DTI en METHOD 1-5; DTQ es un parámetro muerto ahí.
+
+    Sus bucles (``distcalf.for`` 318-319, 355-356, 405-406, 441-442) calculan
+    ``RH = BHF+PP*DTB`` y ``RI = ISO+PP*DTI``, sin tocar ΔEQ. Trasladarlo metía
+    una correlación que NORMOS nunca aplicó.
+    """
+    from core.normos_job import job_to_distribution_state
+
+    job = JOB_DIST_XL.replace("DTI=0.01,", "DTI=0.01, DTQ=0.03,")
+    r = job_to_distribution_state(job)
+    assert r["model_state"]["dist_quad_slope"] == 0.0
+    assert any("DTQ" in a and "IGNORA" in a for a in r["warnings"])
+    # En cambio DTI sí, normalizado por el paso de la malla.
+    assert r["model_state"]["dist_delta_slope"] == pytest.approx(0.01 / 5.0)
+
+
+def test_los_sitios_cristalinos_son_componentes_nitidos():
+    from core.normos_job import job_to_distribution_state
+
+    r = job_to_distribution_state(JOB_DIST_XL)
+    s = r["model_state"]
+    assert r["n_sharp"] == 2
+    assert s["dist_use_sharp"] is True
+    # NXLL = número de líneas: 6 → sextete, 2 → doblete.
+    assert s["component_kind"] == {"1": "Sextete", "2": "Doblete"}
+    assert s["vars"]["s1_delta"] == pytest.approx(0.2)
+    assert s["vars"]["s1_bhf"] == pytest.approx(44.0)
+    assert s["vars"]["s1_gamma1"] == pytest.approx(0.4)
+    assert s["vars"]["s2_quad"] == pytest.approx(0.7)
+    # ISXFIT/BHXFIT=.true. → libres; QUX sin bandera → queda como esté.
+    assert s["fixed"]["s1_delta"] is False
+    assert s["fixed"]["s1_bhf"] is False
+    # Y lo que el .JOB no define se apaga, para que no sume sobre la malla.
+    assert s["sextet_enabled"]["3"] is False
+
+
+def test_beta_sobre_lamda_es_el_anclaje_de_bordes():
+    """``SMOOTH`` (distauxl.for) suma BETA1/BETA2 a λ·D₂ᵀD₂ en las esquinas."""
+    from core.normos_job import job_to_distribution_state
+
+    r = job_to_distribution_state(JOB_DIST_XL)
+    assert r["edge_anchor"] == pytest.approx(20.0 / 1.2)
+    assert any("LAMDA" in a for a in r["warnings"])
+
+
+def test_distri_selecciona_la_forma():
+    from core.normos_job import job_to_distribution_state
+
+    def forma(job):
+        return job_to_distribution_state(job)["model_state"]["dist_shape"]
+
+    assert forma(JOB_DIST_XL) == "Histograma"
+    assert forma(JOB_DIST_XL.replace("DISTRI=1,", "DISTRI=2,")) == "Gaussiana"
+    # DISTRI=3 es binomial si CONC>0 y fija si CONC=0.
+    assert forma(JOB_DIST_XL.replace("DISTRI=1,", "DISTRI=3, CONC=5.0,")) == "Binomial"
+    assert forma(JOB_DIST_XL.replace("DISTRI=1,", "DISTRI=3,")) == "Fija"
+
+
+def test_czjzek_avisa_de_que_no_esta_implementado():
+    from core.normos_job import job_to_distribution_state
+
+    r = job_to_distribution_state(JOB_DIST_XL.replace("DISTRI=1,", "DISTRI=4,"))
+    assert any("Czjzek" in a for a in r["warnings"])
+    assert r["model_state"]["dist_shape"] == "Histograma"
+
+
+def test_un_job_de_site_no_pasa_por_el_lector_de_dist():
+    from core.normos_job import job_to_distribution_state
+
+    with pytest.raises(NormosJobError, match="no es un trabajo de NORMOS-DIST"):
+        job_to_distribution_state(JOB_C2)
+
+
+def test_una_malla_de_un_solo_punto_se_rechaza():
+    from core.normos_job import job_to_distribution_state
+
+    with pytest.raises(NormosJobError, match="menos de 2 puntos"):
+        job_to_distribution_state(JOB_DIST_XL.replace("NSUB=10,", "NSUB=1,"))
+
+
+def test_la_gui_importa_un_job_de_dist_en_el_panel(tmp_path, monkeypatch):
+    """El importador distingue DIST de SITE y llena el panel de distribución."""
+    pytest.importorskip("PySide6")
+    from PySide6 import QtWidgets
+
+    import mossbauer_qt
+
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    win = mossbauer_qt.MossbauerQtWindow()
+    try:
+        entrada = tmp_path / "DIST.JOB"
+        entrada.write_text(JOB_DIST_XL, encoding="ascii")
+        monkeypatch.setattr(
+            QtWidgets.QFileDialog, "getOpenFileName",
+            staticmethod(lambda *a, **k: (str(entrada), "")))
+        monkeypatch.setattr(
+            QtWidgets.QMessageBox, "information",
+            staticmethod(lambda *a, **k: None))
+        win.on_import_normos_job()
+
+        # Modo P(BHF), no modo discreto: el .JOB describe una malla.
+        assert win.mode_combo.currentIndex() == 1
+        assert win.dist_variable == "bhf"
+        d = win.dist_panel.to_view_state(variable="bhf")
+        assert d.bmin == pytest.approx(0.0)
+        assert d.bmax == pytest.approx(45.0)
+        assert d.nbins == 10
+        assert d.gamma == pytest.approx(0.3)
+        assert d.use_sharp is True
+        # Y los sitios cristalinos entran como componentes nítidos.
+        estado = win._session_payload()["model_state"]
+        assert estado["component_kind"]["1"] == "Sextete"
+        assert estado["vars"]["s1_bhf"] == pytest.approx(44.0, rel=1e-4)
+    finally:
+        win.close()
+        win.deleteLater()
+        app.processEvents()

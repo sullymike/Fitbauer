@@ -832,6 +832,7 @@
   "file.import_normos_job": "Import NORMOS job...",
   "file.export_normos_job": "Export NORMOS job...",
   "file.normos_job_imported": "NORMOS job imported",
+  "file.normos_dist_job_imported": "NORMOS-DIST job imported into the distribution panel",
   "file.normos_job_exported": "NORMOS job exported",
   "file.normos_job_warnings": "Imported, with warnings:"
 }

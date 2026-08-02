@@ -832,6 +832,7 @@
   "file.import_normos_job": "NORMOS ジョブを読み込む...",
   "file.export_normos_job": "NORMOS ジョブを書き出す...",
   "file.normos_job_imported": "NORMOS ジョブを読み込みました",
+  "file.normos_dist_job_imported": "NORMOS-DIST ジョブを分布パネルに読み込みました",
   "file.normos_job_exported": "NORMOS ジョブを書き出しました",
   "file.normos_job_warnings": "読み込みました（警告あり）:"
 }

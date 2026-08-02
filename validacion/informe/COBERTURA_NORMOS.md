@@ -85,7 +85,8 @@ Veredicto por símbolo:
 | `DISTRI=2` gaussiana | VBF con N=1 | **=** |
 | `DISTRI=3` binomial / fija | Binomial / Fija | **=** |
 | `DISTRI=4` Czjzek / Le Caër analíticas | el histograma reproduce la forma | **~** sin forma paramétrica |
-| `DTB DTI DTQ` correlaciones con la malla | `delta_slope quad_slope` | **=** |
+| `DTB DTI DTQ` correlaciones con la malla | `delta_slope quad_slope` | **=** ojo: en METHOD 1-5 NORMOS **solo** aplica `DTI`; `DTQ` es un parámetro muerto ahí (ver §7) |
+| `.JOB` de DIST → panel de distribución | `job_to_distribution_state` | **=** malla, forma, correlaciones, anclajes y sitios cristalinos como nítidos |
 | 2 bloques de distribución solapados | componentes nítidos + P(BHF,ΔEQ) 2D | **~** |
 | — | regularización TV y máxima entropía, L-curve, 2D | **+** extras sin equivalente |
 
@@ -136,6 +137,26 @@ Ninguna es un error; todas están cubiertas por un parámetro o documentadas.
 - **Relajación**: `k = OME/2`, y NORMOS reparte la anchura entre `WD`
   (autovalores) y `WDS` (convolución) mientras aquí hay una sola.
 - **χ²**: NORMOS divide por los datos con DF = NP−1−NVAR.
+- **Malla de DIST**: los subespectros son `x_k = X + (k−1)·DTX`, `k = 1..NSB`,
+  con `X`/`DTX` = `BHF`/`DTB`, `QUA`/`DTQ` o `ISO`/`DTI` según el `METHOD`.
+  El origen y el paso son PARÁMETROS AJUSTABLES (`BHFFIT`, `DTBFIT`…), así que
+  la malla del `.RES` no tiene por qué ser la del `.JOB`.
+- **`DTQ` en distribuciones de campo**: los bucles de `distcalf.for` para
+  METHOD 1-5 calculan `RH = BHF+PP*DTB` y `RI = ISO+PP*DTI` y **no tocan ΔEQ**.
+  Un `DTQ` escrito en un `.JOB` de campo no hace nada; solo entra en METHOD 6/7,
+  donde la malla ya es de cuadrupolo. Trasladarlo metía una correlación
+  inexistente (con `DTQ=0.03` y 40 puntos, un ΔEQ moviéndose > 1 mm/s).
+- **`λ` frente a `alpha`**: la `LAMDA` de NORMOS es absoluta y multiplica
+  `D₂ᵀD₂` sobre cuentas sin normalizar; el `alpha` de Fitbauer es adimensional
+  y va normalizado por `λ_ref`. **No son trasladables 1:1** — hay que fijar
+  `alpha` con la L-curve. La RAZÓN `BETA/LAMDA` sí se conserva y es el
+  `edge_anchor`.
+- **`DEX` frente a `ARX`**: el binario de 1994 renombró `ARX`→`DEX` igual que
+  `ARE`→`DEP` en SITE; sigue siendo el ÁREA resonante en mm/s.
+- **Namelist de DIST**: no acepta `NLINE`, `DEP`, `W13`, `W23`, `AKS`,
+  `IFTRAN`… Si vienen copiadas de un `.JOB` de SITE, **NORMOS las lee y las
+  tira sin avisar**: ese subespectro nunca entró en el ajuste. El importador de
+  Fitbauer sí lo dice.
 
 ---
 

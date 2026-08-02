@@ -419,9 +419,16 @@ class SessionIOMixin:
             return
         titulo = tr("file.import_normos_job")
         try:
-            from core.normos_job import job_to_model_state
-            convertido = job_to_model_state(
-                Path(path).read_text(encoding="utf-8", errors="replace"))
+            from core.normos_job import (es_job_de_dist,
+                                         job_to_distribution_state,
+                                         job_to_model_state, parse_job)
+            texto = Path(path).read_text(encoding="utf-8", errors="replace")
+            # Los .JOB de NORMOS-DIST tienen la misma pinta que los de SITE
+            # pero su NSUB son los puntos de la MALLA de una distribución: van
+            # al panel P(BHF)/P(ΔEQ), no a componentes discretos.
+            es_dist = es_job_de_dist(parse_job(texto)["param"])
+            convertido = (job_to_distribution_state(texto) if es_dist
+                          else job_to_model_state(texto))
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, titulo, f"{type(exc).__name__}: {exc}")
             return
@@ -436,9 +443,12 @@ class SessionIOMixin:
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, titulo, f"{type(exc).__name__}: {exc}")
             return
+        clave = ("file.normos_dist_job_imported" if es_dist
+                 else "file.normos_job_imported")
+        defecto = ("Trabajo de NORMOS-DIST importado en el panel de distribución"
+                   if es_dist else "Trabajo de NORMOS importado")
         self.statusBar().showMessage(
-            tr("file.normos_job_imported", default="Trabajo de NORMOS importado")
-            + f": {Path(path).name}", 5000)
+            tr(clave, default=defecto) + f": {Path(path).name}", 5000)
         avisos = convertido.get("warnings") or []
         if avisos:
             # Lo que NO se ha trasladado importa tanto como lo que sí.

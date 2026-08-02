@@ -37,6 +37,39 @@ que compilarlo NO reproduce el NORMOS con el que se publicó nada.
 - Tests: `tests/test_normos_job.py` (20 nuevos), incluido el ciclo completo
   importar → aplicar → exportar sobre la ventana real.
 
+### Los `.JOB` de NORMOS-DIST también se cargan
+
+Antes se rechazaban con un mensaje claro (su `NSUB` son los puntos de una
+MALLA, no sitios discretos: importarlos como SITE creaba decenas de sextetos
+sin sentido). Ahora se traducen al panel de distribución.
+
+- **`job_to_distribution_state()`**: malla `x_k = X + (k−1)·DTX` con
+  `BHF`/`DTB`, `QUA`/`DTQ` o `ISO`/`DTI` según el `METHOD` (1-5 campo,
+  6-7 cuadrupolo, 8 desplazamiento isomérico); forma según `DISTRI`
+  (histograma / gaussiana / binomial / fija); correlación δ(x) desde `DTI`;
+  anclajes de borde desde `BETA1`/`BETA2`; y los sitios cristalinos
+  (`NXLS`/`NXLL`/`ISX`/`WIX`/`QUX`/`BHX`/`DEX`) como **componentes nítidos**.
+- **En la GUI**: el mismo *Archivo ▸ Importar .JOB* detecta si es de DIST y
+  abre el panel P(BHF)/P(ΔEQ) en vez del modo discreto. Nueva clave i18n en
+  los 8 idiomas.
+- **`DTQ` ya no se traslada en distribuciones de campo.** Los bucles de
+  `distcalf.for` para METHOD 1-5 hacen `RH = BHF+PP*DTB`, `RI = ISO+PP*DTI` y
+  **no tocan ΔEQ**: un `DTQ` escrito en un `.JOB` de campo no hace nada en
+  NORMOS. Trasladarlo metía una correlación inexistente (con `DTQ=0.03` y 40
+  puntos, un ΔEQ moviéndose > 1 mm/s).
+- Avisa de lo que no traslada: `DISTRI=4` (Czjzek / Le Caër), `METHOD=3`
+  (Billard–Chamberod), `METHOD=5`/`7` (P de fichero), varios bloques de
+  distribución, `STI`/`STG`, y de que **`LAMDA` no es trasladable 1:1** —es
+  absoluta y multiplica `D₂ᵀD₂` sobre cuentas sin normalizar, mientras `alpha`
+  es adimensional y normalizado por `λ_ref`—, aunque la razón `BETA/LAMDA` sí
+  se conserva. También de que el namelist de DIST **ignora en silencio**
+  `NLINE`/`DEP`/`W13`/`W23`… si vienen copiadas de un `.JOB` de SITE.
+- Reproducidos los 15 trabajos de DIST reales de `jobs/`
+  (`jobs/_analisis/INFORME_DIST.md`): en los 7 comparables **Fitbauer da
+  siempre menor χ²** que NORMOS y ⟨x⟩ coincide al 0.1 % en 5 de 6.
+- Tests: 12 nuevos en `tests/test_normos_job.py`, incluido que la GUI abre el
+  panel de distribución con la malla correcta.
+
 ## Sin publicar — polarización de poblaciones y bloque de distribuciones
 
 ### Relajación: poblaciones desiguales (cierra el hueco del nivel 9)

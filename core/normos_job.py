@@ -94,6 +94,25 @@ def es_job_de_dist(param: dict) -> bool:
     return bool(raiz & _CLAVES_DIST)
 
 
+#: ``METHOD`` de DIST → variable distribuida en Fitbauer. Ver la cabecera de
+#: ``distinif.for``: 1-5 son distribuciones de campo, 6-7 de cuadrupolo y 8 de
+#: desplazamiento isomérico.
+_VARIABLE_POR_METHOD = {
+    1: "bhf", 2: "bhf", 3: "bhf", 4: "bhf", 5: "bhf",
+    6: "quad", 7: "quad", 8: "delta",
+}
+
+#: ``DISTRI`` de DIST → forma de la distribución en Fitbauer. ``DISTRI=3`` es
+#: binomial si ``CONC>0`` y fija si ``CONC=0``; se resuelve en el traductor.
+_FORMA_POR_DISTRI = {1: "Histograma", 2: "Gaussiana", 3: "Binomial", 4: None}
+
+#: Índice del modo en el ``mode_combo`` de la GUI para cada variable.
+_MODO_GUI = {"bhf": 1, "quad": 2, "delta": 3}
+
+#: Etiqueta de la variable tal y como la guarda la sesión (``dist_variable``).
+_ETIQUETA_VARIABLE = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
+
+
 # ── Lectura ──────────────────────────────────────────────────────────────────
 
 def parse_job(text: str) -> dict:
@@ -337,6 +356,270 @@ def job_to_model_state(text: str) -> dict:
         estado["vars"]["center"] = pfp / 2.0 if pfp >= 400.0 else pfp
     return {"model_state": estado, "vmax": abs(vmax) if vmax else None,
             "center": estado["vars"].get("center"), "warnings": avisos}
+
+
+def job_to_distribution_state(text: str) -> dict:
+    """Convierte un ``.JOB`` de NORMOS-**DIST** en un estado de Fitbauer.
+
+    NORMOS-DIST describe la distribución como una MALLA de subespectros: el
+    bloque tiene ``NSB`` puntos que arrancan en ``BHF``/``QUA``/``ISO`` y
+    avanzan con paso ``DTB``/``DTQ``/``DTI`` (``distcalf.for``: ``RH = BHF +
+    PP*DTB`` con ``PP = IP-1``). Aquí eso se traduce a los ``bmin``/``bmax``/
+    ``nbins`` del panel de distribución.
+
+    Los subespectros "cristalinos" (``NXLS``/``NXLL``) son los **componentes
+    nítidos** de Fitbauer y se devuelven como componentes discretos normales.
+
+    Devuelve la misma forma que :func:`job_to_model_state` — ``model_state``
+    lleva además las claves ``dist_*`` y ``mode_combo_idx`` que la carga de
+    sesión ya sabe restaurar — más ``edge_anchor`` y ``n_sharp``.
+    """
+    j = parse_job(text)
+    data, param = j["data"], j["param"]
+    avisos: list[str] = []
+
+    if not es_job_de_dist(param):
+        raise NormosJobError(
+            "no es un trabajo de NORMOS-DIST: no aparece ninguna clave de "
+            "distribución. Impórtalo como NORMOS-SITE.")
+
+    # ── Bloque de distribución ──────────────────────────────────────────────
+    # NBLK = mayor índice con NSB(i) > 0, y NSB(1) cae a NSUB si no se da
+    # (``distinif.for`` líneas 327-329).
+    nsb1 = int(_f(_idx(param, "NSB", 1), 0)) or int(_f(param.get("NSUB"), 0))
+    nblk = max([i for i in range(1, 6)
+                if int(_f(_idx(param, "NSB", i), 0)) > 0] or [1])
+    if nblk > 1:
+        avisos.append(
+            f"el trabajo tiene {nblk} bloques de distribución (NSB(2..)>0); "
+            "Fitbauer solo maneja uno: se importa el bloque 1.")
+    if nsb1 < 2:
+        raise NormosJobError(
+            "la malla de la distribución tiene menos de 2 puntos "
+            f"(NSB=NSUB={nsb1}); revisa el .JOB")
+
+    method = int(_f(_idx(param, "METHOD", 1), 1))
+    distri = int(_f(_idx(param, "DISTRI", 1), 1))
+    variable = _VARIABLE_POR_METHOD.get(method)
+    if variable is None:
+        avisos.append(f"METHOD={method} desconocido; se asume distribución de BHF.")
+        variable = "bhf"
+    if method == 2:
+        avisos.append(
+            "METHOD=2 (asimetría de primer orden a la Brand): Fitbauer modela "
+            "esa asimetría con la correlación δ(H), ya trasladada desde DTI, "
+            "pero no con el desarrollo de Brand completo.")
+    if method == 3:
+        avisos.append(
+            "METHOD=3 (suma sobre vecinos de Billard & Chamberod) no está en "
+            "Fitbauer: se importa como distribución simple con las mismas "
+            "correlaciones δ(H)/ΔEQ(H).")
+    if method in (5, 7):
+        avisos.append(
+            f"METHOD={method} lee la distribución de un fichero externo; en "
+            "Fitbauer eso es la forma «Fija»: carga el fichero a mano.")
+
+    forma = _FORMA_POR_DISTRI.get(distri)
+    if forma is None:
+        avisos.append(
+            "DISTRI=4 (Czjzek si METHOD=6, Le Caer si METHOD=7) no está "
+            "implementado en Fitbauer: se importa como histograma.")
+        forma = "Histograma"
+    conc = _f(param.get("CONC"), 0.0)
+    if distri == 3:
+        forma = "Binomial" if conc > 0.0 else "Fija"
+    if method in (5, 7):
+        forma = "Fija"
+
+    # ── Malla ───────────────────────────────────────────────────────────────
+    # El paso por defecto de DTB es 1.0 (``distinif.for``: IF(DTB.LE.0)DTB=1).
+    base = {"bhf": "BHF", "quad": "QUA", "delta": "ISO"}[variable]
+    paso_clave = {"bhf": "DTB", "quad": "DTQ", "delta": "DTI"}[variable]
+    inicio = _f(_idx(param, base, 1), 0.0)
+    paso = _f(_idx(param, paso_clave, 1), 0.0)
+    if paso <= 0.0:
+        paso = 1.0
+        avisos.append(
+            f"{paso_clave} no positivo: NORMOS usa 1.0 por defecto y aquí "
+            "también, pero comprueba el rango de la malla.")
+    bmin, bmax = inicio, inicio + (nsb1 - 1) * paso
+
+    dti = _f(_idx(param, "DTI", 1), 0.0)
+    dtq = _f(_idx(param, "DTQ", 1), 0.0)
+    # DTI/DTQ son por PASO de malla; delta_slope/quad_slope de Fitbauer son por
+    # unidad de la variable distribuida.
+    delta_slope = dti / paso if variable != "delta" else 0.0
+    # OJO: en las distribuciones de CAMPO (METHOD 1-5) NORMOS solo aplica DTI.
+    # Sus bucles (``distcalf.for``) calculan «RH = BHF+PP*DTB; RI = ISO+PP*DTI»
+    # y NO tocan ΔEQ; DTQ solo entra en METHOD 6/7, donde la malla es de
+    # cuadrupolo. Trasladar DTQ aquí metería una correlación que NORMOS nunca
+    # aplicó — con DTQ=0.03 y 40 puntos, un ΔEQ que se movería > 1 mm/s.
+    quad_slope = 0.0
+    if variable == "bhf" and dtq:
+        avisos.append(
+            f"DTQ={dtq:g} aparece en el .JOB pero NORMOS lo IGNORA en las "
+            "distribuciones de campo (METHOD 1-5): solo DTI modula el "
+            "subespectro. No se traslada.")
+
+    gamma = _f(_idx(param, "WID", 1), 0.25) or 0.25
+    delta = _f(_idx(param, "ISO", 1), 0.0)
+    quad = _f(_idx(param, "QUA", 1), 0.0)
+    campo_fijo = _f(_idx(param, "BHF", 1), 0.0) if variable != "bhf" else 33.0
+
+    if _f(_idx(param, "STI", 1), 0.0) or _f(_idx(param, "STG", 1), 0.0):
+        avisos.append(
+            "STI/STG (anchura gaussiana del desplazamiento isomérico) no se "
+            "traslada; en Fitbauer la vía equivalente es el perfil Voigt.")
+
+    # ── Regularización ──────────────────────────────────────────────────────
+    # SMOOTH (``distauxl.for``) construye λ·D₂ᵀD₂ y SUMA BETA1/BETA2 a las dos
+    # esquinas diagonales: eso es exactamente el edge_anchor de Fitbauer. La λ
+    # de NORMOS es ABSOLUTA y el α de Fitbauer va normalizado por λ_ref, así
+    # que el valor no se traslada — la RAZÓN β/λ sí.
+    lamda = _f(_idx(param, "LAMDA", 1), 0.0)
+    beta1 = _f(_idx(param, "BETA1", 1), 0.0)
+    beta2 = _f(_idx(param, "BETA2", 1), 0.0)
+    edge_anchor = max(beta1, beta2) / lamda if lamda > 0.0 else 0.0
+    if lamda > 0.0:
+        avisos.append(
+            f"LAMDA={lamda:g} no se traslada tal cual: el α de Fitbauer es "
+            "adimensional (normalizado por λ_ref) y el de NORMOS absoluto. "
+            "Usa la L-curve para fijarlo.")
+    if beta1 != beta2 and (beta1 or beta2):
+        avisos.append(
+            f"BETA1={beta1:g} y BETA2={beta2:g} anclan los dos extremos de la "
+            "malla con pesos distintos; Fitbauer usa un solo edge_anchor y se "
+            f"toma el mayor ({edge_anchor:g} relativo a λ).")
+
+    forma_reg = "maxent" if _b(param.get("MAXENT")) else "tikhonov"
+    exacto = _b(_idx(param, "EXACT", 1))
+
+    estado: dict = {
+        "vars": {"baseline": 1.0, "slope": 0.0},
+        "fixed": {},
+        "sextet_enabled": {}, "component_kind": {},
+        "intensity_mode": {}, "quad_treatment": {},
+        "constraints": [], "n_components": 0,
+        "absorber_model": "thin",
+        "drive_form": "triangular" if _b(data.get("TRIANG"), True) else "sine",
+        # Panel de distribución
+        "mode_combo_idx": _MODO_GUI[variable],
+        "dist_variable": _ETIQUETA_VARIABLE[variable],
+        "dist_shape": forma,
+        "dist_reg_mode": forma_reg,
+        "dist_delta": delta,
+        "dist_quad": quad,
+        "dist_fixed_bhf": campo_fijo,
+        "dist_gamma": gamma,
+        "dist_bmin": bmin,
+        "dist_bmax": bmax,
+        "dist_nbins": nsb1,
+        "dist_delta_slope": delta_slope,
+        "dist_quad_slope": quad_slope,
+        "dist_kernel_treatment": "hamiltonian" if exacto else "1st_order",
+        "dist_kernel_eta": _f(param.get("ETA"), 0.0),
+    }
+    if method == 4:
+        estado["dist_source_bhf"] = _f(param.get("BHS"), 33.0)
+        estado["dist_source_theta"] = _f(param.get("THETAS"), 0.0)
+        estado["dist_absorber_theta"] = _f(param.get("BETA"), 0.0)
+
+    # ── Subespectros cristalinos = componentes nítidos ──────────────────────
+    nxls = int(_f(param.get("NXLS"), 0))
+    n_sharp = 0
+    for i in range(1, nxls + 1):
+        nxll = int(_f(_idx(param, "NXLL", i), 6))
+        if nxll < 0:
+            avisos.append(
+                f"sitio cristalino {i}: NXLL={nxll} apunta a un espectro de "
+                "spline en fichero; no se importa.")
+            continue
+        kind = _TIPO_POR_NLINE.get(nxll)
+        if kind is None:
+            avisos.append(f"sitio cristalino {i}: NXLL={nxll} no soportado; se omite.")
+            continue
+        n_sharp += 1
+        idx = n_sharp
+        pref = f"s{idx}_"
+        for nombre, valor in component_defaults(idx).items():
+            estado["vars"][pref + nombre] = valor
+        estado["component_kind"][str(idx)] = kind
+        estado["sextet_enabled"][str(idx)] = True
+        estado["intensity_mode"][str(idx)] = "free"
+        estado["quad_treatment"][str(idx)] = "1st_order"
+
+        wix = _f(_idx(param, "WIX", i), gamma) or gamma
+        # DEX/ARX: área resonante en mm/s (``distinif.for``: «ARX is in mm/s
+        # resonant area»). El binario de 1994 la llama DEX, igual que renombró
+        # ARE→DEP en SITE.
+        area = _f(_idx(param, "DEX", i) or _idx(param, "ARX", i), 0.05)
+        estado["vars"][pref + "delta"] = _f(_idx(param, "ISX", i), 0.0)
+        estado["vars"][pref + "quad"] = _f(_idx(param, "QUX", i), 0.0)
+        estado["vars"][pref + "gamma1"] = wix
+        if kind == "Sextete":
+            d1x = _f(_idx(param, "D1X", i) or _idx(param, "A1X", i), 3.0)
+            d2x = _f(_idx(param, "D2X", i) or _idx(param, "A2X", i), 2.0)
+            estado["vars"][pref + "int1"] = d1x
+            estado["vars"][pref + "int2"] = d2x
+            estado["vars"][pref + "bhf"] = _f(_idx(param, "BHX", i), 33.0)
+            suma = 2.0 * wix * (d1x + d2x + 1.0)
+        elif kind == "Doblete":
+            estado["vars"][pref + "int1"] = 1.0
+            estado["vars"][pref + "int2"] = 1.0
+            suma = 2.0 * wix
+        else:
+            estado["vars"][pref + "int1"] = 1.0
+            suma = wix
+        denom = (np.pi / 2.0) * suma
+        estado["vars"][pref + "depth"] = float(area / denom) if denom > 0 else 0.02
+
+        for norm, mio in (("ISX", "delta"), ("QUX", "quad"), ("BHX", "bhf"),
+                          ("WIX", "gamma1"), ("DEX", "depth"), ("ARX", "depth")):
+            bandera = _idx(param, norm + "FIT", i)
+            if bandera is not None:
+                estado["fixed"][pref + mio] = not _b(bandera)
+
+    estado["n_components"] = max(1, n_sharp)
+    estado["dist_use_sharp"] = n_sharp > 0
+    # Desactivar explícitamente lo que el .JOB no define: si no, los
+    # componentes que el usuario tuviera abiertos seguirían sumando como
+    # nítidos sobre la distribución recién importada.
+    for k in range(n_sharp + 1, 4):
+        estado["sextet_enabled"][str(k)] = False
+
+    if edge_anchor > 0.0:
+        avisos.append(
+            f"BETA1/BETA2 anclan los extremos de la malla (β/λ = "
+            f"{edge_anchor:g}). El panel de la GUI no expone ese control: si "
+            "lo necesitas, pásalo como «edge_anchor» a "
+            "fit_hyperfine_distribution.")
+
+    # Claves que el usuario escribió pero que el namelist de DIST no acepta
+    # (``distname.for``): NORMOS las lee y las tira sin avisar.
+    ignoradas = sorted({re.sub(r"\(.*", "", k) for k in param}
+                       & {"NLINE", "DEP", "DEPFIT", "W13", "W23", "W21",
+                          "AKS", "PHS", "MIX", "IFTRAN", "WDS", "FSO"})
+    if ignoradas:
+        avisos.append(
+            "NORMOS-DIST IGNORA estas claves del .JOB (no están en su "
+            f"namelist &PARAM): {', '.join(ignoradas)}. Si venían de un "
+            "trabajo de SITE, ese subespectro no entró en el ajuste.")
+
+    avisos.append(
+        "BHF viene en la escala de NORMOS (posiciones derivadas de los "
+        "momentos nucleares). Para reproducirla, ajusta con "
+        "core.constants.sextet_pattern(\"normos\").")
+
+    vmax = _f(data.get("VMAX"), 0.0) or None
+    pfp = _f(data.get("PFP"), 0.0) or None
+    if vmax:
+        estado["vars"]["vmax"] = abs(vmax)
+    if pfp:
+        estado["vars"]["center"] = pfp / 2.0 if pfp >= 400.0 else pfp
+    return {"model_state": estado, "vmax": abs(vmax) if vmax else None,
+            "center": estado["vars"].get("center"), "warnings": avisos,
+            "edge_anchor": edge_anchor, "n_sharp": n_sharp,
+            "variable": variable}
 
 
 def _clave_desde_indice(indice: int, tipos: dict[int, str]) -> str | None:
