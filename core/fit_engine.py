@@ -79,6 +79,13 @@ class FitState:
     fit_center: bool = False
     fit_sigma: bool = False
     absorber_model: str = "thin"        # "thin" / "thickness" / "transmission"
+    # σ ABSOLUTA: la incertidumbre por canal es la estadística de conteo, que se
+    # conoce. Con True (defecto) la covarianza NO se reescala por χ²red, igual
+    # que NORMOS (``normospr.for``: ERX = sqrt(BB(i,i)), y la línea que
+    # dividiría por χ² está comentada en el propio fuente). Con False se
+    # reescala (convenio ``absolute_sigma=False`` de scipy), que es lo que hay
+    # que hacer cuando las σ solo son correctas salvo un factor global.
+    absolute_sigma: bool = True
     # Convenio de las razones int1/int2 entre líneas de una componente:
     # "depth" (histórico) o "area" (físico / NORMOS D13-D23). Ver
     # core.physics.INTENSITY_CONVENTION.
@@ -747,7 +754,12 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
             sv = sv[sv > threshold]
             vt = vt[:sv.size]
             cov_all = (vt.T / (sv ** 2)) @ vt
-            cov_all *= 2.0 * result.cost / max(1, n_obs - n_par)
+            # Reescalado por χ²red SOLO si las σ no son absolutas. Con σ de
+            # conteo (el caso normal) reescalar hacia abajo daría barras por
+            # debajo del límite de Poisson, que no tiene sentido físico: no se
+            # puede conocer un parámetro mejor de lo que permiten las cuentas.
+            if not _sigma_es_absoluta(state):
+                cov_all *= 2.0 * result.cost / max(1, n_obs - n_par)
             cov = cov_all[:len(free_keys), :len(free_keys)]
             # Errores también para los globales ajustados (vmax/center/σ), que
             # van al final del vector x: antes se calculaban y se descartaban.
@@ -758,6 +770,7 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
         except Exception:
             cov = None
             errors = {}
+    _propagate_constraint_errors(errors, state.constraints)
 
     # 7. Aplica los valores finales (sin tocar state).
     values_final = dict(state.values)
@@ -797,6 +810,57 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
     return FitResult(values=values_final, errors=errors, free_keys=free_keys,
                      cov=cov, stats=stats, correlations=correlations,
                      n_starts=n_starts, success=result.success)
+
+
+def _sigma_es_absoluta(state: FitState) -> bool:
+    """¿La σ por canal del residual está en unidades físicas absolutas?
+
+    Lo está cuando hay ``sigma_data`` (Poisson normalizada del doblado) o
+    cuando el modo Poisson dispone de ``norm_factor`` para convertir a cuentas.
+    En el modo Poisson SIN ``norm_factor`` el residual usa √m, que es correcto
+    salvo un factor global, así que ahí sí hay que reescalar por χ²red.
+    """
+    if not getattr(state, "absolute_sigma", True):
+        return False
+    if state.likelihood == "poisson":
+        return bool(state.norm_factor)
+    return state.sigma_data is not None
+
+
+def _propagate_constraint_errors(errors: dict[str, float],
+                                 constraints: list[dict] | None) -> None:
+    """Da error a los parámetros LIGADOS: ``σ_target = |factor|·σ_source``.
+
+    Para ``target = factor·source + offset`` la propagación exacta es esa: el
+    desplazamiento constante no aporta incertidumbre. Sin esto, un parámetro
+    ligado se reportaba sin error (``None``) aunque su valor esté perfectamente
+    determinado por el de la fuente.
+
+    NORMOS sí lo reporta, pero MAL: ``siteauxl.for`` hace
+    ``PE(K)=ABS(CONST(K))*PE(L)``, o sea usa el OFFSET donde toca el FACTOR. En
+    una ligadura multiplicativa pura (``CONST=0``, el caso más común: "el área
+    de este sitio es el doble que la del otro") eso da error CERO.
+
+    Se itera para admitir cadenas cortas de dependencias, igual que
+    :func:`resolve_values`.
+    """
+    cons = [c for c in (constraints or []) if "target" in c and "source" in c]
+    if not cons:
+        return
+    for _ in range(6):
+        changed = False
+        for c in cons:
+            target, source = str(c["target"]), str(c["source"])
+            if source not in errors or target in errors:
+                continue
+            try:
+                factor = float(c.get("factor", 1.0))
+            except (TypeError, ValueError):
+                continue
+            errors[target] = abs(factor) * float(errors[source])
+            changed = True
+        if not changed:
+            break
 
 
 def _correlation_summary(cov: np.ndarray, free_keys: list[str]) -> dict[str, object]:

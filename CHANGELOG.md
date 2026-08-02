@@ -1,5 +1,84 @@
 # Changelog
 
+## Sin publicar — Hamiltoniano y relajación verificados
+
+Niveles 8 y 9 de la revisión del código fuente de NORMOS. **Ninguno de los dos
+requiere corregir nada en Fitbauer**; lo que aportan es verificación y el
+inventario de lo que sigue faltando.
+
+### Hamiltoniano completo (`sitegmfp.for`, GMFP de Ruebenbauer–Birchall)
+
+- Las 8 energías de transición de Fitbauer coinciden con una diagonalización
+  **independiente** —escrita desde cero en el test, con el excitado I=3/2
+  (cuadrupolo y η) y el fundamental I=1/2 diagonalizados por separado y el
+  campo en dirección arbitraria— a **1.8·10⁻¹⁵**, precisión de máquina.
+- Confirmado que el modelo es el mismo que `HMLTN`: EFG en z y campo rotado,
+  cuadrupolo solo si S>1/2, suma **incoherente** entre canales q en polvo y
+  **coherente** en cristal único (que es la diferencia entre
+  `full_hamiltonian_lines` y `full_hamiltonian_lines_sc`).
+- El **Goldanskii–Karyagin** de NORMOS resulta ser un peso por canal q, con
+  `B=sqrt(|G|)` aplicado a la AMPLITUD (`sitecalf.for:874`); equivale
+  exactamente a los pesos `int1`/`int2` que aquí multiplican la INTENSIDAD, así
+  que la capacidad ya estaba, solo con otro nombre.
+- Ampliada la atribución de la desviación de SITE (además del diagonalizador
+  EISPACK general en precisión simple): `IERR` nunca se comprueba tras la
+  llamada, y `MACHEP = 2⁻⁴⁷` es la épsilon de DOBLE precisión en código
+  `REAL*4`, seis órdenes por debajo de lo alcanzable, así que su iteración QR
+  no puede converger a su propio criterio.
+- Capacidad que sigue faltando: **mezcla multipolar M1+E2** (`AMIX`/`PHASE`).
+  Irrelevante para ⁵⁷Fe, cuyo `MIX=0` está cableado en el propio SITE.
+
+### Relajación (`siterelx.for`)
+
+- **Primera validación de la relajación de Fitbauer.** Con el binario del demo
+  no era comprobable (§19: `BSAT` no está en su namelist y sus espectros
+  `IRELAX` salen colapsados incluso con `OME=0`); con el fuente sí se puede
+  contrastar la fórmula. `ISIRLX` es la forma cerrada de Blume para dos estados
+  ±B_hf, y `two_state_exchange_profile` reproduce su forma con un residuo
+  **≤2 % del pico** en todo el rango de tasas, y del 0.1 % en relajación
+  rápida: es el mismo modelo con otra parametrización.
+- El mapeo `k ↔ OME` **no es una constante**: tiende a `k = OME/2` en el límite
+  rápido, pero en el lento la forma apenas depende de la tasa y el cociente se
+  dispara. Por eso no se publica un factor de conversión único.
+- Capacidad que sigue faltando: **poblaciones desiguales** (`SPN = BHF/BSAT`),
+  o sea relajación con un campo externo que polariza los dos estados. Se
+  comprueba que no es un caso degenerado: con SPN=0.6 el espectro deja de ser
+  simétrico, así que la asimetría no la absorbe la tasa.
+- Tests: `tests/test_hamiltoniano_normos.py` (9) y
+  `tests/test_relajacion_normos.py` (10), con un port literal de `ISIRLX` como
+  referencia.
+
+## Sin publicar — estadística del ajuste: barras de error
+
+Nivel 7 de la revisión del código fuente de NORMOS.
+
+- **Las σ dejan de reescalarse por χ²red** (`absolute_sigma=True`, nuevo campo
+  de `FitState`). La incertidumbre por canal es la estadística de conteo, que
+  se conoce, así que la barra debe salir solo de ella — es lo que hace NORMOS
+  (`normospr.for`: `ERX = SQRT(BB(i,i))`, con la línea que dividiría por χ²
+  comentada en el propio fuente). Reescalar hacia abajo cuando χ²red < 1 daba
+  barras por debajo del límite de Poisson, que no tiene sentido físico.
+  Se sigue reescalando cuando las σ NO son absolutas (sin `sigma_data`, o modo
+  Poisson sin `norm_factor`, donde el residual usa √m).
+  - Contrastado con un ajuste real de SITE (K4 del banco): los errores pasan de
+    coincidir al 1.4–6.2 % a coincidir al **0–4 %**, con `s1_delta` exacto.
+- **Error de los parámetros LIGADOS**, que no se reportaba: se propaga
+  `σ_target = |factor|·σ_source` (el offset no aporta incertidumbre), con
+  soporte de cadenas. NORMOS sí lo da pero **mal**: `siteauxl.for:539` hace
+  `PE(K)=ABS(CONST(K))*PE(L)`, usando el OFFSET donde toca el FACTOR, así que
+  una ligadura multiplicativa pura (`CONST=0`, el caso más común) sale con
+  error CERO.
+- Validación Monte Carlo de las barras (150 réplicas con ruido Poisson y
+  modelo exacto): χ²red = 1.0008 y las σ reproducen la dispersión real dentro
+  de la precisión del test (±6 %). Se descartó que la redetección del punto de
+  doblado contribuyera: fijándolo, los ratios no se mueven.
+- Verificado equivalente: los pesos (`RRTY = 1/√Y` sobre las cuentas dobladas)
+  y la forma de las ligaduras (`FACTOR·fuente + CONST`).
+- Corrección de una nota anterior: el χ² del `.RES` divide por los **datos**,
+  no por el modelo, con DF = NP−1−NVAR (comprobado: 1.0282 frente al 1.028
+  que imprime SITE). Fitbauer usa DF = NP−NVAR, un 0.4 % de diferencia.
+- Tests: `tests/test_estadistica_normos.py` (13 nuevos).
+
 ## Sin publicar — integral de transmisión: FSO y kernel de la fuente
 
 Nivel 6 de la revisión del código fuente de NORMOS (rama `IFTRAN`).
