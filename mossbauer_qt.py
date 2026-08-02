@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT))
 
 from mossbauer_i18n import tr  # noqa: E402
 from core.constants import APP_NAME, APP_VERSION  # noqa: E402
+from core.folding import EDGE_TRIM_DEFAULT as _EDGE_TRIM_DEFAULT  # noqa: E402
 from core.data_io import load_credentials, save_credentials  # noqa: E402,F401
 from mossbauer_updater import (  # noqa: E402,F401 - compatibilidad pública
     ReleaseInfo,
@@ -89,7 +90,8 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
         self._help_dialog: QtWidgets.QDialog | None = None
         self.dist_use_sharp = False
         self.phase_predict_enabled = False  # sugeridor de fases: desactivado por defecto
-        self._edge_trim = 1
+        # Recorte MÍNIMO; el real lo decide core.folding (adaptativo).
+        self._edge_trim = _EDGE_TRIM_DEFAULT
         self._load_settings()
         self._load_fit_history()
         self._build_ui()

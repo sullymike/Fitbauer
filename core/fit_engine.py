@@ -24,6 +24,8 @@ from scipy.optimize import least_squares, differential_evolution
 from core.physics import (
     LINE_PROFILE_KIND as _DEFAULT_PROFILE,  # noqa: F401 (sólo doc)
     component_absorption,
+    intensity_convention,
+    line_asymmetry,
     sextet_absorption,
     total_model,
 )
@@ -77,6 +79,10 @@ class FitState:
     fit_center: bool = False
     fit_sigma: bool = False
     absorber_model: str = "thin"        # "thin" / "thickness" / "transmission"
+    # Convenio de las razones int1/int2 entre líneas de una componente:
+    # "depth" (histórico) o "area" (físico / NORMOS D13-D23). Ver
+    # core.physics.INTENSITY_CONVENTION.
+    intensity_convention: str = "depth"
     drive_form: str = "triangular"      # "triangular" / "sine" (eje v = vmax·sin)
     multistart_n: int = 8               # nº de réplicas perturbadas (+1 base)
     channel_sub: int = 1                # integración del modelo sobre el canal (1 = centro)
@@ -306,6 +312,7 @@ def model_from_values(
     curv4 = float(vals.get("curv4", 0.0) or 0.0)
     sat_scale: float | None = None
     transmission_src: float | None = None
+    transmission_frac = 1.0
     if absorber_model == "thickness":
         s = vals.get("sat_scale")
         if s is not None:
@@ -317,23 +324,29 @@ def model_from_values(
                 pass
     elif absorber_model == "transmission":
         transmission_src = max(0.0, float(vals.get("src_fwhm", 0.0) or 0.0))
+        transmission_frac = float(vals.get("src_frac", 1.0) or 1.0)
 
-    n_sub = max(1, int(channel_sub))
-    if n_sub == 1:
-        return total_model(velocity, baseline, slope, comps,
-                           sat_scale=sat_scale, curv=curv,
-                           transmission_src=transmission_src,
-                           curv3=curv3, curv4=curv4)
-    vel = np.asarray(velocity, dtype=float)
-    dv = float(np.median(np.diff(vel))) if vel.size > 1 else 0.0
-    x, w = np.polynomial.legendre.leggauss(n_sub)
-    acc = np.zeros_like(vel)
-    for xk, wk in zip(x, w):
-        acc = acc + 0.5 * wk * total_model(
-            vel + 0.5 * dv * float(xk), baseline, slope, comps,
-            sat_scale=sat_scale, curv=curv, transmission_src=transmission_src,
-            curv3=curv3, curv4=curv4)
-    return acc
+    # La asimetría de línea (AKS de NORMOS) es un parámetro GLOBAL del modelo
+    # que vive en una variable de módulo de core.physics: se fija aquí y se
+    # restaura al salir para no contaminar otras rutas de evaluación.
+    with line_asymmetry(float(vals.get("line_asym", 0.0) or 0.0)):
+        n_sub = max(1, int(channel_sub))
+        if n_sub == 1:
+            return total_model(velocity, baseline, slope, comps,
+                               sat_scale=sat_scale, curv=curv,
+                               transmission_src=transmission_src,
+                               curv3=curv3, curv4=curv4,
+                               transmission_frac=transmission_frac)
+        vel = np.asarray(velocity, dtype=float)
+        dv = float(np.median(np.diff(vel))) if vel.size > 1 else 0.0
+        x, w = np.polynomial.legendre.leggauss(n_sub)
+        acc = np.zeros_like(vel)
+        for xk, wk in zip(x, w):
+            acc = acc + 0.5 * wk * total_model(
+                vel + 0.5 * dv * float(xk), baseline, slope, comps,
+                sat_scale=sat_scale, curv=curv, transmission_src=transmission_src,
+                curv3=curv3, curv4=curv4, transmission_frac=transmission_frac)
+        return acc
 
 
 # ── Construcción del residual ─────────────────────────────────────────────
@@ -483,7 +496,10 @@ def fit_discrete(state: FitState, progress_cb: Callable[[object], None] | None =
     from core import physics as _phys
     prev_profile = (_phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA)
     try:
-        return _fit_discrete_impl(state, progress_cb)
+        # El convenio de razones de intensidad ("depth"/"area") es del modelo,
+        # no del optimizador: se fija para todo el ajuste y se restaura.
+        with intensity_convention(state.intensity_convention):
+            return _fit_discrete_impl(state, progress_cb)
     finally:
         _phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA = prev_profile
 
@@ -519,8 +535,10 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
     # src_fwhm (anchura de la fuente) solo participa en modo transmisión; en
     # otros modos se excluye aunque esté libre para no dejar un parámetro
     # muerto en el ajuste.
-    if state.absorber_model != "transmission" and "src_fwhm" in free_keys:
-        free_keys.remove("src_fwhm")
+    if state.absorber_model != "transmission":
+        for _k in ("src_fwhm", "src_frac"):
+            if _k in free_keys:
+                free_keys.remove(_k)
 
     # 2. x0 / bounds.
     x0 = [state.values[k] for k in free_keys]

@@ -218,8 +218,13 @@ right_chan = center + distance
 folded[j]  = 0.5 · ( C(left_chan) + C(right_chan) )
 ```
 
-where `C(channel)` is the 1-based **sub-channel linear interpolation**
-(`interp_channel_1based`):
+where `C(channel)` is the 1-based **sub-channel CUBIC interpolation**
+(`FOLD_INTERP_ORDER_DEFAULT = 3`): an interpolating B-spline inside the channel range and
+**linear extrapolation** outside it (an extrapolated spline oscillates, and the edges hold
+nothing but baseline).
+
+With `order = 1` the historical linear interpolation is recovered
+(`interp_channel_1based`, kept as public API):
 
 ```
 # channels 1..N, values counts[0..N-1]
@@ -233,8 +238,22 @@ otherwise:
 ```
 
 > **Key to reproducing Normos**: folding does NOT stop at integer channel pairs. For
-> fractional centres it uses linear interpolation, and at the edges it **extrapolates**
-> linearly instead of dropping a channel. That way it always yields `N/2` points.
+> fractional centres it interpolates, and at the edges it **extrapolates** linearly
+> instead of dropping a channel. That way it always yields `N/2` points.
+
+> **Why cubic and not linear.** Linear interpolation is a low-pass filter: averaging
+> neighbouring channels broadens the lines. On a synthetic sextet with Γ = 0.28 mm/s and
+> 512 channels, the fitted Γ comes out up to **9.5 % high** when the fractional part of the
+> paired channel is 0.5 (the worst case); cubic cuts that bias to 2.8 %. The error scales
+> as `f·(1−f)`, so for a **half-integer** centre — the usual case, and the one throughout
+> the validation bank — `f = 0` and both interpolations are identical. NORMOS avoids the
+> problem another way: it truncates the folding point to an integer and sums pairs of
+> integer channels, never interpolating, at the cost of misaligning the pair by up to half
+> a channel, which broadens just as much as linear interpolation.
+>
+> The spline is **global**, so it is built excluding the `edge_trim` channels at each end
+> when searching for the folding point: a dead channel 1 (common in real ADT files)
+> propagated inwards and shifted the detected centre by 0.056 channels.
 
 ### 7.4 Folding-point search (`find_best_integer_or_half_center`)
 
@@ -299,10 +318,11 @@ counts = [100, 90, 70, 95, 98, 60, 88, 105]
 folded = [ 96.5, 65.0, 89.0, 102.5 ]
 ```
 
-**Folding at fractional centre `center = 4.30`** (shows the sub-channel interpolation):
+**Folding at fractional centre `center = 4.30`** (shows the cubic sub-channel
+interpolation; with `order=1` it would give `[93.7, 70.8, 87.2, 101.8]`):
 
 ```
-folded = [ 93.7, 70.8, 87.2, 101.8 ]
+folded = [ 95.734105, 67.493474, 87.304, 105.452211 ]
 ```
 
 **`fold_and_normalize(counts, center=4.5, edge_trim=1)`** (on this small array of 4
@@ -414,8 +434,8 @@ Only replicate these if the web is going to offer those modes.
 7. [ ] **Folding** (§7) — only if comparing over data:
    - [ ] **1-based** channels; possibly fractional symmetry centre (§7.2).
    - [ ] Normos folding-point conversion (≈ twice the internal centre) (§7.2).
-   - [ ] Folding `0.5·(C(center−(j+0.5)) + C(center+(j+0.5)))` with sub-channel linear
-         interpolation and edge extrapolation (§7.3).
+   - [ ] Folding `0.5·(C(center−(j+0.5)) + C(center+(j+0.5)))` with **cubic**
+         sub-channel interpolation and linear edge extrapolation (§7.3).
    - [ ] Edge trimming `edge_trim=1` (§7.5).
    - [ ] Normalization by the **90th percentile** and `σ = sqrt(max(folded/2,1))/norm`
          (§7.5).

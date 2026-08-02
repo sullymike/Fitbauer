@@ -39,6 +39,11 @@ def _rel_weights_gammas(
     """Pesos y anchuras por línea de la convención relativa del GUI.
 
     int2_rel=1 -> I2=(2/3)·I1; int3_rel=1 -> I3=(1/3)·I1 (patrón 3:2:1).
+
+    Respeta el convenio global ``core.physics.INTENSITY_CONVENTION``: con
+    ``"area"`` las razones son de ÁREA (lo que significan D13/D23 en NORMOS y
+    lo que son físicamente las probabilidades de transición), con ``"depth"``
+    de profundidad. Solo se separan si las anchuras relativas no son 1.
     """
     i1 = float(int1)
     i2 = i1 * (2.0 / 3.0) * float(int2_rel)
@@ -46,6 +51,8 @@ def _rel_weights_gammas(
     weights = np.array([i1, i2, i3, i3, i2, i1], dtype=float)
     gammas = float(gamma) * np.array(
         [1.0, gamma2_rel, gamma3_rel, gamma3_rel, gamma2_rel, 1.0], dtype=float)
+    if core_physics.INTENSITY_CONVENTION == "area":
+        weights = core_physics._area_to_depth_weights(weights, gammas)
     return weights, gammas
 
 
@@ -316,8 +323,8 @@ def polarized_sextet_absorption(
     unitaria (pesos suman 12, como el sexteto 3:2:1).
     """
     v = np.asarray(v, dtype=float)
-    from core.constants import LINE_POS_33T
-    al = LINE_POS_33T / 33.0
+    from core.constants import active_sextet_pattern, BHF_DEFAULT_T
+    al = active_sextet_pattern() / BHF_DEFAULT_T
     inten = polarized_pair_intensities(source_theta, absorber_theta)
     out = np.zeros_like(v)
     for i in range(6):

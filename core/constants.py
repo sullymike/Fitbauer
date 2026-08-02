@@ -5,6 +5,7 @@ capa headless (core.session) y las utilidades. No importa ninguna GUI.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
 
 import numpy as np
@@ -45,12 +46,113 @@ G_EXCITED = -0.1549 / 1.5        # mu/I, estado excitado I=3/2
 _BASE_POSITIONS = np.array([-10.657, -6.167, -1.677, 1.677, 6.167, 10.657]) * 0.5
 
 
+def _normos_site_positions() -> np.ndarray:
+    """Patrón de NORMOS-SITE a 33 T, derivado de los momentos nucleares.
+
+    Reproduce literalmente el cálculo de ``INIFUN`` (``sitecalf.for``, líneas
+    361-382) con las constantes que el propio SITE lleva cableadas para el
+    ⁵⁷Fe. Se usan sus valores tal cual —no los CODATA modernos— porque el
+    objetivo es coincidir con SITE, no ser más exacto que él:
+
+        BF  = RMUN·CLIGHT/EGAMMA        (mm/s por magnetón nuclear y Tesla)
+        g₁₂ = GFACT,  g₃₂ = g₁₂·GFR·SEX/SG
+        AL  = (±g₃₂ ∓ g₁₂)·BF, (±g₃₂/3 ∓ g₁₂)·BF
+
+    Verificado contra el binario demo 27.01.1994 ajustando un sexteto
+    sintético del banco de validación: coincide a 6·10⁻⁶ mm/s.
+    """
+    clight = 2.99792458e11   # mm/s          (PARAMETER CLIGHT de sitecalf.for)
+    rmun = 3.152452e-11      # keV/T         (PARAMETER RMUN)
+    egamma = 14.4            # keV           (rama INDEX(ISTYPE,'FE'))
+    gfact = 0.090604         # g del fundamental
+    gfr = -0.5714            # razón de momentos dipolares μ_e/μ_g
+    sex, sg = 1.5, 0.5       # espines excitado y fundamental
+    bf = rmun * clight / egamma
+    g12 = gfact
+    g32 = g12 * gfr * sex / sg
+    al = np.array([
+        (g32 - g12), (g32 / 3.0 - g12), (-g32 / 3.0 - g12),
+        (g32 / 3.0 + g12), (-g32 / 3.0 + g12), (-g32 + g12),
+    ]) * bf
+    return al * BHF_DEFAULT_T
+
+
+#: Patrones de posiciones del sexteto a 33 T (mm/s), líneas 1..6 ordenadas por
+#: velocidad creciente.
+#:
+#: * ``"alpha_fe"`` — patrón PUBLICADO de α-Fe. Es el de Fitbauer y define la
+#:   calibración: un espectro de α-Fe ajusta a BHF = 33.0 T.
+#: * ``"normos"``  — el que NORMOS-SITE deriva de los momentos nucleares.
+#:
+#: Los dos no difieren en una simple escala: la razón g₃₂/g₁₂ de SITE (−1.7142)
+#: no es la que implica el patrón de α-Fe (−1.71723), así que las líneas 3 y 4
+#: quedan un 0.30 % fuera mientras las 1 y 6 quedan un 0.045 % dentro. Tras el
+#: mejor factor de escala queda un residuo IRREDUCIBLE de ±2.8·10⁻³ mm/s a
+#: 33 T en las líneas internas: es antisimétrico, así que ni δ ni ΔE_Q lo
+#: absorben. Por eso el "factor k" único que se venía usando para comparar con
+#: NORMOS depende de las anchuras relativas de las líneas (0.99957…0.99984).
+SEXTET_PATTERNS: dict[str, np.ndarray] = {
+    "alpha_fe": _BASE_POSITIONS,
+    "normos": _normos_site_positions(),
+}
+
+#: Convenio activo. NO se cambia por defecto: derivar las posiciones de los
+#: momentos nucleares sesga el BHF ~0.1 T (CHANGELOG v4.0.2/v4.0.3).
+_ACTIVE_SEXTET_PATTERN = "alpha_fe"
+
+
+def active_sextet_pattern() -> np.ndarray:
+    """Patrón de posiciones a 33 T del convenio activo (mm/s, 6 líneas)."""
+    return SEXTET_PATTERNS[_ACTIVE_SEXTET_PATTERN]
+
+
+def active_sextet_pattern_name() -> str:
+    return _ACTIVE_SEXTET_PATTERN
+
+
+def set_sextet_pattern(name: str) -> str:
+    """Fija el convenio de posiciones y devuelve el anterior.
+
+    Cambia la física de TODO el núcleo a la vez (sexteto discreto, kernel de
+    distribución, Hamiltoniano completo, Blume-Tjon), porque todos derivan de
+    esta única fuente. Para un cambio acotado usa :func:`sextet_pattern`.
+    """
+    global _ACTIVE_SEXTET_PATTERN
+    key = str(name)
+    if key not in SEXTET_PATTERNS:
+        raise ValueError(
+            f"patrón de sexteto desconocido: {name!r} "
+            f"(opciones: {sorted(SEXTET_PATTERNS)})"
+        )
+    previous, _ACTIVE_SEXTET_PATTERN = _ACTIVE_SEXTET_PATTERN, key
+    return previous
+
+
+@contextmanager
+def sextet_pattern(name: str):
+    """Fija el convenio de posiciones durante un bloque y lo restaura al salir.
+
+    Mismo gestor que ``core.physics.line_profile`` para el perfil de línea:
+    evita que un cálculo puntual (comparar con NORMOS, generar un banco) deje
+    el convenio contaminado para el resto de la sesión.
+    """
+    previous = set_sextet_pattern(name)
+    try:
+        yield
+    finally:
+        set_sextet_pattern(previous)
+
+
 def fe57_sextet_positions(bhf_t: float = BHF_DEFAULT_T) -> np.ndarray:
-    # Escalan linealmente con el campo respecto al patrón de α-Fe a 33.0 T.
-    return _BASE_POSITIONS * (bhf_t / BHF_DEFAULT_T)
+    # Escalan linealmente con el campo respecto al patrón activo a 33.0 T.
+    return active_sextet_pattern() * (bhf_t / BHF_DEFAULT_T)
 
 
-LINE_POS_33T = fe57_sextet_positions(BHF_DEFAULT_T)
+#: Patrón por DEFECTO (α-Fe) como constante. Lo usan los consumidores que no
+#: son física —rótulos de la GUI, heurísticas de detección de mínimos, figuras
+#: de los manuales—, que no deben seguir al convenio activo. Todo lo que sea
+#: cálculo llama a :func:`active_sextet_pattern`.
+LINE_POS_33T = _BASE_POSITIONS.copy()
 LINE_QUAD_PATTERN = np.array([0.5, -0.5, -0.5, -0.5, -0.5, 0.5], dtype=float)
 
 # ── Nombres y etiquetas de parámetros ─────────────────────────────────────────

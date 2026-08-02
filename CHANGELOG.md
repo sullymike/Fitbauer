@@ -1,5 +1,185 @@
 # Changelog
 
+## Sin publicar — integral de transmisión: FSO y kernel de la fuente
+
+Nivel 6 de la revisión del código fuente de NORMOS (rama `IFTRAN`).
+
+- **Fracción resonante de la fuente (FSO), capacidad que faltaba**: nuevo
+  parámetro global ajustable `src_frac`, activo solo con
+  `absorber_model="transmission"`. La transmisión pasa a
+  `T = baseline − f_s · L_src ⊗ [1 − exp(−τ)]`: solo una fracción de los
+  fotones que llegan pertenece a la línea Mössbauer, así que la absorción
+  satura en `1 − f_s` y no en 0. Con 1 (el defecto) no hay cambio. **No es
+  degenerado con la profundidad** salvo en el límite fino: `depth` escala τ
+  dentro de la exponencial y `f_s` escala el resultado ya saturado.
+  - Sonda sobre el binario demo: FSO está **operativo** y la fórmula del
+    fuente lo describe exactamente — con FSO=0.7 la base medida es
+    1−0.7+0.7·0.996811 = 0.997768 y el mínimo 1−0.7+0.7·0.239481 = 0.467637.
+  - Reproduciendo el algoritmo completo del fuente (malla VTRA, regla del
+    rectángulo y corrección WING) con NTRA=600 se recupera el `.PLT` del
+    binario con rms **2.7·10⁻⁷**: el fuente de 1990 y el binario de 1994 son
+    el mismo código en esta rama.
+- **Kernel de la fuente 19× más exacto**: se truncaba a ±20 FWHM y se
+  **renormalizaba**. La Lorentziana tiene colas ~1/v², así que a ±20 FWHM
+  falta un 1.6 % del peso y renormalizar lo redistribuye al centro, falseando
+  la absorción. Ahora la ventana es ±200 FWHM (acotada a 4× la malla) y **no
+  se renormaliza**: el déficit se deja fuera, que es justo lo que hace el
+  `WING` de NORMOS (allí no hay absorción). El rms del modelo frente al
+  binario baja de 2.8·10⁻³ a 1.5·10⁻⁴, y con ello el sesgo al recuperar FSO
+  de −2.5 % a −0.0…+0.4 % y el de Γ de −2.1 % a ±0.4 %.
+- **CLI**: `--src-frac` en `mossbauer_fit_cli.py`.
+- **Serie N del banco** (`validacion/generador/series_N.py`): round-trip con
+  FSO ∈ {0.40, 0.55, 0.70, 0.85, 1.00} sobre absorbente grueso (N1), FSO fijo
+  con TAB ∈ {2, 5, 10, 30} (N2) y un control de degeneración (N3).
+  FSO se recupera a **+0.6 %** en N1 con δ exacto y Γ a +0.3 %. N2 muestra que
+  el parámetro **solo es medible si el absorbente satura**: con TAB=2 queda
+  indeterminado (σ=0.27), con TAB=30 sale a +0.4 %. N3 confirma que en el
+  límite fino el ajuste no lo inventa — devuelve 1.0 con σ=19, es decir
+  declara la degeneración, y δ/Γ salen exactos igualmente.
+- Diferencia residual documentada: el sesgo que queda (+0.6 % en FSO, +1.4 %
+  en Γ a vmax=10 y +0.4 % a vmax=4) es la **discretización de la convolución
+  de SITE**, que evalúa todo en su malla `VTRA` de paso `DELV`. Se comprobó
+  imitando su kernel muestreado puntualmente: ajusta PEOR (rms 8.1·10⁻⁶ frente
+  a 3.7·10⁻⁶), así que el kernel integrado por canal de Fitbauer es el más
+  exacto de los dos y el residuo es suyo, no nuestro.
+- Tests: `tests/test_transmision_normos.py` (14 nuevos).
+
+## Sin publicar — doblado con interpolación cúbica
+
+Nivel 5 de la revisión del código fuente de NORMOS (folding).
+
+- **La interpolación lineal subcanal del doblado ensanchaba las líneas.** Es un
+  filtro paso bajo: al promediar canales vecinos infla Γ. Medido sobre un
+  sexteto sintético (Γ = 0.28 mm/s, 512 canales), el Γ ajustado salía hasta un
+  **9.5 % alto**. El error escala como `f·(1−f)` con `f` la parte fraccionaria
+  del canal emparejado, así que con centro **semientero** —el caso habitual, y
+  el de todo el banco de validación— no hay interpolación y no había sesgo.
+- **`FOLD_INTERP_ORDER_DEFAULT = 3`**: el doblado pasa a interpolación cúbica
+  (B-spline interpolante + extrapolación lineal en bordes). Reduce el sesgo de
+  Γ a un 2.8 % (factor 2–4) y, de paso, el doblado es **6.7× más rápido**
+  (61.8 µs frente a 412 µs) al vectorizarse y cachear la spline. El orden se
+  resuelve en tiempo de ejecución y se puede fijar por llamada (`order=1`
+  reproduce el resultado histórico exacto).
+- La spline es **global**, así que se construye excluyendo los `edge_trim`
+  canales de cada extremo al buscar el folding point: sin eso, un canal 1
+  muerto (habitual en ADT reales) se propagaba hacia el interior con peso
+  ~0.27 por canal y desplazaba el centro detectado 0.056 canales.
+- **Golden recalibrado**: Γ baja en los cuatro espectros de referencia
+  (−6·10⁻⁵ siderita, −4·10⁻⁴ jarosita, −9·10⁻⁴ αFe, −2·10⁻³ hematita) y
+  `depth` sube compensando (el área se conserva); δ/BHF/ΔEQ no se mueven. El
+  χ²red sube un 2–4 % porque la interpolación lineal suavizaba también el
+  RUIDO y deprimía el χ² artificialmente. El banco NORMOS no cambia
+  (2·10⁻¹⁰ sobre 10⁶ cuentas: sus espectros tienen PFP = 256.5).
+- Documentación matemática ES/EN actualizada (§7.3, §7.7) con el contrato
+  numérico nuevo.
+- Descartado tras medirlo: la **parábola de 9 puntos** de NORMOS para refinar
+  el mínimo de χ² es PEOR que la de 3 (sesgo +0.049 vs +0.015 canales — la
+  χ²(c) no es parabólica en esa ventana), el refinamiento por Brent no cambia
+  nada (el mínimo real ya está ahí), y la corrección del **efecto geométrico**
+  que NORMOS resta antes de buscar el centro no lo mueve
+  (+0.0006 canales con una amplitud del 2 % de la base), porque el término es
+  antisimétrico y contribuye a la χ² de simetría casi igual para todo centro.
+- **Efecto geométrico** (`geometry_effect_amplitude` / `remove_geometry_effect`),
+  portado de `normospr.for`: modulación de la tasa de cuentas con la POSICIÓN
+  del transductor, modelada como `A·sin(π(i−c)/PHALF)` y ajustada por mínimos
+  cuadrados sobre las diferencias espejo. Es un **diagnóstico**, no una
+  corrección: al doblar se cancela exactamente, así que no toca el ajuste. Se
+  expone en `HeadlessSession.geometry_effect`, en el payload de sesión y en el
+  resumen del CLI, con aviso si supera el 1 % de la base. En los espectros de
+  referencia sale a 3–6·10⁻⁵ (espectrómetro sano).
+- **Dos ciclos de búsqueda del folding point** (`CENTER_SEARCH_CYCLES = 2`),
+  como NORMOS: el primero localiza en la ventana ancha, se resta el efecto
+  geométrico estimado con ese centro y el segundo refina en ±6 canales (el
+  `MS=25` de NORMOS). Sobre un sexteto sintético con centro 255.77 el error
+  pasa de +0.0036 a −0.0006 canales.
+- **Se dejan de perder los canales de borde**: `EDGE_TRIM_DEFAULT` pasa de 1 a
+  **0** y el recorte lo decide `edge_outlier_trim` mirando los datos — solo se
+  van los extremos que sean canales muertos de verdad (caída >20 % respecto a
+  sus vecinos; un canal a cero deja el punto doblado al 50 %). El espectro
+  doblado pasa de N/2−2 a **N/2 puntos**. El recorte fijo tiraba dos puntos
+  buenos: el primero del array doblado promedia los canales adyacentes al
+  vértice, los más fiables, y solo el último toca los extremos. `velocity_axis`
+  deduce ahora el recorte del número de puntos, así que la escala no se estira
+  con el recorte adaptativo. Unificado con la GUI Qt (`_edge_trim`) y con
+  `core.session`, que forzaba su propio 1 y anulaba la mejora en el CLI.
+  El guardia de la BÚSQUEDA del centro se mantiene aparte
+  (`CENTER_SEARCH_EDGE_GUARD = 1`): ahí sí hace falta.
+- Golden recalibrado por tercera vez al conservar los 2 canales; todos los
+  parámetros se mueven ≤2·10⁻⁴.
+- Tests: `tests/test_folding_interp.py` (22 nuevos).
+
+## Sin publicar — asimetría de línea (AKS) y convenio de intensidades
+
+Nivel 1 de la revisión del código fuente de NORMOS (forma de línea).
+
+- **Asimetría de línea por interferencia (AKS de NORMOS-SITE)**, capacidad que
+  faltaba: nuevo parámetro global ajustable `line_asym`, que multiplica cada
+  perfil por `1 − A·(v−v₀)/Γ` (`LORLIN`, `siteauxl.for:638`). Con 0 (el
+  defecto) el modelo es idéntico al histórico. Vive en
+  `core.physics.lorentzian`, así que lo heredan el sexteto discreto, el
+  Hamiltoniano completo y el kernel de distribución.
+  - Sonda sobre el binario demo 27.01.1994: AKS está **operativo** (no es de
+    los interruptores inertes del demo) y la fórmula del fuente de 1990
+    describe al ejecutable — rms 1.2·10⁻⁴, el suelo de precisión de su
+    `.PLT`, frente a 5.9·10⁻³ con el signo invertido.
+  - Divergencia deliberada: SITE aplica AKS solo a la mitad lorentziana de su
+    pseudo-Voigt (su `GAULIN` lo ignora); aquí se aplica al perfil completo.
+- **Convenio de razones de intensidad** `core.physics.intensity_convention`:
+  `"depth"` (histórico, razones de profundidad) o `"area"` (razones de ÁREA).
+  El patrón 3:2:1 son probabilidades de transición, o sea **áreas**, y es lo
+  que significan D13/D23 en NORMOS; con `gamma2`/`gamma3` libres los dos
+  convenios se separan hasta un 100 % en A13. Opt-in: el defecto no cambia
+  porque cambiaría el significado de los parámetros de sesiones guardadas.
+- **CLIs**: `--line-asym` y `--intensity-convention` en `mossbauer_fit_cli.py`
+  y en `fit_bhf_distribution_cli.py`.
+- **Serie M del banco de validación** (`validacion/generador/series_M.py`):
+  round-trip SITE→Fitbauer con AKS ∈ {−0.40, −0.15, +0.10, +0.30, +0.60}
+  sobre singlete (M1), doblete (M2) y sexteto con intensidades libres (M3),
+  más un control sin AKS (M4). `line_asym` se recupera a 5·10⁻⁶ (M1/M2) y
+  3·10⁻³ (M3, degenerado con D13/D23); el control devuelve 0 (−3·10⁻⁵), es
+  decir no inventa asimetría donde no la hay. Todos los |z| ≤ 2.3.
+  `depth` se excluye de la comparación en esta serie: con asimetría fuerte
+  casi la mitad del espectro queda por encima de la base y el percentil 90
+  con el que el banco normaliza reescala todo ~0.2 %, arrastrando a `depth` y
+  `baseline` juntos (su cociente sigue exacto a 4·10⁻⁶).
+- No se corrige: el pseudo-Voigt de David (1986) es la aproximación de SITE
+  —Fitbauer usa el Voigt exacto—, y que SITE descarte en silencio las líneas
+  con área ≤ 0 es una diferencia de robustez a nuestro favor.
+- Tests: `tests/test_forma_linea_normos.py` (19 nuevos).
+
+## Sin publicar — convenio de posiciones del sexteto seleccionable
+
+Primer resultado de la revisión sistemática del código fuente de NORMOS
+(nivel 0: constantes y patrón de líneas).
+
+- **Hallazgo**: SITE deriva las posiciones del sexteto de los momentos
+  nucleares (`sitecalf.for` INIFUN: GFACT=0.090604, GFR=−0.5714, Eγ=14.4 keV),
+  no del patrón publicado de α-Fe que usa Fitbauer. A 33 T da
+  ±5.326107 / ±3.083577 / ±0.841047 frente a ±5.3285 / ±3.0835 / ±0.8385.
+  **La diferencia no es una escala**: la razón de momentos de SITE (−1.7142)
+  no es la que implica α-Fe (−1.71723), así que tras el mejor factor de
+  escala queda un residuo IRREDUCIBLE de ±2.8·10⁻³ mm/s en las líneas
+  internas — es antisimétrico, ni δ ni ΔE_Q lo absorben. Verificado contra el
+  binario demo 27.01.1994 ajustando un sexteto sintético del banco: el
+  ejecutable coincide con la fórmula del fuente a 6·10⁻⁶ mm/s.
+- **`core.constants.sextet_pattern(nombre)`** — convenio seleccionable con
+  gestor de contexto (mismo patrón que `core.physics.line_profile`):
+  `"alpha_fe"` (por defecto, sin cambios) y `"normos"`. Como todo el núcleo
+  deriva de esta única fuente, el convenio gobierna a la vez el sexteto de
+  primer orden, el Hamiltoniano completo (ω_e/ω_g pasan a leerse del patrón
+  activo en vez de ser constantes congeladas), Blume–Tjon y el kernel de
+  distribución.
+- **CLIs**: `--sextet-pattern {alpha_fe,normos}` en `mossbauer_fit_cli.py` y
+  en `fit_bhf_distribution_cli.py`.
+- **Efecto medido** sobre el espectro `B1_x1` del banco (SITE, BHF=33 T):
+  con `alpha_fe` Fitbauer recupera 32.9860 T (−0.014 T) y con `normos`
+  32.999995 T, bajando el rms del residuo de 3.3·10⁻⁵ a 2.6·10⁻⁶. Esto
+  sustituye al factor global `k=0.9996195` que se venía usando para comparar
+  con NORMOS, que solo era exacto con anchuras de línea iguales (el k
+  efectivo va de 0.99957 a 0.99984 según W13).
+- Tests: `tests/test_patron_sexteto.py` (9 nuevos). El comportamiento por
+  defecto no cambia.
+
 ## Sin publicar — fuente polarizada y hallazgos del código fuente de NORMOS
 
 Con el código fuente de NORMOS disponible localmente (propietario, excluido

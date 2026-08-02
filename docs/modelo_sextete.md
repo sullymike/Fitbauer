@@ -218,7 +218,13 @@ canal_der  = center + distancia
 folded[j]  = 0.5 · ( C(canal_izq) + C(canal_der) )
 ```
 
-donde `C(canal)` es la **interpolación lineal subcanal** 1-based (`interp_channel_1based`):
+donde `C(canal)` es la **interpolación subcanal CÚBICA** 1-based
+(`FOLD_INTERP_ORDER_DEFAULT = 3`): una B-spline interpolante dentro del rango de canales
+y **extrapolación lineal** fuera de él (una spline extrapolada oscila, y en los bordes
+solo hay línea base).
+
+Con `order = 1` se recupera la interpolación lineal histórica
+(`interp_channel_1based`, que se conserva como API):
 
 ```
 # canales 1..N, valores counts[0..N-1]
@@ -232,8 +238,22 @@ si no:
 ```
 
 > **Clave para reproducir Normos**: el doblado NO se queda en pares de canales enteros.
-> Para centros fraccionarios usa interpolación lineal, y en los bordes
-> **extrapola** linealmente en vez de perder un canal. Así siempre salen `N/2` puntos.
+> Para centros fraccionarios interpola, y en los bordes **extrapola** linealmente en vez
+> de perder un canal. Así siempre salen `N/2` puntos.
+
+> **Por qué cúbica y no lineal.** La interpolación lineal es un filtro paso bajo: al
+> promediar canales vecinos ensancha las líneas. Sobre un sexteto sintético con
+> Γ = 0.28 mm/s y 512 canales, el Γ ajustado sale hasta un **9.5 % alto** cuando la parte
+> fraccionaria del canal emparejado es 0.5 (el peor caso); la cúbica reduce ese sesgo a un
+> 2.8 %. El error escala como `f·(1−f)`, así que con centro **semientero** —el caso
+> habitual, y el de todo el banco de validación— `f = 0` y las dos interpolaciones son
+> idénticas. NORMOS evita el problema por otra vía: trunca el punto de doblado a entero y
+> suma pares de canales enteros sin interpolar nunca, a costa de desalinear el par hasta
+> medio canal, lo que ensancha igual que la interpolación lineal.
+>
+> La spline es **global**, así que se construye excluyendo los `edge_trim` canales de cada
+> extremo al buscar el folding point: un canal 1 muerto (habitual en ADT reales) se
+> propagaba hacia el interior y desplazaba el centro 0.056 canales.
 
 ### 7.4 Búsqueda del folding point (`find_best_integer_or_half_center`)
 
@@ -299,10 +319,11 @@ counts = [100, 90, 70, 95, 98, 60, 88, 105]
 folded = [ 96.5, 65.0, 89.0, 102.5 ]
 ```
 
-**Doblado a centro fraccionario `center = 4.30`** (muestra la interpolación subcanal):
+**Doblado a centro fraccionario `center = 4.30`** (muestra la interpolación subcanal
+cúbica; con `order=1` daría `[93.7, 70.8, 87.2, 101.8]`):
 
 ```
-folded = [ 93.7, 70.8, 87.2, 101.8 ]
+folded = [ 95.734105, 67.493474, 87.304, 105.452211 ]
 ```
 
 **`fold_and_normalize(counts, center=4.5, edge_trim=1)`** (en este array pequeño de 4
@@ -414,7 +435,7 @@ Solo replicarlos si la web va a ofrecer esos modos.
    - [ ] Canales **1-based**; centro de simetría posiblemente fraccionario (§7.2).
    - [ ] Conversión del folding point Normos (≈ doble del centro interno) (§7.2).
    - [ ] Doblado `0.5·(C(center−(j+0.5)) + C(center+(j+0.5)))` con interpolación
-         lineal subcanal y extrapolación en bordes (§7.3).
+         **cúbica** subcanal y extrapolación lineal en bordes (§7.3).
    - [ ] Recorte de bordes `edge_trim=1` (§7.5).
    - [ ] Normalización por **percentil 90** y `σ = sqrt(max(folded/2,1))/norm` (§7.5).
    - [ ] Eje de velocidad construido completo y recortado, **sin reconstruir** con menos

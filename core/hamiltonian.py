@@ -34,7 +34,7 @@ from functools import lru_cache
 
 import numpy as np
 
-from .constants import LINE_POS_33T, BHF_DEFAULT_T
+from .constants import BHF_DEFAULT_T, active_sextet_pattern
 
 
 # ── Matrices de espín para I = 3/2 ───────────────────────────────────────────
@@ -53,14 +53,30 @@ _Ix = (_Ip + _Im) / 2.0
 _I_squared = 15.0 / 4.0  # I(I+1)
 _EYE4 = np.eye(4)
 
-# ── Calibración a 33 T (mm/s) — derivada de LINE_POS_33T para coincidencia exacta ──
+# ── Calibración a 33 T (mm/s) — derivada del patrón ACTIVO para coincidencia exacta ──
 # Posiciones a β=0, ΔE_Q=0 son v_j = m_e·ω_e − m_g·ω_g con m_g ∈ {±1/2},
-# m_e ∈ {±3/2, ±1/2}. De la diferencia LINE_POS_33T[1] − LINE_POS_33T[0] sale ω_e
-# (separación entre m_e=−1/2 y m_e=−3/2 manteniendo m_g=−1/2), y de
-# LINE_POS_33T[3] − LINE_POS_33T[2] sale −ω_g − ω_e.
+# m_e ∈ {±3/2, ±1/2}. De la diferencia pat[1] − pat[0] sale ω_e (separación
+# entre m_e=−1/2 y m_e=−3/2 manteniendo m_g=−1/2), y de pat[3] − pat[2] sale
+# −ω_g − ω_e. Al leerse del patrón activo, seleccionar el convenio "normos"
+# cambia también el Hamiltoniano completo, no solo el primer orden.
 BHF_REF_T = float(BHF_DEFAULT_T)
-OMEGA_E_33T = float(LINE_POS_33T[1] - LINE_POS_33T[0])         # ≈ 2.245 mm/s
-OMEGA_G_33T = float(-((LINE_POS_33T[3] - LINE_POS_33T[2]) + OMEGA_E_33T))   # ≈ -3.922 mm/s
+
+
+def _omegas_33t() -> tuple[float, float]:
+    """``(ω_e, ω_g)`` a 33 T derivados del patrón de posiciones ACTIVO.
+
+    Se recalculan en cada llamada (no son constantes de módulo) para que el
+    convenio de ``core.constants.sextet_pattern`` gobierne también el
+    Hamiltoniano completo y no solo el sexteto de primer orden.
+    """
+    pat = active_sextet_pattern()
+    omega_e = float(pat[1] - pat[0])                       # ≈ 2.245 mm/s
+    omega_g = float(-((pat[3] - pat[2]) + omega_e))        # ≈ -3.922 mm/s
+    return omega_e, omega_g
+
+
+#: Valores del convenio por defecto (α-Fe), para inspección y compatibilidad.
+OMEGA_E_33T, OMEGA_G_33T = _omegas_33t()
 
 
 @lru_cache(maxsize=8)
@@ -87,7 +103,7 @@ def excited_state_eigenvalues(bhf_T: float, deq: float, beta: float) -> np.ndarr
     Devuelve un array (4,) con los autovalores en mm/s, en orden ascendente.
     En β=0 los autovalores son ω_e·m_e ± ΔE_Q/2.
     """
-    omega_e = bhf_T / BHF_REF_T * OMEGA_E_33T
+    omega_e = bhf_T / BHF_REF_T * _omegas_33t()[0]
     cos_b, sin_b = float(np.cos(beta)), float(np.sin(beta))
     Iz_prime = _Iz * cos_b + _Ix * sin_b
     Hq = (deq / 6.0) * (3.0 * (Iz_prime @ Iz_prime) - _I_squared * _EYE4)
@@ -103,7 +119,7 @@ def excited_state_eigensystem(bhf_T: float, deq: float, beta: float) -> tuple[np
     E : array (4,) autovalores ordenados (mm/s).
     V : array (4, 4) autovectores en columnas, base |m_e⟩.
     """
-    omega_e = bhf_T / BHF_REF_T * OMEGA_E_33T
+    omega_e = bhf_T / BHF_REF_T * _omegas_33t()[0]
     cos_b, sin_b = float(np.cos(beta)), float(np.sin(beta))
     Iz_prime = _Iz * cos_b + _Ix * sin_b
     Hq = (deq / 6.0) * (3.0 * (Iz_prime @ Iz_prime) - _I_squared * _EYE4)
@@ -139,7 +155,7 @@ def kundig_sextet_positions(
     (después se ha verificado numéricamente en los tests).
     """
     E_e, V = excited_state_eigensystem(bhf_T, deq, beta)
-    omega_g = bhf_T / BHF_REF_T * OMEGA_G_33T
+    omega_g = bhf_T / BHF_REF_T * _omegas_33t()[1]
     Eg_plus = +omega_g / 2.0   # m_g = +1/2
     Eg_minus = -omega_g / 2.0  # m_g = -1/2
 
@@ -172,8 +188,7 @@ def kundig_sextet_positions_batch(
     """
     betas = np.asarray(betas, dtype=float)
     n = betas.size
-    omega_e = bhf_T / BHF_REF_T * OMEGA_E_33T
-    omega_g = bhf_T / BHF_REF_T * OMEGA_G_33T
+    omega_e, omega_g = (bhf_T / BHF_REF_T * w for w in _omegas_33t())
     cos_b = np.cos(betas)[:, None, None]   # (N, 1, 1)
     sin_b = np.sin(betas)[:, None, None]
     # Iz_prime[n] = Iz * cos β_n + Ix * sin β_n
@@ -261,8 +276,7 @@ def _full_hamiltonian_amplitudes(
     (:func:`full_hamiltonian_lines`) y del cristal único
     (:func:`full_hamiltonian_lines_sc`).
     """
-    omega_e = bhf_T / BHF_REF_T * OMEGA_E_33T
-    omega_g = bhf_T / BHF_REF_T * OMEGA_G_33T
+    omega_e, omega_g = (bhf_T / BHF_REF_T * w for w in _omegas_33t())
     st, ct = float(np.sin(theta)), float(np.cos(theta))
     sp, cp = float(np.sin(phi)), float(np.cos(phi))
     nx, ny, nz = st * cp, st * sp, ct
@@ -361,8 +375,7 @@ def full_hamiltonian_lines_field(
 
     El estado fundamental es Zeeman puro (autoestados |±1/2⟩ exactos).
     """
-    omega_e = bhf_T / BHF_REF_T * OMEGA_E_33T
-    omega_g = bhf_T / BHF_REF_T * OMEGA_G_33T
+    omega_e, omega_g = (bhf_T / BHF_REF_T * w for w in _omegas_33t())
     st, ct = float(np.sin(theta)), float(np.cos(theta))
     sp, cp = float(np.sin(phi)), float(np.cos(phi))
     # Ejes principales del EFG expresados en el marco del campo (zyz):

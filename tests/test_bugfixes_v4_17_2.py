@@ -103,13 +103,36 @@ def test_truncated_ws5_skips_xml_header(tmp_path):
     assert read[0] == pytest.approx(100.0)
 
 
-def test_folded_velocity_data_trims_edges():
+def test_folded_velocity_data_conserva_los_bordes_sanos():
+    """Nivel 5: ya no se tiran 2 canales por sistema, como en NORMOS.
+
+    El recorte pasó a ser ADAPTATIVO (``edge_outlier_trim``): con un espectro
+    sano se conservan los N/2 puntos, y el eje de velocidad sigue teniendo el
+    mismo tamaño que los datos.
+    """
     from mossbauer_ws5 import folded_velocity_data
     sample = ROOT / "data_sample" / "hierro_metalico_alphaFe.adt"
     v, y, folded, _center, _vmax, _norm = folded_velocity_data(sample)
     n = read_ws5_counts(sample).size
-    assert y.size == n // 2 - 2  # edge_trim=1 por ambos lados
+    assert y.size == n // 2
     assert v.size == y.size
+
+
+def test_folded_velocity_data_recorta_canal_muerto(tmp_path):
+    """...pero un canal muerto de borde sí se recorta, y el eje lo acompaña."""
+    from core.folding import edge_outlier_trim, fold_and_normalize, velocity_axis
+    sample = ROOT / "data_sample" / "hierro_metalico_alphaFe.adt"
+    counts = read_ws5_counts(sample)
+    muerto = counts.copy()
+    muerto[0] = 0.0
+    folded, _sigma, y, _norm = fold_and_normalize(muerto, 256.5)
+    assert y.size == counts.size // 2 - 2
+    assert edge_outlier_trim(folded) == 0        # ya recortado
+    v = velocity_axis(counts.size, 10.0, y.size)
+    assert v.size == y.size
+    # El eje NO se estira: el paso es el del eje completo.
+    completo = velocity_axis(counts.size, 10.0, counts.size // 2)
+    assert (v[1] - v[0]) == pytest.approx(completo[1] - completo[0], rel=1e-12)
 
 
 # ── Sesiones / estado ─────────────────────────────────────────────────────────

@@ -6,7 +6,9 @@ from contextlib import contextmanager
 import numpy as np
 from scipy.special import wofz
 
-from .constants import LINE_POS_33T, LINE_QUAD_PATTERN, BHF_DEFAULT_T, E_GAMMA
+from .constants import (
+    LINE_QUAD_PATTERN, BHF_DEFAULT_T, E_GAMMA, active_sextet_pattern,
+)
 from .hamiltonian import (
     full_hamiltonian_lines,
     full_hamiltonian_lines_sc,
@@ -18,46 +20,131 @@ from .hamiltonian import (
 # Estado global del perfil de línea (modificado por la GUI).
 LINE_PROFILE_KIND: str = "Lorentziana"
 VOIGT_SIGMA: float = 0.05
+#: Asimetría de línea por interferencia (paridad con el AKS de NORMOS-SITE).
+#: 0 = línea simétrica (comportamiento histórico).
+LINE_ASYM: float = 0.0
+#: Convenio de las razones de intensidad entre líneas de una misma componente:
+#: ``"depth"`` (razones de PROFUNDIDAD, histórico) o ``"area"`` (razones de
+#: ÁREA, que es lo que son físicamente las probabilidades de transición 3:2:1 y
+#: lo que significan D13/D23 en NORMOS). Coinciden si las anchuras son iguales.
+INTENSITY_CONVENTION: str = "depth"
 
 
 @contextmanager
-def line_profile(kind: str = "Lorentziana", voigt_sigma: float = 0.05):
+def line_profile(kind: str = "Lorentziana", voigt_sigma: float = 0.05,
+                 asym: float | None = None):
     """Fija de forma determinista el perfil de línea usado por ``lorentzian``.
 
     La forma de línea vive en las variables de módulo ``LINE_PROFILE_KIND`` /
-    ``VOIGT_SIGMA`` que ``lorentzian`` lee en cada llamada. Distintas rutas
-    (ajuste discreto, distribución, previsualización) las escriben; este gestor
-    las fija durante un bloque y las **restaura** al salir, evitando que el
-    perfil quede "contaminado" entre operaciones.
+    ``VOIGT_SIGMA`` / ``LINE_ASYM`` que ``lorentzian`` lee en cada llamada.
+    Distintas rutas (ajuste discreto, distribución, previsualización) las
+    escriben; este gestor las fija durante un bloque y las **restaura** al
+    salir, evitando que el perfil quede "contaminado" entre operaciones.
+
+    ``asym=None`` deja la asimetría como esté (no la toca).
     """
-    global LINE_PROFILE_KIND, VOIGT_SIGMA
+    global LINE_PROFILE_KIND, VOIGT_SIGMA, LINE_ASYM
     use_voigt = str(kind) == "Voigt"
-    prev_kind, prev_sigma = LINE_PROFILE_KIND, VOIGT_SIGMA
+    prev_kind, prev_sigma, prev_asym = LINE_PROFILE_KIND, VOIGT_SIGMA, LINE_ASYM
     LINE_PROFILE_KIND = "Voigt" if use_voigt else "Lorentziana"
     if use_voigt:
         VOIGT_SIGMA = max(float(voigt_sigma), 1e-9)
+    if asym is not None:
+        LINE_ASYM = float(asym)
     try:
         yield
     finally:
         LINE_PROFILE_KIND = prev_kind
         VOIGT_SIGMA = prev_sigma
+        LINE_ASYM = prev_asym
+
+
+@contextmanager
+def line_asymmetry(asym: float):
+    """Fija solo la asimetría de línea (AKS) durante un bloque y la restaura.
+
+    Gestor dedicado para las rutas que evalúan el modelo a partir de un
+    diccionario de parámetros (``fit_engine.model_from_values``) y no deben
+    tocar el resto del estado del perfil.
+    """
+    global LINE_ASYM
+    previous, LINE_ASYM = LINE_ASYM, float(asym)
+    try:
+        yield
+    finally:
+        LINE_ASYM = previous
+
+
+@contextmanager
+def intensity_convention(name: str):
+    """Fija el convenio de razones de intensidad durante un bloque.
+
+    ``"depth"`` (histórico) o ``"area"`` (físico / NORMOS). Ver
+    :data:`INTENSITY_CONVENTION`.
+    """
+    global INTENSITY_CONVENTION
+    key = str(name)
+    if key not in ("depth", "area"):
+        raise ValueError(
+            f"convenio de intensidad desconocido: {name!r} (usa 'depth' o 'area')")
+    previous, INTENSITY_CONVENTION = INTENSITY_CONVENTION, key
+    try:
+        yield
+    finally:
+        INTENSITY_CONVENTION = previous
+
+
+def _area_to_depth_weights(weights: np.ndarray, gammas: np.ndarray) -> np.ndarray:
+    """Convierte razones de ÁREA en los pesos de pico que usa ``lorentzian``.
+
+    Un perfil normalizado en pico tiene área ∝ profundidad·Γ, así que para que
+    las áreas queden en la razón pedida basta dividir por la anchura RELATIVA a
+    la primera línea. Con todas las anchuras iguales es la identidad, de modo
+    que el convenio ``"area"`` solo se separa del histórico cuando el usuario
+    libera ``gamma2``/``gamma3``.
+    """
+    g = np.asarray(gammas, dtype=float)
+    ref = float(g[0]) if g.size and g[0] > 0 else 1.0
+    rel = np.where(g > 0, g / ref, 1.0)
+    return np.asarray(weights, dtype=float) / rel
 
 
 def lorentzian(v: np.ndarray, center: float, gamma: float) -> np.ndarray:
-    g = max(float(gamma), 1e-9) / 2.0
+    """Perfil de línea normalizado en PICO, con la asimetría global aplicada.
+
+    La asimetría reproduce el AKS de NORMOS-SITE (``LORLIN`` en
+    ``siteauxl.for``): el perfil se multiplica por ``1 − a·(v−v₀)/Γ``. La
+    fórmula se verificó contra el binario demo 27.01.1994 (rms 1.2·10⁻⁴, el
+    suelo de precisión de su ``.PLT``).
+
+    Divergencia deliberada: en modo Voigt, SITE aplica AKS solo a la mitad
+    lorentziana de su pseudo-Voigt (su ``GAULIN`` lo ignora); aquí se aplica al
+    perfil completo, que es lo coherente.
+    """
+    gamma_f = max(float(gamma), 1e-9)
+    g = gamma_f / 2.0
     if LINE_PROFILE_KIND == "Voigt":
         sigma = max(float(VOIGT_SIGMA), 1e-9)
         denom = sigma * np.sqrt(2.0)
         norm = sigma * np.sqrt(2.0 * np.pi)
         prof = np.real(wofz(((v - center) + 1j * g) / denom)) / norm
         peak = float(np.real(wofz(1j * g / denom))) / norm
-        return prof / max(peak, 1e-12)
-    return g * g / ((v - center) ** 2 + g * g)
+        shape = prof / max(peak, 1e-12)
+    else:
+        shape = g * g / ((v - center) ** 2 + g * g)
+    if LINE_ASYM:
+        shape = shape * (1.0 - float(LINE_ASYM) * (v - center) / gamma_f)
+    return shape
 
 
 def sextet_line_positions(delta: float, quad: float, bhf: float) -> np.ndarray:
-    """Posiciones de las 6 líneas del sextete a 1er orden (patrón α-Fe escalado)."""
-    return LINE_POS_33T * (float(bhf) / BHF_DEFAULT_T) + float(delta) + float(quad) * LINE_QUAD_PATTERN
+    """Posiciones de las 6 líneas del sextete a 1er orden (patrón activo escalado).
+
+    El patrón es el del convenio activo (``core.constants.sextet_pattern``):
+    α-Fe publicado por defecto, o el de NORMOS-SITE si se ha seleccionado.
+    """
+    return (active_sextet_pattern() * (float(bhf) / BHF_DEFAULT_T)
+            + float(delta) + float(quad) * LINE_QUAD_PATTERN)
 
 
 def sum_lorentzian_lines(
@@ -117,6 +204,9 @@ def sextet_absorption(
     g2 = gamma1 * gamma2
     g3 = gamma1 * gamma3
     gammas = np.array([g1, g2, g3, g3, g2, g1], dtype=float)
+    if INTENSITY_CONVENTION == "area":
+        # int1/int2 pasan a ser A13/A23 (razones de ÁREA, convenio NORMOS).
+        weights = _area_to_depth_weights(weights, gammas)
 
     if treatment == "hamiltonian":
         positions, inten, wclass = full_hamiltonian_lines(
@@ -170,9 +260,14 @@ def doublet_absorption(
 ) -> np.ndarray:
     g1 = gamma1
     g2 = gamma1 * gamma2
+    w1, w2 = int1, int1 * int2
+    if INTENSITY_CONVENTION == "area":
+        # int2 pasa a ser A21 (razón de ÁREA, convenio NORMOS).
+        w1, w2 = _area_to_depth_weights(
+            np.array([w1, w2], dtype=float), np.array([g1, g2], dtype=float))
     return depth * (
-        int1 * lorentzian(v, delta - quad / 2.0, g1)
-        + int1 * int2 * lorentzian(v, delta + quad / 2.0, g2)
+        w1 * lorentzian(v, delta - quad / 2.0, g1)
+        + w2 * lorentzian(v, delta + quad / 2.0, g2)
     )
 
 
@@ -382,7 +477,7 @@ def two_state_sextet_absorption(
     convenciones de intensidad del proyecto construyen ``weights``/``gammas``
     y delegan aquí.
     """
-    mag = LINE_POS_33T * (float(bhf) / BHF_DEFAULT_T)
+    mag = active_sextet_pattern() * (float(bhf) / BHF_DEFAULT_T)
     q = float(quad) * LINE_QUAD_PATTERN
     c_plus = float(delta) + q + mag
     c_minus = float(delta) + q - mag
@@ -469,6 +564,15 @@ def component_absorption(
     return sextet_absorption(v, *p)
 
 
+#: Semianchura del kernel de la fuente, en FWHM. La Lorentziana tiene colas
+#: ~1/v², así que truncarla corta: a ±20 FWHM se pierde un 1.6 % del peso, y
+#: RENORMALIZAR ese kernel truncado redistribuye el peso perdido al centro y
+#: falsea la absorción. Medido contra el binario de SITE (sonda FSO), pasar de
+#: ±20 renormalizado a ±200 sin renormalizar baja el rms del modelo de
+#: 2.8·10⁻³ a 1.5·10⁻⁴ — 19× mejor.
+SOURCE_KERNEL_HALF_WIDTHS = 200.0
+
+
 def _source_kernel(v: np.ndarray, fwhm: float) -> np.ndarray | None:
     """Kernel Lorentziano de la línea de la fuente, integrado por canal.
 
@@ -476,18 +580,25 @@ def _source_kernel(v: np.ndarray, fwhm: float) -> np.ndarray | None:
     canal (diferencias de arctan): exacto incluso cuando la FWHM de la fuente
     es comparable al paso de la malla. Devuelve ``None`` si no procede
     convolucionar (malla degenerada o fuente ≪ canal).
+
+    **No se renormaliza**: los pesos son las integrales reales y su suma es
+    algo menor que 1. El déficit es la cola que queda fuera de la ventana, y
+    dejarlo fuera equivale a suponer que allí no hay absorción — exactamente
+    la corrección ``WING`` de NORMOS (``sitecalf.for``, rama IFTRAN).
     """
     if v.size < 5 or fwhm <= 0:
         return None
     dv = float(np.median(np.diff(v)))
     if dv <= 0 or fwhm < 0.05 * dv:
         return None
-    half = max(3, int(np.ceil(20.0 * fwhm / dv)))
+    # Cota superior por tamaño: más allá del propio rango de datos la cola ya
+    # solo ve el relleno de borde y no aporta.
+    wanted = int(np.ceil(SOURCE_KERNEL_HALF_WIDTHS * fwhm / dv))
+    half = max(3, min(wanted, 4 * int(v.size)))
     edges = (np.arange(-half, half + 2, dtype=float) - 0.5) * dv
     g = fwhm / 2.0
     cdf = np.arctan(edges / g)
-    ker = np.diff(cdf)
-    return ker / ker.sum()
+    return np.diff(cdf) / np.pi
 
 
 def total_model(
@@ -500,6 +611,7 @@ def total_model(
     transmission_src: float | None = None,
     curv3: float = 0.0,
     curv4: float = 0.0,
+    transmission_frac: float = 1.0,
 ) -> np.ndarray:
     """Modelo de transmisión.
 
@@ -517,11 +629,19 @@ def total_model(
     "transmission"``, mejora banco NORMOS §6.3), se calcula la INTEGRAL DE
     TRANSMISIÓN: A_tot se interpreta como profundidad óptica τ(E) y
 
-        T = baseline + slope·v + curv·v² − L_src ⊗ [1 − exp(−τ)]
+        T = baseline + slope·v + curv·v² − f_s · L_src ⊗ [1 − exp(−τ)]
 
     con L_src la línea de la fuente (Lorentziana de FWHM ``transmission_src``
     en mm/s, normalizada; 0 → sin convolución). En el límite fino
     (τ≪1, fuente estrecha) reproduce el modelo delgado.
+
+    ``transmission_frac`` (f_s) es la FRACCIÓN RESONANTE de la fuente: el FSO
+    de NORMOS-SITE. Solo una fracción de los fotones que llegan pertenece a la
+    línea Mössbauer; el resto atraviesa sin poder absorberse, así que la
+    transmisión satura en ``1 − f_s`` y no en 0. Con f_s = 1 (defecto) no hay
+    cambio. NO es degenerado con la profundidad: ``depth`` escala τ DENTRO de
+    la exponencial y f_s escala el resultado ya saturado — solo se confunden
+    en el límite fino.
 
     ``curv`` añade un término cuadrático de base (efecto geométrico residual
     tras el doblado; mejora banco NORMOS §6.8). ``curv3``/``curv4`` añaden
@@ -547,6 +667,9 @@ def total_model(
             padded = np.concatenate([np.full(pad, a_eff[0]), a_eff,
                                      np.full(pad, a_eff[-1])])
             a_eff = np.convolve(padded, ker, mode="valid")
+        frac = float(transmission_frac)
+        if frac != 1.0:
+            a_eff = frac * a_eff
     elif sat_scale is not None and np.isfinite(sat_scale) and sat_scale > 0:
         a_eff = sat_scale * (1.0 - np.exp(-a_tot / sat_scale))
     else:

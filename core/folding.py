@@ -249,8 +249,120 @@ def read_normos_sidecar_params(path: Path) -> dict[str, float]:
     return params
 
 
-#: Canales de borde recortados tras el folding (y excluidos del chi² de centro).
-EDGE_TRIM_DEFAULT = 1
+#: Canales de borde recortados del espectro DOBLADO.
+#:
+#: 0 = se conservan todos, como hace NORMOS. El recorte fijo de 1 canal por
+#: lado tiraba dos puntos buenos de cada espectro: el primero del array doblado
+#: promedia los canales adyacentes al vértice (los más fiables) y solo el
+#: último toca los canales extremos. En su lugar, :func:`fold_and_normalize`
+#: recorta de forma ADAPTATIVA los extremos que sean outliers de verdad (canal
+#: muerto), así que la salvaguarda sigue estando sin coste en datos sanos.
+EDGE_TRIM_DEFAULT = 0
+
+#: Canales excluidos de los PARES al buscar el folding point (y al construir la
+#: spline de la búsqueda). Esto sí se mantiene: un canal de borde anómalo entra
+#: solo en parte de los candidatos y desplazaba el centro detectado ±2 canales.
+CENTER_SEARCH_EDGE_GUARD = 1
+
+#: Umbral (en σ de Poisson) para considerar que un punto doblado del borde es un
+#: canal muerto y recortarlo. Generoso a propósito: solo dispara con fallos
+#: reales de adquisición, no con ruido.
+EDGE_OUTLIER_SIGMAS = 8.0
+
+#: Orden de la interpolación subcanal del doblado (1 = lineal, 3 = cúbica).
+#:
+#: Cuando el punto de doblado NO cae en un canal semientero, cada punto doblado
+#: promedia dos muestras que hay que evaluar entre canales. La interpolación
+#: LINEAL es un filtro paso bajo que ensancha las líneas: sobre un sexteto
+#: sintético con Γ=0.28 mm/s y 512 canales, el Γ ajustado sale hasta un
+#: **9.5 % alto** (centro entero, la fracción peor). La CÚBICA reduce ese sesgo
+#: a un 2.8 % y también mejora el centro detectado (de ±0.013 canales a
+#: ±0.004). Con centro semientero —el caso habitual, y el de todo el banco de
+#: validación— no se interpola nada y las dos son idénticas.
+#:
+#: NORMOS evita el problema por otra vía: trunca el punto de doblado a entero y
+#: suma pares de canales enteros, sin interpolar nunca (``normospr.for``,
+#: doblado de Hoersten 14.4.89). A cambio, desalinea el par hasta medio canal,
+#: que ensancha lo mismo que la interpolación lineal.
+FOLD_INTERP_ORDER_DEFAULT = 3
+
+
+def _channel_sampler(counts: np.ndarray, order: int | None = None,
+                     edge_trim: int = 0):
+    """Muestreador con caché de una entrada (ver :func:`_build_channel_sampler`).
+
+    El ajuste con ``fit_center`` re-dobla las MISMAS cuentas en cada iteración
+    cambiando solo el centro, así que reconstruir la spline cada vez (~100 µs)
+    dominaba el coste. La clave es el contenido del array (``tobytes`` sobre
+    4 KB cuesta 0.1 µs), no su identidad: así un array reasignado o mutado no
+    devuelve una spline obsoleta.
+    """
+    order = FOLD_INTERP_ORDER_DEFAULT if order is None else int(order)
+    key = (counts.tobytes(), counts.shape, order, int(edge_trim))
+    cached = _SAMPLER_CACHE.get("key")
+    if cached is not None and cached == key:
+        return _SAMPLER_CACHE["sampler"]
+    sampler = _build_channel_sampler(counts, order, edge_trim)
+    _SAMPLER_CACHE["key"] = key
+    _SAMPLER_CACHE["sampler"] = sampler
+    return sampler
+
+
+_SAMPLER_CACHE: dict = {"key": None, "sampler": None}
+
+
+def _build_channel_sampler(counts: np.ndarray, order: int | None = None,
+                           edge_trim: int = 0):
+    """Devuelve un callable vectorizado ``C(canal)`` con canales 1..N.
+
+    Interpola con una B-spline de grado ``order`` y fuera del rango soportado
+    extrapola LINEALMENTE desde el extremo (una spline extrapolada oscila y en
+    los bordes solo hay línea base, así que la recta es más segura). Con
+    ``order=1``, o con muy pocos canales, es la interpolación lineal histórica.
+
+    ``edge_trim`` excluye ese número de canales de cada extremo al CONSTRUIR la
+    spline. Hace falta porque una B-spline interpolante es global: un canal de
+    borde muerto —el canal 1 a cero, habitual en ADT reales— se propaga hacia
+    el interior con peso ~0.27 por canal y desplazaba el centro detectado
+    0.056 canales, aunque el χ² de simetría ya excluyera ese canal de los
+    pares. Con la interpolación lineal no pasaba porque su soporte es local.
+    """
+    c = np.asarray(counts, dtype=float)
+    n = c.size
+    k = FOLD_INTERP_ORDER_DEFAULT if order is None else int(order)
+    t = max(0, int(edge_trim))
+    # Recortar solo si queda muestra de sobra para la spline.
+    if 2 * t + k + 1 > n:
+        t = 0
+    x = np.arange(1 + t, n + 1 - t, dtype=float)
+    cv = c[t:n - t] if t else c
+
+    if k <= 1 or cv.size < k + 1:
+        def sample_inner(ch: np.ndarray) -> np.ndarray:
+            return np.interp(np.asarray(ch, dtype=float), x, cv)
+    else:
+        from scipy.interpolate import make_interp_spline
+        spline = make_interp_spline(x, cv, k=k)
+
+        def sample_inner(ch: np.ndarray) -> np.ndarray:
+            return spline(np.clip(np.asarray(ch, dtype=float), x[0], x[-1]))
+
+    lo_ch, hi_ch = float(x[0]), float(x[-1])
+    slope_lo = float(cv[1] - cv[0]) if cv.size > 1 else 0.0
+    slope_hi = float(cv[-1] - cv[-2]) if cv.size > 1 else 0.0
+
+    def sample(ch) -> np.ndarray:
+        chan = np.asarray(ch, dtype=float)
+        out = sample_inner(chan)
+        lo = chan < lo_ch
+        hi = chan > hi_ch
+        if np.any(lo):
+            out = np.where(lo, cv[0] + (chan - lo_ch) * slope_lo, out)
+        if np.any(hi):
+            out = np.where(hi, cv[-1] + (chan - hi_ch) * slope_hi, out)
+        return out
+
+    return sample
 
 
 def interp_channel_1based(counts: np.ndarray, channel: float) -> float:
@@ -273,27 +385,34 @@ def interp_channel_1based(counts: np.ndarray, channel: float) -> float:
     return float((1.0 - frac) * counts[lo - 1] + frac * counts[lo])
 
 
-def fold_integer_or_half(counts: np.ndarray, center: float) -> tuple[np.ndarray, list[tuple[int, int]]]:
+def fold_integer_or_half(
+    counts: np.ndarray, center: float,
+    order: int | None = None,
+) -> tuple[np.ndarray, list[tuple[int, int]]]:
     """Dobla a N/2 puntos al estilo Normos.
 
     Canales numerados 1..N. El resultado va de velocidad negativa a positiva,
     desde el par exterior izquierdo hacia el centro y de nuevo hacia el exterior
     derecho. Para centros semienteros ordinarios coincide con el promedio de
-    pares simétricos; en los bordes usa interpolación/extrapolación lineal.
+    pares simétricos; entre canales interpola con ``order`` (ver
+    :data:`FOLD_INTERP_ORDER_DEFAULT`) y en los bordes extrapola linealmente.
     """
     n = counts.size
     n_out = n // 2
-    rows: list[tuple[int, int, float]] = []
-    for j in range(n_out):
-        distance = j + 0.5
-        left_ch = center - distance
-        right_ch = center + distance
-        folded = 0.5 * (interp_channel_1based(counts, left_ch) + interp_channel_1based(counts, right_ch))
-        rows.append((int(round(left_ch)), int(round(right_ch)), folded))
-    return np.array([r[2] for r in rows], dtype=float), [(r[0], r[1]) for r in rows]
+    distance = np.arange(n_out, dtype=float) + 0.5
+    left_ch = float(center) - distance
+    right_ch = float(center) + distance
+    sample = _channel_sampler(counts, order)
+    folded = 0.5 * (sample(left_ch) + sample(right_ch))
+    # np.rint redondea a par en los .5 exactos; el histórico usaba round() de
+    # Python, que hace lo mismo, así que los pares no cambian.
+    pairs = list(zip(np.rint(left_ch).astype(int).tolist(),
+                     np.rint(right_ch).astype(int).tolist()))
+    return np.asarray(folded, dtype=float), pairs
 
 
-def chi2_for_center(counts: np.ndarray, center: float) -> tuple[float, int]:
+def chi2_for_center(counts: np.ndarray, center: float,
+                    order: int | None = None) -> tuple[float, int]:
     """Chi² de simetría por pares para un centro candidato.
 
     Usa la MISMA interpolación subcanal que el folding (no ``round``, que con
@@ -307,25 +426,102 @@ def chi2_for_center(counts: np.ndarray, center: float) -> tuple[float, int]:
     (p. ej. canal 1 muerto, habitual en ADT reales) entra solo en parte de los
     candidatos y desplazaba el centro detectado hasta ±2 canales.
     """
+    return _chi2_for_center(
+        counts, center, _channel_sampler(counts, order, CENTER_SEARCH_EDGE_GUARD))
+
+
+def _chi2_for_center(counts: np.ndarray, center: float, sample) -> tuple[float, int]:
+    """Núcleo de :func:`chi2_for_center` con el muestreador ya construido.
+
+    Se separa para que el barrido de candidatos construya la spline UNA vez en
+    vez de una por candidato (la spline es del espectro, no del centro).
+    """
     n = counts.size
-    lo_ch = 1.0 + EDGE_TRIM_DEFAULT
-    hi_ch = float(n - EDGE_TRIM_DEFAULT)
-    chi2 = 0.0
-    n_valid = 0
-    for j in range(n // 2):
-        distance = j + 0.5
-        left = center - distance
-        right = center + distance
-        if left < lo_ch or right > hi_ch:
-            continue
-        d = interp_channel_1based(counts, left) - interp_channel_1based(counts, right)
-        chi2 += d * d
-        n_valid += 1
-    return chi2, n_valid
+    lo_ch = 1.0 + CENTER_SEARCH_EDGE_GUARD
+    hi_ch = float(n - CENTER_SEARCH_EDGE_GUARD)
+    distance = np.arange(n // 2, dtype=float) + 0.5
+    left = float(center) - distance
+    right = float(center) + distance
+    ok = (left >= lo_ch) & (right <= hi_ch)
+    if not np.any(ok):
+        return 0.0, 0
+    d = sample(left[ok]) - sample(right[ok])
+    return float(np.sum(d * d)), int(np.count_nonzero(ok))
+
+
+def geometry_effect_amplitude(counts: np.ndarray, center: float,
+                              half_cycle: float | None = None) -> float:
+    """Amplitud del **efecto geométrico** del espectro, en cuentas.
+
+    Portado de ``normospr.for`` (bloque ``DO 50``/``DO 300``). Al moverse el
+    transductor cambia la distancia fuente-absorbente-detector, lo que modula
+    la tasa de cuentas con la POSICIÓN del transductor y no con su velocidad.
+    NORMOS lo modela como una sinusoide de medio ciclo, antisimétrica respecto
+    al punto de doblado::
+
+        Y(i) = S(i) + A · sin(π (i − c) / PHALF)
+
+    con ``S`` simétrico. La parte antisimétrica se obtiene de las diferencias
+    espejo ``D(i) = Y(i) − Y(2c − i) = 2A·sin(...)`` y ``A`` sale por mínimos
+    cuadrados. Devuelve 0 si no hay pares utilizables.
+
+    Es un DIAGNÓSTICO, no una corrección del ajuste: al doblar, la parte
+    antisimétrica se cancela exactamente. Se mide porque una amplitud alta
+    delata un problema de geometría del espectrómetro; NORMOS también la
+    imprime en su ``.RES``.
+    """
+    c = np.asarray(counts, dtype=float)
+    n = c.size
+    if n < 4:
+        return 0.0
+    phalf = float(half_cycle) if half_cycle else 0.5 * n
+    if phalf <= 0:
+        return 0.0
+    sample = _channel_sampler(c, None, CENTER_SEARCH_EDGE_GUARD)
+    lo_ch = 1.0 + CENTER_SEARCH_EDGE_GUARD
+    hi_ch = float(n - CENTER_SEARCH_EDGE_GUARD)
+    distance = np.arange(n // 2, dtype=float) + 0.5
+    left = float(center) - distance
+    right = float(center) + distance
+    ok = (left >= lo_ch) & (right <= hi_ch)
+    if not np.any(ok):
+        return 0.0
+    # D en el canal DERECHO del par; el izquierdo es su espejo.
+    d = sample(right[ok]) - sample(left[ok])
+    basis = np.sin(np.pi * (right[ok] - float(center)) / phalf)
+    denom = 2.0 * float(np.sum(basis * basis))
+    if denom <= 0.0:
+        return 0.0
+    return float(np.sum(d * basis) / denom)
+
+
+def remove_geometry_effect(counts: np.ndarray, center: float,
+                           half_cycle: float | None = None
+                           ) -> tuple[np.ndarray, float]:
+    """Resta el efecto geométrico y devuelve ``(cuentas_corregidas, amplitud)``."""
+    amp = geometry_effect_amplitude(counts, center, half_cycle)
+    if amp == 0.0:
+        return np.asarray(counts, dtype=float), 0.0
+    n = np.asarray(counts).size
+    phalf = float(half_cycle) if half_cycle else 0.5 * n
+    i = np.arange(1, n + 1, dtype=float)
+    return np.asarray(counts, dtype=float) - amp * np.sin(np.pi * (i - float(center)) / phalf), amp
+
+
+#: Ciclos de la búsqueda del folding point (NORMOS hace 2: busca, recalcula el
+#: efecto geométrico con el centro nuevo y vuelve a buscar en una ventana
+#: estrecha alrededor de él).
+CENTER_SEARCH_CYCLES = 2
+
+#: Semianchura (canales) de la ventana del segundo ciclo. NORMOS usa MS=25
+#: candidatos de medio canal, o sea ±6.
+CENTER_REFINE_HALF_WINDOW = 6.0
 
 
 def find_best_integer_or_half_center(counts: np.ndarray, cmin: float | None = None,
-                                     cmax: float | None = None) -> float:
+                                     cmax: float | None = None,
+                                     order: int | None = None,
+                                     cycles: int = CENTER_SEARCH_CYCLES) -> float:
     """Busca el folding point con interpolación subcanal.
 
     Normos no se queda en canales enteros/semienteros: primero localiza el
@@ -343,14 +539,37 @@ def find_best_integer_or_half_center(counts: np.ndarray, cmin: float | None = No
         cmin = max(1.5, half - 20.0)
     if cmax is None:
         cmax = min(counts.size - 0.5, half + 20.0)
+    work = np.asarray(counts, dtype=float)
+    best = 0.5 * counts.size
+    for cycle in range(max(1, int(cycles))):
+        found = _scan_center(work, cmin, cmax, order)
+        if found is None:
+            return best
+        best = found
+        if cycle + 1 >= max(1, int(cycles)):
+            break
+        # Ciclo siguiente (como NORMOS): se resta el efecto geométrico estimado
+        # con el centro recién hallado y se reduce la ventana a su entorno.
+        work, _amp = remove_geometry_effect(work, best)
+        cmin = max(1.5, best - CENTER_REFINE_HALF_WINDOW)
+        cmax = min(counts.size - 0.5, best + CENTER_REFINE_HALF_WINDOW)
+        if cmax - cmin < 1.0:
+            break
+    return best
+
+
+def _scan_center(counts: np.ndarray, cmin: float, cmax: float,
+                 order: int | None) -> float | None:
+    """Un ciclo de barrido: malla de medio canal + parábola de 3 puntos."""
     candidates = np.arange(cmin, cmax + 1e-9, 0.5)
+    sample = _channel_sampler(counts, order, CENTER_SEARCH_EDGE_GUARD)
     values: list[tuple[float, float]] = []
     for center in candidates:
-        chi2, n_pairs = chi2_for_center(counts, float(center))
+        chi2, n_pairs = _chi2_for_center(counts, float(center), sample)
         if n_pairs:
             values.append((float(center), chi2 / n_pairs))
     if not values:
-        return 0.5 * counts.size
+        return None
     best_i = min(range(len(values)), key=lambda i: values[i][1])
     if 0 < best_i < len(values) - 1:
         xm, ym = values[best_i - 1]
@@ -371,16 +590,23 @@ def find_best_integer_or_half_center(counts: np.ndarray, cmin: float | None = No
 
 
 def fold_and_normalize(counts: np.ndarray, center: float,
-                       edge_trim: int = EDGE_TRIM_DEFAULT
+                       edge_trim: int = EDGE_TRIM_DEFAULT,
+                       order: int | None = None,
                        ) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
     """Dobla, recorta los bordes y normaliza el espectro.
 
     Devuelve ``(folded, sigma, y, norm)`` con la línea base normalizada a ~1 y
-    ``sigma`` el ruido Poisson normalizado. ``edge_trim`` recorta el primer y
-    último canal del espectro doblado (canales de borde menos fiables).
+    ``sigma`` el ruido Poisson normalizado. ``order`` es la interpolación
+    subcanal (ver :data:`FOLD_INTERP_ORDER_DEFAULT`).
+
+    ``edge_trim`` es un MÍNIMO forzado de canales a recortar por lado. Por
+    defecto es 0 —se conservan todos, como NORMOS— y el recorte lo decide
+    :func:`edge_outlier_trim` mirando los datos: solo se van los extremos que
+    sean canales muertos de verdad. El recorte es simétrico para que el eje de
+    velocidad siga deduciéndose del número de puntos sin estirar la escala.
     """
-    folded, _pairs = fold_integer_or_half(counts, float(center))
-    n = int(edge_trim)
+    folded, _pairs = fold_integer_or_half(counts, float(center), order)
+    n = max(int(edge_trim), edge_outlier_trim(folded))
     if n > 0 and folded.size > 2 * n + 2:
         folded = folded[n:-n]
     norm = float(np.percentile(folded, 90)) if folded.size else 1.0
@@ -390,18 +616,61 @@ def fold_and_normalize(counts: np.ndarray, center: float,
     return folded, sigma, y, norm
 
 
+def edge_outlier_trim(folded: np.ndarray,
+                      max_trim: int = 3,
+                      rel_threshold: float = 0.2) -> int:
+    """Cuántos puntos hay que recortar de CADA extremo del espectro doblado.
+
+    Devuelve 0 con datos sanos. Solo dispara con canales muertos: un punto del
+    borde cuenta como tal si cae más de ``rel_threshold`` (20 % por defecto)
+    por debajo de la mediana de sus vecinos. Un canal a cero deja el punto
+    doblado a la mitad de la base (−50 %), muy por encima del umbral, mientras
+    que una línea de absorción real en el extremo del rango de velocidad rara
+    vez llega al 20 %.
+
+    El recorte es simétrico (se aplica el mayor de los dos lados) para no
+    romper la correspondencia con el eje de velocidad.
+    """
+    f = np.asarray(folded, dtype=float)
+    if f.size < 12:
+        return 0
+    limit = min(int(max_trim), (f.size - 8) // 2)
+    trim = 0
+    for _ in range(max(0, limit)):
+        rest = f[trim:f.size - trim]
+        if rest.size < 10:
+            break
+        ref = float(np.median(rest[2:10])), float(np.median(rest[-10:-2]))
+        lo_bad = ref[0] > 0 and (ref[0] - rest[0]) / ref[0] > rel_threshold
+        hi_bad = ref[1] > 0 and (ref[1] - rest[-1]) / ref[1] > rel_threshold
+        if not (lo_bad or hi_bad):
+            break
+        trim += 1
+    return trim
+
+
 def velocity_axis(counts_size: int, vmax: float, n_points: int,
-                  edge_trim: int = EDGE_TRIM_DEFAULT,
+                  edge_trim: int | None = None,
                   trim_edges: bool = True) -> np.ndarray:
     """Construye el eje de velocidad ``-vmax..vmax`` recortando bordes igual que el folding.
 
     Se crea el eje completo ``linspace(-vmax, vmax, counts_size // 2)`` y se
-    recortan las mismas posiciones ``[edge_trim:-edge_trim]`` que en los datos,
-    de modo que no se estira la escala (lo que sesgaría el BHF).
+    recortan las mismas posiciones que en los datos, de modo que NO se estira
+    la escala (lo que sesgaría el BHF).
+
+    Con ``edge_trim=None`` (por defecto) el recorte se DEDUCE de ``n_points``:
+    así funciona igual con el recorte adaptativo de :func:`edge_outlier_trim`,
+    que depende de los datos y no de una constante.
     """
     full_n = int(counts_size) // 2
     velocity = np.linspace(-float(vmax), float(vmax), full_n)
-    n = int(edge_trim) if trim_edges else 0
+    if not trim_edges:
+        n = 0
+    elif edge_trim is None:
+        missing = full_n - int(n_points)
+        n = missing // 2 if missing >= 0 and missing % 2 == 0 else -1
+    else:
+        n = int(edge_trim)
     if n > 0 and velocity.size > 2 * n + 2 and n_points == velocity.size - 2 * n:
         velocity = velocity[n:-n]
     elif velocity.size != n_points:

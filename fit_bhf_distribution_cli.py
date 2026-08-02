@@ -39,6 +39,8 @@ from pathlib import Path
 
 import numpy as np
 
+from core.constants import SEXTET_PATTERNS, sextet_pattern
+from core.physics import intensity_convention, line_asymmetry
 from core.param_overrides import effective_distribution_specs
 from mossbauer_bhf_pipeline import make_sharp_components
 from mossbauer_distribution import (
@@ -151,6 +153,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--alpha-max", type=float, default=1e2)
     parser.add_argument("--alpha-count", type=int, default=33)
     parser.add_argument("--plot", action="store_true", help="Guarda PNG con espectro y P(BHF)")
+    parser.add_argument("--intensity-convention", choices=("depth", "area"),
+                        default="depth",
+                        help="Razones de intensidad entre lineas del kernel: "
+                             "'depth' (profundidad, historico) o 'area' (AREA, "
+                             "convenio D13/D23 de NORMOS). Solo difieren si las "
+                             "anchuras relativas no son 1.")
+    parser.add_argument("--line-asym", type=float, default=0.0, metavar="A",
+                        help="Asimetria de linea por interferencia (AKS de "
+                             "NORMOS-SITE): el perfil se multiplica por "
+                             "1 - A*(v-v0)/Gamma. 0 = linea simetrica.")
+    parser.add_argument("--sextet-pattern", choices=sorted(SEXTET_PATTERNS),
+                        default="alpha_fe",
+                        help="Convenio de posiciones del sexteto del kernel: "
+                             "'alpha_fe' (patron publicado de alfa-Fe, por "
+                             "defecto) o 'normos' (derivado de los momentos "
+                             "nucleares, como NORMOS-SITE).")
     args = parser.parse_args()
     # Validación temprana: antes se detectaba tras completar el ajuste y
     # escribir 2 de los 3 ficheros de salida (cómputo perdido, salida parcial).
@@ -345,6 +363,14 @@ def run_fit_1d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
 
 def main() -> None:
     args = parse_args()
+    # El convenio de posiciones envuelve todo el ajuste y se restaura al salir.
+    with sextet_pattern(args.sextet_pattern), \
+            intensity_convention(args.intensity_convention), \
+            line_asymmetry(args.line_asym):
+        _run(args)
+
+
+def _run(args) -> None:
     in_path = args.input
     if not in_path.exists():
         raise SystemExit(f"FAIL  {in_path}: fichero de espectro no encontrado")

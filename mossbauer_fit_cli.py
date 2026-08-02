@@ -44,6 +44,31 @@ import json
 import sys
 from pathlib import Path
 
+from core.constants import SEXTET_PATTERNS, sextet_pattern
+
+
+def _apply_model_overrides(session_engine, overrides: dict | None) -> None:
+    """Vuelca sobre el modelo las opciones que llegan por bandera del CLI.
+
+    Se aplican DESPUÉS de la plantilla para que la línea de comandos mande.
+    ``line_asym`` se libera solo si el usuario lo pide explícitamente; con
+    valor 0 (el defecto) el modelo es idéntico al histórico.
+    """
+    if not overrides:
+        return
+    model = session_engine.model
+    convention = overrides.get("intensity_convention")
+    if convention:
+        model.intensity_convention = str(convention)
+    asym = overrides.get("line_asym")
+    if asym is not None:
+        model.vars["line_asym"] = float(asym)
+        model.fixed["line_asym"] = True
+    frac = overrides.get("src_frac")
+    if frac is not None:
+        model.vars["src_frac"] = float(frac)
+        model.fixed["src_frac"] = True
+
 
 def _load_template_state(template_path: Path) -> dict:
     if not template_path.exists():
@@ -63,7 +88,8 @@ def fit_spectrum(template_path: Path, spectrum_path: Path,
                  output_path: Path | None = None,
                  vmax: float | None = None, *,
                  bootstrap_n: int = 0,
-                 profile: bool = False) -> dict:
+                 profile: bool = False,
+                 model_overrides: dict | None = None) -> dict:
     """Carga plantilla + espectro, ejecuta el ajuste y devuelve la sesión final.
 
     Si ``output_path`` no es None se guarda allí el JSON resultado. Lanza
@@ -85,6 +111,7 @@ def fit_spectrum(template_path: Path, spectrum_path: Path,
     # La plantilla se aplica ANTES de cargar: load_ws5 decide doblar (triangular)
     # o no doblar (seno) según drive_form, que viene de la plantilla.
     session_engine.apply_template_model_state(state)
+    _apply_model_overrides(session_engine, model_overrides)
     session_engine.load_ws5(spectrum_path)
     # --vmax sobrescribe el de la plantilla (útil si la calibración varía).
     if vmax is not None:
@@ -132,7 +159,8 @@ def fit_spectrum(template_path: Path, spectrum_path: Path,
 
 def fit_batch(template_path: Path, spectrum_paths: list[Path],
               output_path: Path | None = None,
-              vmax: float | None = None) -> list[dict]:
+              vmax: float | None = None,
+              model_overrides: dict | None = None) -> list[dict]:
     """Ajusta una serie de espectros con warm-start secuencial.
 
     Cada espectro parte de los valores convergidos del anterior (espejo del
@@ -153,6 +181,7 @@ def fit_batch(template_path: Path, spectrum_paths: list[Path],
     from core.session import HeadlessSession
     session_engine = HeadlessSession()
     session_engine.apply_template_model_state(state)
+    _apply_model_overrides(session_engine, model_overrides)
     if vmax is not None:
         session_engine.set_vmax(vmax)
     rows = session_engine.batch_fit_sequential(spectrum_paths)
@@ -184,6 +213,27 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--profile-likelihood", action="store_true",
                    help="Intervalos asimétricos 1σ/2σ por verosimilitud "
                         "perfilada (solo con un espectro).")
+    p.add_argument("--sextet-pattern", choices=sorted(SEXTET_PATTERNS), default="alpha_fe",
+                   help="Convenio de posiciones del sexteto: 'alpha_fe' (patrón "
+                        "publicado de α-Fe, por defecto) o 'normos' (derivado de "
+                        "los momentos nucleares, como NORMOS-SITE). Afecta al "
+                        "sexteto discreto, al Hamiltoniano completo y al kernel "
+                        "de distribución.")
+    p.add_argument("--intensity-convention", choices=("depth", "area"), default="depth",
+                   help="Razones int1/int2 entre líneas de una componente: "
+                        "'depth' (profundidad, histórico) o 'area' (ÁREA, que "
+                        "es lo que son físicamente las probabilidades 3:2:1 y "
+                        "lo que significan D13/D23 en NORMOS). Solo difieren "
+                        "si las anchuras relativas no son 1.")
+    p.add_argument("--src-frac", type=float, default=None, metavar="F",
+                   help="Fracción RESONANTE de la fuente (FSO de NORMOS-SITE), "
+                        "solo con el modelo de absorbente 'transmission': la "
+                        "transmisión satura en 1−F en vez de en 0. Por defecto "
+                        "1 (toda la radiación es resonante).")
+    p.add_argument("--line-asym", type=float, default=None, metavar="A",
+                   help="Asimetría de línea por interferencia (AKS de "
+                        "NORMOS-SITE): el perfil se multiplica por "
+                        "1 − A·(v−v0)/Γ. Por defecto 0 (línea simétrica).")
     p.add_argument("--quiet", action="store_true",
                    help="No imprimir el resumen por stdout (solo código de salida).")
     return p
@@ -191,12 +241,20 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def _print_single_summary(args, session: dict) -> None:
     result = session.get("batch_fit_result", {})
+    geo = session.get("geometry_effect") or {}
     stats = result.get("stats", {})
     chi2 = stats.get("chi2")
     red = stats.get("red_chi2")
     chi2_txt = f"{chi2:.6g}" if isinstance(chi2, (int, float)) else "?"
     red_txt = f"{red:.6g}" if isinstance(red, (int, float)) else "?"
     print(f"OK  {args.spectrum[0].name}  χ²={chi2_txt}  red_χ²={red_txt}")
+    rel = geo.get("relative")
+    if isinstance(rel, (int, float)) and rel:
+        # Diagnóstico portado de NORMOS: modulación de la tasa de cuentas con la
+        # POSICIÓN del transductor. El doblado la cancela, así que no afecta al
+        # ajuste; por encima de ~1 % delata un problema de geometría.
+        aviso = "  ← revisar geometría" if abs(rel) > 0.01 else ""
+        print(f"  efecto geométrico = {100.0 * rel:+.3f} % de la base{aviso}")
     bs_std = session.get("bootstrap", {}).get("std", {})
     prof = session.get("profile_likelihood", {})
     for k, v in result.get("values", {}).items():
@@ -215,6 +273,19 @@ def _print_single_summary(args, session: dict) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
+    # El convenio de posiciones envuelve TODO el ajuste (incluido el kernel de
+    # distribución y el Hamiltoniano) y se restaura al salir.
+    with sextet_pattern(args.sextet_pattern):
+        return _run(args)
+
+
+def _overrides_from_args(args) -> dict:
+    return {"intensity_convention": args.intensity_convention,
+            "line_asym": args.line_asym,
+            "src_frac": args.src_frac}
+
+
+def _run(args) -> int:
     # --out no puede pisar la plantilla ni un espectro de entrada: antes el
     # resultado sobreescribía la plantilla en silencio con rc=0.
     out_resolved = args.out.resolve()
@@ -229,7 +300,8 @@ def main(argv: list[str] | None = None) -> int:
                   file=sys.stderr)
             return 2
         try:
-            rows = fit_batch(args.template, args.spectrum, args.out, args.vmax)
+            rows = fit_batch(args.template, args.spectrum, args.out, args.vmax,
+                             model_overrides=_overrides_from_args(args))
         except Exception as exc:
             print(f"FAIL  batch  {type(exc).__name__}: {exc}", file=sys.stderr)
             return 1
@@ -247,7 +319,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         session = fit_spectrum(args.template, args.spectrum[0], args.out, args.vmax,
                                bootstrap_n=args.bootstrap,
-                               profile=args.profile_likelihood)
+                               profile=args.profile_likelihood,
+                               model_overrides=_overrides_from_args(args))
     except Exception as exc:
         print(f"FAIL  {args.spectrum[0].name}  {type(exc).__name__}: {exc}",
               file=sys.stderr)

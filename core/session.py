@@ -20,7 +20,9 @@ import numpy as np
 
 from core.fit_engine import Component, FitState, fit_discrete
 from core.folding import (
+    EDGE_TRIM_DEFAULT,
     find_best_integer_or_half_center,
+    geometry_effect_amplitude,
     find_sine_symmetry_center,
     fold_and_normalize,
     normalize_unfolded,
@@ -43,9 +45,11 @@ from core.params import (
     relevant_params as _relevant_params,
 )
 
-# Recorte de borde del espectro doblado, idéntico a la GUI Tk modular
-# (``MossbauerApp._N_EDGE_TRIM``) y a Qt (``_edge_trim``).
-_EDGE_TRIM = 1
+# Recorte MÍNIMO de borde del espectro doblado. 0 = se conservan todos los
+# canales (como NORMOS) y el recorte real lo decide `core.folding` de forma
+# adaptativa, solo si el extremo es un canal muerto. Fuente única con la GUI Qt
+# (``mossbauer_qt._edge_trim``).
+_EDGE_TRIM = EDGE_TRIM_DEFAULT
 MAX_COMPONENTS_DEFAULT = 3
 
 _KINDS = set(_COMPONENT_KINDS)
@@ -68,6 +72,9 @@ class ModelState:
     likelihood: str = "gauss"
     robust_loss: str = "linear"
     absorber_model: str = "thin"
+    # Convenio de razones de intensidad entre líneas: "depth" (histórico) o
+    # "area" (físico / D13-D23 de NORMOS). Ver core.physics.
+    intensity_convention: str = "depth"
     drive_form: str = "triangular"      # "triangular" (aceleración cte) / "sine"
     propagate_calib: bool = False
     global_opt: bool = False
@@ -96,14 +103,19 @@ class ModelState:
             # curv/src_fwhm: fijos a su valor neutro (curvatura nula; anchura
             # de fuente natural de 57Fe) salvo que el usuario los libere.
             "curv": 0.0, "src_fwhm": 0.097,
+            # Fracción resonante de la fuente (FSO de NORMOS): neutra y fija.
+            "src_frac": 1.0,
             # Fondo cúbico/cuártico (BKG(4)/BKG(5) de NORMOS): neutro y fijo.
             "curv3": 0.0, "curv4": 0.0,
+            # Asimetría de línea (AKS de NORMOS-SITE): neutra y fija.
+            "line_asym": 0.0,
         }
         fixed: dict[str, bool] = {
             "vmax": True, "center": True, "baseline": False, "slope": False,
             "voigt_sigma": False, "sat_scale": True,
-            "curv": True, "src_fwhm": True,
+            "curv": True, "src_fwhm": True, "src_frac": True,
             "curv3": True, "curv4": True,
+            "line_asym": True,
         }
         se: dict[int, bool] = {}
         ck: dict[int, str] = {}
@@ -162,6 +174,7 @@ class ModelState:
         if "channel_sub" in state:
             self.channel_sub = max(1, min(8, int(state["channel_sub"])))
         for skey in ("line_profile", "likelihood", "robust_loss", "absorber_model",
+                     "intensity_convention",
                      "drive_form"):
             if skey in state:
                 setattr(self, skey, str(state[skey]))
@@ -239,6 +252,7 @@ class ModelState:
             propagate_calib=self.propagate_calib, global_opt=self.global_opt,
             fit_velocity=self.fit_velocity, fit_center=self.fit_center,
             fit_sigma=self.fit_sigma, absorber_model=self.absorber_model,
+            intensity_convention=self.intensity_convention,
             drive_form=self.drive_form,
             multistart_n=self.multistart_n,
             channel_sub=max(1, int(self.channel_sub)),
@@ -280,6 +294,7 @@ class ModelState:
             "propagate_calib": self.propagate_calib,
             "global_opt": self.global_opt,
             "absorber_model": self.absorber_model,
+            "intensity_convention": self.intensity_convention,
             "drive_form": self.drive_form,
             "multistart_n": self.multistart_n,
             "channel_sub": self.channel_sub,
@@ -311,6 +326,8 @@ class HeadlessSession:
     def __init__(self, model: ModelState | None = None):
         self.model = model if model is not None else ModelState.defaults()
         self.spectrum: LoadedSpectrum | None = None
+        #: Diagnóstico del efecto geométrico del último espectro cargado.
+        self.geometry_effect: dict = {"amplitude": 0.0, "relative": 0.0}
         self.calibration_info: dict | None = None
         self.last_fit_free_keys: list[str] = []
         self.last_fit_cov = None
@@ -338,9 +355,26 @@ class HeadlessSession:
         self.spectrum = LoadedSpectrum(
             path=path, counts=counts, center=float(center),
             folded=folded, y_data=y, sigma=sigma, norm_factor=norm)
+        self.geometry_effect = self._geometry_diagnostics(counts, float(center))
         self.model.vars["center"] = float(center)
         if vmax is not None:
             self.model.vars["vmax"] = float(vmax)
+
+    @staticmethod
+    def _geometry_diagnostics(counts: np.ndarray, center: float) -> dict:
+        """Efecto geométrico del espectro sin doblar (diagnóstico, no corrección).
+
+        Portado de NORMOS (``normospr.for``), que lo imprime en su ``.RES``
+        como "Geometry effect" y "Geometry effect/Background". Mide la
+        modulación de la tasa de cuentas con la POSICIÓN del transductor: es
+        antisimétrica respecto al punto de doblado, así que el propio doblado
+        la cancela y NO afecta al ajuste. Una amplitud relativa alta (≳1 %)
+        delata un problema de geometría del espectrómetro.
+        """
+        amp = geometry_effect_amplitude(counts, center)
+        base = float(np.median(counts)) if counts.size else 0.0
+        return {"amplitude": float(amp),
+                "relative": float(amp / base) if base else 0.0}
 
     def apply_template_model_state(self, state: dict) -> None:
         self.model.apply_template(state)
@@ -355,7 +389,9 @@ class HeadlessSession:
         if self.model.drive_form == "sine":
             c0 = symmetry_center_to_c0(sp.center, sp.counts.size)
             return sine_velocity_axis(sp.counts.size, vmax, c0)
-        return velocity_axis(sp.counts.size, vmax, sp.y_data.size, _EDGE_TRIM)
+        # edge_trim=None → el recorte se deduce del nº de puntos, que es lo
+        # correcto ahora que es adaptativo.
+        return velocity_axis(sp.counts.size, vmax, sp.y_data.size)
 
     def build_fit_state(self) -> FitState:
         sp = self._require_spectrum()
@@ -408,7 +444,8 @@ class HeadlessSession:
                 values_out[key] = float(self.model.vars[key])
         # Globales opcionales de modelo (saturación/transmisión/curvatura):
         # se reportan cuando participaron en el ajuste.
-        for key in ("sat_scale", "curv", "src_fwhm", "curv3", "curv4"):
+        for key in ("sat_scale", "curv", "src_fwhm", "src_frac", "curv3",
+                    "curv4", "line_asym"):
             if key in self.model.vars and not self.model.fixed.get(key, True):
                 values_out[key] = float(self.model.vars[key])
         return {
@@ -428,6 +465,7 @@ class HeadlessSession:
             "file_name": sp.path.name if sp else None,
             "counts": sp.counts.tolist() if sp is not None else None,
             "calibration": self.calibration_info,
+            "geometry_effect": dict(self.geometry_effect),
             "state_and_parameters_text": "",
             "model_state": self.model.to_model_state_dict(),
             "last_fit": {

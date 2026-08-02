@@ -148,9 +148,16 @@ GLOBAL_FIT_BOUNDS = {
     # de la integral de transmisión (§6.3). Por defecto van FIJOS a su valor
     # neutro y no cambian el comportamiento histórico.
     "curv": (-0.02, 0.02), "src_fwhm": (0.0, 1.0),
+    # Fracción resonante de la fuente (FSO de NORMOS): acota la absorción
+    # máxima. 1 = toda la radiación es resonante (defecto, sin cambio).
+    "src_frac": (0.05, 1.0),
     # Fondo cúbico/cuártico (paridad con BKG(4)/BKG(5) de NORMOS, banco-2
     # §K2). Fijos a 0 por defecto: no cambian el comportamiento histórico.
     "curv3": (-0.005, 0.005), "curv4": (-0.005, 0.005),
+    # Asimetría de línea por interferencia (AKS de NORMOS-SITE). Fija a 0 por
+    # defecto: no cambia el comportamiento histórico. El rango cubre con
+    # holgura los valores con sentido físico (|AKS| ≲ 0.5 en ⁵⁷Fe).
+    "line_asym": (-1.0, 1.0),
 }
 COMPONENT_FIT_BOUNDS = {
     "delta": (-2.0, 3.0), "quad": (-4.0, 4.0), "bhf": (0.0, 60.0),
@@ -178,9 +185,13 @@ CALIBRATION_PARAM_SPECS: dict[str, ParamSpec] = {
     # la fuente para la integral de transmisión (§6.3). Fijos por defecto.
     "curv":        ParamSpec(0.0,   -0.02,  0.02,   1e-5,  6),
     "src_fwhm":    ParamSpec(0.097,   0.0,   1.0,   0.001, 4),
+    # Fracción resonante de la fuente (FSO de NORMOS-SITE). Fija a 1.
+    "src_frac":    ParamSpec(1.0,     0.05,  1.0,   0.001, 4),
     # Fondo cúbico/cuártico (BKG(4)/BKG(5) de NORMOS, banco-2 §K2).
     "curv3":       ParamSpec(0.0,  -0.005, 0.005,   1e-6,  7),
     "curv4":       ParamSpec(0.0,  -0.005, 0.005,   1e-6,  7),
+    # Asimetría de línea por interferencia (AKS de NORMOS-SITE). Fija a 0.
+    "line_asym":   ParamSpec(0.0,   -1.0,   1.0,    0.001, 4),
 }
 
 # Especificación de los controles del panel de distribución.

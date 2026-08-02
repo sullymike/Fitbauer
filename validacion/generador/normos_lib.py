@@ -297,7 +297,7 @@ def fitbauer_fit(adt_path: Path, comps: list[dict], vmax: float,
     elif absorber_model == "transmission":
         # integral de transmisión: anchura de la fuente libre.
         ms.fixed["src_fwhm"] = False
-    for fk in ("curv", "curv3", "curv4"):
+    for fk in ("curv", "curv3", "curv4", "line_asym", "src_frac"):
         if (extra_model or {}).get(f"free_{fk}"):
             ms.fixed[fk] = False
     if (extra_model or {}).get("src_fwhm_fixed") is not None:
@@ -308,7 +308,7 @@ def fitbauer_fit(adt_path: Path, comps: list[dict], vmax: float,
     if extra_model:
         for key, val in extra_model.items():
             if key not in ("free_curv", "free_curv3", "free_curv4",
-                           "src_fwhm_fixed"):
+                           "free_line_asym", "free_src_frac", "src_fwhm_fixed"):
                 setattr(ms, key, val)
 
     def pert(v, rel=perturb, absmin=0.0):

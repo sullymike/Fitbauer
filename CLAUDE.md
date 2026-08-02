@@ -132,8 +132,14 @@ pytest -q                                           # local con display
 ## Convenciones del repo
 
 - Calibración de campo de referencia: **33.0 T** con patrón de velocidad publicado de α-Fe
-  (`±0.839 / ±3.084 / ±5.329 mm/s`); `LINE_POS_33T` vive en `core.constants`. No derivar
-  posiciones de momentos nucleares (sesga el BHF ~0.1 T; ver CHANGELOG v4.0.2/v4.0.3).
+  (`±0.839 / ±3.084 / ±5.329 mm/s`). No cambies el DEFECTO a posiciones derivadas de
+  momentos nucleares (sesga el BHF ~0.1 T; ver CHANGELOG v4.0.2/v4.0.3).
+- **Fuente única del patrón**: `core.constants`. `active_sextet_pattern()` devuelve el
+  patrón del convenio activo y de ahí derivan el sexteto de 1er orden, ω_e/ω_g del
+  Hamiltoniano, Blume–Tjon y el kernel de distribución — no dupliques posiciones.
+  `sextet_pattern("normos")` (gestor de contexto) cambia al convenio de NORMOS-SITE
+  para comparaciones; `LINE_POS_33T` es la constante α-Fe y la usan solo los
+  consumidores que NO son física (rótulos, detección de mínimos, figuras).
 - El historial de cambios se documenta en `CHANGELOG.md` (por versión).
 - `APP_VERSION` en `core/constants.py` es la fuente única de versión.
 - Idioma del proyecto: español (commits, comentarios, docs). Mantén ese registro.

@@ -90,7 +90,7 @@ def test_las_dos_versiones_dicen_los_mismos_numeros():
 
 @pytest.mark.parametrize("center, esperado", [
     (4.5, [96.5, 65.0, 89.0, 102.5]),
-    (4.30, [93.7, 70.8, 87.2, 101.8]),
+    (4.30, [95.734105, 67.493474, 87.304, 105.452211]),
 ])
 def test_doblado(center, esperado):
     """§7.3–§7.4: doblado a centro semientero y fraccionario (interpolación)."""
