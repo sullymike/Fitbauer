@@ -2,6 +2,9 @@
 *.exe
 *.EXE
 
+# Código fuente de NORMOS (propietario, R.A. Brand/WissEl): JAMÁS al repo.
+normos/
+
 # No subir subdirectorios ni su contenido
 */
 !.github/
