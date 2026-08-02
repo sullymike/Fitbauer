@@ -327,6 +327,9 @@ class DistributionViewState:
     quad_slope:  float = 0.0
     kernel_treatment: str = "1st_order"
     kernel_eta: float = 0.0
+    source_bhf: float = 33.0
+    source_theta: float = 0.0
+    absorber_theta: float = 0.0
     vbf_n_components: int = 2
     # Malla del eje Y de la distribución 2D (antes no se persistían).
     qmin:        float = _DSPEC["qmin"].default
@@ -372,6 +375,9 @@ class DistributionViewState:
             kernel_treatment=str(state.get("dist_kernel_treatment",
                                            d.kernel_treatment)),
             kernel_eta=_num("dist_kernel_eta", d.kernel_eta),
+            source_bhf=_num("dist_source_bhf", d.source_bhf),
+            source_theta=_num("dist_source_theta", d.source_theta),
+            absorber_theta=_num("dist_absorber_theta", d.absorber_theta),
             vbf_n_components=int(_num("dist_vbf_n_components", d.vbf_n_components)),
             qmin=_num("dist_qmin", d.qmin),
             qmax=_num("dist_qmax", d.qmax),
@@ -404,6 +410,9 @@ class DistributionViewState:
             "dist_quad_slope": float(self.quad_slope),
             "dist_kernel_treatment": str(self.kernel_treatment),
             "dist_kernel_eta": float(self.kernel_eta),
+            "dist_source_bhf": float(self.source_bhf),
+            "dist_source_theta": float(self.source_theta),
+            "dist_absorber_theta": float(self.absorber_theta),
             "dist_vbf_n_components": int(self.vbf_n_components),
             "dist_qmin": float(self.qmin),
             "dist_qmax": float(self.qmax),

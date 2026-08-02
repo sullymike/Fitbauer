@@ -92,6 +92,27 @@ class DistributionPanel(QtWidgets.QGroupBox):
         left_v.addWidget(self.kernel_eta)
         self.kernel_eta.valueChanged.connect(lambda *_: self.paramChanged.emit())
 
+        # Fuente polarizada (paridad METHOD=4/POLAR de NORMOS-DIST): sexteto
+        # emisor magnetizado; peine de 36 líneas por selección de helicidad.
+        self.source_polarized = QtWidgets.QCheckBox(
+            tr("bhf.source_polarized", default="Fuente polarizada (γ∥B)"))
+        left_v.addWidget(self.source_polarized)
+        self.source_bhf = ParamControl(
+            tr("slider.dist_source_bhf", default="B fuente (T)"),
+            33.0, 0.0, 60.0, 0.01, 3)
+        self.source_theta = ParamControl(
+            tr("slider.dist_source_theta", default="θ fuente (°)"),
+            0.0, 0.0, 90.0, 0.1, 2)
+        self.absorber_theta = ParamControl(
+            tr("slider.dist_absorber_theta", default="θ absorbente (°)"),
+            0.0, 0.0, 90.0, 0.1, 2)
+        for w in (self.source_bhf, self.source_theta, self.absorber_theta):
+            left_v.addWidget(w)
+            w.valueChanged.connect(lambda *_: self.paramChanged.emit())
+        self._sync_source_widgets()
+        self.source_polarized.toggled.connect(
+            lambda *_: (self._sync_source_widgets(), self.paramChanged.emit()))
+
         # Nº de gaussianas para la forma VBF (Rancourt–Ping). Oculto salvo VBF.
         self.vbf_row = QtWidgets.QHBoxLayout()
         self.vbf_row.addWidget(QtWidgets.QLabel(tr("bhf.vbf_ncomp", default="Componentes VBF") + ":"))
@@ -312,6 +333,9 @@ class DistributionPanel(QtWidgets.QGroupBox):
             quad_slope=self.quad_slope.value(),
             kernel_treatment=self.kernel_treatment,
             kernel_eta=self.kernel_eta.value(),
+            source_bhf=self.source_bhf.value(),
+            source_theta=self.source_theta.value(),
+            absorber_theta=self.absorber_theta.value(),
             vbf_n_components=int(self.vbf_ncomp.value()),
             qmin=self.qmin.value(),
             qmax=self.qmax.value(),
@@ -330,8 +354,19 @@ class DistributionPanel(QtWidgets.QGroupBox):
     def shape(self) -> str:
         return self.shape_combo.currentData() or "Histograma"
 
+    def _sync_source_widgets(self) -> None:
+        on = self.source_polarized.isChecked()
+        for w in (self.source_bhf, self.source_theta, self.absorber_theta):
+            w.setEnabled(on)
+        # la fuente polarizada usa su propio kernel: el selector de física
+        # del kernel no aplica mientras esté activa
+        self.kernel_combo.setEnabled(not on)
+        self.kernel_eta.setEnabled(not on)
+
     @property
     def kernel_treatment(self) -> str:
+        if self.source_polarized.isChecked():
+            return "polarized"
         return self.kernel_combo.currentData() or "1st_order"
 
     @property

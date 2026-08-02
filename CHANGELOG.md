@@ -23,6 +23,16 @@ atribuciones (informe §19):
 - **Voigt de SITE resuelto**: el binario 1994 usa STG(n) como σ gaussiana
   (mm/s en paramagnéticos — la misma convención de Fitbauer —, Tesla en
   sextetes); deja de ser "no validable".
+- **Serie V (Voigt) validada**: round-trip σ paramagnética a ≤4e-3 mm/s
+  (σ libre en el ajuste discreto) y σ_B magnética exacta con la forma
+  Gaussiana de distribución.
+- **Fuente polarizada expuesta en la GUI Qt**: casilla + B fuente + ángulos
+  en el panel de distribución, con sesión, i18n (8 idiomas), manuales y
+  test de cableado.
+- Relajación cerrada como no-validable con el binario (BSAT ausente del
+  namelist; espectros colapsados incluso con OME=0): física de referencia
+  identificada (Blume de dos estados, OME en mm/s), cableado del demo
+  irreproducible por caja negra.
 - Resueltos además: EXACT (perturbativo en R=−14.755·QUP/H; S2T comparte
   ranura con D23), GAX (+90° = convención zxz del binario), IFGK inerte con
   IFSC, IFTRAN idéntico al de Fitbauer, convenio BKG exacto, relajación con

@@ -245,6 +245,9 @@ class DistributionFitMixin:
                 delta_slope=dist_state.delta_slope, quad_slope=dist_state.quad_slope,
                 kernel_treatment=dist_state.kernel_treatment,
                 kernel_eta=dist_state.kernel_eta,
+                source_bhf=dist_state.source_bhf,
+                source_theta=dist_state.source_theta,
+                absorber_theta=dist_state.absorber_theta,
             )
             if var == "quad":
                 extra = dict(variable="quad", bhf=dist_state.fixed_bhf)
@@ -486,6 +489,9 @@ class DistributionFitMixin:
                     delta_slope=dsl, quad_slope=qsl,
                     kernel_treatment=dist_state.kernel_treatment,
                     kernel_eta=dist_state.kernel_eta,
+                    source_bhf=dist_state.source_bhf,
+                    source_theta=dist_state.source_theta,
+                    absorber_theta=dist_state.absorber_theta,
                     **common)
             if shape == "VBF":
                 return fit_vbf_hyperfine_distribution(

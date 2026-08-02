@@ -78,9 +78,12 @@ abierta solo la fuente polarizada (2).
    `hamiltonian_sc` (haz γ en dirección fija bex/gax, suma coherente entre
    canales); χ²red del banco K3: 3.5–20 → 2.3–3.4 con intensidades fijas
    (resto = aproximación de SITE-1994). Convención: GAX_demo = gax − 90°.
-2. **Fuente polarizada** (DIST `METHOD=4`/`POLAR`, sextete fuente ×
-   absorbente 6×6). Sondeada en el demo: transforma el espectro por completo
-   (max|Δ| ≈ 0.9 del pico). Sin equivalente en Fitbauer.
+2. **Fuente polarizada** (DIST `METHOD=4`/`POLAR`). ✅ CERRADO
+   (2026-08-02, con el código fuente): implementada desde primeros
+   principios (peine 36 líneas por selección de helicidad) y validada
+   contra el binario a 0.4 %/1.1 % del pico (θ_s=0/90); round-trip del
+   banco (L7) con ⟨B⟩ a 0.08 T. En GUI (panel de distribución), CLI y
+   kernel. **Las cuatro capacidades quedan cerradas.**
 3. **Fondo polinómico de orden alto**: ✅ CERRADO en v4.19 (`curv3`/`curv4`):
    el cúbico pasa de χ²red 2.5 a exacto y el cuártico (BKG(5)) se recupera a
    3 cifras (`fig_v419_mejoras`).
@@ -124,8 +127,11 @@ abierta solo la fuente polarizada (2).
 
 ### 2c. No validable con el demo (limitaciones del binario 1994, no veredictos)
 
-Perfil pseudo-Voigt (`VOIGT/WDLOR` inoperante), distribución de δ (`STI`
-inoperante), perfil fijo arbitrario (`DEPSUB` no existe en el namelist),
+~~Perfil pseudo-Voigt~~ (RESUELTO 2026-08-02: el binario usa `STG(n)` como
+σ gaussiana — misma convención que Fitbauer — y quedó VALIDADO round-trip,
+serie V; informe §19-20), distribución de δ (`STI`
+solo cosmética en distribuciones de campo, confirmado en el fuente),
+perfil fijo arbitrario (`DEPSUB` no existe en el namelist),
 Goldanskii–Karyagin (`IFGK` sin efecto), `S2T` (no existe), relajación
 cuantitativa (`OME` no monotónico), `DTQ` en METHOD=1, más de 512 canales,
 NSUB>10 e isótopos (`ISTYPE` rechazado). Todo ello está en el manual del
@@ -179,8 +185,8 @@ extremos de cada parámetro, el Hamiltoniano completo mejor que el propio
 SITE, y las distribuciones (gaussianas, bimodales, cuadrupolares, Czjzek,
 binomiales, correlacionadas) con momentos a ~10⁻² relativos. Lo que le faltaba
 para "llegar a NORMOS" quedó reducido a cuatro capacidades concretas, de las
-que **tres se cerraron en v4.19** (cristal único, fondo v³/v⁴ y orden mixto
-en distribuciones, §18); queda la fuente polarizada (bajo demanda) y los
-isótopos excluidos a propósito. En sentido contrario, Fitbauer
+que **las cuatro quedaron cerradas** (cristal único, fondo v³/v⁴ y orden
+mixto en v4.19 §18; fuente polarizada con el código fuente, §19-20); quedan
+solo los isótopos excluidos a propósito. En sentido contrario, Fitbauer
 aporta un bloque entero de inferencia estadística, regularización moderna,
 relajación cuantitativa y automatización que NORMOS nunca tuvo.

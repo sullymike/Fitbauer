@@ -797,5 +797,25 @@ matemática.
    debería FACTOR). **σ del ajuste**: Poisson sobre cuentas dobladas; el
    χ² del RES divide por el MODELO con DF=NP−1−NVAR (convención a imitar
    al comparar). **Relajación**: OME está en mm/s (no MHz) y es la forma
-   cerrada de Blume de dos estados; el mapeo completo de parámetros del
-   demo (BH0/BSAT) queda PENDIENTE de sondas adicionales.
+   cerrada de Blume de dos estados. Sondas adicionales (relax2) CIERRAN el
+   punto como no-validable: BSAT no existe en el namelist del binario y los
+   espectros IRELAX del demo salen casi colapsados incluso con OME=0 — el
+   cableado de parámetros del ejecutable de 1994 difiere del fuente de 1990
+   y no es reconstruible por caja negra. X1 queda como comparación
+   cualitativa, ahora con la física de referencia identificada.
+
+
+## 20. Serie V (Voigt del binario) y fuente polarizada en la GUI (2026-08-02)
+
+- **Serie V**: con la semántica STG descubierta en §19.5 se validó el perfil
+  Voigt round-trip. Paramagnético (V1, σ ∈ {0.05, 0.15, 0.30} mm/s):
+  Fitbauer con perfil Voigt y σ LIBRE recupera σ a ≤4·10⁻³ mm/s (a σ=0.05,
+  6.6·10⁻⁵), con una leve compensación σ↔Γ (Γ −0.7…−1.7 %) atribuible al
+  pseudo-Voigt aproximado del binario frente al Voigt exacto de Fitbauer.
+  Magnético (V2, σ_B ∈ {0.5, 1.5, 3} T): la forma "Gaussiana" de Fitbauer
+  clava ⟨B⟩ (≤4·10⁻³ T) y σ_B (exacta en 1.5/3 T; +0.046 en 0.5 T donde
+  σ_v ≈ Γ/2). El Voigt pasa de "no validable" a VALIDADO.
+- **Fuente polarizada en la GUI**: casilla "Fuente polarizada (γ∥B)" en el
+  panel de distribución con B fuente y ángulos fuente/absorbente-haz,
+  persistencia de sesión y test de cableado; i18n en 8 idiomas y manuales
+  ES/EN actualizados (§ nueva en el capítulo de distribuciones).

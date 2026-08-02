@@ -315,6 +315,9 @@ class SessionIOMixin:
                     "dist_nbins": dp.nbins, "dist_log_alpha": dp.log_alpha,
                     "dist_delta_slope": dp.delta_slope, "dist_quad_slope": dp.quad_slope,
                     "dist_kernel_eta": dp.kernel_eta,
+                    "dist_source_bhf": dp.source_bhf,
+                    "dist_source_theta": dp.source_theta,
+                    "dist_absorber_theta": dp.absorber_theta,
                     "dist_qmin": dp.qmin, "dist_qmax": dp.qmax,
                     "dist_qbins": dp.qbins, "dist_log_alpha_q": dp.log_alpha_q,
                 }
@@ -330,9 +333,12 @@ class SessionIOMixin:
                             pass
                 kt = state.get("dist_kernel_treatment")
                 if kt is not None:
-                    ki = dp.kernel_combo.findData(str(kt))
-                    if ki >= 0:
-                        dp.kernel_combo.setCurrentIndex(ki)
+                    if str(kt) == "polarized":
+                        dp.source_polarized.setChecked(True)
+                    else:
+                        ki = dp.kernel_combo.findData(str(kt))
+                        if ki >= 0:
+                            dp.kernel_combo.setCurrentIndex(ki)
                 if "dist_vbf_n_components" in state:
                     try:
                         dp.vbf_ncomp.setValue(int(state["dist_vbf_n_components"]))

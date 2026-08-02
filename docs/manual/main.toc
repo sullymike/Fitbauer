@@ -53,11 +53,12 @@
 \contentsline {subsection}{\numberline {5.4.2}Forma y regularizador}{31}{subsection.5.4.2}%
 \contentsline {subsection}{\numberline {5.4.3}Parámetros del núcleo (cada subespectro)}{31}{subsection.5.4.3}%
 \contentsline {subsection}{\numberline {5.4.4}Física del kernel: 1er orden o Hamiltoniano (v4.19)}{31}{subsection.5.4.4}%
-\contentsline {subsection}{\numberline {5.4.5}Correlación con el campo: $\kappa _\delta $ y $\kappa _q$}{31}{subsection.5.4.5}%
-\contentsline {subsection}{\numberline {5.4.6}La malla de valores}{32}{subsection.5.4.6}%
-\contentsline {subsection}{\numberline {5.4.7}La regularización: $\log \alpha $ y atajos}{32}{subsection.5.4.7}%
-\contentsline {subsection}{\numberline {5.4.8}Controles de la 2D}{32}{subsection.5.4.8}%
-\contentsline {subsection}{\numberline {5.4.9}Otros}{32}{subsection.5.4.9}%
+\contentsline {subsection}{\numberline {5.4.5}Fuente polarizada (v4.20)}{31}{subsection.5.4.5}%
+\contentsline {subsection}{\numberline {5.4.6}Correlación con el campo: $\kappa _\delta $ y $\kappa _q$}{32}{subsection.5.4.6}%
+\contentsline {subsection}{\numberline {5.4.7}La malla de valores}{32}{subsection.5.4.7}%
+\contentsline {subsection}{\numberline {5.4.8}La regularización: $\log \alpha $ y atajos}{32}{subsection.5.4.8}%
+\contentsline {subsection}{\numberline {5.4.9}Controles de la 2D}{32}{subsection.5.4.9}%
+\contentsline {subsection}{\numberline {5.4.10}Otros}{32}{subsection.5.4.10}%
 \contentsline {section}{\numberline {5.5}Formas de la distribución}{32}{section.5.5}%
 \contentsline {subsection}{\numberline {5.5.1}Histograma (Hesse--Rübartsch)}{33}{subsection.5.5.1}%
 \contentsline {subsection}{\numberline {5.5.2}Gaussiana}{33}{subsection.5.5.2}%

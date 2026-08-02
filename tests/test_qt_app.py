@@ -1454,3 +1454,20 @@ def test_open_dat_una_columna_carga_como_cuentas_crudas(win, tmp_path, monkeypat
     # doblado automático (el recorte de bordes deja n/2 − 2 canales)
     assert win.file.velocity is not None
     assert n // 2 - 4 <= win.file.velocity.size <= n // 2
+
+
+def test_qt_fuente_polarizada_wiring(win):
+    """El checkbox de fuente polarizada llega al estado y usa su kernel."""
+    d = win.dist_panel
+    assert d.kernel_treatment in ("1st_order", "hamiltonian")
+    d.source_polarized.setChecked(True)
+    d.source_bhf.set_value(30.0)
+    d.source_theta.set_value(0.0)
+    st = d.to_view_state(variable="BHF")
+    assert st.kernel_treatment == "polarized"
+    assert st.source_bhf == 30.0
+    # el selector de física del kernel queda deshabilitado mientras tanto
+    assert not d.kernel_combo.isEnabled()
+    d.source_polarized.setChecked(False)
+    assert d.kernel_combo.isEnabled()
+    assert d.to_view_state(variable="BHF").kernel_treatment != "polarized"
