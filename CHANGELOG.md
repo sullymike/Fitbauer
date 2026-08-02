@@ -1,5 +1,49 @@
 # Changelog
 
+## Sin publicar — polarización de poblaciones y bloque de distribuciones
+
+### Relajación: poblaciones desiguales (cierra el hueco del nivel 9)
+
+- Nuevo parámetro `relax_polarization` (P ∈ [−1, 1]) del componente
+  `BlumeTjon`: desequilibra las poblaciones de los dos estados,
+  `p± = (1 ± P)/2`. Es el `SPN = BHF/BSAT` de NORMOS, o sea el efecto de un
+  campo externo que polariza los dos estados. Con P=0 (defecto) nada cambia.
+- **Reproduce `ISIRLX` EXACTAMENTE** (rms < 10⁻¹², no aproximadamente) tanto
+  con P=0 como con P≠0, con `k = OME/2`.
+- Corrección de la conclusión del nivel 9: el residuo del 2 % que se había
+  medido era un artefacto del test, no del modelo — NORMOS usa DOS anchuras
+  (`WD` en los autovalores y `WDS` en la convolución) y contarlas ambas
+  duplicaba Γ. Con la correspondencia correcta (`WD=0`, `WDS=Γ`) la
+  equivalencia es exacta y `k = OME/2` no es asintótico sino exacto.
+- La forma polarizada **no se recorta a ≥0**: con poblaciones muy desiguales
+  tiene regiones negativas (hasta el 27 % de los canales con P=0.9) y NORMOS
+  tampoco las recorta. Se comprueba que el área se conserva (`AC+BD = 1`).
+- Verificado que un sexteto NO se asimetriza con P, y no debe: los dos estados
+  entre los que salta (+B y −B) dan el mismo espectro estático.
+
+### Bloque DIST (distribuciones)
+
+- **Matriz de suavizado idéntica**: `SMOOTH` (`distauxl.for`) monta `λ·D₂ᵀD₂`
+  con diagonal `[1,5,6,…,6,5,1]`, exactamente el penalizador Tikhonov de aquí
+  (comprobado elemento a elemento para varios tamaños).
+- **Anclajes de borde**, que faltaban: `edge_anchor` (los `BETA1`/`BETA2` de
+  NORMOS) fuerza P→0 en el primer y último bin. Van con peso PROPIO, no
+  multiplicados por α — igual que en NORMOS, que los suma a las esquinas
+  después de escalar por λ. En forma de raíz cuadrada son dos filas `√β·e₀ᵀ`
+  y `√β·e_{n−1}ᵀ`. CLI: `--edge-anchor`.
+- **Diagnóstico `edge_pileup`** en el resultado, que es lo verdaderamente
+  accionable: `max(P[0], P[−1]) / max(P)`. Si la distribución real se sale de
+  la malla, Hesse–Rübartsch no tiene dónde poner ese peso y lo APILA en el bin
+  extremo. Medido: una gaussiana centrada en 45 T con la malla truncada a
+  0–40 T deja el último bin al 100 % del máximo y hunde ⟨B⟩ de 44.9 a 28.5 T.
+  Con la malla amplia el indicador baja a 0.01.
+- Dicho con claridad: el anclaje encarece ese refugio pero **no arregla una
+  malla mal elegida** (la información no está en los datos); por eso lo que se
+  añade es sobre todo el diagnóstico.
+- Tests: `tests/test_distribucion_normos.py` (9), con un port literal de
+  `SMOOTH` como referencia, y 8 nuevos de polarización en
+  `tests/test_relajacion_normos.py`.
+
 ## Sin publicar — Hamiltoniano y relajación verificados
 
 Niveles 8 y 9 de la revisión del código fuente de NORMOS. **Ninguno de los dos

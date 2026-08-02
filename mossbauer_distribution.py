@@ -157,6 +157,16 @@ class BhfDistributionFit:
     delta_slope: float = 0.0
     quad_slope: float = 0.0
     vbf_n_components: int | None = None
+    #: Diagnóstico de MALLA INSUFICIENTE: ``max(P[0], P[-1]) / max(P)``.
+    #:
+    #: Si la distribución real se sale del rango, el histograma de
+    #: Hesse–Rübartsch no tiene dónde poner ese peso y lo APILA en el bin
+    #: extremo. Un valor alto (≳0.3) significa que hay que ampliar la malla:
+    #: en un caso medido, truncar una gaussiana centrada en 45 T a un rango
+    #: 0–40 T dejaba el último bin al 100 % del máximo y hundía ⟨B⟩ de 44.9 a
+    #: 28.5 T. El anclaje ``edge_anchor`` encarece ese refugio, pero no
+    #: sustituye a elegir bien el rango.
+    edge_pileup: float | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Devuelve un dict serializable en JSON tras convertir arrays a listas."""
@@ -952,6 +962,43 @@ def second_difference_matrix(n: int) -> np.ndarray:
     return L
 
 
+def edge_pileup_ratio(weights: np.ndarray) -> float:
+    """``max(P[0], P[-1]) / max(P)`` — diagnóstico de malla insuficiente."""
+    w = np.asarray(weights, dtype=float)
+    if w.size < 3:
+        return 0.0
+    top = float(np.max(w))
+    if not np.isfinite(top) or top <= 0.0:
+        return 0.0
+    return float(max(w[0], w[-1]) / top)
+
+
+def edge_anchor_rows(n: int, beta: float) -> np.ndarray:
+    """Filas de anclaje que fuerzan P→0 en los EXTREMOS de la malla.
+
+    Paridad con los ``BETA1``/``BETA2`` de NORMOS-DIST (``SMOOTH`` en
+    ``distauxl.for``), que los suma a las esquinas diagonales de su matriz de
+    suavizado ``λ·D₂ᵀD₂``. Aquí la regularización se resuelve en forma de raíz
+    cuadrada (filas apiladas), así que el equivalente son dos filas
+    ``√β·e₀ᵀ`` y ``√β·e_{n−1}ᵀ``.
+
+    Para qué sirven: sin anclaje, si la distribución real se sale de la malla
+    el histograma de Hesse–Rübartsch APILA todo el peso sobrante en el bin
+    extremo — un pico espurio que además arrastra ⟨B⟩. Con anclaje el ajuste
+    no puede refugiarse ahí y el desajuste se hace visible.
+
+    Devuelve ``(0, n)`` si ``beta <= 0``.
+    """
+    n = int(n)
+    beta = float(beta)
+    if n < 2 or beta <= 0.0:
+        return np.zeros((0, n), dtype=float)
+    rows = np.zeros((2, n), dtype=float)
+    rows[0, 0] = np.sqrt(beta)
+    rows[1, -1] = np.sqrt(beta)
+    return rows
+
+
 def first_difference_matrix(n: int) -> np.ndarray:
     """Operador D de primeras diferencias, dimensión (n-1) x n."""
     n = int(n)
@@ -1311,6 +1358,7 @@ def fit_hyperfine_distribution(
     sigma: np.ndarray | None = None,
     rescale_columns: bool = True,
     reg_mode: str = "tikhonov",
+    edge_anchor: float = 0.0,
     tv_iters: int = 8,
     profile: str = "Lorentziana",
     voigt_sigma: float = 0.05,
@@ -1405,6 +1453,7 @@ def fit_hyperfine_distribution(
     else:
         L = second_difference_matrix(centers.size)
 
+
     # Los nítidos con profundidad fija aportan absorción conocida al modelo:
     # y = fondo - K_dist·P - K_sharp_free·q - fixed_sharp_abs.
     # Se pasa al solve como y + fixed_sharp_abs para que sólo queden libres P y q.
@@ -1490,11 +1539,24 @@ def fit_hyperfine_distribution(
     # dependencia residual con nbins/γ mantiene el codo dentro de ~[-2, +2].
     alpha_eff = float(alpha) * lambda_ref * ALPHA_REF_SCALE
 
+    # Anclajes de borde (BETA1/BETA2 de NORMOS-DIST): fuerzan P→0 en el primer
+    # y último bin. Van con su PROPIO peso, no multiplicados por α — igual que
+    # en NORMOS, que los suma a las esquinas DESPUÉS de escalar por λ. Se
+    # normalizan con el mismo λ_ref para que β y α sean comparables.
+    _anchor_rows = edge_anchor_rows(centers.size, 1.0)
+    _anchor_scaled = (_anchor_rows / scale[None, dist_start:dist_end]
+                      if _anchor_rows.size else _anchor_rows)
+    _beta_eff = float(edge_anchor) * lambda_ref * ALPHA_REF_SCALE
+
     def _solve(L_pen_scaled: np.ndarray):
-        reg = np.zeros((L_pen_scaled.shape[0], X.shape[1]), dtype=float)
-        reg[:, dist_start:dist_end] = np.sqrt(alpha_eff) * L_pen_scaled
+        blocks = [np.sqrt(alpha_eff) * L_pen_scaled]
+        if _anchor_scaled.size and _beta_eff > 0.0:
+            blocks.append(np.sqrt(_beta_eff) * _anchor_scaled)
+        L_all = np.vstack(blocks)
+        reg = np.zeros((L_all.shape[0], X.shape[1]), dtype=float)
+        reg[:, dist_start:dist_end] = L_all
         X_aug = np.vstack([X_fit, reg])
-        y_aug = np.concatenate([y_fit, np.zeros(L_pen_scaled.shape[0], dtype=float)])
+        y_aug = np.concatenate([y_fit, np.zeros(L_all.shape[0], dtype=float)])
         # Las cotas de p̃ = escala·P coinciden con las de P (0 e ∞ invariantes).
         res = lsq_linear(X_aug, y_aug, bounds=(lower_arr, upper_arr), lsmr_tol="auto", max_iter=2000)
         return res, res.x / scale  # deshace el escalado para recuperar P físico
@@ -1607,6 +1669,7 @@ def fit_hyperfine_distribution(
         baseline=baseline_fit,
         slope=slope_fit,
         alpha=float(alpha),
+        edge_pileup=edge_pileup_ratio(weights),
         rms=rms,
         success=bool(result.success),
         message=str(result.message),

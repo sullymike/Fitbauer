@@ -438,14 +438,28 @@ def two_state_exchange_profile(
     center_b: float,
     gamma: float,
     log10_nu: float,
+    polarization: float = 0.0,
 ) -> np.ndarray:
-    """Línea de intercambio de dos estados con saltos simétricos a tasa ν.
+    """Línea de intercambio estocástico entre dos estados a tasa ν.
 
-    Implementación de primera aproximación tipo Bloch–McConnell/Kubo para dos
-    frecuencias que intercambian con la misma tasa. La tasa se introduce como
-    ``log10_nu`` en s⁻¹ y se convierte a unidades de velocidad mediante la
-    relación Doppler del 57Fe. En el límite lento devuelve la media de dos
-    lorentzianas; en el rápido, una única línea en el centro promedio.
+    Forma cerrada de Blume para dos frecuencias que intercambian. La tasa se
+    introduce como ``log10_nu`` en s⁻¹ y se convierte a unidades de velocidad
+    con la relación Doppler del ⁵⁷Fe. En el límite lento devuelve dos
+    lorentzianas; en el rápido, una sola línea en el centro promedio.
+
+    ``polarization`` (P ∈ [−1, 1]) desequilibra las POBLACIONES de los dos
+    estados, ``p_{1,2} = (1 ± P)/2`` — es el ``SPN = BHF/BSAT`` de NORMOS
+    (``siterelx.for``, ``ISIRLX``), o sea el efecto de un campo externo que
+    polariza los dos estados. Con P=0 (defecto) las poblaciones son 50/50 y se
+    recupera exactamente la fórmula anterior.
+
+    La expresión general es::
+
+        I(v) ∝ Re[ (p₁z₂ + p₂z₁ + w₁ + w₂) / (z₁z₂ + z₁w₂ + z₂w₁) ]
+
+    con ``z_j = Γ/2 + i(v − v_j)`` y tasas de salida ligadas por balance
+    detallado (``p₁w₁ = p₂w₂``), parametrizadas como ``w₁ = 2kp₂``,
+    ``w₂ = 2kp₁`` para que P=0 dé ``w₁ = w₂ = k``.
     """
     vv = np.asarray(v, dtype=float)
     g = max(float(gamma), 1e-9) / 2.0
@@ -454,14 +468,68 @@ def two_state_exchange_profile(
     except OverflowError:
         rate_v = 1e12 / _RELAX_RATE_PER_MM_S
     k = max(float(rate_v), 0.0)
+    pol = float(np.clip(float(polarization), -1.0, 1.0))
+    p1 = 0.5 * (1.0 + pol)
+    p2 = 0.5 * (1.0 - pol)
     z1 = g + 1j * (vv - float(center_a))
     z2 = g + 1j * (vv - float(center_b))
     if k <= 0.0:
-        return 0.5 * (np.real(g / z1) + np.real(g / z2))
-    det = z1 * z2 + k * (z1 + z2)
-    det = np.where(np.abs(det) < 1e-300, 1e-300 + 0j, det)
-    resp = 0.5 * g * (z1 + z2 + 4.0 * k) / det
-    return np.maximum(np.real(resp), 0.0)
+        # Sin saltos: cada estado aporta según su población.
+        return p1 * np.real(g / z1) + p2 * np.real(g / z2)
+    if pol == 0.0:
+        det = z1 * z2 + k * (z1 + z2)
+        det = np.where(np.abs(det) < 1e-300, 1e-300 + 0j, det)
+        resp = 0.5 * g * (z1 + z2 + 4.0 * k) / det
+        return np.maximum(np.real(resp), 0.0)
+    # Sin recortar a ≥0: con poblaciones muy desiguales la forma de Blume tiene
+    # regiones negativas (hasta el 27 % de los canales con P=0.9), y NORMOS
+    # tampoco las recorta (``ISIRLX`` acumula ``REAL(CC)`` tal cual). Recortar
+    # línea a línea rompería la equivalencia y además el total del sexteto
+    # suele salir positivo aunque una línea suelta no lo sea.
+    return _blume_polarizado(vv, center_a, center_b, g, k, pol)
+
+
+def _blume_polarizado(vv, center_a, center_b, g, k, pol):
+    """Forma cerrada de Blume con poblaciones desiguales (port de ``ISIRLX``).
+
+    Portado literalmente de ``siterelx.for`` (NORMOS), que es la referencia
+    publicada. Con ``pol=0`` coincide exactamente con la expresión simétrica
+    (comprobado a rms 0), pero con ``pol≠0`` los pesos no son la simple
+    generalización por poblaciones: la asimetría entra también en los
+    autovalores vía ``RK``.
+
+    Correspondencia de parámetros: ``OME = 2k``, ``DVL0 = (c_b − c_a)/2``,
+    ``VELS = (c_a + c_b)/2``, ``WD = 0`` (la anchura va toda en ``z``).
+    """
+    ome = 2.0 * k
+    dvl0 = 0.5 * (float(center_b) - float(center_a))
+    vels = 0.5 * (float(center_a) + float(center_b))
+    b1 = -0.5 * ome
+    h = 0.25 * ome ** 2 - dvl0 ** 2
+    rk = -dvl0 * pol * ome
+    hk = float(np.hypot(h, rk))
+    eta = float(np.sqrt(max(0.5 * (hk + h), 0.0)))
+    rnue = float(np.sqrt(max(0.5 * (hk - h), 0.0)))
+    xp, yp = eta - b1, rnue
+    xn, yn = -eta - b1, -rnue
+    if dvl0 <= 0:
+        lam1, lam2 = complex(xp, yp), complex(xn, yn)
+    else:
+        lam1, lam2 = complex(xp, yn), complex(xn, yp)
+    bb = complex(ome, -dvl0)
+    cc = complex(ome, dvl0)
+    den = (cc - lam1) * (bb - lam2)
+    if abs(den) < 1e-300:
+        return np.zeros_like(vv)
+    rk1 = (bb - lam1) / (cc - lam1)
+    rk2 = (cc - lam2) / (bb - lam2)
+    denom = 1.0 - rk1 * rk2
+    if abs(denom) < 1e-300:
+        return np.zeros_like(vv)
+    ac = 0.5 * (1.0 + pol + rk1 * (1.0 - pol)) * (1.0 - rk2) / denom
+    bd = 0.5 * (1.0 - pol + rk2 * (1.0 + pol)) * (1.0 - rk1) / denom
+    z = g + 1j * (vels - vv)
+    return g * np.real(ac / (lam1 + z) + bd / (lam2 + z))
 
 
 def two_state_sextet_absorption(
@@ -469,6 +537,7 @@ def two_state_sextet_absorption(
     delta: float, quad: float, bhf: float,
     weights: np.ndarray, gammas: np.ndarray,
     log10_nu: float,
+    polarization: float = 0.0,
 ) -> np.ndarray:
     """Sextete de dos estados +BHF ↔ −BHF con pesos/anchuras explícitos por línea.
 
@@ -483,7 +552,9 @@ def two_state_sextet_absorption(
     c_minus = float(delta) + q - mag
     out = np.zeros_like(np.asarray(v, dtype=float), dtype=float)
     for ca, cb, g, w in zip(c_plus, c_minus, gammas, weights):
-        out += float(w) * two_state_exchange_profile(v, float(ca), float(cb), float(g), float(log10_nu))
+        out += float(w) * two_state_exchange_profile(
+            v, float(ca), float(cb), float(g), float(log10_nu),
+            float(polarization))
     return out
 
 
@@ -493,6 +564,7 @@ def relaxation_blume_tjon_two_state_absorption(
     gamma1: float, gamma2: float, gamma3: float,
     depth: float, int1: float, int2: float, int3: float,
     log10_nu: float,
+    polarization: float = 0.0,
 ) -> np.ndarray:
     """Modelo dinámico simplificado de dos estados +BHF ↔ -BHF.
 
@@ -504,7 +576,8 @@ def relaxation_blume_tjon_two_state_absorption(
     """
     weights = np.array([int3 * int1, int3 * int2, int3, int3, int3 * int2, int3 * int1], dtype=float)
     gammas = float(gamma1) * np.array([1.0, gamma2, gamma3, gamma3, gamma2, 1.0], dtype=float)
-    return float(depth) * two_state_sextet_absorption(v, delta, quad, bhf, weights, gammas, log10_nu)
+    return float(depth) * two_state_sextet_absorption(
+        v, delta, quad, bhf, weights, gammas, log10_nu, polarization)
 
 
 def component_absorption(
@@ -533,9 +606,11 @@ def component_absorption(
         log10_nu = 5.0
         if extras is not None:
             log10_nu = float(extras.get("log10_nu", extras.get("relax_log_nu", log10_nu)))
+        pol = float(extras.get("polarization",
+                                extras.get("relax_polarization", 0.0))) if extras else 0.0
         return relaxation_blume_tjon_two_state_absorption(
             v, delta, quad, bhf, gamma1, gamma2, gamma3,
-            depth, int1, int2, int3, log10_nu,
+            depth, int1, int2, int3, log10_nu, pol,
         )
     if kind == "NeelSize":
         delta, quad, bhf, gamma1, gamma2, gamma3, depth, int1, int2, int3 = p

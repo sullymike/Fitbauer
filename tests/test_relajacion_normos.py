@@ -11,9 +11,14 @@ equivalencia — es la primera validación de la relajación de Fitbauer, que co
 el binario del demo no era comprobable (§19: BSAT no está en su namelist y sus
 espectros IRELAX salen colapsados incluso con OME=0).
 
-Capacidad de NORMOS que Fitbauer NO tiene: **poblaciones desiguales**
-(``SPN = BHF/BSAT``), es decir relajación con un campo externo que polariza los
-dos estados. Aquí se asume siempre 50/50, que es ``SPN = 0``.
+Las poblaciones desiguales (``SPN = BHF/BSAT``: un campo externo que polariza
+los dos estados) eran una capacidad que faltaba; ahora están como
+``polarization`` / ``relax_polarization``.
+
+Ojo con la anchura al comparar: NORMOS usa DOS (``WD`` en los autovalores y
+``WDS`` en la convolución final) y aquí solo hay una, así que la equivalencia
+es con ``WD = 0`` y ``WDS = Γ``. Contarlas ambas mete un 2 % de residuo que
+NO es del modelo.
 """
 from __future__ import annotations
 
@@ -55,49 +60,69 @@ def _norm(y):
     return y / np.trapezoid(y, V)
 
 
-def _fitbauer(k_mm_s: float):
+def _fitbauer(k_mm_s: float, pol: float = 0.0):
     return two_state_exchange_profile(
-        V, -SPLIT, SPLIT, GAMMA, np.log10(k_mm_s * _RELAX_RATE_PER_MM_S))
-
-
-def _k_optimo(ome: float) -> tuple[float, float]:
-    """Tasa de Fitbauer que mejor reproduce un ``OME`` de NORMOS, y su residuo."""
-    from scipy.optimize import minimize_scalar
-
-    ref = _norm(_isirlx(V, SPLIT, ome, GAMMA, GAMMA))
-    coste = lambda lk: float(  # noqa: E731
-        np.max(np.abs(_norm(_fitbauer(10.0 ** lk)) - ref)) / ref.max())
-    r = minimize_scalar(coste, bounds=(-3.0, 3.0), method="bounded",
-                        options={"xatol": 1e-7})
-    return 10.0 ** r.x, float(r.fun)
+        V, -SPLIT, SPLIT, GAMMA, np.log10(k_mm_s * _RELAX_RATE_PER_MM_S), pol)
 
 
 @pytest.mark.parametrize("ome", [0.1, 0.5, 2.0, 10.0, 40.0])
-def test_misma_forma_que_isirlx(ome):
-    """Es el MISMO modelo: existe un k que reproduce la forma de ISIRLX.
+def test_identico_a_isirlx_con_k_igual_a_ome_medio(ome):
+    """Es EXACTAMENTE el mismo modelo, con ``k = OME/2``.
 
-    El residuo se queda en el 2 % del pico en todo el rango, y baja al 0.1 %
-    en relajación rápida. Lo que NO es constante es el mapeo ``k↔OME``: las dos
-    parametrizaciones solo coinciden asintóticamente (ver test siguiente), así
-    que aquí se ajusta k en vez de imponerlo.
+    La comparación se hace con ``WD=0`` (toda la anchura en la convolución),
+    que es la correspondencia correcta entre las dos parametrizaciones.
     """
-    _k, residuo = _k_optimo(ome)
-    assert residuo < 0.025
+    ref = _isirlx(V, SPLIT, ome, 0.0, GAMMA)
+    mio = _fitbauer(ome / 2.0)
+    escala = float(np.sum(mio * ref) / np.sum(mio * mio))
+    assert escala == pytest.approx(8.0, rel=1e-9)      # normalización a pico
+    assert np.max(np.abs(escala * mio - ref)) < 1e-12 * max(1.0, ref.max())
 
 
-def test_el_mapeo_k_ome_tiende_a_un_medio():
-    """``k → OME/2`` en el límite de relajación rápida.
+@pytest.mark.parametrize("ome,spn", [(0.5, 0.3), (2.0, 0.3), (2.0, 0.6),
+                                     (10.0, 0.6), (2.0, 0.9), (10.0, 0.9)])
+def test_poblaciones_desiguales_identicas_a_isirlx(ome, spn):
+    """La polarización también reproduce ISIRLX exactamente (P = SPN)."""
+    ref = _isirlx(V, SPLIT, ome, 0.0, GAMMA, spn=spn)
+    mio = _fitbauer(ome / 2.0, spn)
+    assert np.max(np.abs(8.0 * mio - ref)) < 1e-12 * max(1.0, abs(ref).max())
 
-    En el límite LENTO la forma casi no depende de la tasa, así que el ajuste
-    no la determina y el cociente se dispara: por eso no se puede publicar un
-    factor de conversión único entre ``OME`` y ``k``.
+
+def test_polarizacion_conserva_el_area():
+    """``AC + BD = 1`` analíticamente; el peso total no depende de P."""
+    v = np.linspace(-60.0, 60.0, 24001)
+    areas = []
+    for pol in (0.0, 0.3, 0.6, 0.9):
+        y = two_state_exchange_profile(
+            v, -SPLIT, SPLIT, GAMMA,
+            np.log10(1.0 * _RELAX_RATE_PER_MM_S), pol)
+        areas.append(float(np.trapezoid(y, v)))
+    assert max(areas) - min(areas) < 1e-3 * areas[0]
+
+
+def test_polarizacion_cero_es_el_comportamiento_historico():
+    """P=0 debe pasar por la rama simétrica original, sin cambios."""
+    a = _fitbauer(1.0, 0.0)
+    b = two_state_exchange_profile(
+        V, -SPLIT, SPLIT, GAMMA, np.log10(1.0 * _RELAX_RATE_PER_MM_S))
+    np.testing.assert_allclose(a, b, atol=0)
+
+
+def test_el_sexteto_no_se_asimetriza_con_la_polarizacion():
+    """Y no debe: un sexteto con +B y −B da el MISMO espectro estático.
+
+    La polarización cambia la mezcla dinámica (y con ella el ensanchamiento),
+    pero no puede romper la simetría del sexteto, porque los dos estados entre
+    los que salta son espectralmente idénticos.
     """
-    razones = {ome: _k_optimo(ome)[0] / ome for ome in (0.1, 2.0, 10.0, 40.0)}
-    assert razones[0.1] > 1.0                    # indeterminado en el límite lento
-    assert razones[40.0] == pytest.approx(0.5, abs=0.1)
-    # y decrece monótonamente hacia 1/2
-    valores = [razones[o] for o in (0.1, 2.0, 10.0, 40.0)]
-    assert all(a > b for a, b in zip(valores, valores[1:]))
+    from core.physics import component_absorption
+
+    v = np.linspace(-12.0, 12.0, 2401)
+    p = np.array([0.0, 0.0, 33.0, 0.28, 1.0, 1.0, 0.05, 3.0, 2.0, 1.0])
+    for pol in (0.0, 0.5):
+        y = component_absorption(v, "BlumeTjon", p,
+                                 extras={"log10_nu": 8.5, "polarization": pol})
+        assert np.max(np.abs(y - y[::-1])) < 1e-12
 
 
 def test_limite_lento_es_el_doblete_estatico():

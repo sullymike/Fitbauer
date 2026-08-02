@@ -153,6 +153,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--alpha-max", type=float, default=1e2)
     parser.add_argument("--alpha-count", type=int, default=33)
     parser.add_argument("--plot", action="store_true", help="Guarda PNG con espectro y P(BHF)")
+    parser.add_argument("--edge-anchor", type=float, default=0.0, metavar="B",
+                        help="Anclaje de los extremos de la malla (BETA1/BETA2 "
+                             "de NORMOS-DIST): fuerza P->0 en el primer y "
+                             "ultimo bin. 0 = sin anclaje. Util para que el "
+                             "histograma no apile peso espurio en el borde.")
     parser.add_argument("--intensity-convention", choices=("depth", "area"),
                         default="depth",
                         help="Razones de intensidad entre lineas del kernel: "
@@ -332,7 +337,7 @@ def run_fit_1d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
         int2_rel = 3.0 * args.d23 / (2.0 * args.d13)
         return fit_hyperfine_distribution(
             v, y, alpha=args.alpha,
-            reg_mode=args.reg_mode,
+            reg_mode=args.reg_mode, edge_anchor=args.edge_anchor,
             profile=args.profile, voigt_sigma=args.voigt_sigma,
             delta_slope=args.delta_slope, quad_slope=args.quad_slope,
             int2_rel=int2_rel, int3_rel=int3_rel,
