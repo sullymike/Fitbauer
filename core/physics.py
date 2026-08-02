@@ -162,6 +162,42 @@ def sum_lorentzian_lines(
     return absorption
 
 
+def dispersion_line_widths(
+    gamma1: float,
+    sigma_bhf: float = 0.0,
+    sigma_delta: float = 0.0,
+    sigma_quad: float = 0.0,
+) -> np.ndarray:
+    """Anchuras por línea derivadas de DISPERSIONES físicas (modelo de Brand).
+
+    Paridad conceptual con el ``METHOD=2`` de NORMOS-DIST (Brand et al. 1983,
+    ``distcalf.for``): en vez de dejar libres ``gamma2``/``gamma3``, la anchura
+    de cada línea sale de cuánto la desplaza cada variable dispersa::
+
+        (Γ_i/2)² = (Γ/2)² + (∂v_i/∂B · σ_B)² + σ_δ² + (∂v_i/∂ΔE_Q · σ_Q)²
+
+    con ``∂v_i/∂B`` el patrón del sexteto por Tesla y ``∂v_i/∂ΔE_Q`` el patrón
+    cuadrupolar ``[+½, −½, −½, −½, −½, +½]``. La suma en cuadratura sobre
+    ``(Γ/2)²`` es la de NORMOS (trata la dispersión como lorentziana), no la
+    conversión gaussiana 2√(2ln2)·σ.
+
+    Es lo que produce el patrón característico de las aleaciones desordenadas:
+    con solo σ_B, las líneas 1 y 6 se ensanchan mucho más que las 3 y 4 —el
+    factor entre ellas es ``|∂v_1/∂B| / |∂v_3/∂B|`` ≈ 6.35—, mientras que σ_δ
+    ensancha todas por igual.
+
+    No se replica la ASIMETRÍA de línea de Brand: su propio código advierte de
+    que solo vale «si los términos asimétricos son mucho menores que la
+    anchura», y para ese régimen Fitbauer tiene el histograma completo, que no
+    aproxima nada.
+    """
+    per_t = active_sextet_pattern() / BHF_DEFAULT_T           # ∂v_i/∂B
+    s2 = ((per_t * float(sigma_bhf)) ** 2
+          + float(sigma_delta) ** 2
+          + (LINE_QUAD_PATTERN * float(sigma_quad)) ** 2)
+    return np.sqrt(float(gamma1) ** 2 + 4.0 * s2)
+
+
 def sextet_absorption(
     v: np.ndarray,
     delta: float, quad: float, bhf: float,
@@ -175,8 +211,15 @@ def sextet_absorption(
     phi: float = 0.0,
     beam_theta: float = 0.0,
     beam_phi: float = 0.0,
+    width_model: str = "free",
+    sigma_bhf: float = 0.0,
+    sigma_delta: float = 0.0,
+    sigma_quad: float = 0.0,
 ) -> np.ndarray:
     """Absorción del sextete.
+
+    ``width_model="dispersion"`` sustituye ``gamma2``/``gamma3`` por anchuras
+    derivadas de dispersiones físicas (ver :func:`dispersion_line_widths`).
 
     ``treatment``:
       * ``"1st_order"`` (default): patrón rígido aditivo (modelo histórico).
@@ -204,6 +247,16 @@ def sextet_absorption(
     g2 = gamma1 * gamma2
     g3 = gamma1 * gamma3
     gammas = np.array([g1, g2, g3, g3, g2, g1], dtype=float)
+    if str(width_model) == "dispersion":
+        # Las anchuras salen de las dispersiones; gamma2/gamma3 no se usan.
+        gammas = dispersion_line_widths(gamma1, sigma_bhf, sigma_delta, sigma_quad)
+        # Una dispersión ENSANCHA cada línea conservando su ÁREA (el número de
+        # átomos no cambia), así que el peso de pico baja en proporción. Sin
+        # esto el área crecía un 40 % con σ_B = 1 T.
+        weights = weights * (float(gamma1) / np.maximum(gammas, 1e-12))
+        g1, g2, g3 = float(gammas[0]), float(gammas[1]), float(gammas[2])
+    elif str(width_model) != "free":
+        raise ValueError(f"width_model desconocido: {width_model!r}")
     if INTENSITY_CONVENTION == "area":
         # int1/int2 pasan a ser A13/A23 (razones de ÁREA, convenio NORMOS).
         weights = _area_to_depth_weights(weights, gammas)
@@ -635,6 +688,10 @@ def component_absorption(
             phi=float(extras.get("phi", 0.0)),
             beam_theta=float(extras.get("beam_theta", 0.0)),
             beam_phi=float(extras.get("beam_phi", 0.0)),
+            width_model=str(extras.get("width_model", "free")),
+            sigma_bhf=float(extras.get("sigma_bhf", 0.0)),
+            sigma_delta=float(extras.get("sigma_delta", 0.0)),
+            sigma_quad=float(extras.get("sigma_quad", 0.0)),
         )
     return sextet_absorption(v, *p)
 

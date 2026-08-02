@@ -77,8 +77,8 @@ Veredicto por símbolo:
 | `METHOD=5` P leída de fichero (spline) | forma "Fija" | **=** |
 | `METHOD=6` distribución de cuadrupolo | `--variable quad` | **=** |
 | `METHOD=7` P(ΔEQ) de fichero **con campo** | "Fija" (sin campo) | **~** |
-| `METHOD=2` Brand: dispersiones `H1P`/`ISP`/`QUP` | — | **✗** |
-| `METHOD=8` distribución de desplazamiento isomérico P(δ) | — | **✗** |
+| `METHOD=2` Brand: dispersiones `H1P`/`ISP`/`QUP` | `width_model="dispersion"` (σ_B, σ_δ, σ_Q) | **=** sin replicar su asimetría de línea, que su propio código marca como aproximación |
+| `METHOD=8` distribución de desplazamiento isomérico P(δ) | `--variable delta` | **+** su kernel son singletes; aquí admite además sexteto o doblete |
 | `DISTRI=1` histograma + suavizado | igual | **=** |
 | `LAMDA` (matriz `λ·D₂ᵀD₂`) | `alpha` | **=** matriz idéntica elemento a elemento |
 | `BETA1`/`BETA2` anclajes de borde | `edge_anchor` + diagnóstico `edge_pileup` | **=** |
@@ -104,25 +104,20 @@ Veredicto por símbolo:
 
 ## 6. Lo que falta, por relevancia práctica en ⁵⁷Fe
 
-1. **P(δ), distribución de desplazamiento isomérico** (`METHOD=8`). Es el hueco
-   con más sentido experimental: vidrios metálicos, óxidos amorfos y fases mal
-   cristalizadas donde lo que se distribuye es δ y no B. Hoy solo se puede
-   aproximar con δ correlacionado al campo (`delta_slope`).
-2. **Modelo de Brand** (`METHOD=2`): dispersiones adicionales de campo
-   transversal (`H1P`), de isomérico (`ISP`) y de cuadrupolo (`QUP`) que
-   ensanchan cada línea del kernel. Es la vía de NORMOS para distribuciones
-   anchas sin malla; complementa al punto 1.
-3. **Czjzek / Le Caër analíticas** (`DISTRI=4`). El histograma reproduce la
+Los dos huecos con sentido experimental —P(δ) y el modelo de Brand— quedaron
+CERRADOS el 2026-08-02; ver §8. Lo que queda:
+
+1. **Czjzek / Le Caër analíticas** (`DISTRI=4`). El histograma reproduce la
    forma (validado en la serie L2), pero no hay una forma paramétrica de 2-3
    parámetros que ajustar directamente.
-4. **`BEXT`**, campo externo en la relajación de Ising: desplaza las líneas
+2. **`BEXT`**, campo externo en la relajación de Ising: desplaza las líneas
    además de polarizar las poblaciones. La polarización ya está; el
    desplazamiento no.
-5. **Espectros de emisión** (`EMSPEC`). Un cambio de signo en el modelo, pero
+3. **Espectros de emisión** (`EMSPEC`). Un cambio de signo en el modelo, pero
    sin exponer.
-6. **Otros isótopos** (¹¹⁹Sn, ¹⁹⁷Au, ¹⁵¹Eu, ¹²¹Sb). Fitbauer es ⁵⁷Fe.
-7. **Preprocesado**: `NADD` (rebin), `NDECKS` (sumar espectros), `MULT`/`ADD`.
-8. **Mezcla multipolar M1+E2** (`PHS`/`MIX`). Sin efecto en ⁵⁷Fe.
+4. **Otros isótopos** (¹¹⁹Sn, ¹⁹⁷Au, ¹⁵¹Eu, ¹²¹Sb). Fitbauer es ⁵⁷Fe.
+5. **Preprocesado**: `NADD` (rebin), `NDECKS` (sumar espectros), `MULT`/`ADD`.
+6. **Mezcla multipolar M1+E2** (`PHS`/`MIX`). Sin efecto en ⁵⁷Fe.
 
 ## 7. Diferencias de convenio que hay que conocer
 
@@ -139,3 +134,41 @@ Ninguna es un error; todas están cubiertas por un parámetro o documentadas.
 - **Relajación**: `k = OME/2`, y NORMOS reparte la anchura entre `WD`
   (autovalores) y `WDS` (convolución) mientras aquí hay una sola.
 - **χ²**: NORMOS divide por los datos con DF = NP−1−NVAR.
+
+---
+
+## 8. Cierre de los dos huecos con sentido experimental (2026-08-02)
+
+### P(δ) — distribución de desplazamiento isomérico
+
+**El motor ya sabía hacerlo**: `build_kernel` aceptaba `variable="delta"` desde
+antes. Lo que faltaba era exponerlo — el CLI lo bloqueaba con
+`choices=["bhf","quad"]` — y que constara en ninguna parte. Verificado de punta
+a punta sobre un P(δ) bimodal sintético de singletes (el caso exacto de
+`METHOD=8`): ⟨δ⟩ = 0.468 frente a 0.470 y σ = 0.372 frente a 0.369, separando
+las dos poblaciones (0.15 y 0.85 mm/s).
+
+Ahora `--variable delta`, con rango por defecto −1…2 mm/s y etiquetas propias.
+Va **más allá** de NORMOS: su `METHOD=8` distribuye solo singletes, mientras
+que aquí el kernel puede ser singlete, doblete o sexteto (δ distribuido con
+campo fijo).
+
+### Modelo de Brand — anchuras desde dispersiones físicas
+
+Nuevo `width_model="dispersion"`: en vez de dejar libres `gamma2`/`gamma3`, la
+anchura de cada línea sale de cuánto la desplaza cada variable dispersa,
+
+    (Γ_i/2)² = (Γ/2)² + (∂v_i/∂B · σ_B)² + σ_δ² + (∂v_i/∂ΔE_Q · σ_Q)²
+
+que es la suma en cuadratura de NORMOS. Reproduce la firma del desorden
+químico: con σ_B = 1 T las líneas 1 y 6 pasan a 0.408 mm/s y las 3 y 4 se
+quedan en 0.255, mientras que σ_δ ensancha todas por igual.
+
+Detalle que importa: el ensanchamiento **conserva el área** de cada línea (una
+dispersión reparte los mismos átomos), así que el peso de pico baja en
+proporción. Sin eso el área crecía un 40 % con σ_B = 1 T.
+
+No se replica la **asimetría** de línea de Brand. Su propio código advierte de
+que la expresión «solo vale si los términos asimétricos son mucho menores que
+la anchura, y si no, usar la expresión completa (`METHOD=3`)»; para ese régimen
+Fitbauer tiene el histograma completo, que no aproxima nada.

@@ -62,8 +62,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--vmax", type=float, default=None, help="Velocidad maxima mm/s. Si se omite usa .JOB/.PLT o 12.")
     parser.add_argument("--norm-percentile", type=float, default=90.0, help="Percentil para normalizar cuentas dobladas.")
 
-    parser.add_argument("--variable", choices=["bhf", "quad"], default="bhf",
-                        help="Variable de la distribucion: bhf → P(BHF); quad → P(ΔEQ) con BHF fijo.")
+    parser.add_argument("--variable", choices=["bhf", "quad", "delta"], default="bhf",
+                        help="Variable de la distribucion: bhf → P(BHF); "
+                             "quad → P(ΔEQ) con BHF fijo; delta → P(δ), "
+                             "distribucion de desplazamiento isomerico "
+                             "(paridad con METHOD=8 de NORMOS-DIST; con "
+                             "--fixed-bhf 0 y --quad 0 el kernel son "
+                             "singletes, que es el caso de NORMOS, pero "
+                             "tambien admite sexteto o doblete).")
     parser.add_argument("--fixed-bhf", type=float, default=0.0,
                         help="BHF fijo (T) del kernel cuando --variable quad (0 = doblete).")
     parser.add_argument("--shape", choices=["histograma", "gaussiana", "vbf", "binomial"],
@@ -389,8 +395,10 @@ def _run(args) -> None:
     _gamma_default = float(effective_distribution_specs()["gamma"].default)
     gamma = float(args.gamma if args.gamma is not None else sidecar.get("gamma", _gamma_default))
     # Rango de la malla por defecto según la variable (T para BHF, mm/s para ΔEQ).
-    bmin = float(args.bmin) if args.bmin is not None else 0.0
-    bmax = float(args.bmax) if args.bmax is not None else (3.0 if args.variable == "quad" else 50.0)
+    _rango_defecto = {"quad": (0.0, 3.0), "delta": (-1.0, 2.0)}.get(
+        args.variable, (0.0, 50.0))
+    bmin = float(args.bmin) if args.bmin is not None else _rango_defecto[0]
+    bmax = float(args.bmax) if args.bmax is not None else _rango_defecto[1]
 
     v, y, folded, center, vmax, norm = folded_velocity_data(
         in_path,
@@ -419,8 +427,9 @@ def _run(args) -> None:
     result = run_fit_1d(args, v, y, delta=delta, quad=quad, gamma=gamma,
                         bmin=bmin, bmax=bmax, sharp_components=sharp_components)
 
-    var_label = "DeltaEQ_mm_s" if args.variable == "quad" else "BHF_T"
-    var_unit = "mm/s" if args.variable == "quad" else "T"
+    var_label = {"quad": "DeltaEQ_mm_s", "delta": "IS_mm_s"}.get(
+        args.variable, "BHF_T")
+    var_unit = "T" if args.variable == "bhf" else "mm/s"
 
     spectrum_path = out_prefix.with_name(out_prefix.name + "_spectrum.dat")
     distribution_path = out_prefix.with_name(out_prefix.name + "_distribution.dat")
@@ -503,7 +512,7 @@ def _run(args) -> None:
 
     summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    dist_name = "P(ΔEQ)" if args.variable == "quad" else "P(BHF)"
+    dist_name = {"quad": "P(ΔEQ)", "delta": "P(δ)"}.get(args.variable, "P(BHF)")
     print(f"OK {dist_name} [{args.shape}]: RMS={result.rms:.6g}, "
           f"peak={summary['peak_position']:.3g} {var_unit}, alpha={args.alpha:g}")
     print(f"  espectro:     {spectrum_path}")
