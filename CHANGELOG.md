@@ -1,5 +1,33 @@
 # Changelog
 
+## Sin publicar — fuente polarizada y hallazgos del código fuente de NORMOS
+
+Con el código fuente de NORMOS disponible localmente (propietario, excluido
+del repositorio) se cerró la última capacidad pendiente y se corrigieron
+atribuciones (informe §19):
+
+- **Fuente polarizada** (paridad METHOD=4/POLAR de NORMOS-DIST):
+  `polarized_sextet_absorption` — peine de 36 líneas fuente×absorbente con
+  intensidades por selección de helicidad desde primeros principios
+  (I(i,j) ∝ |m_q(i)|²|m_q(j)|² Σ_λ |d¹_{q_iλ}(θ_s)|²|d¹_{q_jλ}(θ_a)|²).
+  Validada contra el binario de DIST a 0.4 % del pico (θ_s=0) y 1.1 %
+  (θ_s=90); round-trip del banco (L7): ⟨B⟩ a 0.08 T. Disponible como
+  kernel de distribución (`kernel_treatment="polarized"`) y en el CLI
+  (`--source-polarized --source-bhf --source-theta --absorber-theta`).
+  Tests: 3 nuevos en tests/test_mejoras_v4_19.py.
+- **Corrección de atribución**: la desviación del HAMILT de SITE-1994 no es
+  una aproximación analítica (su GMFP es exacto, incluida la coherencia del
+  fundamental) sino DEGRADACIÓN NUMÉRICA de su diagonalizador (EISPACK
+  complejo general en precisión simple, autovectores sin ortonormalizar).
+  La conclusión práctica no cambia: Fitbauer es más exacto.
+- **Voigt de SITE resuelto**: el binario 1994 usa STG(n) como σ gaussiana
+  (mm/s en paramagnéticos — la misma convención de Fitbauer —, Tesla en
+  sextetes); deja de ser "no validable".
+- Resueltos además: EXACT (perturbativo en R=−14.755·QUP/H; S2T comparte
+  ranura con D23), GAX (+90° = convención zxz del binario), IFGK inerte con
+  IFSC, IFTRAN idéntico al de Fitbauer, convenio BKG exacto, relajación con
+  OME en mm/s (mapeo completo pendiente).
+
 ## Sin publicar — auditoría y endurecimiento de la suite de tests
 
 Tras cazar el bug de la ventana en blanco (un test de presets usaba nombres
@@ -97,8 +125,8 @@ comportamiento por defecto no cambia; los 310 tests previos pasan intactos):
   autovectores** (Clebsch-Gordan, promedio isótropo del haz, 8 líneas con las
   ΔmI=±2 incluidas; regla de suma conservada). Sesgo mediano del banco:
   |ΔBhf| ×23 menor en A4 (axial) y ×33 en A5 (η≠0). Nota: a mezcla fuerte la
-  implementación es MÁS exacta que NORMOS-SITE 1994, que omite los términos
-  de interferencia del estado fundamental y viola la invariancia rotacional
+  implementación es MÁS exacta que NORMOS-SITE 1994, que degrada numéricamente los autovectores en su diagonalizador
+  (confirmado en el código fuente, informe §19) y viola la invariancia rotacional
   (demostrado en el informe §13).
 - **Integral de transmisión** (`absorber_model="transmission"`): T = base −
   L_fuente ⊗ (1 − exp(−τ)) con kernel de fuente integrado por canal

@@ -99,6 +99,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--kernel-eta", type=float, default=0.0,
                         help="Asimetría η del EFG con --kernel-treatment "
                              "hamiltoniano.")
+    parser.add_argument("--source-polarized", action="store_true",
+                        help="Fuente POLARIZADA (paridad METHOD=4/POLAR de "
+                             "NORMOS-DIST): kernel de peine 36 líneas por "
+                             "selección de helicidad. Solo --shape "
+                             "histograma con --variable bhf.")
+    parser.add_argument("--source-bhf", type=float, default=33.0,
+                        help="Campo hiperfino de la FUENTE (T) con "
+                             "--source-polarized.")
+    parser.add_argument("--source-theta", type=float, default=0.0,
+                        help="Ángulo fuente-haz (grados) con "
+                             "--source-polarized (0 = paralelo, validado).")
+    parser.add_argument("--absorber-theta", type=float, default=0.0,
+                        help="Ángulo campo del absorbente-haz (grados) con "
+                             "--source-polarized (0 = alineado).")
 
     parser.add_argument("--dist-2d", action="store_true",
                         help="Distribucion bidimensional P(BHF, ΔEQ) regularizada.")
@@ -151,6 +165,12 @@ def parse_args() -> argparse.Namespace:
     if (args.kernel_treatment != "1er_orden" and
             (args.shape != "histograma" or args.dist_2d)):
         parser.error("--kernel-treatment solo aplica a --shape histograma 1D.")
+    if args.source_polarized and (
+            args.shape != "histograma" or args.dist_2d
+            or args.variable != "bhf"
+            or args.kernel_treatment != "1er_orden"):
+        parser.error("--source-polarized solo aplica a --shape histograma 1D "
+                     "con --variable bhf y kernel 1er_orden.")
     return args
 
 
@@ -298,10 +318,14 @@ def run_fit_1d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
             profile=args.profile, voigt_sigma=args.voigt_sigma,
             delta_slope=args.delta_slope, quad_slope=args.quad_slope,
             int2_rel=int2_rel, int3_rel=int3_rel,
-            kernel_treatment=("hamiltonian"
+            kernel_treatment=("polarized" if args.source_polarized
+                              else "hamiltonian"
                               if args.kernel_treatment == "hamiltoniano"
                               else "1st_order"),
             kernel_eta=args.kernel_eta,
+            source_bhf=args.source_bhf,
+            source_theta=args.source_theta,
+            absorber_theta=args.absorber_theta,
             **common)
     if args.shape in ("vbf", "gaussiana"):
         gaussian = args.shape == "gaussiana"

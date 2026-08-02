@@ -116,7 +116,8 @@ abierta solo la fuente polarizada (2).
   irrecuperable con ruido (χ²red 0.83 con parámetros errantes); el umbral
   práctico medido está en ~1–2 % (D3).
 - **La aproximación de SITE-1994 en el Hamiltoniano completo**: a mezcla
-  fuerte SITE omite términos de interferencia del estado fundamental y viola
+  fuerte SITE pierde exactitud NUMÉRICAMENTE en su diagonalizador (EISPACK complejo
+  general en precisión simple, autovectores sin ortonormalizar) y viola
   la invariancia rotacional (§13). En el caso polvo K3 la teoría de SITE se
   desvía 6·10⁻³ (20 % del pico) del Hamiltoniano exacto: ahí "no salir" de
   la verdad-NORMOS significa que **Fitbauer es más exacto que la referencia**.

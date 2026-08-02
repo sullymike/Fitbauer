@@ -459,9 +459,9 @@ NOTAS_DOC = {
 for _cid in ("X1_ising_ome0.3", "X1_ising_ome1", "X1_ising_ome3", "X1_ising_ome10"):
     NOTAS_DOC[_cid] = ("comparacion CUALITATIVA: relajacion Ising de SITE vs "
                        "Blume-Tjon (mapeo no verificable con el demo)")
-NOTA_SITE_APPROX = ("residuo = aproximacion de SITE-1994 (omite interferencia "
-                    "del fundamental); Fitbauer es aqui MAS exacto que la "
-                    "referencia (INFORME 13)")
+NOTA_SITE_APPROX = ("residuo = degradacion NUMERICA del diagonalizador de "
+                    "SITE-1994 (confirmada en su codigo fuente, INFORME 19); "
+                    "Fitbauer es aqui mas exacto que la referencia")
 for _cid in ("H2_dob_debil", "H2_sext_debil"):
     NOTAS_DOC[_cid] = ("absorcion 0.5% con base 1e5: el ruido domina la figura "
                        "(vease resumen.csv)")

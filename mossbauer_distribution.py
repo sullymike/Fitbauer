@@ -239,12 +239,96 @@ def sextet_absorption(
                 acc += (wt / len(phis)) * core_physics.sum_lorentzian_lines(
                     v, pos, inten, gam8)
         return acc
+    if str(treatment) == "polarized":
+        # Fuente polarizada (METHOD=4 de NORMOS-DIST): los parámetros de la
+        # fuente viajan en el propio wrapper vía atributos de módulo para no
+        # engordar la cadena de firmas (se fijan en build_bhf_kernel).
+        return _POL_STATE["weight_scale"] * polarized_sextet_absorption(
+            v, delta=delta, quad=quad, bhf=bhf, gamma=gamma,
+            source_bhf=_POL_STATE["source_bhf"],
+            source_theta=_POL_STATE["source_theta"],
+            absorber_theta=_POL_STATE["absorber_theta"])
     if str(treatment) != "1st_order":
         # Un tratamiento desconocido caía en silencio al 1er orden
         # (auditoría de tests 2026-08-02).
         raise ValueError(f"treatment de kernel desconocido: {treatment!r}")
     positions = core_physics.sextet_line_positions(delta, quad, bhf)
     return core_physics.sum_lorentzian_lines(v, positions, weights, gammas)
+
+
+# ── Fuente polarizada (paridad NORMOS-DIST METHOD=4, fuente propia) ─────────
+# Física de primeros principios, validada contra el binario de DIST:
+# la FUENTE es un sexteto emisor con campo B_src formando ángulo θ_s con el
+# haz; el ABSORBENTE tiene su campo a ángulo θ_a. Cada línea (transición
+# Zeeman pura, canal q = Δm definido) emite/absorbe fotones de helicidad
+# λ = ±1 con peso |d¹_{qλ}(θ)|², y la intensidad del par (i, j) es
+#
+#   I(i,j) ∝ |m_q(i)|² |m_q(j)|² Σ_λ |d¹_{q_i λ}(θ_s)|² |d¹_{q_j λ}(θ_a)|²
+#
+# con |m_q|² = (1, 2/3, 1/3) (Clebsch-Gordan ⁵⁷Fe). En el caso alineado
+# (θ_s = θ_a = 0) esto es la SELECCIÓN DE HELICIDAD pura (solo pares con
+# Δm_i = Δm_j = ±1) y reproduce el METHOD=4 de NORMOS-DIST a 0.4 % del pico
+# (sonda THETAS=0); con θ_s = 90° a 1.1 %. Posiciones: peine de 36 líneas
+# v = AL_j·B − AL_i·B_src + δ + s_j·ΔEQ.
+
+_POL_Q_LINE = (-1, 0, +1, -1, 0, +1)
+_POL_MQ2 = np.array([1.0, 2.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0, 2.0 / 3.0, 1.0])
+_POL_QUAD = np.array([0.5, -0.5, -0.5, -0.5, -0.5, 0.5])
+
+# Parámetros de la fuente polarizada para las columnas del kernel (los fija
+# build_bhf_kernel; weight_scale mantiene la convención de profundidad).
+_POL_STATE = {"source_bhf": 33.0, "source_theta": 0.0,
+              "absorber_theta": 0.0, "weight_scale": 1.0}
+
+
+def polarized_pair_intensities(source_theta_deg: float = 0.0,
+                               absorber_theta_deg: float = 0.0) -> np.ndarray:
+    """Matriz 6×6 de intensidades fuente×absorbente (suma normalizada a 12)."""
+    from core.hamiltonian import _d1_matrix
+    ds = _d1_matrix(np.deg2rad(float(source_theta_deg))) ** 2
+    da = _d1_matrix(np.deg2rad(float(absorber_theta_deg))) ** 2
+    qidx = {-1: 0, 0: 1, 1: 2}
+    inten = np.zeros((6, 6))
+    for i in range(6):
+        for j in range(6):
+            s = sum(ds[qidx[_POL_Q_LINE[i]], l] * da[qidx[_POL_Q_LINE[j]], l]
+                    for l in (0, 2))
+            inten[i, j] = _POL_MQ2[i] * _POL_MQ2[j] * s
+    tot = inten.sum()
+    return inten * (12.0 / tot) if tot > 0 else inten
+
+
+def polarized_sextet_absorption(
+    v: np.ndarray,
+    *,
+    delta: float,
+    quad: float,
+    bhf: float,
+    gamma: float,
+    source_bhf: float = 33.0,
+    source_theta: float = 0.0,
+    absorber_theta: float = 0.0,
+) -> np.ndarray:
+    """Absorción de un sextete medido con FUENTE POLARIZADA (peine 36 líneas).
+
+    Análogo del METHOD=4/POLAR de NORMOS-DIST (véase el bloque de arriba).
+    ``source_bhf`` en T; ángulos en grados respecto al haz. Profundidad
+    unitaria (pesos suman 12, como el sexteto 3:2:1).
+    """
+    v = np.asarray(v, dtype=float)
+    from core.constants import LINE_POS_33T
+    al = LINE_POS_33T / 33.0
+    inten = polarized_pair_intensities(source_theta, absorber_theta)
+    out = np.zeros_like(v)
+    for i in range(6):
+        for j in range(6):
+            w = inten[i, j]
+            if w <= 1e-12:
+                continue
+            pos = (al[j] * float(bhf) - al[i] * float(source_bhf)
+                   + float(delta) + _POL_QUAD[j] * float(quad))
+            out += w * core_physics.lorentzian(v, pos, float(gamma))
+    return out
 
 
 def singlet_absorption(v: np.ndarray, *, delta: float, gamma: float, int1: float = 1.0) -> np.ndarray:
@@ -395,6 +479,9 @@ def build_bhf_kernel(
     treatment: str = "1st_order",
     eta: float = 0.0,
     n_orient: int = 12,
+    source_bhf: float = 33.0,
+    source_theta: float = 0.0,
+    absorber_theta: float = 0.0,
 ) -> np.ndarray:
     """Matriz K[i,j] = absorcion de un sextete unitario con BHF_j.
 
@@ -410,6 +497,11 @@ def build_bhf_kernel(
     v = np.asarray(v, dtype=float)
     bhf_centers = np.asarray(bhf_centers, dtype=float)
     href = float(np.mean(bhf_centers)) if h_ref is None else float(h_ref)
+    if str(treatment) == "polarized":
+        _POL_STATE.update(source_bhf=float(source_bhf),
+                          source_theta=float(source_theta),
+                          absorber_theta=float(absorber_theta),
+                          weight_scale=float(int1))
     cols = [
         sextet_absorption(
             v,
@@ -795,6 +887,9 @@ def build_hyperfine_distribution_kernel(
     treatment: str = "1st_order",
     eta: float = 0.0,
     n_orient: int = 12,
+    source_bhf: float = 33.0,
+    source_theta: float = 0.0,
+    absorber_theta: float = 0.0,
 ) -> np.ndarray:
     """Kernel de distribución 1D en BHF o ΔEQ.
 
@@ -814,7 +909,9 @@ def build_hyperfine_distribution_kernel(
                                 gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel,
                                 int1=int1, int2_rel=int2_rel, int3_rel=int3_rel,
                                 delta_slope=delta_slope, quad_slope=quad_slope, h_ref=href,
-                                treatment=treatment, eta=eta, n_orient=n_orient)
+                                treatment=treatment, eta=eta, n_orient=n_orient,
+                                source_bhf=source_bhf, source_theta=source_theta,
+                                absorber_theta=absorber_theta)
     if variable in {"quad", "deq", "deltaeq", "qs", "Δeq"}:
         return np.column_stack([
             sextet_absorption(v, delta=float(delta) + float(delta_slope) * (float(q) - href),
@@ -1216,6 +1313,9 @@ def fit_hyperfine_distribution(
     kernel_treatment: str = "1st_order",
     kernel_eta: float = 0.0,
     kernel_n_orient: int = 12,
+    source_bhf: float = 33.0,
+    source_theta: float = 0.0,
+    absorber_theta: float = 0.0,
 ) -> BhfDistributionFit:
     """Ajusta una distribución Hesse-Rübartsch de BHF o ΔEQ.
 
@@ -1273,6 +1373,9 @@ def fit_hyperfine_distribution(
             treatment=kernel_treatment,
             eta=kernel_eta,
             n_orient=kernel_n_orient,
+            source_bhf=source_bhf,
+            source_theta=source_theta,
+            absorber_theta=absorber_theta,
         )
         K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
             v,

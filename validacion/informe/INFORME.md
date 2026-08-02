@@ -464,7 +464,9 @@ configuraciones físicamente idénticas por rotación (η=1, B∥y, ΔEQ=+2) ≡
 40 % del pico), mientras que la nueva implementación de Fitbauer es
 rotacionalmente invariante y coincide con SITE a 3.7·10⁻⁵ exactamente en el
 marco donde el estado fundamental es puro (sin términos de interferencia).
-Conclusión: SITE omite la interferencia del fundamental mezclado en sus
+Conclusión (revisada en §19 con el código fuente): SITE pierde exactitud
+NUMÉRICAMENTE (diagonalizador EISPACK complejo general en precisión simple,
+autovectores sin ortonormalizar) en sus
 intensidades; los residuos remanentes del banco a η≥0.8 (χ²red 1.5–6.6 en
 v0m) miden el error de SITE, no el de Fitbauer. A η=1 existe además la
 degeneración física exacta (ΔEQ, φ) ↔ (−ΔEQ, 90°−φ) que explica los
@@ -602,7 +604,8 @@ nuevas en `resumen.csv`.
    modelada; hoja de ruta si algún día interesa (requiere W(θ,φ) del haz por
    componente). En el caso de POLVO el residuo restante (máx 6.0e-3 = 20 %
    del pico en η=0.5, θ=30°) NO es de Fitbauer: es la aproximación de
-   SITE-1994 (omite términos de interferencia del estado fundamental, §13);
+   SITE-1994 (degradación numérica del diagonalizador, confirmada en el
+   código fuente — §19);
    el ajuste lo redistribuye en BHF −0.38 T y ΔEQ +0.14.
 2. **Fondo cúbico (K2_cubico, `fig_K2_fondo`)**. `BKG(4)` genera un término
    v³ que Fitbauer no tiene (baseline+slope·v+curv·v²): slope/curv absorben
@@ -733,3 +736,66 @@ Todo expuesto en la GUI (menú contextual de ΔEQ con el 5º tratamiento;
 selector "Kernel" + η en el panel de distribución; Base v³/v⁴ en
 calibración), con sesiones, i18n en 8 idiomas y manuales ES/EN actualizados.
 Tests: `tests/test_mejoras_v4_19.py` (11).
+
+## 19. Hallazgos del código fuente de NORMOS (2026-08-02)
+
+Con el código fuente (Fortran, fechado 1990; el binario demo es de 1993/94 y
+difiere en algunos puntos — se indica) quedaron resueltos los misterios
+abiertos y validada una capacidad nueva. El fuente es propietario y NO está
+en el repositorio (`normos/` doblemente excluido); aquí solo se documenta la
+matemática.
+
+1. **La "aproximación" del HAMILT de SITE es numérica, no analítica** —
+   corrección a §13/§16.3: el GMFP (Ruebenbauer–Birchall) es exacto
+   (Hamiltoniano exacto, coherencia completa incluida la del fundamental,
+   promedio de polvo analítico). La desviación medida (3.7e-5 → 9.6e-3 según
+   marco) viene del diagonalizador: EISPACK complejo GENERAL en precisión
+   simple, autovectores sin normalizar ni ortogonalizar usados como base
+   unitaria, MACHEP=2⁻⁴⁷ (doble precisión) en código REAL*4 e IERR ignorado.
+   Error ∝ ε·‖H‖/gap → dependiente del marco. La conclusión práctica no
+   cambia: Fitbauer (LAPACK hermítico en doble precisión) es más exacto.
+2. **GAX**: en el fuente de 1990 es el azimut estándar desde x (como φ); el
+   +90° del binario apunta a convención de Euler zxz en el ejecutable de
+   1994 (equivale exactamente a un desfase de 90° en el azimut). El fuente y
+   el binario difieren demostrablemente (bug de paso de argumentos η/θ/φ en
+   el llamador del fuente que el binario no tiene).
+3. **EXACT de DIST**: teoría de perturbaciones en R = −14.755·QUP/H
+   (posición a 4º orden, área a 3º con suma nula — por eso las intensidades
+   no dependen de QUP —, ensanchamiento en cuadratura por línea). S2T ocupa
+   la RANURA de D23 (EQUIVALENCE): por eso "S2T no existe" en el namelist.
+   El default del binario se comporta como S2T≈6/7 (→ el patrón 3:3:1
+   medido), distinto del 2/3 del fuente; el mapeo del binario es no trivial
+   (sondas registradas). El kernel hamiltoniano de Fitbauer contiene
+   estrictamente más física que EXACT.
+4. **STI**: solo implementado para METHOD=6/7 (satélites gaussianos de 5
+   puntos en δ); en distribuciones de campo es solo cosmético del listado.
+   **DTQ** en METHOD=1: no existe en esa rama (por diseño). Confirmadas las
+   fórmulas exactas de DISTRI=2 (compensación σ²+Δ², PNEG espejo),
+   binomial (n=12) y Czjzek/Le Caër; el suavizado LAMDA es exactamente la
+   matriz D₂ᵀD₂ de segunda diferencia (el mismo Tikhonov de Fitbauer), sin
+   pesos Poisson y con anclajes β₁/β₂ en los extremos.
+5. **Voigt**: ¡NO estaba inoperante! El binario de 1994 cambió la semántica:
+   la anchura gaussiana es STG(n) (σ en mm/s para paramagnéticos — la MISMA
+   convención que Fitbauer —, σ_B en Tesla para sextetes = distribución
+   gaussiana de campo). Verificado con sondas (σ recuperada a 3 cifras).
+   Pasa de "no validable" a validable.
+6. **Fuente polarizada (METHOD=4/POLAR)**: implementada en Fitbauer desde
+   primeros principios (peine 36 líneas por selección de helicidad,
+   I(i,j) ∝ |m_q|²|m_q|² Σ_λ |d¹|²|d¹|²) y validada contra el binario:
+   0.4 % del pico (θ_s=0) y 1.1 % (θ_s=90). Round-trip completo del banco
+   (casos L7): ⟨B⟩ a 0.08 T y σ a 0.13 T con ruido. CLI:
+   `--source-polarized --source-bhf --source-theta --absorber-theta`.
+   El POLAR de SITE es el mismo modelo (γ∥B) para sextetes discretos.
+7. **IFGK**: inerte con IFSC (el ramal de cristal no usa los G) y para
+   ⁵⁷Fe sin mezcla solo G11 puede actuar — explica el "sin efecto" de las
+   sondas. **IFTRAN**: matemáticamente idéntico a la integral de
+   transmisión de Fitbauer (misma fuente 0.097). **Fondo**: aditivo sobre
+   la base (no multiplica la absorción), como en Fitbauer; nuestra fórmula
+   empírica del convenio BKG es exacta. **Ligaduras**: numeración global
+   confirmada (base 13+15(n−1)); NLINK se lee pero no se usa; bug de NORMOS
+   en la propagación de errores de parámetros ligados (usa CONST donde
+   debería FACTOR). **σ del ajuste**: Poisson sobre cuentas dobladas; el
+   χ² del RES divide por el MODELO con DF=NP−1−NVAR (convención a imitar
+   al comparar). **Relajación**: OME está en mm/s (no MHz) y es la forma
+   cerrada de Blume de dos estados; el mapeo completo de parámetros del
+   demo (BH0/BSAT) queda PENDIENTE de sondas adicionales.

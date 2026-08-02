@@ -208,3 +208,51 @@ def test_sc_interferencia_formula_transversal():
             20.0, 0.0, 1.5, eta=eta, theta=th, phi=ph,
             beam_theta=bt, beam_phi=bp)
         assert np.max(np.abs(ind - i_sc)) < 1e-10
+
+
+# ── Fuente polarizada (paridad METHOD=4 de NORMOS-DIST, con el fuente) ───────
+
+def test_polarizada_seleccion_helicidad_alineada():
+    """Alineado (θs=θa=0): solo pares con Δm_i=Δm_j=±1 (8 de 36)."""
+    from mossbauer_distribution import polarized_pair_intensities
+    inten = polarized_pair_intensities(0.0, 0.0)
+    activos = inten > 1e-9
+    assert int(activos.sum()) == 8
+    # las líneas Δm=0 (2 y 5) no participan en ningún lado
+    assert not activos[1, :].any() and not activos[4, :].any()
+    assert not activos[:, 1].any() and not activos[:, 4].any()
+
+
+def test_polarizada_absorbente_isotropo_recupera_321():
+    """Promediando la orientación del absorbente se recupera el 3:2:1."""
+    from mossbauer_distribution import polarized_pair_intensities
+    x, w = np.polynomial.legendre.leggauss(24)
+    acc = np.zeros((6, 6))
+    for xx, ww in zip(x, w):
+        acc += 0.5 * ww * polarized_pair_intensities(
+            0.0, float(np.degrees(np.arccos(np.clip(xx, -1, 1)))))
+    col = acc.sum(axis=0)
+    assert np.allclose(col / col[2], [3, 2, 1, 1, 2, 3], atol=1e-9)
+
+
+def test_polarizada_kernel_round_trip():
+    """Sintético con fuente polarizada → el kernel polarizado recupera P."""
+    from mossbauer_distribution import (build_hyperfine_distribution_kernel,
+                                        fit_hyperfine_distribution)
+    v = np.linspace(-10, 10, 256)
+    centers = np.arange(15.0, 36.0, 1.0)
+    K = build_hyperfine_distribution_kernel(
+        v, centers, variable="bhf", gamma=0.3, treatment="polarized",
+        source_bhf=33.0, source_theta=0.0)
+    P = np.exp(-0.5 * ((centers - 25.0) / 2.5) ** 2)
+    P /= P.sum()
+    y = 1.0 - 0.05 * (K @ P) / np.max(K @ P)
+    fit = fit_hyperfine_distribution(
+        v, y, variable="bhf", gamma=0.3, pmin=15, pmax=35, nbins=21,
+        alpha=1e-3, kernel_treatment="polarized", source_bhf=33.0)
+    w = np.maximum(fit.weights, 0.0)
+    w /= w.sum()
+    avg = float(np.sum(w * fit.bhf_centers))
+    std = float(np.sqrt(np.sum(w * (fit.bhf_centers - avg) ** 2)))
+    assert abs(avg - 25.0) < 0.1
+    assert abs(std - 2.5) < 0.3

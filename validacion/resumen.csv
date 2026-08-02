@@ -6498,3 +6498,11 @@ L,L4_exact_q1,v0h,dist_avg,25.0000,24.9612,,,0.0388,,si,,EXACT orden mixto QUP=1
 L,L4_exact_q1,v0h,dist_std,3.0000,4.0294,,,1.0294,,si,,EXACT orden mixto QUP=1.0 [v0h: kernel hamiltoniano QUP]
 B3,B3_eta0.2_th0_x0.5,v0m,s1_int1,3,1.36179,103,-0.02,1.64,0.000,si,0.5,HC eta=0.2 + textura D23=0.5 [v0m re-ajustado desde la verdad]
 B3,B3_eta0.2_th0_x0.5,v0m,s1_int2,0.5,0.908084,69,0.01,0.408,0.000,si,0.5,HC eta=0.2 + textura D23=0.5 [v0m re-ajustado desde la verdad]
+L,L7_polar_th0,v0,dist_avg,25.0000,25.0080,,,0.0080,,si,,"fuente polarizada METHOD=4, theta_s=0 (paralela)"
+L,L7_polar_th0,v0,dist_std,3.1623,3.1879,,,0.0256,,si,,"fuente polarizada METHOD=4, theta_s=0 (paralela)"
+L,L7_polar_th0,v1,dist_avg,25.0000,24.9294,,,0.0706,,si,,"fuente polarizada METHOD=4, theta_s=0 (paralela)"
+L,L7_polar_th0,v1,dist_std,3.1623,3.2624,,,0.1002,,si,,"fuente polarizada METHOD=4, theta_s=0 (paralela)"
+L,L7_polar_th90,v0,dist_avg,25.0000,25.0766,,,0.0766,,si,,"fuente polarizada METHOD=4, theta_s=90"
+L,L7_polar_th90,v0,dist_std,3.1623,3.2355,,,0.0732,,si,,"fuente polarizada METHOD=4, theta_s=90"
+L,L7_polar_th90,v1,dist_avg,25.0000,25.0760,,,0.0760,,si,,"fuente polarizada METHOD=4, theta_s=90"
+L,L7_polar_th90,v1,dist_std,3.1623,3.2912,,,0.1290,,si,,"fuente polarizada METHOD=4, theta_s=90"
