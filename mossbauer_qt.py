@@ -55,6 +55,13 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
             self._save_settings()
         except Exception:
             pass
+        # Se cierra bien: el punto de recuperación ya no hace falta. Si el
+        # proceso muere de otra forma, el fichero sobrevive y al arrancar se
+        # ofrece recuperarlo.
+        try:
+            self._clear_recovery()
+        except Exception:
+            pass
         super().closeEvent(event)
 
     def __init__(self):
@@ -96,6 +103,8 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
         self._load_fit_history()
         self._build_ui()
         self._build_menubar()
+        # Soltar un espectro, una sesión o un .JOB sobre la ventana lo abre.
+        self.setAcceptDrops(True)
         # _load_settings() corre antes de que existan los paneles, así que la
         # preferencia de parámetros compactos se aplica aquí, ya con la UI viva.
         self._apply_compact_params()
@@ -107,6 +116,11 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
         self.statusBar().showMessage(tr("plot.no_file"))
         self._ui_bridge = _UiCallBridge(self)
         self._ui_bridge.call.connect(lambda fn: fn())
+        self._autosave_timer = None
+        self._start_autosave()
+        # Tras montar la ventana: si quedó trabajo de un cierre inesperado,
+        # preguntar antes que nada (con la UI ya viva para poder aplicarlo).
+        QtCore.QTimer.singleShot(0, self.offer_recovery)
         if self._updates_at_startup_enabled():
             QtCore.QTimer.singleShot(2500, lambda: self.check_for_updates(silent=True))
         QtCore.QTimer.singleShot(4000, self._check_requirements_background)

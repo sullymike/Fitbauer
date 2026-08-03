@@ -837,5 +837,8 @@
   "file.normos_dist_job_imported": "NORMOS-DIST-Job in das Verteilungspanel importiert",
   "file.normos_job_no_data": "Das Spektrum wurde neben der .JOB nicht gefunden: das bereits geladene bleibt erhalten. NORMOS erwartet alle Dateien im selben Ordner.",
   "file.normos_job_exported": "NORMOS-Auftrag exportiert",
-  "file.normos_job_warnings": "Importiert, mit Hinweisen:"
+  "file.normos_job_warnings": "Importiert, mit Hinweisen:",
+  "session.recover_title": "Arbeit wiederherstellen",
+  "session.recover_question": "Fitbauer wurde ohne Speichern der Sitzung beendet.\n\nSpektrum: {file}\nLetzte automatische Speicherung: {when}\n\nMöchten Sie diese Arbeit wiederherstellen?",
+  "session.recovered": "Arbeit wiederhergestellt"
 }

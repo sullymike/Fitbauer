@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
+from core.data_io import CONFIG_DIR
 from core.folding import find_best_integer_or_half_center
 from core.params import COMPONENT_KINDS, DISTRIBUTION_SHAPES, INTENSITY_MODES, QUAD_TREATMENTS
 from gui.state import (
@@ -390,6 +392,97 @@ class SessionIOMixin:
         self._simulate_enabled = True
         self._refresh_plot()
 
+    # ── Autoguardado y recuperación ──────────────────────────────────────
+    #: Cada cuánto se vuelca el trabajo en curso, en milisegundos.
+    AUTOSAVE_MS = 3 * 60 * 1000
+
+    @property
+    def _recovery_path(self) -> Path:
+        return CONFIG_DIR / "recuperacion.json"
+
+    def _start_autosave(self) -> None:
+        """Arranca el volcado periódico del trabajo en curso.
+
+        Un ajuste fino puede llevar horas; sin esto, un cierre inesperado se
+        las lleva. No sustituye a guardar la sesión: es una red de seguridad
+        que se borra sola al cerrar bien.
+        """
+        from PySide6 import QtCore
+
+        if getattr(self, "_autosave_timer", None) is not None:
+            return
+        self._autosave_timer = QtCore.QTimer(self)
+        self._autosave_timer.setInterval(self.AUTOSAVE_MS)
+        self._autosave_timer.timeout.connect(self._autosave_now)
+        self._autosave_timer.start()
+
+    def _autosave_now(self) -> None:
+        """Vuelca la sesión al fichero de recuperación. Nunca interrumpe."""
+        if getattr(self.file, "counts", None) is None:
+            return
+        try:
+            CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+            payload = self._session_payload()
+            payload["_autosave"] = {
+                "file_name": self.file.path.name if self.file.path else None,
+            }
+            # Escritura atómica: un corte a media escritura dejaría un JSON
+            # roto justo en el fichero al que se recurre tras un cierre malo.
+            tmp = self._recovery_path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(payload), encoding="utf-8")
+            tmp.replace(self._recovery_path)
+        except Exception:
+            pass
+
+    def _clear_recovery(self) -> None:
+        """Borra el punto de recuperación: se cerró bien, no hay nada que salvar."""
+        try:
+            self._recovery_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    def offer_recovery(self) -> bool:
+        """Si quedó trabajo de un cierre inesperado, ofrece recuperarlo."""
+        ruta = self._recovery_path
+        try:
+            if not ruta.is_file():
+                return False
+            marca = datetime.fromtimestamp(ruta.stat().st_mtime)
+        except Exception:
+            return False
+
+        datos = None
+        try:
+            datos = json.loads(ruta.read_text(encoding="utf-8"))
+        except Exception:
+            self._clear_recovery()
+            return False
+        nombre = (datos.get("_autosave") or {}).get("file_name") or "—"
+
+        respuesta = QtWidgets.QMessageBox.question(
+            self, tr("session.recover_title", default="Recuperar trabajo"),
+            tr("session.recover_question",
+               default=("Fitbauer se cerró sin guardar la sesión.\n\n"
+                        "Espectro: {file}\nÚltimo guardado automático: {when}\n\n"
+                        "¿Quieres recuperar ese trabajo?"))
+            .replace("{file}", str(nombre))
+            .replace("{when}", marca.strftime("%d/%m/%Y %H:%M")),
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.Yes)
+        if respuesta != QtWidgets.QMessageBox.Yes:
+            self._clear_recovery()
+            return False
+        try:
+            self._apply_session_payload(datos)
+            self.statusBar().showMessage(
+                tr("session.recovered", default="Trabajo recuperado"), 8000)
+            return True
+        except Exception as exc:                       # noqa: BLE001
+            QtWidgets.QMessageBox.critical(
+                self, tr("session.recover_title", default="Recuperar trabajo"),
+                f"{type(exc).__name__}: {exc}")
+            return False
+
     def on_save_session(self) -> None:
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, tr("file.save_session"), str(ROOT),
@@ -417,6 +510,10 @@ class SessionIOMixin:
             "NORMOS JOB (*.JOB *.job);;All (*.*)")
         if not path:
             return
+        self.import_normos_job_file(Path(path))
+
+    def import_normos_job_file(self, path) -> None:
+        """Importa un .JOB desde una ruta concreta (sin diálogo)."""
         titulo = tr("file.import_normos_job")
         try:
             from core.normos_job import (es_job_de_dist,
@@ -502,17 +599,27 @@ class SessionIOMixin:
             "JSON (*.json);;All (*.*)")
         if not path:
             return
+        self.load_session_file(Path(path))
+
+    def load_session_file(self, path: Path) -> bool:
+        """Carga una sesión desde una ruta concreta (sin diálogo).
+
+        Separado de :meth:`on_load_session` para que lo reutilicen el arrastrar
+        y soltar y la recuperación de trabajo tras un cierre inesperado.
+        """
         try:
             data = json.loads(Path(path).read_text(encoding="utf-8"))
         except Exception as exc:
             QtWidgets.QMessageBox.critical(
                 self, tr("file.load_session"),
                 f"{type(exc).__name__}: {exc}")
-            return
+            return False
         try:
             self._apply_session_payload(data)
             self.statusBar().showMessage(f"Sesión cargada: {path}", 5000)
+            return True
         except Exception as exc:
             QtWidgets.QMessageBox.critical(
                 self, tr("file.load_session"),
                 f"{type(exc).__name__}: {exc}")
+            return False

@@ -713,6 +713,64 @@ class ModelWorkflowMixin:
     # Extensiones reconocidas como espectros ya doblados en espacio de velocidad.
     _CSV_EXTENSIONS = frozenset({".csv", ".txt", ".dat", ".exp"})
 
+    # ── Arrastrar y soltar ───────────────────────────────────────────────
+    #: Qué se hace con cada extensión al soltarla sobre la ventana.
+    _DROP_SPECTRUM = frozenset({".ws5", ".adt", ".mos"})
+
+    def dragEnterEvent(self, event) -> None:  # noqa: N802 (API de Qt)
+        """Acepta el arrastre solo si trae algún fichero que sepamos abrir."""
+        if self._ruta_soltada(event) is not None:
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    dragMoveEvent = dragEnterEvent
+
+    def dropEvent(self, event) -> None:  # noqa: N802 (API de Qt)
+        """Abre lo que se suelte: espectro, sesión o trabajo de NORMOS.
+
+        Es el gesto que todo el mundo prueba primero con un fichero en el
+        escritorio; antes había que ir al menú y navegar por carpetas.
+        """
+        ruta = self._ruta_soltada(event)
+        if ruta is None:
+            event.ignore()
+            return
+        event.acceptProposedAction()
+        sufijo = ruta.suffix.lower()
+        try:
+            if sufijo == ".json":
+                self.load_session_file(ruta)
+            elif sufijo == ".job":
+                self.import_normos_job_file(ruta)
+            elif sufijo in self._CSV_EXTENSIONS:
+                # Misma bifurcación que on_open: un .dat de una sola columna
+                # son cuentas crudas, no velocidad+cuentas.
+                try:
+                    self._load_velocity_csv_file(ruta)
+                except ValueError:
+                    self._load_file(ruta)
+            else:
+                self._load_file(ruta)
+        except Exception as exc:                       # noqa: BLE001
+            QtWidgets.QMessageBox.critical(
+                self, tr("file.open"), f"{type(exc).__name__}: {exc}")
+
+    def _ruta_soltada(self, event) -> Path | None:
+        """Primer fichero del arrastre con una extensión que sepamos abrir."""
+        datos = event.mimeData()
+        if not datos.hasUrls():
+            return None
+        admitidas = (self._DROP_SPECTRUM | self._CSV_EXTENSIONS
+                     | {".json", ".job"})
+        for url in datos.urls():
+            if not url.isLocalFile():
+                continue
+            ruta = Path(url.toLocalFile())
+            if ruta.suffix.lower() in admitidas and ruta.is_file():
+                return ruta
+        return None
+
     def on_open(self) -> None:
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, tr("file.open"), str(ROOT),

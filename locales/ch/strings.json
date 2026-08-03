@@ -837,5 +837,8 @@
   "file.normos_dist_job_imported": "NORMOS-DIST 作业已导入分布面板",
   "file.normos_job_no_data": "未在 .JOB 旁找到谱文件：保留已加载的谱。NORMOS 要求所有文件位于同一文件夹。",
   "file.normos_job_exported": "已导出 NORMOS 作业",
-  "file.normos_job_warnings": "已导入，但有警告:"
+  "file.normos_job_warnings": "已导入，但有警告:",
+  "session.recover_title": "恢复工作",
+  "session.recover_question": "Fitbauer 未保存会话即已关闭。\n\n谱：{file}\n最近一次自动保存：{when}\n\n要恢复该工作吗？",
+  "session.recovered": "已恢复工作"
 }

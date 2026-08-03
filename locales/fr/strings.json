@@ -837,5 +837,8 @@
   "file.normos_dist_job_imported": "Travail NORMOS-DIST importé dans le panneau de distribution",
   "file.normos_job_no_data": "Le spectre n'a pas été trouvé à côté du .JOB : celui déjà chargé est conservé. NORMOS attend tous les fichiers dans le même dossier.",
   "file.normos_job_exported": "Travail NORMOS exporté",
-  "file.normos_job_warnings": "Importé, avec des avertissements :"
+  "file.normos_job_warnings": "Importé, avec des avertissements :",
+  "session.recover_title": "Récupérer le travail",
+  "session.recover_question": "Fitbauer s'est fermé sans enregistrer la session.\n\nSpectre : {file}\nDernière sauvegarde automatique : {when}\n\nVoulez-vous récupérer ce travail ?",
+  "session.recovered": "Travail récupéré"
 }

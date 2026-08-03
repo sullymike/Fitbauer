@@ -837,5 +837,8 @@
   "file.normos_dist_job_imported": "Trabalho NORMOS-DIST importado no painel de distribuição",
   "file.normos_job_no_data": "O espetro não foi encontrado junto ao .JOB: mantém-se o que já estava carregado. O NORMOS espera todos os ficheiros na mesma pasta.",
   "file.normos_job_exported": "Trabalho do NORMOS exportado",
-  "file.normos_job_warnings": "Importado, com avisos:"
+  "file.normos_job_warnings": "Importado, com avisos:",
+  "session.recover_title": "Recuperar trabalho",
+  "session.recover_question": "O Fitbauer fechou sem guardar a sessão.\n\nEspetro: {file}\nÚltima gravação automática: {when}\n\nQuer recuperar esse trabalho?",
+  "session.recovered": "Trabalho recuperado"
 }

@@ -156,8 +156,16 @@ class CalibrationPanel(QtWidgets.QGroupBox):
             self.drive_combo.setCurrentIndex(idx)
 
     def _refresh_absorber_widgets(self) -> None:
-        self.sat_scale.setEnabled(self.absorber_model == "thickness")
-        self.src_fwhm.setEnabled(self.absorber_model == "transmission")
+        """Solo se muestran los parámetros del modelo de absorbente activo.
+
+        Antes se agrisaban: la escala de saturación y la Γ de la fuente
+        ocupaban dos filas permanentes que en el caso normal (absorbente
+        delgado) no se pueden tocar. Es el mismo criterio que en los paneles de
+        componente; el combo «Absorbente» está siempre visible, así que
+        reaparecen en cuanto se cambia de modelo.
+        """
+        self.sat_scale.setVisible(self.absorber_model == "thickness")
+        self.src_fwhm.setVisible(self.absorber_model == "transmission")
 
     def to_view_state(self) -> CalibrationViewState:
         """Snapshot del panel sin exponer widgets al resto de la GUI."""
@@ -195,11 +203,11 @@ class CalibrationPanel(QtWidgets.QGroupBox):
     def _set_line_profile(self, kind: str) -> None:
         self.line_profile = kind
         is_voigt = kind == "Voigt"
-        # El slider (la "barra") y el spinbox de σ no se pueden mover fuera de
-        # Voigt, pero el ParamControl y su etiqueta siguen ACTIVOS: así el menú
-        # contextual de clic derecho sigue disponible para elegir Voigt estando
-        # en Lorentziana (los eventos de ratón sobre el slider deshabilitado se
-        # propagan al ParamControl, que conserva el menú contextual).
+        # Fuera de Voigt el control se OCULTA: no se puede tocar y ocupa dos
+        # filas. El perfil se cambia desde Ajuste ▸ Opciones avanzadas ▸ Perfil
+        # de línea, y con Voigt activo vuelve a estar aquí con su menú
+        # contextual de clic derecho.
+        self.voigt_sigma.setVisible(is_voigt)
         self.voigt_sigma.slider.setEnabled(is_voigt)
         self.voigt_sigma.spin.setEnabled(is_voigt)
         if self.voigt_sigma.fixed_cb is not None:

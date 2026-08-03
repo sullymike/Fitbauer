@@ -837,5 +837,8 @@
   "file.normos_dist_job_imported": "NORMOS-DIST ジョブを分布パネルに読み込みました",
   "file.normos_job_no_data": ".JOB と同じ場所にスペクトルが見つかりません。読み込み済みのものを保持します。NORMOS はすべてのファイルが同じフォルダーにあることを前提とします。",
   "file.normos_job_exported": "NORMOS ジョブを書き出しました",
-  "file.normos_job_warnings": "読み込みました（警告あり）:"
+  "file.normos_job_warnings": "読み込みました（警告あり）:",
+  "session.recover_title": "作業の復元",
+  "session.recover_question": "Fitbauer はセッションを保存せずに終了しました。\n\nスペクトル: {file}\n最後の自動保存: {when}\n\nこの作業を復元しますか？",
+  "session.recovered": "作業を復元しました"
 }

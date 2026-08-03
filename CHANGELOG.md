@@ -1,5 +1,32 @@
 # Changelog
 
+## Sin publicar — comodidad de uso de la interfaz
+
+- **El desplazamiento isomérico vuelve a encabezar el panel.** Al mostrar solo
+  los parámetros ajustables, un sexteto quedó en 6 controles contra 3 y eso
+  disparó el reequilibrio de columnas, que movía el PRIMERO de la columna larga
+  pese a que su comentario decía «desde el final»: δ acababa al final de la
+  columna derecha, detrás de I23. Ahora mueve el último y el margen sube de 2 a
+  3, así que ese caso ni se reequilibra y Γ1/Γ2/Γ3 quedan juntas.
+- **La calibración también oculta lo que no aplica**, con el mismo criterio que
+  los componentes: σ de Voigt, escala de saturación y Γ de la fuente solo
+  aparecen con el perfil o el absorbente que los usa. El panel pasa de 576 a
+  441 px (−23 %). El perfil se sigue eligiendo en Ajuste ▸ Opciones avanzadas.
+- **Arrastrar y soltar**: soltar un `.ws5`/`.adt`/`.mos` sobre la ventana lo
+  abre, un `.json` restaura la sesión y un `.JOB` importa el trabajo de NORMOS
+  con su espectro. Lo que no se sabe abrir ni siquiera acepta el arrastre.
+- **Autoguardado y recuperación.** Cada tres minutos se vuelca el trabajo en
+  curso a `recuperacion.json` (escritura atómica), y si Fitbauer se cerró sin
+  guardar, al arrancar ofrece recuperarlo indicando el espectro y la hora. Al
+  cerrar bien se borra solo. No sustituye a guardar la sesión: es una red de
+  seguridad para las horas de ajuste fino.
+- **Atajos del flujo diario**: Ctrl+M inicializar desde mínimos, Ctrl+Shift+M
+  autoajustar, Ctrl+E editar mínimos, Ctrl+F liberar todo y Ctrl+Shift+F fijar
+  todo. Con los que ya había, el ciclo completo se hace con teclado: abrir
+  (Ctrl+O) → arrancar el modelo (Ctrl+M) → ajustar (Ctrl+R) → deshacer si no
+  convence (Ctrl+Z) → guardar (Ctrl+S). Verificado que ninguno colisiona.
+- Tests: 13 nuevos. Traducciones del diálogo de recuperación en los 8 idiomas.
+
 ## v5.0.0 — paridad verificada con NORMOS e interoperabilidad de ficheros
 
 Salto de versión mayor. Tras la revisión completa del código fuente Fortran de

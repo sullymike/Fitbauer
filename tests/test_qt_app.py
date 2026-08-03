@@ -362,15 +362,19 @@ def test_session_restore_dist_values_not_clamped_by_old_variable(win, make_windo
 
 def test_absorber_menu_syncs_panel_combo(win):
     """Regresión: el menú Modelo de absorbente solo escribía el atributo y el
-    ajuste seguía usando el combo del panel (modelo antiguo)."""
+    ajuste seguía usando el combo del panel (modelo antiguo).
+
+    La escala de saturación ya no se agrisa fuera del modelo de espesor: se
+    OCULTA, así que aquí se comprueba la visibilidad y no isEnabled().
+    """
     actions = win.absorber_action_group.actions()
     actions[1].trigger()                   # "thickness"
     assert win.calib.absorber_model == "thickness"
     assert win.absorber_model == "thickness"
-    assert win.calib.sat_scale.isEnabled()
+    assert win.calib.sat_scale.isVisibleTo(win.calib)
     actions[0].trigger()                   # vuelta a "thin"
     assert win.calib.absorber_model == "thin"
-    assert not win.calib.sat_scale.isEnabled()
+    assert not win.calib.sat_scale.isVisibleTo(win.calib)
 
 
 def test_pbhf_fit_free_params_move_and_roundtrip(win, make_window):
@@ -1721,3 +1725,138 @@ def test_las_anchuras_no_se_reparten_entre_columnas(win, app):
                 columna[nombre] = col
     gammas = {columna[n] for n in ("gamma1", "gamma2", "gamma3") if n in columna}
     assert len(gammas) == 1, "las anchuras quedaron repartidas entre columnas"
+
+
+# ── Comodidad de uso: calibración, arrastrar y soltar, autoguardado ──────────
+
+def test_calibracion_solo_muestra_los_parametros_del_modelo_activo(win, app):
+    """σ Voigt, escala de saturación y Γ fuente solo cuando aplican.
+
+    Antes se agrisaban y ocupaban tres filas permanentes de la columna
+    izquierda que en el caso normal no se pueden tocar.
+    """
+    c = win.calib
+    c.set_absorber_model("thin")
+    c._set_line_profile("Lorentziana")
+    app.processEvents()
+    assert not c.sat_scale.isVisibleTo(c)
+    assert not c.src_fwhm.isVisibleTo(c)
+    assert not c.voigt_sigma.isVisibleTo(c)
+
+    c.set_absorber_model("thickness")
+    app.processEvents()
+    assert c.sat_scale.isVisibleTo(c) and not c.src_fwhm.isVisibleTo(c)
+
+    c.set_absorber_model("transmission")
+    app.processEvents()
+    assert c.src_fwhm.isVisibleTo(c) and not c.sat_scale.isVisibleTo(c)
+
+    c._set_line_profile("Voigt")
+    app.processEvents()
+    assert c.voigt_sigma.isVisibleTo(c)
+    # Y el valor se conserva mientras está oculto: es solo presentación.
+    c.voigt_sigma.spin.setValue(0.21)
+    c._set_line_profile("Lorentziana")
+    app.processEvents()
+    assert not c.voigt_sigma.isVisibleTo(c)
+    assert c.to_view_state().voigt_sigma == pytest.approx(0.21)
+
+
+def _soltar(win, ruta):
+    """Simula soltar un fichero sobre la ventana; devuelve si se aceptó."""
+    from PySide6 import QtCore, QtGui
+
+    md = QtCore.QMimeData()
+    md.setUrls([QtCore.QUrl.fromLocalFile(str(Path(ruta).resolve()))])
+    ev = QtGui.QDropEvent(QtCore.QPointF(400, 300), QtCore.Qt.CopyAction, md,
+                          QtCore.Qt.LeftButton, QtCore.Qt.NoModifier)
+    win.dropEvent(ev)
+    return ev.isAccepted()
+
+
+def test_soltar_un_espectro_lo_abre(win, app):
+    """Es el gesto que todo el mundo prueba con un fichero en el escritorio."""
+    assert win.acceptDrops()
+    assert _soltar(win, "data_sample/magnetita_Fe3O4.adt")
+    app.processEvents()
+    assert win.file.path is not None and win.file.path.name == "magnetita_Fe3O4.adt"
+    assert win.file.counts is not None and win.file.counts.size == 512
+
+
+def test_no_se_acepta_lo_que_no_sabemos_abrir(win, tmp_path):
+    """Un fichero de otro tipo no debe teñir el cursor de 'soltar aquí'."""
+    from PySide6 import QtCore, QtGui
+
+    ajeno = tmp_path / "cualquiera.pdf"
+    ajeno.write_text("x", encoding="ascii")
+    md = QtCore.QMimeData()
+    md.setUrls([QtCore.QUrl.fromLocalFile(str(ajeno))])
+    ev = QtGui.QDragEnterEvent(QtCore.QPoint(1, 1), QtCore.Qt.CopyAction, md,
+                               QtCore.Qt.LeftButton, QtCore.Qt.NoModifier)
+    win.dragEnterEvent(ev)
+    assert not ev.isAccepted()
+
+
+def test_autoguardado_y_recuperacion(make_window, tmp_path, monkeypatch, app):
+    """Un cierre inesperado no debe llevarse horas de ajuste fino."""
+    from PySide6 import QtWidgets
+
+    import core.data_io as data_io
+    import gui.session_io as session_io
+
+    monkeypatch.setattr(data_io, "CONFIG_DIR", tmp_path)
+    monkeypatch.setattr(session_io, "CONFIG_DIR", tmp_path)
+
+    win = make_window()
+    monkeypatch.setattr(win, "_save_settings", lambda *a, **k: None)
+    win._load_file(Path("data_sample/magnetita_Fe3O4.adt"))
+    app.processEvents()
+    win.components_panels[0].params["bhf"].spin.setValue(48.5)
+    app.processEvents()
+    win._autosave_now()
+
+    recuperacion = tmp_path / "recuperacion.json"
+    assert recuperacion.is_file()
+
+    # Otra ventana encuentra el punto de recuperación y lo restaura.
+    monkeypatch.setattr(QtWidgets.QMessageBox, "question",
+                        staticmethod(lambda *a, **k: QtWidgets.QMessageBox.Yes))
+    otra = make_window()
+    monkeypatch.setattr(otra, "_save_settings", lambda *a, **k: None)
+    assert otra.offer_recovery() is True
+    assert otra.components_panels[0].params["bhf"].value() == pytest.approx(48.5)
+
+    # Y al cerrar bien se borra: no debe ofrecerse en el siguiente arranque.
+    otra.close()
+    app.processEvents()
+    assert not recuperacion.exists()
+
+
+def test_sin_punto_de_recuperacion_no_pregunta(make_window, tmp_path, monkeypatch):
+    """Arranque normal: ni diálogo ni ruido."""
+    import core.data_io as data_io
+    import gui.session_io as session_io
+
+    monkeypatch.setattr(data_io, "CONFIG_DIR", tmp_path)
+    monkeypatch.setattr(session_io, "CONFIG_DIR", tmp_path)
+    win = make_window()
+    assert win.offer_recovery() is False
+
+
+def test_los_atajos_del_flujo_diario_no_colisionan(win):
+    """Abrir → arrancar el modelo → ajustar → deshacer → guardar, con teclado."""
+    esperados = {
+        "file.open": "Ctrl+O", "fit.init_from_minima": "Ctrl+M",
+        "fit.run": "Ctrl+R", "fit.undo_fit": "Ctrl+Z",
+        "file.save_session": "Ctrl+S", "fit.free_all": "Ctrl+F",
+        "fit.fix_all": "Ctrl+Shift+F", "fit.edit_minima": "Ctrl+E",
+    }
+    for accion, atajo in esperados.items():
+        assert win._action_registry[accion].shortcut().toString() == atajo, accion
+
+    vistos = {}
+    for clave, act in win._action_registry.items():
+        s = act.shortcut().toString()
+        if s:
+            assert s not in vistos, f"{s} lo usan {vistos.get(s)} y {clave}"
+            vistos[s] = clave

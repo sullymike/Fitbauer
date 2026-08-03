@@ -837,5 +837,8 @@
   "file.normos_dist_job_imported": "Задание NORMOS-DIST загружено в панель распределения",
   "file.normos_job_no_data": "Спектр не найден рядом с .JOB: сохраняется уже загруженный. NORMOS ожидает все файлы в одной папке.",
   "file.normos_job_exported": "Задание NORMOS экспортировано",
-  "file.normos_job_warnings": "Импортировано, с предупреждениями:"
+  "file.normos_job_warnings": "Импортировано, с предупреждениями:",
+  "session.recover_title": "Восстановить работу",
+  "session.recover_question": "Fitbauer закрылся без сохранения сессии.\n\nСпектр: {file}\nПоследнее автосохранение: {when}\n\nВосстановить эту работу?",
+  "session.recovered": "Работа восстановлена"
 }
