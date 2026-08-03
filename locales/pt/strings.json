@@ -342,7 +342,7 @@
   "plot.legend_total_fit": "Ajuste total",
   "plot.legend_distribution_component": "Componente de distribuição P(BHF)",
   "plot.legend_sharp_component": "Comp. {idx} nítida ({kind})",
-  "plot.no_file": "Carregue um ficheiro .ws5",
+  "plot.no_file": "Arraste aqui um espetro (.ws5, .adt, .csv…)\nou prima Ctrl+O",
   "plot.click_fit_pbhf": "Prima 'Ajuste' para calcular P(BHF)",
   "plot.distribution_xlabel_deq": "ΔEQ (mm/s)",
   "plot.distribution_xlabel_bhf": "BHF (T)",
@@ -881,5 +881,11 @@
   "tooltip.c_src_fwhm": "Largura a meia altura da risca da fonte (mm/s). É convoluída com o absorvente.",
   "tooltip.c_line_profile": "Lorentziano: a forma natural da risca. Voigt: acrescenta uma largura gaussiana σ para o alargamento instrumental ou uma pequena desordem.",
   "context.more_help": "Mais informação…",
-  "tooltip.more_help": "Clique direito ▸ Mais informação: abre o capítulo da ajuda que explica este parâmetro."
+  "tooltip.more_help": "Clique direito ▸ Mais informação: abre o capítulo da ajuda que explica este parâmetro.",
+  "plot.no_file_status": "Arraste aqui um espetro (.ws5, .adt, .csv…) ou prima Ctrl+O",
+  "file.copy_results": "Copiar resultados",
+  "results.copied": "Resultados copiados para a área de transferência",
+  "results.nothing_to_copy": "Nada para copiar: faça primeiro um ajuste.",
+  "session.unsaved_title": "Trabalho por guardar",
+  "session.unsaved_question": "Há um ajuste por guardar.\n\nQuer guardar a sessão antes de sair?"
 }

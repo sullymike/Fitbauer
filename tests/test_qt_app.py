@@ -2056,3 +2056,113 @@ def test_mas_informacion_abre_el_capitulo_del_parametro(win, app):
 
     win._help_dialog.close()
     app.processEvents()
+
+
+# ── Cerrar sin guardar, estado vacío y copiar resultados ────────────────────
+
+def test_cargar_un_espectro_no_deja_trabajo_sin_guardar(win, app):
+    """Recién abierto no hay nada que perder: no debe preguntar al cerrar."""
+    win._load_file(Path("data_sample/magnetita_Fe3O4.adt"))
+    app.processEvents()
+    assert win.has_unsaved_work() is False
+
+
+def test_tocar_el_modelo_marca_trabajo_sin_guardar(win, app):
+    win._load_file(Path("data_sample/magnetita_Fe3O4.adt"))
+    app.processEvents()
+    win.components_panels[0].params["bhf"].spin.setValue(45.0)
+    app.processEvents()
+    assert win.has_unsaved_work() is True
+
+
+@pytest.mark.parametrize("respuesta, sigue_abierta", [
+    ("Cancel", True),      # cancelar → la ventana NO se cierra
+    ("Discard", False),    # salir sin guardar → se cierra
+])
+def test_cerrar_con_trabajo_sin_guardar_pregunta(win, app, monkeypatch,
+                                                 respuesta, sigue_abierta):
+    """Antes se cerraba en silencio y el trabajo se perdía.
+
+    Peor aún desde el autoguardado: el cierre limpio borra el punto de
+    recuperación, así que se iba el ajuste Y la red de seguridad.
+    """
+    from PySide6 import QtGui, QtWidgets
+
+    win._load_file(Path("data_sample/magnetita_Fe3O4.adt"))
+    app.processEvents()
+    win.components_panels[0].params["bhf"].spin.setValue(45.0)
+    app.processEvents()
+    assert win.has_unsaved_work()
+
+    boton = getattr(QtWidgets.QMessageBox, respuesta)
+    monkeypatch.setattr(QtWidgets.QMessageBox, "question",
+                        staticmethod(lambda *a, **k: boton))
+    evento = QtGui.QCloseEvent()
+    win.closeEvent(evento)
+    assert evento.isAccepted() is not sigue_abierta
+
+
+def test_guardar_al_cerrar_limpia_el_estado(win, app, monkeypatch, tmp_path):
+    """Si el usuario elige Guardar, se guarda y deja de haber pendiente."""
+    from PySide6 import QtWidgets
+
+    win._load_file(Path("data_sample/magnetita_Fe3O4.adt"))
+    app.processEvents()
+    win.components_panels[0].params["bhf"].spin.setValue(45.0)
+    app.processEvents()
+
+    destino = tmp_path / "sesion.json"
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getSaveFileName",
+                        staticmethod(lambda *a, **k: (str(destino), "")))
+    monkeypatch.setattr(QtWidgets.QMessageBox, "question",
+                        staticmethod(lambda *a, **k: QtWidgets.QMessageBox.Save))
+    assert win.confirm_discard() is True
+    assert destino.is_file()
+    assert win.has_unsaved_work() is False
+
+
+def test_el_estado_vacio_dice_como_empezar():
+    """Decía «Carga un fichero .ws5» y el programa abre ocho extensiones."""
+    import json
+    from pathlib import Path as _P
+
+    for loc in ("es", "en", "fr", "de", "pt", "ru", "ja", "ch"):
+        d = json.loads((_P("locales") / loc / "strings.json").read_text(encoding="utf-8"))
+        texto = d["plot.no_file"]
+        assert ".adt" in texto, loc
+        # El alemán llama Strg a la tecla Control, y así debe salir ahí.
+        assert ("Ctrl+O" in texto or "Strg+O" in texto), loc
+        # La barra de estado no admite saltos de línea.
+        assert "\n" not in d["plot.no_file_status"], loc
+
+
+def test_copiar_resultados_sin_ajuste_avisa(win):
+    assert win.on_copy_results() is False
+    assert win.statusBar().currentMessage()
+
+
+def test_copiar_resultados_deja_una_tabla_pegable(win, app, monkeypatch):
+    """Para llevar cuatro números al cuaderno no debería hacer falta un fichero."""
+    from PySide6 import QtWidgets
+
+    monkeypatch.setattr(win, "auto_global", False)
+    win._load_file(Path("data_sample/siderita_FeCO3.adt"))
+    app.processEvents()
+    win.components_panels[0].type_combo.setCurrentText("Doblete")
+    app.processEvents()
+    win.on_fit()
+    app.processEvents()
+
+    assert win.on_copy_results() is True
+    texto = QtWidgets.QApplication.clipboard().text()
+    lineas = texto.split("\n")
+
+    assert texto.startswith("# siderita_FeCO3.adt")
+    assert any(l.startswith("# chi2_red") for l in lineas)
+    assert "parametro\tvalor\terror\tfijo" in lineas
+    assert any(l.startswith("# componente 1\tDoblete") for l in lineas)
+    # Solo el componente activo, y sin los parámetros que su tipo no usa.
+    assert not any(l.startswith("# componente 2") for l in lineas)
+    assert not any(l.startswith("bhf\t") for l in lineas), "un doblete no tiene BHF"
+    # Y compacto: volcarlo todo daban 269 líneas.
+    assert len(lineas) < 40

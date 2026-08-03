@@ -483,22 +483,67 @@ class SessionIOMixin:
                 f"{type(exc).__name__}: {exc}")
             return False
 
-    def on_save_session(self) -> None:
+    def on_save_session(self) -> bool:
+        """Guarda la sesión. Devuelve si llegó a escribirse.
+
+        El valor de retorno lo usa el aviso de cierre: si el usuario cancela el
+        diálogo de guardar, la ventana no debe cerrarse.
+        """
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, tr("file.save_session"), str(ROOT),
             "JSON (*.json);;All (*.*)")
         if not path:
-            return
+            return False
         try:
             data = self._session_payload()
             Path(path).write_text(
                 json.dumps(data, indent=2, ensure_ascii=False, default=str),
                 encoding="utf-8")
             self.statusBar().showMessage(f"Sesión guardada: {path}", 5000)
+            self.mark_saved()
+            return True
         except Exception as exc:
             QtWidgets.QMessageBox.critical(
                 self, tr("file.save_session"),
                 f"{type(exc).__name__}: {exc}")
+            return False
+
+    # ── Trabajo sin guardar ─────────────────────────────────────────────────
+    def mark_dirty(self) -> None:
+        """Hay cambios que no están en ningún fichero de sesión."""
+        self._dirty = True
+
+    def mark_saved(self) -> None:
+        """El estado actual está guardado: cerrar ya no pierde nada."""
+        self._dirty = False
+
+    def has_unsaved_work(self) -> bool:
+        """¿Hay un espectro cargado y cambios sin guardar?"""
+        return bool(getattr(self, "_dirty", False)
+                    and getattr(self.file, "counts", None) is not None)
+
+    def confirm_discard(self) -> bool:
+        """Pregunta antes de perder el trabajo. Devuelve si se puede continuar.
+
+        Antes la ventana se cerraba en silencio, y con el autoguardado eso pasó
+        a ser peor: el cierre limpio borra el punto de recuperación, así que se
+        iba el trabajo Y la red de seguridad.
+        """
+        if not self.has_unsaved_work():
+            return True
+        resp = QtWidgets.QMessageBox.question(
+            self, tr("session.unsaved_title", default="Trabajo sin guardar"),
+            tr("session.unsaved_question",
+               default=("Hay un ajuste sin guardar.\n\n"
+                        "¿Quieres guardar la sesión antes de salir?")),
+            QtWidgets.QMessageBox.Save | QtWidgets.QMessageBox.Discard
+            | QtWidgets.QMessageBox.Cancel,
+            QtWidgets.QMessageBox.Save)
+        if resp == QtWidgets.QMessageBox.Cancel:
+            return False
+        if resp == QtWidgets.QMessageBox.Save:
+            return self.on_save_session()
+        return True
 
     # ── Interoperabilidad con NORMOS (.JOB) ─────────────────────────────────
     # Fitbauer NO ejecuta NORMOS ni lo distribuye: solo lee y escribe su

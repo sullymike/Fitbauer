@@ -342,7 +342,7 @@
   "plot.legend_total_fit": "Полная подгонка",
   "plot.legend_distribution_component": "Компонента распределения P(BHF)",
   "plot.legend_sharp_component": "Комп. {idx} острая ({kind})",
-  "plot.no_file": "Загрузите файл .ws5",
+  "plot.no_file": "Перетащите сюда спектр (.ws5, .adt, .csv…)\nили нажмите Ctrl+O",
   "plot.click_fit_pbhf": "Нажмите «Подогнать», чтобы вычислить P(BHF)",
   "plot.distribution_xlabel_deq": "ΔEQ (mm/s)",
   "plot.distribution_xlabel_bhf": "BHF (T)",
@@ -881,5 +881,11 @@
   "tooltip.c_src_fwhm": "Полная ширина на половине высоты линии источника (мм/с). Свёртывается с поглотителем.",
   "tooltip.c_line_profile": "Лоренцев: естественная форма линии. Фойгта: добавляет гауссову ширину σ для аппаратного уширения или слабого беспорядка.",
   "context.more_help": "Подробнее…",
-  "tooltip.more_help": "Правый клик ▸ Подробнее: открывает раздел справки об этом параметре."
+  "tooltip.more_help": "Правый клик ▸ Подробнее: открывает раздел справки об этом параметре.",
+  "plot.no_file_status": "Перетащите сюда спектр (.ws5, .adt, .csv…) или нажмите Ctrl+O",
+  "file.copy_results": "Копировать результаты",
+  "results.copied": "Результаты скопированы в буфер обмена",
+  "results.nothing_to_copy": "Копировать нечего: сначала выполните подгонку.",
+  "session.unsaved_title": "Несохранённая работа",
+  "session.unsaved_question": "Есть несохранённая подгонка.\n\nСохранить сессию перед выходом?"
 }

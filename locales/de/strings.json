@@ -342,7 +342,7 @@
   "plot.legend_total_fit": "Gesamtfit",
   "plot.legend_distribution_component": "P(BHF)-Verteilungskomponente",
   "plot.legend_sharp_component": "Komp. {idx} scharf ({kind})",
-  "plot.no_file": "Eine .ws5-Datei laden",
+  "plot.no_file": "Ziehen Sie ein Spektrum hierher (.ws5, .adt, .csv…)\noder drücken Sie Strg+O",
   "plot.click_fit_pbhf": "Drücken Sie „Anpassen“, um P(BHF) zu berechnen",
   "plot.distribution_xlabel_deq": "ΔEQ (mm/s)",
   "plot.distribution_xlabel_bhf": "BHF (T)",
@@ -881,5 +881,11 @@
   "tooltip.c_src_fwhm": "Halbwertsbreite der Quelllinie (mm/s). Sie wird mit dem Absorber gefaltet.",
   "tooltip.c_line_profile": "Lorentz: die natürliche Linienform. Voigt: zusätzlich eine Gaußbreite σ für instrumentelle Verbreiterung oder leichte Unordnung.",
   "context.more_help": "Mehr Informationen…",
-  "tooltip.more_help": "Rechtsklick ▸ Mehr Informationen: öffnet das Hilfekapitel zu diesem Parameter."
+  "tooltip.more_help": "Rechtsklick ▸ Mehr Informationen: öffnet das Hilfekapitel zu diesem Parameter.",
+  "plot.no_file_status": "Ziehen Sie ein Spektrum hierher (.ws5, .adt, .csv…) oder drücken Sie Strg+O",
+  "file.copy_results": "Ergebnisse kopieren",
+  "results.copied": "Ergebnisse in die Zwischenablage kopiert",
+  "results.nothing_to_copy": "Nichts zu kopieren: führen Sie zuerst einen Fit aus.",
+  "session.unsaved_title": "Nicht gespeicherte Arbeit",
+  "session.unsaved_question": "Es gibt einen nicht gespeicherten Fit.\n\nMöchten Sie die Sitzung vor dem Beenden speichern?"
 }

@@ -342,7 +342,7 @@
   "plot.legend_total_fit": "Total fit",
   "plot.legend_distribution_component": "P(BHF) distribution component",
   "plot.legend_sharp_component": "Comp. {idx} sharp ({kind})",
-  "plot.no_file": "Load a .ws5 file",
+  "plot.no_file": "Drag a spectrum here (.ws5, .adt, .csv…)\nor press Ctrl+O",
   "plot.click_fit_pbhf": "Press 'Fit' to compute P(BHF)",
   "plot.distribution_xlabel_deq": "ΔEQ (mm/s)",
   "plot.distribution_xlabel_bhf": "BHF (T)",
@@ -881,5 +881,11 @@
   "tooltip.c_src_fwhm": "Full width at half maximum of the source line (mm/s). It is convolved with the absorber.",
   "tooltip.c_line_profile": "Lorentzian: the natural line shape. Voigt: adds a Gaussian width σ for instrumental broadening or mild disorder.",
   "context.more_help": "More information…",
-  "tooltip.more_help": "Right-click ▸ More information: opens the help chapter that explains this parameter."
+  "tooltip.more_help": "Right-click ▸ More information: opens the help chapter that explains this parameter.",
+  "plot.no_file_status": "Drag a spectrum here (.ws5, .adt, .csv…) or press Ctrl+O",
+  "file.copy_results": "Copy results",
+  "results.copied": "Results copied to the clipboard",
+  "results.nothing_to_copy": "Nothing to copy: run a fit first.",
+  "session.unsaved_title": "Unsaved work",
+  "session.unsaved_question": "There is an unsaved fit.\n\nDo you want to save the session before leaving?"
 }

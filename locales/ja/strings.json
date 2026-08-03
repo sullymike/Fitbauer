@@ -342,7 +342,7 @@
   "plot.legend_total_fit": "全体フィット",
   "plot.legend_distribution_component": "P(BHF) 分布成分",
   "plot.legend_sharp_component": "成分 {idx} シャープ ({kind})",
-  "plot.no_file": ".ws5 ファイルを読み込んでください",
+  "plot.no_file": "スペクトル (.ws5, .adt, .csv…) をここにドラッグ\nまたは Ctrl+O",
   "plot.click_fit_pbhf": "「フィット」を押して P(BHF) を計算",
   "plot.distribution_xlabel_deq": "ΔEQ (mm/s)",
   "plot.distribution_xlabel_bhf": "BHF (T)",
@@ -881,5 +881,11 @@
   "tooltip.c_src_fwhm": "線源の線幅（半値全幅、mm/s）。吸収体と畳み込まれます。",
   "tooltip.c_line_profile": "ローレンツ: 線の自然な形。フォークト: 装置由来の広がりや小さな乱れのためのガウス幅 σ を加えます。",
   "context.more_help": "詳しい説明…",
-  "tooltip.more_help": "右クリック ▸ 詳しい説明: このパラメータを説明するヘルプの章を開きます。"
+  "tooltip.more_help": "右クリック ▸ 詳しい説明: このパラメータを説明するヘルプの章を開きます。",
+  "plot.no_file_status": "スペクトル (.ws5, .adt, .csv…) をここにドラッグ または Ctrl+O",
+  "file.copy_results": "結果をコピー",
+  "results.copied": "結果をクリップボードにコピーしました",
+  "results.nothing_to_copy": "コピーする結果がありません。先にフィットしてください。",
+  "session.unsaved_title": "未保存の作業",
+  "session.unsaved_question": "保存していないフィットがあります。\n\n終了する前にセッションを保存しますか？"
 }

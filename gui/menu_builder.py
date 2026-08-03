@@ -20,6 +20,7 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     ("file.compare_spectrum",  "menu.file", "file.compare_spectrum",  ""),
     ("file.clear_comparison",  "menu.file", "file.clear_comparison",  ""),
     ("file.use_as_calibration","menu.file", "file.use_as_calibration",""),
+    ("file.copy_results",         "menu.file", "file.copy_results",         "Ctrl+Shift+C"),
     ("file.save_fit",             "menu.file", "file.save_fit",             ""),
     ("file.export_report",        "menu.file", "file.export_report",        ""),
     ("file.export_short_report",  "menu.file", "file.export_short_report",  ""),
@@ -135,6 +136,10 @@ class MenuBuilderMixin:
         self.act_upload_session.setEnabled(False)
         web_menu.addAction(self.act_upload_session)
         file_menu.addSeparator()
+        self.act_copy_results = QtGui.QAction(tr("file.copy_results"), self)
+        self.act_copy_results.triggered.connect(self.on_copy_results)
+        file_menu.addAction(self.act_copy_results)
+        self._reg("file.copy_results", self.act_copy_results)
         self.act_save_fit = QtGui.QAction(tr("file.save_fit"), self)
         self.act_save_fit.triggered.connect(self.on_save_fit)
         self.act_save_fit.setEnabled(False)

@@ -51,6 +51,14 @@ from gui.window_mixins import WindowMixins  # noqa: E402
 
 class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
     def closeEvent(self, event):
+        # Preguntar ANTES de tocar nada: si el usuario cancela, la ventana
+        # sigue viva y el punto de recuperación no debe borrarse.
+        try:
+            if not self.confirm_discard():
+                event.ignore()
+                return
+        except Exception:
+            pass
         try:
             self._save_settings()
         except Exception:
@@ -93,6 +101,7 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
         self.wide_delta = False            # líneas sueltas: δ ampliado a ±(vmax+2)
         self.auto_global = True            # escalado DE automático si χ²red alto
         self._simulate_enabled = False      # igual que Tk: al cargar solo se dibujan datos
+        self._dirty = False                 # trabajo sin guardar (aviso al cerrar)
         self.runtime_results = RuntimeResultState()
         self._help_dialog: QtWidgets.QDialog | None = None
         self.dist_use_sharp = False
@@ -113,7 +122,7 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
         # arranque, según la preferencia guardada.
         self.canvas.residual_pref = self._show_residual_pref
         self.canvas.show_no_file()
-        self.statusBar().showMessage(tr("plot.no_file"))
+        self.statusBar().showMessage(tr("plot.no_file_status", default=tr("plot.no_file")))
         self._ui_bridge = _UiCallBridge(self)
         self._ui_bridge.call.connect(lambda fn: fn())
         self._autosave_timer = None

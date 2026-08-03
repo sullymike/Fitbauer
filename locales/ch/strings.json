@@ -342,7 +342,7 @@
   "plot.legend_total_fit": "总拟合",
   "plot.legend_distribution_component": "P(BHF) 分布分量",
   "plot.legend_sharp_component": "分量 {idx} 尖锐 ({kind})",
-  "plot.no_file": "加载一个 .ws5 文件",
+  "plot.no_file": "将谱文件 (.ws5、.adt、.csv…) 拖到此处\n或按 Ctrl+O",
   "plot.click_fit_pbhf": "按“拟合”以计算 P(BHF)",
   "plot.distribution_xlabel_deq": "ΔEQ (mm/s)",
   "plot.distribution_xlabel_bhf": "BHF (T)",
@@ -881,5 +881,11 @@
   "tooltip.c_src_fwhm": "源谱线的半高全宽 (mm/s)。与吸收体进行卷积。",
   "tooltip.c_line_profile": "洛伦兹：谱线的自然线型。Voigt：另加高斯宽度 σ，用于仪器展宽或轻微无序。",
   "context.more_help": "更多信息…",
-  "tooltip.more_help": "右键 ▸ 更多信息：打开解释该参数的帮助章节。"
+  "tooltip.more_help": "右键 ▸ 更多信息：打开解释该参数的帮助章节。",
+  "plot.no_file_status": "将谱文件 (.ws5、.adt、.csv…) 拖到此处 或按 Ctrl+O",
+  "file.copy_results": "复制结果",
+  "results.copied": "结果已复制到剪贴板",
+  "results.nothing_to_copy": "无可复制的结果：请先进行拟合。",
+  "session.unsaved_title": "未保存的工作",
+  "session.unsaved_question": "有尚未保存的拟合。\n\n退出前要保存会话吗？"
 }

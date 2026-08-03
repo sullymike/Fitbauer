@@ -57,7 +57,21 @@
   del grupo, no por índice global: los ocho catálogos NO ordenan los capítulos
   igual —el inglés tiene capítulos que el español no— pero sí coinciden en
   cuántos tiene cada grupo y en su orden interno, y un test lo vigila.
-- Tests: 25 nuevos. Traducciones del diálogo de recuperación en los 8 idiomas.
+- **Aviso al cerrar con trabajo sin guardar**, con Guardar / Salir sin guardar /
+  Cancelar. Antes la ventana se cerraba en silencio y el ajuste se perdía, y
+  desde el autoguardado era peor: el cierre limpio borra el punto de
+  recuperación, así que se iba el trabajo Y la red de seguridad. Si se elige
+  Guardar y luego se cancela el diálogo de fichero, la ventana no se cierra.
+- **El estado vacío enseña cómo empezar**: «Arrastra aquí un espectro (.ws5,
+  .adt, .csv…) o pulsa Ctrl+O». Decía «Carga un fichero .ws5» cuando el
+  programa abre ocho extensiones, y desde esta misma versión también acepta
+  arrastrar.
+- **Copiar resultados** (*Archivo ▸ Copiar resultados*, Ctrl+Shift+C): deja en
+  el portapapeles la tabla de parámetros con sus errores, χ², AIC y BIC, en
+  texto tabulado que Excel y Origin pegan en columnas. Solo los componentes
+  ACTIVOS y los parámetros que su tipo usa: volcarlo todo daban 269 líneas para
+  el ajuste de un doblete, y así son 19.
+- Tests: 32 nuevos. Traducciones del diálogo de recuperación en los 8 idiomas.
 
 ## v5.0.0 — paridad verificada con NORMOS e interoperabilidad de ficheros
 

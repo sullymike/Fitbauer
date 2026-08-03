@@ -93,6 +93,7 @@ class DiscreteFitMixin:
             return
         if hasattr(self, "act_undo_fit"):
             self.act_undo_fit.setEnabled(True)
+        self.mark_dirty()
         self._apply_discrete_result_values(state, result)
         red = result.stats.get("red_chi2", float("nan"))
         chi2 = result.stats.get("chi2", float("nan"))

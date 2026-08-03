@@ -171,6 +171,100 @@ class ReportMixin:
 
         return lines
 
+    # ── Copiar resultados al portapapeles ────────────────────────────────
+    def on_copy_results(self) -> bool:
+        """Copia los parámetros ajustados como texto pegable.
+
+        Existían el TSV y los informes, pero para llevar cuatro números al
+        cuaderno o a un correo había que escribir un fichero. Esto lo deja en
+        el portapapeles en formato tabulado, que Excel/Origin pegan en
+        columnas y el correo respeta.
+        """
+        from PySide6 import QtWidgets as _qw
+
+        lineas = self._results_as_text()
+        if not lineas:
+            self.statusBar().showMessage(
+                tr("results.nothing_to_copy",
+                   default="No hay resultados que copiar: ajusta primero."), 5000)
+            return False
+        _qw.QApplication.clipboard().setText("\n".join(lineas))
+        self.statusBar().showMessage(
+            tr("results.copied", default="Resultados copiados al portapapeles"), 5000)
+        return True
+
+    def _results_as_text(self) -> list[str]:
+        """Tabla de parámetros del último ajuste, con errores y estadísticos.
+
+        Solo lo que se quiere pegar: los componentes ACTIVOS con los parámetros
+        que su tipo usa, más los globales. Volcar los 10 componentes con sus 25
+        parámetros daban 269 líneas para un ajuste de un doblete.
+        """
+        from core.result_views import discrete_result_view
+
+        resultado = getattr(self.runtime_results, "fit_result", None)
+        if resultado is None:
+            return []
+        vista = discrete_result_view(resultado, fixed=dict(self._fixed_map()))
+        valores = getattr(resultado, "values", {}) or {}
+        libres = set(vista.free_keys())
+
+        def num(v):
+            return "" if v is None else f"{float(v):.6g}"
+
+        def fila(clave, etiqueta=None):
+            if clave not in valores:
+                return None
+            return "\t".join((etiqueta or clave, num(valores.get(clave)),
+                              num(vista.error_for(clave)),
+                              "" if clave in libres else "fijo"))
+
+        lineas: list[str] = []
+        nombre = self.file.path.name if getattr(self.file, "path", None) else "—"
+        lineas.append(f"# {nombre}")
+        for clave, etiqueta in (("red_chi2", "chi2_red"), ("chi2", "chi2"),
+                                ("aic", "AIC"), ("bic", "BIC")):
+            valor = vista.stat_for(clave)
+            if valor is not None:
+                lineas.append(f"# {etiqueta}\t{num(valor)}")
+        lineas.append("")
+        lineas.append("parametro\tvalor\terror\tfijo")
+
+        # Globales: los de siempre, más cualquiera que se haya liberado.
+        globales = ["vmax", "center", "baseline", "slope"]
+        globales += [k for k in ("curv", "curv3", "curv4", "voigt_sigma",
+                                 "sat_scale", "src_fwhm", "src_frac", "line_asym")
+                     if k in libres]
+        for clave in globales:
+            f = fila(clave)
+            if f:
+                lineas.append(f)
+
+        # Componentes activos, con los parámetros que su tipo usa.
+        for cp in getattr(self, "components_panels", []):
+            if not cp.enabled.isChecked():
+                continue
+            lineas.append("")
+            lineas.append(f"# componente {cp.idx}\t{cp.kind}")
+            for nombre_p in sorted(cp.relevant_params()):
+                f = fila(f"s{cp.idx}_{nombre_p}", nombre_p)
+                if f:
+                    lineas.append(f)
+        return lineas
+
+    def _fixed_map(self) -> dict:
+        """Mapa parámetro → fijo, tal y como lo ven los paneles."""
+        fijos: dict[str, bool] = {}
+        calib = self.calib.to_view_state()
+        for nombre in ("baseline", "slope", "curv", "curv3", "curv4",
+                       "sat_scale", "src_fwhm", "voigt_sigma"):
+            fijos[nombre] = calib.is_fixed(nombre)
+        for cp in getattr(self, "components_panels", []):
+            estado = cp.to_view_state()
+            for nombre, valor in (estado.fixed or {}).items():
+                fijos[f"s{cp.idx}_{nombre}"] = bool(valor)
+        return fijos
+
     def _build_report_lines(self) -> list[str]:
         """Genera el informe en Markdown estructurado por secciones.
 

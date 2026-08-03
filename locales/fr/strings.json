@@ -342,7 +342,7 @@
   "plot.legend_total_fit": "Ajustement total",
   "plot.legend_distribution_component": "Composant distribution P(BHF)",
   "plot.legend_sharp_component": "Comp. {idx} net ({kind})",
-  "plot.no_file": "Chargez un fichier .ws5",
+  "plot.no_file": "Glissez ici un spectre (.ws5, .adt, .csv…)\nou appuyez sur Ctrl+O",
   "plot.click_fit_pbhf": "Appuyez sur 'Ajuster' pour calculer P(BHF)",
   "plot.distribution_xlabel_deq": "ΔEQ (mm/s)",
   "plot.distribution_xlabel_bhf": "BHF (T)",
@@ -881,5 +881,11 @@
   "tooltip.c_src_fwhm": "Largeur à mi-hauteur de la raie de la source (mm/s). Elle est convoluée avec l'absorbeur.",
   "tooltip.c_line_profile": "Lorentzien : la forme naturelle de la raie. Voigt : ajoute une largeur gaussienne σ pour l'élargissement instrumental ou un léger désordre.",
   "context.more_help": "Plus d'informations…",
-  "tooltip.more_help": "Clic droit ▸ Plus d'informations : ouvre le chapitre d'aide qui explique ce paramètre."
+  "tooltip.more_help": "Clic droit ▸ Plus d'informations : ouvre le chapitre d'aide qui explique ce paramètre.",
+  "plot.no_file_status": "Glissez ici un spectre (.ws5, .adt, .csv…) ou appuyez sur Ctrl+O",
+  "file.copy_results": "Copier les résultats",
+  "results.copied": "Résultats copiés dans le presse-papiers",
+  "results.nothing_to_copy": "Rien à copier : lancez d'abord un ajustement.",
+  "session.unsaved_title": "Travail non enregistré",
+  "session.unsaved_question": "Un ajustement n'est pas enregistré.\n\nVoulez-vous enregistrer la session avant de quitter ?"
 }

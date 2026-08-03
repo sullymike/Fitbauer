@@ -122,6 +122,7 @@ class ModelWorkflowMixin:
     def _on_model_param_changed(self, *args) -> None:
         if not self._building:
             self._simulate_enabled = True
+            self.mark_dirty()
         self._sync_absorber_model_from_panel()
         self._sync_constraint_targets()
         self._refresh_plot()
@@ -805,6 +806,7 @@ class ModelWorkflowMixin:
             center = find_best_integer_or_half_center(counts)
         self.file = FileState(path=path, counts=counts, center=center)
         self._simulate_enabled = False
+        self.mark_saved()      # espectro recién cargado: nada que perder aún
         self._dist_map_2d = None
         _prev_fig = getattr(self, "_dist_map_2d_fig", None)
         if _prev_fig is not None:
