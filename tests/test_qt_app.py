@@ -1860,3 +1860,72 @@ def test_los_atajos_del_flujo_diario_no_colisionan(win):
         if s:
             assert s not in vistos, f"{s} lo usan {vistos.get(s)} y {clave}"
             vistos[s] = clave
+
+
+# ── Globos de ayuda de los parámetros ────────────────────────────────────────
+
+def test_todos_los_parametros_tienen_globo_de_ayuda(win):
+    """Un globo a medias es peor que ninguno: o están todos o no se fía nadie."""
+    from gui.controls import ParamControl
+
+    cp = win.components_panels[0]
+    sin_globo = [n for n, c in cp.params.items() if not c.toolTip() and n != "int3"]
+    assert not sin_globo, f"parámetros de componente sin globo: {sin_globo}"
+
+    c = win.calib
+    sin_calib = [n for n, v in vars(c).items()
+                 if isinstance(v, ParamControl) and not v.toolTip()]
+    assert not sin_calib, f"parámetros de calibración sin globo: {sin_calib}"
+
+
+def test_el_globo_avisa_del_menu_contextual(win):
+    """El clic derecho es invisible si nada lo insinúa: el globo lo dice."""
+    cp = win.components_panels[0]
+    # ΔEQ abre el tratamiento del cuadrupolo.
+    assert "quad" in cp.params
+    texto = cp.params["quad"].toolTip().lower()
+    assert "clic derecho" in texto or "right-click" in texto
+    # Intensidades y profundidad abren el modo de intensidades.
+    for nombre in ("int1", "int2", "depth"):
+        t = cp.params[nombre].toolTip().lower()
+        assert "clic derecho" in t or "right-click" in t, nombre
+    # Y σ de Voigt, el perfil de línea.
+    win.calib._set_line_profile("Voigt")
+    t = win.calib.voigt_sigma.toolTip().lower()
+    assert "clic derecho" in t or "right-click" in t
+
+
+def test_el_globo_cubre_todo_el_control(win):
+    """La etiqueta, la casilla y la barra: el ratón se posa en cualquiera."""
+    ctl = win.components_panels[0].params["bhf"]
+    esperado = ctl.toolTip()
+    assert esperado
+    assert ctl.label.toolTip() == esperado
+    assert ctl.spin.toolTip() == esperado
+    assert ctl.slider.toolTip() == esperado
+
+
+def test_los_globos_estan_traducidos_en_los_ocho_idiomas():
+    """Sin esto, tr() cae al español y el globo sale en un idioma ajeno.
+
+    No basta con que la clave exista: se comprueba que el texto DIFIERE del
+    español, que es el modo en que se colaría una traducción olvidada.
+    """
+    import json
+    from pathlib import Path
+
+    idiomas = ("es", "en", "fr", "de", "pt", "ru", "ja", "ch")
+    catalogos = {
+        loc: json.loads((Path("locales") / loc / "strings.json").read_text(encoding="utf-8"))
+        for loc in idiomas
+    }
+    claves = [k for k in catalogos["es"] if k.startswith("tooltip.")]
+    assert len(claves) >= 30, f"esperaba los globos de todos los parámetros, hay {len(claves)}"
+
+    for clave in claves:
+        for loc in idiomas:
+            assert clave in catalogos[loc], f"{clave} falta en {loc}"
+            assert catalogos[loc][clave].strip(), f"{clave} vacía en {loc}"
+            if loc != "es":
+                assert catalogos[loc][clave] != catalogos["es"][clave], (
+                    f"{clave} sin traducir en {loc} (idéntica al español)")

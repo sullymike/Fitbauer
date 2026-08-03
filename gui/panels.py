@@ -16,6 +16,36 @@ from core.result_views import discrete_result_view
 from gui.state import CalibrationViewState, ComponentViewState
 
 
+#: Parámetros con menú contextual (clic derecho) y la clave que dice qué
+#: ofrece. Sin esta pista el menú es invisible: nadie prueba el clic derecho
+#: sobre una casilla numérica si nada lo insinúa.
+CONTEXT_HINTS = {
+    "quad": "tooltip.more_quad",
+    "int1": "tooltip.more_intensity",
+    "int2": "tooltip.more_intensity",
+    "depth": "tooltip.more_intensity",
+    "texture": "tooltip.more_intensity",
+}
+
+
+def param_tooltip(name: str, prefijo: str = "p") -> str:
+    """Texto del globo de ayuda de un parámetro, con su pista de menú.
+
+    ``prefijo`` es ``p`` para los parámetros de componente y ``c`` para los de
+    calibración. Las claves viven en ``locales/<idioma>/strings.json``; si
+    faltara alguna, ``tr`` cae al idioma por defecto, así que las traducciones
+    tienen que estar completas en los ocho idiomas o el globo saldría en
+    español a quien no lo lee.
+    """
+    texto = tr(f"tooltip.{prefijo}_{name}", default="")
+    pista = CONTEXT_HINTS.get(name)
+    if pista:
+        extra = tr(pista, default="")
+        if extra:
+            texto = f"{texto}\n\n{extra}" if texto else extra
+    return texto
+
+
 class CalibrationPanel(QtWidgets.QGroupBox):
     """Panel de calibración equivalente al de Tk.
 
@@ -120,6 +150,21 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         # La casilla 'Fijo' de σ dirige el refinado (fit_sigma). Estado inicial coherente.
         self.voigt_sigma.fixedChanged.connect(lambda *_: self._refresh_fit_sigma())
         self._set_line_profile(self.line_profile)
+        self._apply_tooltips()
+
+    def _apply_tooltips(self) -> None:
+        """Globo de ayuda en cada parámetro de calibración."""
+        for nombre in ("vmax", "center", "baseline", "slope", "curv", "curv3",
+                       "curv4", "voigt_sigma", "sat_scale", "src_fwhm"):
+            ctl = getattr(self, nombre, None)
+            if ctl is None:
+                continue
+            texto = param_tooltip(nombre, "c")
+            if nombre == "voigt_sigma":
+                extra = tr("tooltip.more_profile", default="")
+                texto = f"{texto}\n\n{extra}" if texto and extra else (texto or extra)
+            if texto:
+                ctl.set_help(texto)
 
     def _show_sigma_menu(self, pos: QtCore.QPoint) -> None:
         """Menú contextual sobre σ: cambiar perfil Lorentziana/Voigt + Ajustar σ."""
@@ -323,7 +368,20 @@ class ComponentPanel(QtWidgets.QWidget):
         for k in ("int1", "int2", "int3", "gamma2", "gamma3", "quad", "texture"):
             self.params[k].set_fixed(True)
         v.addStretch(1)
+        self._apply_tooltips()
         self._on_type_changed(self.type_combo.currentText())
+
+    def _apply_tooltips(self) -> None:
+        """Globo de ayuda en cada parámetro del componente.
+
+        Se vuelve a aplicar en cada relayout porque las etiquetas de Γ y de
+        int2 cambian con el tipo (sextete/doblete/singlete) y el globo debe
+        decir lo mismo que la etiqueta que hay al lado.
+        """
+        for nombre, ctl in self.params.items():
+            texto = param_tooltip(nombre, "p")
+            if texto:
+                ctl.set_help(texto)
 
     def _show_intensity_menu(self, ctl: "ParamControl", pos: QtCore.QPoint) -> None:
         menu = QtWidgets.QMenu(self)
@@ -495,6 +553,8 @@ class ComponentPanel(QtWidgets.QWidget):
             ctl = self.params.get(name)
             if ctl is not None:
                 ctl.setVisible(False)
+
+        self._apply_tooltips()
 
     def to_view_state(self) -> ComponentViewState:
         """Snapshot del panel sin exponer widgets al resto de la GUI."""

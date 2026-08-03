@@ -25,7 +25,16 @@
   todo. Con los que ya había, el ciclo completo se hace con teclado: abrir
   (Ctrl+O) → arrancar el modelo (Ctrl+M) → ajustar (Ctrl+R) → deshacer si no
   convence (Ctrl+Z) → guardar (Ctrl+S). Verificado que ninguno colisiona.
-- Tests: 13 nuevos. Traducciones del diálogo de recuperación en los 8 idiomas.
+- **Globo de ayuda en todos los parámetros**, de componente y de calibración,
+  sobre la etiqueta, la casilla numérica y la barra —el ratón se posa en
+  cualquiera de las tres—. Los que abren menú contextual con el botón derecho
+  (ΔEQ el tratamiento del cuadrupolo, las intensidades y la profundidad el modo
+  de intensidades, σ el perfil de línea) lo dicen en el globo: sin esa pista el
+  menú es invisible, porque nadie prueba el clic derecho sobre una casilla
+  numérica si nada lo insinúa. 38 claves nuevas × 8 idiomas = 304 cadenas, con
+  un test que falla si alguna queda idéntica al español (que es como se colaría
+  una traducción olvidada: `tr()` cae al idioma por defecto).
+- Tests: 17 nuevos. Traducciones del diálogo de recuperación en los 8 idiomas.
 
 ## v5.0.0 — paridad verificada con NORMOS e interoperabilidad de ficheros
 

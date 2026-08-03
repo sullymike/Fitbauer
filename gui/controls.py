@@ -61,6 +61,20 @@ class ParamControl(QtWidgets.QWidget):
         # espacio — si no caben todos, la tarjeta ya tiene scroll.
         self.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
 
+    def set_help(self, text: str) -> None:
+        """Globo de ayuda sobre TODO el control, no solo sobre el slider.
+
+        El ratón se posa indistintamente en la etiqueta, la casilla numérica o
+        la barra; si el globo solo estuviera en una de las tres, aparecería a
+        ratos y el usuario no llegaría a fiarse de él.
+        """
+        for w in (self, self.label, self.spin, self.slider):
+            w.setToolTip(text)
+        if self.fixed_cb is not None:
+            self.fixed_cb.setToolTip(
+                tr("tooltip.fixed_cb",
+                   default="Marcado: el parámetro NO se ajusta, se queda en su valor."))
+
     def set_compact(self, compact: bool) -> None:
         """Modo compacto: oculta el slider y el control pasa a UNA fila.
 
