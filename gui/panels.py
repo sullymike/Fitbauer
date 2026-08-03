@@ -438,13 +438,22 @@ class ComponentPanel(QtWidgets.QWidget):
         col0 = [n for n in COMPONENT_PARAM_LAYOUT["left"]  if n in shown]
         col1 = [n for n in COMPONENT_PARAM_LAYOUT["right"] if n in shown]
 
-        # Reequilibra si una columna supera a la otra en más de 2 filas:
-        # mueve el exceso desde el final de la columna más larga al final de
-        # la más corta, manteniendo el orden relativo de cada param.
-        while len(col1) > len(col0) + 2:
-            col0.append(col1.pop(0))
-        while len(col0) > len(col1) + 2:
-            col1.append(col0.pop(0))
+        # Reequilibra solo si una columna dobla holgadamente a la otra, y
+        # entonces mueve el ÚLTIMO de la larga al final de la corta.
+        #
+        # Antes movía el PRIMERO (`pop(0)`) pese a que el comentario decía lo
+        # contrario, y con un sexteto de primer orden —6 a la izquierda contra
+        # 3 a la derecha— eso mandaba el DESPLAZAMIENTO ISOMÉRICO al final de
+        # la columna derecha. δ es el primer parámetro que se mira y tiene que
+        # encabezar el panel, como en el doblete y el singlete.
+        #
+        # El margen es 3 y no 2 para que ese mismo caso ni se reequilibre: la
+        # fila de más que cuesta vale menos que romper el orden de lectura y
+        # separar las Γ entre columnas.
+        while len(col1) > len(col0) + 3:
+            col0.append(col1.pop())
+        while len(col0) > len(col1) + 3:
+            col1.append(col0.pop())
 
         for col, names in enumerate((col0, col1)):
             for row, name in enumerate(names):

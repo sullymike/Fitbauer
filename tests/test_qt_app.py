@@ -1676,3 +1676,48 @@ def test_el_modo_compacto_se_recuerda_entre_sesiones(make_window, tmp_path, monk
     # preferencia se aplica también a los paneles ya construidos.
     assert all(not c.slider.isVisibleTo(c)
                for c in win.components_panels[0].params.values())
+
+
+@pytest.mark.parametrize("kind", ["Sextete", "Doblete", "Singlete",
+                                  "Relajacion", "BlumeTjon", "NeelSize"])
+def test_el_desplazamiento_isomerico_encabeza_el_panel(win, app, kind):
+    """δ es el primer parámetro que se mira: va arriba a la izquierda.
+
+    Regresión: el reequilibrio de columnas movía el PRIMERO de la columna
+    larga (`pop(0)`) pese a que su comentario decía «desde el final». Al pasar
+    a mostrar solo los parámetros ajustables, un sexteto de primer orden quedó
+    en 6 contra 3 y eso mandaba δ al final de la columna DERECHA.
+    """
+    cp = win.components_panels[0]
+    cp.type_combo.setCurrentText(kind)
+    app.processEvents()
+
+    g = cp.params_grid
+    posicion = {}
+    for i in range(g.count()):
+        w = g.itemAt(i).widget()
+        fila, col, _, _ = g.getItemPosition(i)
+        for nombre, ctl in cp.params.items():
+            if ctl is w:
+                posicion[nombre] = (col, fila)
+    assert posicion.get("delta") == (0, 0), (
+        f"δ debería encabezar la columna izquierda en {kind}, "
+        f"y está en {posicion.get('delta')}")
+
+
+def test_las_anchuras_no_se_reparten_entre_columnas(win, app):
+    """Γ1/Γ2/Γ3 se leen juntas: el reequilibrio no debe separarlas."""
+    cp = win.components_panels[0]
+    cp.type_combo.setCurrentText("Sextete")
+    app.processEvents()
+
+    columna = {}
+    g = cp.params_grid
+    for i in range(g.count()):
+        w = g.itemAt(i).widget()
+        _fila, col, _, _ = g.getItemPosition(i)
+        for nombre, ctl in cp.params.items():
+            if ctl is w:
+                columna[nombre] = col
+    gammas = {columna[n] for n in ("gamma1", "gamma2", "gamma3") if n in columna}
+    assert len(gammas) == 1, "las anchuras quedaron repartidas entre columnas"
