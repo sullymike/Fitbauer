@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.5.0.0 — renumeración a esquema con cero inicial
+
+Cambio solo de numeración: la versión pasa a mostrarse como **0.5.0.0** (antes
+5.0.0). Se antepone un `0.` cosmético al esquema; el número real es lo que sigue
+al cero, de modo que `0.5.0.0` equivale a la anterior `5.0.0`. No hay cambios de
+código funcional ni de física.
+
+Para que el buscador de actualizaciones no rompa frente a los tags históricos de
+GitHub (de tres componentes, `v5.0.0`, `v4.19.0`…), `version_tuple` descarta el
+`0` mayor inicial cuando la versión tiene cuatro o más componentes: `0.5.0.0`
+compara igual que `v5.0.0`, y un futuro `0.5.0.1` queda por encima.
+
 ## v5.0.0 — paridad verificada con NORMOS e interoperabilidad de ficheros
 
 Salto de versión mayor. Tras la revisión completa del código fuente Fortran de

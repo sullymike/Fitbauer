@@ -38,11 +38,21 @@ class ReleaseInfo:
 
 
 def version_tuple(version: str) -> tuple[int, ...]:
-    """Parte numérica base: 'v1.2.3-beta.1' -> (1, 2, 3)."""
+    """Parte numérica base: 'v1.2.3-beta.1' -> (1, 2, 3).
+
+    Desde la renumeración a esquema '0.X.Y.Z' (p.ej. 0.5.0.0), el prefijo
+    ``0.`` es solo cosmético: el número real es lo que sigue. Para no romper la
+    comparación con los tags históricos de 3 componentes ya publicados en GitHub
+    (``v5.0.0``, ``v4.19.0``…), se descarta un ``0`` mayor inicial cuando hay
+    cuatro o más componentes. Así ``0.5.0.0`` -> (5, 0, 0) compara igual que
+    ``v5.0.0`` y un futuro ``0.5.0.1`` -> (5, 0, 1) queda por encima.
+    """
     text = version.strip().lower().lstrip("v")
     base = re.split(r"[-+]", text, maxsplit=1)[0]
-    nums = re.findall(r"\d+", base)
-    return tuple(int(n) for n in nums) if nums else (0,)
+    nums = [int(n) for n in re.findall(r"\d+", base)]
+    if len(nums) >= 4 and nums[0] == 0:
+        nums = nums[1:]
+    return tuple(nums) if nums else (0,)
 
 
 def _version_key(version: str) -> tuple[tuple[int, ...], int, int]:
