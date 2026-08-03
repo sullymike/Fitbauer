@@ -2166,3 +2166,96 @@ def test_copiar_resultados_deja_una_tabla_pegable(win, app, monkeypatch):
     assert not any(l.startswith("bhf\t") for l in lineas), "un doblete no tiene BHF"
     # Y compacto: volcarlo todo daban 269 líneas.
     assert len(lineas) < 40
+
+
+# ── La configuración del usuario no se pierde ───────────────────────────────
+
+def test_los_tests_no_escriben_en_la_configuracion_real():
+    """El fixture de conftest debe haber desviado la configuración a un temporal.
+
+    Regresión de una pérdida real: arrancar la ventana guarda las preferencias
+    sola (`_apply_layout_preset` llama a `_save_settings`), así que la suite
+    machacaba los ajustes de quien la ejecutase — se midió cómo
+    `test_layout_presets_change_splitter_sizes` cambiaba el `layout_preset` de
+    «Tres columnas» a «Compacto» y cómo desaparecían los layouts propios.
+    """
+    from pathlib import Path as _P
+
+    import core.data_io as data_io
+    import core.param_overrides as param_overrides
+    import gui.layout_manager as layout_manager
+
+    real = _P.home() / ".config" / "mossbauer_fe33_gui"
+    for ruta in (data_io.SETTINGS_PATH, data_io.CONFIG_DIR,
+                 data_io.CREDENTIALS_PATH, param_overrides.PARAM_LIMITS_PATH,
+                 layout_manager.SETTINGS_PATH):
+        assert real not in _P(ruta).parents and _P(ruta) != real, ruta
+
+
+def test_arrancar_la_ventana_conserva_las_preferencias(make_window, tmp_path,
+                                                       monkeypatch, app):
+    """Abrir el programa no debe perder lo que había guardado."""
+    import json
+
+    import core.data_io as data_io
+    import gui.layout_manager as layout_manager
+
+    ajustes = tmp_path / "settings.json"
+    previo = {
+        "layout_preset": "Compacto",
+        "color_theme": "teal",
+        "custom_layouts": {"Mío": {"description": "propio", "left": ["header"],
+                                    "center": [], "right": [],
+                                    "left_width": 400, "right_width": 0}},
+        "multistart_n": 5,
+        # Claves que la ventana no gestiona pero que viven en el mismo fichero.
+        "vars": {"vmax": 12.03}, "geometry": "1920x1023+0+0",
+    }
+    ajustes.write_text(json.dumps(previo), encoding="utf-8")
+    monkeypatch.setattr(data_io, "SETTINGS_PATH", ajustes)
+    monkeypatch.setattr(layout_manager, "SETTINGS_PATH", ajustes)
+
+    win = make_window()
+    app.processEvents()
+    assert win.layout_preset == "Compacto"
+    assert win.color_theme == "teal"
+    assert "Mío" in win.custom_layouts
+
+    guardado = json.loads(ajustes.read_text(encoding="utf-8"))
+    assert guardado["layout_preset"] == "Compacto"
+    assert guardado["color_theme"] == "teal"
+    assert "Mío" in guardado["custom_layouts"]
+    assert guardado["multistart_n"] == 5
+    # Y lo que la ventana no gestiona sigue ahí: update_settings fusiona.
+    assert guardado["vars"] == {"vmax": 12.03}
+    assert guardado["geometry"] == "1920x1023+0+0"
+
+
+def test_un_settings_corrupto_se_aparta_en_vez_de_perderse(tmp_path, monkeypatch):
+    """Antes, un JSON truncado se convertía en pérdida total al guardar."""
+    import json
+
+    import core.data_io as data_io
+
+    ajustes = tmp_path / "settings.json"
+    ajustes.write_text('{"layout_preset": "Compacto", "vars": {tru', encoding="utf-8")
+    monkeypatch.setattr(data_io, "SETTINGS_PATH", ajustes)
+
+    data_io.update_settings(color_theme="teal")
+
+    apartado = tmp_path / "settings.json.corrupto"
+    assert apartado.is_file(), "el fichero ilegible debe conservarse"
+    assert "Compacto" in apartado.read_text(encoding="utf-8")
+    assert json.loads(ajustes.read_text(encoding="utf-8")) == {"color_theme": "teal"}
+
+
+def test_el_guardado_es_atomico(tmp_path, monkeypatch):
+    """No debe quedar un .tmp suelto ni un fichero a medio escribir."""
+    import core.data_io as data_io
+
+    ajustes = tmp_path / "settings.json"
+    monkeypatch.setattr(data_io, "SETTINGS_PATH", ajustes)
+    data_io.update_settings(a=1)
+    data_io.update_settings(b=2)
+    assert not (tmp_path / "settings.json.tmp").exists()
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["settings.json"]

@@ -46,17 +46,33 @@ def load_settings() -> dict:
 def update_settings(**kwargs) -> None:
     """Actualiza claves de ``settings.json`` conservando el resto.
 
-    Carga el contenido actual (``{}`` si falta o está corrupto), aplica
-    ``kwargs`` encima y reescribe el fichero con el formato habitual
-    (``indent=2``, ``ensure_ascii=False``). Los errores de escritura se
-    propagan: cada llamador decide si los silencia o los muestra.
+    Carga el contenido actual, aplica ``kwargs`` encima y reescribe el fichero.
+    Los errores de escritura se propagan: cada llamador decide si los silencia.
+
+    Dos precauciones, porque este fichero guarda TODO lo que el usuario ha
+    configurado y se reescribe solo durante el arranque:
+
+    * **Escritura atómica.** Se escribe a un temporal y se renombra. Un corte a
+      media escritura dejaba antes un JSON truncado, y como ``load_settings``
+      devuelve ``{}`` ante un fichero corrupto, el siguiente guardado lo
+      reemplazaba entero: la corrupción se convertía en pérdida total.
+    * **Un fichero ilegible se aparta, no se pisa.** Si existe pero no se puede
+      leer, se conserva como ``settings.json.corrupto`` antes de escribir el
+      nuevo, para poder recuperar a mano lo que hubiera dentro.
     """
     current = load_settings()
+    if not current and SETTINGS_PATH.exists() and SETTINGS_PATH.stat().st_size:
+        try:
+            SETTINGS_PATH.replace(SETTINGS_PATH.with_suffix(".json.corrupto"))
+        except OSError:
+            pass
     current.update(kwargs)
     SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SETTINGS_PATH.write_text(
+    tmp = SETTINGS_PATH.with_suffix(".json.tmp")
+    tmp.write_text(
         json.dumps(current, indent=2, ensure_ascii=False), encoding="utf-8"
     )
+    tmp.replace(SETTINGS_PATH)
 
 
 def load_credentials() -> dict:

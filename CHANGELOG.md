@@ -71,7 +71,24 @@
   texto tabulado que Excel y Origin pegan en columnas. Solo los componentes
   ACTIVOS y los parámetros que su tipo usa: volcarlo todo daban 269 líneas para
   el ajuste de un doblete, y así son 19.
-- Tests: 32 nuevos. Traducciones del diálogo de recuperación en los 8 idiomas.
+- **La configuración del usuario dejaba de estar a salvo al ejecutar la suite.**
+  La ventana guarda sus preferencias sola durante el arranque
+  (`_apply_layout_preset` llama a `_save_settings`), y los módulos resuelven
+  `~/.config/mossbauer_fe33_gui/` al importarse, así que bastaba con construir
+  una `MossbauerQtWindow` en un test para machacar los ajustes reales de quien
+  estuviera ejecutando pytest. Medido: `test_layout_presets_change_splitter_sizes`
+  cambiaba el `layout_preset` de «Tres columnas» a «Compacto», y los layouts
+  personalizados desaparecían. Un fixture autouse de ámbito de sesión en
+  `conftest.py` desvía ahora el directorio de configuración a un temporal —
+  autouse a propósito: si dependiera de que cada test se acuerde, volvería a
+  pasar.
+- **`settings.json` se escribe de forma atómica** (temporal + `replace`). Un
+  corte a media escritura dejaba un JSON truncado y, como `load_settings`
+  devuelve `{}` ante un fichero corrupto, el siguiente guardado lo reemplazaba
+  entero: la corrupción se convertía en pérdida total. Y si el fichero existe
+  pero no se puede leer, ahora se aparta como `settings.json.corrupto` en vez
+  de pisarse, para poder rescatar a mano lo que hubiera dentro.
+- Tests: 36 nuevos. Traducciones del diálogo de recuperación en los 8 idiomas.
 
 ## v5.0.0 — paridad verificada con NORMOS e interoperabilidad de ficheros
 
