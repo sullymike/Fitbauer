@@ -96,8 +96,8 @@ reference for validating it is written.
   `USED_BY["BlumeTjon"]`) and in the `extras` of `core/fit_engine.py:258`.
 
 **Validation.** **Not** with the demo binary: `BSAT` is not in its namelist and
-its `IRELAX` spectra come out almost collapsed even with `OME=0` (§19 of the
-report). It is validated against the `ISIRLX` port, as was done with the
+its `IRELAX` spectra come out almost collapsed even with `OME=0` (§19 of
+`REPORT_EN.md`). It is validated against the `ISIRLX` port, as was done with the
 polarization.
 
 **Cost / value.** Low / low. Half an hour, but only useful if you measure with

@@ -13,7 +13,7 @@ English versions are kept in step with them.
 | **Verdict** — synthesis of the four validation rounds: where Fitbauer reproduces NORMOS, where it does not, and what it has that NORMOS does not | [`VERDICT_EN.md`](VERDICT_EN.md) | [`VEREDICTO.md`](VEREDICTO.md) |
 | **Coverage** — capability inventory, parameter by parameter, taken from the NORMOS namelists | [`COVERAGE_NORMOS_EN.md`](COVERAGE_NORMOS_EN.md) | [`COBERTURA_NORMOS.md`](COBERTURA_NORMOS.md) |
 | **Pending** — roadmap for what is still missing: source reference, what to touch, how to validate it and whether it is worth it | [`PENDING_NORMOS_EN.md`](PENDING_NORMOS_EN.md) | [`PENDIENTE_NORMOS.md`](PENDIENTE_NORMOS.md) |
-| **Full report** — case-by-case technical detail of the synthetic bank (847 lines) | — | [`INFORME.md`](INFORME.md) |
+| **Full report** — case-by-case technical detail of the synthetic bank | [`REPORT_EN.md`](REPORT_EN.md) | [`INFORME.md`](INFORME.md) |
 
 `figuras/` holds the 19 figures cited by the reports, and `catalogo/` a
 catalogue of every spectrum in the bank with its fit.
