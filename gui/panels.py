@@ -55,6 +55,7 @@ class CalibrationPanel(QtWidgets.QGroupBox):
 
     paramChanged = QtCore.Signal()
     driveFormChanged = QtCore.Signal()   # cambio de forma de onda (recomputar datos)
+    profileChanged = QtCore.Signal(str)  # perfil de línea (para el radio del menú)
 
     def __init__(self, parent=None):
         super().__init__(tr("controls.calibration_box"), parent)
@@ -87,6 +88,24 @@ class CalibrationPanel(QtWidgets.QGroupBox):
                   self.voigt_sigma.slider, self.voigt_sigma.spin):
             w.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
             w.customContextMenuRequested.connect(self._show_sigma_menu)
+
+        # Perfil de línea como desplegable, al lado de los de forma de onda y
+        # absorbente: los tres eligen el MODELO y hasta ahora este era el único
+        # escondido tras un clic derecho y un submenú. Con σ oculta en modo
+        # lorentziano, sin esto no quedaba ninguna pista visible de que exista
+        # el perfil Voigt.
+        profile_row = QtWidgets.QHBoxLayout()
+        profile_row.addWidget(QtWidgets.QLabel(tr("options.line_profile")))
+        self.profile_combo = QtWidgets.QComboBox()
+        for value, key in (("Lorentziana", "options.profile_lorentzian"),
+                           ("Voigt", "options.profile_voigt")):
+            self.profile_combo.addItem(tr(key, default=value), value)
+        self.profile_combo.setToolTip(tr(
+            "tooltip.c_line_profile",
+            default="Lorentziana: la forma natural de la línea. Voigt: además "
+                    "una anchura gaussiana σ para el ensanchamiento "
+                    "instrumental o un desorden pequeño."))
+        profile_row.addWidget(self.profile_combo, stretch=1)
 
         absorber_row = QtWidgets.QHBoxLayout()
         absorber_row.addWidget(QtWidgets.QLabel(tr("absorber.model_label")))
@@ -129,8 +148,12 @@ class CalibrationPanel(QtWidgets.QGroupBox):
 
         for w in (self.vmax, self.fit_velocity, self.center, self.fit_center,
                   self.baseline, self.slope, self.curv, self.curv3,
-                  self.curv4, self.voigt_sigma):
+                  self.curv4):
             v.addWidget(w)
+        # Cada desplegable, justo encima de los parámetros que gobierna: así se
+        # ve de dónde salen y por qué aparecen o desaparecen.
+        v.addLayout(profile_row)
+        v.addWidget(self.voigt_sigma)
         v.addLayout(drive_row)
         v.addLayout(absorber_row)
         v.addWidget(self.sat_scale)
@@ -143,6 +166,9 @@ class CalibrationPanel(QtWidgets.QGroupBox):
                   self.voigt_sigma, self.sat_scale, self.src_fwhm):
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
             w.fixedChanged.connect(lambda *_: self.paramChanged.emit())
+        self.profile_combo.currentIndexChanged.connect(
+            lambda *_: self._set_line_profile(
+                self.profile_combo.currentData() or "Lorentziana"))
         self.absorber_combo.currentIndexChanged.connect(lambda *_: (self._refresh_absorber_widgets(), self.paramChanged.emit()))
         self.drive_combo.currentIndexChanged.connect(lambda *_: self.driveFormChanged.emit())
         for cb in (self.fit_velocity, self.fit_center):
@@ -247,6 +273,16 @@ class CalibrationPanel(QtWidgets.QGroupBox):
 
     def _set_line_profile(self, kind: str) -> None:
         self.line_profile = kind
+        # El perfil se puede cambiar desde tres sitios (este desplegable, el
+        # clic derecho sobre σ y el menú Ajuste): el combo refleja el estado
+        # venga de donde venga, con las señales bloqueadas para no reentrar.
+        combo = getattr(self, "profile_combo", None)
+        if combo is not None:
+            idx = combo.findData(kind)
+            if idx >= 0 and combo.currentIndex() != idx:
+                combo.blockSignals(True)
+                combo.setCurrentIndex(idx)
+                combo.blockSignals(False)
         is_voigt = kind == "Voigt"
         # Fuera de Voigt el control se OCULTA: no se puede tocar y ocupa dos
         # filas. El perfil se cambia desde Ajuste ▸ Opciones avanzadas ▸ Perfil
@@ -260,6 +296,7 @@ class CalibrationPanel(QtWidgets.QGroupBox):
             if not is_voigt:
                 self.voigt_sigma.set_fixed(True)  # fuera de Voigt σ no se refina
         self._refresh_fit_sigma()
+        self.profileChanged.emit(kind)
         self.paramChanged.emit()
 
     def _refresh_fit_sigma(self) -> None:

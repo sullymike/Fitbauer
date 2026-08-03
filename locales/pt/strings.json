@@ -878,5 +878,6 @@
   "tooltip.c_curv4": "Termo quártico da linha de base (v⁴). Equivale a BKG(5) do NORMOS; raramente é preciso.",
   "tooltip.c_voigt_sigma": "Largura gaussiana σ (mm/s) do perfil Voigt. Absorve o alargamento instrumental ou uma pequena desordem.",
   "tooltip.c_sat_scale": "Escala de saturação do absorvente espesso. Corrige que as riscas profundas deixem de crescer com a espessura.",
-  "tooltip.c_src_fwhm": "Largura a meia altura da risca da fonte (mm/s). É convoluída com o absorvente."
+  "tooltip.c_src_fwhm": "Largura a meia altura da risca da fonte (mm/s). É convoluída com o absorvente.",
+  "tooltip.c_line_profile": "Lorentziano: a forma natural da risca. Voigt: acrescenta uma largura gaussiana σ para o alargamento instrumental ou uma pequena desordem."
 }

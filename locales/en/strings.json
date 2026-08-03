@@ -878,5 +878,6 @@
   "tooltip.c_curv4": "Quartic baseline term (v⁴). Equivalent to NORMOS BKG(5); rarely needed.",
   "tooltip.c_voigt_sigma": "Gaussian width σ (mm/s) of the Voigt profile. It absorbs instrumental broadening or mild disorder.",
   "tooltip.c_sat_scale": "Saturation scale of the thick absorber. It corrects deep lines no longer growing with thickness.",
-  "tooltip.c_src_fwhm": "Full width at half maximum of the source line (mm/s). It is convolved with the absorber."
+  "tooltip.c_src_fwhm": "Full width at half maximum of the source line (mm/s). It is convolved with the absorber.",
+  "tooltip.c_line_profile": "Lorentzian: the natural line shape. Voigt: adds a Gaussian width σ for instrumental broadening or mild disorder."
 }

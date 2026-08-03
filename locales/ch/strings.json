@@ -878,5 +878,6 @@
   "tooltip.c_curv4": "基线的四次项 (v⁴)。相当于 NORMOS 的 BKG(5)，很少需要。",
   "tooltip.c_voigt_sigma": "Voigt 线型的高斯宽度 σ (mm/s)。用于吸收仪器展宽或轻微无序。",
   "tooltip.c_sat_scale": "厚吸收体的饱和标度。修正深谱线不再随厚度增长的效应。",
-  "tooltip.c_src_fwhm": "源谱线的半高全宽 (mm/s)。与吸收体进行卷积。"
+  "tooltip.c_src_fwhm": "源谱线的半高全宽 (mm/s)。与吸收体进行卷积。",
+  "tooltip.c_line_profile": "洛伦兹：谱线的自然线型。Voigt：另加高斯宽度 σ，用于仪器展宽或轻微无序。"
 }

@@ -307,8 +307,12 @@ class MenuBuilderMixin:
             a = QtGui.QAction(tr(key), self, checkable=True)
             if kind == "Lorentziana":
                 a.setChecked(True)
+            a.setData(kind)
             a.triggered.connect(lambda _c, k=kind: self.calib._set_line_profile(k))
             prof_menu.addAction(a); self.profile_action_group.addAction(a)
+        # El perfil también se cambia desde el desplegable del panel y desde el
+        # clic derecho sobre σ: el radio de este menú tiene que seguirlos.
+        self.calib.profileChanged.connect(self._sync_profile_menu)
         # Verosimilitud
         lik_menu = adv_menu.addMenu(tr("options.likelihood"))
         self.likelihood_action_group = QtGui.QActionGroup(self)
@@ -572,6 +576,11 @@ class MenuBuilderMixin:
         self._simulate_enabled = True
         self._refresh_plot()
 
+
+    def _sync_profile_menu(self, kind: str) -> None:
+        """Marca en el menú el perfil activo, se haya cambiado donde se haya cambiado."""
+        for act in getattr(self, "profile_action_group", QtGui.QActionGroup(self)).actions():
+            act.setChecked(act.data() == kind)
 
     def _set_language(self, code: str) -> None:
         set_language(code)

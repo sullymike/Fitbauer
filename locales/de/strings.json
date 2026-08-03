@@ -878,5 +878,6 @@
   "tooltip.c_curv4": "Quartischer Term der Basislinie (v⁴). Entspricht BKG(5) von NORMOS; selten nötig.",
   "tooltip.c_voigt_sigma": "Gaußbreite σ (mm/s) des Voigt-Profils. Fängt instrumentelle Verbreiterung oder leichte Unordnung auf.",
   "tooltip.c_sat_scale": "Sättigungsskala des dicken Absorbers. Korrigiert, dass tiefe Linien mit der Dicke nicht weiter wachsen.",
-  "tooltip.c_src_fwhm": "Halbwertsbreite der Quelllinie (mm/s). Sie wird mit dem Absorber gefaltet."
+  "tooltip.c_src_fwhm": "Halbwertsbreite der Quelllinie (mm/s). Sie wird mit dem Absorber gefaltet.",
+  "tooltip.c_line_profile": "Lorentz: die natürliche Linienform. Voigt: zusätzlich eine Gaußbreite σ für instrumentelle Verbreiterung oder leichte Unordnung."
 }

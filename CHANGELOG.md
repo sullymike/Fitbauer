@@ -34,7 +34,17 @@
   numérica si nada lo insinúa. 38 claves nuevas × 8 idiomas = 304 cadenas, con
   un test que falla si alguna queda idéntica al español (que es como se colaría
   una traducción olvidada: `tr()` cae al idioma por defecto).
-- Tests: 17 nuevos. Traducciones del diálogo de recuperación en los 8 idiomas.
+- **El perfil de línea pasa a ser un desplegable** del panel, junto a los de
+  forma de onda y absorbente: los tres eligen el MODELO y este era el único
+  escondido tras un clic derecho y un submenú de opciones avanzadas. Con σ
+  oculta en modo lorentziano no quedaba ninguna pista visible de que existiera
+  el perfil Voigt. Cada desplegable queda ahora justo encima de los parámetros
+  que gobierna —σ bajo el perfil, saturación y Γ de la fuente bajo el
+  absorbente—, así se ve de dónde salen y por qué aparecen o desaparecen. Los
+  tres caminos (desplegable, clic derecho sobre σ y menú Ajuste) quedan
+  sincronizados; el radio del menú, que antes no seguía a los otros dos, ahora
+  sí.
+- Tests: 21 nuevos. Traducciones del diálogo de recuperación en los 8 idiomas.
 
 ## v5.0.0 — paridad verificada con NORMOS e interoperabilidad de ficheros
 

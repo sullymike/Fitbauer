@@ -1929,3 +1929,48 @@ def test_los_globos_estan_traducidos_en_los_ocho_idiomas():
             if loc != "es":
                 assert catalogos[loc][clave] != catalogos["es"][clave], (
                     f"{clave} sin traducir en {loc} (idéntica al español)")
+
+
+def test_el_perfil_de_linea_tiene_desplegable_propio(win, app):
+    """El perfil elige MODELO, como forma de onda y absorbente: mismo rango.
+
+    Estaba escondido tras un clic derecho sobre σ y un submenú de opciones
+    avanzadas; al ocultar σ en modo lorentziano no quedaba pista visible de que
+    existiera el perfil Voigt.
+    """
+    c = win.calib
+    assert hasattr(c, "profile_combo")
+    valores = [c.profile_combo.itemData(i) for i in range(c.profile_combo.count())]
+    assert valores == ["Lorentziana", "Voigt"]
+    assert c.profile_combo.toolTip()
+
+    # Elegir Voigt en el desplegable cambia el modelo y saca σ.
+    c.profile_combo.setCurrentIndex(valores.index("Voigt"))
+    app.processEvents()
+    assert c.line_profile == "Voigt"
+    assert c.voigt_sigma.isVisibleTo(c)
+    assert c.to_view_state().line_profile == "Voigt"
+
+
+@pytest.mark.parametrize("via", ["combo", "metodo", "menu"])
+def test_el_perfil_queda_sincronizado_venga_de_donde_venga(win, app, via):
+    """Tres caminos lo cambian: desplegable, clic derecho sobre σ y menú."""
+    c = win.calib
+    c._set_line_profile("Lorentziana")
+    app.processEvents()
+
+    if via == "combo":
+        c.profile_combo.setCurrentIndex(
+            [c.profile_combo.itemData(i) for i in range(c.profile_combo.count())].index("Voigt"))
+    elif via == "metodo":
+        c._set_line_profile("Voigt")          # lo que hace el clic derecho
+    else:
+        accion = next(a for a in win.profile_action_group.actions()
+                      if a.data() == "Voigt")
+        accion.trigger()
+    app.processEvents()
+
+    assert c.line_profile == "Voigt"
+    assert c.profile_combo.currentData() == "Voigt"
+    marcadas = [a.data() for a in win.profile_action_group.actions() if a.isChecked()]
+    assert marcadas == ["Voigt"]
