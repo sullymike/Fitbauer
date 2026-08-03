@@ -1974,3 +1974,85 @@ def test_el_perfil_queda_sincronizado_venga_de_donde_venga(win, app, via):
     assert c.profile_combo.currentData() == "Voigt"
     marcadas = [a.data() for a in win.profile_action_group.actions() if a.isChecked()]
     assert marcadas == ["Voigt"]
+
+
+# ── «Más información»: del parámetro a su capítulo de ayuda ─────────────────
+
+def test_los_grupos_de_ayuda_son_paralelos_en_los_ocho_idiomas():
+    """Base de «grupo.posición» como identificador de capítulo.
+
+    Los catálogos NO llevan los capítulos en el mismo orden global —el inglés
+    tiene capítulos que el español no—, así que el índice global no sirve. Lo
+    que sí coincide es cuántos capítulos tiene cada grupo y en qué orden van
+    dentro. Si esto deja de cumplirse, «Más información» llevaría al capítulo
+    equivocado en algún idioma, y en silencio.
+    """
+    import json
+    from collections import Counter
+    from pathlib import Path
+
+    idiomas = ("es", "en", "fr", "de", "pt", "ru", "ja", "ch")
+    cuentas = {}
+    for loc in idiomas:
+        caps = json.loads((Path("locales") / loc / "help.json").read_text(encoding="utf-8"))
+        cuentas[loc] = Counter(c["group"] for c in caps)
+    referencia = cuentas["es"]
+    for loc in idiomas[1:]:
+        assert cuentas[loc] == referencia, (
+            f"{loc} tiene otro reparto de capítulos por grupo: "
+            f"{cuentas[loc]} frente a {referencia}")
+
+
+def test_cada_parametro_apunta_a_un_capitulo_que_existe():
+    """Ningún parámetro debe mandar a un capítulo fuera de rango."""
+    from collections import Counter
+
+    from mossbauer_help import get_help_groups
+    from gui.panels import CALIB_HELP_CHAPTER, PARAM_HELP_CHAPTER
+
+    grupos = Counter(get_help_groups("es"))
+    for mapa in (PARAM_HELP_CHAPTER, CALIB_HELP_CHAPTER):
+        for parametro, capitulo in mapa.items():
+            grupo, _, pos = capitulo.partition(".")
+            assert grupo in grupos, f"{parametro} → grupo inexistente {grupo!r}"
+            assert 0 <= int(pos) < grupos[grupo], (
+                f"{parametro} → {capitulo} fuera de rango "
+                f"(el grupo {grupo} tiene {grupos[grupo]} capítulos)")
+
+
+def test_el_globo_dice_como_llegar_a_mas_informacion(win):
+    """De nada sirve el menú si el globo no lo anuncia."""
+    cp = win.components_panels[0]
+    for nombre in ("bhf", "delta", "gamma1"):
+        texto = cp.params[nombre].toolTip().lower()
+        assert "más información" in texto or "more information" in texto, nombre
+
+
+def test_mas_informacion_abre_el_capitulo_del_parametro(win, app):
+    """Del parámetro a su capítulo, en un clic."""
+    from PySide6 import QtCore, QtWidgets
+
+    from gui.panels import PARAM_HELP_CHAPTER, add_help_entry
+
+    cp = win.components_panels[0]
+    menu = QtWidgets.QMenu()
+    add_help_entry(menu, cp, PARAM_HELP_CHAPTER["bhf"])
+    acciones = [a for a in menu.actions() if a.text()]
+    assert len(acciones) == 1
+
+    acciones[0].trigger()          # abre la ayuda en «Modelo discreto»
+    app.processEvents()
+    assert win._help_dialog is not None
+    seleccionado = win._help_tree.currentItem()
+    assert seleccionado is not None
+
+    from mossbauer_help import get_help_groups, get_help_sections
+    from mossbauer_i18n import get_language
+
+    grupos = get_help_groups(get_language())
+    esperado = [i for i, g in enumerate(grupos) if g == "fitting"][1]
+    assert seleccionado.data(0, QtCore.Qt.UserRole) == esperado
+    assert seleccionado.text(0) == get_help_sections(lang=get_language())[esperado][0]
+
+    win._help_dialog.close()
+    app.processEvents()

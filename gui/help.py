@@ -295,7 +295,45 @@ class HelpMixin:
                 layout.append((label, indices))
         return layout
 
-    def on_help(self, show_shortcuts: bool = False) -> None:
+    def _select_help_chapter(self, chapter: str) -> bool:
+        """Selecciona en el árbol el capítulo ``"grupo.n"``. Devuelve si pudo."""
+        from mossbauer_help import get_help_groups
+        from mossbauer_i18n import get_language
+
+        tree = getattr(self, "_help_tree", None)
+        if tree is None or "." not in chapter:
+            return False
+        grupo, _, pos = chapter.partition(".")
+        try:
+            pos = int(pos)
+        except ValueError:
+            return False
+        # Índice GLOBAL del capítulo que ocupa la posición `pos` de su grupo.
+        grupos = get_help_groups(get_language())
+        indices = [i for i, g in enumerate(grupos) if g == grupo]
+        if not 0 <= pos < len(indices):
+            return False
+        objetivo = indices[pos]
+        it = QtWidgets.QTreeWidgetItemIterator(tree)
+        while it.value():
+            item = it.value()
+            if item.data(0, QtCore.Qt.UserRole) == objetivo:
+                tree.setCurrentItem(item)
+                tree.scrollToItem(item)
+                return True
+            it += 1
+        return False
+
+    def on_help(self, show_shortcuts: bool = False,
+                chapter: str | None = None) -> None:
+        """Abre la ayuda, opcionalmente en un capítulo concreto.
+
+        ``chapter`` es ``"grupo.n"`` (p. ej. ``"fitting.1"``): el grupo temático
+        y la posición dentro de él. NO es el índice global, porque los
+        catálogos de los ocho idiomas no llevan los capítulos en el mismo
+        orden; lo que sí es estable es cuántos capítulos tiene cada grupo y en
+        qué orden van dentro (lo fija un test).
+        """
         if self._help_dialog is not None:
             self._help_dialog.show()
             self._help_dialog.raise_()
@@ -304,6 +342,8 @@ class HelpMixin:
                 tab_w = self._help_dialog.findChild(QtWidgets.QTabWidget)
                 if tab_w is not None:
                     tab_w.setCurrentIndex(1)
+            if chapter:
+                self._select_help_chapter(chapter)
             return
 
         calib_state = self.calib.to_view_state()
@@ -477,6 +517,9 @@ class HelpMixin:
         tree.currentItemChanged.connect(_on_tree)
         if leaves:
             tree.setCurrentItem(leaves[0])
+        self._help_tree = tree
+        if chapter:
+            self._select_help_chapter(chapter)
 
         def _apply_filter() -> None:
             q = search_edit.text().strip().lower()

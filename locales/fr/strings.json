@@ -879,5 +879,7 @@
   "tooltip.c_voigt_sigma": "Largeur gaussienne σ (mm/s) du profil Voigt. Absorbe l'élargissement instrumental ou un léger désordre.",
   "tooltip.c_sat_scale": "Échelle de saturation de l'absorbeur épais. Corrige le fait que les raies profondes cessent de croître avec l'épaisseur.",
   "tooltip.c_src_fwhm": "Largeur à mi-hauteur de la raie de la source (mm/s). Elle est convoluée avec l'absorbeur.",
-  "tooltip.c_line_profile": "Lorentzien : la forme naturelle de la raie. Voigt : ajoute une largeur gaussienne σ pour l'élargissement instrumental ou un léger désordre."
+  "tooltip.c_line_profile": "Lorentzien : la forme naturelle de la raie. Voigt : ajoute une largeur gaussienne σ pour l'élargissement instrumental ou un léger désordre.",
+  "context.more_help": "Plus d'informations…",
+  "tooltip.more_help": "Clic droit ▸ Plus d'informations : ouvre le chapitre d'aide qui explique ce paramètre."
 }

@@ -879,5 +879,7 @@
   "tooltip.c_voigt_sigma": "Voigt 线型的高斯宽度 σ (mm/s)。用于吸收仪器展宽或轻微无序。",
   "tooltip.c_sat_scale": "厚吸收体的饱和标度。修正深谱线不再随厚度增长的效应。",
   "tooltip.c_src_fwhm": "源谱线的半高全宽 (mm/s)。与吸收体进行卷积。",
-  "tooltip.c_line_profile": "洛伦兹：谱线的自然线型。Voigt：另加高斯宽度 σ，用于仪器展宽或轻微无序。"
+  "tooltip.c_line_profile": "洛伦兹：谱线的自然线型。Voigt：另加高斯宽度 σ，用于仪器展宽或轻微无序。",
+  "context.more_help": "更多信息…",
+  "tooltip.more_help": "右键 ▸ 更多信息：打开解释该参数的帮助章节。"
 }

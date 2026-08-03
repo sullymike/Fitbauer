@@ -879,5 +879,7 @@
   "tooltip.c_voigt_sigma": "Gaußbreite σ (mm/s) des Voigt-Profils. Fängt instrumentelle Verbreiterung oder leichte Unordnung auf.",
   "tooltip.c_sat_scale": "Sättigungsskala des dicken Absorbers. Korrigiert, dass tiefe Linien mit der Dicke nicht weiter wachsen.",
   "tooltip.c_src_fwhm": "Halbwertsbreite der Quelllinie (mm/s). Sie wird mit dem Absorber gefaltet.",
-  "tooltip.c_line_profile": "Lorentz: die natürliche Linienform. Voigt: zusätzlich eine Gaußbreite σ für instrumentelle Verbreiterung oder leichte Unordnung."
+  "tooltip.c_line_profile": "Lorentz: die natürliche Linienform. Voigt: zusätzlich eine Gaußbreite σ für instrumentelle Verbreiterung oder leichte Unordnung.",
+  "context.more_help": "Mehr Informationen…",
+  "tooltip.more_help": "Rechtsklick ▸ Mehr Informationen: öffnet das Hilfekapitel zu diesem Parameter."
 }

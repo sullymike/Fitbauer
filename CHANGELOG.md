@@ -44,7 +44,20 @@
   tres caminos (desplegable, clic derecho sobre σ y menú Ajuste) quedan
   sincronizados; el radio del menú, que antes no seguía a los otros dos, ahora
   sí.
-- Tests: 21 nuevos. Traducciones del diálogo de recuperación en los 8 idiomas.
+- **Del parámetro a su capítulo de la ayuda, en un clic.** El globo anuncia
+  «Clic derecho ▸ Más información» y esa entrada abre la ayuda directamente en
+  el capítulo que explica ese parámetro: Modelo discreto para δ/ΔEQ/BHF/Γ,
+  Relajación magnética para los de relajación, Néel-Arrhenius para los de
+  tamaño, Folding para vmax/centro/fondo y Perfil de línea para σ. El enlace no
+  puede ir dentro del globo —Qt lo cierra en cuanto el ratón sale del control,
+  así que un `<a href>` ahí sería inalcanzable—, por eso el globo lo anuncia y
+  el menú del clic derecho lo ofrece. Los parámetros que ya tenían menú lo
+  reciben al final del suyo; los demás estrenan uno.
+  `on_help(chapter="grupo.n")` localiza el capítulo por grupo y posición dentro
+  del grupo, no por índice global: los ocho catálogos NO ordenan los capítulos
+  igual —el inglés tiene capítulos que el español no— pero sí coinciden en
+  cuántos tiene cada grupo y en su orden interno, y un test lo vigila.
+- Tests: 25 nuevos. Traducciones del diálogo de recuperación en los 8 idiomas.
 
 ## v5.0.0 — paridad verificada con NORMOS e interoperabilidad de ficheros
 

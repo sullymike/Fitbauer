@@ -28,6 +28,86 @@ CONTEXT_HINTS = {
 }
 
 
+#: Capítulo de la ayuda al que lleva «Más información» de cada parámetro.
+#: El formato es "grupo.posición_en_el_grupo": los ocho catálogos no ordenan
+#: los capítulos igual, pero sí coinciden en cuántos tiene cada grupo y en su
+#: orden interno (lo fija un test).
+PARAM_HELP_CHAPTER = {
+    # Modelo discreto (fitting.1)
+    **{k: "fitting.1" for k in (
+        "delta", "quad", "bhf", "gamma1", "gamma2", "gamma3", "depth",
+        "int1", "int2", "texture", "beta", "eta", "phi", "bex", "gax")},
+    # Relajación magnética (fitting.2)
+    **{k: "fitting.2" for k in (
+        "relax_fraction", "relax_log_nu", "relax_polarization")},
+    # Ajuste global Néel-Arrhenius (fitting.3)
+    **{k: "fitting.3" for k in (
+        "neel_temp_k", "neel_log10_keff", "neel_mean_d_nm", "neel_sigma",
+        "neel_log10_tau0", "neel_bins")},
+}
+
+#: Ídem para los parámetros de calibración.
+CALIB_HELP_CHAPTER = {
+    # Folding, velocidad y fondo (files.3)
+    **{k: "files.3" for k in (
+        "vmax", "center", "baseline", "slope", "curv", "curv3", "curv4")},
+    "voigt_sigma": "fitting.4",   # Perfil de línea
+    "sat_scale": "fitting.0",     # Menú Ajuste (opciones de absorbente)
+    "src_fwhm": "fitting.0",
+}
+
+
+def _nombre_de(params: dict, ctl) -> str:
+    """Nombre del parámetro cuyo control es ``ctl`` (para elegir capítulo)."""
+    for nombre, c in params.items():
+        if c is ctl:
+            return nombre
+    return ""
+
+
+def add_help_entry(menu, panel, chapter: str) -> None:
+    """Añade «Más información» al menú, si hay capítulo al que llevar.
+
+    El enlace no puede ir DENTRO del globo: Qt lo cierra en cuanto el ratón
+    sale del control, así que un ``<a href>`` ahí sería inalcanzable. Por eso
+    el globo solo anuncia que hay más y el enlace vive en el menú del clic
+    derecho, que sí se puede pulsar.
+    """
+    if not chapter:
+        return
+    ventana = panel.window()
+    if not hasattr(ventana, "on_help"):
+        return
+    menu.addSeparator()
+    act = menu.addAction(tr("context.more_help", default="Más información…"))
+    act.triggered.connect(
+        lambda _checked=False, c=chapter: ventana.on_help(chapter=c))
+
+
+def attach_help_menu(panel, ctl, chapter: str) -> None:
+    """Da menú contextual de solo «Más información» a un control sin menú propio.
+
+    Los que ya tienen menú (ΔEQ, intensidades, σ) reciben la entrada al final
+    del suyo; el resto la necesitan aquí o no habría forma de llegar a la
+    ayuda desde el parámetro.
+    """
+    if not chapter:
+        return
+
+    def _menu(pos, _ctl=ctl, _cap=chapter):
+        menu = QtWidgets.QMenu(panel)
+        add_help_entry(menu, panel, _cap)
+        if menu.isEmpty():
+            return
+        emisor = panel.sender()
+        anclaje = emisor if isinstance(emisor, QtWidgets.QWidget) else _ctl.spin
+        menu.exec(anclaje.mapToGlobal(pos))
+
+    for w in (ctl, ctl.label, ctl.spin, ctl.slider):
+        w.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        w.customContextMenuRequested.connect(_menu)
+
+
 def param_tooltip(name: str, prefijo: str = "p") -> str:
     """Texto del globo de ayuda de un parámetro, con su pista de menú.
 
@@ -43,6 +123,11 @@ def param_tooltip(name: str, prefijo: str = "p") -> str:
         extra = tr(pista, default="")
         if extra:
             texto = f"{texto}\n\n{extra}" if texto else extra
+    mapa = PARAM_HELP_CHAPTER if prefijo == "p" else CALIB_HELP_CHAPTER
+    if name in mapa:
+        mas = tr("tooltip.more_help", default="")
+        if mas:
+            texto = f"{texto}\n\n{mas}" if texto else mas
     return texto
 
 
@@ -191,6 +276,8 @@ class CalibrationPanel(QtWidgets.QGroupBox):
                 texto = f"{texto}\n\n{extra}" if texto and extra else (texto or extra)
             if texto:
                 ctl.set_help(texto)
+            if nombre != "voigt_sigma":
+                attach_help_menu(self, ctl, CALIB_HELP_CHAPTER.get(nombre, ""))
 
     def _show_sigma_menu(self, pos: QtCore.QPoint) -> None:
         """Menú contextual sobre σ: cambiar perfil Lorentziana/Voigt + Ajustar σ."""
@@ -203,6 +290,7 @@ class CalibrationPanel(QtWidgets.QGroupBox):
             act.setCheckable(True)
             act.setChecked(self.line_profile == kind)
             act.triggered.connect(lambda _checked=False, k=kind: self._set_line_profile(k))
+        add_help_entry(menu, self, CALIB_HELP_CHAPTER.get("voigt_sigma", ""))
         sender = self.sender()
         anchor = sender if isinstance(sender, QtWidgets.QWidget) else self.voigt_sigma.spin
         menu.exec(anchor.mapToGlobal(pos))
@@ -415,10 +503,13 @@ class ComponentPanel(QtWidgets.QWidget):
         int2 cambian con el tipo (sextete/doblete/singlete) y el globo debe
         decir lo mismo que la etiqueta que hay al lado.
         """
+        con_menu_propio = set(CONTEXT_HINTS)
         for nombre, ctl in self.params.items():
             texto = param_tooltip(nombre, "p")
             if texto:
                 ctl.set_help(texto)
+            if nombre not in con_menu_propio:
+                attach_help_menu(self, ctl, PARAM_HELP_CHAPTER.get(nombre, ""))
 
     def _show_intensity_menu(self, ctl: "ParamControl", pos: QtCore.QPoint) -> None:
         menu = QtWidgets.QMenu(self)
@@ -432,6 +523,7 @@ class ComponentPanel(QtWidgets.QWidget):
             act.setCheckable(True)
             act.setChecked(self.intensity_mode == val)
             act.triggered.connect(lambda _c=False, v=val: self._set_intensity_mode(v))
+        add_help_entry(menu, self, PARAM_HELP_CHAPTER.get(_nombre_de(self.params, ctl), ""))
         sender = self.sender()
         anchor = sender if isinstance(sender, QtWidgets.QWidget) else ctl.spin
         menu.exec(anchor.mapToGlobal(pos))
@@ -473,6 +565,7 @@ class ComponentPanel(QtWidgets.QWidget):
             act.setCheckable(True)
             act.setChecked(self.quad_treatment == val)
             act.triggered.connect(lambda _c=False, v=val: self._set_quad_treatment(v))
+        add_help_entry(menu, self, PARAM_HELP_CHAPTER.get(_nombre_de(self.params, ctl), ""))
         sender = self.sender()
         anchor = sender if isinstance(sender, QtWidgets.QWidget) else ctl.spin
         menu.exec(anchor.mapToGlobal(pos))

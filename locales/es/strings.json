@@ -879,5 +879,7 @@
   "tooltip.c_voigt_sigma": "Anchura gaussiana σ (mm/s) del perfil Voigt. Recoge el ensanchamiento instrumental o un desorden pequeño.",
   "tooltip.c_sat_scale": "Escala de saturación del absorbente grueso. Corrige que las líneas profundas dejen de crecer con el espesor.",
   "tooltip.c_src_fwhm": "Anchura a media altura de la línea de la fuente (mm/s). Se convoluciona con el absorbente.",
-  "tooltip.c_line_profile": "Lorentziana: la forma natural de la línea. Voigt: además una anchura gaussiana σ para el ensanchamiento instrumental o un desorden pequeño."
+  "tooltip.c_line_profile": "Lorentziana: la forma natural de la línea. Voigt: además una anchura gaussiana σ para el ensanchamiento instrumental o un desorden pequeño.",
+  "context.more_help": "Más información…",
+  "tooltip.more_help": "Clic derecho ▸ Más información: abre el capítulo de la ayuda que explica este parámetro."
 }

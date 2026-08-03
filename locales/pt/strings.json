@@ -879,5 +879,7 @@
   "tooltip.c_voigt_sigma": "Largura gaussiana σ (mm/s) do perfil Voigt. Absorve o alargamento instrumental ou uma pequena desordem.",
   "tooltip.c_sat_scale": "Escala de saturação do absorvente espesso. Corrige que as riscas profundas deixem de crescer com a espessura.",
   "tooltip.c_src_fwhm": "Largura a meia altura da risca da fonte (mm/s). É convoluída com o absorvente.",
-  "tooltip.c_line_profile": "Lorentziano: a forma natural da risca. Voigt: acrescenta uma largura gaussiana σ para o alargamento instrumental ou uma pequena desordem."
+  "tooltip.c_line_profile": "Lorentziano: a forma natural da risca. Voigt: acrescenta uma largura gaussiana σ para o alargamento instrumental ou uma pequena desordem.",
+  "context.more_help": "Mais informação…",
+  "tooltip.more_help": "Clique direito ▸ Mais informação: abre o capítulo da ajuda que explica este parâmetro."
 }
