@@ -150,9 +150,9 @@ knowing:
 
 The complete inventory, capability by capability and with the exact NORMOS source
 reference, is in
-[`validacion/informe/COBERTURA_NORMOS.md`](validacion/informe/COBERTURA_NORMOS.md);
+[`validacion/informe/COVERAGE_NORMOS_EN.md`](validacion/informe/COVERAGE_NORMOS_EN.md);
 what remains, with what to touch and how to validate it, is in
-[`PENDIENTE_NORMOS.md`](validacion/informe/PENDIENTE_NORMOS.md).
+[`PENDING_NORMOS_EN.md`](validacion/informe/PENDING_NORMOS_EN.md).
 
 ---
 
