@@ -504,6 +504,11 @@ class LayoutSettingsMixin:
                 f"#AppHeader {{ background: {accent}; border-radius: 4px; }}"
                 f"#AppHeader QLabel {{ background: transparent; color: {accent_sub}; font-size: 9pt; }}"
                 f"#AppHeaderTitle {{ color: {accent_text}; font-size: 16pt; font-weight: bold; }}"
+                # Distintivo de versión: pastilla translúcida sobre el acento,
+                # legible en cualquiera de los temas sin fijar un color propio.
+                f"#AppHeaderVersion {{ color: {accent_text};"
+                f" background: rgba(255, 255, 255, 40); border-radius: 7px;"
+                f" padding: 1px 7px; font-size: 9pt; font-weight: bold; }}"
             )
         if persist:
             self._save_settings()

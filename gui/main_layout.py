@@ -5,7 +5,8 @@ from PySide6 import QtCore, QtWidgets
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 
 from mossbauer_i18n import tr
-from core.constants import APP_NAME, APP_AUTHOR, APP_DEPARTMENT, LINE_POS_33T
+from core.constants import (APP_NAME, APP_AUTHOR, APP_DEPARTMENT,
+                            APP_VERSION, LINE_POS_33T)
 from gui.branding import _logo_pixmap
 from gui.canvas import SpectrumCanvas
 from gui.distribution_panel import DistributionPanel
@@ -60,15 +61,25 @@ class MainLayoutMixin:
             self.header_logo.setPixmap(_hpix)
             hb.addWidget(self.header_logo, 0, QtCore.Qt.AlignVCenter)
         _header_text = QtWidgets.QVBoxLayout(); _header_text.setSpacing(1)
+        # Título + distintivo de versión en la misma línea: el salto a v5 es
+        # una versión mayor y conviene que se vea al abrir el programa, sin
+        # tener que ir a Ayuda → Acerca de.
+        _title_row = QtWidgets.QHBoxLayout()
+        _title_row.setSpacing(8)
         self.header_title = QtWidgets.QLabel(APP_NAME)
         self.header_title.setObjectName("AppHeaderTitle")
         self.header_title.setWordWrap(True)
+        self.header_version = QtWidgets.QLabel(f"v{APP_VERSION}")
+        self.header_version.setObjectName("AppHeaderVersion")
+        _title_row.addWidget(self.header_title, 0, QtCore.Qt.AlignVCenter)
+        _title_row.addWidget(self.header_version, 0, QtCore.Qt.AlignVCenter)
+        _title_row.addStretch(1)
         self._header_sub_labels = [
             QtWidgets.QLabel(tr("main.subtitle")),
             QtWidgets.QLabel(APP_AUTHOR),
             QtWidgets.QLabel(APP_DEPARTMENT),
         ]
-        _header_text.addWidget(self.header_title)
+        _header_text.addLayout(_title_row)
         for lbl in self._header_sub_labels:
             lbl.setWordWrap(True)
             _header_text.addWidget(lbl)
