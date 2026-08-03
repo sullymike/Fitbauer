@@ -71,6 +71,7 @@
   "options.show_residual": "Mostrar diferencia",
   "options.show_legend": "Mostrar leyenda",
   "options.show_component_fill": "Mostrar área de componentes",
+  "options.compact_params": "Parámetros compactos (sin deslizadores)",
   "options.line_profile": "Perfil de línea",
   "options.profile_lorentzian": "Lorentziana",
   "options.profile_voigt": "Voigt",

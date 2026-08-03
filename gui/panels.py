@@ -389,6 +389,12 @@ class ComponentPanel(QtWidgets.QWidget):
         """Parámetros realmente usados por el tipo y modo actuales (core.params)."""
         return _relevant_params(self.kind, self.intensity_mode, self.quad_treatment)
 
+    def set_compact(self, compact: bool) -> None:
+        """Propaga el modo compacto a todos los controles del componente."""
+        for ctl in self.params.values():
+            ctl.set_compact(compact)
+        self.updateGeometry()
+
     def _on_type_changed(self, kind: str) -> None:
         prev = getattr(self, "_last_initialized_kind", None)
         if kind != prev:
@@ -407,16 +413,23 @@ class ComponentPanel(QtWidgets.QWidget):
         self.paramChanged.emit()
 
     def _relayout_params(self) -> None:
-        """Recoloca el grid mostrando solo los parámetros del tipo actual.
+        """Recoloca el grid mostrando solo los parámetros ajustables ahora.
 
-        Visibilidad = parámetros que pertenecen al tipo (``USED_BY[kind]``); así,
-        p.ej., un componente Néel no muestra textura/β y un doblete no muestra
-        BHF/Γ3. Los visibles se recolocan sin huecos respetando la separación de
-        columnas (izquierda hiperfina · derecha intensidades/especializados) y se
-        agrisan (``setEnabled``) los que no son ajustables en el modo actual.
+        Visibilidad = ``relevant_params(tipo, modo de intensidad, tratamiento
+        del cuadrupolo)``: un doblete no muestra BHF/Γ3, un Néel no muestra
+        textura/β, y un sextete de primer orden no muestra η/φ/Bex/Gax, que
+        solo existen con el Hamiltoniano.
+
+        Antes la visibilidad era por TIPO (``USED_BY[kind]``) y lo no aplicable
+        se agrisaba: un sextete enseñaba 15 controles de los que solo 9 se
+        podían tocar, y los 6 agrisados costaban 3 filas (397 px frente a 262).
+        Con dos o tres componentes abiertos eso impedía verlos a la vez.
+        Ocultarlos es la misma regla que ya se aplicaba al tipo, llevada hasta
+        el final; los parámetros reaparecen al cambiar el tratamiento o el modo
+        de intensidad, que son combos siempre visibles.
         """
         used = self.relevant_params()
-        shown = set(self._USED_BY.get(self.kind, set()))
+        shown = set(used)
         # Saca todo del grid (los widgets siguen vivos como hijos del panel).
         for ctl in self.params.values():
             self.params_grid.removeWidget(ctl)
@@ -438,7 +451,8 @@ class ComponentPanel(QtWidgets.QWidget):
                 ctl = self.params[name]
                 self.params_grid.addWidget(ctl, row, col)
                 ctl.setVisible(True)
-                ctl.setEnabled(name in used)
+                # Todo lo que se muestra es ajustable: lo que no, ya no está.
+                ctl.setEnabled(True)
 
         # Oculta los no visibles ni ocultos.
         visible = set(col0) | set(col1)

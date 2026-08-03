@@ -525,6 +525,7 @@ class LayoutSettingsMixin:
             channel_sub=getattr(self, "channel_sub", 1),
             wide_delta=getattr(self, "wide_delta", False),
             auto_global=getattr(self, "auto_global", True),
+            compact_params=getattr(self, "compact_params", False),
         )
 
     def _apply_ui_preferences_state(self, prefs: UiPreferencesState) -> None:
@@ -565,8 +566,11 @@ class LayoutSettingsMixin:
             cs_spin.blockSignals(False)
         self.wide_delta = bool(prefs.wide_delta)
         self.auto_global = bool(prefs.auto_global)
+        self.compact_params = bool(prefs.compact_params)
+        self._apply_compact_params()
         for attr, act_name in (("wide_delta", "act_wide_delta"),
-                               ("auto_global", "act_auto_global")):
+                               ("auto_global", "act_auto_global"),
+                               ("compact_params", "act_compact_params")):
             act = getattr(self, act_name, None)
             if act is not None:
                 act.blockSignals(True)

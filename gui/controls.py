@@ -61,6 +61,18 @@ class ParamControl(QtWidgets.QWidget):
         # espacio — si no caben todos, la tarjeta ya tiene scroll.
         self.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
 
+    def set_compact(self, compact: bool) -> None:
+        """Modo compacto: oculta el slider y el control pasa a UNA fila.
+
+        El slider es la mitad de la altura de cada parámetro (43 px frente a
+        ~29). Quitarlo deja el control en una sola fila y permite ver dos o
+        tres componentes a la vez, que es para lo que existe el modo. **No se
+        pierde ningún parámetro**: el spinbox sigue editándolos todos, con sus
+        flechas y su rueda; solo desaparece el arrastre grueso.
+        """
+        self.slider.setVisible(not bool(compact))
+        self.updateGeometry()
+
     def value(self) -> float:
         return float(self.spin.value())
 

@@ -71,6 +71,7 @@
   "options.show_residual": "Показать невязку",
   "options.show_legend": "Показать легенду",
   "options.show_component_fill": "Показать площадь компоненты",
+  "options.compact_params": "Компактные параметры (без ползунков)",
   "options.line_profile": "Профиль линии",
   "options.profile_lorentzian": "Лоренцев",
   "options.profile_voigt": "Фойгт",

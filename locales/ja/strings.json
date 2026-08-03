@@ -71,6 +71,7 @@
   "options.show_residual": "残差を表示",
   "options.show_legend": "凡例を表示",
   "options.show_component_fill": "成分面積を表示",
+  "options.compact_params": "コンパクト表示（スライダーなし）",
   "options.line_profile": "線形",
   "options.profile_lorentzian": "ローレンツ",
   "options.profile_voigt": "フォークト",

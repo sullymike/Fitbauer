@@ -210,6 +210,32 @@ class ModelWorkflowMixin:
                 self.canvas.show_no_file()
         self._save_settings()
 
+    def _on_compact_params_toggled(self, checked: bool) -> None:
+        self.compact_params = bool(checked)
+        self._apply_compact_params()
+        self._save_settings()
+
+    def _apply_compact_params(self) -> None:
+        """Aplica el modo compacto a TODOS los controles de parámetro.
+
+        Compacto = el ``ParamControl`` pierde el slider y pasa de dos filas a
+        una. Un sextete cae de 397 px a 177 (con los no aplicables ya ocultos),
+        así que caben dos o tres componentes donde antes uno. Se aplica también
+        a calibración y distribución: es una preferencia de densidad de la
+        interfaz, y dejar unos paneles compactos y otros no se ve descuadrado.
+        """
+        compacto = bool(getattr(self, "compact_params", False))
+        for panel in getattr(self, "components_panels", []):
+            panel.set_compact(compacto)
+        for nombre in ("calib", "dist_panel"):
+            panel = getattr(self, nombre, None)
+            if panel is None:
+                continue
+            for ctl in vars(panel).values():
+                if isinstance(ctl, ParamControl):
+                    ctl.set_compact(compacto)
+        self._check_layout()
+
     # ── Helpers UI ───────────────────────────────────────────────────────
     def _set_all_fixed(self, value: bool) -> None:
         self._building = True

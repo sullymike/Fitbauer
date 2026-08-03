@@ -493,6 +493,9 @@ class UiPreferencesState:
     channel_sub: int = 1
     wide_delta: bool = False
     auto_global: bool = True
+    # Modo compacto: los ParamControl pierden el slider y ocupan una fila en
+    # vez de dos, para que quepan varios componentes a la vez.
+    compact_params: bool = False
 
     @classmethod
     def from_settings_dict(cls, data: dict[str, Any]) -> "UiPreferencesState":
@@ -518,6 +521,7 @@ class UiPreferencesState:
             channel_sub=max(1, min(8, int(_value_or(data.get("channel_sub"), 1)))),
             wide_delta=bool(data.get("wide_delta", False)),
             auto_global=bool(data.get("auto_global", True)),
+            compact_params=bool(data.get("compact_params", False)),
         )
 
     def to_settings_dict(self, *, base: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -533,6 +537,7 @@ class UiPreferencesState:
             "channel_sub": self.channel_sub,
             "wide_delta": bool(self.wide_delta),
             "auto_global": bool(self.auto_global),
+            "compact_params": bool(self.compact_params),
         })
         if self.ui_language:
             out["ui_language"] = self.ui_language

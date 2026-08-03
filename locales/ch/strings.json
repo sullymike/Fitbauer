@@ -71,6 +71,7 @@
   "options.show_residual": "显示残差",
   "options.show_legend": "显示图例",
   "options.show_component_fill": "显示分量面积",
+  "options.compact_params": "紧凑参数（无滑块）",
   "options.line_profile": "线型",
   "options.profile_lorentzian": "洛伦兹",
   "options.profile_voigt": "Voigt",

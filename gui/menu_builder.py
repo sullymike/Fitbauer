@@ -51,6 +51,7 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     ("view.show_residual",     "menu.view", "options.show_residual",  ""),
     ("view.show_legend",       "menu.view", "options.show_legend",    ""),
     ("view.show_component_fill", "menu.view", "options.show_component_fill", ""),
+    ("view.compact_params",    "menu.view", "options.compact_params", ""),
     ("view.configure_layout",  "menu.view", "view.configure_layout",  ""),
     # ── Ayuda ──
     ("help.open",              "menu.help", "help.open",              "F1"),
@@ -448,6 +449,16 @@ class MenuBuilderMixin:
         self.act_show_component_fill.toggled.connect(lambda _: self._refresh_plot())
         view_menu.addAction(self.act_show_component_fill)
         self._reg("view.show_component_fill", self.act_show_component_fill)
+        # Modo compacto: los parámetros pierden el slider y pasan de dos filas
+        # a una, para que quepan varios componentes a la vez. No esconde nada.
+        self.act_compact_params = QtGui.QAction(
+            tr("options.compact_params",
+               default="Parámetros compactos (sin deslizadores)"),
+            self, checkable=True)
+        self.act_compact_params.setChecked(getattr(self, "compact_params", False))
+        self.act_compact_params.toggled.connect(self._on_compact_params_toggled)
+        view_menu.addAction(self.act_compact_params)
+        self._reg("view.compact_params", self.act_compact_params)
         view_menu.addSeparator()
         # Tema UI (QStyle de Qt). Por defecto Fusion.
         theme_menu = view_menu.addMenu(tr("options.theme"))

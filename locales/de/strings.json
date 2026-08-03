@@ -71,6 +71,7 @@
   "options.show_residual": "Residuum anzeigen",
   "options.show_legend": "Legende anzeigen",
   "options.show_component_fill": "Komponentenfläche anzeigen",
+  "options.compact_params": "Kompakte Parameter (ohne Schieberegler)",
   "options.line_profile": "Linienprofil",
   "options.profile_lorentzian": "Lorentz",
   "options.profile_voigt": "Voigt",

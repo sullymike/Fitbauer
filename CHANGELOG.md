@@ -1,5 +1,33 @@
 # Changelog
 
+## Sin publicar — el panel de simulación vuelve a admitir varios componentes
+
+Al crecer el número de parámetros por componente ya no cabían dos a la vez.
+Dos cambios que se suman:
+
+- **Solo se muestra lo ajustable.** La visibilidad pasa de ser por TIPO
+  (`USED_BY[kind]`, con lo no aplicable agrisado) a
+  `relevant_params(tipo, modo de intensidad, tratamiento del cuadrupolo)`. Un
+  sextete de primer orden enseñaba 15 controles de los que solo 9 se podían
+  tocar: η, φ, β, Bex, Gax y textura ocupaban 3 filas sin servir para nada.
+  Reaparecen al cambiar el tratamiento o el modo de intensidad, que son combos
+  siempre visibles, y conservan su valor mientras están ocultos. **397 → 262 px.**
+- **Modo compacto** (*Ver ▸ Parámetros compactos*): cada `ParamControl` pierde
+  el slider y pasa de dos filas a una. **No esconde ningún parámetro** —el
+  spinbox los sigue editando todos—, que es la ventaja sobre un modo
+  «básico/avanzado»: no hay que decidir qué es básico ni se corre el riesgo de
+  no reencontrar un parámetro. Se aplica también a calibración y distribución,
+  porque es una preferencia de densidad de la interfaz. Global y recordado en
+  `settings.json`. **262 → 177 px.**
+
+Tres sextetes apilados pasan de **1191 px a 531 px (−55 %)**: donde antes se
+veía uno, ahora caben tres. Los tipos sin parámetros condicionales
+(Doblete, BlumeTjon, NeelSize) ganan el 31-34 % del modo compacto.
+
+Ocultar es solo presentación: los valores se conservan, `to_view_state()` los
+sigue exponiendo y `active_param_keys()` no depende de qué se ve, así que el
+ajuste no cambia. Cuatro tests nuevos lo fijan.
+
 ## Sin publicar — interoperabilidad con los ficheros .JOB de NORMOS
 
 Fitbauer lee y escribe el formato de trabajo de NORMOS-SITE. **No ejecuta

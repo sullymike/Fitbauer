@@ -1564,3 +1564,115 @@ def test_la_columna_derecha_avisa_de_que_ancla_bajo_el_grafico(win, monkeypatch,
     spin_derecha.setValue(400)
     app.processEvents()
     assert "0 px" not in rotulo_derecha()
+
+
+def _visibles(cp):
+    """Parámetros que el panel muestra.
+
+    ``isVisibleTo`` en vez de ``isVisible``: la fixture no llama a ``show()``,
+    y sin ventana mostrada todo hijo responde que no es visible.
+    """
+    return {n for n, c in cp.params.items() if c.isVisibleTo(cp)}
+
+
+def test_el_panel_solo_muestra_los_parametros_ajustables(win, app):
+    """Lo no aplicable al tipo Y modo actuales se oculta, no se agrisa.
+
+    Antes la visibilidad era por tipo y lo no aplicable quedaba agrisado: un
+    sextete de primer orden enseñaba 15 controles de los que solo 9 se podían
+    tocar, y los 6 sobrantes costaban 3 filas. Con dos o tres componentes
+    abiertos eso impedía verlos a la vez.
+    """
+    cp = win.components_panels[0]
+    cp.type_combo.setCurrentText("Sextete")
+    cp._set_quad_treatment("1st_order")
+    cp._set_intensity_mode("free")
+    app.processEvents()
+
+    assert _visibles(cp) == cp.relevant_params()
+    # η/φ/β pertenecen al sextete pero solo existen con el Hamiltoniano.
+    assert not (_visibles(cp) & {"eta", "phi", "beta", "bex", "gax", "texture"})
+    # Y todo lo que se muestra se puede tocar.
+    assert all(cp.params[n].isEnabled() for n in _visibles(cp))
+
+
+def test_los_parametros_ocultos_reaparecen_y_conservan_su_valor(win, app):
+    """Ocultar es solo presentación: ni pierde valores ni cambia el ajuste."""
+    cp = win.components_panels[0]
+    cp.type_combo.setCurrentText("Sextete")
+    cp._set_quad_treatment("hamiltonian")
+    app.processEvents()
+    assert "eta" in _visibles(cp)
+    cp.params["eta"].spin.setValue(0.37)
+
+    claves_antes = set(win.active_param_keys())
+    cp._set_quad_treatment("1st_order")
+    app.processEvents()
+    assert "eta" not in _visibles(cp)
+    # El valor sigue ahí, y el snapshot del panel lo sigue exponiendo.
+    assert cp.params["eta"].value() == pytest.approx(0.37)
+    assert cp.to_view_state().values["eta"] == pytest.approx(0.37)
+    # Y las claves del ajuste no dependen de qué se ve.
+    assert set(win.active_param_keys()) == claves_antes
+
+    cp._set_quad_treatment("hamiltonian")
+    app.processEvents()
+    assert "eta" in _visibles(cp)
+    assert cp.params["eta"].value() == pytest.approx(0.37)
+
+
+# sizeHint solo se actualiza con la ventana mostrada, y al mostrarla en
+# offscreen matplotlib avisa de que los ejes del canvas quedan a cero: ajeno a
+# lo que se prueba aquí.
+@pytest.mark.filterwarnings("ignore:constrained_layout not applied")
+def test_modo_compacto_quita_los_sliders_sin_perder_parametros(win, app, monkeypatch):
+    """Compacto = una fila por parámetro en vez de dos. No esconde nada."""
+    monkeypatch.setattr(win, "_save_settings", lambda *a, **k: None)
+    win.show()
+    cp = win.components_panels[0]
+    cp.type_combo.setCurrentText("Sextete")
+    app.processEvents()
+
+    win.act_compact_params.setChecked(False)
+    app.processEvents()
+    alto_normal = cp.sizeHint().height()
+    visibles_normal = _visibles(cp)
+
+    win.act_compact_params.setChecked(True)
+    app.processEvents()
+
+    # Mismos parámetros, menos altura.
+    assert _visibles(cp) == visibles_normal
+    assert all(not c.slider.isVisibleTo(c) for c in cp.params.values())
+    assert cp.sizeHint().height() < alto_normal * 0.8
+    # Se aplica a todos los componentes, no solo al primero.
+    assert all(not c.slider.isVisibleTo(c)
+               for panel in win.components_panels for c in panel.params.values())
+    # Y a la calibración, que es la misma preferencia de densidad.
+    assert not win.calib.vmax.slider.isVisibleTo(win.calib.vmax)
+
+    win.act_compact_params.setChecked(False)
+    app.processEvents()
+    assert cp.params["delta"].slider.isVisibleTo(cp.params["delta"])
+    assert cp.sizeHint().height() == alto_normal
+
+
+def test_el_modo_compacto_se_recuerda_entre_sesiones(make_window, tmp_path, monkeypatch):
+    """Preferencia global persistida en settings.json (elección del usuario)."""
+    import json
+
+    import core.data_io as data_io
+    import gui.layout_manager as layout_manager
+
+    ajustes = tmp_path / "settings.json"
+    ajustes.write_text(json.dumps({"compact_params": True}), encoding="utf-8")
+    monkeypatch.setattr(data_io, "SETTINGS_PATH", ajustes)
+    monkeypatch.setattr(layout_manager, "SETTINGS_PATH", ajustes)
+
+    win = make_window()
+    assert win.compact_params is True
+    assert win.act_compact_params.isChecked() is True
+    # _load_settings corre antes de _build_ui, así que esto comprueba que la
+    # preferencia se aplica también a los paneles ya construidos.
+    assert all(not c.slider.isVisibleTo(c)
+               for c in win.components_panels[0].params.values())
