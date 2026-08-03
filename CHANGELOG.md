@@ -1,6 +1,18 @@
 # Changelog
 
-## Sin publicar — el panel de simulación vuelve a admitir varios componentes
+## v5.0.0 — paridad verificada con NORMOS e interoperabilidad de ficheros
+
+Salto de versión mayor. Tras la revisión completa del código fuente Fortran de
+NORMOS (SITE + DIST) contra `core/`, Fitbauer reproduce su física dentro de la
+precisión numérica en el núcleo de primer orden, lee y escribe sus ficheros
+`.JOB` en los dos sentidos, y se ha contrastado sobre **564 ajustes reales**
+hechos con el programa original además del banco sintético de 411 espectros.
+En 355 de 503 trabajos comparables (71 %) iguala o mejora su χ² reducido.
+
+El detalle de la comparación está en `validacion/informe/` (cobertura,
+veredicto y lo que queda pendiente) y en `jobs/_analisis/` (trabajos reales).
+
+### El panel de simulación vuelve a admitir varios componentes
 
 Al crecer el número de parámetros por componente ya no cabían dos a la vez.
 Dos cambios que se suman:
@@ -28,7 +40,7 @@ Ocultar es solo presentación: los valores se conservan, `to_view_state()` los
 sigue exponiendo y `active_param_keys()` no depende de qué se ve, así que el
 ajuste no cambia. Cuatro tests nuevos lo fijan.
 
-## Sin publicar — interoperabilidad con los ficheros .JOB de NORMOS
+### Interoperabilidad con los ficheros .JOB de NORMOS
 
 Fitbauer lee y escribe el formato de trabajo de NORMOS-SITE. **No ejecuta
 NORMOS ni lo distribuye**: solo habla su formato de texto, que no es
@@ -65,7 +77,7 @@ que compilarlo NO reproduce el NORMOS con el que se publicó nada.
 - Tests: `tests/test_normos_job.py` (20 nuevos), incluido el ciclo completo
   importar → aplicar → exportar sobre la ventana real.
 
-### Los `.JOB` de NORMOS-DIST también se cargan
+#### Los `.JOB` de NORMOS-DIST también se cargan
 
 Antes se rechazaban con un mensaje claro (su `NSUB` son los puntos de una
 MALLA, no sitios discretos: importarlos como SITE creaba decenas de sextetos
@@ -98,7 +110,7 @@ sin sentido). Ahora se traducen al panel de distribución.
 - Tests: 12 nuevos en `tests/test_normos_job.py`, incluido que la GUI abre el
   panel de distribución con la malla correcta.
 
-### Al importar un `.JOB` se carga también su espectro
+#### Al importar un `.JOB` se carga también su espectro
 
 Un `.JOB` nombra sus ficheros en las cuatro primeras líneas, sin ruta: NORMOS
 corría en DOS con todo en el mismo directorio. Antes se importaba solo el
@@ -121,9 +133,9 @@ modelo y había que abrir el espectro a mano.
   (`Y(IPFA-L+1) + Y(IPFA+L)`), con el eje en `⌊PFP⌋ + 0.5`. Reproducir sus
   ajustes exige doblar ahí.
 
-## Sin publicar — polarización de poblaciones y bloque de distribuciones
+### Polarización de poblaciones y bloque de distribuciones
 
-### Relajación: poblaciones desiguales (cierra el hueco del nivel 9)
+#### Relajación: poblaciones desiguales (cierra el hueco del nivel 9)
 
 - Nuevo parámetro `relax_polarization` (P ∈ [−1, 1]) del componente
   `BlumeTjon`: desequilibra las poblaciones de los dos estados,
@@ -142,7 +154,7 @@ modelo y había que abrir el espectro a mano.
 - Verificado que un sexteto NO se asimetriza con P, y no debe: los dos estados
   entre los que salta (+B y −B) dan el mismo espectro estático.
 
-### Bloque DIST (distribuciones)
+#### Bloque DIST (distribuciones)
 
 - **Matriz de suavizado idéntica**: `SMOOTH` (`distauxl.for`) monta `λ·D₂ᵀD₂`
   con diagonal `[1,5,6,…,6,5,1]`, exactamente el penalizador Tikhonov de aquí
@@ -165,13 +177,13 @@ modelo y había que abrir el espectro a mano.
   `SMOOTH` como referencia, y 8 nuevos de polarización en
   `tests/test_relajacion_normos.py`.
 
-## Sin publicar — Hamiltoniano y relajación verificados
+### Hamiltoniano y relajación verificados
 
 Niveles 8 y 9 de la revisión del código fuente de NORMOS. **Ninguno de los dos
 requiere corregir nada en Fitbauer**; lo que aportan es verificación y el
 inventario de lo que sigue faltando.
 
-### Hamiltoniano completo (`sitegmfp.for`, GMFP de Ruebenbauer–Birchall)
+#### Hamiltoniano completo (`sitegmfp.for`, GMFP de Ruebenbauer–Birchall)
 
 - Las 8 energías de transición de Fitbauer coinciden con una diagonalización
   **independiente** —escrita desde cero en el test, con el excitado I=3/2
@@ -193,7 +205,7 @@ inventario de lo que sigue faltando.
 - Capacidad que sigue faltando: **mezcla multipolar M1+E2** (`AMIX`/`PHASE`).
   Irrelevante para ⁵⁷Fe, cuyo `MIX=0` está cableado en el propio SITE.
 
-### Relajación (`siterelx.for`)
+#### Relajación (`siterelx.for`)
 
 - **Primera validación de la relajación de Fitbauer.** Con el binario del demo
   no era comprobable (§19: `BSAT` no está en su namelist y sus espectros
@@ -213,7 +225,7 @@ inventario de lo que sigue faltando.
   `tests/test_relajacion_normos.py` (10), con un port literal de `ISIRLX` como
   referencia.
 
-## Sin publicar — estadística del ajuste: barras de error
+### Estadística del ajuste: barras de error
 
 Nivel 7 de la revisión del código fuente de NORMOS.
 
@@ -244,7 +256,7 @@ Nivel 7 de la revisión del código fuente de NORMOS.
   que imprime SITE). Fitbauer usa DF = NP−NVAR, un 0.4 % de diferencia.
 - Tests: `tests/test_estadistica_normos.py` (13 nuevos).
 
-## Sin publicar — integral de transmisión: FSO y kernel de la fuente
+### Integral de transmisión: FSO y kernel de la fuente
 
 Nivel 6 de la revisión del código fuente de NORMOS (rama `IFTRAN`).
 
@@ -288,7 +300,7 @@ Nivel 6 de la revisión del código fuente de NORMOS (rama `IFTRAN`).
   exacto de los dos y el residuo es suyo, no nuestro.
 - Tests: `tests/test_transmision_normos.py` (14 nuevos).
 
-## Sin publicar — doblado con interpolación cúbica
+### Doblado con interpolación cúbica
 
 Nivel 5 de la revisión del código fuente de NORMOS (folding).
 
@@ -352,7 +364,7 @@ Nivel 5 de la revisión del código fuente de NORMOS (folding).
   parámetros se mueven ≤2·10⁻⁴.
 - Tests: `tests/test_folding_interp.py` (22 nuevos).
 
-## Sin publicar — asimetría de línea (AKS) y convenio de intensidades
+### Asimetría de línea (AKS) y convenio de intensidades
 
 Nivel 1 de la revisión del código fuente de NORMOS (forma de línea).
 
@@ -391,7 +403,7 @@ Nivel 1 de la revisión del código fuente de NORMOS (forma de línea).
   con área ≤ 0 es una diferencia de robustez a nuestro favor.
 - Tests: `tests/test_forma_linea_normos.py` (19 nuevos).
 
-## Sin publicar — convenio de posiciones del sexteto seleccionable
+### Convenio de posiciones del sexteto seleccionable
 
 Primer resultado de la revisión sistemática del código fuente de NORMOS
 (nivel 0: constantes y patrón de líneas).
@@ -424,7 +436,7 @@ Primer resultado de la revisión sistemática del código fuente de NORMOS
 - Tests: `tests/test_patron_sexteto.py` (9 nuevos). El comportamiento por
   defecto no cambia.
 
-## Sin publicar — fuente polarizada y hallazgos del código fuente de NORMOS
+### Fuente polarizada y hallazgos del código fuente de NORMOS
 
 Con el código fuente de NORMOS disponible localmente (propietario, excluido
 del repositorio) se cerró la última capacidad pendiente y se corrigieron
@@ -462,7 +474,7 @@ atribuciones (informe §19):
   IFSC, IFTRAN idéntico al de Fitbauer, convenio BKG exacto, relajación con
   OME en mm/s (mapeo completo pendiente).
 
-## Sin publicar — auditoría y endurecimiento de la suite de tests
+### Auditoría y endurecimiento de la suite de tests
 
 Tras cazar el bug de la ventana en blanco (un test de presets usaba nombres
 inexistentes y pasaba ejercitando el fallo), se auditó la suite completa

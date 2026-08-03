@@ -12,7 +12,7 @@
 
 Stable desktop application to load, fold, simulate and fit ⁵⁷Fe Mössbauer spectra.
 
-Current stable version: **v4.17.3**  
+Current stable version: **v5.0.0**  
 Launch: `python fitbauer.py`  
 Headless CLI fitting: `mossbauer_fit_cli.py` (discrete) · `fit_bhf_distribution_cli.py` (distributions)
 

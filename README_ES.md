@@ -12,7 +12,7 @@
 
 Programa de escritorio estable para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
 
-Versión estable actual: **v4.17.3**  
+Versión estable actual: **v5.0.0**  
 Arranque: `python fitbauer.py`  
 Ajuste por línea de comandos (headless): `mossbauer_fit_cli.py` (discreto) · `fit_bhf_distribution_cli.py` (distribuciones)
 
