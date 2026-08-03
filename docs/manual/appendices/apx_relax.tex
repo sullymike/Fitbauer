@@ -198,6 +198,23 @@ límites al aumentar la tasa de intercambio.
 \end{figure}
 
 %======================================================================
+\subsection{Polarización de poblaciones}
+\label{sec:relax-polarizacion}
+
+Por defecto los dos estados son igual de probables. El parámetro
+\param{polarización} $P \in [-1, 1]$ los desequilibra,
+\begin{equation}
+  p_\pm = \frac{1 \pm P}{2},
+\end{equation}
+lo que describe un campo externo, o una anisotropía, que favorece una de las dos
+orientaciones del momento. Con $P = 0$ no cambia nada. En NORMOS es
+$\code{SPN} = \BHF/\code{BSAT}$.
+
+Úselo cuando un espectro de relajación salga asimétrico y la asimetría no se
+explique ni por la anchura ni por el desplazamiento isomérico. La
+implementación reproduce la rutina \code{ISIRLX} de NORMOS \emph{exactamente}
+--- rms por debajo de $10^{-12}$, no de forma aproximada.
+
 \section{Néel--Arrhenius y distribución de tamaños}
 
 La componente \code{NeelSize} usa el modelo de Néel--Arrhenius para convertir el

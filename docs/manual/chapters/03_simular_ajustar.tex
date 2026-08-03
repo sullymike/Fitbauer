@@ -292,6 +292,38 @@ de intensidad). \menu{Ajuste > Presets físicos de restricciones…} aplica
 conjuntos de restricciones habituales de un vistazo. Reducir el número de
 parámetros libres estabiliza el ajuste y evita degeneraciones.
 
+\section{Qué parámetros se ven}
+\label{sec:params-visibles}
+
+El panel de cada componente muestra \textbf{solo} los parámetros que se pueden
+ajustar con el tipo, el modo de intensidad y el tratamiento del cuadrupolo
+activos. Un doblete no enseña $\BHF$ ni $\Gamma_3$; un sexteto de primer orden
+no enseña $\eta$, $\phi$, $\beta$, \code{Bex}, \code{Gax} ni textura, porque
+esos solo existen con el tratamiento Hamiltoniano o en modo Textura.
+
+No se pierde nada. Reaparecen en cuanto se cambia el tratamiento (clic derecho
+sobre el panel del sexteto) o el modo de intensidad, y conservan el valor que
+tuvieran mientras estaban ocultos. Ocultarlos es solo presentación: no cambia el
+modelo ni lo que entra en el ajuste.
+
+\begin{truco}
+Si echa de menos un parámetro, mire primero el tratamiento del cuadrupolo y el
+modo de intensidad: casi siempre es eso. Antes estos parámetros se mostraban en
+gris; ocupaban tres filas por componente sin poder tocarse, y con dos o tres
+componentes abiertos ya no cabían en pantalla.
+\end{truco}
+
+\paragraph{Parámetros compactos.} \menu{Vista > Parámetros compactos} quita el
+deslizador de cada parámetro, de modo que ocupa una fila en vez de dos. Un
+sexteto pasa de 262 a 177 píxeles de alto y tres sextetes apilados de 786 a 531,
+que es lo que permite vigilar dos o tres componentes a la vez. No esconde
+\textbf{ningún} parámetro: el cuadro numérico los sigue editando todos, con sus
+flechas y la rueda del ratón; lo único que se pierde es el arrastre grueso del
+deslizador. Ésa es la diferencia con un modo \emph{básico/avanzado} --- aquí
+ningún parámetro puede dejar de existir para usted porque no lo vea. La opción
+se aplica también a los paneles de calibración y distribución y se recuerda
+entre sesiones.
+
 \section{Calidad del ajuste y errores}
 \label{sec:calidad}
 

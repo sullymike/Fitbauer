@@ -546,6 +546,27 @@ $\alpha$ es la elección más delicada del ajuste por histograma. No lo deje al
 azar: use la \textbf{L-curve} (§\ref{sec:lcurve}) para elegirlo con criterio.
 \end{aviso}
 
+\subsection{Anclaje de los bordes de la malla}
+\label{sec:edge-anchor}
+
+Un peso adicional puede forzar $P \to 0$ en el primer y el último punto de la
+malla. Es el equivalente de los \code{BETA1}/\code{BETA2} de NORMOS-DIST, que
+él suma a las esquinas de su matriz de suavizado, y es en lo que se convierte la
+razón \code{BETA}/\code{LAMDA} de un \ruta{.JOB} importado
+(\S\ref{sec:normos-job}).
+
+Por qué importa: sin anclaje, si la distribución real se sale del rango de la
+malla, el método de Hesse--Rübartsch \textbf{apila} todo el peso sobrante en el
+punto extremo. Sale un pico espurio que además arrastra el valor medio
+$\langle \BHF \rangle$. Con anclaje el ajuste no puede refugiarse ahí y el
+desajuste se hace visible --- que es justo lo que se quiere ver.
+
+\begin{truco}
+El diagnóstico \code{edge\_pileup} avisa cuando se acumula peso en un borde. Si
+salta, lo primero es \textbf{ampliar el rango de la malla}; el anclaje es la
+segunda línea de defensa, no un sustituto de una malla que cubra la física.
+\end{truco}
+
 \section{La L-curve: elegir $\alpha$ con criterio}
 \label{sec:lcurve}
 

@@ -83,16 +83,40 @@ relación señal/ruido y produce un único espectro simétrico. El punto clave e
         libres.
 \end{itemize}
 
-\paragraph{Por qué se recortan los extremos.} Tras doblar, Fitbauer descarta
-unos pocos canales de cada borde. La razón: los canales extremos corresponden a
-los \textbf{puntos de retorno} del transductor (velocidad máxima), donde el
-movimiento invierte su sentido. Ahí el drive es menos lineal y hay más
-incertidumbre en la correspondencia canal$\to$velocidad y en el emparejamiento de
-las dos ramas, de modo que esos puntos son los \textbf{menos fiables}. Recortarlos
-evita que contaminen el ajuste; a cambio se pierde una porción minúscula del eje,
-sin líneas de interés. El eje de velocidad se recorta en las \emph{mismas}
-posiciones que los datos para que ambos queden alineados (estirar la escala
-sesgaría el $\BHF$).
+\paragraph{Cómo dobla Fitbauer.} Tres detalles separan un doblado cuidadoso de
+uno descuidado, y los tres se notan en la anchura de línea recuperada.
+
+\begin{itemize}[nosep]
+  \item \textbf{Interpolación cúbica.} El punto de simetría casi nunca cae en un
+        canal entero, así que hay que interpolar el canal emparejado. Fitbauer
+        usa un B-spline cúbico. Sobre espectros sintéticos con punto de doblado
+        fraccionario, el sesgo de la anchura recuperada baja del $+9{,}5\%$ con
+        interpolación lineal al $+2{,}8\%$ con la cúbica. NORMOS trunca a canal
+        entero y suma sin interpolar.
+  \item \textbf{Dos ciclos de búsqueda.} El centro se localiza, se refina en una
+        segunda pasada y solo entonces se dobla.
+  \item \textbf{Los canales de borde se conservan.} Las versiones anteriores
+        recortaban un número fijo de canales en cada extremo. Ya no se descartan
+        por sistema: solo se detectan y recortan los canales extremos
+        \emph{anómalos} --- los muertos o saturados que aparecen de vez en cuando
+        en el primer o el último canal del multicanal.
+\end{itemize}
+
+\begin{truco}
+Los canales de borde muertos no son una rareza. En un banco de trabajos reales
+de NORMOS, 42 ajustes mejoraron hasta $\times 65$ al detectarlos, con el
+$\chi^2$ reducido del peor caso cayendo de 102 a 1,45. Si un ajuste se niega a
+converger a algo sensato, mire el primer y el último canal del espectro crudo
+antes de culpar al modelo.
+\end{truco}
+
+\paragraph{Efecto geométrico.} La tasa de cuentas se modula con la
+\emph{posición} del transductor, no solo con su velocidad. Fitbauer mide esa
+modulación y la informa, igual que hace NORMOS bajo \emph{Geometry effect} en su
+\ruta{.RES}, pero \textbf{no} la corrige: el efecto es antisimétrico respecto al
+punto de doblado, así que el propio doblado lo cancela. Una amplitud relativa
+por encima del $1\%$ delata un problema de geometría del espectrómetro y
+conviene mirarlo antes de dar el ajuste por bueno.
 
 \begin{aviso}
 Un centro mal elegido produce líneas dobles o asimétricas. Si observa
@@ -234,3 +258,111 @@ calibración fijada— en otro momento u ordenador. Si dispone de la API del
 laboratorio, \menu{Archivo > Web} permite además descargar espectros/calibraciones
 y \menu{Subir sesión JSON a web}.
 \end{truco}
+
+\section{Interoperabilidad con NORMOS: ficheros \texorpdfstring{\texttt{.JOB}}{.JOB}}
+\label{sec:normos-job}
+
+NORMOS es el programa con el que se ha analizado buena parte de la bibliografía
+Mössbauer publicada, y muchos laboratorios guardan años de trabajo en ficheros
+\ruta{.JOB}. Fitbauer lee y escribe ese formato. \textbf{No} ejecuta NORMOS ni
+lo distribuye: solo habla su formato de texto, que no es propietario.
+
+\subsection*{Importar}
+
+\menu{Archivo > NORMOS (.JOB) > Importar trabajo de NORMOS…} lee un trabajo y
+reconstruye el modelo en los paneles de Fitbauer. \textbf{El espectro se carga
+también.} Un \ruta{.JOB} nombra sus ficheros en las cuatro primeras líneas, sin
+ruta, porque NORMOS corría en DOS con todo en el mismo directorio; Fitbauer
+busca ahí el espectro sin distinguir mayúsculas de minúsculas, y si el nombre
+declarado no aparece prueba con el del propio trabajo y, en último caso, con el
+único espectro de la carpeta. Deje todos los ficheros de un trabajo en la misma
+carpeta y la importación funcionará de una vez.
+
+Se reconocen solas dos familias de trabajo:
+
+\begin{itemize}[nosep]
+  \item \textbf{NORMOS-SITE} (sitios discretos). Cada subespectro se convierte en
+        un componente --- singlete, doblete o sexteto --- con sus valores, sus
+        casillas de \param{fijo} y sus ligaduras
+        \code{NDEX}/\code{FACTOR}/\code{CONST}.
+  \item \textbf{NORMOS-DIST} (distribuciones). Abren el panel
+        $P(\BHF)$/$P(\dEQ)$ en vez del modo discreto. Sus \code{NSUB}
+        \emph{no} son sitios: son los puntos de una \textbf{malla}. Fitbauer
+        traduce la malla (origen y paso), la forma (histograma, gaussiana,
+        binomial o fija), la correlación $\IS(x)$ y los anclajes de borde; los
+        subespectros \emph{cristalinos} pasan a ser componentes nítidos.
+\end{itemize}
+
+\subsection*{Exportar}
+
+\menu{Archivo > NORMOS (.JOB) > Exportar trabajo de NORMOS…} escribe el modelo
+actual en formato NORMOS. Se ha comprobado que NORMOS acepta el fichero que
+produce Fitbauer y reproduce la teoría original con diferencia exactamente cero.
+
+\subsection*{Conversiones de convenio}
+
+Es la parte delicada, y equivocarse aquí no da ningún error:
+
+\begin{center}
+\begin{tabular}{@{}p{0.26\textwidth}p{0.66\textwidth}@{}}
+\toprule
+\textbf{NORMOS} & \textbf{Significado en Fitbauer} \\
+\midrule
+\code{WID}, \code{W13}, \code{W23} & \code{WID} es la anchura de las líneas 3,4 y
+\code{W13}/\code{W23} son relativas a ella; el $\Gamma_1$ de Fitbauer es la de
+las líneas 1,6. La conversión es $\Gamma_1 = \code{WID}\cdot\code{W13}$. \\[4pt]
+\code{D13}, \code{D23} & Razones de \textbf{área}. Los \param{int1}/\param{int2}
+de Fitbauer son razones de \textbf{profundidad}. Coinciden solo si las anchuras
+son iguales. \\[4pt]
+\code{DEP} (o \code{ARE}) & El \textbf{área} del subespectro en mm/s, no una
+profundidad. \\[4pt]
+\code{NDEX}/\code{FACTOR}/\code{CONST} & Ligaduras en la numeración
+\textbf{global} de NORMOS, $13 + 15\,(n-1)$. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{La escala de $\BHF$.} NORMOS deriva las posiciones de las líneas del
+sexteto de los momentos nucleares; Fitbauer usa el patrón publicado de
+$\alpha$-Fe. No difieren en un simple factor de escala. Para reproducir un
+$\BHF$ de NORMOS exactamente, ajuste con el convenio de NORMOS activo
+(\code{core.constants.sextet\_pattern("normos")}); la diferencia es de unos
+$0{,}1$\,T.
+
+\subsection*{El punto de doblado no se impone}
+
+El \code{PFP} que trae un \ruta{.JOB} es la \textbf{semilla} de la búsqueda del
+punto de doblado, no su resultado: NORMOS lo refina en dos ciclos, y en trabajos
+reales acaba a más de un canal de lo que pedía el fichero. Fitbauer hace su
+propia búsqueda --- que es el análogo correcto --- e informa del \code{PFP} solo
+como dato. Escríbalo a mano en \param{Centro} si quiere forzarlo.
+
+Hay una segunda sutileza. El punto refinado que NORMOS imprime en su \ruta{.RES}
+tampoco es donde dobla: su rutina final trunca ese valor y suma canales enteros,
+dejando el eje de simetría en $\lfloor \code{PFP} \rfloor + 0{,}5$. Tenerlo en
+cuenta es lo que permite reproducir sus ajustes.
+
+\subsection*{Lo que no se traslada}
+
+El importador avisa de cada uno de estos puntos, porque lo que \emph{no} se ha
+traducido importa tanto como lo que sí:
+
+\begin{itemize}[nosep]
+  \item Distribuciones Czjzek / Le Caër (\code{DISTRI=4}) y el modelo de vecinos
+        de Billard--Chamberod (\code{METHOD=3}).
+  \item Varios bloques de distribución solapados: Fitbauer maneja uno.
+  \item El parámetro de suavizado \code{LAMDA}. El de NORMOS es absoluto y el
+        $\alpha$ de Fitbauer adimensional, así que no hay conversión uno a uno:
+        hay que fijarlo con la L-curve (sección~\ref{sec:lcurve}). La
+        \emph{razón} \code{BETA}/\code{LAMDA} sí se conserva y es el anclaje de
+        bordes.
+  \item \code{DTQ} en las distribuciones de campo. NORMOS lo ignora ahí, así que
+        trasladarlo metería una correlación que él nunca aplicó.
+\end{itemize}
+
+\begin{aviso}
+Cuidado con los \ruta{.JOB} heredados. El formato de DIST no admite claves de
+SITE como \code{NLINE}, \code{DEP}, \code{W13} o \code{W23}. Si vienen copiadas
+de otro trabajo, NORMOS las lee y las descarta \textbf{sin decir nada}, de modo
+que ese subespectro nunca entró en su ajuste. Fitbauer sí lo avisa.
+\end{aviso}
