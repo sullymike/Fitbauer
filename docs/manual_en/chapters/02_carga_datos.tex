@@ -84,16 +84,40 @@ folded.
         parameters.
 \end{itemize}
 
-\paragraph{Why the ends are trimmed.} After folding, Fitbauer discards a few
-channels from each edge. The reason: the extreme channels correspond to the
-\textbf{turning points} of the transducer (maximum velocity), where the motion
-reverses direction. There the drive is less linear and there is more uncertainty
-in the channel$\to$velocity correspondence and in the pairing of the two
-branches, so those points are the \textbf{least reliable}. Trimming them prevents
-them from contaminating the fit; in exchange a tiny portion of the axis is lost,
-with no lines of interest. The velocity axis is trimmed at the \emph{same}
-positions as the data so that both remain aligned (stretching the scale would
-bias the $\BHF$).
+\paragraph{How Fitbauer folds.} Three details separate a careful folding from
+a sloppy one, and all three are visible in the recovered linewidth.
+
+\begin{itemize}[nosep]
+  \item \textbf{Cubic interpolation.} The symmetry point almost never falls on a
+        whole channel, so the paired channel has to be interpolated. Fitbauer
+        uses a cubic B-spline. On synthetic spectra with a fractional folding
+        point, the bias in the recovered linewidth drops from $+9.5\,\%$ with
+        linear interpolation to $+2.8\,\%$ with the cubic one. NORMOS truncates
+        to a whole channel and adds without interpolating.
+  \item \textbf{Two search cycles.} The centre is located, refined in a second
+        pass and only then used to fold.
+  \item \textbf{Edge channels are kept.} Earlier versions trimmed a fixed number
+        of channels from each end. They are no longer discarded as a matter of
+        course: only \emph{anomalous} extreme channels are detected and trimmed
+        --- the dead or saturated ones that show up now and then in the first or
+        last channel of the multichannel analyser.
+\end{itemize}
+
+\begin{truco}
+Dead edge channels are not a rare curiosity. Across a bank of real NORMOS jobs,
+42 fits improved by up to a factor of 65 once they were detected, with the
+reduced $\chi^2$ of the worst case falling from 102 to 1.45. If a fit refuses to
+converge to anything sensible, look at the first and last channels of the raw
+spectrum before blaming the model.
+\end{truco}
+
+\paragraph{Geometry effect.} The count rate is modulated by the \emph{position}
+of the transducer, not only by its velocity. Fitbauer measures this modulation
+and reports it, exactly as NORMOS does under \emph{Geometry effect} in its
+\ruta{.RES}, but it does \textbf{not} correct it: the effect is antisymmetric
+about the folding point, so folding itself cancels it. A relative amplitude
+above $1\,\%$ betrays a spectrometer geometry problem and is worth investigating
+before accepting the fit.
 
 \begin{aviso}
 A poorly chosen centre produces double or asymmetric lines. If you observe
@@ -236,3 +260,107 @@ you finish an analysis and you will be able to resume it exactly as it was
 have the laboratory API, \menu{File > Web} also lets you download
 spectra/calibrations and \menu{Upload session JSON to web}.
 \end{truco}
+
+\section{NORMOS interoperability: \texorpdfstring{\texttt{.JOB}}{.JOB} files}
+\label{sec:normos-job}
+
+NORMOS is the program behind a large part of the published Mössbauer
+literature, and many laboratories keep years of work stored as \ruta{.JOB}
+files. Fitbauer reads and writes that format. It does \textbf{not} run NORMOS
+and does not ship it: it only speaks its text format, which is not proprietary.
+
+\subsection*{Importing}
+
+\menu{File > NORMOS (.JOB) > Import NORMOS job…} reads a job and rebuilds the
+model in Fitbauer's panels. \textbf{The spectrum is loaded too.} A \ruta{.JOB}
+names its files in the first four lines with no path, because NORMOS ran under
+DOS with everything in one directory; Fitbauer looks for the spectrum there,
+ignoring upper/lower case, falling back to the job's own name and, as a last
+resort, to the only spectrum in the folder. Keep every file of a job in the same
+folder and the import works in one go.
+
+Two families of job are recognised automatically:
+
+\begin{itemize}[nosep]
+  \item \textbf{NORMOS-SITE} (discrete sites). Each subspectrum becomes a
+        component --- singlet, doublet or sextet --- with its values, its
+        \param{fixed} boxes and its \code{NDEX}/\code{FACTOR}/\code{CONST}
+        constraints.
+  \item \textbf{NORMOS-DIST} (distributions). These open the
+        $P(\BHF)$/$P(\dEQ)$ panel instead of the discrete mode. Their
+        \code{NSUB} are \emph{not} sites: they are the points of a \textbf{grid}.
+        Fitbauer translates the grid (origin and step), the shape (histogram,
+        Gaussian, binomial or fixed), the $\IS(x)$ correlation and the edge
+        anchors; the \emph{crystalline} subspectra become sharp components.
+\end{itemize}
+
+\subsection*{Exporting}
+
+\menu{File > NORMOS (.JOB) > Export NORMOS job…} writes the current model in
+NORMOS format. NORMOS has been verified to accept the file Fitbauer produces,
+reproducing the original theory with a difference of exactly zero.
+
+\subsection*{Convention conversions}
+
+This is the delicate part, and getting it wrong is silent:
+
+\begin{center}
+\begin{tabular}{@{}p{0.26\textwidth}p{0.66\textwidth}@{}}
+\toprule
+\textbf{NORMOS} & \textbf{Meaning in Fitbauer} \\
+\midrule
+\code{WID}, \code{W13}, \code{W23} & \code{WID} is the width of lines 3,4 and
+\code{W13}/\code{W23} are relative to it; Fitbauer's $\Gamma_1$ is the width of
+lines 1,6. The conversion is $\Gamma_1 = \code{WID}\cdot\code{W13}$. \\[4pt]
+\code{D13}, \code{D23} & \textbf{Area} ratios. Fitbauer's \param{int1}/\param{int2}
+are \textbf{depth} ratios. They agree only when the widths are equal. \\[4pt]
+\code{DEP} (or \code{ARE}) & The subspectrum \textbf{area} in mm/s, not a
+depth. \\[4pt]
+\code{NDEX}/\code{FACTOR}/\code{CONST} & Constraints in NORMOS's \textbf{global}
+numbering, $13 + 15\,(n-1)$. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{The $\BHF$ scale.} NORMOS derives the sextet line positions from the
+nuclear moments; Fitbauer uses the published $\alpha$-Fe pattern. They do not
+differ by a simple scale factor. To reproduce a NORMOS $\BHF$ exactly, fit with
+the NORMOS convention active (\code{core.constants.sextet\_pattern("normos")});
+the difference is about $0.1$\,T.
+
+\subsection*{The folding point is not imposed}
+
+The \code{PFP} carried in a \ruta{.JOB} is the \textbf{seed} of the folding-point
+search, not its result: NORMOS refines it over two cycles, and in real jobs it
+ends up more than one channel away from what the file asked for. Fitbauer runs
+its own search --- the correct counterpart --- and reports the \code{PFP} as
+information only. Type it into \param{Centre} by hand if you want to force it.
+
+There is a second subtlety. The refined point NORMOS prints in its \ruta{.RES}
+is not where it folds either: its final routine truncates that value and adds
+whole channels, placing the symmetry axis at $\lfloor \code{PFP} \rfloor + 0.5$.
+Taking this into account is what makes its fits reproducible.
+
+\subsection*{What is not carried over}
+
+The importer warns about each of these, because what was \emph{not} translated
+matters as much as what was:
+
+\begin{itemize}[nosep]
+  \item Czjzek / Le Caër distributions (\code{DISTRI=4}) and the
+        Billard--Chamberod neighbour model (\code{METHOD=3}).
+  \item Several overlapping distribution blocks: Fitbauer handles one.
+  \item The \code{LAMDA} smoothing parameter. NORMOS's is absolute and
+        Fitbauer's $\alpha$ is dimensionless, so there is no one-to-one
+        conversion --- set it with the L-curve (section~\ref{sec:lcurve}). The \code{BETA}/\code{LAMDA} \emph{ratio} is preserved and
+        becomes the edge anchor.
+  \item \code{DTQ} in field distributions. NORMOS ignores it there, so carrying
+        it over would introduce a correlation it never applied.
+\end{itemize}
+
+\begin{aviso}
+Beware of inherited job files. The DIST format does not accept SITE keys such as
+\code{NLINE}, \code{DEP}, \code{W13} or \code{W23}. If they were copied over from
+another job, NORMOS reads and discards them \textbf{without a word}, so that
+subspectrum never entered its fit at all. Fitbauer does warn about it.
+\end{aviso}

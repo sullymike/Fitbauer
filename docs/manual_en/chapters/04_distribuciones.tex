@@ -547,6 +547,26 @@ $\alpha$ is the most delicate choice in histogram fitting. Do not leave it to ch
 use the \textbf{L-curve} (\S\ref{sec:lcurve}) to choose it with a criterion.
 \end{aviso}
 
+\subsection{Anchoring the grid edges}
+\label{sec:edge-anchor}
+
+An extra weight can force $P \to 0$ at the first and last points of the grid.
+It is the counterpart of NORMOS-DIST's \code{BETA1}/\code{BETA2}, which are added
+to the corners of its smoothing matrix, and it is what the \code{BETA}/\code{LAMDA}
+ratio of an imported \ruta{.JOB} becomes (\S\ref{sec:normos-job}).
+
+Why it matters: without anchoring, if the true distribution extends beyond the
+grid range, the Hesse--Rübartsch method \textbf{piles} all the excess weight onto
+the extreme point. The result is a spurious peak that also drags the mean
+$\langle \BHF \rangle$. With anchoring the fit cannot take refuge there and the
+misfit becomes visible --- which is exactly what you want to see.
+
+\begin{truco}
+The \code{edge\_pileup} diagnostic warns when weight accumulates at an edge. If
+it fires, the first move is to \textbf{widen the grid range}; anchoring is the
+second line of defence, not a substitute for a grid that covers the physics.
+\end{truco}
+
 \section{The L-curve: choosing $\alpha$ with a criterion}
 \label{sec:lcurve}
 

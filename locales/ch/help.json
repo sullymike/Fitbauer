@@ -35,6 +35,12 @@
     "content": "\n折叠点是用于将谱的两半折叠在一起的内部对称中心。像 NORMOS 一样支持小数值。\n\n重要参数：\n\n  Vmax\n    传感器的最大速度，用于构建 -Vmax ... +Vmax 的速度轴。它通常应来自 α-Fe 校准。允许带符号的 Vmax 值：负的 Vmax 保持为负并反转速度轴方向，以匹配携带带符号速度的网络校准或 NORMOS 文件。\n\n  带符号速度与边缘裁剪\n    模块化 GUI 会丢弃折叠谱的首尾两点，因为这些边缘通道往往可靠性较低。去除这两点后，程序不会从 -Vmax 到 +Vmax 重建一个更短的轴，因为那会拉伸速度标度并使 BHF 产生偏差。相反，它先构建完整的类 NORMOS 轴，并在数据和速度中裁剪相同的位置：\n\n      full_velocity = linspace(-Vmax, +Vmax, N)\n      used_data     = full_data[1:-1]\n      used_velocity = full_velocity[1:-1]\n\n    如果拟合 Vmax，则缩放这个已裁剪的轴；不会用虚假端点重建。\n\n  拟合 Vmax\n    将 Vmax 作为自由参数纳入。这可以补偿小的校准误差，但 BHF 与 Vmax 强相关，因此拟合 Vmax 时通常应固定 BHF。\n\n  折叠点\n    内部通道中心。GUI 还会显示一个近似的 NORMOS 折叠值。\n\n  拟合折叠点\n    在离散拟合中将折叠中心作为自由参数纳入。每次迭代都会重新折叠计数并重新计算统计权重。仅在合理的起始值附近且自由参数数量有限时使用。\n\n  基线与斜率\n    对归一化透射背景建模。不要用大的斜率来掩盖错误的折叠点。\n\n错误的折叠点常在吸收线周围产生反对称的正-负残差对。\n\n  基线曲率（v²）\n    可选的二次背景项（校准中的“基线曲率”控件，默认固定为 0）。它对折叠后可能残留的几何效应建模；仅当残差显示背景平滑且对称的弯曲时才释放它。\n\n  三次与四次基线（v³、v⁴）（v4.19）\n    背景的可选 v³ 与 v⁴ 项（校准面板中的“三次基线”和“四次基线”控件，默认固定为 0）。它们将基线多项式补全到四次，与 NORMOS 的 BKG(4)、BKG(5) 系数对应。仅当残差呈现 v² 项无法吸收的平滑多项式结构时才释放它们：它们彼此之间以及与斜率之间可能强烈相关。\n"
   },
   {
+    "group": "files",
+    "title": "NORMOS (.JOB)",
+    "heading": "NORMOS 互操作：导入与导出作业",
+    "content": "\nFitbauer 可以读写 NORMOS 的作业格式 (.JOB)。它不运行也不分发 NORMOS，只解析其非专有的文本格式。\n\n文件 → NORMOS (.JOB) → 导入 NORMOS 作业...\n\n  谱文件会自动载入。.JOB 的前四行列出文件名且不含路径，因为 NORMOS 运行于 DOS，所有文件都在同一目录。Fitbauer 在该目录中查找，且不区分大小写。请把作业的所有文件放在同一文件夹。\n\n  NORMOS-SITE 作业：每个子谱转为一个分量（单峰、双峰或六重峰），连同数值、\"固定\"复选框以及 NDEX/FACTOR/CONST 约束。\n\n  NORMOS-DIST 作业：自动识别，打开 P(BHF)/P(ΔEQ) 面板而非离散模式。其 NSUB 不是位点数，而是网格点数；\"结晶性\"子谱转为锐分量。\n\n文件 → NORMOS (.JOB) → 导出 NORMOS 作业...\n\n  将当前模型写成 NORMOS 格式。已验证 NORMOS 能接受 Fitbauer 写出的 .JOB，并以完全为 0 的差异重现原始理论。\n\n约定换算：\n\n  线宽   WID 是谱线 3,4 的宽度，Fitbauer 的 Γ1 是谱线 1,6 的宽度：Γ1 = WID·W13。\n  强度   D13/D23 是面积比，int1/int2 是深度比。\n  面积   DEP（或 ARE）是子谱面积，单位 mm/s。\n  约束   NDEX/FACTOR/CONST 使用 NORMOS 的全局编号 (13 + 15·(n−1))。\n\n  BHF 标度：NORMOS 由核矩推导六重峰位置，Fitbauer 使用已发表的 α-Fe 图样，差异约 0.1 T。\n\n折叠点不会被强制。.JOB 中的 PFP 只是搜索的初值；NORMOS 经两轮细化后在 ⌊PFP⌋ + 0.5 处折叠。Fitbauer 自行搜索，PFP 仅作参考信息显示。\n\n不会转换的内容（因此会给出提示）：Czjzek / Le Caër 分布 (DISTRI=4)、Billard–Chamberod 近邻模型 (METHOD=3)、多个分布块、平滑参数 LAMDA（NORMOS 中为绝对值，此处 α 为无量纲，请用 L 曲线确定；BETA/LAMDA 之比则保留为边界锚定），以及磁场分布中的 DTQ（NORMOS 本身会忽略它）。\n"
+  },
+  {
     "group": "fitting",
     "title": "拟合菜单",
     "heading": "拟合菜单：运行、准备与控制物理模型",

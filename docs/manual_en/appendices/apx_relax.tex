@@ -197,6 +197,23 @@ as the exchange rate increases.
 \end{figure}
 
 %======================================================================
+\subsection{Population polarization}
+\label{sec:relax-polarizacion}
+
+By default the two states are equally likely. The \param{polarization}
+parameter $P \in [-1, 1]$ unbalances them,
+\begin{equation}
+  p_\pm = \frac{1 \pm P}{2},
+\end{equation}
+which describes an external field, or an anisotropy, favouring one of the two
+moment orientations. With $P = 0$ nothing changes. In NORMOS this is
+$\code{SPN} = \BHF/\code{BSAT}$.
+
+Use it when a relaxation spectrum comes out asymmetric and the asymmetry is
+explained neither by the linewidth nor by the isomer shift. The implementation
+reproduces NORMOS's \code{ISIRLX} routine \emph{exactly} --- rms below
+$10^{-12}$, not approximately.
+
 \section{Néel--Arrhenius and size distribution}
 
 The \code{NeelSize} component uses the Néel--Arrhenius model to convert the

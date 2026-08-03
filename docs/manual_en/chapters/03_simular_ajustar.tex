@@ -293,6 +293,37 @@ intensity relations). \menu{Fit > Physical constraint presets…} applies
 common sets of constraints at a glance. Reducing the number of free
 parameters stabilises the fit and avoids degeneracies.
 
+\section{Which parameters you see}
+\label{sec:params-visibles}
+
+Each component panel shows \textbf{only} the parameters that can be adjusted
+with the active type, intensity mode and quadrupole treatment. A doublet shows
+neither $\BHF$ nor $\Gamma_3$; a first-order sextet shows no $\eta$, $\phi$,
+$\beta$, \code{Bex}, \code{Gax} or texture, because those exist only with the
+Hamiltonian treatment or in Texture mode.
+
+Nothing is lost. They reappear the moment you change the treatment (right-click
+on the sextet panel) or the intensity mode, and they keep whatever value they
+held while hidden. Hiding them is presentation only: it changes neither the
+model nor what enters the fit.
+
+\begin{truco}
+If you miss a parameter, check the quadrupole treatment and the intensity mode
+first --- that is almost always the reason. These parameters used to be shown
+greyed out; they cost three rows per component without being usable, and with
+two or three components open they no longer fitted on screen.
+\end{truco}
+
+\paragraph{Compact parameters.} \menu{View > Compact parameters} removes the
+slider from every parameter, so each takes a single row instead of two. A sextet
+drops from 262 to 177 pixels tall and three stacked sextets from 786 to 531,
+which is what lets you watch two or three components at once. It hides
+\textbf{no} parameter: the numeric box still edits every one of them, with its
+arrows and the mouse wheel; all you lose is the slider's coarse dragging. That
+is the difference from a \emph{basic/advanced} mode --- no parameter can cease
+to exist for you because you cannot see it. The setting also applies to the
+calibration and distribution panels and is remembered between sessions.
+
 \section{Fit quality and errors}
 \label{sec:calidad}
 
