@@ -20,7 +20,7 @@ Pure code, without Qt/Tk:
 - `session.py`: `ModelState` and headless session.
 - `reconstruction.py`: reconstruction of models, residuals, subspectra, areas and distribution curves.
 - `validation.py`: structural and parameter-bounds validation.
-- `result_views.py`: result reading API for reports, Plotly and panels.
+- `result_views.py`: result reading API for reports and panels.
 - `params.py`: canonical registry of parameters, defaults and bounds.
 
 ### `gui/`
@@ -32,7 +32,7 @@ Modular Qt interface. It must not contain physics engines or heavy fitting logic
 - `model_workflow.py`: loading/folding, construction of `FitState`, plot/info update.
 - `discrete_fit.py` and `distribution_fit.py`: specific orchestration of each mode.
 - `session_io.py`: JSON session via `ProjectState`.
-- `reports.py` and `plotly_tools.py`: user outputs backed by `core.result_views`.
+- `reports.py`: user outputs backed by `core.result_views`.
 - `compat.py`: historical compatibility of symbols/patches from the old `mossbauer_qt.py`.
 
 ### `mossbauer_qt.py`
@@ -50,7 +50,7 @@ ModelState / FitState
    ↓ core.fit_engine or distribution
 FitResult / BhfDistributionFit
    ↓ core.reconstruction + core.result_views
-Canvas / Plotly / reports / exports
+Canvas / reports / exports
 ```
 
 ## State and snapshots

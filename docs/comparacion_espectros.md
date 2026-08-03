@@ -3,7 +3,7 @@
 Disponible desde **v4.10.0** · Menú **Archivo → Comparar espectro…**
 
 Módulos: `gui/file_actions.py` (`on_open_comparison`, `on_clear_comparison`),
-`gui/canvas.py` (render), `gui/plotly_tools.py`, `gui/state.py`
+`gui/canvas.py` (render), `gui/state.py`
 (`ComparisonSpectrum`)
 
 ---
@@ -80,13 +80,6 @@ líneas de comparación se dibujan **antes** del espectro principal, con la pale
 layout (`layout_sig`) incluye `n_cmp = len(comparison)` para forzar un redibujado
 completo cuando cambia el número de espectros comparados.
 
-### Plotly (`gui/plotly_tools.py`)
-
-Cada espectro de comparación se añade como traza `Scattergl` (líneas, opacidad 0.75)
-antes de la traza del espectro principal, con su color de paleta, de modo que aparezca
-también en la exportación HTML interactiva.
-
----
 
 ## Separación de responsabilidades
 

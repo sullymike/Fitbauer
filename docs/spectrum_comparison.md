@@ -3,7 +3,7 @@
 Available since **v4.10.0** · Menu **File → Compare spectrum…**
 
 Modules: `gui/file_actions.py` (`on_open_comparison`, `on_clear_comparison`),
-`gui/canvas.py` (render), `gui/plotly_tools.py`, `gui/state.py`
+`gui/canvas.py` (render), `gui/state.py`
 (`ComparisonSpectrum`)
 
 ---
@@ -79,13 +79,6 @@ palette. They are stored in `self._artists["cmp_lines"]` and the layout signatur
 (`layout_sig`) includes `n_cmp = len(comparison)` to force a full redraw when the
 number of compared spectra changes.
 
-### Plotly (`gui/plotly_tools.py`)
-
-Each comparison spectrum is added as a `Scattergl` trace (lines, opacity 0.75) before
-the main spectrum trace, with its palette color, so that it also appears in the
-interactive HTML export.
-
----
 
 ## Separation of responsibilities
 

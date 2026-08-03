@@ -64,6 +64,7 @@ PAGES: list[Page] = [
     Page("Profile-likelihood", "Profile likelihood", "en", "docs/profile_likelihood.md", "Fitting"),
     Page("Batch-fitting", "Batch fitting", "en", "docs/batch_fit.md", "Fitting"),
     Page("Command-line-tools", "Command-line tools", "en", None, "Reference"),
+    Page("NORMOS-interoperability", "NORMOS (.JOB)", "en", "docs/normos_job_en.md", "Reference"),
     Page("Session-format", "Session format", "en", "docs/session_format.md", "Reference"),
     Page("Sextet-model", "Sextet model (spec)", "en", "docs/sextet_model.md", "Reference"),
     Page("Architecture", "Architecture", "en", "docs/architecture_en.md", "Reference"),
@@ -79,10 +80,10 @@ PAGES: list[Page] = [
     Page("ES-Verosimilitud-perfilada", "Verosimilitud perfilada", "es", "docs/perfil_verosimilitud.md", "Ajuste"),
     Page("ES-Ajuste-en-serie", "Ajuste en serie", "es", "docs/ajuste_batch.md", "Ajuste"),
     Page("ES-Linea-de-comandos", "Línea de comandos", "es", None, "Referencia"),
+    Page("ES-NORMOS-interoperabilidad", "NORMOS (.JOB)", "es", "docs/normos_job.md", "Referencia"),
     Page("ES-Formato-de-sesion", "Formato de sesión", "es", "docs/formato_sesion.md", "Referencia"),
     Page("ES-Modelo-de-sextete", "Modelo de sextete (spec)", "es", "docs/modelo_sextete.md", "Referencia"),
     Page("ES-Arquitectura", "Arquitectura", "es", "docs/architecture.md", "Referencia"),
-    Page("ES-NORMOS-DOSBox", "NORMOS bajo DOSBox", "es", "docs/normos_dosbox_guide.md", "Referencia"),
 ]
 
 # Documentos deliberadamente excluidos, con su motivo. Los manuales LaTeX no se
@@ -94,6 +95,11 @@ EXCLUDED = {
     "docs/modelos_relajacion_mossbauer.md": "marcado como ARCHIVO HISTÓRICO",
     "docs/release_notes_v4.16.0.md": "duplica RELEASE_NOTES_v4.16.0.md",
     "docs/article_hyperfine_interactions.md": "borrador de artículo, no documentación de usuario",
+    # Se publicó en el wiki hasta v5.0.0 y se retiró: se autodescribe como
+    # referencia INTERNA, era la única página con rutas locales del autor
+    # (/home/jorge/...) y la única sin par en inglés. Sigue en docs/ para quien
+    # clone el repositorio, que es su público real.
+    "docs/normos_dosbox_guide.md": "guía de trabajo interna con rutas locales",
 }
 
 BANNER = {
@@ -226,6 +232,12 @@ def page_home(lang: str) -> str:
 
 <img src="{RAW}/docs/img/captura-pantalla-principal.png" alt="Fitbauer main window" width="820">
 
+Fitbauer reproduces **NORMOS** and reads and writes its `.JOB` files. The physics
+has been contrasted on 411 synthetic spectra and on 564 real fits made with the
+original program: in 355 of 503 comparable jobs (71 %) it matches or improves on
+its reduced χ². See [NORMOS (.JOB)](NORMOS-interoperability) and the
+[validation reports]({BLOB}/validacion/informe).
+
 ## Where to start
 
 | I want to… | Go to |
@@ -237,6 +249,7 @@ def page_home(lang: str) -> str:
 | Fit `P(BHF)` or `P(ΔEQ)` distributions | [Distribution fitting](Distribution-fitting) |
 | Get realistic error bars | [Profile likelihood](Profile-likelihood) |
 | Fit a whole temperature series | [Batch fitting](Batch-fitting) |
+| Open a NORMOS `.JOB` | [NORMOS (.JOB)](NORMOS-interoperability) |
 | Run fits without a GUI | [Command-line tools](Command-line-tools) |
 | Understand the code layout | [Architecture](Architecture) |
 
@@ -264,6 +277,12 @@ ajustar espectros Mössbauer de ⁵⁷Fe. Versión estable actual: **v{APP_VERSI
 
 <img src="{RAW}/docs/img/captura-pantalla-principal.png" alt="Ventana principal de Fitbauer" width="820">
 
+Fitbauer reproduce **NORMOS** y lee y escribe sus ficheros `.JOB`. La física se ha
+contrastado sobre 411 espectros sintéticos y sobre 564 ajustes reales hechos con el
+programa original: en 355 de 503 trabajos comparables (71 %) iguala o mejora su χ²
+reducido. Ver [NORMOS (.JOB)](ES-NORMOS-interoperabilidad) y los
+[informes de validación]({BLOB}/validacion/informe).
+
 ## Por dónde empezar
 
 | Quiero… | Ir a |
@@ -275,6 +294,7 @@ ajustar espectros Mössbauer de ⁵⁷Fe. Versión estable actual: **v{APP_VERSI
 | Ajustar distribuciones `P(BHF)` o `P(ΔEQ)` | [Distribuciones](ES-Distribuciones) |
 | Obtener barras de error realistas | [Verosimilitud perfilada](ES-Verosimilitud-perfilada) |
 | Ajustar una serie de temperaturas | [Ajuste en serie](ES-Ajuste-en-serie) |
+| Abrir un `.JOB` de NORMOS | [NORMOS (.JOB)](ES-NORMOS-interoperabilidad) |
 | Ajustar sin interfaz gráfica | [Línea de comandos](ES-Linea-de-comandos) |
 | Entender la organización del código | [Arquitectura](ES-Arquitectura) |
 
