@@ -1,0 +1,35 @@
+  cff-version: 1.2.0
+  title: "Fitbauer"
+  abstract: >-
+    Open-source desktop application to load, fold, simulate and fit 57Fe Mössbauer
+    spectra. Provides a maintained replacement for the legacy NORMOS program,
+    preserving compatibility with its data files and adding 2D distributions,
+    advanced regularization, Monte Carlo error estimation and batch fitting.
+  message: "If you use this software, please cite it as below."
+  type: software
+  repository-code: "https://github.com/sullymike/Fitbauer"
+  license: Apache-2.0
+  authors:
+    - family-names: "Sánchez Marcos"
+      given-names: "Jorge"
+      orcid: "https://orcid.org/0000-0001-9269-7180"
+      affiliation: "Universidad Autónoma de Madrid"
+    - family-names: "Menéndez González"
+      given-names: "Nieves"
+      orcid: "https://orcid.org/0000-0001-6357-1597"
+      affiliation: "Universidad Autónoma de Madrid"
+  version: "5.1.0"
+  date-released: "2026-08-09"
+  identifiers:
+    - type: doi
+      value: "10.5281/zenodo.21858360"
+      description: "DOI of version 5.1.0"
+    - type: swh
+      value: "swh:1:dir:e4f9b7c28c30354c0326b072462012f04581d7f6"
+      description: "Software Heritage archived source tree"
+  keywords:
+    - Mössbauer spectroscopy
+    - spectral fitting
+    - hyperfine interactions
+    - NORMOS
+    - open source scientific software
