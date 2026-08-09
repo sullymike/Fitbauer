@@ -1,6 +1,6 @@
 # Fitbauer v5.1.0
 
-*[🇬🇧 Release notes in English](RELEASE_NOTES_v5.1.0.md)*
+*[🇬🇧 Release notes in English](https://github.com/sullymike/Fitbauer/blob/main/RELEASE_NOTES_v5.1.0.md)*
 
 Versión menor sobre la 5.0.0: comodidad de uso en la interfaz,
 una corrección de fidelidad al importar trabajos de NORMOS y la puesta en

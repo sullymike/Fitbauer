@@ -1,6 +1,6 @@
 # Fitbauer v5.1.0
 
-*[🇪🇸 Notas en español](RELEASE_NOTES_v5.1.0_ES.md)*
+*[🇪🇸 Notas en español](https://github.com/sullymike/Fitbauer/blob/main/RELEASE_NOTES_v5.1.0_ES.md)*
 
 Minor release on top of 5.0.0: a more comfortable interface, a fidelity fix when
 importing NORMOS jobs, and third-party licensing put in order.

@@ -152,4 +152,6 @@ pytest -q                                           # local con display
     igual que `README.md` ↔ `README_ES.md`. **El que se ve por defecto es
     siempre el inglés**: `release_assets.yml` usa `RELEASE_NOTES_${TAG}.md`, así
     que ese fichero, sin sufijo, tiene que ser el inglés.
+  - Ese enlace cruzado va con **URL absoluta** a `blob/main/`: el cuerpo de la
+    release en GitHub no resuelve rutas relativas al repositorio.
   - El `CHANGELOG.md` NO es texto público de release: sigue en español.
