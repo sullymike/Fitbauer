@@ -319,6 +319,7 @@ def job_to_model_state(text: str) -> dict:
                 f"normalizado a (v/Δv)^k; revisa «{destino}» tras importar.")
 
     # ── Subespectros ────────────────────────────────────────────────────────
+    denoms: dict[int, float] = {}
     for i in range(1, nsub + 1):
         nline = int(_f(_idx(param, "NLINE", i), 6))
         kind = _TIPO_POR_NLINE.get(nline)
@@ -375,6 +376,7 @@ def job_to_model_state(text: str) -> dict:
         # de la línea de referencia.
         denom = (np.pi / 2.0) * suma
         variables[pref + "depth"] = float(area / denom) if denom > 0 else 0.02
+        denoms[i] = denom
 
         if _b(_idx(param, "HAMILT", i)) or _b(param.get("HAMILT")):
             tratos[i] = "hamiltonian"
@@ -405,10 +407,28 @@ def job_to_model_state(text: str) -> dict:
                 f"ligadura NDEX({destino_i})={fuente_i}: índice fuera del "
                 "modelo importado; se omite.")
             continue
+        factor = _f(param.get(f"FACTOR({destino_i})"), 1.0)
+        offset = _f(param.get(f"CONST({destino_i})"), 0.0)
+        # Las ligaduras de ARE/DEP son entre ÁREAS; en Fitbauer el parámetro
+        # es la PROFUNDIDAD (área = depth·(π/2)·ΣΓ_efectiva). Se reescala con
+        # los denominadores del propio JOB: ARE_d = f·ARE_s + c ⇒
+        # depth_d = f·(den_s/den_d)·depth_s + c/den_d. Exacto en los valores
+        # del JOB; si el ajuste mueve las anchuras, la razón deriva.
+        if destino.endswith("_depth") and fuente.endswith("_depth"):
+            sub_d = int(destino.split("_")[0][1:])
+            sub_s = int(fuente.split("_")[0][1:])
+            den_d = denoms.get(sub_d, 0.0)
+            den_s = denoms.get(sub_s, 0.0)
+            if den_d > 0 and den_s > 0:
+                factor *= den_s / den_d
+                offset /= den_d
+                avisos.append(
+                    f"ligadura de área NDEX({destino_i})={fuente_i} reescalada "
+                    "a profundidades con las anchuras del JOB; si el ajuste "
+                    "cambia las anchuras, revisa la razón de áreas.")
         constraints.append({
             "target": destino, "source": fuente,
-            "factor": _f(param.get(f"FACTOR({destino_i})"), 1.0),
-            "offset": _f(param.get(f"CONST({destino_i})"), 0.0),
+            "factor": factor, "offset": offset,
         })
 
     for clave in ("POLAR", "IFSC", "IFGK", "EFGB", "SRELAX", "IRELAX",

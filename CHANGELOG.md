@@ -2,6 +2,17 @@
 
 ## Sin publicar — comodidad de uso de la interfaz
 
+- **Importar JOB: las ligaduras de área se reescalan a profundidad.** NORMOS
+  liga áreas (`ARE(2)=f·ARE(1)`); el parámetro de Fitbauer es la profundidad
+  (área = depth·(π/2)·ΣΓ), así que con anchuras distintas copiar el factor tal
+  cual desescalaba el subespectro ligado (en un trabajo real, un 14 % fuera de
+  la curva de NORMOS). El factor y el offset se reescalan ahora con los
+  denominadores del propio JOB, con aviso de que la razón deriva si el ajuste
+  mueve las anchuras. Detectado en el análisis masivo de 357 trabajos JOB
+  reales (`validacion/generador/analiza_jobs.py`): tras esto, Fitbauer
+  reproduce la curva de NORMOS con mediana 0.022 % del pico en 336 de los 337
+  analizables —el restante es un ajuste donde el propio NORMOS divergió— y su
+  re-ajuste iguala o mejora el χ² del propio NORMOS en 321 de 336.
 - **El desplazamiento isomérico vuelve a encabezar el panel.** Al mostrar solo
   los parámetros ajustables, un sexteto quedó en 6 controles contra 3 y eso
   disparó el reequilibrio de columnas, que movía el PRIMERO de la columna larga

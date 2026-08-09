@@ -164,6 +164,41 @@ def test_ligaduras_por_indice_global():
     assert cons[0]["offset"] == pytest.approx(0.12)
 
 
+def test_ligadura_de_area_se_reescala_a_profundidad():
+    """`ARE(2)=f·ARE(1)` liga ÁREAS; en Fitbauer el parámetro es la
+    profundidad (área = depth·(π/2)·ΣΓ). Con anchuras distintas, copiar el
+    factor tal cual desescala el subespectro ligado (caso real ZN100215:
+    salía un 14 % fuera de la curva de NORMOS)."""
+    job = """X.MOS
+X.JOB
+X.RES
+X.PLT
+ &DATA
+ NLTEXT=4, TRIANG=.TRUE., VMAX=12.0, PFP=256.5,
+ &END
+dos dobletes
+area ligada
+ &PARAM
+ NSUB=2,
+ NLINE(1)=2, ISO(1)=0.24, QUA(1)=0.69, WID(1)=0.44, DEP(1)=0.14,
+ NLINE(2)=2, ISO(2)=0.23, QUA(2)=0.37, WID(2)=0.25,
+ NDEX(30)=15, FACTOR(30)=0.24, CONST(30)=0,
+ &END
+"""
+    est = job_to_model_state(job)["model_state"]
+    cons = est["constraints"]
+    assert len(cons) == 1
+    assert cons[0]["target"] == "s2_depth"
+    assert cons[0]["source"] == "s1_depth"
+    # depth_2 = f·(den_1/den_2)·depth_1 con den ∝ WID·(1+D21)
+    assert cons[0]["factor"] == pytest.approx(0.24 * 0.44 / 0.25)
+    # y la razón de ÁREAS resultante es la que pedía NORMOS
+    d1 = est["vars"]["s1_depth"]
+    area1 = d1 * (np.pi / 2.0) * 0.44 * 2.0
+    area2 = cons[0]["factor"] * d1 * (np.pi / 2.0) * 0.25 * 2.0
+    assert area2 / area1 == pytest.approx(0.24)
+
+
 def test_flags_de_ajuste():
     job = JOB_C2.replace("BHFFIT(1)=.FALSE.", "BHFFIT(1)=.TRUE.")
     fijos = job_to_model_state(job)["model_state"]["fixed"]
