@@ -29,6 +29,9 @@ normos/
 !tests/**
 !scripts/
 !scripts/**
+# Textos de licencia de terceros (LGPLv3/GPLv3): obligatorio distribuirlos.
+!licenses/
+!licenses/**
 # Banco de validación NORMOS: solo scripts, informe y resumen (los ~300
 # directorios de casos, los staging de DOSBox, los .EXE de WissEl y el manual
 # de NORMOS se quedan fuera del repositorio).

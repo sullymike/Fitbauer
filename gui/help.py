@@ -743,6 +743,13 @@ class HelpMixin:
             f"<center>{tr('splash.version', version=APP_VERSION)}<br>"
             f"<i>{tr('main.subtitle')}</i></center>"))
         v.addSpacing(8)
+        # Aviso de licencias. La LGPLv3 de Qt/PySide6 exige que el uso de la
+        # biblioteca sea visible para el usuario; el detalle está en
+        # THIRD-PARTY-LICENSES.md. Sin enlaces: al pulsar, el diálogo se cierra.
+        lic = QtWidgets.QLabel(f"<center><small>{tr('help.about_license')}</small></center>")
+        lic.setWordWrap(True)
+        v.addWidget(lic)
+        v.addSpacing(8)
         v.addWidget(QtWidgets.QLabel(
             f"<center><i>{tr('splash.click_to_continue')}</i></center>"))
         dlg.mousePressEvent = lambda _e: dlg.accept()

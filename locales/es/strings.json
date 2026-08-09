@@ -168,6 +168,7 @@
   "help.close": "Cerrar",
   "help.changelog_unavailable": "Changelog no disponible.",
   "help.about_title": "Acerca de Fitbauer v{version}",
+  "help.about_license": "Fitbauer se distribuye bajo la licencia Apache 2.0.<br>Usa Qt a través de PySide6 bajo la licencia LGPLv3.",
   "main.subtitle": "Software de ajuste y análisis de espectros Mössbauer",
   "language.restart_title": "Idioma cambiado",
   "language.restart_message": "El idioma seleccionado se aplicará completamente al reiniciar el programa.",

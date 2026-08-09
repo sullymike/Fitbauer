@@ -1,6 +1,6 @@
 # Changelog
 
-## Sin publicar — comodidad de uso de la interfaz
+## v5.1.0 — comodidad de uso de la interfaz y licencias de terceros
 
 - **Importar JOB: las ligaduras de área se reescalan a profundidad.** NORMOS
   liga áreas (`ARE(2)=f·ARE(1)`); el parámetro de Fitbauer es la profundidad
@@ -100,6 +100,15 @@
   pero no se puede leer, ahora se aparta como `settings.json.corrupto` en vez
   de pisarse, para poder rescatar a mano lo que hubiera dentro.
 - Tests: 36 nuevos. Traducciones del diálogo de recuperación en los 8 idiomas.
+- **Cumplimiento de licencias de terceros.** El código sigue siendo Apache 2.0,
+  pero al distribuir ejecutables que empaquetan Qt se asumen las obligaciones de
+  la LGPLv3 sobre esa parte. Se añaden `NOTICE` y `THIRD-PARTY-LICENSES.md` en
+  la raíz —con cada dependencia y su licencia— y el texto íntegro de LGPLv3 y
+  GPLv3 en `licenses/`. Los cuatro viajan ya dentro del ZIP de la release y del
+  build de PyInstaller. El diálogo *Acerca de* declara el uso de Qt vía PySide6
+  bajo LGPLv3 en los 8 idiomas, y los README explican cómo sustituir las
+  bibliotecas de Qt (§4 de la LGPLv3): en el build *one-dir* basta con
+  reemplazar los `.so`/`.dll` de `_internal/PySide6/`, sin recompilar.
 
 ## v5.0.0 — paridad verificada con NORMOS e interoperabilidad de ficheros
 

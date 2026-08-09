@@ -168,6 +168,7 @@
   "help.close": "Закрыть",
   "help.changelog_unavailable": "История изменений недоступна.",
   "help.about_title": "О программе Fitbauer v{version}",
+  "help.about_license": "Fitbauer распространяется по лицензии Apache 2.0.<br>Использует Qt через PySide6 по лицензии LGPLv3.",
   "main.subtitle": "Программа для подгонки и анализа мёссбауэровских спектров",
   "language.restart_title": "Язык изменён",
   "language.restart_message": "Выбранный язык будет полностью применён после перезапуска программы.",

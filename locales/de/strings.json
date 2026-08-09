@@ -168,6 +168,7 @@
   "help.close": "Schließen",
   "help.changelog_unavailable": "Änderungsprotokoll nicht verfügbar.",
   "help.about_title": "Über Fitbauer v{version}",
+  "help.about_license": "Fitbauer wird unter der Apache-2.0-Lizenz vertrieben.<br>Es verwendet Qt über PySide6 unter der LGPLv3-Lizenz.",
   "main.subtitle": "Software zum Anpassen und Analysieren von Mößbauer-Spektren",
   "language.restart_title": "Sprache geändert",
   "language.restart_message": "Die ausgewählte Sprache wird nach dem Neustart des Programms vollständig übernommen.",

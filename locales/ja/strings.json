@@ -168,6 +168,7 @@
   "help.close": "閉じる",
   "help.changelog_unavailable": "変更履歴は利用できません。",
   "help.about_title": "Fitbauer v{version} について",
+  "help.about_license": "Fitbauer は Apache 2.0 ライセンスで配布されています。<br>PySide6 を介して Qt を LGPLv3 ライセンスのもとで使用しています。",
   "main.subtitle": "メスバウアースペクトルのフィットと解析のためのソフトウェア",
   "language.restart_title": "言語を変更しました",
   "language.restart_message": "選択した言語はプログラムの再起動後に完全に適用されます。",

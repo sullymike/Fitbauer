@@ -11,15 +11,15 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/versi%C3%B3n-5.0.0-0e7490" alt="versión 5.0.0">
+  <img src="https://img.shields.io/badge/versi%C3%B3n-5.1.0-0e7490" alt="versión 5.1.0">
   <img src="https://img.shields.io/badge/validado%20frente%20a-NORMOS-2563eb" alt="validado frente a NORMOS">
-  <img src="https://img.shields.io/badge/tests-546%20en%20verde-16a34a" alt="546 tests en verde">
+  <img src="https://img.shields.io/badge/tests-584%20en%20verde-16a34a" alt="584 tests en verde">
   <img src="https://img.shields.io/badge/licencia-Apache%202.0-64748b" alt="Apache 2.0">
 </p>
 
 Programa de escritorio estable para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
 
-Versión estable actual: **v5.0.0**  
+Versión estable actual: **v5.1.0**  
 Arranque: `python fitbauer.py`  
 Ajuste por línea de comandos (headless): `mossbauer_fit_cli.py` (discreto) · `fit_bhf_distribution_cli.py` (distribuciones)
 
@@ -247,3 +247,22 @@ pyinstaller Fitbauer.spec    # → dist/Fitbauer/
 ## Historial de cambios
 
 Consulta [`CHANGELOG.md`](CHANGELOG.md).
+
+---
+
+## Licencia
+
+Fitbauer se distribuye bajo la **licencia Apache 2.0** — ver [`LICENSE`](LICENSE) y
+[`NOTICE`](NOTICE).
+
+El programa usa el *toolkit* **Qt** a través de las vinculaciones **PySide6**, bajo los
+términos de la **GNU Lesser General Public License v3 (LGPLv3)**. Qt no se modifica; el
+texto completo de la licencia se distribuye en [`licenses/LGPL-3.0.txt`](licenses/LGPL-3.0.txt)
+y [`licenses/GPL-3.0.txt`](licenses/GPL-3.0.txt). En los ejecutables, las bibliotecas de Qt
+viajan como bibliotecas compartidas normales y pueden sustituirse por otra compilación
+compatible, tal como prevé el §4 de la LGPLv3.
+
+Cada componente de terceros y su licencia están listados en
+[`THIRD-PARTY-LICENSES.md`](THIRD-PARTY-LICENSES.md).
+
+© Jorge Sánchez Marcos, Nieves Menéndez González — Dpto. de Química Física, UAM.

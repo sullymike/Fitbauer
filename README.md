@@ -11,15 +11,15 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.0.0-0e7490" alt="version 5.0.0">
+  <img src="https://img.shields.io/badge/version-5.1.0-0e7490" alt="version 5.1.0">
   <img src="https://img.shields.io/badge/validated%20against-NORMOS-2563eb" alt="validated against NORMOS">
-  <img src="https://img.shields.io/badge/tests-546%20passing-16a34a" alt="546 tests passing">
+  <img src="https://img.shields.io/badge/tests-584%20passing-16a34a" alt="584 tests passing">
   <img src="https://img.shields.io/badge/licence-Apache%202.0-64748b" alt="Apache 2.0">
 </p>
 
 Stable desktop application to load, fold, simulate and fit ⁵⁷Fe Mössbauer spectra.
 
-Current stable version: **v5.0.0**  
+Current stable version: **v5.1.0**  
 Launch: `python fitbauer.py`  
 Headless CLI fitting: `mossbauer_fit_cli.py` (discrete) · `fit_bhf_distribution_cli.py` (distributions)
 
@@ -298,5 +298,18 @@ See [`CHANGELOG.md`](CHANGELOG.md).
 ---
 
 ## License
+
+Fitbauer is released under the **Apache License 2.0** — see [`LICENSE`](LICENSE) and
+[`NOTICE`](NOTICE).
+
+This program uses the **Qt** toolkit through the **PySide6** bindings, under the terms of
+the **GNU Lesser General Public License v3 (LGPLv3)**. Qt is not modified; the full licence
+text ships in [`licenses/LGPL-3.0.txt`](licenses/LGPL-3.0.txt) and
+[`licenses/GPL-3.0.txt`](licenses/GPL-3.0.txt). In the binary builds, the Qt libraries are
+bundled as ordinary shared libraries and can be replaced by a compatible build, as LGPLv3 §4
+provides.
+
+Every third-party component and its licence is listed in
+[`THIRD-PARTY-LICENSES.md`](THIRD-PARTY-LICENSES.md).
 
 © Jorge Sánchez Marcos, Nieves Menéndez González — Department of Physical Chemistry, UAM.

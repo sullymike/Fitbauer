@@ -57,6 +57,9 @@ jobs:
             locales \
             docs \
             LICENSE \
+            NOTICE \
+            THIRD-PARTY-LICENSES.md \
+            licenses \
             data_sample
           echo "ZIP=$ZIP" >> "$GITHUB_ENV"
           echo "NOTES=$NOTES" >> "$GITHUB_ENV"

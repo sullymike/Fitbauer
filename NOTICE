@@ -1,0 +1,31 @@
+Fitbauer — Software for Mössbauer spectrum fitting and analysis
+Copyright 2026 Jorge Sánchez Marcos, Nieves Menéndez González
+Departamento de Química Física, Universidad Autónoma de Madrid
+
+This product is licensed under the Apache License, Version 2.0.
+You may obtain a copy of the License in the accompanying LICENSE file or at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+--------------------------------------------------------------------------------
+Third-party components
+--------------------------------------------------------------------------------
+
+This product uses the Qt toolkit through the Qt for Python (PySide6) bindings.
+PySide6, Shiboken6 and the Qt libraries are used under the terms of the GNU
+Lesser General Public License, version 3 (LGPLv3), and are not modified.
+
+    Qt is Copyright (C) The Qt Company Ltd. and other contributors.
+    https://www.qt.io/qt-for-python
+
+The full text of the LGPLv3, together with the GPLv3 it incorporates by
+reference, is distributed with this product in the licenses/ directory:
+
+    licenses/LGPL-3.0.txt
+    licenses/GPL-3.0.txt
+
+In the binary (PyInstaller) builds, the Qt libraries are bundled as ordinary
+shared libraries and may be replaced by the recipient with a compatible build,
+as provided for by section 4 of the LGPLv3. See THIRD-PARTY-LICENSES.md for
+instructions and for the complete list of third-party components, including
+NumPy, SciPy, Matplotlib and Requests.

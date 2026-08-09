@@ -168,6 +168,7 @@
   "help.close": "关闭",
   "help.changelog_unavailable": "更新日志不可用。",
   "help.about_title": "关于 Fitbauer v{version}",
+  "help.about_license": "Fitbauer 依 Apache 2.0 许可证发布。<br>通过 PySide6 使用 Qt，遵循 LGPLv3 许可证。",
   "main.subtitle": "用于穆斯堡尔谱拟合与分析的软件",
   "language.restart_title": "语言已更改",
   "language.restart_message": "所选语言将在重启程序后完全应用。",

@@ -7,7 +7,16 @@ a = Analysis(
     ['mossbauer_qt.py'],
     pathex=[],
     binaries=[],
-    datas=[('locales', 'locales'), ('assets', 'assets')],
+    # Los ficheros de licencia viajan con el ejecutable: la LGPLv3 de Qt/PySide6
+    # obliga a entregar su texto junto a los binarios (ver THIRD-PARTY-LICENSES.md).
+    datas=[
+        ('locales', 'locales'),
+        ('assets', 'assets'),
+        ('licenses', 'licenses'),
+        ('LICENSE', '.'),
+        ('NOTICE', '.'),
+        ('THIRD-PARTY-LICENSES.md', '.'),
+    ],
     hiddenimports=[
         'core', 'core.constants', 'core.physics', 'core.data_io',
         'core.folding', 'core.fit_engine', 'core.plot_styles', 'core.batch_fit',
