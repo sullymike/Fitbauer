@@ -142,4 +142,14 @@ pytest -q                                           # local con display
   consumidores que NO son física (rótulos, detección de mínimos, figuras).
 - El historial de cambios se documenta en `CHANGELOG.md` (por versión).
 - `APP_VERSION` en `core/constants.py` es la fuente única de versión.
-- Idioma del proyecto: español (commits, comentarios, docs). Mantén ese registro.
+- Idioma del proyecto: español (commits, comentarios, docs internas). Mantén ese registro.
+- **Todo texto público de una release va en inglés.** Se dirige a quien descarga
+  el programa, no al equipo. Afecta a `RELEASE_NOTES_v*.md` (que el workflow
+  publica tal cual como cuerpo de la release en GitHub), al README principal y a
+  `NOTICE` / `THIRD-PARTY-LICENSES.md`.
+  - Si además se quiere en español, va en un fichero aparte con sufijo `_ES`
+    (`RELEASE_NOTES_v5.2.0_ES.md`), enlazado desde la primera línea del inglés,
+    igual que `README.md` ↔ `README_ES.md`. **El que se ve por defecto es
+    siempre el inglés**: `release_assets.yml` usa `RELEASE_NOTES_${TAG}.md`, así
+    que ese fichero, sin sufijo, tiene que ser el inglés.
+  - El `CHANGELOG.md` NO es texto público de release: sigue en español.
