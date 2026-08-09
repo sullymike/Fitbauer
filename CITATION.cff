@@ -23,9 +23,9 @@
   identifiers:
     - type: doi
       value: "10.5281/zenodo.21858360"
-      description: "DOI of version 5.1.0"
+      description: "DOI"
     - type: swh
-      value: "swh:1:dir:e4f9b7c28c30354c0326b072462012f04581d7f6"
+      value: "swh:1:dir:2d69817a33ec310004104ccd90b579760e9384ac"
       description: "Software Heritage archived source tree"
   keywords:
     - Mössbauer spectroscopy
