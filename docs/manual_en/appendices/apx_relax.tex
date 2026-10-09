@@ -210,9 +210,10 @@ moment orientations. With $P = 0$ nothing changes. In NORMOS this is
 $\code{SPN} = \BHF/\code{BSAT}$.
 
 Use it when a relaxation spectrum comes out asymmetric and the asymmetry is
-explained neither by the linewidth nor by the isomer shift. The implementation
-reproduces NORMOS's \code{ISIRLX} routine \emph{exactly} --- rms below
-$10^{-12}$, not approximately.
+explained neither by the linewidth nor by the isomer shift. This is Blume's
+two-state stochastic model: it matches its matrix equation solved numerically
+(difference below $10^{-10}$), conserves the area and does not depend on which
+state is called $a$ or $b$.
 
 \section{Néel--Arrhenius and size distribution}
 
