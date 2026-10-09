@@ -18,6 +18,12 @@ negativa y fuerte), más la validación de las capacidades v4.19
 documento salen de `veredicto_datos.py`. Suite de tests del programa: 349 en
 verde.
 
+**Regenerado el 2026-10-09** con Fitbauer 5.1.1+ y dosbox-staging 0.83.0
+(`generador/banco_completo.sh`): 432 casos con espectro de NORMOS, 6.520
+filas. Las medianas y percentiles de este documento se reproducen (ver §12
+del INFORME). Novedad: la relajación de Ising queda validada contra el
+binario a ~10⁻⁵ (§14 del INFORME). Suite de tests: 605+.
+
 ---
 
 ## 1. Lo que SALE: dónde Fitbauer reproduce a NORMOS

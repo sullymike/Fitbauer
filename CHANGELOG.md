@@ -2,6 +2,15 @@
 
 ## Sin publicar
 
+- **Banco de validación NORMOS regenerado** con la versión actual
+  (2026-10-09): 432 casos con espectro de NORMOS y 6 520 comparaciones; las
+  medianas del veredicto se reproducen (1er orden: 2·10⁻⁷ mm/s en posición y
+  4·10⁻⁵ T en BHF; Hamiltoniano completo: 6·10⁻⁵ mm/s y 8·10⁻⁴ T). Se
+  regenera entero con `validacion/generador/banco_completo.sh`. El generador
+  tenía rutas absolutas del antiguo emplazamiento del repositorio: ahora se
+  deducen de su ubicación, y los ejecutables y DOSBox se indican con
+  `NORMOS_SITE_EXE`, `NORMOS_DIST_EXE` y `DOSBOX`. Requiere dosbox-staging: con
+  el DOSBox clásico 0.74 SITE se corta al leer el espectro.
 - **Relajación con poblaciones desiguales: implementación propia, con dos
   convenios.** La rama polarizada de la relajación de dos estados
   (`relax_polarization`) era una transcripción línea a línea de la rutina

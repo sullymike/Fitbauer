@@ -19,6 +19,12 @@ doublets, Gaussian P(B) at the grid edges and near-delta, negative and strong
 comparison rows (`resumen.csv`), 19 figures. The numbers in this document come
 from `veredicto_datos.py`.
 
+**Regenerated on 2026-10-09** with Fitbauer 5.1.1+ and dosbox-staging 0.83.0
+(`generador/banco_completo.sh`): 432 cases with a NORMOS spectrum, 6,520
+rows. The medians and percentiles in this document are reproduced (see §12
+of the REPORT). New: Ising relaxation is validated against the binary to
+~10⁻⁵ (§14 of the REPORT). Test suite: 605+.
+
 ---
 
 ## 1. What COMES OUT: where Fitbauer reproduces NORMOS

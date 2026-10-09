@@ -416,30 +416,37 @@ one lacks `np.trapezoid`). The detail is in the history of `generador/*.py`.
 
 ## 12. Reproducibility
 
+The full bank is regenerated with a single script, which runs in order the
+NORMOS generation, the Fitbauer fits, the relaxation probe, the refits with the
+model extensions, the analysis and the figures:
+
 ```bash
-cd /home/jorge/fitbauer
-python3 validacion/generador/paso0_verifica_receta.py   # DOSBox recipe
-python3 validacion/generador/paso0_sondas.py            # capability probes
-python3 validacion/generador/serie_S0_convenciones.py   # step 0.6
-python3 validacion/generador/series_AB.py               # blocks A-B
-python3 validacion/generador/series_CG.py               # blocks C-F
-python3 validacion/generador/fix_E1_E4_refits.py        # E1 binned + E4 512
-python3 validacion/generador/series_HI.py               # v1 + H + I + X1
-python3 validacion/generador/serie_J.py                 # block J (DIST)
-python3 validacion/generador/analisis.py                # v0 criteria
-python3 validacion/generador/figuras.py                 # report figures
+export NORMOS_SITE_EXE=/path/to/SITE.EXE NORMOS_DIST_EXE=/path/to/DIST.EXE
+export DOSBOX=dosbox-staging
+validacion/generador/banco_completo.sh --limpio   # --limpio: resumen.csv from scratch
 ```
 
 - `resumen.csv`: one row per (case, version, parameter): true, fitted, σ, z,
   χ²red, convergence, time, escalation notes.
 - Per case: `SITE.JOB/RES/PLT/MOS`, `teoria_norm.npy`, `v0.dat`, `v1*.dat`,
   `verdad.json`, `fitbauer_*.json`.
-- Requirements: `SITE.EXE` in `/home/jorge/normos_work/` and `DIST.EXE` in
-  `validacion/` (**WissEl commercial software: never to be committed to the
-  repository**, covered by `*.EXE` in `.gitignore`), dosbox-staging with a real
-  X display, numpy/scipy/matplotlib.
-- Total on disk: ~50 MB. Duration of the full session: ~2 h (dominated by the
-  ~800 fits; full SITE generation takes <1 min).
+- Requirements: NORMOS `SITE.EXE` and `DIST.EXE` (**WissEl commercial
+  software: never to be committed to the repository**, covered by
+  `.gitignore`), numpy/scipy/matplotlib and **dosbox-staging** with a real X
+  display. Classic DOSBox (0.74) does not work: SITE stops when reading the
+  spectrum, also with real jobs. Tested with dosbox-staging 0.82.2 (August)
+  and 0.83.0 (snap, October). The snap cannot see `/tmp`: everything works
+  under `validacion/`.
+- Total on disk: ~50 MB. Duration: ~2 h (2026-10-09), dominated by the
+  fits; generation with SITE takes a few minutes.
+- Regenerated on 2026-10-09 with Fitbauer 5.1.1+: 432 cases with a NORMOS
+  spectrum and 6,520 comparisons. The medians and percentiles of the verdict
+  table are reproduced (e.g. first order: 2·10⁻⁷ mm/s in position and
+  4·10⁻⁵ T in BHF). Per-series differences from August come from engine
+  changes (cubic folding, adaptive edges) and from detection-limit cases (I4,
+  D3), which land in a different, equally wrong minimum. About 46 rows and
+  the August C4 and K figures are missing: they came from manual refits
+  (`v0m`, the failed C4 attempt) that are not part of the scripts.
 
 ---
 
@@ -524,6 +531,15 @@ available, the rest of the §10 list was closed (except isotopes other than
   not allow the quantitative mapping to be validated. X1 remains a qualitative
   comparison and the mapping is documented as "per the manual, not verifiable
   with this demo".
+  **Corrected on 2026-10-09** (`generador/sonda_relajacion*.py`): the probe
+  used `BH0 = BHF`, i.e. relative moment 1 (in the demo `BH0` plays the role
+  of `BSAT`): a single state, no exchange possible. Moreover the demo puts all
+  the absorption at the positions of lines 3/4. With `IRELAX(1)`, `BH0` of 33,
+  66 and 10⁴ T and `OME` from 10⁻³ to 10³ MHz, Fitbauer's two-state model
+  reproduces the binary to ~10⁻⁵ of the peak **without fitting the rate or
+  the polarization**: `OME` (MHz) = 2k, i.e. ν = OME·10⁶/2, and P = BHF/BH0
+  with `relax_convention="normos"` (for P > 0 NORMOS does not satisfy detailed
+  balance; Fitbauer's default does).
 
 ## 15. Convergence robustness: fixed in the engine (v4.18.0, 3rd phase)
 

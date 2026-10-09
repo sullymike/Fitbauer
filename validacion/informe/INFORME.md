@@ -409,30 +409,36 @@ del sistema carece de `np.trapezoid`). El detalle está en el historial de
 
 ## 12. Reproducibilidad
 
+El banco completo se regenera con un solo script, que ejecuta en orden la
+generación con NORMOS, los ajustes de Fitbauer, la sonda de relajación, los
+reajustes con las extensiones de modelo, el análisis y las figuras:
+
 ```bash
-cd /home/jorge/fitbauer
-python3 validacion/generador/paso0_verifica_receta.py   # receta DOSBox
-python3 validacion/generador/paso0_sondas.py            # sondas de capacidades
-python3 validacion/generador/serie_S0_convenciones.py   # paso 0.6
-python3 validacion/generador/series_AB.py               # bloques A-B
-python3 validacion/generador/series_CG.py               # bloques C-F
-python3 validacion/generador/fix_E1_E4_refits.py        # E1 binned + E4 512
-python3 validacion/generador/series_HI.py               # v1 + H + I + X1
-python3 validacion/generador/serie_J.py                 # bloque J (DIST)
-python3 validacion/generador/analisis.py                # criterios v0
-python3 validacion/generador/figuras.py                 # figuras del informe
+export NORMOS_SITE_EXE=/ruta/a/SITE.EXE NORMOS_DIST_EXE=/ruta/a/DIST.EXE
+export DOSBOX=dosbox-staging
+validacion/generador/banco_completo.sh --limpio   # --limpio: resumen.csv desde cero
 ```
 
 - `resumen.csv`: una fila por (caso, versión, parámetro): verdadero, ajustado,
   σ, z, χ²red, convergencia, tiempo, notas de escalado.
 - Cada caso: `SITE.JOB/RES/PLT/MOS`, `teoria_norm.npy`, `v0.dat`, `v1*.dat`,
   `verdad.json`, `fitbauer_*.json`.
-- Requisitos: `SITE.EXE` en `/home/jorge/normos_work/` y `DIST.EXE` en
-  `validacion/` (**software comercial
-  WissEl: no subir jamás al repositorio**, cubierto por `*.EXE` en
-  `.gitignore`), dosbox-staging con display X real, numpy/scipy/matplotlib.
-- Total en disco: ~50 MB. Duración de la sesión completa: ~2 h (dominada por
-  los ~800 ajustes; la generación SITE completa tarda <1 min).
+- Requisitos: `SITE.EXE` y `DIST.EXE` de NORMOS (**software comercial de
+  WissEl: no subir jamás al repositorio**, cubierto por `.gitignore`),
+  numpy/scipy/matplotlib y **dosbox-staging** con display X real. El DOSBox
+  clásico (0.74) no sirve: SITE se corta al leer el espectro, también con
+  trabajos reales. Probado con dosbox-staging 0.82.2 (agosto) y 0.83.0 (snap,
+  octubre). El snap no ve `/tmp`: todo trabaja bajo `validacion/`.
+- Total en disco: ~50 MB. Duración: ~2 h (2026-10-09), dominada por
+  los ajustes; la generación con SITE tarda pocos minutos.
+- Regenerado el 2026-10-09 con Fitbauer 5.1.1+: 432 casos con espectro de
+  NORMOS y 6 520 comparaciones. Las medianas y percentiles de la tabla del
+  veredicto se reproducen (p. ej. 1er orden: 2·10⁻⁷ mm/s en posición y
+  4·10⁻⁵ T en BHF). Las diferencias por serie respecto a agosto vienen de los
+  cambios del motor (doblado cúbico, bordes adaptativos) y de los casos en el
+  límite de detección (I4, D3), que caen en otro mínimo igual de incorrecto.
+  Faltan ~46 filas y las figuras C4 y K de agosto, que salían de reajustes
+  hechos a mano (`v0m`, intento fallido de C4) y no están en los scripts.
 
 ---
 
@@ -518,6 +524,15 @@ petición) y se corrigieron entradas del inventario §4:
   demostración no permite validar el mapeo cuantitativo. X1 queda como
   comparación cualitativa y el mapeo documentado como "según manual,
   no verificable con este demo".
+  **Corregido el 2026-10-09** (`generador/sonda_relajacion*.py`): la sonda
+  usaba `BH0 = BHF`, es decir, momento relativo 1 (en el demo `BH0` hace de
+  `BSAT`): un solo estado, sin intercambio posible. Además el demo coloca
+  toda la absorción en las posiciones de las líneas 3/4. Con `IRELAX(1)`,
+  `BH0` de 33, 66 y 10⁴ T y `OME` de 10⁻³ a 10³ MHz, el modelo de dos estados
+  de Fitbauer reproduce el binario a ~10⁻⁵ del pico **sin ajustar la tasa ni
+  la polarización**: `OME` (MHz) = 2k, es decir ν = OME·10⁶/2, y P = BHF/BH0
+  con el convenio `relax_convention="normos"` (con P > 0 NORMOS no cumple el
+  balance detallado; el defecto de Fitbauer sí).
 
 ## 15. Robustez de convergencia: corregida en el motor (v4.18.0, 3ª fase)
 

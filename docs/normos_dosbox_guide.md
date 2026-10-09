@@ -12,7 +12,7 @@ subirse al repositorio**. Es software comercial de WissEl GmbH.
 
 | Componente | Detalle |
 |---|---|
-| DOSBox | dosbox-staging v0.82.2, instalado como snap en `/usr/local/bin/dosbox` |
+| DOSBox | **dosbox-staging** (probado 0.82.2 y 0.83.0; snap: `sudo snap install dosbox-staging`, comando `dosbox-staging`). El DOSBox clásico 0.74 **no sirve**: SITE se corta al leer el espectro, también con trabajos reales |
 | SITE.EXE | NORMOS/SITE v. 27.01.1994 (WissEl GmbH, "Demonstration version") |
 | Display X11 | `:0` (sesión gráfica real); DOSBox-staging **requiere display real**, falla con `SDL_VIDEODRIVER=dummy` (no OpenGL) |
 | Directorio de trabajo | `/home/jorge/normos_work/` (fuera del repo) |

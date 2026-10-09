@@ -24,11 +24,17 @@ from pathlib import Path
 
 import numpy as np
 
-FITBAUER_ROOT = Path("/home/jorge/fitbauer")
+# Raíz del repositorio deducida de este fichero (validacion/generador/…), no
+# una ruta fija: el repo se movió de ~/fitbauer a ~/fitbauer/Mossbauer y las
+# rutas absolutas dejaron el banco inservible.
+FITBAUER_ROOT = Path(__file__).resolve().parents[2]
 VALID_ROOT = FITBAUER_ROOT / "validacion"
 STAGING_ROOT = VALID_ROOT / "_staging"
-SITE_EXE = Path("/home/jorge/normos_work/SITE.EXE")
-DOSBOX = "dosbox"  # dosbox-staging 0.82.2 vía symlink /usr/local/bin/dosbox
+# Binarios de NORMOS (comerciales, WissEl; nunca al repo). Configurables por
+# entorno; por defecto ~/normos_work/SITE.EXE y validacion/DIST.EXE.
+SITE_EXE = Path(os.environ.get("NORMOS_SITE_EXE",
+                               Path.home() / "normos_work" / "SITE.EXE"))
+DOSBOX = os.environ.get("DOSBOX", "dosbox")  # probado con dosbox-staging 0.82.2 y DOSBox 0.74-3
 
 sys.path.insert(0, str(FITBAUER_ROOT))
 
@@ -137,7 +143,7 @@ def site_params(nsub: int, comps: list[dict], extra: list[str] | None = None,
 
 # ── Ejecución bajo DOSBox ─────────────────────────────────────────────────────
 
-DIST_EXE = VALID_ROOT / "DIST.EXE"
+DIST_EXE = Path(os.environ.get("NORMOS_DIST_EXE", VALID_ROOT / "DIST.EXE"))
 
 
 def run_dosbox_batch(staging: Path, stems: list[str],

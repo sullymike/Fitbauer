@@ -23,6 +23,14 @@ catalogue of every spectrum in the bank with its fit.
 **Synthetic bank** — 411 spectra, ~1,150 fits, 6,497 comparisons. Median
 deviation from the true value: 2·10⁻⁷ mm/s in position and 4·10⁻⁵ T in BHF for
 the first-order core; 6·10⁻⁵ mm/s and 8·10⁻⁴ T with the full Hamiltonian.
+Regenerated on 2026-10-09 with Fitbauer 5.1.1+ (432 cases, 6,520
+comparisons; `generador/banco_completo.sh`): the same medians are reproduced.
+
+**Ising relaxation** — validated against the SITE binary to ~10⁻⁵ of the
+peak (`generador/sonda_relajacion*.py`), with `OME` (MHz) = 2k. The August
+probe had used `BH0 = BHF` (total polarization, no exchange possible). With
+unequal populations NORMOS follows its own rule, available as
+`relax_convention="normos"`.
 
 **Real jobs** — 564 fits performed in NORMOS, reloaded and reproduced. In 355
 of 503 comparable jobs (71 %) Fitbauer matches or improves on its reduced χ²
