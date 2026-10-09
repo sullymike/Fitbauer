@@ -30,15 +30,27 @@ class ConstraintsDialog(QtWidgets.QDialog):
     def __init__(self, parent: "MossbauerQtWindow"):
         super().__init__(parent)
         self.setWindowTitle(tr("options.constraints"))
-        self.resize(660, 380)
+        self.resize(900, 380)
         self.parent_win = parent
         v = QtWidgets.QVBoxLayout(self)
         v.addWidget(QtWidgets.QLabel(
-            "<i>target = factor · source + offset</i>"))
+            "<b>" + tr("constraints.title") + "</b>"))
+        sub = QtWidgets.QLabel("<i>" + tr("constraints.subtitle") + "</i>")
+        sub.setWordWrap(True)
+        v.addWidget(sub)
         self.table = QtWidgets.QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(["target", "factor", "source", "offset"])
+        self.table.setHorizontalHeaderLabels([
+            tr("constraints.col_target"), tr("constraints.col_factor"),
+            tr("constraints.col_source"), tr("constraints.col_offset"),
+        ])
         h = self.table.horizontalHeader()
-        h.setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+        # Destino/origen se llevan el ancho (nombres del panel); factor y
+        # suma solo necesitan el del número.
+        for col in (0, 2):
+            h.setSectionResizeMode(col, QtWidgets.QHeaderView.Stretch)
+        for col in (1, 3):
+            h.setSectionResizeMode(col, QtWidgets.QHeaderView.Fixed)
+            h.resizeSection(col, 110)
         v.addWidget(self.table, stretch=1)
         row = QtWidgets.QHBoxLayout()
         btn_add = QtWidgets.QPushButton("+")
@@ -55,13 +67,26 @@ class ConstraintsDialog(QtWidgets.QDialog):
         self._param_keys = self._collect_param_keys()
         self._load_existing()
 
-    def _collect_param_keys(self) -> list[str]:
-        """Claves de parámetros disponibles (de las 3 componentes)."""
-        keys: list[str] = []
+    def _collect_param_keys(self) -> list[tuple[str, str]]:
+        """Parámetros que se ven ahora en el panel de simulación y ajuste.
+
+        Solo los componentes activos y, de cada uno, los parámetros que su
+        forma/modo muestran (``relevant_params``), en el orden del panel. Se
+        devuelven como ``(clave interna, etiqueta)``: la clave ``s1_delta`` es
+        la que se guarda en la restricción; la etiqueta es la del panel
+        («Componente 1 · δ isomérico»).
+        """
+        items: list[tuple[str, str]] = []
         for cp in self.parent_win.components_panels:
-            for name in cp.params:
-                keys.append(f"s{cp.idx}_{name}")
-        return keys
+            if not cp.enabled.isChecked():
+                continue
+            relevant = cp.relevant_params()
+            comp = tr("tab.component", idx=cp.idx)
+            for name, ctl in cp.params.items():
+                if name in relevant:
+                    items.append((f"s{cp.idx}_{name}",
+                                  f"{comp} · {ctl.label.text()}"))
+        return items
 
     def _load_existing(self) -> None:
         constraints = getattr(self.parent_win, "constraints", []) or []
@@ -70,9 +95,17 @@ class ConstraintsDialog(QtWidgets.QDialog):
 
     def _make_combo(self, current: str = "") -> QtWidgets.QComboBox:
         cb = QtWidgets.QComboBox()
-        cb.addItems(self._param_keys)
-        if current in self._param_keys:
-            cb.setCurrentText(current)
+        for key, label in self._param_keys:
+            cb.addItem(label, key)
+        if current:
+            i = cb.findData(current)
+            if i < 0:
+                # Restricción previa sobre un parámetro que ahora no se muestra
+                # (componente desactivado, otra forma, calibración…): se
+                # conserva con su clave para no perderla al aceptar.
+                cb.addItem(current, current)
+                i = cb.count() - 1
+            cb.setCurrentIndex(i)
         return cb
 
     def _make_spin(self, value: float, decimals: int = 4) -> QtWidgets.QDoubleSpinBox:
@@ -88,6 +121,9 @@ class ConstraintsDialog(QtWidgets.QDialog):
         self.table.setCellWidget(r, 1, self._make_spin((c or {}).get("factor", 1.0)))
         self.table.setCellWidget(r, 2, self._make_combo((c or {}).get("source", "")))
         self.table.setCellWidget(r, 3, self._make_spin((c or {}).get("offset", 0.0)))
+        # Conserva campos extra de la restricción original (p. ej. 'enabled').
+        self.table.setVerticalHeaderItem(r, QtWidgets.QTableWidgetItem(str(r + 1)))
+        self.table.verticalHeaderItem(r).setData(Qt.UserRole, dict(c or {}))
 
     def _remove_row(self) -> None:
         rows = sorted({i.row() for i in self.table.selectedIndexes()}, reverse=True)
@@ -97,14 +133,19 @@ class ConstraintsDialog(QtWidgets.QDialog):
     def _apply_and_accept(self) -> None:
         new: list[dict] = []
         for r in range(self.table.rowCount()):
-            target = self.table.cellWidget(r, 0).currentText()
+            target = self.table.cellWidget(r, 0).currentData()
             factor = float(self.table.cellWidget(r, 1).value())
-            source = self.table.cellWidget(r, 2).currentText()
+            source = self.table.cellWidget(r, 2).currentData()
             offset = float(self.table.cellWidget(r, 3).value())
             if target and source and target != source:
-                new.append({"target": target, "factor": factor,
-                             "source": source, "offset": offset})
+                hdr = self.table.verticalHeaderItem(r)
+                c = dict(hdr.data(Qt.UserRole) or {}) if hdr is not None else {}
+                c.update({"target": target, "factor": factor,
+                          "source": source, "offset": offset})
+                new.append(c)
         self.parent_win.constraints = new
+        # Refleja ya en el panel el valor de los parámetros destino.
+        self.parent_win._sync_constraint_targets()
         self.parent_win._refresh_plot()
         self.accept()
 

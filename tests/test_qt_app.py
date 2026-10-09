@@ -2259,3 +2259,31 @@ def test_el_guardado_es_atomico(tmp_path, monkeypatch):
     data_io.update_settings(b=2)
     assert not (tmp_path / "settings.json.tmp").exists()
     assert sorted(p.name for p in tmp_path.iterdir()) == ["settings.json"]
+
+
+def test_constraints_dialog_lists_only_panel_params_with_panel_labels(win):
+    """El diálogo de restricciones ofrece solo lo que se ve en el panel de
+    simulación y ajuste, con sus etiquetas, y guarda las claves internas."""
+    from gui.dialogs import ConstraintsDialog
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.n_components_spin.setValue(2)
+    win.components_panels[1].type_combo.setCurrentText("Doblete")
+    win.constraints = [{"target": "s2_delta", "source": "s1_delta",
+                        "factor": 1.0, "offset": 0.0, "enabled": True}]
+    dlg = ConstraintsDialog(win)
+    cb = dlg.table.cellWidget(0, 0)
+    keys = [cb.itemData(i) for i in range(cb.count())]
+    labels = [cb.itemText(i) for i in range(cb.count())]
+    # Solo componentes activos (1 y 2) y parámetros visibles de su forma.
+    assert all(k.startswith(("s1_", "s2_")) for k in keys)
+    assert "s1_bhf" in keys and "s2_bhf" not in keys     # el doblete no tiene BHF
+    assert "s1_int3" not in keys                          # int3 nunca se muestra
+    # Etiquetas del panel, no claves internas.
+    p1 = win.components_panels[0].params["delta"].label.text()
+    assert labels[keys.index("s1_delta")].endswith(p1)
+    assert not any(lbl.startswith("s1_") for lbl in labels)
+    assert cb.currentData() == "s2_delta"
+    dlg._apply_and_accept()
+    assert win.constraints[0]["target"] == "s2_delta"
+    assert win.constraints[0]["source"] == "s1_delta"
+    assert win.constraints[0]["enabled"] is True
