@@ -1156,9 +1156,21 @@ def test_qt_distribution_range_limits_follow_mode(win):
     assert win.dist_panel.bmin.spin.maximum() == 7.0
     assert win.dist_panel.bmax.spin.minimum() == 0.0
     assert win.dist_panel.bmax.spin.maximum() == 7.0
-    assert win.dist_panel.bmin.value() == 7.0
-    assert win.dist_panel.bmax.value() == 7.0
-    assert win.dist_panel.fixed_bhf.isEnabled()
+    # Cada variable tiene su malla: P(ΔEQ) arranca en 0–3 mm/s y al volver a
+    # P(BHF) se recupera 10–50 T (antes quedaba recortada a 7–7).
+    assert win.dist_panel.bmin.value() == 0.0
+    assert win.dist_panel.bmax.value() == 3.0
+    win.dist_panel.bmax.set_value(4.0)
+    win.mode_combo.setCurrentIndex(3)                     # P(IS): −1…2 mm/s
+    assert (win.dist_panel.bmin.value(), win.dist_panel.bmax.value()) == (-1.0, 2.0)
+    win.mode_combo.setCurrentIndex(1)
+    assert (win.dist_panel.bmin.value(), win.dist_panel.bmax.value()) == (10.0, 50.0)
+    win.mode_combo.setCurrentIndex(2)
+    assert win.dist_panel.bmax.value() == 4.0
+    # Junto a BHF, el eje ΔEQ del 2D admite valores negativos (2ε con signo).
+    win.mode_combo.setCurrentIndex(4)
+    assert win.dist_panel.qmin.spin.minimum() < 0.0
+    assert win.dist_panel.qmin.value() == -1.0
 
 
 def test_qt_distribution_2d_mode_is_exposed_and_persisted(win):

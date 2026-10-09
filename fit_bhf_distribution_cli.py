@@ -45,6 +45,7 @@ import numpy as np
 from core.constants import SEXTET_PATTERNS, sextet_pattern
 from core.physics import intensity_convention, line_asymmetry
 from core.param_overrides import effective_distribution_specs
+from core.params import DIST_VAR_DEFAULT_SPAN
 from mossbauer_bhf_pipeline import make_sharp_components
 from mossbauer_distribution import (
     fit_bhf_quad_distribution,
@@ -416,8 +417,7 @@ def _run(args) -> None:
     _gamma_default = float(effective_distribution_specs()["gamma"].default)
     gamma = float(args.gamma if args.gamma is not None else sidecar.get("gamma", _gamma_default))
     # Rango de la malla por defecto según la variable (T para BHF, mm/s para ΔEQ).
-    _rango_defecto = {"quad": (0.0, 3.0), "delta": (-1.0, 2.0)}.get(
-        args.variable, (0.0, 50.0))
+    _rango_defecto = DIST_VAR_DEFAULT_SPAN[args.variable]
     bmin = float(args.bmin) if args.bmin is not None else _rango_defecto[0]
     bmax = float(args.bmax) if args.bmax is not None else _rango_defecto[1]
 

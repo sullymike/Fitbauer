@@ -8,7 +8,7 @@ from PySide6 import QtCore, QtWidgets
 from dataclasses import astuple
 
 from mossbauer_i18n import tr
-from core.params import DIST_VAR_RANGE, DIST_RANGE_RESOLUTION
+from core.params import DIST_VAR_DEFAULT_SPAN, DIST_VAR_RANGE, DIST_RANGE_RESOLUTION
 from core.param_overrides import effective_distribution_specs
 from gui.controls import ParamControl
 from gui.state import DistributionViewState
@@ -201,6 +201,9 @@ class DistributionPanel(QtWidgets.QGroupBox):
         # Estado interno para sincronización 2D
         self._distribution_variable = "bhf"
         self._distribution_pair = ("bhf", "quad")
+        # Malla recordada por (eje, variable); el eje X arranca con la de BHF.
+        self._spans: dict[tuple[str, str], tuple[float, float]] = {}
+        self._span_owner: dict[str, str | None] = {"x": "bhf", "y": None}
         self._sync_2d_controls()
 
     _SHAPES_1D = (("Histograma", "shape.Histograma"),
@@ -254,7 +257,31 @@ class DistributionPanel(QtWidgets.QGroupBox):
             return s["is_lo"].default, s["is_hi"].default
         if var == "quad":
             return s["quad_lo"].default, s["quad_hi"].default
+        if var == "quad±":
+            return s["qmin"].lo, s["qmax"].hi
         return DIST_VAR_RANGE.get(var, DIST_VAR_RANGE["bhf"])
+
+    def _switch_axis_range(self, axis: str, key: str) -> None:
+        """Pone en el eje ``x`` (bmin/bmax) o ``y`` (qmin/qmax) el rango de ``key``.
+
+        Cada variable recuerda su propia malla: antes los valores de BHF se
+        recortaban a los límites de IS al cambiar de modo (0–50 T → 0–2.5 mm/s)
+        y al volver a BHF quedaba una malla de 0–2.5 T.
+        """
+        lo_ctl, hi_ctl = (self.bmin, self.bmax) if axis == "x" else (self.qmin, self.qmax)
+        lo, hi = self._dist_var_range(key)
+        owner = self._span_owner.get(axis)
+        if owner == key:
+            for ctl in (lo_ctl, hi_ctl):
+                ctl.set_range(lo, hi, DIST_RANGE_RESOLUTION)
+            return
+        if owner is not None:
+            self._spans[(axis, owner)] = (lo_ctl.value(), hi_ctl.value())
+        a, b = self._spans.get((axis, key), DIST_VAR_DEFAULT_SPAN.get(key, (lo, hi)))
+        for ctl, val in ((lo_ctl, a), (hi_ctl, b)):
+            ctl.set_range(lo, hi, DIST_RANGE_RESOLUTION)
+            ctl.set_value(min(hi, max(lo, float(val))))
+        self._span_owner[axis] = key
 
     def _sync_2d_controls(self) -> None:
         is_2d = self.shape == "2D"
@@ -307,12 +334,10 @@ class DistributionPanel(QtWidgets.QGroupBox):
                 if "quad" in (x_var, y_var) else tr("slider.dist_quad"))
             self.quad.setEnabled("quad" not in (x_var, y_var))
             self.fixed_bhf.setEnabled("bhf" not in (x_var, y_var))
-            lo, hi = self._dist_var_range(x_var)
-            for ctl in (self.bmin, self.bmax):
-                ctl.set_range(lo, hi, DIST_RANGE_RESOLUTION)
-            lo_y, hi_y = self._dist_var_range(y_var)
-            for ctl in (self.qmin, self.qmax):
-                ctl.set_range(lo_y, hi_y, DIST_RANGE_RESOLUTION)
+            self._switch_axis_range("x", x_var)
+            # Junto a BHF, ΔEQ es el corrimiento 2ε de un sextete: lleva signo.
+            self._switch_axis_range(
+                "y", "quad±" if (y_var == "quad" and x_var == "bhf") else y_var)
         else:
             var = getattr(self, "_distribution_variable", "bhf")
             self.log_alpha.label.setText(tr("slider.dist_log_alpha"))
@@ -328,9 +353,7 @@ class DistributionPanel(QtWidgets.QGroupBox):
                 tr("slider.dist_quad_inactive", default="ΔEQ global (no usado: distribuido)")
                 if is_quad else tr("slider.dist_quad"))
             self.quad.setEnabled(not is_quad)
-            lo, hi = self._dist_var_range(var)
-            for ctl in (self.bmin, self.bmax):
-                ctl.set_range(lo, hi, DIST_RANGE_RESOLUTION)
+            self._switch_axis_range("x", var)
 
     def set_distribution_variable(self, variable: str) -> None:
         """Modo 1D: variable distribuida ``bhf``, ``quad`` o ``delta``."""

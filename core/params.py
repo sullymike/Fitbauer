@@ -281,6 +281,16 @@ DIST_VAR_RANGE: dict[str, tuple[float, float]] = {
 }
 DIST_RANGE_RESOLUTION: float = 0.1
 
+#: Malla inicial de cada variable al entrar en su modo (la misma que la CLI).
+#: «quad±» es ΔEQ con signo: el corrimiento cuadrupolar 2ε dentro de un
+#: sextete (eje ΔEQ de P(BHF, ΔEQ)), donde el signo sí cambia el espectro.
+DIST_VAR_DEFAULT_SPAN: dict[str, tuple[float, float]] = {
+    "bhf":   (0.0, 50.0),
+    "quad":  (0.0,  3.0),
+    "quad±": (-1.0, 1.0),
+    "delta": (-1.0, 2.0),
+}
+
 
 def component_default_value(name: str, idx: int = 1) -> float:
     """Valor por defecto de un parámetro de componente (``depth`` depende del índice)."""
