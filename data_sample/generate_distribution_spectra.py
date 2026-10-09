@@ -112,7 +112,7 @@ def base_session(filename: str, mode_combo_idx: int, dist_variable: str, vars_pa
         "voigt_sigma": 0.05,
         "dist_delta": ISO_REF,
         "dist_quad": 0.0,
-        "dist_fixed_bhf": 33.0,
+        "dist_fixed_bhf": 0.0,   # kernel de P(ΔEQ): dobletes (B = 0)
         "dist_gamma": 0.18,
         "dist_bmin": 10.0,
         "dist_bmax": 55.0,

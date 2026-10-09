@@ -909,5 +909,12 @@
   "tab.distribution": "Распределение {label}",
   "plot.distribution_xlabel_is": "δ (mm/s)",
   "slider.dist_bmin_delta": "IS мин (mm/s)",
-  "slider.dist_bmax_delta": "IS макс (mm/s)"
+  "slider.dist_bmax_delta": "IS макс (mm/s)",
+  "bhf.field_advanced": "Секстет с фиксированным полем (расширенно)",
+  "bhf.field_advanced_tip": "Без отметки каждый столбец P(ΔEQ) — дублет (B = 0), обычный случай. Отмечайте только для распределения квадрупольного сдвига секстета при фиксированном поле.",
+  "bhf.warn_is_gamma": "⚠ Распределение IS одинаково уширяет все линии и смешивается с Γ: зафиксируйте Γ, чтобы P(IS) имело смысл.",
+  "bhf.warn_quad_field": "⚠ При B ≠ 0 каждый столбец — секстет первого порядка: верно только если ΔEQ много меньше магнитного расщепления (не подходит для приложенных полей в несколько тесла).",
+  "slider.dist_delta_inactive": "δ (не используется: распределён)",
+  "slider.dist_delta_slope_quad": "κδ dδ/dΔEQ",
+  "slider.dist_quad_slope_is": "κq dΔEQ/dδ"
 }

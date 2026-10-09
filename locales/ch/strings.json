@@ -909,5 +909,12 @@
   "tab.distribution": "{label} 分布",
   "plot.distribution_xlabel_is": "δ (mm/s)",
   "slider.dist_bmin_delta": "IS 最小值 (mm/s)",
-  "slider.dist_bmax_delta": "IS 最大值 (mm/s)"
+  "slider.dist_bmax_delta": "IS 最大值 (mm/s)",
+  "bhf.field_advanced": "固定场六重峰（高级）",
+  "bhf.field_advanced_tip": "未勾选时 P(ΔEQ) 的每一列都是双峰（B = 0），这是通常情况。仅在需要分布固定场六重峰的四极位移时勾选。",
+  "bhf.warn_is_gamma": "⚠ IS 分布会同等地展宽所有谱线，与 Γ 无法区分：请固定 Γ，使 P(IS) 有意义。",
+  "bhf.warn_quad_field": "⚠ B ≠ 0 时每一列都是一级六重峰：仅当 ΔEQ 远小于磁分裂时有效（不适用于几特斯拉的外加场）。",
+  "slider.dist_delta_inactive": "δ（未使用：已分布）",
+  "slider.dist_delta_slope_quad": "κδ dδ/dΔEQ",
+  "slider.dist_quad_slope_is": "κq dΔEQ/dδ"
 }

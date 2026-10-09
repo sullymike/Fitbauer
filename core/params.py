@@ -204,7 +204,9 @@ DISTRIBUTION_PARAM_SPECS: dict[str, ParamSpec] = {
     # Parámetros globales del perfil lineal
     "delta":       ParamSpec(0.0,          -2.5,  2.5,   0.001, 4),
     "quad":        ParamSpec(0.0,          -4.0,  4.0,   0.001, 4),
-    "fixed_bhf":   ParamSpec(BHF_DEFAULT_T, 0.0, 60.0,   0.01,  3),
+    # Campo del kernel de P(ΔEQ) con la opción avanzada «campo fijo»; lo
+    # normal es B = 0 (dobletes), que es también el valor sin la opción.
+    "fixed_bhf":   ParamSpec(0.0,           0.0, 60.0,   0.01,  3),
     "gamma":       ParamSpec(0.36,          0.06,  2.0,  0.001, 4),
     # Malla eje X  (BHF / ΔEQ / IS según modo)
     "bmin":        ParamSpec(0.0,    0.0,  60.0,  0.1, 2),

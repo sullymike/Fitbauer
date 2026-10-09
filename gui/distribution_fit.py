@@ -250,12 +250,12 @@ class DistributionFitMixin:
                 absorber_theta=dist_state.absorber_theta,
             )
             if var == "quad":
-                extra = dict(variable="quad", bhf=dist_state.fixed_bhf)
+                extra = dict(variable="quad", bhf=dist_state.kernel_bhf)
             elif var == "delta":
                 # P(IS): sin esta rama el escaneo caía a variable="bhf" con la
                 # malla de IS interpretada como teslas.
                 extra = dict(variable="delta", quad=dist_state.quad,
-                             bhf=dist_state.fixed_bhf)
+                             bhf=dist_state.kernel_bhf)
             else:
                 extra = dict(variable="bhf", quad=dist_state.quad)
             fits = [fit_hyperfine_distribution(
@@ -460,7 +460,7 @@ class DistributionFitMixin:
                     v_arr, y_arr,
                     variable_x=pair[0], variable_y=pair[1],
                     delta=delta_value, quad=quad_value,
-                    bhf=(dist_state.fixed_bhf if "bhf" not in pair else BHF_DEFAULT_T),
+                    bhf=(dist_state.kernel_bhf if "bhf" not in pair else BHF_DEFAULT_T),
                     gamma=gamma_value,
                     bmin=bmin, bmax=bmax, nbins_bhf=nbins,
                     qmin=qmin, qmax=qmax, nbins_quad=qbins,
@@ -476,7 +476,7 @@ class DistributionFitMixin:
             common = dict(
                 variable=var, delta=delta_value, gamma=gamma_value,
                 quad=(0.0 if var == "quad" else quad_value),
-                bhf=(dist_state.fixed_bhf if var in ("quad", "delta") else BHF_DEFAULT_T),
+                bhf=(dist_state.kernel_bhf if var in ("quad", "delta") else BHF_DEFAULT_T),
                 baseline=calib_state.baseline, slope=calib_state.slope,
                 fit_baseline=fit_baseline, fit_slope=fit_slope,
                 sharp_components=sharp_for_fit,
@@ -536,10 +536,12 @@ class DistributionFitMixin:
             outer_specs.append(("dist_gamma", "loggamma", d.gamma._lo, d.gamma._hi))
         # Nivel (b): refinar las pendientes de correlación δ(H)/ΔEQ(H) en la capa
         # externa (son no lineales). Solo con Histograma/VBF y si no están fijas.
+        # Solo las pendientes que tienen sentido con la variable (las visibles):
+        # P(BHF) ambas, P(ΔEQ) solo δ(ΔEQ), P(IS) solo ΔEQ(δ); en 2D ninguna.
         if shape in ("Histograma", "VBF"):
-            if not dist_state.is_fixed("delta_slope"):
+            if not dist_state.is_fixed("delta_slope") and var in ("bhf", "quad"):
                 outer_specs.append(("dist_delta_slope", "lin", d.delta_slope._lo, d.delta_slope._hi))
-            if not dist_state.is_fixed("quad_slope"):
+            if not dist_state.is_fixed("quad_slope") and var in ("bhf", "delta"):
                 outer_specs.append(("dist_quad_slope", "lin", d.quad_slope._lo, d.quad_slope._hi))
         if sharp_components:
             for pos, idx in enumerate(sharp_indices):

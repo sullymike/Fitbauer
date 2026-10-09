@@ -590,6 +590,11 @@ def job_to_distribution_state(text: str) -> dict:
     delta = _f(_idx(param, "ISO", 1), 0.0)
     quad = _f(_idx(param, "QUA", 1), 0.0)
     campo_fijo = _f(_idx(param, "BHF", 1), 0.0) if variable != "bhf" else 33.0
+    if variable == "delta" and campo_fijo > 0.0:
+        avisos.append(
+            f"BHF={campo_fijo:g} con METHOD=8: la P(IS) de Fitbauer usa siempre "
+            "B = 0; se importa sin campo.")
+        campo_fijo = 0.0
 
     if _f(_idx(param, "STI", 1), 0.0) or _f(_idx(param, "STG", 1), 0.0):
         avisos.append(
@@ -635,6 +640,8 @@ def job_to_distribution_state(text: str) -> dict:
         "dist_delta": delta,
         "dist_quad": quad,
         "dist_fixed_bhf": campo_fijo,
+        # Campo en una distribución de cuadrupolo = opción avanzada del panel.
+        "dist_field_enabled": variable == "quad" and campo_fijo > 0.0,
         "dist_gamma": gamma,
         "dist_bmin": bmin,
         "dist_bmax": bmax,

@@ -12,7 +12,7 @@
       "voigt_sigma": 0.05,
       "dist_delta": 0.24079999999999996,
       "dist_quad": 0.85,
-      "dist_fixed_bhf": 33.0,
+      "dist_fixed_bhf": 0.0,
       "dist_gamma": 0.18,
       "dist_bmin": 0.0,
       "dist_bmax": 2.5,

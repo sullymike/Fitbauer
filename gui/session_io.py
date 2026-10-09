@@ -348,6 +348,10 @@ class SessionIOMixin:
                             ctl.set_value(float(val))
                         except (TypeError, ValueError):
                             pass
+                # Después de dist_fixed_bhf: la regla de las sesiones antiguas
+                # (sin la clave) depende de ese campo y de la variable.
+                dp.field_enabled.setChecked(
+                    DistributionViewState.field_enabled_from_state(state))
                 kt = state.get("dist_kernel_treatment")
                 if kt is not None:
                     if str(kt) == "polarized":

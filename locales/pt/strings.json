@@ -909,5 +909,12 @@
   "tab.distribution": "Distribuição {label}",
   "plot.distribution_xlabel_is": "δ (mm/s)",
   "slider.dist_bmin_delta": "IS mín (mm/s)",
-  "slider.dist_bmax_delta": "IS máx (mm/s)"
+  "slider.dist_bmax_delta": "IS máx (mm/s)",
+  "bhf.field_advanced": "Sexteto com campo fixo (avançado)",
+  "bhf.field_advanced_tip": "Desmarcado, cada coluna de P(ΔEQ) é um dubleto (B = 0), o caso normal. Marque-o só para distribuir o deslocamento quadrupolar de um sexteto com campo fixo.",
+  "bhf.warn_is_gamma": "⚠ Uma distribuição de IS alarga todas as linhas por igual e confunde-se com Γ: fixe Γ (caixa «Fixo») para que P(IS) faça sentido.",
+  "bhf.warn_quad_field": "⚠ Com B ≠ 0 cada coluna é um sexteto de primeira ordem: só é válido se ΔEQ for muito menor que o desdobramento magnético (não serve para campos aplicados de poucos teslas).",
+  "slider.dist_delta_inactive": "δ (não usado: distribuído)",
+  "slider.dist_delta_slope_quad": "κδ dδ/dΔEQ",
+  "slider.dist_quad_slope_is": "κq dΔEQ/dδ"
 }

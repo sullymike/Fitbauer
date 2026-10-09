@@ -340,10 +340,13 @@ class DistributionViewState:
     shape: str = "Histograma"
     reg_mode: str = "tikhonov"
     fixed_distribution_path: Path | None = None
-    variable: str = "BHF"  # "BHF" / "ΔEQ"
+    variable: str = "BHF"  # "BHF" / "ΔEQ" / "IS" / "BHF-ΔEQ" / "IS-ΔEQ" / "BHF-IS"
     delta:     float = _DSPEC["delta"].default
     quad:      float = _DSPEC["quad"].default
     fixed_bhf: float = _DSPEC["fixed_bhf"].default
+    #: Opción avanzada: distribuir ΔEQ en sextetes con campo ``fixed_bhf``.
+    #: Desmarcada (lo normal), el kernel de P(ΔEQ) son dobletes (B = 0).
+    field_enabled: bool = False
     gamma:     float = _DSPEC["gamma"].default
     bmin:      float = _DSPEC["bmin"].default
     bmax:      float = _DSPEC["bmax"].default
@@ -369,6 +372,17 @@ class DistributionViewState:
     def alpha(self) -> float:
         return 10.0 ** float(self.log_alpha)
 
+    @property
+    def kernel_bhf(self) -> float:
+        """Campo de las columnas del kernel cuando BHF no es la variable distribuida.
+
+        P(IS) usa siempre B = 0 (como NORMOS-DIST METHOD=8); P(ΔEQ) y
+        P(IS, ΔEQ) también, salvo la opción avanzada ``field_enabled``.
+        """
+        if self.field_enabled and self.variable in ("ΔEQ", "IS-ΔEQ"):
+            return float(self.fixed_bhf)
+        return 0.0
+
     def is_fixed(self, name: str) -> bool:
         return bool(self.fixed.get(name, False))
 
@@ -392,6 +406,7 @@ class DistributionViewState:
             delta=_num("dist_delta", d.delta),
             quad=_num("dist_quad", d.quad),
             fixed_bhf=_num("dist_fixed_bhf", d.fixed_bhf),
+            field_enabled=cls.field_enabled_from_state(state),
             gamma=_num("dist_gamma", d.gamma),
             bmin=_num("dist_bmin", d.bmin),
             bmax=_num("dist_bmax", d.bmax),
@@ -413,6 +428,22 @@ class DistributionViewState:
             fixed=dict(state.get("dist_fixed") or {}),
         )
 
+    @staticmethod
+    def field_enabled_from_state(state: dict[str, Any]) -> bool:
+        """``dist_field_enabled`` de la sesión, con la regla de las antiguas.
+
+        Antes de esta opción P(ΔEQ) usaba siempre sextetes al «BHF fijo»
+        guardado: si la sesión no trae la clave, se activa cuando ese campo era
+        > 0 para reproducir el ajuste tal y como se hizo.
+        """
+        if "dist_field_enabled" in state:
+            return bool(state["dist_field_enabled"])
+        try:
+            bhf = float(state.get("dist_fixed_bhf", 0.0))
+        except (TypeError, ValueError):
+            bhf = 0.0
+        return state.get("dist_variable") in ("ΔEQ", "IS-ΔEQ") and bhf > 0.0
+
     def to_model_state_fragment(self) -> dict[str, Any]:
         return {
             "dist_use_sharp": bool(self.use_sharp),
@@ -428,6 +459,7 @@ class DistributionViewState:
             "dist_delta": float(self.delta),
             "dist_quad": float(self.quad),
             "dist_fixed_bhf": float(self.fixed_bhf),
+            "dist_field_enabled": bool(self.field_enabled),
             "dist_gamma": float(self.gamma),
             "dist_bmin": float(self.bmin),
             "dist_bmax": float(self.bmax),

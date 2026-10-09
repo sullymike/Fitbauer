@@ -61,6 +61,14 @@ class DistributionPanel(QtWidgets.QGroupBox):
         shape_row.addWidget(self.shape_combo, stretch=1)
         left_v.addLayout(shape_row)
 
+        # Aviso de uso (P(IS) con Γ libre, P(ΔEQ) con campo): oculto si no aplica.
+        self.var_warning = QtWidgets.QLabel()
+        self.var_warning.setObjectName("DistWarning")
+        self.var_warning.setWordWrap(True)
+        self.var_warning.setStyleSheet("color: #b45309;")
+        self.var_warning.setVisible(False)
+        left_v.addWidget(self.var_warning)
+
         reg_row = QtWidgets.QHBoxLayout()
         reg_row.addWidget(QtWidgets.QLabel(tr("bhf.reg_mode_label") + ":"))
         self.reg_mode_combo = QtWidgets.QComboBox()
@@ -83,19 +91,26 @@ class DistributionPanel(QtWidgets.QGroupBox):
                                  else "Hamiltoniano (polvo)")), code)
         self.kernel_combo.currentIndexChanged.connect(lambda *_: self.paramChanged.emit())
         kt_row.addWidget(self.kernel_combo, stretch=1)
-        left_v.addLayout(kt_row)
+        # Todo lo de la física del kernel va en una caja que solo se ve en
+        # P(BHF) con Histograma: el resto de formas y variables no lo usan.
+        self._kernel_box = QtWidgets.QWidget()
+        kernel_v = QtWidgets.QVBoxLayout(self._kernel_box)
+        kernel_v.setContentsMargins(0, 0, 0, 0)
+        kernel_v.setSpacing(2)
+        left_v.addWidget(self._kernel_box)
+        kernel_v.addLayout(kt_row)
         self.kernel_eta = ParamControl(
             tr("slider.dist_kernel_eta", default="η EFG (kernel HC)"),
             0.0, 0.0, 1.0, 0.01, 3)
         self.kernel_eta.set_fixed(True)
-        left_v.addWidget(self.kernel_eta)
+        kernel_v.addWidget(self.kernel_eta)
         self.kernel_eta.valueChanged.connect(lambda *_: self.paramChanged.emit())
 
         # Fuente polarizada (paridad METHOD=4/POLAR de NORMOS-DIST): sexteto
         # emisor magnetizado; peine de 36 líneas por selección de helicidad.
         self.source_polarized = QtWidgets.QCheckBox(
             tr("bhf.source_polarized", default="Fuente polarizada (γ∥B)"))
-        left_v.addWidget(self.source_polarized)
+        kernel_v.addWidget(self.source_polarized)
         self.source_bhf = ParamControl(
             tr("slider.dist_source_bhf", default="B fuente (T)"),
             33.0, 0.0, 60.0, 0.01, 3)
@@ -106,7 +121,7 @@ class DistributionPanel(QtWidgets.QGroupBox):
             tr("slider.dist_absorber_theta", default="θ absorbente (°)"),
             0.0, 0.0, 90.0, 0.1, 2)
         for w in (self.source_bhf, self.source_theta, self.absorber_theta):
-            left_v.addWidget(w)
+            kernel_v.addWidget(w)
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
         self._sync_source_widgets()
         self.source_polarized.toggled.connect(
@@ -147,12 +162,24 @@ class DistributionPanel(QtWidgets.QGroupBox):
             0.0, -0.02, 0.02, 0.0005, 4)
         self.delta_slope.set_fixed(True)
         self.quad_slope.set_fixed(True)
-        for w in (self.delta, self.quad, self.fixed_bhf, self.gamma,
-                  self.delta_slope, self.quad_slope):
+        # Opción avanzada de P(ΔEQ): sextetes con campo fijo en vez de dobletes.
+        self.field_enabled = QtWidgets.QCheckBox(
+            tr("bhf.field_advanced", default="Sextete con campo fijo (avanzado)"))
+        self.field_enabled.setToolTip(tr("bhf.field_advanced_tip", default=""))
+        self.field_enabled.toggled.connect(
+            lambda *_: (self._sync_field_controls(), self.paramChanged.emit()))
+        self.fixed_bhf.label.setText(
+            tr("slider.dist_fixed_bhf_active", default="BHF fijo (T)"))
+        for w in (self.delta, self.quad, self.field_enabled, self.fixed_bhf,
+                  self.gamma, self.delta_slope, self.quad_slope):
             left_v.addWidget(w)
+            if not isinstance(w, ParamControl):
+                continue
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
             if w.fixed_cb is not None:
                 w.fixedChanged.connect(lambda *_: self.paramChanged.emit())
+        self.fixed_bhf.valueChanged.connect(lambda *_: self._sync_warning())
+        self.gamma.fixedChanged.connect(lambda *_: self._sync_warning())
         left_v.addStretch(1)
 
         # Columna 2 — rango/bins/alfa + controles 2D + presets y opciones.
@@ -204,6 +231,7 @@ class DistributionPanel(QtWidgets.QGroupBox):
         # Malla recordada por (eje, variable); el eje X arranca con la de BHF.
         self._spans: dict[tuple[str, str], tuple[float, float]] = {}
         self._span_owner: dict[str, str | None] = {"x": "bhf", "y": None}
+        self._slope_owner: str | None = "bhf"
         self._sync_2d_controls()
 
     _SHAPES_1D = (("Histograma", "shape.Histograma"),
@@ -333,7 +361,6 @@ class DistributionPanel(QtWidgets.QGroupBox):
                 tr("slider.dist_quad_inactive_2d", default="ΔEQ global (no usado: eje 2D)")
                 if "quad" in (x_var, y_var) else tr("slider.dist_quad"))
             self.quad.setEnabled("quad" not in (x_var, y_var))
-            self.fixed_bhf.setEnabled("bhf" not in (x_var, y_var))
             self._switch_axis_range("x", x_var)
             # Junto a BHF, ΔEQ es el corrimiento 2ε de un sextete: lleva signo.
             self._switch_axis_range(
@@ -345,15 +372,85 @@ class DistributionPanel(QtWidgets.QGroupBox):
             is_delta = var == "delta"
             self.bmin.label.setText(self._dist_var_label(var, "bmin"))
             self.bmax.label.setText(self._dist_var_label(var, "bmax"))
-            self.fixed_bhf.label.setText(
-                tr("slider.dist_fixed_bhf_active", default="BHF fijo (T)") if (is_quad or is_delta)
-                else tr("slider.dist_fixed_bhf_inactive", default="BHF fijo (no usado en modo BHF)"))
-            self.fixed_bhf.setEnabled(is_quad or is_delta)
             self.quad.label.setText(
                 tr("slider.dist_quad_inactive", default="ΔEQ global (no usado: distribuido)")
                 if is_quad else tr("slider.dist_quad"))
             self.quad.setEnabled(not is_quad)
             self._switch_axis_range("x", var)
+        self._sync_variable_controls(is_2d)
+
+    def _variables(self, is_2d: bool) -> tuple[str, ...]:
+        return tuple(self._distribution_pair) if is_2d else (self._distribution_variable,)
+
+    def _field_optional(self) -> bool:
+        """¿Admite la variable activa la opción de campo fijo? Solo con ΔEQ sin BHF."""
+        vars_ = self._variables(self._shape_choices_2d)
+        return "quad" in vars_ and "bhf" not in vars_
+
+    def effective_fixed_bhf(self) -> float:
+        """Campo de las columnas del kernel: 0 salvo la opción avanzada de P(ΔEQ)."""
+        if self._field_optional() and self.field_enabled.isChecked():
+            return float(self.fixed_bhf.value())
+        return 0.0
+
+    def _sync_field_controls(self) -> None:
+        optional = self._field_optional()
+        self.field_enabled.setVisible(optional)
+        self.fixed_bhf.setVisible(optional and self.field_enabled.isChecked())
+        self._sync_warning()
+
+    def _sync_warning(self) -> None:
+        text = ""
+        vars_ = self._variables(self._shape_choices_2d)
+        if vars_ == ("delta",) and not self.gamma.is_fixed():
+            text = tr("bhf.warn_is_gamma", default=(
+                "⚠ Una distribución de IS ensancha todas las líneas por igual y "
+                "se confunde con Γ: fija Γ para que P(IS) tenga sentido."))
+        elif self.effective_fixed_bhf() > 0.0:
+            text = tr("bhf.warn_quad_field", default=(
+                "⚠ Con B ≠ 0 cada columna es un sextete de primer orden: solo es "
+                "válido si ΔEQ es mucho menor que el desdoblamiento magnético."))
+        self.var_warning.setText(text)
+        self.var_warning.setVisible(bool(text))
+
+    #: Pendientes de correlación según la variable distribuida (1D): rótulo,
+    #: semirrango. Con BHF van por tesla; con ΔEQ o IS por mm/s (adimensional).
+    _SLOPES = {
+        "bhf": {"delta_slope": ("slider.dist_delta_slope", "κδ dδ/dH (mm/s·T⁻¹)", 0.02),
+                "quad_slope": ("slider.dist_quad_slope", "κq dΔEQ/dH (mm/s·T⁻¹)", 0.02)},
+        "quad": {"delta_slope": ("slider.dist_delta_slope_quad", "κδ dδ/dΔEQ", 1.0)},
+        "delta": {"quad_slope": ("slider.dist_quad_slope_is", "κq dΔEQ/dδ", 1.0)},
+    }
+
+    def _sync_variable_controls(self, is_2d: bool) -> None:
+        """Muestra solo lo que usa la variable y forma activas."""
+        var = self._distribution_variable
+        # Física del kernel (1er orden/Hamiltoniano/fuente polarizada): solo
+        # la consume el Histograma de P(BHF).
+        self._kernel_box.setVisible(
+            not is_2d and var == "bhf" and self.shape == "Histograma")
+        # δ global: en P(IS) (o un 2D con IS) es la variable distribuida.
+        uses_delta = "delta" in self._variables(is_2d)
+        self.delta.setEnabled(not uses_delta)
+        self.delta.label.setText(
+            tr("slider.dist_delta_inactive", default="δ (no usado: distribuido)")
+            if uses_delta else tr("slider.dist_delta"))
+        # Pendientes de correlación: no existen en 2D; en 1D según la variable.
+        slopes = {} if is_2d else self._SLOPES.get(var, {})
+        if self._slope_owner != (None if is_2d else var):
+            # Cambia el significado (y las unidades): se vuelve a «sin correlación».
+            for ctl in (self.delta_slope, self.quad_slope):
+                ctl.set_value(0.0)
+                ctl.set_fixed(True)
+            self._slope_owner = None if is_2d else var
+        for name, ctl in (("delta_slope", self.delta_slope), ("quad_slope", self.quad_slope)):
+            spec = slopes.get(name)
+            ctl.setVisible(spec is not None)
+            if spec is not None:
+                key, default, half = spec
+                ctl.label.setText(tr(key, default=default))
+                ctl.set_range(-half, half)
+        self._sync_field_controls()
 
     def set_distribution_variable(self, variable: str) -> None:
         """Modo 1D: variable distribuida ``bhf``, ``quad`` o ``delta``."""
@@ -388,6 +485,7 @@ class DistributionPanel(QtWidgets.QGroupBox):
             delta=self.delta.value(),
             quad=self.quad.value(),
             fixed_bhf=self.fixed_bhf.value(),
+            field_enabled=self.field_enabled.isChecked(),
             gamma=self.gamma.value(),
             bmin=self.bmin.value(),
             bmax=self.bmax.value(),

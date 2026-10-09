@@ -909,5 +909,12 @@
   "tab.distribution": "Distribution {label}",
   "plot.distribution_xlabel_is": "δ (mm/s)",
   "slider.dist_bmin_delta": "IS min (mm/s)",
-  "slider.dist_bmax_delta": "IS max (mm/s)"
+  "slider.dist_bmax_delta": "IS max (mm/s)",
+  "bhf.field_advanced": "Sextet à champ fixe (avancé)",
+  "bhf.field_advanced_tip": "Décoché, chaque colonne de P(ΔEQ) est un doublet (B = 0), le cas habituel. Cochez-le seulement pour distribuer le déplacement quadripolaire d'un sextet à champ fixe.",
+  "bhf.warn_is_gamma": "⚠ Une distribution d'IS élargit toutes les raies de la même façon et se confond avec Γ : fixez Γ (case « Fixe ») pour que P(IS) ait un sens.",
+  "bhf.warn_quad_field": "⚠ Avec B ≠ 0 chaque colonne est un sextet au premier ordre : valable seulement si ΔEQ est très inférieur à l'éclatement magnétique (inadapté aux champs appliqués de quelques teslas).",
+  "slider.dist_delta_inactive": "δ (inutilisé : distribué)",
+  "slider.dist_delta_slope_quad": "κδ dδ/dΔEQ",
+  "slider.dist_quad_slope_is": "κq dΔEQ/dδ"
 }

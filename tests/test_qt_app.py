@@ -1228,6 +1228,72 @@ def test_panel_distribucion_rotula_la_variable_activa(win):
     assert d.shape == "Histograma"
 
 
+def test_pdeq_y_pis_usan_dobletes_y_el_campo_es_opcion_avanzada(win, make_window):
+    """P(ΔEQ)/P(IS) dibujaban sextetes: el kernel usaba «BHF fijo» = 33 T."""
+    import numpy as np
+    d = win.dist_panel
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.mode_combo.setCurrentIndex(3)                     # P(IS)
+    st = d.to_view_state(variable=win.dist_variable)
+    assert st.kernel_bhf == 0.0
+    assert d.field_enabled.isHidden() and d.fixed_bhf.isHidden()
+    assert not d.delta.isEnabled()                        # δ es la variable
+    assert d._kernel_box.isHidden()                       # física del kernel: solo P(BHF)
+    assert d.delta_slope.isHidden() and not d.quad_slope.isHidden()
+    # Aviso de Γ libre, que desaparece al fijar Γ.
+    assert not d.var_warning.isHidden()
+    d.gamma.set_fixed(True)
+    assert d.var_warning.isHidden()
+
+    win.mode_combo.setCurrentIndex(2)                     # P(ΔEQ)
+    assert not d.field_enabled.isHidden() and not d.field_enabled.isChecked()
+    assert d.fixed_bhf.isHidden()
+    assert d.to_view_state(variable=win.dist_variable).kernel_bhf == 0.0
+    assert not d.delta_slope.isHidden() and d.quad_slope.isHidden()
+    assert "ΔEQ" in d.delta_slope.label.text()
+    d.field_enabled.setChecked(True)
+    d.fixed_bhf.spin.setValue(5.0)                        # como al teclearlo
+    assert not d.fixed_bhf.isHidden()
+    assert d.to_view_state(variable=win.dist_variable).kernel_bhf == 5.0
+    assert not d.var_warning.isHidden()                   # aviso de 1er orden
+
+    # El ajuste usa dobletes: el modelo no tiene absorción en ±5 mm/s.
+    d.field_enabled.setChecked(False)
+    _fix_dist_globals(d)
+    win._show_distribution_dialog = lambda r: None
+    win.on_fit()
+    r = win.runtime_results.distribution_result
+    v = win.file.velocity
+    outer = np.abs(v) > 4.0
+    assert np.ptp(r.fitted_curve[outer] - (r.baseline + r.slope * v[outer])) < 1e-3
+
+    # La opción viaja en la sesión; las antiguas con BHF > 0 la activan.
+    d.field_enabled.setChecked(True)
+    payload = win._session_payload()
+    assert payload["model_state"]["dist_field_enabled"] is True
+    win2 = make_window()
+    win2._apply_session_payload(payload)
+    assert win2.dist_panel.field_enabled.isChecked()
+    legacy = dict(payload)
+    legacy["model_state"] = {k: v for k, v in payload["model_state"].items()
+                             if k != "dist_field_enabled"}
+    legacy["model_state"]["dist_fixed_bhf"] = 33.0
+    win3 = make_window()
+    win3._apply_session_payload(legacy)
+    assert win3.dist_panel.field_enabled.isChecked()
+
+
+def test_pbhf_oculta_campo_y_muestra_kernel(win):
+    d = win.dist_panel
+    win.mode_combo.setCurrentIndex(1)
+    assert d.field_enabled.isHidden() and d.fixed_bhf.isHidden()
+    assert not d._kernel_box.isHidden()
+    assert not d.delta_slope.isHidden() and not d.quad_slope.isHidden()
+    assert "T⁻¹" in d.delta_slope.label.text()
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("VBF"))
+    assert d._kernel_box.isHidden()
+
+
 # ── Regresión: restauración de tipo Relajacion en sesión ─────────────────────
 
 def test_session_roundtrip_preserves_relajacion_type(win):

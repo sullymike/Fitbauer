@@ -496,6 +496,20 @@ def test_binomial_de_normos_traslada_concentracion_inicio_y_paso():
     assert any("NSB=10" in a for a in r10["warnings"])
 
 
+def test_campo_en_distribucion_de_cuadrupolo_activa_la_opcion_avanzada():
+    from core.normos_job import job_to_distribution_state
+
+    base = JOB_DIST_XL.replace("METHOD=1,", "METHOD=6,")
+    st = job_to_distribution_state(base)["model_state"]       # BHF=0: dobletes
+    assert st["dist_field_enabled"] is False
+    st = job_to_distribution_state(base.replace("BHF=0.,", "BHF=5.,"))["model_state"]
+    assert st["dist_field_enabled"] is True and st["dist_fixed_bhf"] == 5.0
+    r = job_to_distribution_state(
+        JOB_DIST_XL.replace("METHOD=1,", "METHOD=8,").replace("BHF=0.,", "BHF=5.,"))
+    assert r["model_state"]["dist_fixed_bhf"] == 0.0           # P(IS): siempre B = 0
+    assert any("METHOD=8" in a for a in r["warnings"])
+
+
 def test_czjzek_avisa_de_que_no_esta_implementado():
     from core.normos_job import job_to_distribution_state
 
