@@ -94,7 +94,7 @@ EXCLUDED = {
     "docs/plotly.md": "referencia histórica de una integración retirada (v4.13.1)",
     "docs/modelos_relajacion_mossbauer.md": "marcado como ARCHIVO HISTÓRICO",
     "docs/release_notes_v4.16.0.md": "duplica RELEASE_NOTES_v4.16.0.md",
-    "docs/article_hyperfine_interactions.md": "borrador de artículo, no documentación de usuario",
+    "docs/article_hyperfine_interactions.md": "borrador, no documentación de usuario",
     # Se publicó en el wiki hasta v5.0.0 y se retiró: se autodescribe como
     # referencia INTERNA, era la única página con rutas locales del autor
     # (/home/jorge/...) y la única sin par en inglés. Sigue en docs/ para quien

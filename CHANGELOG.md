@@ -66,18 +66,6 @@
   Guardaban I23 = 1 fijo de un convenio antiguo, con profundidad e intensidad
   totalmente correlacionadas: χ²red 18.8 y 2.08 (y 13.7 y 3.8 al reajustarlas
   hoy). Ahora 1.14 y 1.51.
-- **Artículo para *Interactions* puesto al día** (`docs/article_hyperfine_interactions.tex`):
-  reenfocado en Fitbauer como programa compatible con NORMOS —mismo modelo y
-  convenios, ficheros `.JOB`, verificado frente a NORMOS en 411 espectros
-  sintéticos y 564 ajustes reales—, como implementación independiente y no
-  como traducción. Corregidos los datos desfasados (10 componentes, 8 idiomas,
-  bootstrap paramétrico, Δχ²=1 sin reducir, σ sin reescalar). Tabla de
-  comparación con NORMOS y figuras regeneradas con la versión actual por
-  `docs/article_figures.py`; capturas rehechas por `docs/article_screenshots.py`
-  (configuración aislada). Las figuras pasan de `.svg` a `.pdf` versionado.
-
-## v5.1.1 — el gráfico ya no se queda congelado tras un zoom
-
 - **El gráfico se quedaba «congelado» tras usar zoom o desplazar.** Un zoom o
   desplazamiento con la barra de Matplotlib desactiva el autoescalado, y el
   refresco incremental del canvas reutiliza los ejes cuando la disposición no
@@ -1119,7 +1107,7 @@ repositorio para que apunten a `sullymike/Fitbauer`:
   propaga a las URLs de la API, el feed atom, la página de releases y las descargas. La
   comprobación de actualizaciones y la descarga de nuevas versiones usan ya el nombre nuevo.
 - **Ayuda** (`gui/help.py`): enlace al manual en inglés (`MANUAL_EN_URL`).
-- **Documentación** (`INSTALL_EN.md`, artículos y paper en `docs/`) y el `git clone`/`cd`.
+- **Documentación** (`INSTALL_EN.md` y `docs/`) y el `git clone`/`cd`.
 
 GitHub mantiene la redirección desde el nombre antiguo, por lo que los enlaces previos
 siguen funcionando; este cambio evita depender de esa redirección.
@@ -1546,7 +1534,7 @@ en la sesión ni en el export TSV. Esta versión cierra esos huecos.
     (`gui/session_io.py`).
   - Cadenas i18n añadidas en ES/EN/FR (`options.show_component_fill`).
 
-## v4.11.1 — Relleno semitransparente en subespectros · figuras SVG · artículo svjour3
+## v4.11.1 — Relleno semitransparente en subespectros
 
 ### Mejoras en la GUI
 
@@ -1561,26 +1549,8 @@ en la sesión ni en el export TSV. Esta versión cierra esos huecos.
   - El estilo es análogo a las figuras publicadas con Matplotlib: cada subespectro queda
     identificado de forma inequívoca incluso cuando los componentes se superponen.
 
-### Publicación: artículo para *Interactions* (Springer)
+### Documentación
 
-- Archivo principal `docs/article_hyperfine_interactions.tex` migrado a la clase
-  **`svjour3`** (Springer). Compilado limpiamente a PDF de 15 páginas.
-- Nuevas secciones incorporadas desde el borrador previo:
-  - Perfil de Voigt (función de Faddeeva), ecuación de Kündig para el Hamiltoniano
-    magnético-cuadrupolar, fórmula de absorbente grueso.
-  - **Sección de modelos de relajación magnética**: Relajacion (fenomenológico),
-    BlumeTjon y NeelSize (Néel-Arrhenius); incluye la ecuación de tiempo de
-    relajación en función de tamaño de partícula y temperatura.
-  - Distribuciones 2D con regularización dual y selección de α por GCV/L-curve.
-- Bibliografía ampliada con 9 nuevas referencias (Kündig 1967, Margulies 1961,
-  Blume-Tjon 1968, Néel 1949, Brown 1963, Klencsar 2013, Matsnev 2012,
-  Kamusella 2016, Rancourt 1991).
-- Añadido stub `docs/svglov3.clo` requerido por `svjour3.cls`.
-- Figuras regeneradas como **SVG** (`docs/img/fig_*.svg`) para edición con Inkscape:
-  - `fig_reference_fits.svg` — panel 2×2 con espectros reales de laboratorio
-    (α-Fe, hematita, magnetita).
-  - `fig_magnetita_fit.svg` — ajuste de 2 sextetes de Fe₃O₄ con relleno de área.
-  - `fig_normos_comparison.svg` — correlación Fitbauer vs. NORMOS en δ, ΔEQ, BHF, Γ.
 - Guía `docs/normos_dosbox_guide.md` para ejecutar NORMOS con DOSBox en sistemas
   modernos (Linux/Mac/Windows).
 

@@ -8,7 +8,7 @@ correcciones de la auditoría. (`v4.14.3` y `v4.15.0` no se publicaron por separ
 - El repo de GitHub pasa de `Mossbauer` a **`Fitbauer`**. Actualizadas todas las
   referencias codificadas al slug → `sullymike/Fitbauer`: actualizador (`GITHUB_REPO`,
   API/atom/releases/descargas), enlace del manual EN (`gui/help.py`) y documentación
-  (`INSTALL_EN.md`, artículos y paper). GitHub mantiene la redirección desde el nombre
+  (`INSTALL_EN.md` y `docs/`). GitHub mantiene la redirección desde el nombre
   antiguo, pero ya no dependemos de ella.
 
 ## CLI: paridad completa con la GUI (v4.15.0)

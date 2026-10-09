@@ -76,12 +76,10 @@ docs/svg-inkscape/
 # Estado de runtime de la app (disposición de paneles guardada por el usuario)
 layout.json
 
-# Las figuras del artículo (docs/img/fig_*.pdf) SÍ se versionan: las genera
-# docs/article_figures.py reajustando los espectros, y el .tex las necesita
-# para compilar. Las .png homónimas serían derivados sueltos.
-docs/img/fig_magnetita_fit.png
-docs/img/fig_normos_comparison.png
-docs/img/fig_reference_fits.png
+# Borradores de publicaciones: no se versionan hasta que se publiquen.
+docs/article_*
+docs/paper_*
+docs/svjour3.cls
+docs/svglov3.clo
+docs/img/fig_*
 
-# PDF compilado del borrador antiguo del paper (su .tex sí está versionado).
-docs/paper_hyperfine_interactions.pdf
