@@ -58,25 +58,25 @@
 \contentsline {subsection}{\numberline {5.4.2}Forma y regularizador}{33}{subsection.5.4.2}%
 \contentsline {subsection}{\numberline {5.4.3}Parámetros del núcleo (cada subespectro)}{33}{subsection.5.4.3}%
 \contentsline {subsection}{\numberline {5.4.4}Física del kernel: 1er orden o Hamiltoniano (v4.19)}{33}{subsection.5.4.4}%
-\contentsline {subsection}{\numberline {5.4.5}Fuente polarizada (v4.20)}{33}{subsection.5.4.5}%
+\contentsline {subsection}{\numberline {5.4.5}Fuente polarizada (v4.20)}{34}{subsection.5.4.5}%
 \contentsline {subsection}{\numberline {5.4.6}Correlación con el campo: $\kappa _\delta $ y $\kappa _q$}{34}{subsection.5.4.6}%
 \contentsline {subsection}{\numberline {5.4.7}La malla de valores}{34}{subsection.5.4.7}%
 \contentsline {subsection}{\numberline {5.4.8}La regularización: $\log \alpha $ y atajos}{34}{subsection.5.4.8}%
 \contentsline {subsection}{\numberline {5.4.9}Controles de la 2D}{34}{subsection.5.4.9}%
-\contentsline {subsection}{\numberline {5.4.10}Otros}{34}{subsection.5.4.10}%
-\contentsline {section}{\numberline {5.5}Formas de la distribución}{34}{section.5.5}%
+\contentsline {subsection}{\numberline {5.4.10}Otros}{35}{subsection.5.4.10}%
+\contentsline {section}{\numberline {5.5}Formas de la distribución}{35}{section.5.5}%
 \contentsline {subsection}{\numberline {5.5.1}Histograma (Hesse--Rübartsch)}{35}{subsection.5.5.1}%
 \contentsline {subsection}{\numberline {5.5.2}Gaussiana}{35}{subsection.5.5.2}%
 \contentsline {subsection}{\numberline {5.5.3}VBF (Voigt-Based Fitting, Rancourt--Ping)}{36}{subsection.5.5.3}%
 \contentsline {subsection}{\numberline {5.5.4}Binomial}{36}{subsection.5.5.4}%
 \contentsline {subsection}{\numberline {5.5.5}Fija}{36}{subsection.5.5.5}%
-\contentsline {subsection}{\numberline {5.5.6}2D: dos variables a la vez}{36}{subsection.5.5.6}%
-\contentsline {subsection}{\numberline {5.5.7}Áreas de cada gaussiana (VBF)}{36}{subsection.5.5.7}%
+\contentsline {subsection}{\numberline {5.5.6}2D: dos variables a la vez}{37}{subsection.5.5.6}%
+\contentsline {subsection}{\numberline {5.5.7}Áreas de cada gaussiana (VBF)}{37}{subsection.5.5.7}%
 \contentsline {section}{\numberline {5.6}Regularización del histograma}{37}{section.5.6}%
 \contentsline {subsection}{\numberline {5.6.1}Regularizadores}{37}{subsection.5.6.1}%
 \contentsline {subsection}{\numberline {5.6.2}El parámetro $\alpha $}{37}{subsection.5.6.2}%
-\contentsline {subsection}{\numberline {5.6.3}Anclaje de los bordes de la malla}{37}{subsection.5.6.3}%
-\contentsline {section}{\numberline {5.7}La L-curve: elegir $\alpha $ con criterio}{37}{section.5.7}%
+\contentsline {subsection}{\numberline {5.6.3}Anclaje de los bordes de la malla}{38}{subsection.5.6.3}%
+\contentsline {section}{\numberline {5.7}La L-curve: elegir $\alpha $ con criterio}{38}{section.5.7}%
 \contentsline {subsection}{\numberline {5.7.1}Qué es y por qué tiene forma de L}{38}{subsection.5.7.1}%
 \contentsline {subsection}{\numberline {5.7.2}El diálogo, panel a panel}{38}{subsection.5.7.2}%
 \contentsline {subsection}{\numberline {5.7.3}Elegir $\alpha $: automático o a mano}{39}{subsection.5.7.3}%
@@ -184,7 +184,7 @@
 \contentsline {subsection}{\numberline {E.4.3}Límites}{74}{subsection.Alph5.4.3}%
 \contentsline {subsection}{\numberline {E.4.4}Polarización de poblaciones}{74}{subsection.Alph5.4.4}%
 \contentsline {section}{\numberline {E.5}Néel--Arrhenius y distribución de tamaños}{75}{section.Alph5.5}%
-\contentsline {section}{\numberline {E.6}Ajuste global multi-temperatura}{75}{section.Alph5.6}%
+\contentsline {section}{\numberline {E.6}Ajuste global multi-temperatura}{76}{section.Alph5.6}%
 \contentsline {section}{\numberline {E.7}Relación con el ajuste y los informes}{76}{section.Alph5.7}%
 \contentsline {chapter}{\numberline {F}Corrección por espesor}{77}{appendix.Alph6}%
 \contentsline {section}{\numberline {F.1}El problema: absorbente delgado vs. grueso}{77}{section.Alph6.1}%

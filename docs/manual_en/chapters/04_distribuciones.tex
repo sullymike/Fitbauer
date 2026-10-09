@@ -213,8 +213,10 @@ quantities are fixed as global kernel parameters (next subsection).
 
 \begin{itemize}[nosep]
   \item \menu{Shape}: the family of $P$ that is fitted---Histogram, Gaussian, VBF,
-        Binomial, Fixed or 2D---(\S\ref{sec:formas-dist} details them). It is the
-        decision that most conditions the rest of the controls.
+        Binomial or Fixed---(\S\ref{sec:formas-dist} details them). It is the
+        decision that most conditions the rest of the controls. The 2D shape is
+        not chosen here: the 2D fit modes impose it. The panel only shows the
+        controls that the active variable and shape use.
   \item \menu{Regularizer}: only with \textbf{Histogram}. Chooses how the lack of
         smoothness is penalized---\emph{tikhonov}, \emph{tv} or \emph{maxent}---
         (\S\ref{sec:regularizacion}).
@@ -239,8 +241,9 @@ $\delta$ & Isomer shift common to all subspectra (shifts the pattern). Fix it to
 the $\delta$ of your phase or leave it free. & $0$ & $-2{,}5\ldots2{,}5$ \\[4pt]
 $\dEQ$ & Global quadrupole (in $P(\BHF)$ mode). It is \textbf{disabled} if it is
 the distributed variable. & $0$ & $-4\ldots4$ \\[4pt]
-Fixed BHF & Fixed field used when $\dEQ$ or IS is distributed (not used in $P(\BHF)$
-mode). & $33$ & $0\ldots60$ \\[4pt]
+Fixed BHF & Only in $P(\dEQ)$ with the advanced option \menu{Sextet with fixed
+field}. Without it (the usual case) the $P(\dEQ)$ subspectra are doublets, and the
+$P(\text{IS})$ ones always are ($B = 0$). & $0$ & $0\ldots60$ \\[4pt]
 $\Gamma$ & \textbf{Line width} of each subspectrum. \emph{Key}: it controls the
 resolution (see the warning). & $0{,}30$ & $0{,}06\ldots2{,}0$ \\
 \bottomrule
@@ -290,8 +293,11 @@ against it (0.4\,\% of the peak).
 
 Two optional slopes that couple $\delta$ and $\dEQ$ to the value of the field
 (\S\ref{sec:correlacion}). By default they are \textbf{0} (no correlation) and are
-\textbf{fixed}; to refine them, uncheck their lock. They only apply to Histogram and
-VBF.
+\textbf{fixed}; to refine them, uncheck their lock. They apply to Histogram, VBF
+and Binomial. Their meaning depends on the variable: in $P(\BHF)$ they are
+$d\delta/dH$ and $d\dEQ/dH$ (mm/s·T$^{-1}$); in $P(\dEQ)$ only $d\delta/d\dEQ$
+exists (the dimensionless Rancourt--Ping coupling) and in $P(\text{IS})$ only
+$d\dEQ/d\delta$. They go back to 0 when the variable changes.
 
 \subsection{The grid of values}
 
@@ -368,7 +374,7 @@ regularization. The most general and flexible; requires choosing $\alpha$. \\[3p
 stable. \\[3pt]
 \textbf{VBF} & Sum of several Gaussians (Voigt-Based Fitting, Rancourt--Ping); saves
 $A_k, \mu_k, \sigma_k$ per component (\S\ref{sec:vbf-areas}). \\[3pt]
-\textbf{Binomial} & Binomial distribution (neighbor-environment models, e.g.\
+\textbf{Binomial} & Solute neighbours, NORMOS-DIST style (e.g.\
 alloys). \\[3pt]
 \textbf{Fixed} & Distribution imposed by the user (read from a file). \\[3pt]
 \textbf{2D} & Joint distribution $P(\BHF, \dEQ)$ (\S\ref{sec:dist-2d}). \\
@@ -458,19 +464,34 @@ and the case $N=1$ that corresponds to the \menu{Gaussian} shape).
 \subsection{Binomial}
 \label{sec:forma-binomial}
 
-\textbf{Parametric} shape with a single shape unknown: $P$ follows a
-\textbf{binomial distribution} $B(n,p)$ over the grid (with $n = N_{\text{bins}}-1$),
-and the \textbf{probability} $p\in(0,1)$ is fitted (the mean falls at $p\,n$).
-
-Its motivation is physical: in an \textbf{alloy}, the hyperfine field of an Fe atom
-depends on \textbf{how many solute atoms} it has in its neighbor shells. If the
-solute is distributed at random, that number follows a binomial, and therefore so
-does the distribution of fields. The parameter $p$ is related to the
-\textbf{concentration} of solute.
+\textbf{Parametric} shape for \textbf{alloys}, with the same model as the
+NORMOS-DIST binomial (\texttt{DISTRI=3} with \texttt{CONC}). The hyperfine field
+of an Fe atom depends on \textbf{how many solute atoms} it has among its $n$
+neighbor sites. If the solute is distributed at random with concentration $c$, the
+configuration with $k$ solute neighbors has probability
+\[
+  P_k \;=\; \binom{n}{k}\, c^k (1-c)^{n-k}, \qquad k = 0,\ldots,n,
+\]
+and its subspectrum has the variable at $x_k = x_0 + k\,\Delta x$: $x_0$ is the
+value with no solute neighbors and $\Delta x$ the change per neighbor (negative
+if the solute lowers the field, as in Fe--Al or Fe--Si). It is a
+\textbf{discrete} distribution of $n+1$ subspectra, not a curve over the grid.
 
 \begin{itemize}[nosep]
-  \item \textbf{When}: \emph{neighbor} systems (dilute alloys) where each neighbor
-        configuration gives a discrete field.
+  \item \textbf{Controls}: \menu{Neighbours} $n$ (12 by default, as in NORMOS),
+        \menu{Solute concentration (\%)}, the value with no neighbors and the
+        change per neighbor. It uses neither the grid (min/max/bins) nor $\alpha$.
+  \item \textbf{Fits}: amplitude, $x_0$ and $\Delta x$. The concentration is an
+        \textbf{input}, like \texttt{CONC} in NORMOS; uncheck its lock to fit it
+        too.
+  \item \textbf{Correlations}: $\kappa_\delta$ refers $\delta$ to the
+        configuration with no neighbors,
+        $\delta_k = \delta + \kappa_\delta\,k\,\Delta x$ (the per-subspectrum
+        \texttt{DTI} of NORMOS).
+  \item \textbf{Result}: one bar per number of neighbors, with $\sum_k P_k = 1$
+        (the NORMOS table of relative areas).
+  \item \textbf{When}: alloys or ferrites with random substitution, where each
+        neighbor configuration gives a different field.
 \end{itemize}
 
 \subsection{Fixed}

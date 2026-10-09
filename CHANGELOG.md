@@ -1,5 +1,54 @@
 # Changelog
 
+## Sin publicar — distribuciones P(ΔEQ)/P(IS) y binomial de NORMOS
+
+- **P(ΔEQ) y P(IS) dibujaban sextetes.** Había dos causas:
+  - En modo distribución la vista previa seguía simulando el modelo discreto
+    de los componentes (ocultos): al tocar cualquier parámetro aparecía el
+    sextete por defecto del componente 1, y tras un ajuste el refresco lo
+    sustituía. Ahora redibuja el último ajuste de distribución o solo los datos.
+  - El kernel de P(ΔEQ)/P(IS) eran sextetes al «BHF fijo» del panel, 33 T por
+    defecto.
+- **P(IS) usa siempre B = 0** (singletes o dobletes con el ΔEQ global), como
+  el METHOD=8 de NORMOS-DIST, y avisa de que con Γ libre la distribución se
+  confunde con la anchura de línea. Las sesiones antiguas de P(IS) con BHF > 0
+  se ajustan ahora sin campo.
+- **P(ΔEQ) y P(IS, ΔEQ) usan dobletes.** Los sextetes con campo fijo quedan
+  como opción avanzada («Sextete con campo fijo»), con aviso de que el kernel es
+  de primer orden. Las sesiones antiguas sin la clave la activan si guardaban
+  BHF > 0, para reproducir el ajuste. La sesión de ejemplo
+  `sintetico_dist_deq` (dobletes) se ajustaba con sextetes a 33 T; ahora
+  recupera ⟨ΔEQ⟩ = 0.87 mm/s (verdad 0.85).
+- **El panel de distribución enseña solo lo que se usa**:
+  - Título y pestaña con la distribución activa (P(BHF), P(ΔEQ), P(IS),
+    P(x, y)); «log10 α» sin el «BHF» fijo; la ventana del resultado de P(IS)
+    ya no dice P(BHF).
+  - «2D» deja de ser una forma elegible en los modos 1D (ajustaba BHF-ΔEQ
+    aunque el modo dijera P(IS)); la imponen los modos 2D.
+  - La física del kernel (1er orden/Hamiltoniano/fuente polarizada) solo
+    aparece con P(BHF) e Histograma, que es donde se usa; δ global queda
+    inactivo en P(IS).
+  - Pendientes de correlación con su significado y unidades: dδ/dH y dΔEQ/dH
+    en P(BHF), dδ/dΔEQ (Rancourt–Ping) en P(ΔEQ), dΔEQ/dδ en P(IS) y ninguna
+    en 2D. Vuelven a 0 al cambiar de variable.
+- **Cada variable recuerda su malla**: al pasar de P(BHF) a P(IS) los límites
+  se recortaban (0–2.5 mm/s, sin IS negativos) y al volver quedaba una malla de
+  0–2.5 T. Los valores iniciales son los de la CLI (BHF 0–50 T, ΔEQ 0–3 mm/s,
+  IS −1–2 mm/s). El eje ΔEQ de P(BHF, ΔEQ) admite valores negativos (es el
+  corrimiento 2ε de un sextete).
+- **Binomial de vecinos al estilo NORMOS-DIST** (`DISTRI=3` con `CONC`). La
+  forma «Binomial» repartía una binomial de nbins−1 ensayos sobre la malla, sin
+  relación con ningún número de vecinos. Ahora: n vecinos (12 por defecto, como
+  NORMOS), concentración de soluto c y n+1 subespectros en «valor sin vecinos +
+  k·cambio por vecino» con pesos C(n,k)·cᵏ·(1−c)ⁿ⁻ᵏ; se ajustan amplitud,
+  valor sin vecinos y cambio por vecino, y la concentración es dato salvo que
+  se libere. Los pesos coinciden con los del binario de DIST (sonda en DOSBox,
+  CONC = 50 %). Vale para BHF, ΔEQ e IS, admite las correlaciones y se
+  representa como barras. En la CLI: `--binomial-conc`,
+  `--binomial-neighbors`, `--binomial-start`, `--binomial-step` y
+  `--fit-conc`; el importador de `.JOB` traslada `CONC`, `BHF` y `DTB`.
+- Ayuda (es/en) y manual (es/en) actualizados.
+
 ## v5.1.2 — convenios NORMOS en la GUI y relajación validada frente a NORMOS
 
 - **El autoguardado seguía activo tras cerrar la ventana.** El cierre limpio

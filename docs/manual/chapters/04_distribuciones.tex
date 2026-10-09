@@ -213,8 +213,10 @@ fijan como parámetros globales del núcleo (siguiente apartado).
 
 \begin{itemize}[nosep]
   \item \menu{Forma}: la familia de $P$ que se ajusta —Histograma, Gaussiana,
-        VBF, Binomial, Fija o 2D— (§\ref{sec:formas-dist} las detalla). Es la
-        decisión que más condiciona el resto de controles.
+        VBF, Binomial o Fija— (§\ref{sec:formas-dist} las detalla). Es la
+        decisión que más condiciona el resto de controles. La forma 2D no se
+        elige aquí: la imponen los modos 2D del selector de modo. El panel solo
+        muestra los controles que usan la variable y la forma activas.
   \item \menu{Regularizador}: solo con \textbf{Histograma}. Elige cómo se penaliza
         la falta de suavidad —\emph{tikhonov}, \emph{tv} o \emph{maxent}—
         (§\ref{sec:regularizacion}).
@@ -238,8 +240,9 @@ $\delta$ & Desplazamiento isomérico común a todos los subespectros (mueve el
 patrón). Fíjelo al $\delta$ de su fase o déjelo libre. & $0$ & $-2{,}5\ldots2{,}5$ \\[4pt]
 $\dEQ$ & Cuadrupolo global (en modo $P(\BHF)$). Se \textbf{deshabilita} si es la
 variable distribuida. & $0$ & $-4\ldots4$ \\[4pt]
-BHF fijo & Campo fijo usado cuando se distribuye $\dEQ$ o IS (no se usa en modo
-$P(\BHF)$). & $33$ & $0\ldots60$ \\[4pt]
+BHF fijo & Solo en $P(\dEQ)$ con la opción avanzada \menu{Sextete con campo
+fijo}. Sin ella (lo normal) los subespectros de $P(\dEQ)$ son dobletes, y los de
+$P(\text{IS})$ siempre lo son ($B = 0$). & $0$ & $0\ldots60$ \\[4pt]
 $\Gamma$ & \textbf{Anchura} de línea de cada subespectro. \emph{Clave}: controla
 la resolución (véase el aviso). & $0{,}30$ & $0{,}06\ldots2{,}0$ \\
 \bottomrule
@@ -289,8 +292,11 @@ METHOD=4/POLAR de NORMOS-DIST, validado contra él (0.4\% del pico).
 
 Dos pendientes opcionales que acoplan $\delta$ y $\dEQ$ al valor del campo
 (§\ref{sec:correlacion}). Por defecto valen \textbf{0} (sin correlación) y están
-\textbf{fijas}; para refinarlas, desmarque su candado. Solo aplican a Histograma y
-VBF.
+\textbf{fijas}; para refinarlas, desmarque su candado. Aplican a Histograma, VBF y
+Binomial. Su significado depende de la variable: en $P(\BHF)$ son $d\delta/dH$ y
+$d\dEQ/dH$ (mm/s·T$^{-1}$); en $P(\dEQ)$ solo existe $d\delta/d\dEQ$ (el
+acoplamiento de Rancourt--Ping, adimensional) y en $P(\text{IS})$ solo
+$d\dEQ/d\delta$. Al cambiar de variable vuelven a 0.
 
 \subsection{La malla de valores}
 
@@ -367,7 +373,7 @@ regularización. La más general y flexible; necesita elegir $\alpha$. \\[3pt]
 muy estable. \\[3pt]
 \textbf{VBF} & Suma de varias gaussianas (Voigt-Based Fitting, Rancourt--Ping);
 guarda $A_k, \mu_k, \sigma_k$ por componente (§\ref{sec:vbf-areas}). \\[3pt]
-\textbf{Binomial} & Distribución binomial (modelos de entornos de vecinos, p.\,ej.\
+\textbf{Binomial} & Vecinos de soluto al estilo NORMOS-DIST (p.\,ej.\
 aleaciones). \\[3pt]
 \textbf{Fija} & Distribución impuesta por el usuario (leída de fichero). \\[3pt]
 \textbf{2D} & Distribución conjunta $P(\BHF, \dEQ)$ (§\ref{sec:dist-2d}). \\
@@ -456,19 +462,33 @@ caso $N=1$ que corresponde a la forma \menu{Gaussiana}).
 \subsection{Binomial}
 \label{sec:forma-binomial}
 
-Forma \textbf{paramétrica} con una sola incógnita de forma: $P$ sigue una
-\textbf{distribución binomial} $B(n,p)$ sobre la malla (con $n = N_{\text{bins}}-1$),
-y se ajusta la \textbf{probabilidad} $p\in(0,1)$ (la media cae en $p\,n$).
-
-Su motivación es física: en una \textbf{aleación}, el campo hiperfino de un átomo
-de Fe depende de \textbf{cuántos átomos de soluto} tiene en sus capas de vecinos.
-Si el soluto se distribuye al azar, ese número sigue una binomial, y por tanto la
-distribución de campos también. El parámetro $p$ se relaciona con la
-\textbf{concentración} de soluto.
+Forma \textbf{paramétrica} para \textbf{aleaciones}, con el mismo modelo que la
+binomial de NORMOS-DIST (\texttt{DISTRI=3} con \texttt{CONC}). El campo
+hiperfino de un átomo de Fe depende de \textbf{cuántos átomos de soluto} tiene
+entre sus $n$ posiciones vecinas. Si el soluto se reparte al azar con
+concentración $c$, la configuración con $k$ vecinos de soluto tiene probabilidad
+\[
+  P_k \;=\; \binom{n}{k}\, c^k (1-c)^{n-k}, \qquad k = 0,\ldots,n,
+\]
+y su subespectro tiene la variable en $x_k = x_0 + k\,\Delta x$: $x_0$ es el
+valor sin vecinos de soluto y $\Delta x$ el cambio por vecino (negativo si el
+soluto baja el campo, como en Fe--Al o Fe--Si). Es una distribución
+\textbf{discreta} de $n+1$ subespectros, no una curva sobre la malla.
 
 \begin{itemize}[nosep]
-  \item \textbf{Cuándo}: sistemas de \emph{vecinos} (aleaciones diluidas) donde
-        cada configuración de vecinos da un campo discreto.
+  \item \textbf{Controles}: \menu{Vecinos} $n$ (12 por defecto, como NORMOS),
+        \menu{Concentración soluto (\%)}, el valor sin vecinos y el cambio por
+        vecino. No usa la malla (mín/máx/bins) ni $\alpha$.
+  \item \textbf{Ajusta}: amplitud, $x_0$ y $\Delta x$. La concentración es un
+        \textbf{dato}, como \texttt{CONC} en NORMOS; desmarque su candado si
+        quiere ajustarla también.
+  \item \textbf{Correlaciones}: $\kappa_\delta$ refiere $\delta$ a la
+        configuración sin vecinos, $\delta_k = \delta + \kappa_\delta\,k\,\Delta x$
+        (el \texttt{DTI} por subespectro de NORMOS).
+  \item \textbf{Resultado}: una barra por número de vecinos, con $\sum_k P_k = 1$
+        (la tabla de áreas relativas de NORMOS).
+  \item \textbf{Cuándo}: aleaciones o ferritas con sustitución al azar, donde
+        cada configuración de vecinos da un campo distinto.
 \end{itemize}
 
 \subsection{Fija}

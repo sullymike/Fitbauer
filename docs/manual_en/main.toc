@@ -64,22 +64,22 @@
 \contentsline {subsection}{\numberline {5.4.8}The regularization: $\log \alpha $ and shortcuts}{33}{subsection.5.4.8}%
 \contentsline {subsection}{\numberline {5.4.9}2D controls}{33}{subsection.5.4.9}%
 \contentsline {subsection}{\numberline {5.4.10}Other}{33}{subsection.5.4.10}%
-\contentsline {section}{\numberline {5.5}Distribution shapes}{33}{section.5.5}%
+\contentsline {section}{\numberline {5.5}Distribution shapes}{34}{section.5.5}%
 \contentsline {subsection}{\numberline {5.5.1}Histogram (Hesse--Rübartsch)}{34}{subsection.5.5.1}%
 \contentsline {subsection}{\numberline {5.5.2}Gaussian}{34}{subsection.5.5.2}%
 \contentsline {subsection}{\numberline {5.5.3}VBF (Voigt-Based Fitting, Rancourt--Ping)}{35}{subsection.5.5.3}%
 \contentsline {subsection}{\numberline {5.5.4}Binomial}{35}{subsection.5.5.4}%
 \contentsline {subsection}{\numberline {5.5.5}Fixed}{35}{subsection.5.5.5}%
 \contentsline {subsection}{\numberline {5.5.6}2D: two variables at once}{35}{subsection.5.5.6}%
-\contentsline {subsection}{\numberline {5.5.7}Areas of each Gaussian (VBF)}{35}{subsection.5.5.7}%
+\contentsline {subsection}{\numberline {5.5.7}Areas of each Gaussian (VBF)}{36}{subsection.5.5.7}%
 \contentsline {section}{\numberline {5.6}Histogram regularization}{36}{section.5.6}%
 \contentsline {subsection}{\numberline {5.6.1}Regularizers}{36}{subsection.5.6.1}%
 \contentsline {subsection}{\numberline {5.6.2}The parameter $\alpha $}{36}{subsection.5.6.2}%
 \contentsline {subsection}{\numberline {5.6.3}Anchoring the grid edges}{36}{subsection.5.6.3}%
-\contentsline {section}{\numberline {5.7}The L-curve: choosing $\alpha $ with a criterion}{36}{section.5.7}%
+\contentsline {section}{\numberline {5.7}The L-curve: choosing $\alpha $ with a criterion}{37}{section.5.7}%
 \contentsline {subsection}{\numberline {5.7.1}What it is and why it has an L shape}{37}{subsection.5.7.1}%
 \contentsline {subsection}{\numberline {5.7.2}The dialog, panel by panel}{37}{subsection.5.7.2}%
-\contentsline {subsection}{\numberline {5.7.3}Choosing $\alpha $: automatic or by hand}{38}{subsection.5.7.3}%
+\contentsline {subsection}{\numberline {5.7.3}Choosing $\alpha $: automatic or by hand}{37}{subsection.5.7.3}%
 \contentsline {subsection}{\numberline {5.7.4}How to interpret it in practice}{38}{subsection.5.7.4}%
 \contentsline {section}{\numberline {5.8}Correlation $\delta (H)$ and $\Delta E_{Q}(H)$}{38}{section.5.8}%
 \contentsline {section}{\numberline {5.9}2D distributions: $P(B_{\mathrm {hf}}, \Delta E_{Q})$}{39}{section.5.9}%
@@ -183,8 +183,8 @@
 \contentsline {subsection}{\numberline {E.4.2}Exchange profile for one transition}{71}{subsection.E.4.2}%
 \contentsline {subsection}{\numberline {E.4.3}Limits}{72}{subsection.E.4.3}%
 \contentsline {subsection}{\numberline {E.4.4}Population polarization}{72}{subsection.E.4.4}%
-\contentsline {section}{\numberline {E.5}Néel--Arrhenius and size distribution}{72}{section.E.5}%
-\contentsline {section}{\numberline {E.6}Global multi-temperature fit}{74}{section.E.6}%
+\contentsline {section}{\numberline {E.5}Néel--Arrhenius and size distribution}{73}{section.E.5}%
+\contentsline {section}{\numberline {E.6}Global multi-temperature fit}{73}{section.E.6}%
 \contentsline {section}{\numberline {E.7}Relation to fitting and reports}{74}{section.E.7}%
 \contentsline {chapter}{\numberline {F}Thickness correction}{75}{appendix.F}%
 \contentsline {section}{\numberline {F.1}The problem: thin vs. thick absorber}{75}{section.F.1}%
