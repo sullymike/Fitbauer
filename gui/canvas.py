@@ -82,6 +82,15 @@ class SpectrumCanvas(FigureCanvas):
         if residual is None and model is not None and model_v is None:
             residual = y - model
         _comparison = list(comparison or [])
+        # ¿Cambian los datos (otro espectro) o solo el modelo? Se decide antes de
+        # sobrescribir ``last_render``; lo usa el refresco incremental para
+        # decidir si respeta el zoom del usuario o reencuadra.
+        prev = self.last_render
+        data_changed = (
+            prev is None
+            or not np.array_equal(prev["velocity"], np.asarray(v, dtype=float))
+            or not np.array_equal(prev["y_data"], np.asarray(y, dtype=float))
+        )
         # Estado de lo último dibujado (consumido por refrescos y otros paneles).
         self.last_render = {
             "velocity": np.asarray(v, dtype=float).copy(),
@@ -113,7 +122,8 @@ class SpectrumCanvas(FigureCanvas):
                 and style_name is not None):
             try:
                 self._update_fast(v, y, model, components, residual, mv, s,
-                                  actual_show_residual, _comparison)
+                                  actual_show_residual, _comparison,
+                                  reset_view=data_changed)
                 return
             except Exception as _exc:
                 logging.debug("Actualización incremental del canvas fallida, reconstruyendo: %s", _exc)
@@ -289,15 +299,28 @@ class SpectrumCanvas(FigureCanvas):
             sp.set_color(style.get("spine", "#cbd5e1"))
 
     def _update_fast(self, v, y, model, components, residual, mv, s,
-                     actual_show_residual, comparison=None) -> None:
+                     actual_show_residual, comparison=None,
+                     reset_view: bool = False) -> None:
         """Refresco incremental: reescribe los datos sin reconstruir la figura.
 
         Se usa cuando la disposición (residuos, nº de componentes, leyenda,
         estilo y tamaños) no ha cambiado respecto al render anterior. Evita el
         coste de ``fig.clear`` + recrear ejes + ``tight_layout`` en cada cambio
         de parámetro, que es lo que hace lento el arrastre de sliders.
+
+        Con ``reset_view`` (datos nuevos) se reactiva el autoescalado: un zoom o
+        desplazamiento previo con la barra lo desactiva y, si no, el espectro
+        nuevo quedaría fuera de la vista. Si solo cambia el modelo, se respeta
+        el zoom del usuario.
         """
         a = self._artists
+        if reset_view:
+            self.ax.set_autoscale_on(True)
+            toolbar = getattr(self, "toolbar", None)
+            if toolbar is not None:
+                # Vacía el historial de vistas: 'Inicio' debe llevar al
+                # encuadre del espectro nuevo, no al del anterior.
+                toolbar.update()
         for ln, csp in zip(a.get("cmp_lines", []), (comparison or [])):
             ln.set_data(csp.velocity, csp.y_data)
         a["data"].set_data(v, y)
