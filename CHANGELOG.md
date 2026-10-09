@@ -28,6 +28,15 @@
   Guardaban I23 = 1 fijo de un convenio antiguo, con profundidad e intensidad
   totalmente correlacionadas: χ²red 18.8 y 2.08 (y 13.7 y 3.8 al reajustarlas
   hoy). Ahora 1.14 y 1.51.
+- **Artículo para *Interactions* puesto al día** (`docs/article_hyperfine_interactions.tex`):
+  reenfocado en Fitbauer como programa compatible con NORMOS —mismo modelo y
+  convenios, ficheros `.JOB`, verificado frente a NORMOS en 411 espectros
+  sintéticos y 564 ajustes reales—, como implementación independiente y no
+  como traducción. Corregidos los datos desfasados (10 componentes, 8 idiomas,
+  bootstrap paramétrico, Δχ²=1 sin reducir, σ sin reescalar). Tabla de
+  comparación con NORMOS y figuras regeneradas con la versión actual por
+  `docs/article_figures.py`; capturas rehechas por `docs/article_screenshots.py`
+  (configuración aislada). Las figuras pasan de `.svg` a `.pdf` versionado.
 
 ## v5.1.1 — el gráfico ya no se queda congelado tras un zoom
 
