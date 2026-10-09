@@ -288,7 +288,7 @@
   "slider.dist_fixed_bhf_active": "固定 BHF (T)",
   "slider.dist_fixed_bhf_inactive": "固定 BHF（BHF モードでは未使用）",
   "slider.dist_nbins": "分布ビン",
-  "slider.dist_log_alpha": "log10 α BHF",
+  "slider.dist_log_alpha": "log10 α",
   "slider.dist2d_qmin": "ΔEQ 最小 2D",
   "slider.dist2d_qmax": "ΔEQ 最大 2D",
   "slider.dist2d_qbins": "ΔEQ ビン 2D",
@@ -905,5 +905,9 @@
   "conventions.sextet_normos": "NORMOS の六重線パターン",
   "conventions.intensity_area": "面積基準の強度",
   "conventions.relax_normos": "NORMOS の緩和",
-  "info.conventions": "有効な NORMOS 規約: {list}"
+  "info.conventions": "有効な NORMOS 規約: {list}",
+  "tab.distribution": "{label} 分布",
+  "plot.distribution_xlabel_is": "δ (mm/s)",
+  "slider.dist_bmin_delta": "IS 最小 (mm/s)",
+  "slider.dist_bmax_delta": "IS 最大 (mm/s)"
 }

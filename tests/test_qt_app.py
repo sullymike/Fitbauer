@@ -1165,15 +1165,17 @@ def test_qt_distribution_2d_mode_is_exposed_and_persisted(win):
     """La opción P(BHF, ΔEQ) 2D aparece en el desplegable principal y en sesiones."""
     mode_items = [win.mode_combo.itemText(i) for i in range(win.mode_combo.count())]
     assert any("2D" in item and "BHF" in item for item in mode_items)
-    shape_items = [win.dist_panel.shape_combo.itemData(i) for i in range(win.dist_panel.shape_combo.count())]
-    assert "2D" in shape_items
-
     assert any("P(IS)" in item for item in mode_items)
     assert any("IS" in item and "ΔEQ" in item for item in mode_items)
 
     win.mode_combo.setCurrentIndex(4)
     assert win.is_distribution_mode
     assert win.dist_panel.shape == "2D"
+    # En 2D la forma la impone el modo: el combo solo ofrece «2D» y no se edita.
+    shape_items = [win.dist_panel.shape_combo.itemData(i)
+                   for i in range(win.dist_panel.shape_combo.count())]
+    assert shape_items == ["2D"]
+    assert not win.dist_panel.shape_combo.isEnabled()
     assert not win.dist_panel.qmin.isHidden()
     assert not win.dist_panel.quad.isEnabled()
 
@@ -1190,6 +1192,28 @@ def test_qt_distribution_2d_mode_is_exposed_and_persisted(win):
     win.mode_combo.setCurrentIndex(5)
     assert win.dist_pair == ("delta", "quad")
     assert win._session_payload()["model_state"]["dist_variable"] == "IS-ΔEQ"
+
+
+def test_panel_distribucion_rotula_la_variable_activa(win):
+    """Título, α y lista de formas siguen al modo: antes ponía siempre
+    «Distribución BHF» y «log10 α BHF», y en 1D se podía elegir la forma 2D."""
+    d = win.dist_panel
+    win.mode_combo.setCurrentIndex(3)                     # P(IS)
+    assert "P(IS)" in d.title()
+    assert "BHF" not in d.log_alpha.label.text()
+    assert "IS" in d.bmin.label.text()
+    shapes = [d.shape_combo.itemData(i) for i in range(d.shape_combo.count())]
+    assert "2D" not in shapes and d.shape_combo.isEnabled()
+    win.mode_combo.setCurrentIndex(2)                     # P(ΔEQ)
+    assert "P(ΔEQ)" in d.title()
+    if win._using_tabs:
+        assert "P(ΔEQ)" in win.comp_tabs.tabText(win.comp_tabs.indexOf(d))
+    win.mode_combo.setCurrentIndex(5)                     # P(IS, ΔEQ) 2D
+    assert "P(IS, ΔEQ)" in d.title()
+    assert d.log_alpha.label.text().endswith("IS")
+    assert d.log_alpha_q.label.text().endswith("ΔEQ")
+    win.mode_combo.setCurrentIndex(3)                     # de vuelta a 1D
+    assert d.shape == "Histograma"
 
 
 # ── Regresión: restauración de tipo Relajacion en sesión ─────────────────────

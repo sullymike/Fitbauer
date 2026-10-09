@@ -77,24 +77,25 @@ class ModelWorkflowMixin:
         if hasattr(self, "_mode_menu_actions") and 0 <= idx < len(self._mode_menu_actions):
             self._mode_menu_actions[idx].setChecked(True)
         if is_dist:
+            # El panel ajusta solo su lista de formas: en 2D solo «2D» y, al
+            # volver a 1D desde 2D, Histograma.
             if is_2d:
-                # Fuerza forma 2D y configura el par de variables
-                if hasattr(self.dist_panel, "shape_combo"):
-                    idx_shape = self.dist_panel.shape_combo.findData("2D")
-                    if idx_shape >= 0 and self.dist_panel.shape_combo.currentIndex() != idx_shape:
-                        self.dist_panel.shape_combo.setCurrentIndex(idx_shape)
-                if hasattr(self.dist_panel, "set_distribution_pair"):
-                    self.dist_panel.set_distribution_pair(*self.dist_pair)
+                self.dist_panel.set_distribution_pair(*self.dist_pair)
             else:
-                # Si veníamos de 2D, volver a Histograma
-                if hasattr(self.dist_panel, "shape_combo") and getattr(self.dist_panel, "shape", "") == "2D":
-                    idx_shape = self.dist_panel.shape_combo.findData("Histograma")
-                    if idx_shape >= 0:
-                        self.dist_panel.shape_combo.setCurrentIndex(idx_shape)
                 var = "delta" if is_delta else ("quad" if is_deq else "bhf")
                 self.dist_panel.set_distribution_variable(var)
+            self._sync_dist_tab_title()
         self._check_layout()
         self._refresh_plot()
+
+    def _sync_dist_tab_title(self) -> None:
+        """La pestaña del panel de distribución lleva el nombre de la variable."""
+        tabs = getattr(self, "comp_tabs", None)
+        if tabs is None:
+            return
+        idx = tabs.indexOf(self.dist_panel)
+        if idx >= 0:
+            tabs.setTabText(idx, self.dist_panel.title())
 
     @property
     def is_distribution_mode(self) -> bool:

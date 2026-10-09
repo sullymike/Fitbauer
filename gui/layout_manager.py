@@ -692,7 +692,7 @@ class LayoutSettingsMixin:
         self._comp_stack_frames.clear()
 
         if use_tabs:
-            self.comp_tabs.addTab(self.dist_panel, tr("tab.distribution_bhf"))
+            self.comp_tabs.addTab(self.dist_panel, self.dist_panel.title())
             for i, cp in enumerate(self.components_panels, start=1):
                 self.comp_tabs.addTab(cp, tr("tab.component", idx=i))
             self.comp_tabs.setVisible(True)

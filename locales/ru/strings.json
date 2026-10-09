@@ -288,7 +288,7 @@
   "slider.dist_fixed_bhf_active": "Фиксир. BHF (T)",
   "slider.dist_fixed_bhf_inactive": "Фиксир. BHF (не используется в режиме BHF)",
   "slider.dist_nbins": "Интервалы распределения",
-  "slider.dist_log_alpha": "log10 α BHF",
+  "slider.dist_log_alpha": "log10 α",
   "slider.dist2d_qmin": "ΔEQ мин 2D",
   "slider.dist2d_qmax": "ΔEQ макс 2D",
   "slider.dist2d_qbins": "интервалы ΔEQ 2D",
@@ -905,5 +905,9 @@
   "conventions.sextet_normos": "положения секстета NORMOS",
   "conventions.intensity_area": "интенсивности по площади",
   "conventions.relax_normos": "релаксация NORMOS",
-  "info.conventions": "Активные соглашения NORMOS: {list}"
+  "info.conventions": "Активные соглашения NORMOS: {list}",
+  "tab.distribution": "Распределение {label}",
+  "plot.distribution_xlabel_is": "δ (mm/s)",
+  "slider.dist_bmin_delta": "IS мин (mm/s)",
+  "slider.dist_bmax_delta": "IS макс (mm/s)"
 }

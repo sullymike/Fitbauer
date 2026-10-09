@@ -17,8 +17,9 @@ from gui.state import DistributionViewState
 class DistributionPanel(QtWidgets.QGroupBox):
     """Panel para modo distribución P(BHF) / P(ΔEQ) / P(IS) / 2D.
 
-    Soporta 5 formas: Histograma (Hesse-Rübartsch no paramétrica), Gaussiana,
-    Binomial, Fija (P cargada desde fichero) y 2D (distribución bidimensional).
+    Formas 1D: Histograma (Hesse-Rübartsch no paramétrica), Gaussiana, VBF,
+    Binomial y Fija (P cargada desde fichero). La forma 2D (distribución
+    bidimensional) la impone el modo de ajuste, no el combo.
     """
 
     paramChanged = QtCore.Signal()
@@ -50,13 +51,11 @@ class DistributionPanel(QtWidgets.QGroupBox):
         shape_row = QtWidgets.QHBoxLayout()
         shape_row.addWidget(QtWidgets.QLabel(tr("bhf.shape_label") + ":"))
         self.shape_combo = QtWidgets.QComboBox()
-        for code, key in (("Histograma", "shape.Histograma"),
-                          ("Gaussiana", "shape.Gaussiana"),
-                          ("VBF", "shape.VBF"),
-                          ("Binomial", "shape.Binomial"),
-                          ("Fija", "shape.Fija"),
-                          ("2D", "shape.2D")):
-            self.shape_combo.addItem(tr(key, default=code), code)
+        # La forma «2D» no se elige aquí: la fija el modo de ajuste (las tres
+        # entradas 2D del selector de modo). En modo 1D el combo ofrece solo
+        # las formas 1D y en 2D solo «2D», desactivado (_set_shape_choices).
+        self._shape_choices_2d = False
+        self._fill_shape_combo(self._SHAPES_1D)
         self.shape_combo.currentIndexChanged.connect(
             lambda *_: (self._sync_2d_controls(), self.paramChanged.emit()))
         shape_row.addWidget(self.shape_combo, stretch=1)
@@ -204,6 +203,40 @@ class DistributionPanel(QtWidgets.QGroupBox):
         self._distribution_pair = ("bhf", "quad")
         self._sync_2d_controls()
 
+    _SHAPES_1D = (("Histograma", "shape.Histograma"),
+                  ("Gaussiana", "shape.Gaussiana"),
+                  ("VBF", "shape.VBF"),
+                  ("Binomial", "shape.Binomial"),
+                  ("Fija", "shape.Fija"))
+    _SHAPES_2D = (("2D", "shape.2D"),)
+    _VAR_SHORT = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
+
+    def _fill_shape_combo(self, shapes) -> None:
+        for code, key in shapes:
+            self.shape_combo.addItem(tr(key, default=code), code)
+
+    def _set_shape_choices(self, is_2d: bool) -> None:
+        """Rellena el combo de formas según el modo (1D o 2D) sin emitir señales."""
+        if is_2d == self._shape_choices_2d:
+            return
+        previous = self.shape
+        self.shape_combo.blockSignals(True)
+        self.shape_combo.clear()
+        self._fill_shape_combo(self._SHAPES_2D if is_2d else self._SHAPES_1D)
+        idx = self.shape_combo.findData(previous)
+        self.shape_combo.setCurrentIndex(max(idx, 0))
+        self.shape_combo.setEnabled(not is_2d)
+        self.shape_combo.blockSignals(False)
+        self._shape_choices_2d = is_2d
+
+    def variable_label(self) -> str:
+        """Nombre de la distribución activa: P(BHF), P(ΔEQ), P(IS) o P(x, y)."""
+        if self._shape_choices_2d:
+            x, y = self._distribution_pair
+            return f"P({self._VAR_SHORT.get(x, x)}, {self._VAR_SHORT.get(y, y)})"
+        var = self._distribution_variable
+        return f"P({self._VAR_SHORT.get(var, var)})"
+
     def _set_log_alpha(self, value: float) -> None:
         self.log_alpha.set_value(float(value))
         self.paramChanged.emit()
@@ -252,8 +285,14 @@ class DistributionPanel(QtWidgets.QGroupBox):
                     default="La L-curve solo aplica a la forma Histograma "
                             "(Gaussiana/Binomial son paramétricas y no usan α)."))
         self.use_sharp.setEnabled(True)
+        self.setTitle(tr("tab.distribution", label=self.variable_label(),
+                         default=f"Distribución {self.variable_label()}"))
         if is_2d:
             x_var, y_var = getattr(self, "_distribution_pair", ("bhf", "quad"))
+            self.log_alpha.label.setText(
+                f"{tr('slider.dist_log_alpha')} {self._VAR_SHORT.get(x_var, x_var)}")
+            self.log_alpha_q.label.setText(
+                f"{tr('slider.dist_log_alpha')} {self._VAR_SHORT.get(y_var, y_var)}")
             self.bmin.label.setText(self._dist_var_label(x_var, "bmin"))
             self.bmax.label.setText(self._dist_var_label(x_var, "bmax"))
             self.qmin.label.setText(
@@ -276,6 +315,7 @@ class DistributionPanel(QtWidgets.QGroupBox):
                 ctl.set_range(lo_y, hi_y, DIST_RANGE_RESOLUTION)
         else:
             var = getattr(self, "_distribution_variable", "bhf")
+            self.log_alpha.label.setText(tr("slider.dist_log_alpha"))
             is_quad = var == "quad"
             is_delta = var == "delta"
             self.bmin.label.setText(self._dist_var_label(var, "bmin"))
@@ -293,14 +333,15 @@ class DistributionPanel(QtWidgets.QGroupBox):
                 ctl.set_range(lo, hi, DIST_RANGE_RESOLUTION)
 
     def set_distribution_variable(self, variable: str) -> None:
+        """Modo 1D: variable distribuida ``bhf``, ``quad`` o ``delta``."""
         self._distribution_variable = variable
-        if self.shape == "2D":
-            self._sync_2d_controls()
-            return
+        self._set_shape_choices(False)
         self._sync_2d_controls()
 
     def set_distribution_pair(self, variable_x: str, variable_y: str) -> None:
+        """Modo 2D: par de variables (eje X, eje Y); la forma pasa a «2D»."""
         self._distribution_pair = (variable_x, variable_y)
+        self._set_shape_choices(True)
         self._sync_2d_controls()
 
     def to_view_state(self, *, variable: str = "BHF") -> DistributionViewState:

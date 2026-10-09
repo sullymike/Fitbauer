@@ -288,7 +288,7 @@
   "slider.dist_fixed_bhf_active": "Fixed BHF (T)",
   "slider.dist_fixed_bhf_inactive": "Fixed BHF (unused in BHF mode)",
   "slider.dist_nbins": "Distribution bins",
-  "slider.dist_log_alpha": "log10 α BHF",
+  "slider.dist_log_alpha": "log10 α",
   "slider.dist2d_qmin": "ΔEQ min 2D",
   "slider.dist2d_qmax": "ΔEQ max 2D",
   "slider.dist2d_qbins": "ΔEQ bins 2D",
@@ -905,5 +905,9 @@
   "conventions.sextet_normos": "NORMOS sextet pattern",
   "conventions.intensity_area": "area intensities",
   "conventions.relax_normos": "NORMOS relaxation",
-  "info.conventions": "Active NORMOS conventions: {list}"
+  "info.conventions": "Active NORMOS conventions: {list}",
+  "tab.distribution": "{label} distribution",
+  "plot.distribution_xlabel_is": "δ (mm/s)",
+  "slider.dist_bmin_delta": "IS min (mm/s)",
+  "slider.dist_bmax_delta": "IS max (mm/s)"
 }

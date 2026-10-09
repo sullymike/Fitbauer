@@ -839,9 +839,10 @@ class DistributionFitMixin:
 
     def _show_distribution_dialog_1d(self, result) -> None:
         var = self.dist_variable
-        title = "P(ΔEQ)" if var == "quad" else "P(BHF)"
-        xlabel = (tr("plot.distribution_xlabel_deq") if var == "quad"
-                  else tr("plot.distribution_xlabel_bhf"))
+        title = {"quad": "P(ΔEQ)", "delta": "P(IS)"}.get(var, "P(BHF)")
+        xlabel = tr({"quad": "plot.distribution_xlabel_deq",
+                     "delta": "plot.distribution_xlabel_is"}.get(
+                         var, "plot.distribution_xlabel_bhf"))
         dlg = QtWidgets.QDialog(self)
         dlg.setWindowTitle(title)
         dlg.resize(720, 480)
