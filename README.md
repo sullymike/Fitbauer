@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.1.0-0e7490" alt="version 5.1.0">
+  <img src="https://img.shields.io/badge/version-5.1.1-0e7490" alt="version 5.1.1">
   <img src="https://img.shields.io/badge/validated%20against-NORMOS-2563eb" alt="validated against NORMOS">
   <img src="https://img.shields.io/badge/tests-584%20passing-16a34a" alt="584 tests passing">
   <img src="https://img.shields.io/badge/licence-Apache%202.0-64748b" alt="Apache 2.0">
@@ -19,7 +19,7 @@
 
 Stable desktop application to load, fold, simulate and fit ⁵⁷Fe Mössbauer spectra.
 
-Current stable version: **v5.1.0**  
+Current stable version: **v5.1.1**  
 Launch: `python fitbauer.py`  
 Headless CLI fitting: `mossbauer_fit_cli.py` (discrete) · `fit_bhf_distribution_cli.py` (distributions)
 

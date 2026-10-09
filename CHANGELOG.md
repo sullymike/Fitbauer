@@ -1,5 +1,25 @@
 # Changelog
 
+## v5.1.1 — el gráfico ya no se queda congelado tras un zoom
+
+- **El gráfico se quedaba «congelado» tras usar zoom o desplazar.** Un zoom o
+  desplazamiento con la barra de Matplotlib desactiva el autoescalado, y el
+  refresco incremental del canvas reutiliza los ejes cuando la disposición no
+  cambia: el siguiente espectro con el mismo número de canales se dibujaba con
+  los límites del anterior y quedaba fuera de la vista. Tras hacer zoom sobre
+  α-Fe, al cargar hematita se veía el 7 % de los puntos y con magnetita el
+  20 %. Ahora, si cambian los datos, se reactiva el autoescalado y se vacía el
+  historial de vistas («Inicio» lleva al espectro nuevo); si solo cambia el
+  modelo (sliders, ajuste) se respeta el zoom del usuario.
+- **Restricciones entre parámetros con los nombres del panel.** El diálogo
+  listaba todas las claves internas (`s1_delta`, …) de todos los componentes,
+  incluidos los desactivados y los parámetros que la forma no usa. Ahora ofrece
+  solo lo que se ve en el cuadro de simulación y ajuste, con su etiqueta
+  («Componente 1 · δ isomérico»). Por dentro se sigue guardando la clave, así
+  que las sesiones no cambian; una restricción sobre un parámetro que ya no se
+  muestra se conserva. Las cabeceras están traducidas y, al aceptar, el panel
+  muestra ya el valor resultante del parámetro destino.
+
 ## v5.1.0 — comodidad de uso de la interfaz y licencias de terceros
 
 - **Importar JOB: las ligaduras de área se reescalan a profundidad.** NORMOS

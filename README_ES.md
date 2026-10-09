@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/versi%C3%B3n-5.1.0-0e7490" alt="versión 5.1.0">
+  <img src="https://img.shields.io/badge/versi%C3%B3n-5.1.1-0e7490" alt="versión 5.1.1">
   <img src="https://img.shields.io/badge/validado%20frente%20a-NORMOS-2563eb" alt="validado frente a NORMOS">
   <img src="https://img.shields.io/badge/tests-584%20en%20verde-16a34a" alt="584 tests en verde">
   <img src="https://img.shields.io/badge/licencia-Apache%202.0-64748b" alt="Apache 2.0">
@@ -19,7 +19,7 @@
 
 Programa de escritorio estable para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
 
-Versión estable actual: **v5.1.0**  
+Versión estable actual: **v5.1.1**  
 Arranque: `python fitbauer.py`  
 Ajuste por línea de comandos (headless): `mossbauer_fit_cli.py` (discreto) · `fit_bhf_distribution_cli.py` (distribuciones)
 
