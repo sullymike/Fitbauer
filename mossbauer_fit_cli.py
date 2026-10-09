@@ -60,6 +60,9 @@ def _apply_model_overrides(session_engine, overrides: dict | None) -> None:
     convention = overrides.get("intensity_convention")
     if convention:
         model.intensity_convention = str(convention)
+    relax = overrides.get("relax_convention")
+    if relax:
+        model.relax_convention = str(relax)
     asym = overrides.get("line_asym")
     if asym is not None:
         model.vars["line_asym"] = float(asym)
@@ -231,6 +234,12 @@ def _build_parser() -> argparse.ArgumentParser:
                         "los momentos nucleares, como NORMOS-SITE). Afecta al "
                         "sexteto discreto, al Hamiltoniano completo y al kernel "
                         "de distribución.")
+    p.add_argument("--relax-convention", choices=("blume", "normos"), default=None,
+                   help="Relajación de dos estados con poblaciones desiguales "
+                        "(relax_polarization ≠ 0): 'blume' (modelo físico, con "
+                        "balance detallado; por defecto) o 'normos' (lo que "
+                        "calcula NORMOS-SITE con BSAT/BH0, para reproducir sus "
+                        "ajustes). Solo difieren con polarización > 0.")
     p.add_argument("--intensity-convention", choices=("depth", "area"), default="depth",
                    help="Razones int1/int2 entre líneas de una componente: "
                         "'depth' (profundidad, histórico) o 'area' (ÁREA, que "
@@ -297,6 +306,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def _overrides_from_args(args) -> dict:
     return {"intensity_convention": args.intensity_convention,
+            "relax_convention": args.relax_convention,
             "line_asym": args.line_asym,
             "src_frac": args.src_frac}
 

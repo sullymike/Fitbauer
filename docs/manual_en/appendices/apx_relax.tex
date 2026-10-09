@@ -215,6 +215,14 @@ two-state stochastic model: it matches its matrix equation solved numerically
 (difference below $10^{-10}$), conserves the area and does not depend on which
 state is called $a$ or $b$.
 
+With $P = 0$ it matches NORMOS's Ising relaxation, checked against its
+executable; its \code{OME} (MHz) corresponds to $\nu = \code{OME}\cdot10^{6}/2$.
+With $P > 0$ NORMOS uses a different rule: the same weights $(1\pm P)/2$, but
+the larger rate $k(1+|P|)$ always on the same state, without detailed balance.
+To reproduce its fits there is the NORMOS convention
+(\code{--relax-convention normos} on the command line); the default is the
+physical model.
+
 \section{Néel--Arrhenius and size distribution}
 
 The \code{NeelSize} component uses the Néel--Arrhenius model to convert the

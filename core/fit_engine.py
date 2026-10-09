@@ -25,6 +25,7 @@ from core.physics import (
     LINE_PROFILE_KIND as _DEFAULT_PROFILE,  # noqa: F401 (sólo doc)
     component_absorption,
     intensity_convention,
+    relaxation_convention,
     line_asymmetry,
     sextet_absorption,
     total_model,
@@ -90,6 +91,9 @@ class FitState:
     # "depth" (histórico) o "area" (físico / NORMOS D13-D23). Ver
     # core.physics.INTENSITY_CONVENTION.
     intensity_convention: str = "depth"
+    # Relajación polarizada: "blume" (físico) o "normos" (como NORMOS-SITE).
+    # Ver core.physics.RELAX_CONVENTION.
+    relax_convention: str = "blume"
     drive_form: str = "triangular"      # "triangular" / "sine" (eje v = vmax·sin)
     multistart_n: int = 8               # nº de réplicas perturbadas (+1 base)
     channel_sub: int = 1                # integración del modelo sobre el canal (1 = centro)
@@ -507,7 +511,8 @@ def fit_discrete(state: FitState, progress_cb: Callable[[object], None] | None =
     try:
         # El convenio de razones de intensidad ("depth"/"area") es del modelo,
         # no del optimizador: se fija para todo el ajuste y se restaura.
-        with intensity_convention(state.intensity_convention):
+        with intensity_convention(state.intensity_convention), \
+                relaxation_convention(getattr(state, "relax_convention", "blume")):
             return _fit_discrete_impl(state, progress_cb)
     finally:
         _phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA = prev_profile

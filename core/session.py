@@ -75,6 +75,8 @@ class ModelState:
     # Convenio de razones de intensidad entre líneas: "depth" (histórico) o
     # "area" (físico / D13-D23 de NORMOS). Ver core.physics.
     intensity_convention: str = "depth"
+    # Relajación polarizada: "blume" (físico) o "normos". Ver core.physics.
+    relax_convention: str = "blume"
     drive_form: str = "triangular"      # "triangular" (aceleración cte) / "sine"
     propagate_calib: bool = False
     global_opt: bool = False
@@ -174,7 +176,7 @@ class ModelState:
         if "channel_sub" in state:
             self.channel_sub = max(1, min(8, int(state["channel_sub"])))
         for skey in ("line_profile", "likelihood", "robust_loss", "absorber_model",
-                     "intensity_convention",
+                     "intensity_convention", "relax_convention",
                      "drive_form"):
             if skey in state:
                 setattr(self, skey, str(state[skey]))
@@ -253,6 +255,7 @@ class ModelState:
             fit_velocity=self.fit_velocity, fit_center=self.fit_center,
             fit_sigma=self.fit_sigma, absorber_model=self.absorber_model,
             intensity_convention=self.intensity_convention,
+            relax_convention=self.relax_convention,
             drive_form=self.drive_form,
             multistart_n=self.multistart_n,
             channel_sub=max(1, int(self.channel_sub)),
@@ -295,6 +298,7 @@ class ModelState:
             "global_opt": self.global_opt,
             "absorber_model": self.absorber_model,
             "intensity_convention": self.intensity_convention,
+            "relax_convention": self.relax_convention,
             "drive_form": self.drive_form,
             "multistart_n": self.multistart_n,
             "channel_sub": self.channel_sub,
@@ -364,7 +368,7 @@ class HeadlessSession:
     def _geometry_diagnostics(counts: np.ndarray, center: float) -> dict:
         """Efecto geométrico del espectro sin doblar (diagnóstico, no corrección).
 
-        Portado de NORMOS (``normospr.for``), que lo imprime en su ``.RES``
+        Mismo diagnóstico que NORMOS (``normospr.for``), que lo imprime en su ``.RES``
         como "Geometry effect" y "Geometry effect/Background". Mide la
         modulación de la tasa de cuentas con la POSICIÓN del transductor: es
         antisimétrica respecto al punto de doblado, así que el propio doblado

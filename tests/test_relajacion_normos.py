@@ -12,10 +12,11 @@ forma cerrada, más las propiedades que cualquier modelo físico debe cumplir:
 conservación del área, no negatividad, límites lento y rápido, e invariancia
 al intercambiar los dos estados.
 
-Nota histórica: hasta v5.1.1 la rama polarizada era una transcripción de la
-rutina ``ISIRLX`` de NORMOS. Esa transcripción coincidía con este modelo para
-P ≤ 0 (a 10⁻¹¹) pero con P > 0 tomaba la otra rama de la raíz compleja: el
-espectro cambiaba al intercambiar los estados y aparecían regiones negativas.
+Con P > 0 NORMOS calcula otra cosa: mismos pesos (1 ± P)/2 pero la tasa mayor
+k(1 + |P|) siempre en el estado a, sin balance detallado. Identificado con su
+binario (demo 27.01.1994, sonda en validacion/generador/sonda_relajacion*.py:
+coincide a ~1e-5 con OME = 2k en MHz). Está disponible como convenio "normos"
+(``core.physics.relaxation_convention``); el defecto es el modelo físico.
 """
 from __future__ import annotations
 
@@ -140,3 +141,88 @@ def test_limite_rapido_colapsa_al_centro():
     mitad = rapido.max() / 2.0
     ancho = float(np.sum(rapido > mitad)) * (V[1] - V[0])
     assert ancho < SPLIT
+
+
+# ── Convenio NORMOS ─────────────────────────────────────────────────────────
+#
+# NORMOS-SITE (Ising con BSAT/BH0) usa los mismos pesos (1 ± P)/2 pero pone
+# SIEMPRE la tasa mayor k(1 + |P|) en el estado a. Identificado con su binario
+# (demo 27.01.1994) a ~1e-5: validacion/generador/sonda_relajacion*.py.
+
+def _con_convenio(nombre, *args, **kw):
+    from core.physics import relaxation_convention
+    with relaxation_convention(nombre):
+        return _fitbauer(*args, **kw)
+
+
+def _matricial_tasas(v, ca, cb, gamma, w_a, w_b, pol):
+    """(Z + W)⁻¹ con tasas arbitrarias y pesos (1 ± P)/2."""
+    g = gamma / 2.0
+    p = np.array([0.5 * (1.0 + pol), 0.5 * (1.0 - pol)])
+    W = np.array([[w_a, -w_b], [-w_a, w_b]], dtype=complex)
+    out = np.empty_like(v)
+    for i, vi in enumerate(v):
+        Z = np.diag([g + 1j * (vi - ca), g + 1j * (vi - cb)])
+        out[i] = g * np.real(np.linalg.solve(Z + W, p).sum())
+    return out
+
+
+@pytest.mark.parametrize("pol", [-0.9, -0.4, 0.0])
+def test_convenio_normos_coincide_con_blume_si_p_no_es_positiva(pol):
+    for k in (0.01, 0.5, 3.0, 40.0):
+        a = _con_convenio("normos", k, pol)
+        b = _con_convenio("blume", k, pol)
+        assert np.max(np.abs(a - b)) < 1e-12 * b.max()
+
+
+@pytest.mark.parametrize("k", [0.5, 3.0, 40.0])
+@pytest.mark.parametrize("pol", [0.3, 0.9])
+def test_convenio_normos_con_p_positiva_usa_la_tasa_mayor_en_a(k, pol):
+    v = np.linspace(-12.0, 12.0, 301)
+    ref = _matricial_tasas(v, -SPLIT, SPLIT, GAMMA, k * (1 + pol), k * (1 - pol), pol)
+    mio = _con_convenio("normos", k, pol, v=v)
+    assert np.max(np.abs(mio - ref)) < 1e-10 * np.abs(ref).max()
+    # y se separa del modelo físico
+    fisico = _con_convenio("blume", k, pol, v=v)
+    assert np.max(np.abs(mio - fisico)) > 1e-3 * fisico.max()
+
+
+def test_convenio_desconocido_falla():
+    from core.physics import relaxation_convention
+    with pytest.raises(ValueError):
+        with relaxation_convention("ising"):
+            pass
+
+
+def test_el_ajuste_respeta_el_convenio_y_lo_restaura():
+    """fit_discrete fija state.relax_convention durante el ajuste y lo restaura."""
+    from core import physics
+    from core.session import ModelState
+    from core.fit_engine import fit_discrete, model_from_values
+
+    v = np.linspace(-10.0, 10.0, 256)
+    m = ModelState.defaults(n_components=1)
+    m.component_kind[1] = "BlumeTjon"
+    m.vars.update({"s1_bhf": 2.0, "s1_relax_log_nu": 8.0, "s1_relax_polarization": 0.6,
+                   "s1_depth": 0.05})
+    m.relax_convention = "normos"
+    m.multistart_n = 0          # arranca en la verdad: basta el ajuste local
+    st = m.build_fit_state(velocity=v, y_data=np.ones_like(v), sigma_data=None,
+                           counts=None, norm_factor=None)
+    with physics.relaxation_convention("normos"):
+        y = model_from_values(v, st.values, st.components, absorber_model=st.absorber_model)
+    st = m.build_fit_state(velocity=v, y_data=y, sigma_data=np.full_like(v, 1e-3),
+                           counts=None, norm_factor=None)
+    assert st.relax_convention == "normos"
+    res = fit_discrete(st)
+    assert physics.RELAX_CONVENTION == "blume"
+    assert res.stats["red_chi2"] < 1e-3
+
+
+def test_la_sesion_conserva_el_convenio():
+    from core.session import ModelState
+    m = ModelState.defaults()
+    m.relax_convention = "normos"
+    otra = ModelState.defaults()
+    otra.apply_template(m.to_model_state_dict())
+    assert otra.relax_convention == "normos"

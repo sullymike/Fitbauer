@@ -75,6 +75,31 @@ def line_asymmetry(asym: float):
         LINE_ASYM = previous
 
 
+#: Convenio de la relajación de dos estados con poblaciones desiguales
+#: (``polarization`` ≠ 0). ``"blume"`` (defecto): modelo estocástico de Blume
+#: con tasas que cumplen el balance detallado. ``"normos"``: lo que calcula
+#: NORMOS-SITE (Ising con ``BSAT``/``BH0``), identificado con su binario:
+#: mismos pesos (1 ± P)/2, pero la tasa MAYOR k(1 + |P|) siempre en el estado
+#: a. Para P ≤ 0 ambos coinciden; para P > 0 el de NORMOS no cumple el
+#: balance detallado (ver ``two_state_exchange_profile``).
+RELAX_CONVENTION = "blume"
+
+
+@contextmanager
+def relaxation_convention(name: str):
+    """Fija el convenio de la relajación polarizada durante un bloque."""
+    global RELAX_CONVENTION
+    key = str(name)
+    if key not in ("blume", "normos"):
+        raise ValueError(
+            f"convenio de relajación desconocido: {name!r} (usa 'blume' o 'normos')")
+    previous, RELAX_CONVENTION = RELAX_CONVENTION, key
+    try:
+        yield
+    finally:
+        RELAX_CONVENTION = previous
+
+
 @contextmanager
 def intensity_convention(name: str):
     """Fija el convenio de razones de intensidad durante un bloque.
@@ -516,6 +541,13 @@ def two_state_exchange_profile(
     y parametrizadas como ``w_a = 2k p_b``, ``w_b = 2k p_a``, de modo que P=0
     da ``w_a = w_b = k``. La forma conserva el área, es no negativa y es
     invariante al intercambiar los dos estados (``a ↔ b`` con ``P → −P``).
+
+    Con ``RELAX_CONVENTION == "normos"`` las tasas son las de NORMOS-SITE:
+    ``w_a = k(1 + |P|)`` y ``w_b = k(1 − |P|)`` con los mismos pesos. Coincide
+    con lo anterior para P ≤ 0; para P > 0 no cumple el balance detallado, la
+    forma puede tener regiones negativas (NORMOS no las recorta) y depende de
+    qué estado se llame a. Verificado contra el binario de SITE (demo
+    27.01.1994) con ``OME = 2k`` (MHz): ``validacion/generador/sonda_relajacion*.py``.
     """
     vv = np.asarray(v, dtype=float)
     g = max(float(gamma), 1e-9) / 2.0
@@ -532,12 +564,19 @@ def two_state_exchange_profile(
     if k <= 0.0:
         # Sin saltos: cada estado aporta según su población.
         return p_a * np.real(g / z_a) + p_b * np.real(g / z_b)
-    w_a = 2.0 * k * p_b
-    w_b = 2.0 * k * p_a
+    normos = RELAX_CONVENTION == "normos"
+    if normos:
+        w_a = k * (1.0 + abs(pol))
+        w_b = k * (1.0 - abs(pol))
+    else:
+        w_a = 2.0 * k * p_b
+        w_b = 2.0 * k * p_a
     det = z_a * z_b + z_a * w_b + z_b * w_a
     det = np.where(np.abs(det) < 1e-300, 1e-300 + 0j, det)
     resp = g * (p_a * z_b + p_b * z_a + w_a + w_b) / det
-    return np.maximum(np.real(resp), 0.0)
+    # Blume es no negativo por construcción; el convenio NORMOS puede no
+    # serlo y NORMOS no recorta, así que tampoco aquí.
+    return np.real(resp) if normos else np.maximum(np.real(resp), 0.0)
 
 
 def two_state_sextet_absorption(

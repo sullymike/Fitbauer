@@ -2,23 +2,28 @@
 
 ## Sin publicar
 
-- **Relajación con poblaciones desiguales: implementación propia, y corregida
-  para P > 0.** La rama polarizada de la relajación de dos estados
+- **Relajación con poblaciones desiguales: implementación propia, con dos
+  convenios.** La rama polarizada de la relajación de dos estados
   (`relax_polarization`) era una transcripción línea a línea de la rutina
   `ISIRLX` del código fuente de NORMOS, que es propietario. Se sustituye por el
   modelo estocástico de dos estados de Blume (Phys. Rev. 174, 351, 1968) en
-  forma cerrada, con poblaciones `(1 ± P)/2` y tasas con balance detallado. Para
-  P ≤ 0 da lo mismo que antes (10⁻¹¹); para P > 0 la transcripción tomaba la
-  otra rama de la raíz compleja: el espectro cambiaba al intercambiar los dos
-  estados (hasta un 450 %) y tenía regiones negativas (hasta el 27 % de los
-  canales con P = 0.9), que se habían documentado como rasgo del modelo. Ahora
-  es simétrico, no negativo y conserva el área. **Cambian los resultados con
-  P > 0.** No se puede atribuir el fallo al propio NORMOS: su relajación nunca
-  se pudo contrastar con el binario y la «reproducción exacta» comparaba dos
-  copias del mismo Fortran. Los tests dejan de usar la copia de `ISIRLX` y
-  comprueban contra la ecuación matricial de Blume resuelta numéricamente,
-  la simetría a/b, el límite lento, el área y la no negatividad. Ayuda (ES/EN)
-  y manuales dejan de afirmar que se reproduce `ISIRLX` exactamente.
+  forma cerrada, con poblaciones `(1 ± P)/2` y tasas con balance detallado:
+  simétrico al intercambiar los estados, no negativo y con el área conservada.
+  Es el defecto. Para P ≤ 0 coincide con lo anterior (10⁻¹¹); para P > 0 no:
+  **cambian los resultados con P > 0.**
+- **Convenio NORMOS para la relajación polarizada** (`relax_convention =
+  "normos"`, `--relax-convention normos`). La sonda nueva contra el binario de
+  SITE (`validacion/generador/sonda_relajacion*.py`) mostró que lo que hacía la
+  transcripción con P > 0 —espectro que cambia al intercambiar los estados,
+  regiones negativas— es lo que calcula **el propio NORMOS**: mismos pesos
+  `(1 ± P)/2`, pero la tasa mayor `k(1 + |P|)` siempre en el estado a, sin
+  balance detallado. Se implementa desde esa regla (no desde su código) para
+  poder reproducir ajustes de NORMOS; el defecto sigue siendo el modelo físico.
+  La sonda confirma además contra el binario la equivalencia de tasas
+  `OME (MHz) = 2k`, es decir ν = OME·10⁶/2, y explica por qué la relajación
+  «no era validable»: la sonda de agosto usaba `BH0 = BHF` (polarización total,
+  sin intercambio posible), y el demo coloca toda la absorción en las líneas
+  3/4. Con eso en cuenta, el binario reproduce el modelo a ~10⁻⁵.
 - **Las sesiones antiguas discretas se abrían en modo distribución.** Sin
   `mode_combo_idx`, el modo se deducía solo de `dist_variable`, que se guarda
   siempre aunque no se use, e ignoraba `fit_mode: "discrete"`. Afectaba a las

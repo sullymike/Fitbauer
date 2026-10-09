@@ -35,8 +35,9 @@ Veredicto por símbolo:
 | `IFTRAN` integral de transmisión | `absorber_model="transmission"` | **+** kernel de fuente integrado por canal frente a su muestreo puntual |
 | `FSO` fracción resonante de la fuente | `src_frac` | **=** |
 | `TAB` espesor, `WDS` anchura de fuente | `depth` como τ, `src_fwhm` | **=** |
-| `SRELAX`/`IRELAX` relajación | `BlumeTjon` | **=** reproduce `ISIRLX` a <10⁻¹² |
-| `BSAT` (vía `SPN=BHF/BSAT`) | `relax_polarization` | **=** |
+| `IRELAX` relajación de Ising | `BlumeTjon` | **=** contra el binario a ~10⁻⁵ (`sonda_relajacion*.py`), `OME` (MHz) = 2k |
+| `SRELAX` relajación esférica | — | **✗** |
+| `BSAT` (`BH0` en el demo; momento relativo BHF/BSAT) | `relax_polarization` + `relax_convention="normos"` | **=** a ~10⁻⁵ con el convenio NORMOS; el defecto es Blume con balance detallado, que difiere con P > 0 |
 | `POLAR` + `D10 D20 D2N D2P` + `BHS THETAS PHIS` | kernel `"polarized"` | **=** |
 | `NDEX FACTOR CONST` ligaduras | `constraints` | **+** NORMOS propaga mal el error del parámetro ligado (usa el offset en vez del factor) |
 | `STB` Czjzek sobre el Hamiltoniano | Voigt σ_B / forma Gaussiana | **~** por otra vía, sin las correcciones de orden 3-5 |

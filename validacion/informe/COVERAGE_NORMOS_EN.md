@@ -38,8 +38,9 @@ Verdict symbols:
 | `IFTRAN` transmission integral | `absorber_model="transmission"` | **+** source kernel integrated per channel versus their point sampling |
 | `FSO` resonant fraction of the source | `src_frac` | **=** |
 | `TAB` thickness, `WDS` source width | `depth` as τ, `src_fwhm` | **=** |
-| `SRELAX`/`IRELAX` relaxation | `BlumeTjon` | **=** reproduces `ISIRLX` to <10⁻¹² |
-| `BSAT` (via `SPN=BHF/BSAT`) | `relax_polarization` | **=** |
+| `IRELAX` Ising relaxation | `BlumeTjon` | **=** against the binary to ~10⁻⁵ (`sonda_relajacion*.py`), `OME` (MHz) = 2k |
+| `BSAT` (`BH0` in the demo; relative moment BHF/BSAT) | `relax_polarization` + `relax_convention="normos"` | **=** to ~10⁻⁵ with the NORMOS convention; the default is Blume with detailed balance, which differs for P > 0 |
+| `SRELAX` spherical relaxation | — | **✗** |
 | `POLAR` + `D10 D20 D2N D2P` + `BHS THETAS PHIS` | `"polarized"` kernel | **=** |
 | `NDEX FACTOR CONST` constraints | `constraints` | **+** NORMOS propagates the linked-parameter error wrongly (uses the offset instead of the factor) |
 | `STB` Czjzek over the Hamiltonian | Voigt σ_B / Gaussian shape | **~** by another route, without the order 3-5 corrections |

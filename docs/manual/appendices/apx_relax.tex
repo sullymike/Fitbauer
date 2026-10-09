@@ -216,6 +216,14 @@ estocástico de dos estados de Blume: coincide con su ecuación matricial resuel
 numéricamente (diferencia por debajo de $10^{-10}$), conserva el área y no
 depende de qué estado se llame $a$ o $b$.
 
+Con $P = 0$ coincide con la relajación de Ising de NORMOS, comprobado contra su
+ejecutable; su \code{OME} (MHz) equivale a $\nu = \code{OME}\cdot10^{6}/2$.
+Con $P > 0$ NORMOS usa otra regla: los mismos pesos $(1\pm P)/2$, pero la tasa
+mayor $k(1+|P|)$ siempre en el mismo estado, sin balance detallado. Para
+reproducir sus ajustes existe el convenio NORMOS
+(\code{--relax-convention normos} en la línea de comandos); el defecto es el
+modelo físico.
+
 \section{Néel--Arrhenius y distribución de tamaños}
 
 La componente \code{NeelSize} usa el modelo de Néel--Arrhenius para convertir el
