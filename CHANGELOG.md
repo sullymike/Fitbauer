@@ -19,6 +19,15 @@
   comprueban contra la ecuación matricial de Blume resuelta numéricamente,
   la simetría a/b, el límite lento, el área y la no negatividad. Ayuda (ES/EN)
   y manuales dejan de afirmar que se reproduce `ISIRLX` exactamente.
+- **Las sesiones antiguas discretas se abrían en modo distribución.** Sin
+  `mode_combo_idx`, el modo se deducía solo de `dist_variable`, que se guarda
+  siempre aunque no se use, e ignoraba `fit_mode: "discrete"`. Afectaba a las
+  sesiones de ejemplo que recomiendan los README. Ahora manda `fit_mode`.
+- **Sesiones de ejemplo regeneradas** (`calibration_session.json`,
+  `Fe3O4_session.json`) con el formato y el convenio de intensidades actuales.
+  Guardaban I23 = 1 fijo de un convenio antiguo, con profundidad e intensidad
+  totalmente correlacionadas: χ²red 18.8 y 2.08 (y 13.7 y 3.8 al reajustarlas
+  hoy). Ahora 1.14 y 1.51.
 
 ## v5.1.1 — el gráfico ya no se queda congelado tras un zoom
 

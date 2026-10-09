@@ -2287,3 +2287,30 @@ def test_constraints_dialog_lists_only_panel_params_with_panel_labels(win):
     assert win.constraints[0]["target"] == "s2_delta"
     assert win.constraints[0]["source"] == "s1_delta"
     assert win.constraints[0]["enabled"] is True
+
+
+def test_sesion_antigua_discreta_se_abre_en_modo_discreto(win, tmp_path):
+    """Sesiones sin mode_combo_idx pero con fit_mode="discrete" no deben abrir
+    en modo distribución aunque guarden dist_variable (así eran las sesiones
+    de ejemplo de data_sample/ hasta v5.1.1)."""
+    import json
+    data = json.loads((DATA / "calibration_session.json").read_text())
+    ms = data["model_state"]
+    ms.pop("mode_combo_idx", None)
+    ms["fit_mode"] = "discrete"
+    ms["dist_variable"] = "BHF"
+    antigua = tmp_path / "antigua.json"
+    antigua.write_text(json.dumps(data))
+    assert win.load_session_file(antigua)
+    assert win.mode_combo.currentIndex() == 0
+
+
+@pytest.mark.parametrize("session", ["calibration_session.json", "Fe3O4_session.json"])
+def test_sesiones_de_ejemplo_discretas(win, session):
+    assert win.load_session_file(DATA / session)
+    assert win.mode_combo.currentIndex() == 0
+
+
+def test_sesion_de_distribucion_sigue_abriendo_en_distribucion(win):
+    assert win.load_session_file(DATA / "sintetico_dist_bhf_bimodal_session.json")
+    assert win.mode_combo.currentIndex() == 1

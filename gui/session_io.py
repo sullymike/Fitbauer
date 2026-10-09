@@ -183,10 +183,16 @@ class SessionIOMixin:
                 # Índice guardado explícitamente: cubre el modo discreto (0) y 2D (4/5/6)
                 self.mode_combo.setCurrentIndex(int(mode_idx_saved))
             else:
-                # Compatibilidad con sesiones antiguas sin mode_combo_idx
+                # Compatibilidad con sesiones antiguas sin mode_combo_idx. Si
+                # declaran fit_mode="discrete", manda eso: dist_variable se
+                # guarda siempre (es la variable del panel de distribución
+                # aunque no se use) y por sí sola abría en modo distribución
+                # sesiones discretas como data_sample/calibration_session.json.
                 var_saved = state.get("dist_variable")
                 _2d_var_to_idx = {"BHF-ΔEQ": 4, "IS-ΔEQ": 5, "BHF-IS": 6}
-                if var_saved in _2d_var_to_idx:
+                if state.get("fit_mode") == "discrete":
+                    self.mode_combo.setCurrentIndex(0)
+                elif var_saved in _2d_var_to_idx:
                     self.mode_combo.setCurrentIndex(_2d_var_to_idx[var_saved])
                 elif var_saved in ("BHF", "bhf"):
                     self.mode_combo.setCurrentIndex(1)
