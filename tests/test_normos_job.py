@@ -476,6 +476,26 @@ def test_distri_selecciona_la_forma():
     assert forma(JOB_DIST_XL.replace("DISTRI=1,", "DISTRI=3,")) == "Fija"
 
 
+def test_binomial_de_normos_traslada_concentracion_inicio_y_paso():
+    """DISTRI=3 + CONC: 0…12 vecinos desde BHF con paso DTB por vecino."""
+    from core.normos_job import job_to_distribution_state
+
+    job = JOB_DIST_XL.replace("DISTRI=1, NSUB=10,", "DISTRI=3, CONC=20.0, NSUB=13,")
+    # DTB debe ser > 0 en NORMOS (IF(DTB.LE.0)DTB=1): un soluto que baja el
+    # campo se escribe contando vecinos de Fe, con CONC = 100 − c.
+    job = job.replace("BHF=0.,", "BHF=3.,").replace("DTB=5.0,", "DTB=2.5,")
+    r = job_to_distribution_state(job)
+    st = r["model_state"]
+    assert st["dist_shape"] == "Binomial"
+    assert st["dist_binom_conc"] == 20.0
+    assert st["dist_binom_neighbors"] == 12
+    assert st["dist_binom_start"] == 3.0
+    assert st["dist_binom_step"] == 2.5
+    assert not any("NSB=" in a for a in r["warnings"])
+    r10 = job_to_distribution_state(job.replace("NSUB=13,", "NSUB=10,"))
+    assert any("NSB=10" in a for a in r10["warnings"])
+
+
 def test_czjzek_avisa_de_que_no_esta_implementado():
     from core.normos_job import job_to_distribution_state
 

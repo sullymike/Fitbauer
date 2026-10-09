@@ -93,6 +93,18 @@ def test_dist_cli_shape_vbf(tmp_path):
     assert len(comps) == 1 and len(comps[0]) == 3
 
 
+def test_dist_cli_shape_binomial_normos(tmp_path):
+    """--shape binomial es la binomial de vecinos de NORMOS (12 vecinos)."""
+    proc = _run_dist_cli(tmp_path, "--shape", "binomial", "--binomial-conc", "20",
+                         "--binomial-start", "33", "--binomial-step", "-2")
+    assert proc.returncode == 0, proc.stderr
+    summary = json.loads((tmp_path / "out_summary.json").read_text(encoding="utf-8"))
+    assert summary["shape"] == "Binomial"
+    assert summary["binomial_n"] == 12
+    assert summary["fitted_dist_p"] == 0.2          # CONC es dato, no se ajusta
+    assert summary["binomial_step"] is not None
+
+
 def test_dist_cli_scan_alpha_requires_histogram(tmp_path):
     proc = _run_dist_cli(tmp_path, "--shape", "vbf", "--scan-alpha")
     assert proc.returncode != 0

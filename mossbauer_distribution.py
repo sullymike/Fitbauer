@@ -157,6 +157,11 @@ class BhfDistributionFit:
     delta_slope: float = 0.0
     quad_slope: float = 0.0
     vbf_n_components: int | None = None
+    #: Binomial de vecinos (NORMOS DISTRI=3): valor sin vecinos, paso por
+    #: vecino y nº de vecinos. La concentración ajustada va en fitted_dist_p.
+    binomial_start: float | None = None
+    binomial_step: float | None = None
+    binomial_n: int | None = None
     #: Diagnóstico de MALLA INSUFICIENTE: ``max(P[0], P[-1]) / max(P)``.
     #:
     #: Si la distribución real se sale del rango, el histograma de
@@ -195,6 +200,9 @@ class BhfDistributionFit:
             "delta_slope": self.delta_slope,
             "quad_slope": self.quad_slope,
             "vbf_n_components": self.vbf_n_components,
+            "binomial_start": self.binomial_start,
+            "binomial_step": self.binomial_step,
+            "binomial_n": self.binomial_n,
         }
 
 
@@ -1846,6 +1854,36 @@ def fit_vbf_hyperfine_distribution(
     )
 
 
+#: Vecinos de la binomial de NORMOS-DIST (``DISTRI=3`` con ``CONC>0``): 13
+#: subespectros con 0…12 vecinos y pesos C(12, k)·c^k·(1−c)^(12−k). Comprobado
+#: con el binario de DIST (sonda 2026-10-09: CONC=50 % reproduce los 13 pesos).
+BINOMIAL_NEIGHBORS_NORMOS = 12
+
+
+def binomial_neighbor_weights(conc: float, n_neighbors: int = BINOMIAL_NEIGHBORS_NORMOS) -> np.ndarray:
+    """Probabilidad de tener k = 0…n vecinos de soluto con concentración ``conc``.
+
+    ``conc`` es la fracción (0–1) de posiciones vecinas ocupadas por el soluto;
+    el resultado suma 1.
+    """
+    from scipy.special import gammaln
+    n = max(1, int(n_neighbors))
+    c = min(1.0 - 1e-12, max(1e-12, float(conc)))
+    k = np.arange(n + 1, dtype=float)
+    logw = (gammaln(n + 1) - gammaln(k + 1) - gammaln(n - k + 1)
+            + k * np.log(c) + (n - k) * np.log1p(-c))
+    w = np.exp(logw - np.max(logw))
+    return w / float(np.sum(w))
+
+
+#: Cotas físicas del valor inicial y del paso por vecino según la variable.
+_BINOMIAL_BOUNDS = {
+    "bhf": ((0.0, 80.0), (-15.0, 15.0)),
+    "quad": ((-10.0, 10.0), (-3.0, 3.0)),
+    "delta": ((-5.0, 5.0), (-2.0, 2.0)),
+}
+
+
 def fit_binomial_hyperfine_distribution(
     v: np.ndarray,
     y: np.ndarray,
@@ -1855,9 +1893,16 @@ def fit_binomial_hyperfine_distribution(
     quad: float = 0.0,
     bhf: float = BHF_DEFAULT_T,
     gamma: float = 0.18,
+    conc: float = 0.1,
+    n_neighbors: int = BINOMIAL_NEIGHBORS_NORMOS,
+    start: float | None = None,
+    step: float | None = None,
+    fit_conc: bool = False,
+    fit_start: bool = True,
+    fit_step: bool = True,
     pmin: float = 0.0,
     pmax: float = 50.0,
-    nbins: int = 30,
+    nbins: int | None = None,
     baseline: float | None = None,
     slope: float | None = None,
     fit_baseline: bool = True,
@@ -1865,97 +1910,140 @@ def fit_binomial_hyperfine_distribution(
     profile: str = "Lorentz",
     voigt_sigma: float = 0.05,
     sharp_components: list[dict[str, float]] | None = None,
+    delta_slope: float = 0.0,
+    quad_slope: float = 0.0,
 ) -> BhfDistributionFit:
-    """Ajuste paramétrico sencillo de una distribución binomial sobre la malla.
+    """Distribución binomial de vecinos al estilo NORMOS-DIST (``DISTRI=3``).
 
-    Opcionalmente suma componentes nítidos (sharp_components) con amplitud libre >= 0.
+    Modelo de aleación: cada átomo de Fe tiene ``n_neighbors`` posiciones
+    vecinas y cada una está ocupada por el soluto con probabilidad ``conc``
+    (fracción 0–1; ``CONC`` de NORMOS en %/100). La configuración con k
+    vecinos de soluto pesa C(n, k)·c^k·(1−c)^(n−k) y su subespectro tiene la
+    variable distribuida en ``start + k·step`` (``BHF``/``DTB`` de NORMOS para
+    campo; ``QUA``/``DTQ`` o ``ISO``/``DTI`` para ΔEQ o δ).
+
+    Ajusta la amplitud y, según los flags, ``conc``, ``start`` y ``step`` (en
+    NORMOS ``CONC`` es dato y ``BHF``/``DTB`` pueden variar con ``DISTRI=3``).
+    Las pendientes ``delta_slope``/``quad_slope`` se refieren a la
+    configuración sin vecinos: δ_k = δ + delta_slope·k·step, que es el ``DTI``
+    por subespectro de NORMOS dividido por el paso.
+
+    ``pmin``/``pmax`` solo dan el valor inicial por defecto de ``start`` y
+    ``step`` (malla repartida entre los n+1 subespectros); ``nbins`` se ignora.
     """
     from scipy.optimize import least_squares
-    from scipy.special import gammaln
     v = _finite_1d("v", v); y = _finite_1d("y", y)
-    centers = parameter_grid(pmin, pmax, nbins)
-    # Perfil de línea explícito: sin este contexto el kernel heredaba el estado
-    # global que hubiera dejado el último ajuste (p. ej. Voigt de un discreto).
+    var = str(variable).lower()
+    n = max(1, int(n_neighbors))
+    k = np.arange(n + 1, dtype=float)
+    (start_lo, start_hi), (step_lo, step_hi) = _BINOMIAL_BOUNDS.get(var, _BINOMIAL_BOUNDS["bhf"])
+    start0 = float(pmin if start is None else start)
+    step0 = float((float(pmax) - float(pmin)) / n if step is None else step)
+    start0 = min(start_hi, max(start_lo, start0))
+    step0 = min(step_hi, max(step_lo, step0))
+    conc0 = min(1.0 - 1e-6, max(1e-6, float(conc)))
+
+    def centers_for(st: float, sp: float) -> np.ndarray:
+        return st + sp * k
+
+    def kernel(st: float, sp: float) -> np.ndarray:
+        # h_ref = start: δ y ΔEQ globales son los de la configuración sin vecinos.
+        return build_hyperfine_distribution_kernel(
+            v, centers_for(st, sp), variable=var, delta=delta, quad=quad, bhf=bhf,
+            gamma=gamma, delta_slope=delta_slope, quad_slope=quad_slope, h_ref=st)
+
     with line_profile(profile, voigt_sigma):
-        K = build_hyperfine_distribution_kernel(v, centers, variable=variable, delta=delta, quad=quad, bhf=bhf, gamma=gamma)
         K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
             v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
-    n_sharp = K_sharp.shape[1] if K_sharp is not None else 0
-    if baseline is None:
-        baseline = float(np.percentile(y, 90))
-    if slope is None:
-        slope = 0.0
-    amp0 = max(1e-6, float(np.percentile(y, 90) - np.min(y)))
-    n = nbins - 1
-    k = np.arange(nbins, dtype=float)
-    log_comb = gammaln(n + 1) - gammaln(k + 1) - gammaln(n - k + 1)
+        n_sharp = K_sharp.shape[1] if K_sharp is not None else 0
+        if baseline is None:
+            baseline = float(np.percentile(y, 90))
+        if slope is None:
+            slope = 0.0
+        amp0 = max(1e-6, float(np.percentile(y, 90) - np.min(y)))
 
-    def binom_weights(prob: float) -> np.ndarray:
-        prob = min(1.0 - 1e-6, max(1e-6, float(prob)))
-        logw = log_comb + k * np.log(prob) + (n - k) * np.log(1.0 - prob)
-        w = np.exp(logw - np.max(logw))
-        area = np.trapezoid(w, centers) if w.size > 1 else w[0]
-        return w / max(float(area), 1e-12)
+        # Vector de parámetros: [baseline] [slope] amp [logit c] [start] [step] nítidos…
+        names: list[str] = []
+        x0: list[float] = []
+        lo: list[float] = []
+        hi: list[float] = []
 
-    # baseline/slope entran en el vector solo si son libres; si están fijos se
-    # usan como constantes (antes se ajustaban siempre, ignorando el fijado).
-    n_lin = int(fit_baseline) + int(fit_slope)
+        def add(name: str, val: float, lo_v: float, hi_v: float) -> None:
+            names.append(name); x0.append(val); lo.append(lo_v); hi.append(hi_v)
 
-    def lin_part(x: np.ndarray) -> tuple[float, float]:
-        i = 0
         if fit_baseline:
-            b0 = float(x[0]); i = 1
-        else:
-            b0 = float(baseline)
-        sl = float(x[i]) if fit_slope else float(slope)
-        return b0, sl
+            add("baseline", float(baseline), 0.0, np.inf)
+        if fit_slope:
+            add("slope", float(slope), -np.inf, np.inf)
+        add("amp", amp0, 0.0, np.inf)
+        if fit_conc:
+            add("logit_c", float(np.log(conc0 / (1.0 - conc0))), -14.0, 14.0)
+        if fit_start:
+            add("start", start0, start_lo, start_hi)
+        if fit_step:
+            add("step", step0, step_lo, step_hi)
+        n_head = len(names)
+        x0 += [amp0 / max(n_sharp, 1)] * n_sharp
+        lo += [0.0] * n_sharp
+        hi += [np.inf] * n_sharp
+        cache: dict = {}
 
-    def residual(x: np.ndarray) -> np.ndarray:
-        b0, sl = lin_part(x)
-        amp, logit_p = x[n_lin], x[n_lin + 1]
-        pval = 1.0 / (1.0 + np.exp(-logit_p))
-        w = amp * binom_weights(pval)
-        r = b0 + sl * v - K @ w - fixed_sharp_abs - y
-        if K_sharp is not None and n_sharp:
-            sharp_amps = np.maximum(x[n_lin + 2:n_lin + 2 + n_sharp], 0.0)
-            r = r - K_sharp @ sharp_amps
-        return r
+        def unpack(x: np.ndarray) -> dict:
+            p = {"baseline": float(baseline), "slope": float(slope),
+                 "conc": conc0, "start": start0, "step": step0}
+            for i, name in enumerate(names):
+                if name == "logit_c":
+                    p["conc"] = float(1.0 / (1.0 + np.exp(-x[i])))
+                else:
+                    p[name] = float(x[i])
+            return p
 
-    x0_lin, lo_lin, hi_lin = [], [], []
-    if fit_baseline:
-        x0_lin.append(float(baseline)); lo_lin.append(0.0); hi_lin.append(np.inf)
-    if fit_slope:
-        x0_lin.append(float(slope)); lo_lin.append(-np.inf); hi_lin.append(np.inf)
-    x0 = np.array(x0_lin + [amp0, 0.0] + [amp0 / max(n_sharp, 1)] * n_sharp)
-    lo = np.array(lo_lin + [0.0, -12.0] + [0.0] * n_sharp)
-    hi = np.array(hi_lin + [np.inf, 12.0] + [np.inf] * n_sharp)
-    res = least_squares(residual, x0, bounds=(lo, hi), max_nfev=2000)
-    b0, sl = lin_part(res.x)
-    amp, logit_p = res.x[n_lin], res.x[n_lin + 1]
-    pval = 1.0 / (1.0 + np.exp(-logit_p))
-    w = float(amp) * binom_weights(float(pval))
-    sharp_weights_free = np.maximum(res.x[n_lin + 2:n_lin + 2 + n_sharp], 0.0) if n_sharp else None
+        def model(x: np.ndarray) -> tuple[np.ndarray, np.ndarray, dict]:
+            p = unpack(x)
+            key = (p["start"], p["step"])
+            if cache.get("key") != key:
+                cache["key"] = key
+                cache["K"] = kernel(p["start"], p["step"])
+            w = p["amp"] * binomial_neighbor_weights(p["conc"], n)
+            fitted = p["baseline"] + p["slope"] * v - cache["K"] @ w - fixed_sharp_abs
+            if n_sharp:
+                fitted = fitted - K_sharp @ np.maximum(x[n_head:n_head + n_sharp], 0.0)
+            return fitted, w, p
+
+        res = least_squares(lambda x: model(x)[0] - y, np.array(x0, dtype=float),
+                            bounds=(np.array(lo), np.array(hi)), max_nfev=2000)
+        fitted, w, p = model(res.x)
+    sharp_weights_free = np.maximum(res.x[n_head:n_head + n_sharp], 0.0) if n_sharp else None
     sharp_weights_arr = merge_sharp_weights(sharp_weights_free, sharp_fixed_mask, fixed_sharp_weights)
-    fitted = float(b0) + float(sl) * v - K @ w - fixed_sharp_abs
-    if K_sharp is not None and sharp_weights_free is not None:
-        fitted = fitted - K_sharp @ sharp_weights_free
+    centers = centers_for(p["start"], p["step"])
+    order = np.argsort(centers, kind="stable")
+    centers, w = centers[order], w[order]
+    total = float(np.sum(w))
     residuals = y - fitted
     return BhfDistributionFit(
         bhf_centers=centers,
         weights=w,
-        probability=normalize_probability(w, centers),
+        # Distribución discreta (n+1 configuraciones): P_k suma 1, como la
+        # tabla de áreas relativas de NORMOS, no una densidad por unidad.
+        probability=(w / total) if total > 0 else np.zeros_like(w),
         fitted_curve=fitted,
         residuals=residuals,
-        baseline=float(b0),
-        slope=float(sl),
+        baseline=float(p["baseline"]),
+        slope=float(p["slope"]),
         alpha=0.0,
         rms=float(np.sqrt(np.mean(residuals**2))),
         success=bool(res.success),
-        message=f"Binomial {variable}: p={pval:.6g}; {res.message}",
+        message=(f"Binomial {var}: c={100 * p['conc']:.4g} %, n={n}, "
+                 f"inicio={p['start']:.5g}, paso={p['step']:.5g}; {res.message}"),
         sharp_bhf_centers=sharp_bhf_centers,
         sharp_weights=sharp_weights_arr,
-        fitted_dist_p=float(pval),
+        fitted_dist_p=float(p["conc"]),
         shape="Binomial",
+        delta_slope=float(delta_slope),
+        quad_slope=float(quad_slope),
+        binomial_start=float(p["start"]),
+        binomial_step=float(p["step"]),
+        binomial_n=n,
     )
 
 

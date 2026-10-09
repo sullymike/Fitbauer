@@ -6,7 +6,10 @@ Cubre los mismos modos que la GUI (mismo motor, ``mossbauer_distribution``):
 - Variable: ``--variable bhf`` (P(BHF), por defecto) o ``--variable quad``
   (P(ΔEQ) con BHF fijo en ``--fixed-bhf``, 0 por defecto → doblete).
 - Forma: ``--shape histograma|gaussiana|vbf|binomial`` (Gaussiana = VBF con
-  N=1 y línea Lorentziana; ``--vbf-components`` fija N para VBF).
+  N=1 y línea Lorentziana; ``--vbf-components`` fija N para VBF; binomial =
+  vecinos de soluto al estilo NORMOS-DIST ``DISTRI=3``, con
+  ``--binomial-conc``/``--binomial-neighbors``/``--binomial-start``/
+  ``--binomial-step`` y ``--fit-conc``).
 - Regularizador (solo histograma): ``--reg-mode tikhonov|tv|maxent``.
 - Física del kernel (solo histograma): ``--kernel-treatment
   1er_orden|hamiltoniano`` (+ ``--kernel-eta``) y textura ``--d13``/``--d23``
@@ -75,6 +78,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--shape", choices=["histograma", "gaussiana", "vbf", "binomial"],
                         default="histograma",
                         help="Forma de la distribucion (gaussiana = VBF con N=1 y linea Lorentziana).")
+    parser.add_argument("--binomial-conc", type=float, default=10.0,
+                        help="Binomial (NORMOS DISTRI=3): concentración de soluto "
+                             "en %% (CONC). Fija salvo --fit-conc.")
+    parser.add_argument("--binomial-neighbors", type=int, default=12,
+                        help="Binomial: nº de posiciones vecinas (NORMOS usa 12).")
+    parser.add_argument("--binomial-start", type=float, default=None,
+                        help="Binomial: valor de la variable sin vecinos de soluto "
+                             "(BHF/QUA/ISO de NORMOS). Por defecto --bmin.")
+    parser.add_argument("--binomial-step", type=float, default=None,
+                        help="Binomial: cambio por vecino (DTB/DTQ/DTI de NORMOS). "
+                             "Por defecto (bmax-bmin)/vecinos.")
+    parser.add_argument("--fit-conc", action="store_true",
+                        help="Binomial: ajustar también la concentración.")
     parser.add_argument("--vbf-components", type=int, default=2,
                         help="Numero de gaussianas del VBF (solo --shape vbf).")
     parser.add_argument("--reg-mode", choices=["tikhonov", "tv", "maxent"], default="tikhonov",
@@ -368,7 +384,12 @@ def run_fit_1d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
             **common)
     if args.shape == "binomial":
         return fit_binomial_hyperfine_distribution(
-            v, y, profile=args.profile, voigt_sigma=args.voigt_sigma, **common)
+            v, y, profile=args.profile, voigt_sigma=args.voigt_sigma,
+            conc=args.binomial_conc / 100.0, fit_conc=args.fit_conc,
+            n_neighbors=args.binomial_neighbors,
+            start=args.binomial_start, step=args.binomial_step,
+            delta_slope=args.delta_slope, quad_slope=args.quad_slope,
+            **common)
     raise ValueError(f"forma no reconocida: {args.shape}")
 
 

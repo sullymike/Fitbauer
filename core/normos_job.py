@@ -644,6 +644,18 @@ def job_to_distribution_state(text: str) -> dict:
         "dist_kernel_treatment": "hamiltonian" if exacto else "1st_order",
         "dist_kernel_eta": _f(param.get("ETA"), 0.0),
     }
+    if forma == "Binomial":
+        # DISTRI=3 con CONC>0: 13 subespectros (0…12 vecinos) que empiezan en
+        # BHF/QUA/ISO y avanzan DTB/DTQ/DTI por vecino (sonda DIST 2026-10-09).
+        estado["dist_binom_conc"] = conc
+        estado["dist_binom_neighbors"] = 12
+        estado["dist_binom_start"] = inicio
+        estado["dist_binom_step"] = paso
+        if nsb1 != 13:
+            avisos.append(
+                f"Binomial con NSB={nsb1}: NORMOS usa 13 subespectros (0–12 "
+                "vecinos) y con NSB≠13 trunca o rellena con pesos sin sentido; "
+                "Fitbauer usa siempre los 13.")
     if method == 4:
         estado["dist_source_bhf"] = _f(param.get("BHS"), 33.0)
         estado["dist_source_theta"] = _f(param.get("THETAS"), 0.0)
