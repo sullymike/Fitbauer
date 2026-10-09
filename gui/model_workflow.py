@@ -1009,6 +1009,21 @@ class ModelWorkflowMixin:
         if v.size and expected_v.size == v.size and not np.allclose(v, expected_v, atol=1e-9, rtol=0.0):
             v = expected_v
             self.file.velocity = v
+        if self.is_distribution_mode:
+            # En distribución los paneles de componentes están ocultos y el
+            # modelo discreto no es lo que se ajusta: simularlo pintaba el
+            # sextete por defecto del componente 1 al tocar cualquier
+            # parámetro. Se redibuja el último ajuste de distribución de estos
+            # datos o, si no lo hay, solo los datos.
+            prev = self.runtime_results.gui_result
+            render = (getattr(prev, "render", None)
+                      if self.runtime_results.active_mode == "distribution" else None)
+            if render is None or np.shape(render.y_data) != np.shape(y):
+                render = GuiFitRenderState(velocity=v, y_data=y)
+            self._render_fit_result(render)
+            self._update_info_panel()
+            self._refresh_minima_overlay()
+            return
         state = self._build_state()
         if state is None or not self._simulate_enabled:
             self._render_fit_result(GuiFitRenderState(velocity=v, y_data=y))

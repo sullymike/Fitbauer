@@ -488,6 +488,29 @@ def test_pbhf_1d_reopen_distribution_dialog(win):
     assert reopened.get("r") is win.runtime_results.distribution_result
 
 
+def test_vista_previa_distribucion_no_simula_componentes_ocultos(win):
+    """Regresión: en modo distribución, tocar un parámetro dibujaba el sextete
+    por defecto del componente 1 (oculto) como «modelo»; tras un ajuste, el
+    refresco lo sustituía por ese sextete."""
+    import numpy as np
+    from mossbauer_i18n import tr
+    win._load_file(DATA / "magnetita_Fe3O4.adt")
+    win.mode_combo.setCurrentIndex(3)                     # P(IS)
+    win.dist_panel.gamma.set_value(0.30)                  # activa la simulación
+    win._on_model_param_changed()
+    labels = [ln.get_label() for ln in win.canvas.ax.get_lines()]
+    assert tr("plot.legend_model") not in labels
+
+    win.mode_combo.setCurrentIndex(1)                     # P(BHF)
+    _fix_dist_globals(win.dist_panel)
+    win._show_distribution_dialog = lambda r: None
+    win.on_fit()
+    fitted = win.runtime_results.distribution_result.fitted_curve
+    win._on_model_param_changed()                         # refresco posterior
+    ys = [ln.get_ydata() for ln in win.canvas.ax.get_lines()]
+    assert any(len(yy) == len(fitted) and np.allclose(yy, fitted) for yy in ys)
+
+
 def _fix_dist_globals(d):
     """Fija δ/quad/γ del panel de distribución para evitar el lazo externo lento."""
     d.delta.set_fixed(True)
