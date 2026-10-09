@@ -25,19 +25,21 @@ from mossbauer_distribution import (
 
 
 def _smooth_normos(n: int, lamda: float, beta1: float, beta2: float) -> np.ndarray:
-    """Port literal de ``SMOOTH`` (distauxl.for:24), índices 0-based."""
-    d = np.zeros((n, n), dtype=float)
-    d[0, 0], d[0, 1], d[0, 2] = 1.0, -2.0, 1.0
-    d[1, 0], d[1, 1], d[1, 2], d[1, 3] = -2.0, 5.0, -4.0, 1.0
-    for l in range(1, n - 3):
-        d[l + 1, l - 1] = 1.0
-        d[l + 1, l] = -4.0
-        d[l + 1, l + 1] = 6.0
-        d[l + 1, l + 2] = -4.0
-        d[l + 1, l + 3] = 1.0
-    d[n - 1, n - 1], d[n - 1, n - 2], d[n - 1, n - 3] = 1.0, -2.0, 1.0
-    d[n - 2, n - 1], d[n - 2, n - 2], d[n - 2, n - 3], d[n - 2, n - 4] = \
-        -2.0, 5.0, -4.0, 1.0
+    """Matriz de suavizado de NORMOS-DIST, desde su definición.
+
+    Es ``λ·D₂ᵀD₂`` escrita en banda: interior ``[1, −4, 6, −4, 1]`` y filas de
+    borde ``[1, −2, 1]`` y ``[−2, 5, −4, 1]`` (diagonal ``1, 5, 6, …, 6, 5, 1``),
+    más los anclajes ``β₁``/``β₂`` sumados a las esquinas DESPUÉS de escalar
+    por λ (con su propio peso, no multiplicados por α).
+    """
+    diag = np.full(n, 6.0)
+    diag[[0, -1]] = 1.0
+    diag[[1, -2]] = 5.0
+    off1 = np.full(n - 1, -4.0)
+    off1[[0, -1]] = -2.0
+    off2 = np.ones(n - 2)
+    d = (np.diag(diag) + np.diag(off1, 1) + np.diag(off1, -1)
+         + np.diag(off2, 2) + np.diag(off2, -2))
     d *= lamda
     d[0, 0] += beta1
     d[n - 1, n - 1] += beta2

@@ -81,20 +81,20 @@ de los autovalores.
 y en `BB`/`CC`.
 
 **Hoy en Fitbauer.** La polarización de poblaciones ya está
-(`relax_polarization`); el desplazamiento no. El port de `ISIRLX` que hay en
-`tests/test_relajacion_normos.py::_isirlx` **ya acepta `vl0`**, así que la
-referencia para validar está escrita.
+(`relax_polarization`, modelo de Blume de dos estados propio); el
+desplazamiento no.
 
 **Qué habría que hacer.**
-- Añadir `vl0` a `_blume_polarizado` en `core/physics.py` (la fórmula ya está
-  portada, solo hay que dejar de fijarlo a 0).
+- Añadir el desplazamiento de las frecuencias por el campo externo a
+  `two_state_exchange_profile` en `core/physics.py` (en el modelo de Blume
+  basta con sumarlo a las frecuencias v_a, v_b de cada estado).
 - Parámetro de componente `relax_bext` en `core/params.py` (registro, bounds,
   `USED_BY["BlumeTjon"]`) y en los `extras` de `core/fit_engine.py:258`.
 
 **Validación.** **No** con el binario del demo: `BSAT` no está en su namelist y
 sus espectros `IRELAX` salen casi colapsados incluso con `OME=0` (§19 del
-informe). Se valida contra el port de `ISIRLX`, como se hizo con la
-polarización.
+informe). Se valida contra la ecuación matricial de Blume resuelta
+numéricamente, como la polarización (`tests/test_relajacion_normos.py`).
 
 **Coste / valor.** Bajo / bajo. Media hora, pero solo sirve si mides con imán.
 
@@ -196,5 +196,6 @@ declarar tres componentes y a ligarlas a mano.
 3. Sondear el binario ANTES de implementar, con `paso0_sondas.py` como
    plantilla.
 4. Los tests de la revisión están en `tests/test_*_normos.py` y varios llevan
-   un **port literal** de la rutina Fortran como referencia
-   (`_isirlx`, `_smooth_normos`, `_energias_referencia`): reutilizarlos.
+   una referencia independiente (`_smooth_normos`, `_energias_referencia`),
+   escrita desde la definición matemática: reutilizarlas. El código de NORMOS
+   es propietario y no se copia, ni siquiera en tests.

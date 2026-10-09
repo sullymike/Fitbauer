@@ -453,7 +453,7 @@ def geometry_effect_amplitude(counts: np.ndarray, center: float,
                               half_cycle: float | None = None) -> float:
     """Amplitud del **efecto geométrico** del espectro, en cuentas.
 
-    Portado de ``normospr.for`` (bloque ``DO 50``/``DO 300``). Al moverse el
+    Mismo modelo que usa NORMOS (``normospr.for``). Al moverse el
     transductor cambia la distancia fuente-absorbente-detector, lo que modula
     la tasa de cuentas con la POSICIÓN del transductor y no con su velocidad.
     NORMOS lo modela como una sinusoide de medio ciclo, antisimétrica respecto

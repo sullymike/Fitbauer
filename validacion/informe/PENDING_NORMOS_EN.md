@@ -85,20 +85,20 @@ imaginary part of the eigenvalues.
 `XP/YP/XN/YN` and in `BB`/`CC`.
 
 **In Fitbauer today.** Population polarization is in place
-(`relax_polarization`); the shift is not. The `ISIRLX` port in
-`tests/test_relajacion_normos.py::_isirlx` **already accepts `vl0`**, so the
-reference for validating it is written.
+(`relax_polarization`, Fitbauer's own two-state Blume model); the shift is
+not.
 
 **What would need doing.**
-- Add `vl0` to `_blume_polarizado` in `core/physics.py` (the formula is already
-  ported; it just has to stop being pinned to 0).
+- Add the shift of the frequencies by the external field to
+  `two_state_exchange_profile` in `core/physics.py` (in the Blume model it is
+  enough to add it to the frequencies v_a, v_b of each state).
 - A `relax_bext` component parameter in `core/params.py` (registry, bounds,
   `USED_BY["BlumeTjon"]`) and in the `extras` of `core/fit_engine.py:258`.
 
 **Validation.** **Not** with the demo binary: `BSAT` is not in its namelist and
 its `IRELAX` spectra come out almost collapsed even with `OME=0` (§19 of
-`REPORT_EN.md`). It is validated against the `ISIRLX` port, as was done with the
-polarization.
+`REPORT_EN.md`). It is validated against Blume's matrix equation solved
+numerically, like the polarization (`tests/test_relajacion_normos.py`).
 
 **Cost / value.** Low / low. Half an hour, but only useful if you measure with
 a magnet.
@@ -202,6 +202,7 @@ forces you to declare three components and tie them by hand.
    follow the pattern of `series_M.py` (asymmetry) and `series_N.py` (FSO),
    which are the two most recent and the cleanest.
 3. Probe the binary BEFORE implementing, using `paso0_sondas.py` as a template.
-4. The review tests are in `tests/test_*_normos.py` and several carry a
-   **literal port** of the Fortran routine as a reference (`_isirlx`,
-   `_smooth_normos`, `_energias_referencia`): reuse them.
+4. The review tests are in `tests/test_*_normos.py` and several carry an
+   independent reference (`_smooth_normos`, `_energias_referencia`), written
+   from the mathematical definition: reuse them. The NORMOS code is
+   proprietary and is not copied, not even in tests.
