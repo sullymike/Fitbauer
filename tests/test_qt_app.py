@@ -1294,6 +1294,43 @@ def test_pbhf_oculta_campo_y_muestra_kernel(win):
     assert d._kernel_box.isHidden()
 
 
+def test_binomial_de_vecinos_en_la_gui(win, make_window):
+    """La forma Binomial usa vecinos/concentración/inicio/paso (NORMOS DISTRI=3)."""
+    import numpy as np
+    d = win.dist_panel
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.mode_combo.setCurrentIndex(1)
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("Binomial"))
+    assert not d._binom_box.isHidden()
+    assert d.bmin.isHidden() and d.nbins.isHidden()      # la malla no se usa
+    assert d.binom_neighbors.value() == 12
+    assert d.binom_conc.is_fixed()                       # CONC es dato
+    assert "T" in d.binom_start.label.text()
+    _fix_dist_globals(d)
+    d.binom_conc.set_value(5.0)
+    d.binom_start.set_value(33.0)
+    d.binom_step.set_value(-2.0)
+    win._show_distribution_dialog = lambda r: None
+    win.on_fit()
+    r = win.runtime_results.distribution_result
+    assert r.shape == "Binomial" and r.binomial_n == 12
+    assert r.fitted_dist_p == pytest.approx(0.05)
+    assert d.binom_start.value() == pytest.approx(r.binomial_start, abs=1e-3)
+    # α-Fe puro: casi todo el peso en la configuración sin vecinos, a ~33 T.
+    assert r.bhf_centers[np.argmax(r.probability)] == pytest.approx(33.0, abs=1.0)
+
+    payload = win._session_payload()
+    assert payload["model_state"]["dist_binom_conc"] == pytest.approx(5.0)
+    win2 = make_window()
+    win2._apply_session_payload(payload)
+    assert win2.dist_panel.shape == "Binomial"
+    assert win2.dist_panel.binom_start.value() == pytest.approx(r.binomial_start, abs=1e-3)
+    assert win2.dist_panel.binom_conc.is_fixed()
+
+    win.mode_combo.setCurrentIndex(2)                    # P(ΔEQ): mm/s
+    assert "mm/s" in d.binom_start.label.text()
+
+
 # ── Regresión: restauración de tipo Relajacion en sesión ─────────────────────
 
 def test_session_roundtrip_preserves_relajacion_type(win):

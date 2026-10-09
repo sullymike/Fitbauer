@@ -1877,7 +1877,7 @@ def binomial_neighbor_weights(conc: float, n_neighbors: int = BINOMIAL_NEIGHBORS
 
 
 #: Cotas físicas del valor inicial y del paso por vecino según la variable.
-_BINOMIAL_BOUNDS = {
+BINOMIAL_BOUNDS = {
     "bhf": ((0.0, 80.0), (-15.0, 15.0)),
     "quad": ((-10.0, 10.0), (-3.0, 3.0)),
     "delta": ((-5.0, 5.0), (-2.0, 2.0)),
@@ -1936,7 +1936,7 @@ def fit_binomial_hyperfine_distribution(
     var = str(variable).lower()
     n = max(1, int(n_neighbors))
     k = np.arange(n + 1, dtype=float)
-    (start_lo, start_hi), (step_lo, step_hi) = _BINOMIAL_BOUNDS.get(var, _BINOMIAL_BOUNDS["bhf"])
+    (start_lo, start_hi), (step_lo, step_hi) = BINOMIAL_BOUNDS.get(var, BINOMIAL_BOUNDS["bhf"])
     start0 = float(pmin if start is None else start)
     step0 = float((float(pmax) - float(pmin)) / n if step is None else step)
     start0 = min(start_hi, max(start_lo, start0))

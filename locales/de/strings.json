@@ -916,5 +916,9 @@
   "bhf.warn_quad_field": "⚠ Mit B ≠ 0 ist jede Spalte ein Sextett erster Ordnung: nur gültig, wenn ΔEQ viel kleiner als die magnetische Aufspaltung ist (ungeeignet für angelegte Felder von wenigen Tesla).",
   "slider.dist_delta_inactive": "δ (ungenutzt: verteilt)",
   "slider.dist_delta_slope_quad": "κδ dδ/dΔEQ",
-  "slider.dist_quad_slope_is": "κq dΔEQ/dδ"
+  "slider.dist_quad_slope_is": "κq dΔEQ/dδ",
+  "bhf.binom_neighbors": "Nachbarn",
+  "slider.dist_binom_conc": "Fremdatomkonzentration (%)",
+  "slider.dist_binom_start": "{var} ohne Nachbarn ({unit})",
+  "slider.dist_binom_step": "Änderung pro Nachbar ({unit})"
 }

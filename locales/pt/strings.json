@@ -916,5 +916,9 @@
   "bhf.warn_quad_field": "⚠ Com B ≠ 0 cada coluna é um sexteto de primeira ordem: só é válido se ΔEQ for muito menor que o desdobramento magnético (não serve para campos aplicados de poucos teslas).",
   "slider.dist_delta_inactive": "δ (não usado: distribuído)",
   "slider.dist_delta_slope_quad": "κδ dδ/dΔEQ",
-  "slider.dist_quad_slope_is": "κq dΔEQ/dδ"
+  "slider.dist_quad_slope_is": "κq dΔEQ/dδ",
+  "bhf.binom_neighbors": "Vizinhos",
+  "slider.dist_binom_conc": "Concentração do soluto (%)",
+  "slider.dist_binom_start": "{var} sem vizinhos ({unit})",
+  "slider.dist_binom_step": "Variação por vizinho ({unit})"
 }

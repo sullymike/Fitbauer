@@ -57,7 +57,10 @@ _DISTRIBUTION_METRIC_LABELS = {
     "effective_dof": "Grados efectivos de libertad",
     "fitted_dist_center": "Centro distribución",
     "fitted_dist_sigma": "σ distribución",
-    "fitted_dist_p": "p distribución",
+    "fitted_dist_p": "c binomial (fracción de soluto)",
+    "binomial_n": "Vecinos (binomial)",
+    "binomial_start": "Valor sin vecinos (binomial)",
+    "binomial_step": "Cambio por vecino (binomial)",
     "vbf_n_components": "Nº gaussianas VBF",
     "success": "Éxito",
     "message": "Mensaje",
@@ -204,7 +207,8 @@ class DistributionResultView:
 
     def parameters(self) -> list[ParameterEstimate]:
         keys = ("baseline", "slope", "alpha", "fitted_dist_center",
-                "fitted_dist_sigma", "fitted_dist_p", "delta_slope", "quad_slope")
+                "fitted_dist_sigma", "fitted_dist_p", "binomial_start",
+                "binomial_step", "delta_slope", "quad_slope")
         # Las pendientes de correlación solo se muestran si se usaron (≠ 0).
         skip_if_zero = {"delta_slope", "quad_slope"}
         out: list[ParameterEstimate] = []

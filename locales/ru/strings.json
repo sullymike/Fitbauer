@@ -916,5 +916,9 @@
   "bhf.warn_quad_field": "⚠ При B ≠ 0 каждый столбец — секстет первого порядка: верно только если ΔEQ много меньше магнитного расщепления (не подходит для приложенных полей в несколько тесла).",
   "slider.dist_delta_inactive": "δ (не используется: распределён)",
   "slider.dist_delta_slope_quad": "κδ dδ/dΔEQ",
-  "slider.dist_quad_slope_is": "κq dΔEQ/dδ"
+  "slider.dist_quad_slope_is": "κq dΔEQ/dδ",
+  "bhf.binom_neighbors": "Соседи",
+  "slider.dist_binom_conc": "Концентрация примеси (%)",
+  "slider.dist_binom_start": "{var} без соседей ({unit})",
+  "slider.dist_binom_step": "Изменение на соседа ({unit})"
 }

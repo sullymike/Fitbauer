@@ -916,5 +916,9 @@
   "bhf.warn_quad_field": "⚠ B ≠ 0 では各列は一次の六重線です。ΔEQ が磁気分裂よりずっと小さい場合にのみ有効です（数テスラの印加磁場には不向き）。",
   "slider.dist_delta_inactive": "δ（未使用：分布変数）",
   "slider.dist_delta_slope_quad": "κδ dδ/dΔEQ",
-  "slider.dist_quad_slope_is": "κq dΔEQ/dδ"
+  "slider.dist_quad_slope_is": "κq dΔEQ/dδ",
+  "bhf.binom_neighbors": "近接原子数",
+  "slider.dist_binom_conc": "溶質濃度 (%)",
+  "slider.dist_binom_start": "近接溶質なしの {var} ({unit})",
+  "slider.dist_binom_step": "近接 1 個あたりの変化 ({unit})"
 }

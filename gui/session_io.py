@@ -337,6 +337,9 @@ class SessionIOMixin:
                     "dist_absorber_theta": dp.absorber_theta,
                     "dist_qmin": dp.qmin, "dist_qmax": dp.qmax,
                     "dist_qbins": dp.qbins, "dist_log_alpha_q": dp.log_alpha_q,
+                    "dist_binom_conc": dp.binom_conc,
+                    "dist_binom_start": dp.binom_start,
+                    "dist_binom_step": dp.binom_step,
                 }
                 for key, ctl in _num_ctls.items():
                     # Las sesiones antiguas guardaban estos ajustes dentro de
@@ -360,15 +363,19 @@ class SessionIOMixin:
                         ki = dp.kernel_combo.findData(str(kt))
                         if ki >= 0:
                             dp.kernel_combo.setCurrentIndex(ki)
-                if "dist_vbf_n_components" in state:
-                    try:
-                        dp.vbf_ncomp.setValue(int(state["dist_vbf_n_components"]))
-                    except (TypeError, ValueError):
-                        pass
+                for key, spin in (("dist_vbf_n_components", dp.vbf_ncomp),
+                                  ("dist_binom_neighbors", dp.binom_neighbors)):
+                    if key in state:
+                        try:
+                            spin.setValue(int(state[key]))
+                        except (TypeError, ValueError):
+                            pass
                 fixed_map = state.get("dist_fixed") or {}
                 _fix_ctls = {
                     "delta": dp.delta, "quad": dp.quad, "gamma": dp.gamma,
                     "delta_slope": dp.delta_slope, "quad_slope": dp.quad_slope,
+                    "binom_conc": dp.binom_conc, "binom_start": dp.binom_start,
+                    "binom_step": dp.binom_step,
                 }
                 for name, ctl in _fix_ctls.items():
                     if name in fixed_map:

@@ -11,6 +11,7 @@ from mossbauer_i18n import tr
 from core.params import DIST_VAR_DEFAULT_SPAN, DIST_VAR_RANGE, DIST_RANGE_RESOLUTION
 from core.param_overrides import effective_distribution_specs
 from gui.controls import ParamControl
+from mossbauer_distribution import BINOMIAL_BOUNDS, BINOMIAL_NEIGHBORS_NORMOS
 from gui.state import DistributionViewState
 
 
@@ -138,6 +139,35 @@ class DistributionPanel(QtWidgets.QGroupBox):
         self._vbf_row_widget = QtWidgets.QWidget()
         self._vbf_row_widget.setLayout(self.vbf_row)
         left_v.addWidget(self._vbf_row_widget)
+
+        # Binomial de vecinos (DISTRI=3 + CONC de NORMOS-DIST): n vecinos,
+        # concentración del soluto y valor sin vecinos + cambio por vecino.
+        # Oculto salvo con la forma Binomial, que no usa la malla.
+        self._binom_box = QtWidgets.QWidget()
+        binom_v = QtWidgets.QVBoxLayout(self._binom_box)
+        binom_v.setContentsMargins(0, 0, 0, 0)
+        binom_v.setSpacing(2)
+        nrow = QtWidgets.QHBoxLayout()
+        nrow.addWidget(QtWidgets.QLabel(
+            tr("bhf.binom_neighbors", default="Vecinos") + ":"))
+        self.binom_neighbors = QtWidgets.QSpinBox()
+        self.binom_neighbors.setRange(1, 24)
+        self.binom_neighbors.setValue(BINOMIAL_NEIGHBORS_NORMOS)
+        self.binom_neighbors.valueChanged.connect(lambda *_: self.paramChanged.emit())
+        nrow.addWidget(self.binom_neighbors, stretch=1)
+        binom_v.addLayout(nrow)
+        self.binom_conc = ParamControl(
+            tr("slider.dist_binom_conc", default="Concentración soluto (%)"),
+            10.0, 0.0, 100.0, 0.1, 2)
+        self.binom_conc.set_fixed(True)   # como CONC en NORMOS: es un dato
+        self.binom_start = ParamControl("", 33.0, 0.0, 80.0, 0.01, 3)
+        self.binom_step = ParamControl("", -2.5, -15.0, 15.0, 0.01, 3)
+        for w in (self.binom_conc, self.binom_start, self.binom_step):
+            binom_v.addWidget(w)
+            w.valueChanged.connect(lambda *_: self.paramChanged.emit())
+            w.fixedChanged.connect(lambda *_: self.paramChanged.emit())
+        left_v.addWidget(self._binom_box)
+        self._binom_owner: str | None = None
 
         self.btn_load_fixed = QtWidgets.QPushButton(tr("bhf.load_fixed"))
         self.btn_load_fixed.clicked.connect(self.loadFixedRequested)
@@ -320,8 +350,13 @@ class DistributionPanel(QtWidgets.QGroupBox):
         # Nº de gaussianas: solo con forma VBF.
         if hasattr(self, "_vbf_row_widget"):
             self._vbf_row_widget.setVisible(self.shape == "VBF")
-        # Correlación δ(H)/ΔEQ(H): aplica al Histograma y al VBF.
-        corr_ok = self.shape in ("Histograma", "VBF")
+        # Binomial: sus propios controles en lugar de la malla.
+        is_binomial = self.shape == "Binomial"
+        self._binom_box.setVisible(is_binomial)
+        for ctl in (self.bmin, self.bmax, self.nbins):
+            ctl.setVisible(not is_binomial)
+        # Correlación δ(H)/ΔEQ(H): Histograma, VBF y Binomial.
+        corr_ok = self.shape in ("Histograma", "VBF", "Binomial")
         for ctl in (self.delta_slope, self.quad_slope):
             ctl.setEnabled(corr_ok)
         self.btn_load_fixed.setEnabled(self.shape == "Fija")
@@ -451,6 +486,31 @@ class DistributionPanel(QtWidgets.QGroupBox):
                 ctl.label.setText(tr(key, default=default))
                 ctl.set_range(-half, half)
         self._sync_field_controls()
+        if not is_2d:
+            self._sync_binomial_controls(var)
+
+    #: Valor sin vecinos y cambio por vecino al estrenar cada variable
+    #: (BHF: un soluto que baja el campo 2.5 T por vecino, tipo Fe-Al).
+    _BINOM_DEFAULTS = {"bhf": (33.0, -2.5), "quad": (0.3, 0.2), "delta": (0.3, 0.05)}
+    _VAR_UNIT = {"bhf": "T", "quad": "mm/s", "delta": "mm/s"}
+
+    def _sync_binomial_controls(self, var: str) -> None:
+        unit = self._VAR_UNIT.get(var, "")
+        self.binom_start.label.setText(tr(
+            "slider.dist_binom_start", var=self._VAR_SHORT.get(var, var), unit=unit,
+            default=f"{self._VAR_SHORT.get(var, var)} sin vecinos ({unit})"))
+        self.binom_step.label.setText(tr(
+            "slider.dist_binom_step", unit=unit,
+            default=f"Cambio por vecino ({unit})"))
+        if self._binom_owner == var:
+            return
+        (lo, hi), (slo, shi) = BINOMIAL_BOUNDS.get(var, BINOMIAL_BOUNDS["bhf"])
+        start, step = self._BINOM_DEFAULTS.get(var, (lo, (hi - lo) / 12))
+        for ctl, a, b, val in ((self.binom_start, lo, hi, start),
+                               (self.binom_step, slo, shi, step)):
+            ctl.set_range(a, b)
+            ctl.set_value(val)
+        self._binom_owner = var
 
     def set_distribution_variable(self, variable: str) -> None:
         """Modo 1D: variable distribuida ``bhf``, ``quad`` o ``delta``."""
@@ -499,6 +559,10 @@ class DistributionPanel(QtWidgets.QGroupBox):
             source_theta=self.source_theta.value(),
             absorber_theta=self.absorber_theta.value(),
             vbf_n_components=int(self.vbf_ncomp.value()),
+            binom_conc=self.binom_conc.value(),
+            binom_neighbors=int(self.binom_neighbors.value()),
+            binom_start=self.binom_start.value(),
+            binom_step=self.binom_step.value(),
             qmin=self.qmin.value(),
             qmax=self.qmax.value(),
             qbins=max(1, int(round(self.qbins.value()))),
@@ -509,6 +573,9 @@ class DistributionPanel(QtWidgets.QGroupBox):
                 "gamma": self.gamma.is_fixed(),
                 "delta_slope": self.delta_slope.is_fixed(),
                 "quad_slope": self.quad_slope.is_fixed(),
+                "binom_conc": self.binom_conc.is_fixed(),
+                "binom_start": self.binom_start.is_fixed(),
+                "binom_step": self.binom_step.is_fixed(),
             },
         )
 

@@ -361,6 +361,12 @@ class DistributionViewState:
     source_theta: float = 0.0
     absorber_theta: float = 0.0
     vbf_n_components: int = 2
+    # Binomial de vecinos (NORMOS DISTRI=3): concentración en %, nº de vecinos,
+    # valor sin vecinos y cambio por vecino (unidades de la variable).
+    binom_conc: float = 10.0
+    binom_neighbors: int = 12
+    binom_start: float = 33.0
+    binom_step: float = -2.5
     # Malla del eje Y de la distribución 2D (antes no se persistían).
     qmin:        float = _DSPEC["qmin"].default
     qmax:        float = _DSPEC["qmax"].default
@@ -421,6 +427,10 @@ class DistributionViewState:
             source_theta=_num("dist_source_theta", d.source_theta),
             absorber_theta=_num("dist_absorber_theta", d.absorber_theta),
             vbf_n_components=int(_num("dist_vbf_n_components", d.vbf_n_components)),
+            binom_conc=_num("dist_binom_conc", d.binom_conc),
+            binom_neighbors=int(_num("dist_binom_neighbors", d.binom_neighbors)),
+            binom_start=_num("dist_binom_start", d.binom_start),
+            binom_step=_num("dist_binom_step", d.binom_step),
             qmin=_num("dist_qmin", d.qmin),
             qmax=_num("dist_qmax", d.qmax),
             qbins=int(_num("dist_qbins", d.qbins)),
@@ -473,6 +483,10 @@ class DistributionViewState:
             "dist_source_theta": float(self.source_theta),
             "dist_absorber_theta": float(self.absorber_theta),
             "dist_vbf_n_components": int(self.vbf_n_components),
+            "dist_binom_conc": float(self.binom_conc),
+            "dist_binom_neighbors": int(self.binom_neighbors),
+            "dist_binom_start": float(self.binom_start),
+            "dist_binom_step": float(self.binom_step),
             "dist_qmin": float(self.qmin),
             "dist_qmax": float(self.qmax),
             "dist_qbins": int(self.qbins),

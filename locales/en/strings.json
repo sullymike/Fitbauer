@@ -916,5 +916,9 @@
   "bhf.warn_quad_field": "⚠ With B ≠ 0 each column is a first-order sextet: valid only if ΔEQ is much smaller than the magnetic splitting (not suitable for applied fields of a few tesla).",
   "slider.dist_delta_inactive": "δ (unused: distributed)",
   "slider.dist_delta_slope_quad": "κδ dδ/dΔEQ",
-  "slider.dist_quad_slope_is": "κq dΔEQ/dδ"
+  "slider.dist_quad_slope_is": "κq dΔEQ/dδ",
+  "bhf.binom_neighbors": "Neighbours",
+  "slider.dist_binom_conc": "Solute concentration (%)",
+  "slider.dist_binom_start": "{var} with no neighbours ({unit})",
+  "slider.dist_binom_step": "Change per neighbour ({unit})"
 }

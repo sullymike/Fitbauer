@@ -110,7 +110,10 @@ class ReportMixin:
         # Estadísticos paramétricos (Gaussiana/Binomial)
         for key, lbl in (("fitted_dist_center", "Centro (paramétrico)"),
                          ("fitted_dist_sigma", "σ (paramétrico)"),
-                         ("fitted_dist_p", "p (binomial)")):
+                         ("fitted_dist_p", "c (binomial, fracción de soluto)"),
+                         ("binomial_n", "Vecinos (binomial)"),
+                         ("binomial_start", "Valor sin vecinos (binomial)"),
+                         ("binomial_step", "Cambio por vecino (binomial)")):
             val = getattr(result, key, None)
             if val is not None:
                 lines.append(f"| {lbl} | {_fmt(val)} |")

@@ -916,5 +916,9 @@
   "bhf.warn_quad_field": "⚠ B ≠ 0 时每一列都是一级六重峰：仅当 ΔEQ 远小于磁分裂时有效（不适用于几特斯拉的外加场）。",
   "slider.dist_delta_inactive": "δ（未使用：已分布）",
   "slider.dist_delta_slope_quad": "κδ dδ/dΔEQ",
-  "slider.dist_quad_slope_is": "κq dΔEQ/dδ"
+  "slider.dist_quad_slope_is": "κq dΔEQ/dδ",
+  "bhf.binom_neighbors": "近邻数",
+  "slider.dist_binom_conc": "溶质浓度 (%)",
+  "slider.dist_binom_start": "无近邻时的 {var} ({unit})",
+  "slider.dist_binom_step": "每个近邻的变化 ({unit})"
 }

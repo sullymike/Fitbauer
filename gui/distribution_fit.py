@@ -510,8 +510,17 @@ class DistributionFitMixin:
                     n_components=1, profile="Lorentz", shape="Gaussiana",
                     **common)
             if shape == "Binomial":
+                # Vecinos al estilo NORMOS (DISTRI=3): la malla no se usa; la
+                # concentración es dato salvo que se desmarque su «Fijo».
                 return fit_binomial_hyperfine_distribution(
-                    v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins,
+                    v_arr, y_arr,
+                    conc=dist_state.binom_conc / 100.0,
+                    fit_conc=not dist_state.fixed.get("binom_conc", True),
+                    n_neighbors=dist_state.binom_neighbors,
+                    start=dist_state.binom_start, step=dist_state.binom_step,
+                    fit_start=not dist_state.is_fixed("binom_start"),
+                    fit_step=not dist_state.is_fixed("binom_step"),
+                    delta_slope=dsl, quad_slope=qsl,
                     profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
                     **common)
             if shape == "Fija":
@@ -538,7 +547,7 @@ class DistributionFitMixin:
         # externa (son no lineales). Solo con Histograma/VBF y si no están fijas.
         # Solo las pendientes que tienen sentido con la variable (las visibles):
         # P(BHF) ambas, P(ΔEQ) solo δ(ΔEQ), P(IS) solo ΔEQ(δ); en 2D ninguna.
-        if shape in ("Histograma", "VBF"):
+        if shape in ("Histograma", "VBF", "Binomial"):
             if not dist_state.is_fixed("delta_slope") and var in ("bhf", "quad"):
                 outer_specs.append(("dist_delta_slope", "lin", d.delta_slope._lo, d.delta_slope._hi))
             if not dist_state.is_fixed("quad_slope") and var in ("bhf", "delta"):
@@ -694,6 +703,10 @@ class DistributionFitMixin:
                     _sharp, pos_txt, pname = key.split(":")
                     cp = self.components_panels[sharp_indices[int(pos_txt)] - 1]
                     cp.params[pname].set_value(value)
+        if getattr(result, "binomial_start", None) is not None:
+            d.binom_start.set_value(float(result.binomial_start))
+            d.binom_step.set_value(float(result.binomial_step))
+            d.binom_conc.set_value(100.0 * float(result.fitted_dist_p))
         if self.dist_use_sharp and hasattr(result, "sharp_weights") and result.sharp_weights is not None:
             for idx, weight in zip(sharp_indices, result.sharp_weights):
                 self.components_panels[idx - 1].params["depth"].set_value(float(weight))
@@ -821,6 +834,10 @@ class DistributionFitMixin:
                     r.values[f"vbf{i}_mu"] = float(mu)
                 except Exception:
                     pass
+        if getattr(result, "binomial_start", None) is not None:
+            r.values["binom_conc%"] = 100.0 * float(result.fitted_dist_p)
+            r.values["binom_start"] = float(result.binomial_start)
+            r.values["binom_step"] = float(result.binomial_step)
         # free_keys guía qué parámetros muestra el panel; sin esto no salía ninguno.
         r.free_keys = list(r.values.keys())
         r.errors = {}
@@ -854,8 +871,13 @@ class DistributionFitMixin:
         ax = fig.add_subplot(111)
         xc = np.asarray(result.bhf_centers, dtype=float)
         pr = np.asarray(result.probability, dtype=float)
-        ax.plot(xc, pr, "-", color="#2563eb", lw=2.0)
-        ax.fill_between(xc, pr, 0, color="#93c5fd", alpha=0.45)
+        if getattr(result, "shape", None) == "Binomial":
+            # Distribución discreta: una barra por nº de vecinos (P_k suma 1).
+            width = 0.6 * float(np.min(np.diff(xc))) if xc.size > 1 else 0.5
+            ax.bar(xc, pr, width=width, color="#93c5fd", edgecolor="#2563eb")
+        else:
+            ax.plot(xc, pr, "-", color="#2563eb", lw=2.0)
+            ax.fill_between(xc, pr, 0, color="#93c5fd", alpha=0.45)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(title)
         ax.grid(True, alpha=0.3)
