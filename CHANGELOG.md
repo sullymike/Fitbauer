@@ -1,7 +1,31 @@
 # Changelog
 
-## Sin publicar
+## v5.1.2 — convenios NORMOS en la GUI y relajación validada frente a NORMOS
 
+- **El autoguardado seguía activo tras cerrar la ventana.** El cierre limpio
+  borra el punto de recuperación, pero el temporizador de autoguardado no se
+  paraba: si el objeto de la ventana seguía vivo un rato, volvía a escribir
+  `recuperacion.json` y el siguiente arranque ofrecía recuperar un trabajo que
+  ya se había cerrado bien. Ahora se para al cerrar. Aparecía como un fallo
+  intermitente de `test_autoguardado_y_recuperacion` en la suite completa.
+- **Convenios NORMOS en la GUI**: *Ajuste ▸ Opciones avanzadas de ajuste ▸
+  Convenios (compatibilidad NORMOS)*, con tres elecciones —patrón de líneas
+  del sextete (α-Fe publicado / momentos nucleares), razones de intensidad
+  (profundidad / área) y relajación con poblaciones desiguales (Blume /
+  NORMOS)—. Fijan el convenio global del núcleo, así que los respetan la
+  simulación en vivo, los ajustes discretos y de distribución, el bootstrap y
+  el perfil. Se guardan en la sesión (son parte del análisis; una sesión
+  anterior vuelve a los de Fitbauer) y en los settings, y el panel de estado
+  avisa cuando hay alguno distinto del de Fitbauer. Traducido a los 8 idiomas.
+  Ajustando α-Fe en la GUI con cada patrón se obtiene lo mismo que con la
+  línea de comandos (33.046 / 33.058 T).
+- El patrón del sextete pasa a viajar en la sesión y en el estado del ajuste
+  (`ModelState`/`FitState.sextet_pattern`); `--sextet-pattern` sobrescribe el
+  de la plantilla en lugar de envolverla.
+- **El bootstrap y el perfil de verosimilitud ignoraban el convenio de
+  intensidades**: las réplicas (`_replica_state`) no lo copiaban y se
+  reajustaban con el de profundidad aunque el ajuste base usara áreas. Ahora
+  heredan los tres convenios.
 - **Banco de validación NORMOS regenerado** con la versión actual
   (2026-10-09): 432 casos con espectro de NORMOS y 6 520 comparaciones; las
   medianas del veredicto se reproducen (1er orden: 2·10⁻⁷ mm/s en posición y

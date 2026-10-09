@@ -18,7 +18,7 @@
       given-names: "Nieves"
       orcid: "https://orcid.org/0000-0001-6357-1597"
       affiliation: "Universidad Autónoma de Madrid"
-  version: "5.1.1"
+  version: "5.1.2"
   date-released: "2026-10-09"
   identifiers:
     - type: doi
