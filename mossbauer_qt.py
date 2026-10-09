@@ -65,7 +65,12 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
             pass
         # Se cierra bien: el punto de recuperación ya no hace falta. Si el
         # proceso muere de otra forma, el fichero sobrevive y al arrancar se
-        # ofrece recuperarlo.
+        # ofrece recuperarlo. Antes se para el autoguardado: el objeto de una
+        # ventana cerrada puede seguir vivo un rato, y su temporizador volvía a
+        # escribir el punto de recuperación recién borrado.
+        timer = getattr(self, "_autosave_timer", None)
+        if timer is not None:
+            timer.stop()
         try:
             self._clear_recovery()
         except Exception:

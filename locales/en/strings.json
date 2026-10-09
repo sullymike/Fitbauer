@@ -888,5 +888,22 @@
   "results.copied": "Results copied to the clipboard",
   "results.nothing_to_copy": "Nothing to copy: run a fit first.",
   "session.unsaved_title": "Unsaved work",
-  "session.unsaved_question": "There is an unsaved fit.\n\nDo you want to save the session before leaving?"
+  "session.unsaved_question": "There is an unsaved fit.\n\nDo you want to save the session before leaving?",
+  "conventions.menu": "Conventions (NORMOS compatibility)",
+  "conventions.sextet_title": "Sextet line pattern",
+  "conventions.sextet_alpha_fe": "Published α-Fe (Fitbauer)",
+  "conventions.sextet_normos_opt": "Nuclear moments (NORMOS)",
+  "conventions.sextet_tip": "NORMOS derives the line positions from the nuclear moments; on the same spectrum the field differs by ~0.01 T at 33 T.",
+  "conventions.intensity_title": "Intensity ratios",
+  "conventions.intensity_depth": "By depth (Fitbauer)",
+  "conventions.intensity_area_opt": "By area (NORMOS: D13/D23)",
+  "conventions.intensity_tip": "They only differ when the widths Γ2/Γ3 are not equal to Γ1.",
+  "conventions.relax_title": "Relaxation with unequal populations",
+  "conventions.relax_blume": "Blume, detailed balance (Fitbauer)",
+  "conventions.relax_normos_opt": "NORMOS rule (BSAT)",
+  "conventions.relax_tip": "They only differ for polarization P > 0; the NORMOS one does not satisfy detailed balance.",
+  "conventions.sextet_normos": "NORMOS sextet pattern",
+  "conventions.intensity_area": "area intensities",
+  "conventions.relax_normos": "NORMOS relaxation",
+  "info.conventions": "Active NORMOS conventions: {list}"
 }

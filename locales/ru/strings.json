@@ -888,5 +888,22 @@
   "results.copied": "Результаты скопированы в буфер обмена",
   "results.nothing_to_copy": "Копировать нечего: сначала выполните подгонку.",
   "session.unsaved_title": "Несохранённая работа",
-  "session.unsaved_question": "Есть несохранённая подгонка.\n\nСохранить сессию перед выходом?"
+  "session.unsaved_question": "Есть несохранённая подгонка.\n\nСохранить сессию перед выходом?",
+  "conventions.menu": "Соглашения (совместимость с NORMOS)",
+  "conventions.sextet_title": "Положения линий секстета",
+  "conventions.sextet_alpha_fe": "Опубликованные для α-Fe (Fitbauer)",
+  "conventions.sextet_normos_opt": "Ядерные моменты (NORMOS)",
+  "conventions.sextet_tip": "NORMOS вычисляет положения линий из ядерных моментов; на одном и том же спектре поле отличается примерно на 0,01 Тл при 33 Тл.",
+  "conventions.intensity_title": "Отношения интенсивностей",
+  "conventions.intensity_depth": "По глубине (Fitbauer)",
+  "conventions.intensity_area_opt": "По площади (NORMOS: D13/D23)",
+  "conventions.intensity_tip": "Различаются, только если ширины Γ2/Γ3 не равны Γ1.",
+  "conventions.relax_title": "Релаксация с неравными заселённостями",
+  "conventions.relax_blume": "Блюм, детальное равновесие (Fitbauer)",
+  "conventions.relax_normos_opt": "Правило NORMOS (BSAT)",
+  "conventions.relax_tip": "Различаются только при поляризации P > 0; правило NORMOS не удовлетворяет детальному равновесию.",
+  "conventions.sextet_normos": "положения секстета NORMOS",
+  "conventions.intensity_area": "интенсивности по площади",
+  "conventions.relax_normos": "релаксация NORMOS",
+  "info.conventions": "Активные соглашения NORMOS: {list}"
 }

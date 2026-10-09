@@ -888,5 +888,22 @@
   "results.copied": "結果をクリップボードにコピーしました",
   "results.nothing_to_copy": "コピーする結果がありません。先にフィットしてください。",
   "session.unsaved_title": "未保存の作業",
-  "session.unsaved_question": "保存していないフィットがあります。\n\n終了する前にセッションを保存しますか？"
+  "session.unsaved_question": "保存していないフィットがあります。\n\n終了する前にセッションを保存しますか？",
+  "conventions.menu": "規約（NORMOS 互換）",
+  "conventions.sextet_title": "六重線の線位置パターン",
+  "conventions.sextet_alpha_fe": "公表値の α-Fe（Fitbauer）",
+  "conventions.sextet_normos_opt": "核モーメント（NORMOS）",
+  "conventions.sextet_tip": "NORMOS は線位置を核モーメントから求めます。同じスペクトルでも 33 T で磁場が約 0.01 T 異なります。",
+  "conventions.intensity_title": "強度比",
+  "conventions.intensity_depth": "深さ基準（Fitbauer）",
+  "conventions.intensity_area_opt": "面積基準（NORMOS: D13/D23）",
+  "conventions.intensity_tip": "幅 Γ2/Γ3 が Γ1 と等しくない場合にのみ違いが出ます。",
+  "conventions.relax_title": "不均等な占有数での緩和",
+  "conventions.relax_blume": "Blume、詳細つり合い（Fitbauer）",
+  "conventions.relax_normos_opt": "NORMOS の規則（BSAT）",
+  "conventions.relax_tip": "分極 P > 0 の場合にのみ違いが出ます。NORMOS の規則は詳細つり合いを満たしません。",
+  "conventions.sextet_normos": "NORMOS の六重線パターン",
+  "conventions.intensity_area": "面積基準の強度",
+  "conventions.relax_normos": "NORMOS の緩和",
+  "info.conventions": "有効な NORMOS 規約: {list}"
 }

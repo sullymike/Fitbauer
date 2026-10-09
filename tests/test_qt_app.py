@@ -2314,3 +2314,104 @@ def test_sesiones_de_ejemplo_discretas(win, session):
 def test_sesion_de_distribucion_sigue_abriendo_en_distribucion(win):
     assert win.load_session_file(DATA / "sintetico_dist_bhf_bimodal_session.json")
     assert win.mode_combo.currentIndex() == 1
+
+
+# ── Convenios de compatibilidad con NORMOS en la GUI ─────────────────────────
+
+_CONV_NORMOS = {"sextet_pattern": "normos", "intensity_convention": "area",
+                "relax_convention": "normos"}
+_CONV_DEFECTO = {"sextet_pattern": "alpha_fe", "intensity_convention": "depth",
+                 "relax_convention": "blume"}
+
+
+def _globales_convenios():
+    from core import physics
+    from core.constants import active_sextet_pattern_name
+    return {"sextet_pattern": active_sextet_pattern_name(),
+            "intensity_convention": physics.INTENSITY_CONVENTION,
+            "relax_convention": physics.RELAX_CONVENTION}
+
+
+@pytest.fixture
+def conv_win(make_window):
+    """Ventana que, al terminar, deja convenios y settings en el defecto.
+
+    Los convenios son globales del núcleo y la carpeta de settings aislada se
+    comparte en toda la sesión de pytest: sin esto contaminarían otros tests.
+    """
+    w = make_window()
+    yield w
+    for k, v in _CONV_DEFECTO.items():
+        w.set_convention(k, v)
+    assert _globales_convenios() == _CONV_DEFECTO
+
+
+def test_convenios_menu_por_defecto_fitbauer(conv_win):
+    for kind, defecto in _CONV_DEFECTO.items():
+        grupo = getattr(conv_win, f"_{kind}_action_group")
+        marcadas = [a for a in grupo.actions() if a.isChecked()]
+        assert len(marcadas) == 1 and grupo.actions()[0] is marcadas[0]
+        assert getattr(conv_win, kind) == defecto
+    assert _globales_convenios() == _CONV_DEFECTO
+
+
+def test_convenios_se_aplican_al_nucleo_al_ajuste_y_al_panel(conv_win):
+    conv_win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    # Por el menú, como el usuario
+    for kind, valor in _CONV_NORMOS.items():
+        grupo = getattr(conv_win, f"_{kind}_action_group")
+        grupo.actions()[1].trigger()
+    assert _globales_convenios() == _CONV_NORMOS
+    ms = conv_win._model_state()
+    assert (ms.sextet_pattern, ms.intensity_convention, ms.relax_convention) == \
+        ("normos", "area", "normos")
+    conv_win._update_info_panel()
+    assert "NORMOS" in conv_win.info_panel.text.toPlainText()
+    assert conv_win.has_unsaved_work()
+
+
+def test_convenios_viajan_en_la_sesion(conv_win, make_window):
+    conv_win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    for k, v in _CONV_NORMOS.items():
+        conv_win.set_convention(k, v, persist=False)
+    payload = conv_win._session_payload()
+    assert {k: payload["model_state"][k] for k in _CONV_NORMOS} == _CONV_NORMOS
+    otra = make_window()            # arranca con el defecto
+    assert _globales_convenios() == _CONV_DEFECTO
+    otra._apply_session_payload(payload)
+    assert {k: getattr(otra, k) for k in _CONV_NORMOS} == _CONV_NORMOS
+    assert _globales_convenios() == _CONV_NORMOS
+    grupo = otra._sextet_pattern_action_group
+    assert grupo.actions()[1].isChecked()
+    # Una sesión sin convenios (anterior a que existieran) vuelve al defecto.
+    viejo = dict(payload, model_state={k: v for k, v in payload["model_state"].items()
+                                       if k not in _CONV_NORMOS})
+    otra._apply_session_payload(viejo)
+    assert _globales_convenios() == _CONV_DEFECTO
+
+
+def test_convenios_se_recuerdan_en_los_settings(conv_win, make_window):
+    conv_win.set_convention("relax_convention", "normos")
+    otra = make_window()
+    assert otra.relax_convention == "normos"
+    assert _globales_convenios()["relax_convention"] == "normos"
+    # Al cerrarse, 'otra' guarda sus settings en la carpeta aislada que
+    # comparte toda la sesión de pytest: si se quedara en NORMOS, las ventanas
+    # de los tests siguientes arrancarían con ese convenio.
+    otra.set_convention("relax_convention", "blume")
+
+
+def test_al_cerrar_se_para_el_autoguardado(make_window, tmp_path, monkeypatch, app):
+    """Una ventana cerrada no debe volver a escribir el punto de recuperación."""
+    import core.data_io as data_io
+    import gui.session_io as session_io
+    monkeypatch.setattr(data_io, "CONFIG_DIR", tmp_path)
+    monkeypatch.setattr(session_io, "CONFIG_DIR", tmp_path)
+    win = make_window()
+    monkeypatch.setattr(win, "_save_settings", lambda *a, **k: None)
+    win._load_file(Path("data_sample/magnetita_Fe3O4.adt"))
+    win._start_autosave()
+    win.mark_saved()
+    win.close()
+    app.processEvents()
+    assert not win._autosave_timer.isActive()

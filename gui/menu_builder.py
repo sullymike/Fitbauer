@@ -426,6 +426,44 @@ class MenuBuilderMixin:
             # plot. Un setattr directo dejaba el fit usando el modelo antiguo.
             a.triggered.connect(lambda _c=False, v=val: self.calib.set_absorber_model(v))
             abs_menu.addAction(a); self.absorber_action_group.addAction(a)
+        # Convenios de compatibilidad con NORMOS: tres elecciones excluyentes.
+        # La primera opción de cada grupo es la de Fitbauer (defecto).
+        conv_menu = adv_menu.addMenu(tr("conventions.menu",
+                                        default="Convenios (compatibilidad NORMOS)"))
+        conv_menu.setToolTipsVisible(True)
+        grupos = (
+            ("sextet_pattern", "conventions.sextet_title", "Patrón de líneas del sextete",
+             (("alpha_fe", "conventions.sextet_alpha_fe", "α-Fe publicado (Fitbauer)"),
+              ("normos", "conventions.sextet_normos_opt", "Momentos nucleares (NORMOS)")),
+             "conventions.sextet_tip",
+             "NORMOS deriva las posiciones de los momentos nucleares; con el mismo "
+             "espectro el campo difiere ~0,01 T a 33 T."),
+            ("intensity_convention", "conventions.intensity_title", "Razones de intensidad",
+             (("depth", "conventions.intensity_depth", "Por profundidad (Fitbauer)"),
+              ("area", "conventions.intensity_area_opt", "Por área (NORMOS: D13/D23)")),
+             "conventions.intensity_tip",
+             "Solo difieren si las anchuras Γ2/Γ3 no son iguales a Γ1."),
+            ("relax_convention", "conventions.relax_title", "Relajación con poblaciones desiguales",
+             (("blume", "conventions.relax_blume", "Blume, balance detallado (Fitbauer)"),
+              ("normos", "conventions.relax_normos_opt", "Regla de NORMOS (BSAT)")),
+             "conventions.relax_tip",
+             "Solo difieren con polarización P > 0; la de NORMOS no cumple el "
+             "balance detallado."),
+        )
+        for kind, title_key, title_def, opciones, tip_key, tip_def in grupos:
+            sub = conv_menu.addMenu(tr(title_key, default=title_def))
+            sub.setToolTipsVisible(True)
+            grupo = QtGui.QActionGroup(self)
+            actual = getattr(self, kind, opciones[0][0])
+            for val, key, defecto in opciones:
+                a = QtGui.QAction(tr(key, default=defecto), self, checkable=True)
+                a.setChecked(val == actual)
+                a.setToolTip(tr(tip_key, default=tip_def))
+                a.triggered.connect(
+                    lambda _c=False, k=kind, v=val: self.set_convention(k, v))
+                sub.addAction(a)
+                grupo.addAction(a)
+            setattr(self, f"_{kind}_action_group", grupo)
         adv_menu.addSeparator()
         # P(BHF) extras
         self.act_add_sharp = QtGui.QAction(tr("options.add_sharp"), self,

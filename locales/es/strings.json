@@ -888,5 +888,22 @@
   "results.copied": "Resultados copiados al portapapeles",
   "results.nothing_to_copy": "No hay resultados que copiar: ajusta primero.",
   "session.unsaved_title": "Trabajo sin guardar",
-  "session.unsaved_question": "Hay un ajuste sin guardar.\n\n¿Quieres guardar la sesión antes de salir?"
+  "session.unsaved_question": "Hay un ajuste sin guardar.\n\n¿Quieres guardar la sesión antes de salir?",
+  "conventions.menu": "Convenios (compatibilidad NORMOS)",
+  "conventions.sextet_title": "Patrón de líneas del sextete",
+  "conventions.sextet_alpha_fe": "α-Fe publicado (Fitbauer)",
+  "conventions.sextet_normos_opt": "Momentos nucleares (NORMOS)",
+  "conventions.sextet_tip": "NORMOS deriva las posiciones de los momentos nucleares; con el mismo espectro el campo difiere ~0,01 T a 33 T.",
+  "conventions.intensity_title": "Razones de intensidad",
+  "conventions.intensity_depth": "Por profundidad (Fitbauer)",
+  "conventions.intensity_area_opt": "Por área (NORMOS: D13/D23)",
+  "conventions.intensity_tip": "Solo difieren si las anchuras Γ2/Γ3 no son iguales a Γ1.",
+  "conventions.relax_title": "Relajación con poblaciones desiguales",
+  "conventions.relax_blume": "Blume, balance detallado (Fitbauer)",
+  "conventions.relax_normos_opt": "Regla de NORMOS (BSAT)",
+  "conventions.relax_tip": "Solo difieren con polarización P > 0; la de NORMOS no cumple el balance detallado.",
+  "conventions.sextet_normos": "patrón del sextete NORMOS",
+  "conventions.intensity_area": "intensidades por área",
+  "conventions.relax_normos": "relajación NORMOS",
+  "info.conventions": "Convenios NORMOS activos: {list}"
 }

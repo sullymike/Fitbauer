@@ -226,3 +226,21 @@ def test_la_sesion_conserva_el_convenio():
     otra = ModelState.defaults()
     otra.apply_template(m.to_model_state_dict())
     assert otra.relax_convention == "normos"
+
+
+def test_las_replicas_heredan_los_convenios():
+    """Bootstrap y perfil de verosimilitud reajustan con los convenios del ajuste base.
+
+    Antes _replica_state no copiaba intensity_convention: con el convenio de
+    áreas las réplicas se ajustaban con el de profundidades.
+    """
+    from core.fit_engine import _replica_state
+    from core.session import ModelState
+    m = ModelState.defaults(n_components=1)
+    m.intensity_convention, m.relax_convention, m.sextet_pattern = "area", "normos", "normos"
+    v = np.linspace(-10.0, 10.0, 64)
+    st = m.build_fit_state(velocity=v, y_data=np.ones_like(v), sigma_data=None,
+                           counts=None, norm_factor=None)
+    r = _replica_state(st, dict(st.values), st.y_data, None)
+    assert (r.intensity_convention, r.relax_convention, r.sextet_pattern) == \
+        ("area", "normos", "normos")

@@ -888,5 +888,22 @@
   "results.copied": "Ergebnisse in die Zwischenablage kopiert",
   "results.nothing_to_copy": "Nichts zu kopieren: führen Sie zuerst einen Fit aus.",
   "session.unsaved_title": "Nicht gespeicherte Arbeit",
-  "session.unsaved_question": "Es gibt einen nicht gespeicherten Fit.\n\nMöchten Sie die Sitzung vor dem Beenden speichern?"
+  "session.unsaved_question": "Es gibt einen nicht gespeicherten Fit.\n\nMöchten Sie die Sitzung vor dem Beenden speichern?",
+  "conventions.menu": "Konventionen (NORMOS-Kompatibilität)",
+  "conventions.sextet_title": "Linienmuster des Sextetts",
+  "conventions.sextet_alpha_fe": "Veröffentlichtes α-Fe (Fitbauer)",
+  "conventions.sextet_normos_opt": "Kernmomente (NORMOS)",
+  "conventions.sextet_tip": "NORMOS leitet die Linienlagen aus den Kernmomenten ab; beim selben Spektrum weicht das Feld bei 33 T um ~0,01 T ab.",
+  "conventions.intensity_title": "Intensitätsverhältnisse",
+  "conventions.intensity_depth": "Nach Tiefe (Fitbauer)",
+  "conventions.intensity_area_opt": "Nach Fläche (NORMOS: D13/D23)",
+  "conventions.intensity_tip": "Sie unterscheiden sich nur, wenn die Breiten Γ2/Γ3 nicht gleich Γ1 sind.",
+  "conventions.relax_title": "Relaxation mit ungleichen Besetzungen",
+  "conventions.relax_blume": "Blume, detailliertes Gleichgewicht (Fitbauer)",
+  "conventions.relax_normos_opt": "NORMOS-Regel (BSAT)",
+  "conventions.relax_tip": "Sie unterscheiden sich nur bei Polarisation P > 0; die NORMOS-Regel erfüllt das detaillierte Gleichgewicht nicht.",
+  "conventions.sextet_normos": "NORMOS-Sextettmuster",
+  "conventions.intensity_area": "Flächenintensitäten",
+  "conventions.relax_normos": "NORMOS-Relaxation",
+  "info.conventions": "Aktive NORMOS-Konventionen: {list}"
 }

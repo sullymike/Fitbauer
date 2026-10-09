@@ -888,5 +888,22 @@
   "results.copied": "Résultats copiés dans le presse-papiers",
   "results.nothing_to_copy": "Rien à copier : lancez d'abord un ajustement.",
   "session.unsaved_title": "Travail non enregistré",
-  "session.unsaved_question": "Un ajustement n'est pas enregistré.\n\nVoulez-vous enregistrer la session avant de quitter ?"
+  "session.unsaved_question": "Un ajustement n'est pas enregistré.\n\nVoulez-vous enregistrer la session avant de quitter ?",
+  "conventions.menu": "Conventions (compatibilité NORMOS)",
+  "conventions.sextet_title": "Positions des raies du sextet",
+  "conventions.sextet_alpha_fe": "α-Fe publié (Fitbauer)",
+  "conventions.sextet_normos_opt": "Moments nucléaires (NORMOS)",
+  "conventions.sextet_tip": "NORMOS déduit les positions des moments nucléaires ; sur un même spectre, le champ diffère d'environ 0,01 T à 33 T.",
+  "conventions.intensity_title": "Rapports d'intensité",
+  "conventions.intensity_depth": "En profondeur (Fitbauer)",
+  "conventions.intensity_area_opt": "En aire (NORMOS : D13/D23)",
+  "conventions.intensity_tip": "Ils ne diffèrent que si les largeurs Γ2/Γ3 ne sont pas égales à Γ1.",
+  "conventions.relax_title": "Relaxation à populations inégales",
+  "conventions.relax_blume": "Blume, équilibre détaillé (Fitbauer)",
+  "conventions.relax_normos_opt": "Règle de NORMOS (BSAT)",
+  "conventions.relax_tip": "Ils ne diffèrent que pour une polarisation P > 0 ; celle de NORMOS ne respecte pas l'équilibre détaillé.",
+  "conventions.sextet_normos": "positions du sextet NORMOS",
+  "conventions.intensity_area": "intensités en aire",
+  "conventions.relax_normos": "relaxation NORMOS",
+  "info.conventions": "Conventions NORMOS actives : {list}"
 }

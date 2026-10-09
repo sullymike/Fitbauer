@@ -287,6 +287,15 @@ class SessionIOMixin:
                 self.wide_delta = bool(state["wide_delta"])
             if "auto_global" in state:
                 self.auto_global = bool(state["auto_global"])
+            # Convenios NORMOS: son parte del análisis. Una sesión sin ellos
+            # (anterior a que existieran) se hizo con los de Fitbauer.
+            from gui.state import FitOptionsState
+            _opts = FitOptionsState.from_model_state(state)
+            self.sextet_pattern = _opts.sextet_pattern
+            self.intensity_convention = _opts.intensity_convention
+            self.relax_convention = _opts.relax_convention
+            self._apply_conventions()
+            self._sync_convention_actions()
             am = state.get("absorber_model")
             if am in ("thin", "thickness", "transmission"):
                 self.absorber_model = am

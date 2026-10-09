@@ -531,6 +531,9 @@ class LayoutSettingsMixin:
             wide_delta=getattr(self, "wide_delta", False),
             auto_global=getattr(self, "auto_global", True),
             compact_params=getattr(self, "compact_params", False),
+            sextet_pattern=getattr(self, "sextet_pattern", "alpha_fe"),
+            intensity_convention=getattr(self, "intensity_convention", "depth"),
+            relax_convention=getattr(self, "relax_convention", "blume"),
         )
 
     def _apply_ui_preferences_state(self, prefs: UiPreferencesState) -> None:
@@ -573,6 +576,13 @@ class LayoutSettingsMixin:
         self.auto_global = bool(prefs.auto_global)
         self.compact_params = bool(prefs.compact_params)
         self._apply_compact_params()
+        # Convenios NORMOS: la preferencia guardada es el punto de partida de
+        # los análisis nuevos (una sesión cargada trae los suyos).
+        self.sextet_pattern = prefs.sextet_pattern
+        self.intensity_convention = prefs.intensity_convention
+        self.relax_convention = prefs.relax_convention
+        self._apply_conventions()
+        self._sync_convention_actions()
         for attr, act_name in (("wide_delta", "act_wide_delta"),
                                ("auto_global", "act_auto_global"),
                                ("compact_params", "act_compact_params")):
@@ -584,6 +594,12 @@ class LayoutSettingsMixin:
 
     # ── Persistencia mínima ──────────────────────────────────────────────
     def _load_settings(self) -> None:
+        # Los convenios NORMOS son globales del núcleo: se parte SIEMPRE de los
+        # de Fitbauer, para que una ventana sin settings no herede los que dejó
+        # otra en el mismo proceso.
+        for kind, opciones in self._CONVENTIONS.items():
+            setattr(self, kind, opciones[0])
+        self._apply_conventions()
         try:
             if SETTINGS_PATH.exists():
                 data = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))

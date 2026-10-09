@@ -18,6 +18,8 @@ from dataclasses import dataclass, field
 from typing import Callable
 import time
 
+from contextlib import nullcontext
+
 import numpy as np
 from scipy.optimize import least_squares, differential_evolution
 
@@ -30,7 +32,7 @@ from core.physics import (
     sextet_absorption,
     total_model,
 )
-from core.constants import SEXTET_PARAM_NAMES
+from core.constants import SEXTET_PARAM_NAMES, sextet_pattern
 from core.folding import (
     fold_integer_or_half,
     sine_velocity_axis,
@@ -94,6 +96,9 @@ class FitState:
     # Relajación polarizada: "blume" (físico) o "normos" (como NORMOS-SITE).
     # Ver core.physics.RELAX_CONVENTION.
     relax_convention: str = "blume"
+    # Patrón de posiciones del sexteto ("alpha_fe" / "normos"). None = no
+    # tocar el convenio global (rutas que construyen el estado a mano).
+    sextet_pattern: str | None = None
     drive_form: str = "triangular"      # "triangular" / "sine" (eje v = vmax·sin)
     multistart_n: int = 8               # nº de réplicas perturbadas (+1 base)
     channel_sub: int = 1                # integración del modelo sobre el canal (1 = centro)
@@ -511,8 +516,10 @@ def fit_discrete(state: FitState, progress_cb: Callable[[object], None] | None =
     try:
         # El convenio de razones de intensidad ("depth"/"area") es del modelo,
         # no del optimizador: se fija para todo el ajuste y se restaura.
+        pattern = getattr(state, "sextet_pattern", None)
         with intensity_convention(state.intensity_convention), \
-                relaxation_convention(getattr(state, "relax_convention", "blume")):
+                relaxation_convention(getattr(state, "relax_convention", "blume")), \
+                (sextet_pattern(pattern) if pattern else nullcontext()):
             return _fit_discrete_impl(state, progress_cb)
     finally:
         _phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA = prev_profile
@@ -937,6 +944,11 @@ def _replica_state(
         voigt_sigma=float(values.get("voigt_sigma", state.voigt_sigma)),
         absorber_model=state.absorber_model, multistart_n=multistart_n,
         norm_factor=state.norm_factor, drive_form=state.drive_form,
+        # Los convenios son del MODELO: sin copiarlos, las réplicas se
+        # ajustaban con los de por defecto aunque el ajuste base no.
+        intensity_convention=state.intensity_convention,
+        relax_convention=getattr(state, "relax_convention", "blume"),
+        sextet_pattern=getattr(state, "sextet_pattern", None),
     )
 
 

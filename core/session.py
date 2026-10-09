@@ -77,6 +77,8 @@ class ModelState:
     intensity_convention: str = "depth"
     # Relajación polarizada: "blume" (físico) o "normos". Ver core.physics.
     relax_convention: str = "blume"
+    # Patrón de posiciones del sexteto: "alpha_fe" (defecto) o "normos".
+    sextet_pattern: str = "alpha_fe"
     drive_form: str = "triangular"      # "triangular" (aceleración cte) / "sine"
     propagate_calib: bool = False
     global_opt: bool = False
@@ -176,7 +178,7 @@ class ModelState:
         if "channel_sub" in state:
             self.channel_sub = max(1, min(8, int(state["channel_sub"])))
         for skey in ("line_profile", "likelihood", "robust_loss", "absorber_model",
-                     "intensity_convention", "relax_convention",
+                     "intensity_convention", "relax_convention", "sextet_pattern",
                      "drive_form"):
             if skey in state:
                 setattr(self, skey, str(state[skey]))
@@ -256,6 +258,7 @@ class ModelState:
             fit_sigma=self.fit_sigma, absorber_model=self.absorber_model,
             intensity_convention=self.intensity_convention,
             relax_convention=self.relax_convention,
+            sextet_pattern=self.sextet_pattern,
             drive_form=self.drive_form,
             multistart_n=self.multistart_n,
             channel_sub=max(1, int(self.channel_sub)),
@@ -299,6 +302,7 @@ class ModelState:
             "absorber_model": self.absorber_model,
             "intensity_convention": self.intensity_convention,
             "relax_convention": self.relax_convention,
+            "sextet_pattern": self.sextet_pattern,
             "drive_form": self.drive_form,
             "multistart_n": self.multistart_n,
             "channel_sub": self.channel_sub,

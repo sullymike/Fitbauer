@@ -529,6 +529,10 @@ class ModelWorkflowMixin:
             tr("info.fit_velocity_yes") if calib_state.fit_velocity else tr("info.fit_velocity_no"),
             tr("info.rms", value=f"{self._info_rms():.6g}"),
         ]
+        no_defecto = self._non_default_conventions()
+        if no_defecto:
+            lines.append(tr("info.conventions", list=", ".join(no_defecto),
+                            default="Convenios NORMOS activos: {list}"))
         result = self.runtime_results.fit_result
         result_view = discrete_result_view(result) if result is not None else None
         stats = ({metric.key: metric.value for metric in result_view.metrics()} if result_view is not None else {})
@@ -637,7 +641,68 @@ class ModelWorkflowMixin:
             channel_sub=getattr(self, "channel_sub", 1),
             wide_delta=getattr(self, "wide_delta", False),
             auto_global=getattr(self, "auto_global", True),
+            sextet_pattern=getattr(self, "sextet_pattern", "alpha_fe"),
+            intensity_convention=getattr(self, "intensity_convention", "depth"),
+            relax_convention=getattr(self, "relax_convention", "blume"),
         )
+
+    # ── Convenios de compatibilidad con NORMOS ────────────────────────────
+    # (atributo de la ventana, opciones; la primera es la de Fitbauer)
+    _CONVENTIONS = {
+        "sextet_pattern": ("alpha_fe", "normos"),
+        "intensity_convention": ("depth", "area"),
+        "relax_convention": ("blume", "normos"),
+    }
+
+    def _apply_conventions(self) -> None:
+        """Fija los convenios globales del núcleo según la ventana.
+
+        Son globales a propósito: así los respetan a la vez la simulación en
+        vivo, los ajustes discretos y de distribución, el bootstrap y el
+        perfil de verosimilitud. Los ajustes discretos los reciben además en el
+        FitState (``fit_discrete`` los fija durante el ajuste).
+        """
+        from core import physics
+        from core.constants import set_sextet_pattern
+        set_sextet_pattern(getattr(self, "sextet_pattern", "alpha_fe"))
+        physics.INTENSITY_CONVENTION = getattr(self, "intensity_convention", "depth")
+        physics.RELAX_CONVENTION = getattr(self, "relax_convention", "blume")
+
+    def set_convention(self, kind: str, value: str, *, persist: bool = True) -> None:
+        """Cambia un convenio (``kind`` es una clave de ``_CONVENTIONS``)."""
+        opciones = self._CONVENTIONS[kind]
+        if value not in opciones:
+            raise ValueError(f"{kind}: {value!r} no es una de {opciones}")
+        if getattr(self, kind, opciones[0]) == value:
+            return
+        setattr(self, kind, value)
+        self._apply_conventions()
+        self._sync_convention_actions()
+        if persist:
+            self._save_settings()
+            self.mark_dirty()
+        self._refresh_plot()
+
+    def _sync_convention_actions(self) -> None:
+        for kind, opciones in self._CONVENTIONS.items():
+            grupo = getattr(self, f"_{kind}_action_group", None)
+            if grupo is None:
+                continue
+            actual = getattr(self, kind, opciones[0])
+            for accion, valor in zip(grupo.actions(), opciones):
+                accion.blockSignals(True)
+                accion.setChecked(valor == actual)
+                accion.blockSignals(False)
+
+    def _non_default_conventions(self) -> list[str]:
+        """Etiquetas de los convenios que no son los de Fitbauer."""
+        etiquetas = {
+            "sextet_pattern": tr("conventions.sextet_normos", default="patrón del sextete NORMOS"),
+            "intensity_convention": tr("conventions.intensity_area", default="intensidades por área"),
+            "relax_convention": tr("conventions.relax_normos", default="relajación NORMOS"),
+        }
+        return [etiquetas[k] for k, opciones in self._CONVENTIONS.items()
+                if getattr(self, k, opciones[0]) != opciones[0]]
 
     def _model_state(self) -> ModelState:
         """Vuelca el estado de los widgets en un ``core.session.ModelState``.

@@ -63,6 +63,9 @@ def _apply_model_overrides(session_engine, overrides: dict | None) -> None:
     relax = overrides.get("relax_convention")
     if relax:
         model.relax_convention = str(relax)
+    pattern = overrides.get("sextet_pattern")
+    if pattern:
+        model.sextet_pattern = str(pattern)
     asym = overrides.get("line_asym")
     if asym is not None:
         model.vars["line_asym"] = float(asym)
@@ -228,7 +231,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--profile-likelihood", action="store_true",
                    help="Intervalos asimétricos 1σ/2σ por verosimilitud "
                         "perfilada (solo con un espectro).")
-    p.add_argument("--sextet-pattern", choices=sorted(SEXTET_PATTERNS), default="alpha_fe",
+    p.add_argument("--sextet-pattern", choices=sorted(SEXTET_PATTERNS), default=None,
                    help="Convenio de posiciones del sexteto: 'alpha_fe' (patrón "
                         "publicado de α-Fe, por defecto) o 'normos' (derivado de "
                         "los momentos nucleares, como NORMOS-SITE). Afecta al "
@@ -300,13 +303,17 @@ def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     # El convenio de posiciones envuelve TODO el ajuste (incluido el kernel de
     # distribución y el Hamiltoniano) y se restaura al salir.
-    with sextet_pattern(args.sextet_pattern):
+    # El patrón viaja en la plantilla/sesión (ModelState.sextet_pattern) y lo
+    # aplica el ajuste; --sextet-pattern lo sobrescribe. El contexto exterior
+    # cubre además lo que se evalúa fuera del ajuste (curvas de salida).
+    with sextet_pattern(args.sextet_pattern or "alpha_fe"):
         return _run(args)
 
 
 def _overrides_from_args(args) -> dict:
     return {"intensity_convention": args.intensity_convention,
             "relax_convention": args.relax_convention,
+            "sextet_pattern": args.sextet_pattern,
             "line_asym": args.line_asym,
             "src_frac": args.src_frac}
 

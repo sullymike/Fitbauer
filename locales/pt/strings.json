@@ -888,5 +888,22 @@
   "results.copied": "Resultados copiados para a área de transferência",
   "results.nothing_to_copy": "Nada para copiar: faça primeiro um ajuste.",
   "session.unsaved_title": "Trabalho por guardar",
-  "session.unsaved_question": "Há um ajuste por guardar.\n\nQuer guardar a sessão antes de sair?"
+  "session.unsaved_question": "Há um ajuste por guardar.\n\nQuer guardar a sessão antes de sair?",
+  "conventions.menu": "Convenções (compatibilidade NORMOS)",
+  "conventions.sextet_title": "Padrão de linhas do sexteto",
+  "conventions.sextet_alpha_fe": "α-Fe publicado (Fitbauer)",
+  "conventions.sextet_normos_opt": "Momentos nucleares (NORMOS)",
+  "conventions.sextet_tip": "O NORMOS deriva as posições dos momentos nucleares; no mesmo espetro, o campo difere ~0,01 T a 33 T.",
+  "conventions.intensity_title": "Razões de intensidade",
+  "conventions.intensity_depth": "Por profundidade (Fitbauer)",
+  "conventions.intensity_area_opt": "Por área (NORMOS: D13/D23)",
+  "conventions.intensity_tip": "Só diferem se as larguras Γ2/Γ3 não forem iguais a Γ1.",
+  "conventions.relax_title": "Relaxação com populações desiguais",
+  "conventions.relax_blume": "Blume, equilíbrio detalhado (Fitbauer)",
+  "conventions.relax_normos_opt": "Regra do NORMOS (BSAT)",
+  "conventions.relax_tip": "Só diferem com polarização P > 0; a do NORMOS não cumpre o equilíbrio detalhado.",
+  "conventions.sextet_normos": "padrão do sexteto NORMOS",
+  "conventions.intensity_area": "intensidades por área",
+  "conventions.relax_normos": "relaxação NORMOS",
+  "info.conventions": "Convenções NORMOS ativas: {list}"
 }

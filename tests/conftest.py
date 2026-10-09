@@ -68,3 +68,19 @@ def _configuracion_aislada(tmp_path_factory):
     yield cfg
     for modulo, atributo, valor in originales:
         setattr(modulo, atributo, valor)
+
+
+@pytest.fixture(autouse=True)
+def _convenios_del_nucleo_por_defecto():
+    """Restaura los convenios globales del núcleo tras cada test.
+
+    Patrón del sextete, convenio de intensidades y de relajación son globales
+    (la GUI los fija al elegirlos en el menú): un test que los cambie no debe
+    contaminar a los siguientes.
+    """
+    yield
+    from core import physics
+    from core.constants import set_sextet_pattern
+    set_sextet_pattern("alpha_fe")
+    physics.INTENSITY_CONVENTION = "depth"
+    physics.RELAX_CONVENTION = "blume"

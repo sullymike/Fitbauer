@@ -23,6 +23,18 @@ def _value_or(value, default):
     return default if value is None else value
 
 
+# Convenios de compatibilidad con NORMOS; el primero de cada tupla es el
+# defecto (el de Fitbauer).
+SEXTET_PATTERN_CHOICES = ("alpha_fe", "normos")
+INTENSITY_CONVENTION_CHOICES = ("depth", "area")
+RELAX_CONVENTION_CHOICES = ("blume", "normos")
+
+
+def _choice(value, choices: tuple[str, ...]) -> str:
+    """El valor si es una de las opciones; si no (ausente o corrupto), el defecto."""
+    return str(value) if value in choices else choices[0]
+
+
 @dataclass
 class FileState:
     """Estado runtime del espectro cargado en la GUI."""
@@ -248,6 +260,11 @@ class FitOptionsState:
     channel_sub: int = 1
     wide_delta: bool = False
     auto_global: bool = True
+    # Convenios de compatibilidad con NORMOS (ver core.constants.sextet_pattern
+    # y core.physics.intensity_convention / relaxation_convention).
+    sextet_pattern: str = "alpha_fe"
+    intensity_convention: str = "depth"
+    relax_convention: str = "blume"
 
     @classmethod
     def from_model_state(cls, state: dict[str, Any]) -> "FitOptionsState":
@@ -267,6 +284,10 @@ class FitOptionsState:
             channel_sub=max(1, min(8, int(_value_or(state.get("channel_sub"), 1)))),
             wide_delta=bool(state.get("wide_delta", False)),
             auto_global=bool(state.get("auto_global", True)),
+            sextet_pattern=_choice(state.get("sextet_pattern"), SEXTET_PATTERN_CHOICES),
+            intensity_convention=_choice(state.get("intensity_convention"),
+                                         INTENSITY_CONVENTION_CHOICES),
+            relax_convention=_choice(state.get("relax_convention"), RELAX_CONVENTION_CHOICES),
         )
 
     def apply_to_model_state(self, model_state) -> None:
@@ -285,6 +306,9 @@ class FitOptionsState:
         model_state.channel_sub = max(1, int(self.channel_sub))
         model_state.wide_delta = bool(self.wide_delta)
         model_state.auto_global = bool(self.auto_global)
+        model_state.sextet_pattern = self.sextet_pattern
+        model_state.intensity_convention = self.intensity_convention
+        model_state.relax_convention = self.relax_convention
 
     def to_model_state_fragment(self) -> dict[str, Any]:
         return {
@@ -302,6 +326,9 @@ class FitOptionsState:
             "channel_sub": self.channel_sub,
             "wide_delta": bool(self.wide_delta),
             "auto_global": bool(self.auto_global),
+            "sextet_pattern": self.sextet_pattern,
+            "intensity_convention": self.intensity_convention,
+            "relax_convention": self.relax_convention,
         }
 
 
@@ -496,6 +523,11 @@ class UiPreferencesState:
     # Modo compacto: los ParamControl pierden el slider y ocupan una fila en
     # vez de dos, para que quepan varios componentes a la vez.
     compact_params: bool = False
+    # Convenios NORMOS: preferencia por defecto para análisis nuevos (la
+    # sesión guarda los suyos).
+    sextet_pattern: str = "alpha_fe"
+    intensity_convention: str = "depth"
+    relax_convention: str = "blume"
 
     @classmethod
     def from_settings_dict(cls, data: dict[str, Any]) -> "UiPreferencesState":
@@ -522,6 +554,10 @@ class UiPreferencesState:
             wide_delta=bool(data.get("wide_delta", False)),
             auto_global=bool(data.get("auto_global", True)),
             compact_params=bool(data.get("compact_params", False)),
+            sextet_pattern=_choice(data.get("sextet_pattern"), SEXTET_PATTERN_CHOICES),
+            intensity_convention=_choice(data.get("intensity_convention"),
+                                         INTENSITY_CONVENTION_CHOICES),
+            relax_convention=_choice(data.get("relax_convention"), RELAX_CONVENTION_CHOICES),
         )
 
     def to_settings_dict(self, *, base: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -538,6 +574,9 @@ class UiPreferencesState:
             "wide_delta": bool(self.wide_delta),
             "auto_global": bool(self.auto_global),
             "compact_params": bool(self.compact_params),
+            "sextet_pattern": self.sextet_pattern,
+            "intensity_convention": self.intensity_convention,
+            "relax_convention": self.relax_convention,
         })
         if self.ui_language:
             out["ui_language"] = self.ui_language

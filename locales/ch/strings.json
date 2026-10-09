@@ -888,5 +888,22 @@
   "results.copied": "结果已复制到剪贴板",
   "results.nothing_to_copy": "无可复制的结果：请先进行拟合。",
   "session.unsaved_title": "未保存的工作",
-  "session.unsaved_question": "有尚未保存的拟合。\n\n退出前要保存会话吗？"
+  "session.unsaved_question": "有尚未保存的拟合。\n\n退出前要保存会话吗？",
+  "conventions.menu": "约定（NORMOS 兼容）",
+  "conventions.sextet_title": "六线谱的谱线位置",
+  "conventions.sextet_alpha_fe": "公布的 α-Fe（Fitbauer）",
+  "conventions.sextet_normos_opt": "核磁矩（NORMOS）",
+  "conventions.sextet_tip": "NORMOS 由核磁矩推导谱线位置；对同一谱，33 T 时场相差约 0.01 T。",
+  "conventions.intensity_title": "强度比",
+  "conventions.intensity_depth": "按深度（Fitbauer）",
+  "conventions.intensity_area_opt": "按面积（NORMOS：D13/D23）",
+  "conventions.intensity_tip": "仅当宽度 Γ2/Γ3 不等于 Γ1 时才有差别。",
+  "conventions.relax_title": "布居不等的弛豫",
+  "conventions.relax_blume": "Blume，细致平衡（Fitbauer）",
+  "conventions.relax_normos_opt": "NORMOS 规则（BSAT）",
+  "conventions.relax_tip": "仅在极化 P > 0 时有差别；NORMOS 规则不满足细致平衡。",
+  "conventions.sextet_normos": "NORMOS 六线谱位置",
+  "conventions.intensity_area": "按面积的强度",
+  "conventions.relax_normos": "NORMOS 弛豫",
+  "info.conventions": "生效的 NORMOS 约定：{list}"
 }
