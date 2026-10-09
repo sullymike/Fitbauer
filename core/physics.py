@@ -501,18 +501,21 @@ def two_state_exchange_profile(
     lorentzianas; en el rápido, una sola línea en el centro promedio.
 
     ``polarization`` (P ∈ [−1, 1]) desequilibra las POBLACIONES de los dos
-    estados, ``p_{1,2} = (1 ± P)/2`` — es el ``SPN = BHF/BSAT`` de NORMOS
-    (``siterelx.for``, ``ISIRLX``), o sea el efecto de un campo externo que
-    polariza los dos estados. Con P=0 (defecto) las poblaciones son 50/50 y se
-    recupera exactamente la fórmula anterior.
+    estados, ``p_a = (1 + P)/2`` y ``p_b = (1 − P)/2``: es el efecto de un
+    campo externo que polariza los dos estados (el ``SPN = BHF/BSAT`` de
+    NORMOS). Con P=0 (defecto) las poblaciones son 50/50.
 
-    La expresión general es::
+    Es el modelo estocástico de dos estados de Blume (Phys. Rev. 174, 351,
+    1968): ``I(v) ∝ Re[𝟙ᵀ (Z + W)⁻¹ p]`` con ``Z = diag(z_a, z_b)``,
+    ``z_j = Γ/2 + i(v − v_j)`` y ``W`` la matriz de tasas. Para dos estados
+    queda en forma cerrada::
 
-        I(v) ∝ Re[ (p₁z₂ + p₂z₁ + w₁ + w₂) / (z₁z₂ + z₁w₂ + z₂w₁) ]
+        I(v) ∝ Re[ (p_a z_b + p_b z_a + w_a + w_b) / (z_a z_b + z_a w_b + z_b w_a) ]
 
-    con ``z_j = Γ/2 + i(v − v_j)`` y tasas de salida ligadas por balance
-    detallado (``p₁w₁ = p₂w₂``), parametrizadas como ``w₁ = 2kp₂``,
-    ``w₂ = 2kp₁`` para que P=0 dé ``w₁ = w₂ = k``.
+    con las tasas de salida ligadas por balance detallado (``p_a w_a = p_b w_b``)
+    y parametrizadas como ``w_a = 2k p_b``, ``w_b = 2k p_a``, de modo que P=0
+    da ``w_a = w_b = k``. La forma conserva el área, es no negativa y es
+    invariante al intercambiar los dos estados (``a ↔ b`` con ``P → −P``).
     """
     vv = np.asarray(v, dtype=float)
     g = max(float(gamma), 1e-9) / 2.0
@@ -522,67 +525,19 @@ def two_state_exchange_profile(
         rate_v = 1e12 / _RELAX_RATE_PER_MM_S
     k = max(float(rate_v), 0.0)
     pol = float(np.clip(float(polarization), -1.0, 1.0))
-    p1 = 0.5 * (1.0 + pol)
-    p2 = 0.5 * (1.0 - pol)
-    z1 = g + 1j * (vv - float(center_a))
-    z2 = g + 1j * (vv - float(center_b))
+    p_a = 0.5 * (1.0 + pol)
+    p_b = 0.5 * (1.0 - pol)
+    z_a = g + 1j * (vv - float(center_a))
+    z_b = g + 1j * (vv - float(center_b))
     if k <= 0.0:
         # Sin saltos: cada estado aporta según su población.
-        return p1 * np.real(g / z1) + p2 * np.real(g / z2)
-    if pol == 0.0:
-        det = z1 * z2 + k * (z1 + z2)
-        det = np.where(np.abs(det) < 1e-300, 1e-300 + 0j, det)
-        resp = 0.5 * g * (z1 + z2 + 4.0 * k) / det
-        return np.maximum(np.real(resp), 0.0)
-    # Sin recortar a ≥0: con poblaciones muy desiguales la forma de Blume tiene
-    # regiones negativas (hasta el 27 % de los canales con P=0.9), y NORMOS
-    # tampoco las recorta (``ISIRLX`` acumula ``REAL(CC)`` tal cual). Recortar
-    # línea a línea rompería la equivalencia y además el total del sexteto
-    # suele salir positivo aunque una línea suelta no lo sea.
-    return _blume_polarizado(vv, center_a, center_b, g, k, pol)
-
-
-def _blume_polarizado(vv, center_a, center_b, g, k, pol):
-    """Forma cerrada de Blume con poblaciones desiguales (port de ``ISIRLX``).
-
-    Portado literalmente de ``siterelx.for`` (NORMOS), que es la referencia
-    publicada. Con ``pol=0`` coincide exactamente con la expresión simétrica
-    (comprobado a rms 0), pero con ``pol≠0`` los pesos no son la simple
-    generalización por poblaciones: la asimetría entra también en los
-    autovalores vía ``RK``.
-
-    Correspondencia de parámetros: ``OME = 2k``, ``DVL0 = (c_b − c_a)/2``,
-    ``VELS = (c_a + c_b)/2``, ``WD = 0`` (la anchura va toda en ``z``).
-    """
-    ome = 2.0 * k
-    dvl0 = 0.5 * (float(center_b) - float(center_a))
-    vels = 0.5 * (float(center_a) + float(center_b))
-    b1 = -0.5 * ome
-    h = 0.25 * ome ** 2 - dvl0 ** 2
-    rk = -dvl0 * pol * ome
-    hk = float(np.hypot(h, rk))
-    eta = float(np.sqrt(max(0.5 * (hk + h), 0.0)))
-    rnue = float(np.sqrt(max(0.5 * (hk - h), 0.0)))
-    xp, yp = eta - b1, rnue
-    xn, yn = -eta - b1, -rnue
-    if dvl0 <= 0:
-        lam1, lam2 = complex(xp, yp), complex(xn, yn)
-    else:
-        lam1, lam2 = complex(xp, yn), complex(xn, yp)
-    bb = complex(ome, -dvl0)
-    cc = complex(ome, dvl0)
-    den = (cc - lam1) * (bb - lam2)
-    if abs(den) < 1e-300:
-        return np.zeros_like(vv)
-    rk1 = (bb - lam1) / (cc - lam1)
-    rk2 = (cc - lam2) / (bb - lam2)
-    denom = 1.0 - rk1 * rk2
-    if abs(denom) < 1e-300:
-        return np.zeros_like(vv)
-    ac = 0.5 * (1.0 + pol + rk1 * (1.0 - pol)) * (1.0 - rk2) / denom
-    bd = 0.5 * (1.0 - pol + rk2 * (1.0 + pol)) * (1.0 - rk1) / denom
-    z = g + 1j * (vels - vv)
-    return g * np.real(ac / (lam1 + z) + bd / (lam2 + z))
+        return p_a * np.real(g / z_a) + p_b * np.real(g / z_b)
+    w_a = 2.0 * k * p_b
+    w_b = 2.0 * k * p_a
+    det = z_a * z_b + z_a * w_b + z_b * w_a
+    det = np.where(np.abs(det) < 1e-300, 1e-300 + 0j, det)
+    resp = g * (p_a * z_b + p_b * z_a + w_a + w_b) / det
+    return np.maximum(np.real(resp), 0.0)
 
 
 def two_state_sextet_absorption(

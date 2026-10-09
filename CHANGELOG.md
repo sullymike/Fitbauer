@@ -1,5 +1,25 @@
 # Changelog
 
+## Sin publicar
+
+- **Relajación con poblaciones desiguales: implementación propia, y corregida
+  para P > 0.** La rama polarizada de la relajación de dos estados
+  (`relax_polarization`) era una transcripción línea a línea de la rutina
+  `ISIRLX` del código fuente de NORMOS, que es propietario. Se sustituye por el
+  modelo estocástico de dos estados de Blume (Phys. Rev. 174, 351, 1968) en
+  forma cerrada, con poblaciones `(1 ± P)/2` y tasas con balance detallado. Para
+  P ≤ 0 da lo mismo que antes (10⁻¹¹); para P > 0 la transcripción tomaba la
+  otra rama de la raíz compleja: el espectro cambiaba al intercambiar los dos
+  estados (hasta un 450 %) y tenía regiones negativas (hasta el 27 % de los
+  canales con P = 0.9), que se habían documentado como rasgo del modelo. Ahora
+  es simétrico, no negativo y conserva el área. **Cambian los resultados con
+  P > 0.** No se puede atribuir el fallo al propio NORMOS: su relajación nunca
+  se pudo contrastar con el binario y la «reproducción exacta» comparaba dos
+  copias del mismo Fortran. Los tests dejan de usar la copia de `ISIRLX` y
+  comprueban contra la ecuación matricial de Blume resuelta numéricamente,
+  la simetría a/b, el límite lento, el área y la no negatividad. Ayuda (ES/EN)
+  y manuales dejan de afirmar que se reproduce `ISIRLX` exactamente.
+
 ## v5.1.1 — el gráfico ya no se queda congelado tras un zoom
 
 - **El gráfico se quedaba «congelado» tras usar zoom o desplazar.** Un zoom o

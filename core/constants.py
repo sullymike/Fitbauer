@@ -49,10 +49,10 @@ _BASE_POSITIONS = np.array([-10.657, -6.167, -1.677, 1.677, 6.167, 10.657]) * 0.
 def _normos_site_positions() -> np.ndarray:
     """Patrón de NORMOS-SITE a 33 T, derivado de los momentos nucleares.
 
-    Reproduce literalmente el cálculo de ``INIFUN`` (``sitecalf.for``, líneas
-    361-382) con las constantes que el propio SITE lleva cableadas para el
-    ⁵⁷Fe. Se usan sus valores tal cual —no los CODATA modernos— porque el
-    objetivo es coincidir con SITE, no ser más exacto que él:
+    Es el desdoblamiento Zeeman de primer orden a partir de los factores g del
+    fundamental y del excitado, calculado con las mismas constantes nucleares
+    que usa SITE para el ⁵⁷Fe. Se usan esos valores —no los CODATA modernos—
+    porque el objetivo es coincidir con SITE, no ser más exacto que él:
 
         BF  = RMUN·CLIGHT/EGAMMA        (mm/s por magnetón nuclear y Tesla)
         g₁₂ = GFACT,  g₃₂ = g₁₂·GFR·SEX/SG
