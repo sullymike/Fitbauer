@@ -70,7 +70,7 @@
 \newcommand{\param}[1]{\textit{#1}}
 \newcommand{\BHF}{B_{\mathrm{hf}}}
 \newcommand{\dEQ}{\Delta E_{Q}}
-% Macros usadas por los anexos matemáticos (docs/*.tex).
+% Macros usadas por los anexos matemáticos (appendices/).
 \newcommand{\DEQ}{\Delta E_Q}
 \newcommand{\IS}{\delta}
 \newcommand{\QS}{\Delta E_Q}
@@ -161,9 +161,8 @@ distribuciones. Los recuadros \textbf{Nota}, \textbf{Importante} y
 \input{chapters/04_distribuciones}
 
 % ── Anexos: manuales matemáticos, incluidos como fuente (\input) ─────────────
-% Los cuerpos de docs/*.tex se copian en appendices/ (sin su preámbulo) y se
-% compilan junto al manual, con formato y numeración unificados. Regenerar con
-% scripts/make_appendices.py si cambian los originales de docs/.
+% appendices/*.tex son la única fuente de los anexos (ya no hay copias sueltas
+% en docs/): se editan directamente y se compilan junto al manual.
 \appendix
 \addcontentsline{toc}{part}{Anexos matemáticos}
 

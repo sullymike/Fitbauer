@@ -103,7 +103,7 @@ Cuando la muestra es gruesa (absorción > ~15 %), se puede activar la correcció
 
 $$A_\text{obs}(v) = -C \ln\!\left(1 - \frac{b + sv - y(v)}{C}\right)$$
 
-El solver regularizado trabaja sobre $A_\text{obs}$ (lineal en $P$) y el modelo se re-satura para calcular residuos. Un lazo VARPRO externo refina $(b, s, C)$ mientras el solver interno recupera $P$ en cada iteración. Ver `docs/correccion_espesor.tex` para la derivación completa.
+El solver regularizado trabaja sobre $A_\text{obs}$ (lineal en $P$) y el modelo se re-satura para calcular residuos. Un lazo VARPRO externo refina $(b, s, C)$ mientras el solver interno recupera $P$ en cada iteración. Ver el anexo «Corrección por espesor» del manual (`docs/manual/appendices/apx_espesor.tex`) para la derivación completa.
 
 ## Uso desde Python / endpoint
 
@@ -130,5 +130,5 @@ print(payload["fitted_curve"])
 - `alpha` es el parámetro crítico: usar `--scan-alpha` o el botón `L-curve α` de la GUI para elegirlo.
 - Si `B_min=0`, el ajuste puede usar bajo campo para absorber contribuciones no magnéticas. Para distribución magnética pura, probar `--bmin 15` o `--bmin 20`.
 - `delta`, `quad` y `gamma` son globales/fijos para toda la distribución en el modo 1D.
-- Para distribuciones 2D: la malla puede ser grande ($N_x \times N_y$ bins); usar regularizaciones $\alpha_x$, $\alpha_y$ independientes y verificar estabilidad variando ambas. Ver `docs/distribuciones_2d_mossbauer.tex`.
-- Distribuciones con IS (`P(δ)`, `P(δ, ΔEQ)`): muy sensibles a calibración de velocidad y folding point. Ver `docs/distribuciones_is_mossbauer.tex`.
+- Para distribuciones 2D: la malla puede ser grande ($N_x \times N_y$ bins); usar regularizaciones $\alpha_x$, $\alpha_y$ independientes y verificar estabilidad variando ambas. Ver el anexo de distribuciones bidimensionales del manual (`docs/manual/appendices/apx_dist_2d.tex`).
+- Distribuciones con IS (`P(δ)`, `P(δ, ΔEQ)`): muy sensibles a calibración de velocidad y folding point. Ver el anexo de distribuciones P(IS) del manual (`docs/manual/appendices/apx_dist_is.tex`).

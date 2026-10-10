@@ -67,7 +67,7 @@ $$v_j(B_{hf}) = v_j^{(33\mathrm{T})} \cdot \frac{B_{hf}}{33.0}$$
 
 implementado en `fe57_sextet_positions(bhf_t)`. A esto se suman después el
 desplazamiento isomérico $\delta$ y el patrón cuadrupolar de primer orden
-$q_j \cdot \Delta E_Q$ (ver `docs/manual_mossbauer.tex`, sección de sextete):
+$q_j \cdot \Delta E_Q$ (ver el anexo «Manual matemático del motor de ajuste», `docs/manual/appendices/apx_mates.tex`, sección del sextete):
 
 $$v_{0,j} = \delta + q_j \Delta E_Q + v_j^{(33\mathrm{T})}\frac{B_{hf}}{33.0}$$
 

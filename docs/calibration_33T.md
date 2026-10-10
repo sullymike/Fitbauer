@@ -66,7 +66,7 @@ $$v_j(B_{hf}) = v_j^{(33\mathrm{T})} \cdot \frac{B_{hf}}{33.0}$$
 
 implemented in `fe57_sextet_positions(bhf_t)`. To this are then added the isomer
 shift $\delta$ and the first-order quadrupole pattern $q_j \cdot \Delta E_Q$ (see
-`docs/manual_mossbauer.tex`, sextet section):
+user manual, appendix “Mathematical manual of the fitting engine”, `docs/manual_en/appendices/apx_mates.tex`, sextet section):
 
 $$v_{0,j} = \delta + q_j \Delta E_Q + v_j^{(33\mathrm{T})}\frac{B_{hf}}{33.0}$$
 

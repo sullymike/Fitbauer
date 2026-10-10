@@ -77,7 +77,7 @@ When the sample is thick (absorption > ~15 %), thickness correction can also be 
 
 $$A_\text{obs}(v) = -C \ln\!\left(1 - \frac{b + sv - y(v)}{C}\right)$$
 
-The regularized solver works on $A_\text{obs}$ (linear in $P$) and the model is re-saturated to compute residuals. An external VARPRO loop refines $(b, s, C)$ while the internal solver recovers $P$ at each iteration. See `docs/correccion_espesor.tex` for the full derivation.
+The regularized solver works on $A_\text{obs}$ (linear in $P$) and the model is re-saturated to compute residuals. An external VARPRO loop refines $(b, s, C)$ while the internal solver recovers $P$ at each iteration. See the “Thickness correction” appendix of the user manual (`docs/manual_en/appendices/apx_espesor.tex`) for the full derivation.
 
 ## Usage from Python / endpoint
 
@@ -104,5 +104,5 @@ print(payload["fitted_curve"])
 - `alpha` is the critical parameter: use `--scan-alpha` or the GUI's `L-curve α` button to choose it.
 - If `B_min=0`, the fit may use low-field values to absorb non-magnetic contributions. For a purely magnetic distribution, try `--bmin 15` or `--bmin 20`.
 - `delta`, `quad` and `gamma` are global/fixed for the entire distribution in 1D mode.
-- For 2D distributions: the grid can be large ($N_x \times N_y$ bins); use independent regularizations $\alpha_x$, $\alpha_y$ and verify stability by varying both. See `docs/distribuciones_2d_mossbauer.tex`.
-- Distributions with IS (`P(δ)`, `P(δ, ΔEQ)`): very sensitive to velocity calibration and folding point. See `docs/distribuciones_is_mossbauer.tex`.
+- For 2D distributions: the grid can be large ($N_x \times N_y$ bins); use independent regularizations $\alpha_x$, $\alpha_y$ and verify stability by varying both. See the two-dimensional distributions appendix of the user manual (`docs/manual_en/appendices/apx_dist_2d.tex`).
+- Distributions with IS (`P(δ)`, `P(δ, ΔEQ)`): very sensitive to velocity calibration and folding point. See the P(IS) appendix of the user manual (`docs/manual_en/appendices/apx_dist_is.tex`).

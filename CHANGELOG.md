@@ -98,6 +98,12 @@
   (Hamiltoniano, fuente polarizada, D13/D23), `--edge-anchor`, las formas
   gaussianas en 2D, los convenios de NORMOS, `--export-job`, `--src-frac` y
   `--line-asym`.
+- **Los anexos del manual son la única fuente de la matemática.** Se retiran
+  los `.tex`/`.pdf` sueltos de `docs/` (manual matemático, relajación, espesor,
+  P(IS), 2D y sus traducciones de junio), que iban por detrás de los anexos, y
+  `make_appendices.py`, que al regenerar borraba lo editado en los anexos (y en
+  el manual inglés los sustituía por texto en español). La ayuda y los `.md`
+  remiten ahora al anexo correspondiente del manual.
 - Ayuda (es/en) y manual (es/en) actualizados.
 - **Ajustes mucho más rápidos** (medido en un equipo de 14 núcleos):
   - P(BHF) con δ, ΔEQ y Γ libres: de 30 s a 0.6 s. OpenBLAS repartía cada
