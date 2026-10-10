@@ -2,6 +2,9 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **«Ligar δ» y «Ligar Γ1» atan todos los componentes activos** al
+  componente 1. Solo actuaban sobre los componentes 2 y 3, aunque el modelo
+  admite hasta 10.
 - **P(ΔEQ) y P(IS) dibujaban sextetes.** Había dos causas:
   - En modo distribución la vista previa seguía simulando el modelo discreto
     de los componentes (ocultos): al tocar cualquier parámetro aparecía el

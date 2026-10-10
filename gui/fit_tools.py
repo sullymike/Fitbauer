@@ -177,6 +177,19 @@ class FitToolsMixin:
         self._building = False
         self._refresh_plot()
 
+    def apply_preset_tie(self, param: str) -> None:
+        """Ata ``param`` de todos los componentes activos (2..N) al del componente 1."""
+        for cp in self.components_panels[1:]:
+            if not cp.to_view_state().enabled:
+                continue
+            target = f"s{cp.idx}_{param}"
+            self.constraints = [c for c in self.constraints if c.get("target") != target]
+            self.constraints.append({
+                "target": target, "source": f"s1_{param}",
+                "factor": 1.0, "offset": 0.0,
+            })
+        self._refresh_plot()
+
     def on_physical_presets(self) -> None:
         """Cuatro botones rápidos para imponer relaciones físicas habituales."""
         dlg = QtWidgets.QDialog(self)
@@ -189,37 +202,11 @@ class FitToolsMixin:
         _apply_321 = self.apply_preset_321
         _equal_widths = self.apply_preset_equal_widths
 
-        def _link_delta() -> None:
-            """δ de las componentes 2 y 3 atados al δ del componente 1."""
-            for idx in (2, 3):
-                cp = self.components_panels[idx - 1]
-                if cp.to_view_state().enabled:
-                    self.constraints = [c for c in self.constraints
-                                         if c.get("target") != f"s{idx}_delta"]
-                    self.constraints.append({
-                        "target": f"s{idx}_delta", "source": "s1_delta",
-                        "factor": 1.0, "offset": 0.0,
-                    })
-            self._refresh_plot()
-
-        def _link_gamma() -> None:
-            """Γ1 de componentes 2 y 3 atados a Γ1 del 1."""
-            for idx in (2, 3):
-                cp = self.components_panels[idx - 1]
-                if cp.to_view_state().enabled:
-                    self.constraints = [c for c in self.constraints
-                                         if c.get("target") != f"s{idx}_gamma1"]
-                    self.constraints.append({
-                        "target": f"s{idx}_gamma1", "source": "s1_gamma1",
-                        "factor": 1.0, "offset": 0.0,
-                    })
-            self._refresh_plot()
-
         for label, fn in (
             (tr("button.preset_powder"), _apply_321),
             (tr("button.preset_equal_widths"), _equal_widths),
-            (tr("button.preset_tie_delta"), _link_delta),
-            (tr("button.preset_tie_gamma"), _link_gamma),
+            (tr("button.preset_tie_delta"), lambda: self.apply_preset_tie("delta")),
+            (tr("button.preset_tie_gamma"), lambda: self.apply_preset_tie("gamma1")),
         ):
             btn = QtWidgets.QPushButton(label)
             btn.clicked.connect(fn)

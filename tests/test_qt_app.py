@@ -864,6 +864,23 @@ def test_physical_preset_3_2_1_fixes_intensities(win):
     assert cp.params["gamma2"].value() == 1.0 and cp.params["gamma2"].is_fixed()
 
 
+def test_preset_ligar_delta_y_gamma_cubre_todos_los_componentes_activos(win):
+    """«Ligar δ/Γ1» ata TODOS los componentes activos al 1, no solo el 2 y el 3."""
+    assert len(win.components_panels) > 3
+    activos = (2, 3, len(win.components_panels))
+    for cp in win.components_panels:
+        cp.enabled.setChecked(cp.idx == 1 or cp.idx in activos)
+    win.constraints = [{"target": "s2_delta", "source": "s1_delta",
+                        "factor": 2.0, "offset": 0.0}]
+    win.apply_preset_tie("delta")
+    win.apply_preset_tie("gamma1")
+    for param in ("delta", "gamma1"):
+        atados = {c["target"] for c in win.constraints if c["source"] == f"s1_{param}"}
+        assert atados == {f"s{i}_{param}" for i in activos}
+    # La restricción previa sobre s2_delta se sustituye, no se duplica.
+    assert [c["factor"] for c in win.constraints if c["target"] == "s2_delta"] == [1.0]
+
+
 def test_export_report_writes_markdown(win, tmp_path):
     """Exportar informe escribe un .md con secciones esperadas."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
