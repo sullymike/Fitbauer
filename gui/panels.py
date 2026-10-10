@@ -29,9 +29,9 @@ CONTEXT_HINTS = {
 
 
 #: Capítulo de la ayuda al que lleva «Más información» de cada parámetro.
-#: El formato es "grupo.posición_en_el_grupo": los ocho catálogos no ordenan
-#: los capítulos igual, pero sí coinciden en cuántos tiene cada grupo y en su
-#: orden interno (lo fija un test).
+#: El formato es "grupo.posición_en_el_grupo". Los ocho catálogos tienen los
+#: mismos capítulos en el mismo orden (lo fija un test), pero el identificador
+#: no depende del orden global, solo del de cada grupo.
 PARAM_HELP_CHAPTER = {
     # Modelo discreto (fitting.1)
     **{k: "fitting.1" for k in (

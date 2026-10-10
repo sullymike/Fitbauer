@@ -2,8 +2,11 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
-- **Ayuda en alemán, ruso y japonés retraducidas y alineadas** con la española,
-  igual que la francesa.
+- **Ayuda en alemán, ruso, japonés y chino retraducidas y alineadas** con la
+  española, igual que la francesa: los ocho idiomas tienen ya los mismos 32
+  capítulos en el mismo orden (el test lo exige para todos). El texto por
+  defecto de la ruta de configuración en la ayuda se traduce también a esos
+  cuatro idiomas (antes salía «(settings)»).
 - **Ayuda en francés retraducida y alineada** con la española: los 32
   capítulos en el mismo orden (los identificadores «grupo.posición» de los
   enlaces «Más información…» apuntan ya al capítulo correcto), con los nombres

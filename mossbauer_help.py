@@ -13,6 +13,10 @@ _SETTINGS_DEFAULTS = {
     "en": "(settings)",
     "fr": "(configuration)",
     "pt": "(definições)",
+    "de": "(Einstellungen)",
+    "ru": "(настройки)",
+    "ja": "（設定）",
+    "ch": "（设置）",
 }
 
 
