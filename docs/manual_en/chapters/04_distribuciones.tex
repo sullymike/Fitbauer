@@ -214,13 +214,14 @@ quantities are fixed as global kernel parameters (next subsection).
 \begin{itemize}[nosep]
   \item \menu{Shape}: the family of $P$ that is fitted---Histogram, Gaussian, VBF,
         Binomial or Fixed---(\S\ref{sec:formas-dist} details them). It is the
-        decision that most conditions the rest of the controls. The 2D shape is
-        not chosen here: the 2D fit modes impose it. The panel only shows the
-        controls that the active variable and shape use.
+        decision that most conditions the rest of the controls. In the 2D modes
+        the list changes to two-dimensional Histogram, Gaussian and VBF
+        (\S\ref{sec:dist-2d}). The panel only shows the controls that the
+        active variable and shape use.
   \item \menu{Regularizer}: only with \textbf{Histogram}. Chooses how the lack of
         smoothness is penalized---\emph{tikhonov}, \emph{tv} or \emph{maxent}---
         (\S\ref{sec:regularizacion}).
-  \item \menu{VBF components}: only with \textbf{VBF}. Number of Gaussians (1--6)
+  \item \menu{VBF components}: only with \textbf{VBF} (1D or 2D). Number of Gaussians (1--6)
         that make up the distribution. Start with 1--2 and add more only if the fit
         calls for it.
 \end{itemize}
@@ -326,7 +327,7 @@ fine details.
 
 \subsection{The regularization: $\log\alpha$ and shortcuts}
 
-Only for Histogram (and 2D):
+Only for Histogram (1D or 2D):
 
 \begin{itemize}[nosep]
   \item \menu{log$_{10}\alpha$}: strength of the regularization
@@ -342,9 +343,9 @@ Only for Histogram (and 2D):
 
 \subsection{2D controls}
 
-They appear only with the \textbf{2D} shape: \menu{min/max/bins of the second axis}
-(e.g.\ $\dEQ$) and \menu{log$_{10}\alpha$ of the second axis}, analogous to those of
-the first variable but for the $Y$ axis. The \boton{View 2D map} button opens the
+They appear only in the 2D modes: \menu{min/max/bins of the second axis}
+(e.g.\ $\dEQ$), analogous to those of the first variable but for the $Y$ axis, and,
+only with Histogram, \menu{log$_{10}\alpha$ of the second axis}. The \boton{View 2D map} button opens the
 map (\S\ref{sec:dist-2d}).
 
 \subsection{Other}
@@ -377,7 +378,8 @@ $A_k, \mu_k, \sigma_k$ per component (\S\ref{sec:vbf-areas}). \\[3pt]
 \textbf{Binomial} & Solute neighbours, NORMOS-DIST style (e.g.\
 alloys). \\[3pt]
 \textbf{Fixed} & Distribution imposed by the user (read from a file). \\[3pt]
-\textbf{2D} & Joint distribution $P(\BHF, \dEQ)$ (\S\ref{sec:dist-2d}). \\
+\textbf{2D} & Joint distribution of two variables, as a histogram or as bivariate
+Gaussians (\S\ref{sec:dist-2d}). \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -722,16 +724,44 @@ of the model.
 \label{sec:dist-2d}
 
 When field and quadrupole vary in a way that is \textbf{not correlatable with a
-straight line} (that is, when $\kappa_\delta/\kappa_q$ are not enough), the
-\textbf{2D} shape fits a joint density $P(\BHF, \dEQ)$ over a two-dimensional grid.
+straight line} (that is, when $\kappa_\delta/\kappa_q$ are not enough), the 2D
+modes fit a joint density---$P(\BHF, \dEQ)$, $P(\text{IS}, \dEQ)$ or
+$P(\BHF, \text{IS})$---over a two-dimensional grid, with three shapes:
+
+\begin{center}
+\begin{tabular}{@{}p{0.2\textwidth}p{0.72\textwidth}@{}}
+\toprule
+\textbf{Shape} & \textbf{What it fits} \\
+\midrule
+\textbf{Histogram} & A free weight per cell, regularized along each axis
+($\alpha_x$, $\alpha_y$). It imposes no shape, but has many unknowns. \\[3pt]
+\textbf{Gaussian} & One bivariate Gaussian: centre $(\mu_x,\mu_y)$, widths
+$(\sigma_x,\sigma_y)$ and correlation $\rho$. No $\alpha$. \\[3pt]
+\textbf{VBF} & A sum of $N$ bivariate Gaussians, one per site (e.g.\ Fe$^{2+}$ and
+Fe$^{3+}$); stores $A_k$, $\mu$, $\sigma$ and $\rho$ of each. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The correlation $\rho$ generalizes the 1D slopes: the mean of $y$ at given $x$
+follows the line $\mu_y + \kappa\,(x-\mu_x)$ with $\kappa = \rho\,\sigma_y/\sigma_x$,
+and around it remains an intrinsic width $\sigma_y\sqrt{1-\rho^2}$. With the
+Gaussian shapes, free $\delta$, $\dEQ$ and $\Gamma$ are fitted together with the
+Gaussians (not in an outer layer), which makes them fast: seconds instead of the
+minute or more of the 2D Histogram.
+
 Each axis has its own controls:
 
 \begin{itemize}[nosep]
   \item $X$ axis (e.g.\ $\BHF$): the usual \menu{min/max/bins} and
         \menu{log$_{10}\alpha$}.
-  \item $Y$ axis (e.g.\ $\dEQ$): \menu{min/max/bins of the second axis} and its own
-        \menu{log$_{10}\alpha$}, which is \textbf{regularized separately}.
+  \item $Y$ axis (e.g.\ $\dEQ$): \menu{min/max/bins of the second axis} and, with
+        Histogram, its own \menu{log$_{10}\alpha$}, which is \textbf{regularized
+        separately}.
 \end{itemize}
+
+With the Gaussians the grid is only used to evaluate them: it must cover them with
+room to spare. If a Gaussian touches the edge, the program warns about it.
 
 The result is shown as a \textbf{map} (\emph{heatmap} with contours)---accessible
 with \boton{View 2D map}---in addition to the marginal distributions of each
@@ -743,6 +773,17 @@ The 2D has \textbf{many more unknowns} (one per grid cell) than the 1D, so it is
 costly and harder to regularize. Start with \textbf{few bins} on each axis (e.g.\
 $15\times15$) to test, check that the map is stable, and only then refine the grid.
 Two $\alpha$ values that are too low produce a map full of false peaks.
+\end{aviso}
+
+\begin{aviso}
+\textbf{$P(\text{IS}, \dEQ)$ with doublets is not unique.} A doublet only has the
+lines $\delta \pm \dEQ/2$, so the spectrum only sees the distribution of each
+line, not the joint one. With a Gaussian, only two combinations of
+$(\sigma_{\text{IS}}, \sigma_{\dEQ}, \rho)$ are determined: the widths of the two
+lines. The fit reproduces the spectrum, but the map is not unique (the panel warns
+about it). For the IS--$\dEQ$ correlation common in glasses use $P(\dEQ)$ with
+$\kappa_\delta$, which is identifiable. With a field (pairs with $\BHF$) each sextet
+line sees a different combination and everything is determined.
 \end{aviso}
 
 \section{Sharp components alongside the distribution}

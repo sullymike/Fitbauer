@@ -214,13 +214,14 @@ fijan como parámetros globales del núcleo (siguiente apartado).
 \begin{itemize}[nosep]
   \item \menu{Forma}: la familia de $P$ que se ajusta —Histograma, Gaussiana,
         VBF, Binomial o Fija— (§\ref{sec:formas-dist} las detalla). Es la
-        decisión que más condiciona el resto de controles. La forma 2D no se
-        elige aquí: la imponen los modos 2D del selector de modo. El panel solo
-        muestra los controles que usan la variable y la forma activas.
+        decisión que más condiciona el resto de controles. En los modos 2D la
+        lista cambia a Histograma, Gaussiana y VBF bidimensionales
+        (§\ref{sec:dist-2d}). El panel solo muestra los controles que usan la
+        variable y la forma activas.
   \item \menu{Regularizador}: solo con \textbf{Histograma}. Elige cómo se penaliza
         la falta de suavidad —\emph{tikhonov}, \emph{tv} o \emph{maxent}—
         (§\ref{sec:regularizacion}).
-  \item \menu{Componentes VBF}: solo con \textbf{VBF}. Número de gaussianas (1--6)
+  \item \menu{Componentes VBF}: solo con \textbf{VBF} (1D o 2D). Número de gaussianas (1--6)
         que suman la distribución. Empiece por 1--2 y añada solo si el ajuste lo
         pide.
 \end{itemize}
@@ -325,7 +326,7 @@ finos.
 
 \subsection{La regularización: $\log\alpha$ y atajos}
 
-Solo para Histograma (y 2D):
+Solo para Histograma (1D o 2D):
 
 \begin{itemize}[nosep]
   \item \menu{log$_{10}\alpha$}: fuerza de la regularización
@@ -341,9 +342,9 @@ Solo para Histograma (y 2D):
 
 \subsection{Controles de la 2D}
 
-Aparecen solo con forma \textbf{2D}: \menu{mín/máx/bins del segundo eje} (p.\,ej.\
-$\dEQ$) y \menu{log$_{10}\alpha$ del segundo eje}, análogos a los de la primera
-variable pero para el eje $Y$. El botón \boton{Ver mapa 2D} abre el mapa
+Aparecen solo en los modos 2D: \menu{mín/máx/bins del segundo eje} (p.\,ej.\
+$\dEQ$), análogos a los de la primera variable pero para el eje $Y$, y, solo con
+Histograma, \menu{log$_{10}\alpha$ del segundo eje}. El botón \boton{Ver mapa 2D} abre el mapa
 (§\ref{sec:dist-2d}).
 
 \subsection{Otros}
@@ -376,7 +377,8 @@ guarda $A_k, \mu_k, \sigma_k$ por componente (§\ref{sec:vbf-areas}). \\[3pt]
 \textbf{Binomial} & Vecinos de soluto al estilo NORMOS-DIST (p.\,ej.\
 aleaciones). \\[3pt]
 \textbf{Fija} & Distribución impuesta por el usuario (leída de fichero). \\[3pt]
-\textbf{2D} & Distribución conjunta $P(\BHF, \dEQ)$ (§\ref{sec:dist-2d}). \\
+\textbf{2D} & Distribución conjunta de dos variables, como histograma o como
+gaussianas bivariantes (§\ref{sec:dist-2d}). \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -724,16 +726,44 @@ otros defectos del modelo.
 \label{sec:dist-2d}
 
 Cuando campo y cuadrupolo varían de forma \textbf{no correlacionable con una
-recta} (es decir, cuando $\kappa_\delta/\kappa_q$ no bastan), la forma \textbf{2D}
-ajusta una densidad conjunta $P(\BHF, \dEQ)$ sobre una malla bidimensional. Cada
-eje tiene sus propios controles:
+recta} (es decir, cuando $\kappa_\delta/\kappa_q$ no bastan), los modos 2D
+ajustan una densidad conjunta —$P(\BHF, \dEQ)$, $P(\text{IS}, \dEQ)$ o
+$P(\BHF, \text{IS})$— sobre una malla bidimensional, con tres formas:
+
+\begin{center}
+\begin{tabular}{@{}p{0.2\textwidth}p{0.72\textwidth}@{}}
+\toprule
+\textbf{Forma} & \textbf{Qué ajusta} \\
+\midrule
+\textbf{Histograma} & Un peso libre por celda, con regularización en cada eje
+($\alpha_x$, $\alpha_y$). No impone forma, pero tiene muchas incógnitas. \\[3pt]
+\textbf{Gaussiana} & Una gaussiana bivariante: centro $(\mu_x,\mu_y)$, anchuras
+$(\sigma_x,\sigma_y)$ y correlación $\rho$. Sin $\alpha$. \\[3pt]
+\textbf{VBF} & Suma de $N$ gaussianas bivariantes, una por sitio (p.\,ej.\
+Fe$^{2+}$ y Fe$^{3+}$); guarda $A_k$, $\mu$, $\sigma$ y $\rho$ de cada una. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La correlación $\rho$ generaliza las pendientes del 1D: la media de $y$ a $x$ dado
+sigue la recta $\mu_y + \kappa\,(x-\mu_x)$ con $\kappa = \rho\,\sigma_y/\sigma_x$, y
+alrededor de ella queda una anchura propia $\sigma_y\sqrt{1-\rho^2}$. Con las formas
+gaussianas, $\delta$, $\dEQ$ y $\Gamma$ libres se ajustan junto con las gaussianas
+(no en una capa externa), lo que las hace rápidas: segundos frente al minuto largo
+del Histograma 2D.
+
+Cada eje tiene sus propios controles:
 
 \begin{itemize}[nosep]
   \item Eje $X$ (p.\,ej.\ $\BHF$): \menu{mín/máx/bins} y \menu{log$_{10}\alpha$}
         habituales.
-  \item Eje $Y$ (p.\,ej.\ $\dEQ$): \menu{mín/máx/bins del segundo eje} y su propio
-        \menu{log$_{10}\alpha$}, que se \textbf{regulariza por separado}.
+  \item Eje $Y$ (p.\,ej.\ $\dEQ$): \menu{mín/máx/bins del segundo eje} y, con
+        Histograma, su propio \menu{log$_{10}\alpha$}, que se \textbf{regulariza
+        por separado}.
 \end{itemize}
+
+Con las gaussianas la malla solo sirve para evaluarlas: debe cubrirlas con
+holgura. Si una gaussiana toca el borde, el programa lo avisa.
 
 El resultado se muestra como un \textbf{mapa} (\emph{heatmap} con contornos)
 —accesible con \boton{Ver mapa 2D}— además de las distribuciones marginales de
@@ -746,6 +776,17 @@ así que es más costoso y más difícil de regularizar. Empiece con \textbf{poc
 bins} en cada eje (p.\,ej.\ $15\times15$) para tantear, compruebe que el mapa es
 estable, y solo entonces afine la malla. Dos $\alpha$ demasiado bajos producen un
 mapa lleno de picos falsos.
+\end{aviso}
+
+\begin{aviso}
+\textbf{$P(\text{IS}, \dEQ)$ con dobletes no es única.} Un doblete solo tiene las
+líneas $\delta \pm \dEQ/2$, así que el espectro solo ve la distribución de
+cada línea, no la conjunta. Con una gaussiana, de $(\sigma_{\text{IS}},
+\sigma_{\dEQ}, \rho)$ solo se determinan dos combinaciones: las anchuras de las
+dos líneas. El ajuste reproduce el espectro, pero el mapa no es único (el panel lo
+avisa). Para la correlación IS--$\dEQ$ habitual en vidrios use $P(\dEQ)$ con
+$\kappa_\delta$, que es identificable. Con campo (pares con $\BHF$) cada línea del
+sextete ve otra combinación y todo queda determinado.
 \end{aviso}
 
 \section{Componentes nítidos junto a la distribución}

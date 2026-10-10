@@ -1,6 +1,6 @@
 # Changelog
 
-## Sin publicar — distribuciones P(ΔEQ)/P(IS) y binomial de NORMOS
+## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
 - **P(ΔEQ) y P(IS) dibujaban sextetes.** Había dos causas:
   - En modo distribución la vista previa seguía simulando el modelo discreto
@@ -24,7 +24,7 @@
     P(x, y)); «log10 α» sin el «BHF» fijo; la ventana del resultado de P(IS)
     ya no dice P(BHF).
   - «2D» deja de ser una forma elegible en los modos 1D (ajustaba BHF-ΔEQ
-    aunque el modo dijera P(IS)); la imponen los modos 2D.
+    aunque el modo dijera P(IS)); los modos 2D tienen sus propias formas.
   - La física del kernel (1er orden/Hamiltoniano/fuente polarizada) solo
     aparece con P(BHF) e Histograma, que es donde se usa; δ global queda
     inactivo en P(IS).
@@ -47,6 +47,23 @@
   representa como barras. En la CLI: `--binomial-conc`,
   `--binomial-neighbors`, `--binomial-start`, `--binomial-step` y
   `--fit-conc`; el importador de `.JOB` traslada `CONC`, `BHF` y `DTB`.
+- **Formas Gaussiana y VBF en las distribuciones 2D.** Los modos 2D solo
+  admitían el histograma regularizado. Ahora el selector ofrece Histograma (el
+  de siempre; las sesiones con forma «2D» lo siguen cargando), Gaussiana (una
+  gaussiana bivariante: μx, μy, σx, σy y correlación ρ) y VBF (N gaussianas
+  bivariantes, una por sitio), sin α. ρ generaliza las pendientes κ del 1D
+  (κ = ρσy/σx más una anchura propia σy√(1−ρ²)). δ, ΔEQ y Γ libres se ajustan
+  dentro del mismo problema que las gaussianas: en un bucle externo, como el
+  del histograma, el ruido de convergencia del ajuste interno impedía mover δ
+  y Γ. Con jacobiano analítico tarda unos segundos. Informe con la tabla de
+  gaussianas; en la CLI, `--dist-2d --shape gaussiana|vbf`.
+- **Aviso: P(IS, ΔEQ) con dobletes no es única.** El espectro solo ve las
+  líneas δ ± ΔEQ/2, así que σ IS, σ ΔEQ y ρ se compensan (vale también para el
+  histograma 2D). El panel lo avisa y remite a P(ΔEQ) con κδ. Con campo (pares
+  con BHF) los parámetros se recuperan bien.
+- En los modos 2D, un δ libre se refinaba aunque IS fuera un eje del mapa.
+- El kernel 2D se construye vectorizado por línea (mismo resultado, bit a
+  bit; unas 4 veces más rápido).
 - Ayuda (es/en) y manual (es/en) actualizados.
 - **Ajustes mucho más rápidos** (medido en un equipo de 14 núcleos):
   - P(BHF) con δ, ΔEQ y Γ libres: de 30 s a 0.6 s. OpenBLAS repartía cada
