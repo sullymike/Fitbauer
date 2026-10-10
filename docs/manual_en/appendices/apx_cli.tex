@@ -1,11 +1,10 @@
 % Anexo: herramientas de línea de comandos (ajuste headless).
 % Se incluye con \input desde main.tex bajo un \chapter, así que empieza en \section.
 
-Every fit that the GUI performs can also be run \emph{headless} from the
-command line, with the \textbf{same numerical engine}
-(\code{core.fit\_engine} and \code{mossbauer\_distribution}): results are
-identical to those obtained interactively. Two scripts cover the two fitting
-worlds:
+Fits can also be run \emph{headless} from the command line, with the
+\textbf{same numerical engine} as the GUI (\code{core.fit\_engine} and
+\code{mossbauer\_distribution}): results are identical to those obtained
+interactively. Two scripts cover the two fitting worlds:
 
 \begin{itemize}[nosep]
   \item \file{mossbauer\_fit\_cli.py} --- \textbf{discrete} fits
@@ -13,15 +12,18 @@ worlds:
         template, including Monte-Carlo bootstrap errors, profile-likelihood
         intervals and warm-start batch series.
   \item \file{fit\_bhf\_distribution\_cli.py} --- \textbf{hyperfine
-        distribution} fits: $P(\BHF)$ or $P(\dEQ)$, every shape
-        (histogram, Gaussian, VBF, binomial), every regularizer
-        (Tikhonov, TV, MaxEnt), Voigt kernels, field correlations and the 2D
-        distribution $P(\BHF,\dEQ)$.
+        distribution} fits: $P(\BHF)$, $P(\dEQ)$ or $P(\mathrm{IS})$, every 1D
+        shape (histogram, Gaussian, VBF, binomial), every regularizer
+        (Tikhonov, TV, MaxEnt), the kernel physics of the GUI panel (full
+        Hamiltonian, polarized source, texture), Voigt kernels, field
+        correlations and the 2D distribution $P(\BHF,\dEQ)$ as a histogram or
+        as bivariate Gaussians.
 \end{itemize}
 
 Neither script needs a display: they run on a cluster, inside a batch queue,
 or from another program. Both return exit code $0$ on success, which makes
-them easy to chain in shell scripts.
+them easy to chain in shell scripts. \code{-{}-help} lists every option with
+its default.
 
 \section{Discrete fits: \file{mossbauer\_fit\_cli.py}}
 \label{sec:cli-discrete}
@@ -67,8 +69,45 @@ Option & Argument & Meaning \\
   $\sigma_{\mathrm{MC}}$. \\
 \code{-{}-profile-likelihood} & --- & Asymmetric $1\sigma/2\sigma$ intervals by
   profile likelihood ($\Delta\chi^2=1$ and $\Delta\chi^2=4$ crossings; see the
-  mathematical appendix). Adds a \code{profile\_likelihood} section. \\
+  mathematical appendix). Single spectrum only. Adds a
+  \code{profile\_likelihood} section. \\
+\code{-{}-export-job} & \file{file.JOB} & Also writes the fitted model as a
+  NORMOS-SITE \file{.JOB} file, to compare in NORMOS or share the
+  configuration. NORMOS is not run. \\
+\code{-{}-src-frac} & $F$ & Resonant fraction of the source (FSO of
+  NORMOS-SITE), only with the \code{transmission} absorber model: the
+  transmission saturates at $1-F$ instead of $0$. Default $1$. \\
+\code{-{}-line-asym} & $A$ & Interference line asymmetry (AKS of NORMOS-SITE):
+  the profile is multiplied by $1 - A\,(v-v_0)/\Gamma$. Default $0$. \\
 \code{-{}-quiet} & --- & Suppress the summary printed to stdout. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{NORMOS conventions}
+
+Three options switch to the conventions of NORMOS, to reproduce its fits. The
+first value of each is the Fitbauer default; they are the same choices as the
+GUI submenu \menu{Fit $\triangleright$ Advanced fit options $\triangleright$
+Conventions (NORMOS compatibility)}.
+
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}p{8.0cm}@{}}
+\toprule
+Option & Values & Meaning \\
+\midrule
+\code{-{}-sextet-pattern} & \code{alpha\_fe} $|$ \code{normos} & Sextet line
+  positions: the published $\alpha$-Fe pattern, or derived from the nuclear
+  moments as NORMOS-SITE does (the field differs by about $0.01$~T at
+  $33$~T). It applies to the first-order sextet, the full Hamiltonian and the
+  distribution kernel. \\
+\code{-{}-intensity-convention} & \code{depth} $|$ \code{area} & Whether the
+  line ratios \code{int1}/\code{int2} are depths or areas (the D13/D23 of
+  NORMOS). They only differ when the relative widths are not $1$. \\
+\code{-{}-relax-convention} & \code{blume} $|$ \code{normos} & Two-state
+  relaxation with unequal populations: Blume's model with detailed balance,
+  or the rule NORMOS-SITE applies with BSAT/BH0. They only differ for a
+  polarization $P > 0$. \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -118,55 +157,154 @@ file from the shell.
 The distribution CLI reads a raw \file{.ws5}/\file{.adt} file, folds it
 (NORMOS-style, reusing the \file{.RES}/\file{.JOB} sidecars when present) and
 fits a hyperfine distribution with the same engine as the GUI panel of
-chapter~\ref{ch:distribuciones}:
+chapter~\ref{ch:distribuciones}. Unlike the GUI, the kernel parameters
+$\delta$, $\dEQ$ and $\Gamma$ are \emph{fixed}: they are given with
+\code{-{}-delta}/\code{-{}-quad}/\code{-{}-gamma} or read from the sidecars.
 
 \begin{lstlisting}[language=bash]
 # Classic P(BHF) histogram (Tikhonov):
 python fit_bhf_distribution_cli.py sample.adt --alpha 0.01 --nbins 50 --plot
 
-# P(DEQ) doublet distribution:
+# P(DEQ) doublet distribution; P(IS) singlet distribution:
 python fit_bhf_distribution_cli.py sample.adt --variable quad --bmax 3
+python fit_bhf_distribution_cli.py sample.adt --variable delta \
+    --bmin -1 --bmax 2
 
-# VBF with two Gaussian components; MaxEnt histogram; 2D distribution:
+# VBF with two Gaussian components; MaxEnt histogram:
 python fit_bhf_distribution_cli.py sample.adt --shape vbf --vbf-components 2
 python fit_bhf_distribution_cli.py sample.adt --reg-mode maxent
+
+# NORMOS-style binomial (DISTRI=3), 5 % solute, 12 neighbours:
+python fit_bhf_distribution_cli.py sample.adt --shape binomial \
+    --binomial-conc 5 --binomial-start 33 --binomial-step -2.5
+
+# 2D distribution: regularized histogram, or two bivariate Gaussians:
 python fit_bhf_distribution_cli.py sample.adt --dist-2d --qmin -1 --qmax 1
+python fit_bhf_distribution_cli.py sample.adt --dist-2d --shape vbf \
+    --vbf-components 2 --qmin -1 --qmax 1
 \end{lstlisting}
 
-\subsection{Model options}
+\subsection{Distribution and shape}
 
 \begin{center}
-\begin{tabular}{@{}llp{7.2cm}@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}p{8.0cm}@{}}
 \toprule
 Option & Values & Meaning \\
 \midrule
-\code{-{}-variable} & \code{bhf} $|$ \code{quad} & Distributed variable:
-  $P(\BHF)$ (default) or $P(\dEQ)$ with the field fixed at
-  \code{-{}-fixed-bhf} ($0$~T $\Rightarrow$ doublet kernel). \\
+\code{-{}-variable} & \code{bhf} $|$ \code{quad} $|$ \code{delta} &
+  Distributed variable: $P(\BHF)$ (default), $P(\dEQ)$ or $P(\mathrm{IS})$.
+  For \code{quad} and \code{delta} the field is fixed at
+  \code{-{}-fixed-bhf} ($0$~T $\Rightarrow$ doublets, or singlets when
+  \code{-{}-quad 0} too). \\
 \code{-{}-shape} & \code{histograma} $|$ \code{gaussiana} $|$ \code{vbf} $|$
-  \code{binomial} & Distribution shape (chapter~\ref{ch:distribuciones}). \code{gaussiana}
-  is the VBF with $N=1$ and a Lorentzian line. \\
-\code{-{}-vbf-components} & $N$ & Number of Gaussians of the VBF. \\
+  \code{binomial} & Distribution shape (chapter~\ref{ch:distribuciones}).
+  \code{gaussiana} is the VBF with $N=1$ and a Lorentzian line. \\
+\code{-{}-vbf-components} & $N$ & Number of Gaussians of the VBF (1D and 2D). \\
 \code{-{}-reg-mode} & \code{tikhonov} $|$ \code{tv} $|$ \code{maxent} &
   Histogram regularizer. \\
-\code{-{}-profile} & \code{Lorentziana} $|$ \code{Voigt} & Kernel line profile
-  (\code{-{}-voigt-sigma} sets the instrumental Gaussian width, mm/s). \\
-\code{-{}-delta-slope}, \code{-{}-quad-slope} & slope & Linear correlations
-  $\delta(H)$ and $\dEQ(H)$ of appendix~\ref{ap:mates}; $0$ = classic kernel. \\
-\code{-{}-bmin}, \code{-{}-bmax}, \code{-{}-nbins} & grid & Grid of the
-  distributed variable (T for \code{bhf}, mm/s for \code{quad}). \\
-\code{-{}-delta}, \code{-{}-quad}, \code{-{}-gamma} & values & Fixed kernel
-  parameters; defaults are read from the NORMOS sidecars when available. \\
-\code{-{}-sharp-bhf} & T (repeatable) & Adds crystalline (sharp) sextets on
-  top of the distribution, e.g.\ \code{-{}-sharp-bhf 33 -{}-sharp-bhf 49}. \\
-\code{-{}-dist-2d} & --- & Two-dimensional $P(\BHF,\dEQ)$
-  (appendix~\ref{ap:dist-2d}), with \code{-{}-qmin/-{}-qmax/-{}-nbins-quad}
-  and \code{-{}-alpha-quad}. \\
-\code{-{}-scan-alpha} & --- & Scans $\alpha$ (histogram only) and writes a
-  simple L-curve with a suggested corner value. \\
+\code{-{}-alpha} & $\alpha$ & Regularization strength of the histogram. \\
+\code{-{}-edge-anchor} & $B$ & Pulls $P$ towards $0$ at the first and last
+  bin (BETA1/BETA2 of NORMOS-DIST), so the histogram does not pile spurious
+  weight at the edges. $0$ = no anchoring. \\
+\code{-{}-binomial-conc} & \% & Binomial: solute concentration (CONC of
+  NORMOS). Fixed unless \code{-{}-fit-conc}. \\
+\code{-{}-binomial-neighbors} & $n$ & Binomial: number of neighbouring sites
+  (NORMOS uses 12). \\
+\code{-{}-binomial-start}, \code{-{}-binomial-step} & values & Binomial: value
+  of the variable with no solute neighbours and change per neighbour
+  (BHF/DTB, QUA/DTQ, ISO/DTI of NORMOS). \\
+\code{-{}-fit-conc} & --- & Binomial: also fit the concentration. \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+\subsection{Kernel}
+
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}p{8.0cm}@{}}
+\toprule
+Option & Values & Meaning \\
+\midrule
+\code{-{}-delta}, \code{-{}-quad}, \code{-{}-gamma} & mm/s & Fixed kernel
+  parameters; defaults are read from the NORMOS sidecars when available
+  ($\Gamma = 0.36$~mm/s otherwise). \\
+\code{-{}-fixed-bhf} & T & Kernel field for \code{-{}-variable quad} or
+  \code{delta}. \\
+\code{-{}-profile} & \code{Lorentziana} $|$ \code{Voigt} & Kernel line profile;
+  \code{-{}-voigt-sigma} sets the instrumental Gaussian width (mm/s). \\
+\code{-{}-delta-slope}, \code{-{}-quad-slope} & slope & Linear correlations
+  $\delta(H)$ and $\dEQ(H)$ of appendix~\ref{ap:mates}; $0$ = classic kernel. \\
+\code{-{}-d13}, \code{-{}-d23} & ratios & Area ratios of lines (1,6)/(3,4) and
+  (2,5)/(3,4) of the sextet kernel (NORMOS convention; $3$ and $2$ = powder).
+  Histogram only. \\
+\code{-{}-kernel-treatment} & \code{1er\_orden} $|$ \code{hamiltoniano} &
+  First-order sextets, or the powder average of the full Hamiltonian (then
+  \code{-{}-quad} is the modulus of a random EFG, with asymmetry
+  \code{-{}-kernel-eta}), the exact analogue of EXACT/QUP in NORMOS-DIST.
+  Histogram only. \\
+\code{-{}-source-polarized} & --- & Polarized source (METHOD=4/POLAR of
+  NORMOS-DIST): 36-line comb kernel, with \code{-{}-source-bhf},
+  \code{-{}-source-theta} and \code{-{}-absorber-theta}. Histogram and
+  \code{-{}-variable bhf} only. \\
+\code{-{}-sharp-bhf} & T (repeatable) & Adds crystalline (sharp) sextets on
+  top of the distribution, e.g.\ \code{-{}-sharp-bhf 33 -{}-sharp-bhf 49};
+  \code{-{}-sharp-delta}, \code{-{}-sharp-quad} and \code{-{}-sharp-gamma}
+  set their parameters (by default those of the kernel). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Grid, background and folding}
+
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}p{8.0cm}@{}}
+\toprule
+Option & Values & Meaning \\
+\midrule
+\code{-{}-bmin}, \code{-{}-bmax}, \code{-{}-nbins} & grid & Grid of the
+  distributed variable (T for \code{bhf}, mm/s for \code{quad} and
+  \code{delta}). \\
+\code{-{}-baseline}, \code{-{}-slope} & values & Initial (or fixed) background
+  level and slope. \\
+\code{-{}-no-fit-baseline}, \code{-{}-no-fit-slope} & --- & Keep the background
+  level or slope fixed. They apply to every shape. \\
+\code{-{}-center}, \code{-{}-vmax} & values & Folding centre and maximum
+  velocity; by default taken from the \file{.RES}/\file{.JOB}/\file{.PLT}
+  sidecars, or found by a $\chi^2$ search ($v_{\max} = 12$~mm/s). \\
+\code{-{}-norm-percentile} & \% & Percentile used to normalize the folded
+  counts. \\
+\code{-{}-sextet-pattern}, \code{-{}-intensity-convention},
+  \code{-{}-line-asym} & & NORMOS conventions, as in the discrete CLI. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Two-dimensional distributions}
+
+\code{-{}-dist-2d} fits $P(\BHF,\dEQ)$ (appendix~\ref{ap:dist-2d}) on a grid of
+\code{-{}-nbins} $\times$ \code{-{}-nbins-quad} cells, with $\dEQ$ between
+\code{-{}-qmin} and \code{-{}-qmax}. The shape selects the method:
+
+\begin{itemize}[nosep]
+  \item \code{histograma} (default): regularized histogram, with
+        \code{-{}-alpha} along $\BHF$ and \code{-{}-alpha-quad} along $\dEQ$
+        (equal to \code{-{}-alpha} if omitted).
+  \item \code{gaussiana} or \code{vbf}: one or \code{-{}-vbf-components}
+        bivariate Gaussians $(A, \mu_x, \mu_y, \sigma_x, \sigma_y, \rho)$,
+        without $\alpha$.
+\end{itemize}
+
+The binomial shape and \code{-{}-scan-alpha} are not available in 2D, and the
+command line has no $P(\mathrm{IS},\dEQ)$ yet: that pair is only in the GUI.
+
+\subsection{Choosing \texorpdfstring{$\alpha$}{alpha}}
+
+\code{-{}-scan-alpha} repeats the histogram fit for \code{-{}-alpha-count}
+values of $\alpha$, logarithmically spaced between \code{-{}-alpha-min} and
+\code{-{}-alpha-max}, with the same kernel and options as the main fit. It
+writes a simple L-curve (\file{*\_alpha\_scan.dat}, and a PNG with
+\code{-{}-plot}) and the suggested corner value in the summary
+(\code{suggested\_alpha\_lcurve}).
 
 \subsection{Output files}
 
@@ -177,8 +315,9 @@ $P$) and \file{*\_summary.json} (all scalar parameters and metrics; for the
 VBF it includes the fitted $(A_j,\mu_j,\sigma_j)$ triplets). With
 \code{-{}-plot} a PNG with the spectrum and the distribution is added.
 
-In 2D mode the distribution is written as a matrix
-(\file{*\_distribution2d.dat}) with its two axes in
-\file{*\_bhf\_axis.dat} / \file{*\_quad\_axis.dat}, and the summary carries
+In 2D mode the distribution is written as a matrix in
+\file{*\_distribution2d.dat}, with its two axes in \file{*\_bhf\_axis.dat}
+and \file{*\_quad\_axis.dat}, and the summary carries
 the moments $\langle\BHF\rangle$, $\langle\dEQ\rangle$, widths and the
-$\BHF$--$\dEQ$ correlation.
+$\BHF$--$\dEQ$ correlation; with the Gaussian shapes, also the fitted
+Gaussians (\code{vbf2d\_components}).

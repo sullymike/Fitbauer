@@ -1,0 +1,331 @@
+% Anexo: herramientas de línea de comandos (ajuste headless).
+% Se incluye con \input desde main.tex bajo un \chapter, así que empieza en \section.
+
+Los ajustes también pueden hacerse \emph{sin interfaz}, desde la línea de
+comandos, con el \textbf{mismo motor numérico} que la GUI
+(\code{core.fit\_engine} y \code{mossbauer\_distribution}): los resultados son
+idénticos a los que se obtienen de forma interactiva. Dos programas cubren los
+dos tipos de ajuste:
+
+\begin{itemize}[nosep]
+  \item \file{mossbauer\_fit\_cli.py} --- ajustes \textbf{discretos}
+        (singlete / doblete / sextete / modelos de relajación) a partir de una
+        plantilla de sesión, con errores por bootstrap Monte Carlo, intervalos
+        por verosimilitud perfilada y series con arranque en caliente.
+  \item \file{fit\_bhf\_distribution\_cli.py} --- ajustes de
+        \textbf{distribuciones hiperfinas}: $P(\BHF)$, $P(\dEQ)$ o
+        $P(\mathrm{IS})$, todas las formas 1D (histograma, gaussiana, VBF,
+        binomial), todos los regularizadores (Tikhonov, TV, MaxEnt), la física
+        del kernel del panel de la GUI (Hamiltoniano completo, fuente
+        polarizada, textura), kernels Voigt, correlaciones con el campo y la
+        distribución 2D $P(\BHF,\dEQ)$, como histograma o como gaussianas
+        bivariantes.
+\end{itemize}
+
+Ninguno de los dos necesita pantalla: funcionan en un clúster, dentro de una
+cola de trabajos o llamados desde otro programa. Ambos devuelven el código de
+salida $0$ si todo va bien, lo que facilita encadenarlos en scripts de shell.
+\code{-{}-help} enumera todas las opciones con su valor por defecto.
+
+\section{Ajustes discretos: \file{mossbauer\_fit\_cli.py}}
+\label{sec:cli-discrete}
+
+El flujo es el mismo que en la GUI: se prepara el modelo una vez de forma
+interactiva, se guarda como sesión (\menu{Archivo > Guardar sesión…}) y ese
+fichero JSON sirve de \textbf{plantilla} para cualquier número de espectros:
+
+\begin{lstlisting}[language=bash]
+python mossbauer_fit_cli.py \
+    --template plantilla_alphaFe.json \
+    --spectrum muestra.adt \
+    --out muestra.fit.json
+\end{lstlisting}
+
+La plantilla contiene la definición completa del modelo: tipos de componente y
+valores iniciales, parámetros fijos o libres, restricciones, perfil de línea
+(Lorentz/Voigt), verosimilitud (gaussiana/Poisson), pérdida robusta, modelo de
+absorbente, forma de onda del transductor (triangular/seno), número de arranques
+múltiples y las opciones de calibración. El centro de doblado \emph{no} se toma
+de la plantilla: se detecta en cada espectro, igual que hace la GUI. El JSON de
+salida tiene la misma estructura que una sesión de la GUI (se puede abrir con
+\menu{Archivo > Cargar sesión…}) más un bloque \code{batch\_fit\_result} con los
+valores ajustados, sus errores y los estadísticos ($\chi^2$, $\chi^2$ reducido,
+AIC, BIC).
+
+\subsection{Opciones}
+
+\begin{center}
+\begin{tabular}{@{}llp{7.6cm}@{}}
+\toprule
+Opción & Argumento & Significado \\
+\midrule
+\code{-{}-template} & \file{fichero.json} & Plantilla de sesión (obligatoria). \\
+\code{-{}-spectrum} & uno o más ficheros & Espectro(s) \file{.ws5}/\file{.adt}
+  que ajustar. Con varios, la serie se ajusta con arranque en caliente
+  secuencial (ver más abajo). \\
+\code{-{}-out} & \file{fichero.json} & Fichero de salida (obligatorio). \\
+\code{-{}-vmax} & mm/s & Sustituye el $v_{\max}$ de la plantilla (útil si la
+  calibración cambia entre series). \\
+\code{-{}-bootstrap} & $N$ & Errores por bootstrap Monte Carlo con $N$
+  réplicas (solo con un espectro). Añade una sección \code{bootstrap} con la
+  $\sigma_{\mathrm{MC}}$ de cada parámetro. \\
+\code{-{}-profile-likelihood} & --- & Intervalos asimétricos $1\sigma/2\sigma$
+  por verosimilitud perfilada (cruces de $\Delta\chi^2=1$ y $\Delta\chi^2=4$;
+  ver el anexo matemático). Solo con un espectro. Añade una sección
+  \code{profile\_likelihood}. \\
+\code{-{}-export-job} & \file{fichero.JOB} & Escribe además el modelo ajustado
+  como fichero \file{.JOB} de NORMOS-SITE, para compararlo en NORMOS o
+  compartir la configuración. No ejecuta NORMOS. \\
+\code{-{}-src-frac} & $F$ & Fracción resonante de la fuente (FSO de
+  NORMOS-SITE), solo con el modelo de absorbente \code{transmission}: la
+  transmisión satura en $1-F$ en lugar de en $0$. Por defecto $1$. \\
+\code{-{}-line-asym} & $A$ & Asimetría de línea por interferencia (AKS de
+  NORMOS-SITE): el perfil se multiplica por $1 - A\,(v-v_0)/\Gamma$. Por
+  defecto $0$. \\
+\code{-{}-quiet} & --- & No imprime el resumen por la salida estándar. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Convenios de NORMOS}
+
+Tres opciones cambian a los convenios de NORMOS, para reproducir sus ajustes. El
+primer valor de cada una es el de Fitbauer, que es el defecto; son las mismas
+opciones que el submenú \menu{Ajuste > Opciones avanzadas de ajuste > Convenios
+(compatibilidad NORMOS)} de la GUI.
+
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}p{8.0cm}@{}}
+\toprule
+Opción & Valores & Significado \\
+\midrule
+\code{-{}-sextet-pattern} & \code{alpha\_fe} $|$ \code{normos} & Posiciones de
+  las líneas del sextete: el patrón publicado del $\alpha$-Fe, o derivadas de
+  los momentos nucleares, como hace NORMOS-SITE (el campo difiere en unos
+  $0.01$~T a $33$~T). Afecta al sextete de primer orden, al Hamiltoniano
+  completo y al kernel de distribución. \\
+\code{-{}-intensity-convention} & \code{depth} $|$ \code{area} & Si las razones
+  \code{int1}/\code{int2} entre líneas son de profundidad o de área (los
+  D13/D23 de NORMOS). Solo difieren si las anchuras relativas no son $1$. \\
+\code{-{}-relax-convention} & \code{blume} $|$ \code{normos} & Relajación de dos
+  estados con poblaciones desiguales: el modelo de Blume, con balance
+  detallado, o la regla que aplica NORMOS-SITE con BSAT/BH0. Solo difieren con
+  polarización $P > 0$. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Errores avanzados}
+
+Con \code{-{}-bootstrap} $N$ el ajuste base se repite sobre $N$ espectros
+sintéticos (con cuentas de Poisson reales cuando se conoce el factor de
+normalización) y, junto al error de la covarianza, se da la desviación típica
+muestral de cada parámetro libre:
+
+\begin{lstlisting}[language=bash]
+python mossbauer_fit_cli.py --template T.json --spectrum a.adt \
+    --out a.fit.json --bootstrap 100
+#  s1_bhf = 33.0446 +- 0.005988  [sigma_MC 0.006113]
+\end{lstlisting}
+
+Con \code{-{}-profile-likelihood} cada parámetro libre se recorre alrededor de
+su óptimo reajustando los demás, y los cruces de $\Delta\chi^2=1$ y
+$\Delta\chi^2=4$ dan intervalos asimétricos, válidos aunque falle la
+aproximación parabólica de la covarianza:
+
+\begin{lstlisting}[language=bash]
+#  s1_bhf = 33.0446 +- 0.005988  [1-sigma profile -0.00607/+0.006066]
+\end{lstlisting}
+
+\subsection{Series con arranque en caliente}
+
+Si se pasan varios espectros (una serie en temperatura o en composición), cada
+ajuste parte de los valores convergidos del anterior: es el mismo arranque en
+caliente secuencial que la herramienta de lotes de la GUI. La salida es un único
+JSON con una fila por fichero (\code{status}, \code{values}, \code{errors},
+\code{stats}); un fallo individual no detiene la serie:
+
+\begin{lstlisting}[language=bash]
+python mossbauer_fit_cli.py --template T.json \
+    --spectrum serie_010K.adt serie_050K.adt serie_100K.adt \
+    --out serie.batch.json
+\end{lstlisting}
+
+Para ajustes totalmente independientes (sin arranque en caliente) basta con
+llamar al programa una vez por fichero desde la shell.
+
+\section{Ajustes de distribución: \file{fit\_bhf\_distribution\_cli.py}}
+\label{sec:cli-dist}
+
+Este programa lee un fichero \file{.ws5}/\file{.adt} sin doblar, lo dobla (al
+estilo de NORMOS, aprovechando los ficheros \file{.RES}/\file{.JOB} que lo
+acompañen) y ajusta una distribución hiperfina con el mismo motor que el panel
+de la GUI del capítulo~\ref{ch:distribuciones}. A diferencia de la GUI, los
+parámetros del kernel $\delta$, $\dEQ$ y $\Gamma$ son \emph{fijos}: se dan con
+\code{-{}-delta}/\code{-{}-quad}/\code{-{}-gamma} o se leen de esos ficheros.
+
+\begin{lstlisting}[language=bash]
+# Histograma P(BHF) clásico (Tikhonov):
+python fit_bhf_distribution_cli.py muestra.adt --alpha 0.01 --nbins 50 --plot
+
+# P(DEQ) con dobletes; P(IS) con singletes:
+python fit_bhf_distribution_cli.py muestra.adt --variable quad --bmax 3
+python fit_bhf_distribution_cli.py muestra.adt --variable delta \
+    --bmin -1 --bmax 2
+
+# VBF con dos gaussianas; histograma MaxEnt:
+python fit_bhf_distribution_cli.py muestra.adt --shape vbf --vbf-components 2
+python fit_bhf_distribution_cli.py muestra.adt --reg-mode maxent
+
+# Binomial al estilo NORMOS (DISTRI=3), 5 % de soluto, 12 vecinos:
+python fit_bhf_distribution_cli.py muestra.adt --shape binomial \
+    --binomial-conc 5 --binomial-start 33 --binomial-step -2.5
+
+# Distribución 2D: histograma regularizado, o dos gaussianas bivariantes:
+python fit_bhf_distribution_cli.py muestra.adt --dist-2d --qmin -1 --qmax 1
+python fit_bhf_distribution_cli.py muestra.adt --dist-2d --shape vbf \
+    --vbf-components 2 --qmin -1 --qmax 1
+\end{lstlisting}
+
+\subsection{Distribución y forma}
+
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}p{8.0cm}@{}}
+\toprule
+Opción & Valores & Significado \\
+\midrule
+\code{-{}-variable} & \code{bhf} $|$ \code{quad} $|$ \code{delta} &
+  Variable distribuida: $P(\BHF)$ (por defecto), $P(\dEQ)$ o
+  $P(\mathrm{IS})$. Con \code{quad} y \code{delta} el campo queda fijo en
+  \code{-{}-fixed-bhf} ($0$~T $\Rightarrow$ dobletes, o singletes si además
+  \code{-{}-quad 0}). \\
+\code{-{}-shape} & \code{histograma} $|$ \code{gaussiana} $|$ \code{vbf} $|$
+  \code{binomial} & Forma de la distribución
+  (capítulo~\ref{ch:distribuciones}). \code{gaussiana} es el VBF con $N=1$ y
+  línea lorentziana. \\
+\code{-{}-vbf-components} & $N$ & Número de gaussianas del VBF (1D y 2D). \\
+\code{-{}-reg-mode} & \code{tikhonov} $|$ \code{tv} $|$ \code{maxent} &
+  Regularizador del histograma. \\
+\code{-{}-alpha} & $\alpha$ & Intensidad de la regularización del
+  histograma. \\
+\code{-{}-edge-anchor} & $B$ & Lleva $P$ hacia $0$ en el primer y el último
+  bin (BETA1/BETA2 de NORMOS-DIST), para que el histograma no acumule peso
+  espurio en los bordes. $0$ = sin anclaje. \\
+\code{-{}-binomial-conc} & \% & Binomial: concentración de soluto (CONC de
+  NORMOS). Fija salvo con \code{-{}-fit-conc}. \\
+\code{-{}-binomial-neighbors} & $n$ & Binomial: número de posiciones vecinas
+  (NORMOS usa 12). \\
+\code{-{}-binomial-start}, \code{-{}-binomial-step} & valores & Binomial: valor
+  de la variable sin vecinos de soluto y cambio por vecino (BHF/DTB, QUA/DTQ,
+  ISO/DTI de NORMOS). \\
+\code{-{}-fit-conc} & --- & Binomial: ajusta también la concentración. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Kernel}
+
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}p{8.0cm}@{}}
+\toprule
+Opción & Valores & Significado \\
+\midrule
+\code{-{}-delta}, \code{-{}-quad}, \code{-{}-gamma} & mm/s & Parámetros fijos
+  del kernel; por defecto se leen de los ficheros de NORMOS si existen
+  ($\Gamma = 0.36$~mm/s si no). \\
+\code{-{}-fixed-bhf} & T & Campo del kernel con \code{-{}-variable quad} o
+  \code{delta}. \\
+\code{-{}-profile} & \code{Lorentziana} $|$ \code{Voigt} & Perfil de línea del
+  kernel; \code{-{}-voigt-sigma} da la anchura gaussiana instrumental
+  (mm/s). \\
+\code{-{}-delta-slope}, \code{-{}-quad-slope} & pendiente & Correlaciones
+  lineales $\delta(H)$ y $\dEQ(H)$ del anexo~\ref{ap:mates}; $0$ = kernel
+  clásico. \\
+\code{-{}-d13}, \code{-{}-d23} & razones & Razones de área de las líneas
+  (1,6)/(3,4) y (2,5)/(3,4) del kernel de sextetes (convenio de NORMOS; $3$ y
+  $2$ = polvo). Solo histograma. \\
+\code{-{}-kernel-treatment} & \code{1er\_orden} $|$ \code{hamiltoniano} &
+  Sextetes de primer orden, o el promedio de polvo del Hamiltoniano completo
+  (entonces \code{-{}-quad} es el módulo de un EFG aleatorio, con asimetría
+  \code{-{}-kernel-eta}), el análogo exacto de EXACT/QUP en NORMOS-DIST. Solo
+  histograma. \\
+\code{-{}-source-polarized} & --- & Fuente polarizada (METHOD=4/POLAR de
+  NORMOS-DIST): kernel en peine de 36 líneas, con \code{-{}-source-bhf},
+  \code{-{}-source-theta} y \code{-{}-absorber-theta}. Solo histograma con
+  \code{-{}-variable bhf}. \\
+\code{-{}-sharp-bhf} & T (repetible) & Añade sextetes cristalinos (nítidos)
+  sobre la distribución, p.~ej.\ \code{-{}-sharp-bhf 33 -{}-sharp-bhf 49};
+  \code{-{}-sharp-delta}, \code{-{}-sharp-quad} y \code{-{}-sharp-gamma} dan
+  sus parámetros (por defecto, los del kernel). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Malla, fondo y doblado}
+
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}p{8.0cm}@{}}
+\toprule
+Opción & Valores & Significado \\
+\midrule
+\code{-{}-bmin}, \code{-{}-bmax}, \code{-{}-nbins} & malla & Malla de la
+  variable distribuida (T para \code{bhf}, mm/s para \code{quad} y
+  \code{delta}). \\
+\code{-{}-baseline}, \code{-{}-slope} & valores & Nivel y pendiente del fondo,
+  iniciales (o fijos). \\
+\code{-{}-no-fit-baseline}, \code{-{}-no-fit-slope} & --- & Mantienen fijo el
+  nivel o la pendiente del fondo. Valen para todas las formas. \\
+\code{-{}-center}, \code{-{}-vmax} & valores & Centro de doblado y velocidad
+  máxima; por defecto se toman de los ficheros \file{.RES}/\file{.JOB}/\file{.PLT}
+  o se buscan por $\chi^2$ ($v_{\max} = 12$~mm/s). \\
+\code{-{}-norm-percentile} & \% & Percentil con el que se normalizan las
+  cuentas dobladas. \\
+\code{-{}-sextet-pattern}, \code{-{}-intensity-convention},
+  \code{-{}-line-asym} & & Convenios de NORMOS, como en el ajuste discreto. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Distribuciones bidimensionales}
+
+\code{-{}-dist-2d} ajusta $P(\BHF,\dEQ)$ (anexo~\ref{ap:dist-2d}) en una malla
+de \code{-{}-nbins} $\times$ \code{-{}-nbins-quad} celdas, con $\dEQ$ entre
+\code{-{}-qmin} y \code{-{}-qmax}. La forma elige el método:
+
+\begin{itemize}[nosep]
+  \item \code{histograma} (por defecto): histograma regularizado. La
+        regularización a lo largo de $\BHF$ es \code{-{}-alpha}, y a lo largo
+        de $\dEQ$, \code{-{}-alpha-quad} (igual a \code{-{}-alpha} si no se
+        da).
+  \item \code{gaussiana} o \code{vbf}: una o \code{-{}-vbf-components}
+        gaussianas bivariantes $(A, \mu_x, \mu_y, \sigma_x, \sigma_y, \rho)$,
+        sin $\alpha$.
+\end{itemize}
+
+La forma binomial y \code{-{}-scan-alpha} no están disponibles en 2D, y la línea
+de comandos todavía no tiene $P(\mathrm{IS},\dEQ)$: ese par solo está en la GUI.
+
+\subsection{Elección de \texorpdfstring{$\alpha$}{alfa}}
+
+\code{-{}-scan-alpha} repite el ajuste del histograma para
+\code{-{}-alpha-count} valores de $\alpha$, espaciados logarítmicamente entre
+\code{-{}-alpha-min} y \code{-{}-alpha-max}, con el mismo kernel y las mismas
+opciones que el ajuste principal. Escribe una L-curve sencilla
+(\file{*\_alpha\_scan.dat}, y un PNG con \code{-{}-plot}) y el valor sugerido de
+la esquina en el resumen (\code{suggested\_alpha\_lcurve}).
+
+\subsection{Ficheros de salida}
+
+En los ajustes 1D se escriben tres ficheros junto al de entrada (o con el
+prefijo de \code{-{}-out-prefix}): \file{*\_spectrum.dat} (velocidad, datos,
+ajuste, residuo, cuentas dobladas), \file{*\_distribution.dat} (malla, $P$, $P$
+normalizada) y \file{*\_summary.json} (todos los parámetros escalares y las
+métricas; con VBF incluye los tríos $(A_j,\mu_j,\sigma_j)$ ajustados). Con
+\code{-{}-plot} se añade un PNG con el espectro y la distribución.
+
+En modo 2D la distribución se escribe como matriz en
+\file{*\_distribution2d.dat}, con sus dos ejes en \file{*\_bhf\_axis.dat}
+y \file{*\_quad\_axis.dat}, y el resumen incluye los momentos
+$\langle\BHF\rangle$, $\langle\dEQ\rangle$, las anchuras y la correlación
+$\BHF$--$\dEQ$; con las formas gaussianas, también las gaussianas ajustadas
+(\code{vbf2d\_components}).

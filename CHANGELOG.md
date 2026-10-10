@@ -92,6 +92,12 @@
   `--edge-anchor`, `--d13/--d23`, `--kernel-treatment/--kernel-eta` y la fuente
   polarizada, así que el α sugerido por la L-curve no correspondía al ajuste.
   Ahora cada punto del barrido es el mismo ajuste cambiando solo α.
+- **El manual en español tiene ya el anexo de la línea de comandos**, que solo
+  existía en inglés. El anexo (en los dos idiomas) se ha puesto al día: estaba
+  en v4.15 y le faltaban P(IS), la binomial de NORMOS, la física del kernel
+  (Hamiltoniano, fuente polarizada, D13/D23), `--edge-anchor`, las formas
+  gaussianas en 2D, los convenios de NORMOS, `--export-job`, `--src-frac` y
+  `--line-asym`.
 - Ayuda (es/en) y manual (es/en) actualizados.
 - **Ajustes mucho más rápidos** (medido en un equipo de 14 núcleos):
   - P(BHF) con δ, ΔEQ y Γ libres: de 30 s a 0.6 s. OpenBLAS repartía cada
