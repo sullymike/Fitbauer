@@ -2,7 +2,7 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
-- **Ayuda en alemán y en ruso retraducidas y alineadas** con la española,
+- **Ayuda en alemán, ruso y japonés retraducidas y alineadas** con la española,
   igual que la francesa.
 - **Ayuda en francés retraducida y alineada** con la española: los 32
   capítulos en el mismo orden (los identificadores «grupo.posición» de los
