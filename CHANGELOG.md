@@ -2,6 +2,13 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **Ayuda en portugués al día con la española**: NORMOS (.JOB), ajuste
+  global Néel, P(ΔEQ), P(IS) y 2D retraducidos; añadidos parámetros
+  compactos, cómo dobla Fitbauer, parámetros visibles por componente,
+  polarización Blume-Tjon, anclaje de bordes y referencia de la CLI; fuera la
+  sección duplicada de «Exportar relatório». Corrige el preset 3:2:1
+  (int1=3, int2=2, int3=1), los ocho idiomas y el ajuste global Néel. La
+  ayuda de los presets «Ligar δ/Γ1» (es/en/pt) ya no habla solo de s2 y s3.
 - **La ayuda de «Folding» ya no se contradice** (es/en/pt): decía que se
   quitan siempre el primer y el último punto doblado y, más abajo, que los
   bordes ya no se recortan por sistema. Lo cierto es lo segundo: solo se
