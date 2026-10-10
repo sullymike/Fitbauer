@@ -2302,7 +2302,7 @@ def test_catalogos_alineados_tienen_los_mismos_capitulos_en_el_mismo_orden():
         return [(c["group"], tuple(re.findall(r"\[\[#([\w-]+)\]\]", c["content"])))
                 for c in caps]
 
-    alineados = ("en", "pt", "fr")
+    alineados = ("en", "pt", "fr", "de")
     referencia = firma("es")
     for loc in alineados:
         assert firma(loc) == referencia, f"{loc} no sigue el orden de capítulos del español"
