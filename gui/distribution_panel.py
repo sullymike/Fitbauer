@@ -1,6 +1,7 @@
 """Panel de distribución P(BHF) / P(ΔEQ) / P(IS) / 2D para la GUI Qt."""
 from __future__ import annotations
 
+import html
 from pathlib import Path
 
 from PySide6 import QtCore, QtWidgets
@@ -13,6 +14,10 @@ from core.param_overrides import effective_distribution_specs
 from gui.controls import ParamControl
 from mossbauer_distribution import BINOMIAL_BOUNDS, BINOMIAL_NEIGHBORS_NORMOS
 from gui.state import DistributionViewState
+
+#: Capítulo de ayuda que explica en detalle cada aviso del panel; cada aviso
+#: enlaza a su ancla (``[[#id]]`` en el help.json de todos los idiomas).
+WARNINGS_HELP_CHAPTER = "distributions.8"
 
 
 class DistributionPanel(QtWidgets.QGroupBox):
@@ -66,7 +71,14 @@ class DistributionPanel(QtWidgets.QGroupBox):
         self.var_warning.setObjectName("DistWarning")
         self.var_warning.setWordWrap(True)
         self.var_warning.setStyleSheet("color: #b45309;")
+        # Texto enriquecido con un enlace «Más información…» a la sección de
+        # la ayuda que lo explica en detalle (una frase no da para más).
+        self.var_warning.setTextFormat(QtCore.Qt.RichText)
+        self.var_warning.setTextInteractionFlags(QtCore.Qt.TextBrowserInteraction)
+        self.var_warning.setOpenExternalLinks(False)
+        self.var_warning.linkActivated.connect(self._open_warning_help)
         self.var_warning.setVisible(False)
+        self.warning_anchor: str | None = None
         left_v.addWidget(self.var_warning)
 
         reg_row = QtWidgets.QHBoxLayout()
@@ -446,22 +458,36 @@ class DistributionPanel(QtWidgets.QGroupBox):
 
     def _sync_warning(self) -> None:
         text = ""
+        anchor = None
         vars_ = self._variables(self._shape_choices_2d)
         if vars_ == ("delta",) and not self.gamma.is_fixed():
+            anchor = "is-gamma"
             text = tr("bhf.warn_is_gamma", default=(
                 "⚠ Una distribución de IS ensancha todas las líneas por igual y "
                 "se confunde con Γ: fija Γ para que P(IS) tenga sentido."))
         elif vars_ == ("delta", "quad") and self.effective_fixed_bhf() <= 0.0:
+            anchor = "is-quad-doublets"
             text = tr("bhf.warn_is_quad_2d", default=(
                 "⚠ Con dobletes solo se observa la distribución de cada línea "
                 "(δ ± ΔEQ/2): el mapa IS–ΔEQ no es único (σ IS, σ ΔEQ y ρ se "
                 "compensan). Para la correlación IS–ΔEQ usa P(ΔEQ) con κδ."))
         elif self.effective_fixed_bhf() > 0.0:
+            anchor = "quad-field"
             text = tr("bhf.warn_quad_field", default=(
                 "⚠ Con B ≠ 0 cada columna es un sextete de primer orden: solo es "
                 "válido si ΔEQ es mucho menor que el desdoblamiento magnético."))
+        self.warning_anchor = anchor if text else None
+        if text:
+            text = (f"{html.escape(text)} <a href='{WARNINGS_HELP_CHAPTER}#{anchor}'>"
+                    f"{html.escape(tr('context.more_help', default='Más información…'))}</a>")
         self.var_warning.setText(text)
         self.var_warning.setVisible(bool(text))
+
+    def _open_warning_help(self, href: str) -> None:
+        """Abre la ayuda en la sección del aviso (``grupo.n#ancla``)."""
+        ventana = self.window()
+        if hasattr(ventana, "on_help"):
+            ventana.on_help(chapter=href)
 
     #: Pendientes de correlación según la variable distribuida (1D): rótulo,
     #: semirrango. Con BHF van por tesla; con ΔEQ o IS por mm/s (adimensional).

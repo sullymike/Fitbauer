@@ -64,6 +64,12 @@
 - En los modos 2D, un δ libre se refinaba aunque IS fuera un eje del mapa.
 - El kernel 2D se construye vectorizado por línea (mismo resultado, bit a
   bit; unas 4 veces más rápido).
+- **Los avisos del panel de distribución enlazan a su explicación.** Cada
+  aviso (P(IS) con Γ libre, P(ΔEQ) con sextetes de campo fijo, P(IS, ΔEQ) con
+  dobletes) termina en «Más información…», que abre la ayuda en la sección que
+  lo explica en detalle: por qué ocurre, cuándo es válido y qué hacer. Capítulo
+  nuevo «Avisos de las distribuciones» en los ocho idiomas; la ayuda admite
+  anclas `[[#id]]` y `on_help(chapter="grupo.n#id")`.
 - Ayuda (es/en) y manual (es/en) actualizados.
 - **Ajustes mucho más rápidos** (medido en un equipo de 14 núcleos):
   - P(BHF) con δ, ΔEQ y Γ libres: de 30 s a 0.6 s. OpenBLAS repartía cada

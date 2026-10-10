@@ -1237,6 +1237,53 @@ def test_aviso_is_deq_2d_con_dobletes(win):
     assert not d.var_warning.isVisibleTo(d)
 
 
+@pytest.mark.parametrize("loc", ["es", "en", "fr", "de", "pt", "ru", "ja", "ch"])
+def test_capitulo_de_avisos_con_sus_anclas(loc):
+    """Cada aviso del panel enlaza a un ancla del mismo capítulo en todos los idiomas."""
+    from gui.distribution_panel import WARNINGS_HELP_CHAPTER
+    from gui.help import HelpMixin
+    from mossbauer_help import get_help_groups, get_help_sections
+
+    grupo, _, pos = WARNINGS_HELP_CHAPTER.partition(".")
+    indices = [i for i, g in enumerate(get_help_groups(loc)) if g == grupo]
+    _title, _heading, content = get_help_sections(lang=loc)[indices[int(pos)]]
+    html_doc = HelpMixin._help_format_content(content)
+    for anchor in ("is-gamma", "quad-field", "is-quad-doublets"):
+        assert f"<a name='{anchor}'></a>" in html_doc, (loc, anchor)
+    assert "[[#" not in html_doc
+
+
+def test_el_aviso_enlaza_a_su_explicacion(win, app):
+    """«Más información…» en el aviso abre la ayuda en la sección del aviso."""
+    from PySide6 import QtCore
+
+    from gui.distribution_panel import WARNINGS_HELP_CHAPTER
+    from mossbauer_help import get_help_groups
+    from mossbauer_i18n import get_language
+
+    d = win.dist_panel
+    win.mode_combo.setCurrentIndex(5)                     # P(IS, ΔEQ) 2D
+    assert d.warning_anchor == "is-quad-doublets"
+    href = f"{WARNINGS_HELP_CHAPTER}#is-quad-doublets"
+    assert f"href='{href}'" in d.var_warning.text()
+
+    d.var_warning.linkActivated.emit(href)
+    app.processEvents()
+    assert win._help_dialog is not None
+    grupo, _, pos = WARNINGS_HELP_CHAPTER.partition(".")
+    esperado = [i for i, g in enumerate(get_help_groups(get_language())) if g == grupo][int(pos)]
+    assert win._help_tree.currentItem().data(0, QtCore.Qt.UserRole) == esperado
+    # El texto baja hasta la sección (la última del capítulo).
+    assert win._help_text.verticalScrollBar().value() > 0
+
+    win.mode_combo.setCurrentIndex(3)                     # P(IS)
+    d.gamma.set_fixed(False)
+    d._sync_warning()
+    assert d.warning_anchor == "is-gamma"
+    win._help_dialog.close()
+    app.processEvents()
+
+
 def test_ajuste_gaussiana_2d_desde_la_gui(win):
     import numpy as np
     win._load_file(DATA / "magnetita_Fe3O4.adt")

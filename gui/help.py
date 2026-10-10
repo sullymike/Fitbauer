@@ -24,7 +24,8 @@ class HelpMixin:
         """Convierte el texto plano de un capítulo de ayuda en HTML enriquecido.
 
         Reconoce subtítulos en una línea acabada en dos puntos (``X:``) seguidos
-        de bloque sangrado, viñetas (``•``, ``-`` o ``  número.``) y aplica
+        de bloque sangrado, anclas ``[[#id]]`` en una línea propia (destino de
+        ``on_help(chapter="grupo.n#id")``, iguales en todos los idiomas), viñetas (``•``, ``-`` o ``  número.``) y aplica
         ``**bold**``, ``*italic*`` y `` `code` `` inline. También resalta en
         **negrita** automáticamente las etiquetas de menús y submenús del
         programa (Archivo, Cargar..., Ajustar, etc.) para que el lector
@@ -143,6 +144,12 @@ class HelpMixin:
             # Línea en blanco → separador de párrafos
             if not stripped:
                 parts.append("")
+                i += 1
+                continue
+            # Ancla para enlazar a una sección concreta del capítulo.
+            anchor = re.match(r"^\[\[#([\w-]+)\]\]$", stripped)
+            if anchor:
+                parts.append(f"<a name='{anchor.group(1)}'></a>")
                 i += 1
                 continue
             # Bloque de submenú/opción con campos descriptivos. Debe evaluarse
@@ -324,12 +331,25 @@ class HelpMixin:
             it += 1
         return False
 
+    def _open_help_chapter(self, chapter: str) -> bool:
+        """Selecciona ``"grupo.n"`` y, si lleva ``#id``, baja hasta esa ancla."""
+        chapter, _, anchor = chapter.partition("#")
+        ok = self._select_help_chapter(chapter)
+        text_w = getattr(self, "_help_text", None)
+        if ok and anchor and text_w is not None:
+            text_w.scrollToAnchor(anchor)
+            # Con el diálogo recién creado aún no hay maquetación: se repite
+            # cuando Qt la haya hecho.
+            QtCore.QTimer.singleShot(0, lambda: text_w.scrollToAnchor(anchor))
+        return ok
+
     def on_help(self, show_shortcuts: bool = False,
                 chapter: str | None = None) -> None:
         """Abre la ayuda, opcionalmente en un capítulo concreto.
 
         ``chapter`` es ``"grupo.n"`` (p. ej. ``"fitting.1"``): el grupo temático
-        y la posición dentro de él. NO es el índice global, porque los
+        y la posición dentro de él; ``"grupo.n#id"`` además desplaza el texto
+        hasta el ancla ``[[#id]]`` del capítulo. NO es el índice global, porque los
         catálogos de los ocho idiomas no llevan los capítulos en el mismo
         orden; lo que sí es estable es cuántos capítulos tiene cada grupo y en
         qué orden van dentro (lo fija un test).
@@ -343,7 +363,7 @@ class HelpMixin:
                 if tab_w is not None:
                     tab_w.setCurrentIndex(1)
             if chapter:
-                self._select_help_chapter(chapter)
+                self._open_help_chapter(chapter)
             return
 
         calib_state = self.calib.to_view_state()
@@ -518,8 +538,9 @@ class HelpMixin:
         if leaves:
             tree.setCurrentItem(leaves[0])
         self._help_tree = tree
+        self._help_text = text_w
         if chapter:
-            self._select_help_chapter(chapter)
+            self._open_help_chapter(chapter)
 
         def _apply_filter() -> None:
             q = search_edit.text().strip().lower()
