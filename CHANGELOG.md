@@ -104,6 +104,22 @@
   `make_appendices.py`, que al regenerar borraba lo editado en los anexos (y en
   el manual inglés los sustituía por texto en español). La ayuda y los `.md`
   remiten ahora al anexo correspondiente del manual.
+- **La ayuda en inglés vuelve a estar completa y en el mismo orden que la
+  española.** Se había quedado en una versión anterior: en unos quince
+  capítulos tenía entre un 15 % y un 60 % del texto (Restricciones,
+  Estadística, Diagnóstico, Guardar, Fundamentos, Modelo discreto,
+  Relajación…), y el grupo de distribuciones tenía «L-curve» donde el español
+  tiene «P(ΔEQ): parámetros». Un test fija ahora el orden capítulo a capítulo
+  en los idiomas alineados (es, en, pt), no solo el recuento por grupo. De paso
+  se corrigen en ambos idiomas:
+  - El ajuste global Néel-Arrhenius se describía como un ajuste de τ₀ y Eₐ
+    sobre temperaturas de bloqueo; en realidad ajusta los espectros a la vez
+    con una componente NeelSize compartida (Keff, d50, σ, τ0). El capítulo de
+    relajación decía además que ese ajuste aún no tenía diálogo.
+  - El preset «Sextetes polvo 3:2:1» se describía como int1=int2=int3=1; fija
+    int1=3, int2=2, int3=1.
+  - El selector de idioma ofrece ocho idiomas, no tres; tildes que faltaban
+    en «P(BHF): método»; una sección duplicada en «Guardar y exportar».
 - Ayuda (es/en) y manual (es/en) actualizados.
 - **Ajustes mucho más rápidos** (medido en un equipo de 14 núcleos):
   - P(BHF) con δ, ΔEQ y Γ libres: de 30 s a 0.6 s. OpenBLAS repartía cada

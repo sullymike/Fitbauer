@@ -2268,6 +2268,29 @@ def test_los_grupos_de_ayuda_son_paralelos_en_los_ocho_idiomas():
             f"{cuentas[loc]} frente a {referencia}")
 
 
+def test_catalogos_alineados_tienen_los_mismos_capitulos_en_el_mismo_orden():
+    """En los idiomas ya alineados con el español, cada capítulo ocupa la misma
+    posición y trae las mismas anclas ``[[#id]]``.
+
+    Contar capítulos por grupo no basta: el inglés tenía «L-curve» donde el
+    español tiene «P(ΔEQ): parámetros», con el mismo recuento. Al alinear otro
+    idioma, añádelo a ``alineados``.
+    """
+    import json
+    import re
+    from pathlib import Path
+
+    def firma(loc):
+        caps = json.loads((Path("locales") / loc / "help.json").read_text(encoding="utf-8"))
+        return [(c["group"], tuple(re.findall(r"\[\[#([\w-]+)\]\]", c["content"])))
+                for c in caps]
+
+    alineados = ("en", "pt")
+    referencia = firma("es")
+    for loc in alineados:
+        assert firma(loc) == referencia, f"{loc} no sigue el orden de capítulos del español"
+
+
 def test_cada_parametro_apunta_a_un_capitulo_que_existe():
     """Ningún parámetro debe mandar a un capítulo fuera de rango."""
     from collections import Counter
