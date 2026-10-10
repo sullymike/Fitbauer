@@ -711,8 +711,13 @@ def fit_bhf_quad_distribution(
     rescale_columns: bool = True,
     profile: str = "Lorentziana",
     voigt_sigma: float = 0.05,
+    compute_effective_dof: bool = True,
 ) -> BhfQuadDistribution2DFit:
     """Ajusta una distribución regularizada bidimensional P(BHF, ΔEQ).
+
+    ``compute_effective_dof=False`` omite los grados de libertad efectivos (y
+    su aviso), que cuestan casi tanto como el propio ajuste: el bucle externo
+    de la GUI que refina δ/Γ solo necesita los residuos de cada evaluación.
 
     Es un backend inicial avanzado, deliberadamente sin GUI. El problema es
     lineal en los pesos P_ij y usa restricciones P_ij >= 0 más penalización de
@@ -835,7 +840,7 @@ def fit_bhf_quad_distribution(
 
     lower_arr = np.array(lower)
     upper_arr = np.array(upper)
-    result = lsq_linear(X_aug, y_aug, bounds=(lower_arr, upper_arr), lsmr_tol="auto", max_iter=3000)
+    result = solve_bounded_lsq(X_aug, y_aug, lower_arr, upper_arr, max_iter=3000)
     params = result.x / scale
     baseline_fit = float(params[labels.index("baseline")]) if fit_baseline else float(baseline)
     slope_fit = float(params[labels.index("slope")]) if fit_slope else float(slope)
@@ -848,12 +853,14 @@ def fit_bhf_quad_distribution(
         fitted = fitted - K_sharp @ sharp_weights_free
     residuals = y - fitted
     rms = float(np.sqrt(np.mean(residuals ** 2)))
-    try:
-        L_combined = np.vstack([np.sqrt(alpha_bhf_eff) * L_b,
-                                np.sqrt(alpha_quad_eff) * L_q])
-        eff_dof = tikhonov_effective_dof(X, L_combined, 1.0, dist_start, dist_end, sigma=sigma_arr)
-    except Exception:
-        eff_dof = None
+    eff_dof = None
+    if compute_effective_dof:
+        try:
+            L_combined = np.vstack([np.sqrt(alpha_bhf_eff) * L_b,
+                                    np.sqrt(alpha_quad_eff) * L_q])
+            eff_dof = tikhonov_effective_dof(X, L_combined, 1.0, dist_start, dist_end, sigma=sigma_arr)
+        except Exception:
+            eff_dof = None
     probability = normalize_probability_2d(weights, bhf_centers, quad_centers)
     diag = bhf_quad_distribution_diagnostics(probability, bhf_centers, quad_centers)
     n_weights = int(weights.size)
@@ -1093,6 +1100,50 @@ def distribution_weight_sigma(
     dof = max(float(n_data) - float(eff_dof), 1.0)
     var = var * (chi2 / dof)
     return np.sqrt(var)
+
+
+def solve_bounded_lsq(
+    A: np.ndarray,
+    b: np.ndarray,
+    lower,
+    upper,
+    *,
+    max_iter: int | None = None,
+):
+    """min ‖A·x − b‖² con cotas por columna; devuelve un objeto con x/success/message.
+
+    Las distribuciones solo usan cotas [0, ∞) (pesos, nítidos, línea base) y
+    (−∞, ∞) (pendiente). Con ellas el problema es un NNLS si cada columna libre
+    se desdobla en x⁺ − x⁻, y Lawson–Hanson (``scipy.optimize.nnls``) da el
+    mismo óptimo que ``lsq_linear`` (TRF) mucho más deprisa: en el sistema
+    aumentado de P(BHF) 1D (304×52) 0.001 s frente a 0.014 s, y en el de la 2D
+    50×21 (2214×1052) 0.5 s frente a 13 s, porque la TRF actualiza su QR
+    columna a columna en Python. Con cualquier otra cota, o si NNLS no
+    converge, se usa ``lsq_linear`` como antes.
+    """
+    from types import SimpleNamespace
+    A = np.asarray(A, dtype=float)
+    b = np.asarray(b, dtype=float)
+    lower = np.broadcast_to(np.asarray(lower, dtype=float), (A.shape[1],))
+    upper = np.broadcast_to(np.asarray(upper, dtype=float), (A.shape[1],))
+    free = np.isneginf(lower) & np.isposinf(upper)
+    nonneg = (lower == 0.0) & np.isposinf(upper)
+
+    def _trf():
+        return lsq_linear(A, b, bounds=(np.array(lower), np.array(upper)),
+                          lsmr_tol="auto", max_iter=max_iter)
+
+    if not np.all(free | nonneg):
+        return _trf()
+    A2 = np.hstack([A, -A[:, free]]) if np.any(free) else A
+    try:
+        z, _rnorm = nnls(A2, b, maxiter=max(50, 10 * A2.shape[1]))
+    except RuntimeError:
+        return _trf()
+    n = A.shape[1]
+    x = z[:n].copy()
+    x[free] -= z[n:]
+    return SimpleNamespace(x=x, success=True, message="NNLS (Lawson–Hanson)")
 
 
 def normalize_probability(weights: np.ndarray, bhf_centers: np.ndarray) -> np.ndarray:
@@ -1566,7 +1617,7 @@ def fit_hyperfine_distribution(
         X_aug = np.vstack([X_fit, reg])
         y_aug = np.concatenate([y_fit, np.zeros(L_all.shape[0], dtype=float)])
         # Las cotas de p̃ = escala·P coinciden con las de P (0 e ∞ invariantes).
-        res = lsq_linear(X_aug, y_aug, bounds=(lower_arr, upper_arr), lsmr_tol="auto", max_iter=2000)
+        res = solve_bounded_lsq(X_aug, y_aug, lower_arr, upper_arr, max_iter=2000)
         return res, res.x / scale  # deshace el escalado para recuperar P físico
 
     def _solve_maxent():
@@ -2114,7 +2165,7 @@ def fit_fixed_hyperfine_distribution(
             lo.append(0.0)
             hi.append(np.inf)
     X = np.column_stack(cols)
-    result = lsq_linear(X, rhs, bounds=(lo, hi), lsmr_tol="auto")
+    result = solve_bounded_lsq(X, rhs, lo, hi)
     i = 0
     if fit_baseline:
         b0 = result.x[0]; i = 1

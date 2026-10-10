@@ -452,7 +452,8 @@ class DistributionFitMixin:
         def run_fit(delta_value: float, quad_value: float, gamma_value: float,
                     sharp_for_fit: list[dict] | None,
                     delta_slope_value: float | None = None,
-                    quad_slope_value: float | None = None):
+                    quad_slope_value: float | None = None,
+                    final: bool = True):
             dsl = base_delta_slope if delta_slope_value is None else delta_slope_value
             qsl = base_quad_slope if quad_slope_value is None else quad_slope_value
             if shape == "2D":
@@ -470,6 +471,8 @@ class DistributionFitMixin:
                     sharp_components=sharp_for_fit,
                     sigma=self.file.sigma,
                     profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
+                    # Diagnóstico caro: solo en el ajuste que se muestra.
+                    compute_effective_dof=final,
                 )
             # fit_baseline/fit_slope van en common: TODAS las formas respetan el
             # fijado de baseline/slope del panel (antes solo Histograma y 2D).
@@ -637,7 +640,7 @@ class DistributionFitMixin:
 
                 def residual_outer(x: np.ndarray) -> np.ndarray:
                     dd, qq, gg, ss, dsl, qsl = expand(x)
-                    fit = run_fit(dd, qq, gg, ss, dsl, qsl)
+                    fit = run_fit(dd, qq, gg, ss, dsl, qsl, final=False)
                     resid = fit.residuals
                     rms = float(np.sqrt(np.mean(resid * resid))) if resid.size else float("nan")
                     progress_state["eval"] = int(progress_state["eval"]) + 1
