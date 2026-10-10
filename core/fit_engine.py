@@ -630,7 +630,13 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
             }
             if progress_state.get("max_eval") is not None:
                 payload["max_iter"] = int(progress_state["max_eval"])  # type: ignore[arg-type]
-            progress_cb(payload)
+            try:
+                progress_cb(payload)
+            except Exception:
+                # Lo lanza el llamador (p. ej. «Cancelar» de la GUI): las
+                # pasadas DE opcionales no deben tragárselo.
+                progress_state["aborted"] = True
+                raise
         return r
 
     # 3. Multistart determinista.
@@ -669,7 +675,8 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
             )
             candidates.insert(0, np.clip(de.x, lo_arr, hi_arr))
         except Exception:
-            pass
+            if progress_state.get("aborted"):
+                raise
 
     # 5. TRF desde cada candidato; nos quedamos con el de menor coste.
     ls_kwargs: dict = {}
@@ -749,7 +756,8 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
                 if res_de.cost < result.cost:
                     result = res_de
             except Exception:
-                pass
+                if progress_state.get("aborted"):
+                    raise
 
     if result is None:
         return FitResult(values=dict(state.values), errors={}, free_keys=free_keys,

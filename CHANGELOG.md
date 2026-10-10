@@ -84,6 +84,10 @@
   nítido: 151 ajustes en lugar de 229, RMS 0.5 % mayor).
 - «Cancelar» responde durante un ajuste VBF 2D: antes solo se atendía entre
   evaluaciones externas, que en VBF 2D duran hasta 12 s.
+- **«Cancelar» se perdía durante el escalado global automático (DE)** del
+  ajuste discreto, activo por defecto: la pasada DE capturaba cualquier
+  excepción, también la de cancelación, y el ajuste terminaba y se aplicaba.
+  Con la pre-pasada DE la cancelación llegaba, pero un paso más tarde.
 - Ayuda (es/en) y manual (es/en) actualizados.
 - **Ajustes mucho más rápidos** (medido en un equipo de 14 núcleos):
   - P(BHF) con δ, ΔEQ y Γ libres: de 30 s a 0.6 s. OpenBLAS repartía cada

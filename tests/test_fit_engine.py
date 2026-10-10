@@ -388,3 +388,32 @@ def test_fitted_globals_have_errors():
     state, _c0, _counts, _norm = _alpha_fe_counts_state(cstart=256.0)
     result = fit_discrete(state)
     assert "center" in result.errors and result.errors["center"] >= 0.0
+
+
+@pytest.mark.parametrize("modo", ["global_opt", "auto_global"])
+def test_cancelar_durante_la_pasada_de_no_se_pierde(modo):
+    """El callback de progreso lanza la cancelación de la GUI; las pasadas DE
+    opcionales la tragaban con ``except Exception: pass`` y, en el escalado
+    automático, el ajuste terminaba y devolvía resultado pese a «Cancelar»."""
+    class Cancelado(Exception):
+        pass
+    v, y, sigma = _load_alpha_fe()
+    state = _alpha_fe_state(v, y, sigma)
+    state.multistart_n = 0
+    if modo == "global_opt":
+        state.global_opt = True
+    else:
+        state.auto_global = True
+        state.auto_global_chi2 = 0.0        # fuerza el escalado global
+    pulsado = {"v": False}
+
+    def cb(payload):
+        fase = payload.get("phase", "") if isinstance(payload, dict) else str(payload)
+        if "DE" in str(fase) and isinstance(payload, dict) and payload.get("iteration", 0) > 2:
+            pulsado["v"] = True             # el usuario pulsa «Cancelar»
+        if pulsado["v"]:
+            raise Cancelado()
+
+    with pytest.raises(Cancelado):
+        fit_discrete(state, progress_cb=cb)
+    assert pulsado["v"]
