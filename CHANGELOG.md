@@ -2,6 +2,11 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **La ayuda de «Folding» ya no se contradice** (es/en/pt): decía que se
+  quitan siempre el primer y el último punto doblado y, más abajo, que los
+  bordes ya no se recortan por sistema. Lo cierto es lo segundo: solo se
+  recortan los extremos anómalos, con el mismo número n por lado. También
+  `docs/folding*.md` decían `EDGE_TRIM_DEFAULT = 1`.
 - **«Ligar δ» y «Ligar Γ1» atan todos los componentes activos** al
   componente 1. Solo actuaban sobre los componentes 2 y 3, aunque el modelo
   admite hasta 10.

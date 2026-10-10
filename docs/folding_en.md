@@ -55,9 +55,12 @@ The result is sorted from negative to positive velocity.
 
 ## Edge trimming and normalization (`fold_and_normalize`)
 
-After folding, the **edge channels** (first and last) are less reliable because they
-come from extrapolation. By default, `EDGE_TRIM_DEFAULT = 1` channel is trimmed at
-each end.
+By default **no channel is trimmed** (`EDGE_TRIM_DEFAULT = 0`), as in NORMOS. The
+trimming is decided by `edge_outlier_trim` from the data: only end points that drop
+by more than 20 % below the median of their neighbours, or that make an isolated jump
+of more than 25 Poisson σ (dead or saturated channels), are removed, up to 3 per side and always the same number on each side, so that the
+velocity axis can be deduced from the number of points without stretching the scale.
+`edge_trim` still exists as a forced minimum.
 
 Normalization brings the baseline to ≈ 1.0 using the **90th percentile** of the
 folded spectrum (robust against the absorption peaks, which are minima):

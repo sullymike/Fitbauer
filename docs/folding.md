@@ -54,9 +54,12 @@ El resultado se ordena de velocidad negativa a positiva.
 
 ## Recorte de bordes y normalización (`fold_and_normalize`)
 
-Tras doblar, los **canales de borde** (primero y último) son menos fiables porque
-provienen de la extrapolación. Por defecto se recorta `EDGE_TRIM_DEFAULT = 1` canal a
-cada extremo.
+Por defecto **no se recorta ningún canal** (`EDGE_TRIM_DEFAULT = 0`), igual que
+NORMOS. El recorte lo decide `edge_outlier_trim` mirando los datos: solo se quitan los
+extremos que caen más de un 20 % respecto a la mediana de sus vecinos, o que dan un
+salto aislado de más de 25 σ de Poisson (canales muertos o saturados), hasta 3 por lado y siempre el mismo número a cada lado, para que el eje
+de velocidad se deduzca del número de puntos sin estirar la escala. `edge_trim` sigue
+existiendo como mínimo forzado.
 
 La normalización lleva la línea base a ≈ 1.0 usando el **percentil 90** del espectro
 doblado (robusto frente a los picos de absorción, que son mínimos):
