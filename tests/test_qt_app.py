@@ -2680,3 +2680,33 @@ def test_al_cerrar_se_para_el_autoguardado(make_window, tmp_path, monkeypatch, a
     win.close()
     app.processEvents()
     assert not win._autosave_timer.isActive()
+
+
+def test_mapa_2d_se_refresca_con_un_ajuste_nuevo(win):
+    """Un segundo ajuste 2D con la misma disposición debe redibujar el mapa
+    (antes el refresco incremental conservaba el heatmap del primero)."""
+    import numpy as np
+    from types import SimpleNamespace
+    from matplotlib.collections import QuadMesh
+    from core.plot_styles import get_style
+    win._load_file(DATA / "magnetita_Fe3O4.adt")
+    v, y = win.file.velocity, win.file.y_data
+
+    def mapa(k):
+        p = np.zeros((6, 4))
+        p[k, 1] = 1.0
+        return SimpleNamespace(bhf_centers=np.linspace(40, 50, 6),
+                               quad_centers=np.linspace(-0.2, 0.2, 4),
+                               probability=p, x_variable="bhf", y_variable="quad")
+
+    def heatmap():
+        mesh = [c for c in win.canvas.ax_map.collections if isinstance(c, QuadMesh)]
+        return np.asarray(mesh[0].get_array()).reshape(4, 6).T
+
+    style = get_style(win.plot_style_name)
+    for k in (0, 3):
+        res = mapa(k)
+        win.canvas.render(v, y, model=y, components=[], style=style,
+                          style_name=win.plot_style_name, dist_map_2d=res)
+        assert win.canvas.last_render["dist_map_2d"] is res
+        np.testing.assert_allclose(heatmap(), res.probability)

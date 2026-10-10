@@ -91,6 +91,9 @@ class SpectrumCanvas(FigureCanvas):
             or not np.array_equal(prev["velocity"], np.asarray(v, dtype=float))
             or not np.array_equal(prev["y_data"], np.asarray(y, dtype=float))
         )
+        # El refresco incremental no redibuja el mapa 2D: si llega un mapa
+        # distinto (otro ajuste 2D), hay que reconstruir la figura.
+        map_changed = prev is not None and prev.get("dist_map_2d") is not dist_map_2d
         # Estado de lo último dibujado (consumido por refrescos y otros paneles).
         self.last_render = {
             "velocity": np.asarray(v, dtype=float).copy(),
@@ -119,7 +122,7 @@ class SpectrumCanvas(FigureCanvas):
                       int(np.asarray(v).size),
                       int(np.asarray(mv).size), has_2d)
         if (self._artists is not None and self._layout_sig == layout_sig
-                and style_name is not None):
+                and style_name is not None and not map_changed):
             try:
                 self._update_fast(v, y, model, components, residual, mv, s,
                                   actual_show_residual, _comparison,

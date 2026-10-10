@@ -70,6 +70,10 @@
   lo explica en detalle: por qué ocurre, cuándo es válido y qué hacer. Capítulo
   nuevo «Avisos de las distribuciones» en los ocho idiomas; la ayuda admite
   anclas `[[#id]]` y `on_help(chapter="grupo.n#id")`.
+- **El mapa 2D bajo el espectro no se refrescaba** tras un segundo ajuste 2D:
+  con la misma disposición, el refresco incremental del gráfico solo
+  reescribía las curvas y dejaba el heatmap del primer ajuste. Ahora un mapa
+  nuevo reconstruye la figura.
 - Ayuda (es/en) y manual (es/en) actualizados.
 - **Ajustes mucho más rápidos** (medido en un equipo de 14 núcleos):
   - P(BHF) con δ, ΔEQ y Γ libres: de 30 s a 0.6 s. OpenBLAS repartía cada
