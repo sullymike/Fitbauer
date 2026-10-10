@@ -453,6 +453,16 @@ class DistributionFitMixin:
         y_arr = self.file.y_data
 
         vbf2d_seed: dict = {}
+        # Sondeo de «Cancelar» durante el ajuste no lineal 2D (cada evaluación
+        # puede tardar segundos); se conecta al diálogo en compute_distribution.
+        cancel_poll: dict = {"fn": None, "last": 0.0}
+
+        def poll_cancel() -> None:
+            fn = cancel_poll["fn"]
+            now = time.monotonic()
+            if fn is not None and now - float(cancel_poll["last"]) > 0.1:
+                cancel_poll["last"] = now
+                fn(None)
 
         def run_fit(delta_value: float, quad_value: float, gamma_value: float,
                     sharp_for_fit: list[dict] | None,
@@ -489,6 +499,7 @@ class DistributionFitMixin:
                     delta_bounds=(d.delta._lo, d.delta._hi),
                     quad_bounds=(d.quad._lo, d.quad._hi),
                     gamma_bounds=(d.gamma._lo, d.gamma._hi),
+                    progress=poll_cancel,
                 )
                 vbf2d_seed.setdefault("comps", res2d.vbf2d_components)
                 return res2d
@@ -621,8 +632,16 @@ class DistributionFitMixin:
                                         "loggamma" if pname == "gamma1" else "lin",
                                         ctl._lo, ctl._hi))
 
-        max_outer_evals = 60
-        progress_state: dict = {"eval": 0, "best_rms": np.inf, "last_update": 0.0}
+        # Tope de evaluaciones del ajuste interno, contando también las de la
+        # jacobiana por diferencias finitas (``max_nfev`` de least_squares no
+        # las cuenta: con varios nítidos se hacían 60·(n+1) ajustes y la barra
+        # se quedaba en 60/60). Al agotarlo se usa el mejor punto evaluado.
+        max_outer_evals = 25 * (len(outer_specs) + 1)
+        progress_state: dict = {"eval": 0, "best_rms": np.inf, "last_update": 0.0,
+                                "best_cost": np.inf, "best_x": None}
+
+        class _OuterBudgetExhausted(Exception):
+            pass
 
         def x0_bounds() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
             x0, lo, hi = [], [], []
@@ -672,6 +691,7 @@ class DistributionFitMixin:
                     delta_slope_value, quad_slope_value)
 
         def compute_distribution(update_progress):
+            cancel_poll["fn"] = update_progress
             fitted_x_local = None
             if outer_specs:
                 update_progress(tr("progress.distribution_refine",
@@ -680,6 +700,8 @@ class DistributionFitMixin:
                 x0 = np.clip(x0, lo, hi)
 
                 def residual_outer(x: np.ndarray) -> np.ndarray:
+                    if int(progress_state["eval"]) >= max_outer_evals:
+                        raise _OuterBudgetExhausted()
                     dd, qq, gg, ss, dsl, qsl = expand(x)
                     fit = run_fit(dd, qq, gg, ss, dsl, qsl, final=False)
                     resid = fit.residuals
@@ -687,6 +709,10 @@ class DistributionFitMixin:
                     progress_state["eval"] = int(progress_state["eval"]) + 1
                     if np.isfinite(rms):
                         progress_state["best_rms"] = min(float(progress_state["best_rms"]), rms)
+                        cost = float(np.dot(resid, resid))
+                        if cost < float(progress_state["best_cost"]):
+                            progress_state["best_cost"] = cost
+                            progress_state["best_x"] = np.array(x, dtype=float)
                     now = time.monotonic()
                     if (progress_state["eval"] == 1
                             or now - float(progress_state["last_update"]) > 0.20):
@@ -701,8 +727,13 @@ class DistributionFitMixin:
                         })
                     return resid
 
-                opt = least_squares(residual_outer, x0, bounds=(lo, hi), max_nfev=max_outer_evals)
-                fitted_x_local = opt.x
+                try:
+                    opt = least_squares(residual_outer, x0, bounds=(lo, hi),
+                                        max_nfev=max_outer_evals)
+                    fitted_x_local = opt.x
+                except _OuterBudgetExhausted:
+                    best_x = progress_state["best_x"]
+                    fitted_x_local = x0 if best_x is None else best_x
                 delta_final, quad_final, gamma_final, sharp_final, dslope_final, qslope_final = expand(fitted_x_local)
                 update_progress(tr("progress.distribution_compute_final",
                                    default="Calculando distribución final…"))

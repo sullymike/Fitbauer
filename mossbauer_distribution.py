@@ -987,6 +987,7 @@ def fit_vbf_2d_distribution(
     delta_bounds: tuple[float, float] = (-3.0, 3.0),
     quad_bounds: tuple[float, float] = (-4.0, 4.0),
     gamma_bounds: tuple[float, float] = (0.05, 3.0),
+    progress=None,
 ) -> BhfQuadDistribution2DFit:
     """Distribución 2D paramétrica: suma de N gaussianas bivariantes (VBF 2D).
 
@@ -1014,6 +1015,10 @@ def fit_vbf_2d_distribution(
     funciona aquí: el óptimo interno es iterativo y su ruido de convergencia
     (y los saltos entre mínimos locales) arruinan las diferencias finitas
     externas — en la magnetita, o no se movían o tardaba minutos.
+
+    ``progress`` (opcional, sin argumentos) se llama en cada evaluación del
+    residuo y de la jacobiana; la GUI lo usa para atender «Cancelar», que
+    puede lanzar una excepción desde ahí para abortar el ajuste.
     """
     from scipy.optimize import least_squares
     v = _finite_1d("v", v)
@@ -1108,6 +1113,8 @@ def fit_vbf_2d_distribution(
         return out
 
     def residual(p: np.ndarray) -> np.ndarray:
+        if progress is not None:
+            progress()
         r = model(p) - y
         return r * inv_sigma if inv_sigma is not None else r
 
@@ -1117,6 +1124,8 @@ def fit_vbf_2d_distribution(
     def jacobian(p: np.ndarray) -> np.ndarray:
         """Jacobiano analítico: con diferencias finitas cada ajuste tardaba
         segundos y su ruido de convergencia confundía al bucle externo."""
+        if progress is not None:
+            progress()
         J = np.zeros((v.size, p.size), dtype=float)
         K = kernel(glob_values(p))
         i = 0

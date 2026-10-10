@@ -74,6 +74,16 @@
   con la misma disposición, el refresco incremental del gráfico solo
   reescribía las curvas y dejaba el heatmap del primer ajuste. Ahora un mapa
   nuevo reconstruye la figura.
+- **Los ajustes de distribución con globales o nítidos libres parecían no
+  terminar.** El tope del bucle externo (`max_nfev=60` de `least_squares`) no
+  contaba las evaluaciones de la jacobiana: con un nítido el histograma 2D
+  hacía 230–360 ajustes internos mientras la barra marcaba 60/60, y con VBF 2D
+  (segundos por evaluación) podía irse a decenas de minutos. Ahora el tope
+  cuenta todas las evaluaciones (25 por parámetro libre + 25), la barra lo
+  refleja y, si se agota, se usa el mejor punto evaluado (magnetita con un
+  nítido: 151 ajustes en lugar de 229, RMS 0.5 % mayor).
+- «Cancelar» responde durante un ajuste VBF 2D: antes solo se atendía entre
+  evaluaciones externas, que en VBF 2D duran hasta 12 s.
 - Ayuda (es/en) y manual (es/en) actualizados.
 - **Ajustes mucho más rápidos** (medido en un equipo de 14 núcleos):
   - P(BHF) con δ, ΔEQ y Γ libres: de 30 s a 0.6 s. OpenBLAS repartía cada

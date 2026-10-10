@@ -2710,3 +2710,69 @@ def test_mapa_2d_se_refresca_con_un_ajuste_nuevo(win):
                           style_name=win.plot_style_name, dist_map_2d=res)
         assert win.canvas.last_render["dist_map_2d"] is res
         np.testing.assert_allclose(heatmap(), res.probability)
+
+
+def test_ajuste_2d_con_nitidos_respeta_el_tope_de_evaluaciones(win, monkeypatch):
+    """least_squares no cuenta las evaluaciones de la jacobiana en max_nfev:
+    con nítidos el bucle externo hacía muchas más que las que anunciaba la
+    barra (60) y parecía no terminar. Ahora el tope cuenta todas."""
+    import gui.distribution_fit as gdf
+    win._load_file(DATA / "magnetita_Fe3O4.adt")
+    win.mode_combo.setCurrentIndex(4)
+    d = win.dist_panel
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("2D"))
+    d.nbins.set_value(8)
+    d.qbins.set_value(4)
+    win.dist_use_sharp = True
+    win._show_distribution_dialog = lambda r: None
+    calls, max_iter = [], set()
+    orig = gdf.fit_bhf_quad_distribution
+    monkeypatch.setattr(gdf, "fit_bhf_quad_distribution",
+                        lambda *a, **k: calls.append(1) or orig(*a, **k))
+    orig_open = win._open_progress_dialog
+
+    def open_spy(*a, **k):
+        dlg, update, close = orig_open(*a, **k)
+
+        def update_spy(payload):
+            if isinstance(payload, dict) and "max_iter" in payload:
+                max_iter.add(payload["max_iter"])
+            return update(payload)
+        return dlg, update_spy, close
+    monkeypatch.setattr(win, "_open_progress_dialog", open_spy)
+    win.on_fit()
+    assert win.runtime_results.distribution_result is not None
+    (tope,) = max_iter
+    assert len(calls) <= tope + 1          # + la evaluación final
+
+
+def test_cancelar_detiene_un_ajuste_vbf_2d(win, monkeypatch):
+    """Cada evaluación de VBF 2D puede tardar segundos: «Cancelar» se atiende
+    dentro del ajuste no lineal, no solo entre evaluaciones externas."""
+    import time
+    import gui.distribution_fit as gdf
+    from PySide6 import QtWidgets
+    win._load_file(DATA / "magnetita_Fe3O4.adt")
+    win.mode_combo.setCurrentIndex(4)
+    d = win.dist_panel
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("VBF 2D"))
+    previo = win.runtime_results.distribution_result
+    llamadas = []
+
+    def fit_cancelado(*a, progress=None, **k):
+        assert progress is not None, "el ajuste VBF 2D no recibe sondeo de cancelación"
+        boton = next(w for w in QtWidgets.QApplication.allWidgets()
+                     if w.objectName() == "btn_cancel_fit" and w.isVisible())
+        boton.click()
+        llamadas.append(1)
+        time.sleep(0.15)                    # supera el muestreo de 0.1 s
+        progress()                          # aquí debe abortar
+        raise AssertionError("el ajuste siguió tras «Cancelar»")
+    monkeypatch.setattr(gdf, "fit_vbf_2d_distribution", fit_cancelado)
+    errores = []
+    monkeypatch.setattr(QtWidgets.QMessageBox, "critical",
+                        lambda *a, **k: errores.append(a[-1]))
+    win.on_fit()
+    assert errores == []                    # cancelado, no un error
+    assert llamadas == [1]
+    assert win.runtime_results.distribution_result is previo

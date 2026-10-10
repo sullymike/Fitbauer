@@ -132,6 +132,12 @@ class FitWorkflowMixin:
                 return
             if _state["cancelled"]:
                 raise FitCancelledError()
+            if payload is None:
+                # Solo atiende la interfaz (p. ej. «Cancelar») sin tocar el texto.
+                QtWidgets.QApplication.processEvents()
+                if _state["cancelled"]:
+                    raise FitCancelledError()
+                return
             if isinstance(payload, dict):
                 phase = str(payload.get("phase") or payload.get("message") or message)
                 label.setText(phase)
