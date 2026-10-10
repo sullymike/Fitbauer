@@ -48,6 +48,17 @@
   `--binomial-neighbors`, `--binomial-start`, `--binomial-step` y
   `--fit-conc`; el importador de `.JOB` traslada `CONC`, `BHF` y `DTB`.
 - Ayuda (es/en) y manual (es/en) actualizados.
+- **Ajustes mucho más rápidos** (medido en un equipo de 14 núcleos):
+  - P(BHF) con δ, ΔEQ y Γ libres: de 30 s a 0.6 s. OpenBLAS repartía cada
+    operación entre todos los núcleos y, con matrices tan pequeñas, coordinar
+    los hilos costaba 100 veces más que el cálculo. Ahora BLAS usa un hilo
+    (`core.blas_threads`; manda `OPENBLAS_NUM_THREADS` si se exporta).
+  - P(BHF, ΔEQ) 2D: de más de 30 min a ~1.5 min. Las distribuciones resuelven
+    el sistema regularizado con NNLS (Lawson–Hanson) en lugar de
+    `lsq_linear`, con el mismo óptimo, y la 2D no calcula los grados de
+    libertad efectivos en cada paso del refinado de δ/Γ.
+  - Ajuste discreto: el modelo intermedio se redibuja como mucho cada 0.5 s.
+  - La suite de tests pasa de 10.5 a 3 minutos.
 
 ## v5.1.2 — convenios NORMOS en la GUI y relajación validada frente a NORMOS
 
