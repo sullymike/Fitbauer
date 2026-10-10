@@ -18,6 +18,7 @@ from core.plot_styles import get_style
 from core.reconstruction import reconstruct_distribution_curves
 from core.validation import format_validation_issues, validate_distribution_parameters
 from core.param_overrides import effective_fit_init_specs as _eff_fi, effective_distribution_specs as _eff_ds
+from core.params import is_2d_shape
 from gui.fit_workflow import GuiFitRenderState, GuiFitResult
 from mossbauer_distribution import (
     fit_hyperfine_distribution,
@@ -25,6 +26,7 @@ from mossbauer_distribution import (
     fit_binomial_hyperfine_distribution,
     fit_fixed_hyperfine_distribution,
     fit_bhf_quad_distribution,
+    fit_vbf_2d_distribution,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -423,6 +425,7 @@ class DistributionFitMixin:
         nbins = max(5, int(dist_state.nbins))
         alpha = dist_state.alpha
         shape = dist_state.shape
+        is_2d = is_2d_shape(shape)
 
         # Parámetros 2D (disponibles tras la actualización del panel)
         _ds = _eff_ds()
@@ -430,11 +433,11 @@ class DistributionFitMixin:
         qmax: float = max(qmin + 0.05, float(d.qmax.value())) if hasattr(d, "qmax") else _ds["qmax"].default
         qbins: int = max(5, int(round(d.qbins.value()))) if hasattr(d, "qbins") else int(_ds["qbins"].default)
         alpha_q: float = 10.0 ** float(d.log_alpha_q.value()) if hasattr(d, "log_alpha_q") else 10.0 ** _ds["log_alpha_q"].default
-        pair: tuple[str, str] = getattr(self, "dist_pair", ("bhf", "quad")) if shape == "2D" else ("bhf", "quad")
+        pair: tuple[str, str] = getattr(self, "dist_pair", ("bhf", "quad")) if is_2d else ("bhf", "quad")
 
         label_map = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
         label = (f"P({label_map.get(pair[0], pair[0])}, {label_map.get(pair[1], pair[1])})"
-                 if shape == "2D" else f"P({label_map.get(var, var)})")
+                 if is_2d else f"P({label_map.get(var, var)})")
 
         self.statusBar().showMessage(f"Ajustando {label} [{shape}]…")
         sharp_components, sharp_indices = self._active_sharp_components_for_distribution()
@@ -449,6 +452,8 @@ class DistributionFitMixin:
         v_arr = self.file.velocity
         y_arr = self.file.y_data
 
+        vbf2d_seed: dict = {}
+
         def run_fit(delta_value: float, quad_value: float, gamma_value: float,
                     sharp_for_fit: list[dict] | None,
                     delta_slope_value: float | None = None,
@@ -456,6 +461,37 @@ class DistributionFitMixin:
                     final: bool = True):
             dsl = base_delta_slope if delta_slope_value is None else delta_slope_value
             qsl = base_quad_slope if quad_slope_value is None else quad_slope_value
+            if shape in ("Gaussiana 2D", "VBF 2D"):
+                # Gaussianas bivariantes sobre la misma malla; sin α. La primera
+                # evaluación prueba varios arranques y las demás parten de su
+                # solución (fija: el residuo sigue siendo función solo de x).
+                res2d = fit_vbf_2d_distribution(
+                    v_arr, y_arr,
+                    n_components=(1 if shape == "Gaussiana 2D" else dist_state.vbf_n_components),
+                    variable_x=pair[0], variable_y=pair[1],
+                    delta=delta_value, quad=quad_value,
+                    bhf=(dist_state.kernel_bhf if "bhf" not in pair else BHF_DEFAULT_T),
+                    gamma=gamma_value,
+                    bmin=bmin, bmax=bmax, nbins_bhf=nbins,
+                    qmin=qmin, qmax=qmax, nbins_quad=qbins,
+                    fit_baseline=fit_baseline, fit_slope=fit_slope,
+                    baseline=calib_state.baseline, slope=calib_state.slope,
+                    sharp_components=sharp_for_fit,
+                    sigma=self.file.sigma,
+                    profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
+                    shape=shape,
+                    initial_components=vbf2d_seed.get("comps"),
+                    # δ/ΔEQ/Γ libres van dentro del ajuste no lineal (no en
+                    # el bucle externo: ver fit_vbf_2d_distribution).
+                    fit_delta=not dist_state.is_fixed("delta"),
+                    fit_quad=not dist_state.is_fixed("quad"),
+                    fit_gamma=not dist_state.is_fixed("gamma"),
+                    delta_bounds=(d.delta._lo, d.delta._hi),
+                    quad_bounds=(d.quad._lo, d.quad._hi),
+                    gamma_bounds=(d.gamma._lo, d.gamma._hi),
+                )
+                vbf2d_seed.setdefault("comps", res2d.vbf2d_components)
+                return res2d
             if shape == "2D":
                 return fit_bhf_quad_distribution(
                     v_arr, y_arr,
@@ -538,14 +574,19 @@ class DistributionFitMixin:
 
         # outer_specs: parámetros globales libres a refinar en la capa exterior
         outer_specs: list[tuple[str, str, float, float]] = []
-        if var != "delta" and not dist_state.is_fixed("delta"):
-            outer_specs.append(("dist_delta", "lin", d.delta._lo, d.delta._hi))
-        if ((shape != "2D" and var in ("bhf", "delta"))
-                or (shape == "2D" and "quad" not in pair)):
-            if not dist_state.is_fixed("quad"):
+        # Gaussiana/VBF 2D ajustan δ/ΔEQ/Γ dentro del propio ajuste.
+        # Variables distribuidas: no son globales a refinar. (En 2D antes se
+        # miraba la variable 1D, «bhf», y un δ libre se refinaba aunque IS
+        # fuera un eje del mapa.)
+        dist_vars = pair if is_2d else (var,)
+        globals_inside = shape in ("Gaussiana 2D", "VBF 2D")
+        if not globals_inside:
+            if "delta" not in dist_vars and not dist_state.is_fixed("delta"):
+                outer_specs.append(("dist_delta", "lin", d.delta._lo, d.delta._hi))
+            if "quad" not in dist_vars and not dist_state.is_fixed("quad"):
                 outer_specs.append(("dist_quad", "lin", d.quad._lo, d.quad._hi))
-        if not dist_state.is_fixed("gamma"):
-            outer_specs.append(("dist_gamma", "loggamma", d.gamma._lo, d.gamma._hi))
+            if not dist_state.is_fixed("gamma"):
+                outer_specs.append(("dist_gamma", "loggamma", d.gamma._lo, d.gamma._hi))
         # Nivel (b): refinar las pendientes de correlación δ(H)/ΔEQ(H) en la capa
         # externa (son no lineales). Solo con Histograma/VBF y si no están fijas.
         # Solo las pendientes que tienen sentido con la variable (las visibles):
@@ -706,6 +747,8 @@ class DistributionFitMixin:
                     _sharp, pos_txt, pname = key.split(":")
                     cp = self.components_panels[sharp_indices[int(pos_txt)] - 1]
                     cp.params[pname].set_value(value)
+        for name, value in (getattr(result, "fitted_globals", None) or {}).items():
+            {"delta": d.delta, "quad": d.quad, "gamma": d.gamma}[name].set_value(float(value))
         if getattr(result, "binomial_start", None) is not None:
             d.binom_start.set_value(float(result.binomial_start))
             d.binom_step.set_value(float(result.binomial_step))
@@ -754,13 +797,13 @@ class DistributionFitMixin:
                 sharp_abs_sum += sharp_abs
                 components_for_plot.append((idx, f"Nítido {tr(f'kind.{comp_state.kind}', default=comp_state.kind)}", baseline_line - sharp_abs))
             if np.any(sharp_abs_sum > 0):
-                dist_name = label if shape == "2D" else ("P(ΔEQ)" if var == "quad" else ("P(IS)" if var == "delta" else "P(BHF)"))
+                dist_name = label if is_2d else ("P(ΔEQ)" if var == "quad" else ("P(IS)" if var == "delta" else "P(BHF)"))
                 components_for_plot.insert(0, (0, dist_name, result.fitted_curve + sharp_abs_sum))
 
         # Persistimos el mapa 2D para que sobreviva a los re-renders posteriores
         # (_finish_gui_fit_result vuelve a dibujar vía _render_fit_result).
-        self._dist_map_2d = result if shape == "2D" else None
-        if shape != "2D":
+        self._dist_map_2d = result if is_2d else None
+        if not is_2d:
             _prev_fig = getattr(self, "_dist_map_2d_fig", None)
             if _prev_fig is not None:
                 _prev_fig.clf()
@@ -768,7 +811,7 @@ class DistributionFitMixin:
         if hasattr(self, "dist_panel"):
             # Botón para reabrir el gráfico de distribución tras cerrarlo (1D y 2D).
             self.dist_panel.btn_show_map.setText(
-                tr("button.show_map", default="Ver mapa 2D…") if shape == "2D"
+                tr("button.show_map", default="Ver mapa 2D…") if is_2d
                 else tr("button.show_distribution", default="Ver distribución…"))
             self.dist_panel.btn_show_map.setVisible(True)
         style = get_style(self.plot_style_name)
@@ -787,6 +830,10 @@ class DistributionFitMixin:
             msg = (f"{label}: bins={nbins}×{qbins}  "
                    f"αB=10^{dist_state.log_alpha:.2f} αQ=10^{alpha_q_log:.2f}  "
                    f"RMS={result.rms:.5g}")
+        elif is_2d:
+            msg = f"{label}: {shape}  bins={nbins}×{qbins}  RMS={result.rms:.5g}"
+        if is_2d and getattr(result, "dof_warning", None):
+            msg += f"  ⚠ {result.dof_warning}"
         else:
             reg_tag = f"/{result.reg_mode}" if getattr(result, "reg_mode", None) else ""
             msg = (f"{label}: {shape}{reg_tag}  bins={nbins}  "
@@ -837,6 +884,15 @@ class DistributionFitMixin:
                     r.values[f"vbf{i}_mu"] = float(mu)
                 except Exception:
                     pass
+        # Gaussianas 2D: área, % y centro (μx, μy) de cada una.
+        vbf2d = getattr(result, "vbf2d_components", None)
+        if vbf2d:
+            area_tot = sum(c[0] for c in vbf2d)
+            for i, (a, mx, my, _sx, _sy, rho) in enumerate(vbf2d, start=1):
+                r.values[f"g{i}_area%"] = (100.0 * a / area_tot) if area_tot > 0 else 0.0
+                r.values[f"g{i}_mu_{pair[0]}"] = float(mx)
+                r.values[f"g{i}_mu_{pair[1]}"] = float(my)
+                r.values[f"g{i}_rho"] = float(rho)
         if getattr(result, "binomial_start", None) is not None:
             r.values["binom_conc%"] = 100.0 * float(result.fitted_dist_p)
             r.values["binom_start"] = float(result.binomial_start)

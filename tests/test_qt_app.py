@@ -1183,11 +1183,12 @@ def test_qt_distribution_2d_mode_is_exposed_and_persisted(win):
     win.mode_combo.setCurrentIndex(4)
     assert win.is_distribution_mode
     assert win.dist_panel.shape == "2D"
-    # En 2D la forma la impone el modo: el combo solo ofrece «2D» y no se edita.
+    # En 2D el combo ofrece las formas 2D: histograma regularizado («2D») y
+    # las gaussianas bivariantes.
     shape_items = [win.dist_panel.shape_combo.itemData(i)
                    for i in range(win.dist_panel.shape_combo.count())]
-    assert shape_items == ["2D"]
-    assert not win.dist_panel.shape_combo.isEnabled()
+    assert shape_items == ["2D", "Gaussiana 2D", "VBF 2D"]
+    assert win.dist_panel.shape_combo.isEnabled()
     assert not win.dist_panel.qmin.isHidden()
     assert not win.dist_panel.quad.isEnabled()
 
@@ -1204,6 +1205,61 @@ def test_qt_distribution_2d_mode_is_exposed_and_persisted(win):
     win.mode_combo.setCurrentIndex(5)
     assert win.dist_pair == ("delta", "quad")
     assert win._session_payload()["model_state"]["dist_variable"] == "IS-ΔEQ"
+
+
+def test_formas_2d_gaussiana_y_vbf_en_el_panel(win):
+    """En 2D se puede elegir Gaussiana/VBF: sin α y con nº de gaussianas en VBF."""
+    d = win.dist_panel
+    win.mode_combo.setCurrentIndex(1)                     # P(BHF)
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("Gaussiana"))
+    win.mode_combo.setCurrentIndex(4)                     # P(BHF, ΔEQ) 2D
+    assert d.shape == "Gaussiana 2D"                      # forma equivalente
+    assert d.log_alpha_q.isHidden() and not d.log_alpha.isEnabled()
+    assert d._vbf_row_widget.isHidden()
+    assert not d.qmin.isHidden()
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("VBF 2D"))
+    assert not d._vbf_row_widget.isHidden()
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("2D"))
+    assert not d.log_alpha_q.isHidden() and d.log_alpha.isEnabled()
+    from mossbauer_i18n import tr
+    assert d.shape_combo.currentText() == tr("shape.Histograma")  # «2D» se rotula Histograma
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("VBF 2D"))
+    win.mode_combo.setCurrentIndex(1)                     # de vuelta a 1D
+    assert d.shape == "VBF"
+
+
+def test_aviso_is_deq_2d_con_dobletes(win):
+    d = win.dist_panel
+    win.mode_combo.setCurrentIndex(5)                     # P(IS, ΔEQ) 2D
+    assert d.var_warning.isVisibleTo(d)
+    assert "δ ± ΔEQ/2" in d.var_warning.text()
+    win.mode_combo.setCurrentIndex(4)                     # P(BHF, ΔEQ): identificable
+    assert not d.var_warning.isVisibleTo(d)
+
+
+def test_ajuste_gaussiana_2d_desde_la_gui(win):
+    import numpy as np
+    win._load_file(DATA / "magnetita_Fe3O4.adt")
+    captured = {}
+    win._show_distribution_dialog = lambda r: captured.setdefault("r", r)
+    win.mode_combo.setCurrentIndex(4)
+    d = win.dist_panel
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("VBF 2D"))
+    d.vbf_ncomp.setValue(2)
+    d.qbins.set_value(9)
+    d.nbins.set_value(25)
+    win.on_fit()
+    res = win.runtime_results.distribution_result
+    assert res.shape == "VBF 2D" and len(res.vbf2d_components) == 2
+    assert np.asarray(res.probability).ndim == 2
+    assert win.canvas.last_render.get("dist_map_2d") is res
+    report = "\n".join(win._distribution_report_lines())
+    assert "Gaussianas 2D" in report and "α (" not in report
+    payload = win._session_payload()
+    assert payload["model_state"]["dist_shape"] == "VBF 2D"
+    win.mode_combo.setCurrentIndex(0)
+    win._apply_session_payload(payload)
+    assert win.mode_combo.currentIndex() == 4 and d.shape == "VBF 2D"
 
 
 def test_panel_distribucion_rotula_la_variable_activa(win):

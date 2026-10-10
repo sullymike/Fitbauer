@@ -914,6 +914,7 @@
   "bhf.field_advanced_tip": "Sin marcar, cada columna de P(ΔEQ) es un doblete (B = 0), el caso normal. Márcalo solo para distribuir el corrimiento cuadrupolar de un sextete con campo fijo.",
   "bhf.warn_is_gamma": "⚠ Una distribución de IS ensancha todas las líneas por igual y se confunde con Γ: fija Γ (casilla «Fijo») para que P(IS) tenga sentido.",
   "bhf.warn_quad_field": "⚠ Con B ≠ 0 cada columna es un sextete de primer orden: solo es válido si ΔEQ es mucho menor que el desdoblamiento magnético (no sirve para campos aplicados de pocos teslas).",
+  "bhf.warn_is_quad_2d": "⚠ Con dobletes solo se observa la distribución de cada línea (δ ± ΔEQ/2): el mapa IS–ΔEQ no es único (σ IS, σ ΔEQ y ρ se compensan). Para la correlación IS–ΔEQ usa P(ΔEQ) con κδ.",
   "slider.dist_delta_inactive": "δ (no usado: distribuido)",
   "slider.dist_delta_slope_quad": "κδ dδ/dΔEQ",
   "slider.dist_quad_slope_is": "κq dΔEQ/dδ",

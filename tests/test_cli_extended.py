@@ -105,6 +105,23 @@ def test_dist_cli_shape_binomial_normos(tmp_path):
     assert summary["binomial_step"] is not None
 
 
+def test_dist_cli_gaussiana_2d(tmp_path):
+    """--dist-2d --shape gaussiana: una gaussiana bivariante, sin α."""
+    proc = _run_dist_cli(tmp_path, "--dist-2d", "--shape", "gaussiana",
+                         "--bmin", "20", "--bmax", "40", "--nbins", "21",
+                         "--qmin", "-0.5", "--qmax", "0.5", "--nbins-quad", "9")
+    assert proc.returncode == 0, proc.stderr
+    summary = json.loads((tmp_path / "out_summary.json").read_text(encoding="utf-8"))
+    assert summary["shape"] == "Gaussiana 2D"
+    assert len(summary["vbf2d_components"]) == 1
+    assert (tmp_path / "out_distribution2d.dat").exists()
+
+
+def test_dist_cli_2d_rechaza_binomial(tmp_path):
+    proc = _run_dist_cli(tmp_path, "--dist-2d", "--shape", "binomial")
+    assert proc.returncode != 0
+
+
 def test_dist_cli_scan_alpha_requires_histogram(tmp_path):
     proc = _run_dist_cli(tmp_path, "--shape", "vbf", "--scan-alpha")
     assert proc.returncode != 0

@@ -36,6 +36,11 @@ class ReportMixin:
         shape = getattr(result, "shape", None) or "—"
         reg_mode = getattr(result, "reg_mode", None)
         is_2d = view.is_2d()
+        # Solo el histograma 2D («2D») está regularizado; Gaussiana/VBF 2D no.
+        regularized_2d = is_2d and shape == "2D"
+        _short = {"bhf": "BHF", "quad": "ΔEQ", "delta": "δ"}
+        x2 = _short.get(getattr(result, "x_variable", "bhf"), "BHF")
+        y2 = _short.get(getattr(result, "y_variable", "quad"), "ΔEQ")
 
         # Media y σ de la distribución 1D a partir de centros + pesos.
         mean_x = std_x = None
@@ -59,10 +64,10 @@ class ReportMixin:
             bits = [f"forma **{shape}**"]
             if reg_mode:
                 bits.append(f"reg. {reg_mode}")
-            if is_2d:
-                bits.append(f"αB={_fmt(getattr(result, 'alpha_bhf', None), '.3g')}")
-                bits.append(f"αQ={_fmt(getattr(result, 'alpha_quad', None), '.3g')}")
-            else:
+            if regularized_2d:
+                bits.append(f"α{x2}={_fmt(getattr(result, 'alpha_bhf', None), '.3g')}")
+                bits.append(f"α{y2}={_fmt(getattr(result, 'alpha_quad', None), '.3g')}")
+            elif not is_2d:
                 bits.append(f"α={_fmt(getattr(result, 'alpha', None), '.3g')}")
             if mean_x is not None:
                 bits.append(f"⟨{var_lbl}⟩={_fmt(mean_x, '.4g')} {unit}")
@@ -86,10 +91,10 @@ class ReportMixin:
         if reg_mode:
             lines.append(f"| Regularizador | {reg_mode} |")
         lines.append(f"| Variable | {var_lbl} |")
-        if is_2d:
-            lines.append(f"| α (BHF) | {_fmt(getattr(result, 'alpha_bhf', None))} |")
-            lines.append(f"| α (ΔEQ) | {_fmt(getattr(result, 'alpha_quad', None))} |")
-        else:
+        if regularized_2d:
+            lines.append(f"| α ({x2}) | {_fmt(getattr(result, 'alpha_bhf', None))} |")
+            lines.append(f"| α ({y2}) | {_fmt(getattr(result, 'alpha_quad', None))} |")
+        elif not is_2d:
             lines.append(f"| α (regularización) | {_fmt(getattr(result, 'alpha', None))} |")
         lines.append(f"| Línea base | {_fmt(result.baseline)} |")
         lines.append(f"| Pendiente del fondo | {_fmt(result.slope)} |")
@@ -119,9 +124,9 @@ class ReportMixin:
                 lines.append(f"| {lbl} | {_fmt(val)} |")
         # Estadísticos 2D
         if is_2d:
-            for key, lbl in (("mean_bhf", "⟨BHF⟩"), ("mean_quad", "⟨ΔEQ⟩"),
-                             ("sigma_bhf", "σ(BHF)"), ("sigma_quad", "σ(ΔEQ)"),
-                             ("corr_bhf_quad", "Correlación BHF–ΔEQ")):
+            for key, lbl in (("mean_bhf", f"⟨{x2}⟩"), ("mean_quad", f"⟨{y2}⟩"),
+                             ("sigma_bhf", f"σ({x2})"), ("sigma_quad", f"σ({y2})"),
+                             ("corr_bhf_quad", f"Correlación {x2}–{y2}")):
                 val = getattr(result, key, None)
                 if val is not None:
                     lines.append(f"| {lbl} | {_fmt(val)} |")
@@ -152,6 +157,21 @@ class ReportMixin:
                         f"{_fmt(mu, '.4g')} | {_fmt(sg, '.4g')} |")
                 except Exception:
                     pass
+            lines.append("")
+
+        # Gaussianas bivariantes (Gaussiana 2D / VBF 2D)
+        g2 = getattr(result, "vbf2d_components", None)
+        if g2:
+            lines.append("### Gaussianas 2D")
+            lines.append("")
+            area_tot = sum(float(c[0]) for c in g2)
+            lines.append(f"| # | A (área) | Área % | μ {x2} | μ {y2} | σ {x2} | σ {y2} | ρ |")
+            lines.append("|---|---|---|---|---|---|---|---|")
+            for i, (a, mx, my, sx, sy, rho) in enumerate(g2, start=1):
+                frac = (100.0 * float(a) / area_tot) if area_tot > 0 else 0.0
+                lines.append(
+                    f"| {i} | {_fmt(a, '.4g')} | {_fmt(frac, '.1f')} | {_fmt(mx, '.4g')} | "
+                    f"{_fmt(my, '.4g')} | {_fmt(sx, '.4g')} | {_fmt(sy, '.4g')} | {_fmt(rho, '.3f')} |")
             lines.append("")
 
         # Componentes nítidos

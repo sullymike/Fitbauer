@@ -50,6 +50,7 @@ from core.params import DIST_VAR_DEFAULT_SPAN
 from mossbauer_bhf_pipeline import make_sharp_components
 from mossbauer_distribution import (
     fit_bhf_quad_distribution,
+    fit_vbf_2d_distribution,
     fit_binomial_hyperfine_distribution,
     fit_hyperfine_distribution,
     fit_vbf_hyperfine_distribution,
@@ -141,7 +142,9 @@ def parse_args() -> argparse.Namespace:
                              "--source-polarized (0 = alineado).")
 
     parser.add_argument("--dist-2d", action="store_true",
-                        help="Distribucion bidimensional P(BHF, ΔEQ) regularizada.")
+                        help="Distribucion bidimensional P(BHF, ΔEQ): histograma "
+                             "regularizado, o con --shape gaussiana/vbf gaussianas "
+                             "bivariantes (A, μ, σ, ρ).")
     parser.add_argument("--qmin", type=float, default=-1.0, help="ΔEQ minimo (mm/s) en modo 2D.")
     parser.add_argument("--qmax", type=float, default=1.0, help="ΔEQ maximo (mm/s) en modo 2D.")
     parser.add_argument("--nbins-quad", type=int, default=21, help="Bins de ΔEQ en modo 2D.")
@@ -206,6 +209,8 @@ def parse_args() -> argparse.Namespace:
                      "(las formas paramétricas no usan alpha).")
     if args.scan_alpha and args.dist_2d:
         parser.error("--scan-alpha no aplica en modo --dist-2d.")
+    if args.dist_2d and args.shape == "binomial":
+        parser.error("--dist-2d admite --shape histograma, gaussiana o vbf.")
     if (args.d13 != 3.0 or args.d23 != 2.0) and (
             args.shape != "histograma" or args.dist_2d):
         parser.error("--d13/--d23 solo aplican a --shape histograma 1D.")
@@ -316,7 +321,20 @@ def maybe_plot(path: Path, v: np.ndarray, y: np.ndarray, fit: np.ndarray, B: np.
 
 
 def run_fit_2d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
-    """Ajuste 2D P(BHF, ΔEQ) y volcado de ficheros. Devuelve el summary parcial."""
+    """Ajuste 2D P(BHF, ΔEQ): histograma regularizado o gaussianas bivariantes."""
+    if args.shape in ("gaussiana", "vbf"):
+        return fit_vbf_2d_distribution(
+            v, y,
+            n_components=(1 if args.shape == "gaussiana" else args.vbf_components),
+            delta=delta, quad=quad, gamma=gamma,
+            bmin=bmin, bmax=bmax, nbins_bhf=args.nbins,
+            qmin=args.qmin, qmax=args.qmax, nbins_quad=args.nbins_quad,
+            fit_baseline=not args.no_fit_baseline,
+            fit_slope=not args.no_fit_slope,
+            baseline=args.baseline, slope=args.slope,
+            sharp_components=sharp_components,
+            profile=args.profile, voigt_sigma=args.voigt_sigma,
+        )
     result = fit_bhf_quad_distribution(
         v, y,
         delta=delta, quad=quad, gamma=gamma,
@@ -610,6 +628,9 @@ def write_outputs_2d(args, in_path, out_prefix, v, y, folded, center, vmax, norm
     print(f"OK P(BHF,ΔEQ) 2D: RMS={result.rms:.6g}, "
           f"<BHF>={result.mean_bhf if result.mean_bhf is None else round(result.mean_bhf, 3)} T, "
           f"<ΔEQ>={result.mean_quad if result.mean_quad is None else round(result.mean_quad, 4)} mm/s")
+    for i, (a, mx, my, sx, sy, rho) in enumerate(result.vbf2d_components or (), start=1):
+        print(f"  gaussiana {i}: A={a:.4g} μ=({mx:.4g} T, {my:.4g} mm/s) "
+              f"σ=({sx:.3g}, {sy:.3g}) ρ={rho:.3f}")
     print(f"  espectro:      {spectrum_path}")
     print(f"  distribucion:  {matrix_path}")
     print(f"  resumen:       {summary_path}")

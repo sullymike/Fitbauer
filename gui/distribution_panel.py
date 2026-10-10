@@ -8,7 +8,7 @@ from PySide6 import QtCore, QtWidgets
 from dataclasses import astuple
 
 from mossbauer_i18n import tr
-from core.params import DIST_VAR_DEFAULT_SPAN, DIST_VAR_RANGE, DIST_RANGE_RESOLUTION
+from core.params import DIST_VAR_DEFAULT_SPAN, DIST_VAR_RANGE, DIST_RANGE_RESOLUTION, is_2d_shape
 from core.param_overrides import effective_distribution_specs
 from gui.controls import ParamControl
 from mossbauer_distribution import BINOMIAL_BOUNDS, BINOMIAL_NEIGHBORS_NORMOS
@@ -19,8 +19,8 @@ class DistributionPanel(QtWidgets.QGroupBox):
     """Panel para modo distribución P(BHF) / P(ΔEQ) / P(IS) / 2D.
 
     Formas 1D: Histograma (Hesse-Rübartsch no paramétrica), Gaussiana, VBF,
-    Binomial y Fija (P cargada desde fichero). La forma 2D (distribución
-    bidimensional) la impone el modo de ajuste, no el combo.
+    Binomial y Fija (P cargada desde fichero). En los modos 2D el combo ofrece
+    Histograma (código «2D», mapa regularizado), Gaussiana 2D y VBF 2D.
     """
 
     paramChanged = QtCore.Signal()
@@ -52,9 +52,8 @@ class DistributionPanel(QtWidgets.QGroupBox):
         shape_row = QtWidgets.QHBoxLayout()
         shape_row.addWidget(QtWidgets.QLabel(tr("bhf.shape_label") + ":"))
         self.shape_combo = QtWidgets.QComboBox()
-        # La forma «2D» no se elige aquí: la fija el modo de ajuste (las tres
-        # entradas 2D del selector de modo). En modo 1D el combo ofrece solo
-        # las formas 1D y en 2D solo «2D», desactivado (_set_shape_choices).
+        # 1D o 2D lo fija el modo de ajuste; el combo ofrece las formas de
+        # ese modo (_set_shape_choices).
         self._shape_choices_2d = False
         self._fill_shape_combo(self._SHAPES_1D)
         self.shape_combo.currentIndexChanged.connect(
@@ -269,7 +268,12 @@ class DistributionPanel(QtWidgets.QGroupBox):
                   ("VBF", "shape.VBF"),
                   ("Binomial", "shape.Binomial"),
                   ("Fija", "shape.Fija"))
-    _SHAPES_2D = (("2D", "shape.2D"),)
+    # En 2D se reutilizan los rótulos 1D: el modo ya dice que es bidimensional.
+    _SHAPES_2D = (("2D", "shape.Histograma"),
+                  ("Gaussiana 2D", "shape.Gaussiana"),
+                  ("VBF 2D", "shape.VBF"))
+    #: Forma equivalente al pasar de 1D a 2D (y la inversa al volver).
+    _SHAPE_TO_2D = {"Histograma": "2D", "Gaussiana": "Gaussiana 2D", "VBF": "VBF 2D"}
     _VAR_SHORT = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
 
     def _fill_shape_combo(self, shapes) -> None:
@@ -281,12 +285,15 @@ class DistributionPanel(QtWidgets.QGroupBox):
         if is_2d == self._shape_choices_2d:
             return
         previous = self.shape
+        if is_2d:
+            previous = self._SHAPE_TO_2D.get(previous, previous)
+        else:
+            previous = {v: k for k, v in self._SHAPE_TO_2D.items()}.get(previous, previous)
         self.shape_combo.blockSignals(True)
         self.shape_combo.clear()
         self._fill_shape_combo(self._SHAPES_2D if is_2d else self._SHAPES_1D)
         idx = self.shape_combo.findData(previous)
         self.shape_combo.setCurrentIndex(max(idx, 0))
-        self.shape_combo.setEnabled(not is_2d)
         self.shape_combo.blockSignals(False)
         self._shape_choices_2d = is_2d
 
@@ -342,14 +349,16 @@ class DistributionPanel(QtWidgets.QGroupBox):
         self._span_owner[axis] = key
 
     def _sync_2d_controls(self) -> None:
-        is_2d = self.shape == "2D"
-        for ctl in (self.qmin, self.qmax, self.qbins, self.log_alpha_q):
+        is_2d = is_2d_shape(self.shape)
+        for ctl in (self.qmin, self.qmax, self.qbins):
             ctl.setVisible(is_2d)
+        # α del eje Y: solo el histograma 2D está regularizado.
+        self.log_alpha_q.setVisible(self.shape == "2D")
         # reg_mode (tikhonov/tv/maxent) solo lo consume el Histograma 1D.
         self.reg_mode_combo.setEnabled(self.shape == "Histograma")
         # Nº de gaussianas: solo con forma VBF.
         if hasattr(self, "_vbf_row_widget"):
-            self._vbf_row_widget.setVisible(self.shape == "VBF")
+            self._vbf_row_widget.setVisible(self.shape in ("VBF", "VBF 2D"))
         # Binomial: sus propios controles en lugar de la malla.
         is_binomial = self.shape == "Binomial"
         self._binom_box.setVisible(is_binomial)
@@ -360,8 +369,8 @@ class DistributionPanel(QtWidgets.QGroupBox):
         for ctl in (self.delta_slope, self.quad_slope):
             ctl.setEnabled(corr_ok)
         self.btn_load_fixed.setEnabled(self.shape == "Fija")
-        # α regulariza el Histograma (Tikhonov/TV) y también la 2D (α_BHF/α_ΔEQ);
-        # Gaussiana/Binomial/Fija son paramétricas y no usan α.
+        # α regulariza el Histograma (Tikhonov/TV) y también el histograma 2D
+        # (α_x/α_y); Gaussiana/VBF/Binomial/Fija (y sus 2D) son paramétricas.
         # La L-curve solo está implementada para el Histograma 1D.
         is_histogram = self.shape == "Histograma"
         is_regularized = self.shape in ("Histograma", "2D")
@@ -380,7 +389,8 @@ class DistributionPanel(QtWidgets.QGroupBox):
         if is_2d:
             x_var, y_var = getattr(self, "_distribution_pair", ("bhf", "quad"))
             self.log_alpha.label.setText(
-                f"{tr('slider.dist_log_alpha')} {self._VAR_SHORT.get(x_var, x_var)}")
+                f"{tr('slider.dist_log_alpha')} {self._VAR_SHORT.get(x_var, x_var)}"
+                if self.shape == "2D" else tr("slider.dist_log_alpha"))
             self.log_alpha_q.label.setText(
                 f"{tr('slider.dist_log_alpha')} {self._VAR_SHORT.get(y_var, y_var)}")
             self.bmin.label.setText(self._dist_var_label(x_var, "bmin"))
@@ -441,6 +451,11 @@ class DistributionPanel(QtWidgets.QGroupBox):
             text = tr("bhf.warn_is_gamma", default=(
                 "⚠ Una distribución de IS ensancha todas las líneas por igual y "
                 "se confunde con Γ: fija Γ para que P(IS) tenga sentido."))
+        elif vars_ == ("delta", "quad") and self.effective_fixed_bhf() <= 0.0:
+            text = tr("bhf.warn_is_quad_2d", default=(
+                "⚠ Con dobletes solo se observa la distribución de cada línea "
+                "(δ ± ΔEQ/2): el mapa IS–ΔEQ no es único (σ IS, σ ΔEQ y ρ se "
+                "compensan). Para la correlación IS–ΔEQ usa P(ΔEQ) con κδ."))
         elif self.effective_fixed_bhf() > 0.0:
             text = tr("bhf.warn_quad_field", default=(
                 "⚠ Con B ≠ 0 cada columna es un sextete de primer orden: solo es "
@@ -519,14 +534,14 @@ class DistributionPanel(QtWidgets.QGroupBox):
         self._sync_2d_controls()
 
     def set_distribution_pair(self, variable_x: str, variable_y: str) -> None:
-        """Modo 2D: par de variables (eje X, eje Y); la forma pasa a «2D»."""
+        """Modo 2D: par de variables (eje X, eje Y); el combo pasa a las formas 2D."""
         self._distribution_pair = (variable_x, variable_y)
         self._set_shape_choices(True)
         self._sync_2d_controls()
 
     def to_view_state(self, *, variable: str = "BHF") -> DistributionViewState:
         """Snapshot del panel sin exponer widgets al resto de la GUI."""
-        if self.shape == "2D":
+        if is_2d_shape(self.shape):
             _lmap = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
             x, y = self._distribution_pair
             variable_label = f"{_lmap.get(x, x)}-{_lmap.get(y, y)}"

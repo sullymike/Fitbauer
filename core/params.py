@@ -63,7 +63,16 @@ COMPONENT_KINDS = (
 )
 
 # Formas válidas de distribución hiperfina (selector del panel y validación).
-DISTRIBUTION_SHAPES = ("Histograma", "Gaussiana", "VBF", "Binomial", "Fija", "2D")
+DISTRIBUTION_SHAPES = ("Histograma", "Gaussiana", "VBF", "Binomial", "Fija",
+                       "2D", "Gaussiana 2D", "VBF 2D")
+# Formas de los modos 2D: «2D» es el histograma regularizado (código histórico,
+# se muestra como «Histograma»); las otras dos, gaussianas bivariantes.
+DISTRIBUTION_SHAPES_2D = ("2D", "Gaussiana 2D", "VBF 2D")
+
+
+def is_2d_shape(shape: str | None) -> bool:
+    """¿Es ``shape`` una forma de distribución bidimensional P(x, y)?"""
+    return shape in DISTRIBUTION_SHAPES_2D
 
 # Modos válidos de intensidad relativa para sextetes.
 INTENSITY_MODES = ("free", "texture")
