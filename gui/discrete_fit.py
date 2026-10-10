@@ -1,12 +1,17 @@
 """Ajuste discreto y bootstrap desde la GUI Qt."""
 from __future__ import annotations
 
+import time
+
 from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
 from core.fit_engine import bootstrap_errors, fit_discrete
 from core.param_overrides import effective_fit_init_specs as _eff_fi
 from gui.fit_workflow import GuiFitResult
+
+#: Intervalo mínimo entre redibujados del modelo intermedio durante un ajuste.
+_INTERMEDIATE_RENDER_S = 0.5
 
 
 class DiscreteFitMixin:
@@ -75,11 +80,18 @@ class DiscreteFitMixin:
         self._pre_fit_snapshot = self._project_state().to_session_payload()
 
         def _progress(update_progress):
+            # Cada redibujado intermedio cuesta ~0.2 s (relayout de Matplotlib):
+            # sin límite se llevaba más de la mitad de un ajuste de 2 s.
+            last_render = [0.0]
+
             def cb(info):
                 update_progress(info)
                 if isinstance(info, dict) and "free_keys" in info:
-                    self._render_intermediate_fit(
-                        state, info["free_keys"], info["free_values"])
+                    now = time.monotonic()
+                    if now - last_render[0] >= _INTERMEDIATE_RENDER_S:
+                        last_render[0] = now
+                        self._render_intermediate_fit(
+                            state, info["free_keys"], info["free_values"])
             return fit_discrete(state, progress_cb=cb)
 
         result = self._run_with_fit_progress(
