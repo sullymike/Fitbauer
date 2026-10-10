@@ -8,8 +8,14 @@ En CI ``requirements.txt`` fija ``numpy>=2.0`` y este monkeypatch es no-op.
 from __future__ import annotations
 
 import importlib
+import sys
+from pathlib import Path
 
-import numpy as np
+# La raíz del repo en sys.path antes de nada: con «pytest» a secas no lo está
+# todavía cuando se carga este conftest.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import core.blas_threads  # noqa: E402,F401  (antes de numpy: BLAS con un hilo)
+import numpy as np  # noqa: E402
 import pytest
 
 if not hasattr(np, "trapezoid"):

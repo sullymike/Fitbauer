@@ -44,6 +44,7 @@ import json
 import sys
 from pathlib import Path
 
+import core.blas_threads  # noqa: F401  (antes de numpy: BLAS con un hilo)
 from core.constants import SEXTET_PATTERNS, sextet_pattern
 
 

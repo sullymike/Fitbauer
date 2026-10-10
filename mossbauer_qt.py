@@ -11,6 +11,7 @@ import threading  # reexport histórico: tests/extensiones lo parchean aquí
 import webbrowser  # reexport histórico: tests/extensiones lo parchean aquí
 from pathlib import Path
 
+import core.blas_threads  # noqa: F401  (antes de numpy: BLAS con un hilo)
 import numpy as np
 from PySide6 import QtCore, QtGui, QtWidgets
 import matplotlib

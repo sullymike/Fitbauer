@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import core.blas_threads  # noqa: F401  (antes de numpy: BLAS con un hilo)
 import numpy as np
 
 from core.param_overrides import effective_distribution_specs
