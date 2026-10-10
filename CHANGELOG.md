@@ -88,6 +88,10 @@
   ajuste discreto, activo por defecto: la pasada DE capturaba cualquier
   excepción, también la de cancelación, y el ajuste terminaba y se aplicaba.
   Con la pre-pasada DE la cancelación llegaba, pero un paso más tarde.
+- **`--scan-alpha` de la CLI de distribución barría otro modelo**: omitía
+  `--edge-anchor`, `--d13/--d23`, `--kernel-treatment/--kernel-eta` y la fuente
+  polarizada, así que el α sugerido por la L-curve no correspondía al ajuste.
+  Ahora cada punto del barrido es el mismo ajuste cambiando solo α.
 - Ayuda (es/en) y manual (es/en) actualizados.
 - **Ajustes mucho más rápidos** (medido en un equipo de 14 núcleos):
   - P(BHF) con δ, ΔEQ y Γ libres: de 30 s a 0.6 s. OpenBLAS repartía cada

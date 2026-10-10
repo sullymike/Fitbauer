@@ -562,23 +562,15 @@ def _run(args) -> None:
 
 def run_fit_1d_alpha(args, v, y, *, delta, quad, gamma, bmin, bmax,
                      sharp_components, alpha):
-    """Ajuste de histograma con un alpha concreto (para --scan-alpha)."""
-    return fit_hyperfine_distribution(
-        v, y,
-        variable=args.variable,
-        delta=delta,
-        quad=(0.0 if args.variable == "quad" else quad),
-        bhf=args.fixed_bhf,
-        gamma=gamma,
-        pmin=bmin, pmax=bmax, nbins=args.nbins, alpha=alpha,
-        fit_baseline=not args.no_fit_baseline,
-        fit_slope=not args.no_fit_slope,
-        baseline=args.baseline, slope=args.slope,
-        sharp_components=sharp_components,
-        reg_mode=args.reg_mode,
-        profile=args.profile, voigt_sigma=args.voigt_sigma,
-        delta_slope=args.delta_slope, quad_slope=args.quad_slope,
-    )
+    """Ajuste de histograma con un alpha concreto (para --scan-alpha).
+
+    Reutiliza ``run_fit_1d`` cambiando solo α: antes repetía la llamada a mano
+    y omitía --edge-anchor, --d13/--d23, la física del kernel y la fuente
+    polarizada, así que el α sugerido correspondía a otro modelo.
+    """
+    scan_args = argparse.Namespace(**{**vars(args), "alpha": float(alpha)})
+    return run_fit_1d(scan_args, v, y, delta=delta, quad=quad, gamma=gamma,
+                      bmin=bmin, bmax=bmax, sharp_components=sharp_components)
 
 
 def write_outputs_2d(args, in_path, out_prefix, v, y, folded, center, vmax, norm,

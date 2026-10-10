@@ -126,3 +126,17 @@ def test_dist_cli_scan_alpha_requires_histogram(tmp_path):
     proc = _run_dist_cli(tmp_path, "--shape", "vbf", "--scan-alpha")
     assert proc.returncode != 0
     assert "histograma" in (proc.stderr + proc.stdout)
+
+
+def test_dist_cli_scan_alpha_usa_el_mismo_kernel(tmp_path):
+    """El barrido de α debe ajustar el mismo modelo que el ajuste principal:
+    antes omitía --edge-anchor, --d13/--d23 y la física del kernel."""
+    import numpy as np
+    proc = _run_dist_cli(tmp_path, "--variable", "quad", "--nbins", "20",
+                         "--alpha", "0.01", "--edge-anchor", "50",
+                         "--scan-alpha", "--alpha-min", "0.01",
+                         "--alpha-max", "0.01", "--alpha-count", "1")
+    assert proc.returncode == 0, proc.stderr
+    summary = json.loads((tmp_path / "out_summary.json").read_text(encoding="utf-8"))
+    scan = np.atleast_2d(np.loadtxt(summary["alpha_scan_file"]))
+    assert scan[0, 1] == pytest.approx(summary["rms"], rel=1e-9)
