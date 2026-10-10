@@ -2,6 +2,12 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **Ayuda en francés retraducida y alineada** con la española: los 32
+  capítulos en el mismo orden (los identificadores «grupo.posición» de los
+  enlaces «Más información…» apuntan ya al capítulo correcto), con los nombres
+  de menú de la interfaz francesa y «pliage» como en ella. La ayuda inglesa
+  decía «Show difference» donde el menú pone «Show residual», y la de
+  «Novedades» (es/en/pt) aún hablaba de δ2/δ3 en los presets «Ligar».
 - **Ayuda en portugués al día con la española**: NORMOS (.JOB), ajuste
   global Néel, P(ΔEQ), P(IS) y 2D retraducidos; añadidos parámetros
   compactos, cómo dobla Fitbauer, parámetros visibles por componente,
