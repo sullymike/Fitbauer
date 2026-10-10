@@ -93,10 +93,17 @@ class BhfQuadDistribution2DFit:
     sharp_bhf_centers: np.ndarray | None = None
     sharp_weights: np.ndarray | None = None
     shape: str | None = "2D"
+    #: Formas paramétricas 2D: (A, μx, μy, σx, σy, ρ) por gaussiana bivariante.
+    vbf2d_components: tuple[tuple[float, float, float, float, float, float], ...] | None = None
+    #: δ/ΔEQ/Γ globales ajustados junto con las gaussianas 2D (solo los libres).
+    fitted_globals: dict[str, float] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "shape": self.shape,
+            "vbf2d_components": ([] if self.vbf2d_components is None
+                                 else [list(c) for c in self.vbf2d_components]),
+            "fitted_globals": dict(self.fitted_globals or {}),
             "BHF_centers": self.bhf_centers.tolist(),
             "quad_centers": self.quad_centers.tolist(),
             "P": self.weights.tolist(),
@@ -584,18 +591,28 @@ def build_bhf_quad_distribution_kernel(
         raise ValueError("Los dos ejes 2D deben ser variables distintas")
     if vx not in {"bhf", "quad", "delta"} or vy not in {"bhf", "quad", "delta"}:
         raise ValueError("Variables 2D válidas: 'bhf', 'quad' o 'delta'")
-    cols: list[np.ndarray] = []
-    for x in x_arr:
-        for y in y_arr:
-            vals = {"delta": float(delta), "quad": float(quad), "bhf": float(bhf)}
-            vals[vx] = float(x)
-            vals[vy] = float(y)
-            cols.append(sextet_absorption(
-                v, delta=vals["delta"], quad=vals["quad"], bhf=vals["bhf"], gamma=gamma,
-                gamma2_rel=gamma2_rel, gamma3_rel=gamma3_rel,
-                int1=int1, int2_rel=int2_rel, int3_rel=int3_rel,
-            ))
-    return np.column_stack(cols) if cols else np.empty((v.size, 0), dtype=float)
+    if x_arr.size == 0 or y_arr.size == 0:
+        return np.empty((v.size, 0), dtype=float)
+    # Vectorizado por línea: las mismas primitivas que ``sextet_absorption``
+    # (posiciones de 1er orden y ``lorentzian``), pero con todas las columnas a
+    # la vez. Un sextete por columna en Python costaba 0.07 s con la malla por
+    # defecto (50×21), y las formas 2D paramétricas reconstruyen el kernel en
+    # cada paso al ajustar δ/Γ.
+    X, Y = np.meshgrid(x_arr, y_arr, indexing="ij")
+    vals = {"delta": np.full(X.size, float(delta)), "quad": np.full(X.size, float(quad)),
+            "bhf": np.full(X.size, float(bhf))}
+    vals[vx] = X.ravel()
+    vals[vy] = Y.ravel()
+    positions = (core_physics.active_sextet_pattern()[None, :]
+                 * (vals["bhf"] / BHF_DEFAULT_T)[:, None]
+                 + vals["delta"][:, None]
+                 + vals["quad"][:, None] * core_physics.LINE_QUAD_PATTERN[None, :])
+    weights, gammas = _rel_weights_gammas(gamma, gamma2_rel, gamma3_rel,
+                                          int1, int2_rel, int3_rel)
+    K = np.zeros((v.size, X.size), dtype=float)
+    for j in range(6):
+        K += weights[j] * core_physics.lorentzian(v[:, None], positions[None, :, j], float(gammas[j]))
+    return K
 
 
 def second_difference_matrix_2d(n_bhf: int, n_quad: int) -> tuple[np.ndarray, np.ndarray]:
@@ -896,6 +913,388 @@ def fit_bhf_quad_distribution(
         dof_warning=dof_warning,
         sharp_bhf_centers=sharp_bhf_centers,
         sharp_weights=sharp_weights,
+    )
+
+
+#: Formas paramétricas de la distribución 2D (gaussianas bivariantes).
+VBF_2D_SHAPES = ("Gaussiana 2D", "VBF 2D")
+#: |ρ| máximo: con ρ → ±1 la gaussiana degenera en una recta y el ajuste se
+#: vuelve inestable; ese caso límite es la correlación lineal κ del 1D.
+VBF_2D_RHO_MAX = 0.95
+
+
+def bivariate_gaussian_weights(
+    x_centers: np.ndarray,
+    y_centers: np.ndarray,
+    mu_x: float,
+    mu_y: float,
+    sigma_x: float,
+    sigma_y: float,
+    rho: float,
+) -> np.ndarray:
+    """Gaussiana bivariante sobre la malla (nx, ny), normalizada a suma 1.
+
+    Si es mucho más estrecha que la malla y cae entre nodos, la discretizada
+    subdesborda a cero; entonces se colapsa al nodo más próximo (como el VBF 1D).
+    """
+    x = np.asarray(x_centers, dtype=float)[:, None]
+    y = np.asarray(y_centers, dtype=float)[None, :]
+    sx = max(float(sigma_x), 1e-9)
+    sy = max(float(sigma_y), 1e-9)
+    r = float(np.clip(rho, -VBF_2D_RHO_MAX, VBF_2D_RHO_MAX))
+    zx = (x - float(mu_x)) / sx
+    zy = (y - float(mu_y)) / sy
+    w = np.exp(-0.5 * (zx * zx - 2.0 * r * zx * zy + zy * zy) / (1.0 - r * r))
+    total = float(np.sum(w))
+    if not np.isfinite(total) or total <= 1e-300:
+        w = np.zeros((x.size, y.size), dtype=float)
+        w[int(np.argmin(np.abs(x[:, 0] - float(mu_x)))),
+          int(np.argmin(np.abs(y[0, :] - float(mu_y))))] = 1.0
+        return w
+    return w / total
+
+
+def fit_vbf_2d_distribution(
+    v: np.ndarray,
+    y: np.ndarray,
+    *,
+    n_components: int = 1,
+    variable_x: str = "bhf",
+    variable_y: str = "quad",
+    delta: float = 0.0,
+    quad: float = 0.0,
+    bhf: float = BHF_DEFAULT_T,
+    gamma: float = 0.18,
+    bmin: float = 0.0,
+    bmax: float = 50.0,
+    nbins_bhf: int = 30,
+    qmin: float = -1.0,
+    qmax: float = 1.0,
+    nbins_quad: int = 21,
+    fit_baseline: bool = True,
+    fit_slope: bool = True,
+    baseline: float | None = None,
+    slope: float | None = None,
+    sharp_components: list[dict[str, float]] | None = None,
+    sigma: np.ndarray | None = None,
+    profile: str = "Lorentziana",
+    voigt_sigma: float = 0.05,
+    shape: str | None = None,
+    initial_components: list[tuple[float, float, float, float, float, float]] | None = None,
+    fit_delta: bool = False,
+    fit_quad: bool = False,
+    fit_gamma: bool = False,
+    delta_bounds: tuple[float, float] = (-3.0, 3.0),
+    quad_bounds: tuple[float, float] = (-4.0, 4.0),
+    gamma_bounds: tuple[float, float] = (0.05, 3.0),
+) -> BhfQuadDistribution2DFit:
+    """Distribución 2D paramétrica: suma de N gaussianas bivariantes (VBF 2D).
+
+    Cada componente k aporta (A_k, μx, μy, σx, σy, ρ) con P_k normalizada a
+    suma 1 sobre la malla, así que A_k/ΣA es la fracción de cada sitio. Con
+    ``n_components=1`` es la «Gaussiana 2D».
+
+    ρ generaliza la correlación lineal del 1D: la media condicional de y es
+    μy + ρ·σy/σx·(x − μx) (pendiente κ = ρσy/σx) y alrededor de esa recta queda
+    una anchura propia σy·√(1−ρ²). Es el caso típico IS–ΔEQ de vidrios y
+    materiales desordenados (p. ej. Fe²⁺ y Fe³⁺ como dos gaussianas).
+
+    Usa el mismo kernel que la 2D regularizada (``fit_bhf_quad_distribution``)
+    pero solo ajusta 6N parámetros no lineales en lugar de un peso por celda,
+    sin α. Devuelve el mismo ``BhfQuadDistribution2DFit`` (mapa, marginales y
+    estadísticos), con las gaussianas en ``vbf2d_components`` ordenadas por μx.
+
+    ``initial_components`` (mismo formato que ``vbf2d_components``) sustituye a
+    los arranques múltiples por uno solo: el bucle externo de la GUI pasa la
+    solución de su primera evaluación y cada evaluación cuesta un arranque.
+
+    ``fit_delta``/``fit_quad``/``fit_gamma`` ajustan esos globales (si no son
+    un eje) en el MISMO problema no lineal que las gaussianas, reconstruyendo
+    el kernel. Anidarlos en un bucle externo, como en el histograma, no
+    funciona aquí: el óptimo interno es iterativo y su ruido de convergencia
+    (y los saltos entre mínimos locales) arruinan las diferencias finitas
+    externas — en la magnetita, o no se movían o tardaba minutos.
+    """
+    from scipy.optimize import least_squares
+    v = _finite_1d("v", v)
+    y = _finite_1d("y", y)
+    if v.size != y.size:
+        raise ValueError("v e y deben tener la misma longitud")
+    N = max(1, int(n_components))
+    if shape is None:
+        shape = "Gaussiana 2D" if N == 1 else "VBF 2D"
+    inv_sigma = None
+    if sigma is not None:
+        sigma_arr = _finite_1d("sigma", sigma)
+        if sigma_arr.size != y.size:
+            raise ValueError("sigma debe tener la misma longitud que y")
+        inv_sigma = 1.0 / np.maximum(sigma_arr, 1e-12)
+    if baseline is None:
+        baseline = float(np.percentile(y, 90))
+    if slope is None:
+        slope = 0.0
+
+    xc = parameter_grid(bmin, bmax, nbins_bhf)
+    yc = parameter_grid(qmin, qmax, nbins_quad)
+    axes = {str(variable_x), str(variable_y)}
+    # Globales libres (un eje no puede serlo): (nombre, valor inicial, cotas),
+    # Γ en escala logarítmica.
+    glob: list[tuple[str, float, float, float]] = []
+    if fit_delta and "delta" not in axes:
+        glob.append(("delta", float(delta), *map(float, delta_bounds)))
+    if fit_quad and "quad" not in axes:
+        glob.append(("quad", float(quad), *map(float, quad_bounds)))
+    if fit_gamma:
+        glob.append(("gamma", float(np.log(gamma)), *np.log(np.asarray(gamma_bounds, dtype=float))))
+    n_glob = len(glob)
+    kernel_cache: dict[tuple[float, ...], np.ndarray] = {}
+
+    def glob_values(p: np.ndarray) -> dict[str, float]:
+        vals = {"delta": float(delta), "quad": float(quad), "gamma": float(gamma)}
+        for (name, *_), val in zip(glob, p[p.size - n_glob:] if n_glob else ()):
+            vals[name] = float(np.exp(val)) if name == "gamma" else float(val)
+        return vals
+
+    def kernel(vals: dict[str, float]) -> np.ndarray:
+        key = (vals["delta"], vals["quad"], vals["gamma"])
+        K_ = kernel_cache.get(key)
+        if K_ is None:
+            if len(kernel_cache) > 8:
+                kernel_cache.clear()
+            with line_profile(profile, voigt_sigma):
+                K_ = build_bhf_quad_distribution_kernel(
+                    v, xc, yc, variable_x=variable_x, variable_y=variable_y,
+                    delta=vals["delta"], quad=vals["quad"], bhf=bhf, gamma=vals["gamma"])
+            kernel_cache[key] = K_
+        return K_
+
+    K = kernel({"delta": float(delta), "quad": float(quad), "gamma": float(gamma)})
+    with line_profile(profile, voigt_sigma):
+        K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
+            v, sharp_components, default_delta=delta, default_quad=0.0, default_gamma=gamma)
+    n_sharp = K_sharp.shape[1] if K_sharp is not None else 0
+    x_lo, x_hi = float(xc[0]), float(xc[-1])
+    y_lo, y_hi = float(yc[0]), float(yc[-1])
+    x_rng = max(x_hi - x_lo, 1e-3)
+    y_rng = max(y_hi - y_lo, 1e-3)
+    dx = x_rng / max(xc.size - 1, 1)
+    dy = y_rng / max(yc.size - 1, 1)
+    n_lin = int(fit_baseline) + int(fit_slope)
+
+    def lin_part(p: np.ndarray) -> tuple[float, float]:
+        i = 0
+        if fit_baseline:
+            b0 = float(p[0]); i = 1
+        else:
+            b0 = float(baseline)
+        return b0, (float(p[i]) if fit_slope else float(slope))
+
+    def comp_view(p: np.ndarray) -> np.ndarray:
+        return np.asarray(p[n_lin:n_lin + 6 * N]).reshape(N, 6)
+
+    def total_w(comp: np.ndarray) -> np.ndarray:
+        w = np.zeros((xc.size, yc.size), dtype=float)
+        for A, mx, my, lsx, lsy, r in comp:
+            w += max(float(A), 0.0) * bivariate_gaussian_weights(
+                xc, yc, mx, my, np.exp(lsx), np.exp(lsy), r)
+        return w
+
+    def model(p: np.ndarray) -> np.ndarray:
+        b0, sl = lin_part(p)
+        Kp = kernel(glob_values(p))
+        out = b0 + sl * v - Kp @ total_w(comp_view(p)).ravel() - fixed_sharp_abs
+        if n_sharp:
+            out = out - K_sharp @ np.maximum(p[n_lin + 6 * N:n_lin + 6 * N + n_sharp], 0.0)
+        return out
+
+    def residual(p: np.ndarray) -> np.ndarray:
+        r = model(p) - y
+        return r * inv_sigma if inv_sigma is not None else r
+
+    gx = xc[:, None]
+    gy = yc[None, :]
+
+    def jacobian(p: np.ndarray) -> np.ndarray:
+        """Jacobiano analítico: con diferencias finitas cada ajuste tardaba
+        segundos y su ruido de convergencia confundía al bucle externo."""
+        J = np.zeros((v.size, p.size), dtype=float)
+        K = kernel(glob_values(p))
+        i = 0
+        if fit_baseline:
+            J[:, 0] = 1.0; i = 1
+        if fit_slope:
+            J[:, i] = v
+        for k, (A, mx, my, lsx, lsy, r) in enumerate(comp_view(p)):
+            j0 = n_lin + 6 * k
+            sx, sy = np.exp(lsx), np.exp(lsy)
+            rr = float(np.clip(r, -VBF_2D_RHO_MAX, VBF_2D_RHO_MAX))
+            g = bivariate_gaussian_weights(xc, yc, mx, my, sx, sy, rr)
+            J[:, j0] = -(K @ g.ravel()) if A > 0 else 0.0
+            zx = (gx - mx) / sx
+            zy = (gy - my) / sy
+            den = 1.0 - rr * rr
+            q = (zx * zx - 2.0 * rr * zx * zy + zy * zy) / den
+            dq_dzx = 2.0 * (zx - rr * zy) / den
+            dq_dzy = 2.0 * (zy - rr * zx) / den
+            dqs = (dq_dzx * (-1.0 / sx), dq_dzy * (-1.0 / sy),
+                   dq_dzx * (-zx), dq_dzy * (-zy),
+                   (-2.0 * zx * zy + 2.0 * rr * q) / den)
+            amp = max(float(A), 0.0)
+            for m, dq in enumerate(dqs, start=1):
+                # g = e/Σe con e = exp(−q/2): ∂g = g·(h − Σ g·h), h = −½·∂q.
+                h = -0.5 * dq
+                dg = g * (h - float(np.sum(g * h)))
+                J[:, j0 + m] = -amp * (K @ dg.ravel())
+        if n_sharp:
+            ws = p[n_lin + 6 * N:n_lin + 6 * N + n_sharp]
+            J[:, n_lin + 6 * N:n_lin + 6 * N + n_sharp] = -K_sharp * (ws > 0.0)[None, :]
+        # Globales: diferencia hacia delante reconstruyendo el kernel (uno por
+        # global; el kernel es exacto, así que basta un paso pequeño).
+        if n_glob:
+            m0 = model(p)
+            for j in range(n_glob):
+                col = p.size - n_glob + j
+                h = 1e-6
+                pp = p.copy(); pp[col] += h
+                J[:, col] = (model(pp) - m0) / h
+        return J * inv_sigma[:, None] if inv_sigma is not None else J
+
+    # Área inicial: la profundidad total del espectro repartida entre los
+    # componentes, medida con una columna típica del kernel.
+    depth = max(1e-6, float(baseline) - float(np.min(y)))
+    col_peak = float(np.max(K)) if K.size else 1.0
+    amp0 = depth / max(col_peak, 1e-12)
+    lo, hi = [], []
+    head0 = []
+    if fit_baseline:
+        lo.append(0.0); hi.append(np.inf); head0.append(float(baseline))
+    if fit_slope:
+        lo.append(-np.inf); hi.append(np.inf); head0.append(float(slope))
+    ls_x = (np.log(0.25 * dx), np.log(x_rng))
+    ls_y = (np.log(0.25 * dy), np.log(y_rng))
+    for _ in range(N):
+        lo += [0.0, x_lo, y_lo, ls_x[0], ls_y[0], -VBF_2D_RHO_MAX]
+        hi += [np.inf, x_hi, y_hi, ls_x[1], ls_y[1], VBF_2D_RHO_MAX]
+    lo += [0.0] * n_sharp
+    hi += [np.inf] * n_sharp
+    for _name, _x0, g_lo, g_hi in glob:
+        lo.append(g_lo); hi.append(g_hi)
+    lo_arr = np.array(lo, dtype=float)
+    hi_arr = np.array(hi, dtype=float)
+    tail0 = [g[1] for g in glob]
+
+    # Arranques: con N > 1 no se sabe si los sitios se separan en x, en y o en
+    # diagonal (Fe²⁺/Fe³⁺ en IS–ΔEQ difieren en ambos), así que se prueban las
+    # cuatro direcciones y se queda el de menor coste.
+    def start(direction: tuple[float, float]) -> np.ndarray:
+        t = (np.linspace(-1.0, 1.0, N) * (N - 1) / (N + 1)) if N > 1 else np.zeros(1)
+        sx0 = max(x_rng / (4.0 * N), 2.0 * dx)
+        sy0 = max(y_rng / (4.0 * N), 2.0 * dy)
+        p0 = list(head0)
+        for tk in t:
+            p0 += [amp0 / N,
+                   0.5 * (x_lo + x_hi) + 0.5 * x_rng * direction[0] * tk,
+                   0.5 * (y_lo + y_hi) + 0.5 * y_rng * direction[1] * tk,
+                   np.log(sx0), np.log(sy0), 0.0]
+        p0 += [amp0 / max(n_sharp, 1)] * n_sharp + tail0
+        return np.clip(np.array(p0, dtype=float), lo_arr, hi_arr)
+
+    def warm_start(comps) -> np.ndarray:
+        p0 = list(head0)
+        for A, mx, my, sx, sy, r in comps:
+            p0 += [float(A), float(mx), float(my), np.log(max(float(sx), 1e-12)),
+                   np.log(max(float(sy), 1e-12)), float(r)]
+        p0 += [amp0 / max(n_sharp, 1)] * n_sharp + tail0
+        return np.clip(np.array(p0, dtype=float), lo_arr, hi_arr)
+
+    if initial_components is not None and len(initial_components) == N:
+        starts = [warm_start(initial_components)]
+    else:
+        directions = ([(1.0, 0.0)] if N == 1
+                      else [(1.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, -1.0)])
+        starts = [start(dv) for dv in directions]
+    max_nfev = 200 * (6 * N + n_lin + n_sharp + n_glob)
+    # Arranques con los globales congelados (kernel fijo, muy baratos)…
+    n_short = lo_arr.size - n_glob
+    tail = np.clip(np.asarray(tail0, dtype=float), lo_arr[n_short:], hi_arr[n_short:])
+
+    def full(p_short: np.ndarray) -> np.ndarray:
+        return np.concatenate([p_short, tail])
+
+    res = None
+    for p0 in starts:
+        cand = least_squares(lambda q: residual(full(q)), p0[:n_short],
+                             jac=lambda q: jacobian(full(q))[:, :n_short],
+                             bounds=(lo_arr[:n_short], hi_arr[:n_short]),
+                             x_scale="jac", max_nfev=max_nfev)
+        if res is None or cand.cost < res.cost:
+            res = cand
+    res.x = full(res.x)
+    if n_glob:
+        # …y después el ajuste conjunto desde el mejor.
+        res = least_squares(residual, np.clip(res.x, lo_arr, hi_arr), jac=jacobian,
+                            bounds=(lo_arr, hi_arr), x_scale="jac", max_nfev=max_nfev)
+
+    comp = comp_view(res.x)
+    w = total_w(comp)
+    b0_fit, sl_fit = lin_part(res.x)
+    sharp_free = np.maximum(res.x[n_lin + 6 * N:n_lin + 6 * N + n_sharp], 0.0) if n_sharp else None
+    sharp_weights = merge_sharp_weights(sharp_free, sharp_fixed_mask, fixed_sharp_weights)
+    fitted = model(res.x)
+    residuals = y - fitted
+    comps = tuple(sorted(
+        ((max(float(A), 0.0), float(mx), float(my), float(np.exp(lsx)), float(np.exp(lsy)),
+          float(np.clip(r, -VBF_2D_RHO_MAX, VBF_2D_RHO_MAX)))
+         for A, mx, my, lsx, lsy, r in comp),
+        key=lambda c: (c[1], c[2])))
+    area_tot = sum(c[0] for c in comps)
+    summary = ", ".join(
+        (f"(A={c[0]:.3g}[{100.0 * c[0] / area_tot:.0f}%], " if area_tot > 0 else f"(A={c[0]:.3g}, ")
+        + f"μ=({c[1]:.4g}, {c[2]:.4g}), σ=({c[3]:.3g}, {c[4]:.3g}), ρ={c[5]:.2f})"
+        for c in comps)
+    probability = normalize_probability_2d(w, xc, yc)
+    diag = bhf_quad_distribution_diagnostics(probability, xc, yc)
+    edge = []
+    for c in comps:
+        if (min(c[1] - x_lo, x_hi - c[1]) < c[3] or min(c[2] - y_lo, y_hi - c[2]) < c[4]):
+            edge.append(c)
+    notes = []
+    if edge:
+        notes.append("Alguna gaussiana toca el borde de la malla: amplía el rango para no truncarla.")
+    if {str(variable_x), str(variable_y)} == {"delta", "quad"} and float(bhf) == 0.0:
+        # Un doblete solo ve δ − ΔEQ/2 y δ + ΔEQ/2: de (σx, σy, ρ) solo se
+        # determinan dos combinaciones (las anchuras de las dos líneas).
+        notes.append("Con dobletes el mapa IS–ΔEQ no es único: σ, σ y ρ se compensan.")
+    warning = " ".join(notes) or None
+    return BhfQuadDistribution2DFit(
+        bhf_centers=xc,
+        quad_centers=yc,
+        weights=w,
+        probability=probability,
+        fitted_curve=fitted,
+        residuals=residuals,
+        baseline=b0_fit,
+        slope=sl_fit,
+        alpha_bhf=0.0,
+        alpha_quad=0.0,
+        rms=float(np.sqrt(np.mean(residuals ** 2))),
+        success=bool(res.success),
+        message=f"{shape} {variable_x}-{variable_y} N={N}: {summary}; {res.message}",
+        x_variable=str(variable_x),
+        y_variable=str(variable_y),
+        marginal_bhf=np.asarray(diag["marginal_bhf"], dtype=float),
+        marginal_quad=np.asarray(diag["marginal_quad"], dtype=float),
+        mean_bhf=float(diag["mean_bhf"]),
+        mean_quad=float(diag["mean_quad"]),
+        sigma_bhf=float(diag["sigma_bhf"]),
+        sigma_quad=float(diag["sigma_quad"]),
+        corr_bhf_quad=float(diag["corr_bhf_quad"]),
+        dof_warning=warning,
+        sharp_bhf_centers=sharp_bhf_centers,
+        sharp_weights=sharp_weights,
+        shape=str(shape),
+        vbf2d_components=comps,
+        fitted_globals=({name: glob_values(res.x)[name] for name, *_ in glob} or None),
     )
 
 
