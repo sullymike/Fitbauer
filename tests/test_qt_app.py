@@ -2847,3 +2847,18 @@ def test_cancelar_detiene_un_ajuste_vbf_2d(win, monkeypatch):
     assert llamadas == [1]
     assert win.runtime_results.distribution_result is previo
 
+
+def test_limites_de_parametros_tienen_etiqueta_en_todos_los_idiomas():
+    """Cada parámetro del diálogo de límites tiene etiqueta en los 8 catálogos.
+
+    Antes las etiquetas vivían en el propio diálogo solo en es/en/fr, y en el
+    resto de idiomas caían al español.
+    """
+    import json
+    from core.param_overrides import effective_specs
+    catalogos = {loc: json.loads((Path("locales") / loc / "strings.json").read_text(encoding="utf-8"))
+                 for loc in ("es", "en", "fr", "de", "pt", "ru", "ja", "ch")}
+    for categoria in ("component", "calibration", "distribution", "fit_init", "peak_detection"):
+        for nombre in effective_specs(categoria):
+            for loc, cat in catalogos.items():
+                assert cat.get(f"plimit.{nombre}"), (loc, categoria, nombre)

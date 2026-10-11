@@ -2,6 +2,11 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **Diálogo de límites de parámetros en los 8 idiomas.** Sus etiquetas
+  vivían en el propio diálogo solo en es/en/fr, y en alemán, portugués, ruso,
+  japonés y chino caían al español. Pasan a los catálogos (`plimit.*`), con
+  etiqueta también para los 11 parámetros que mostraban solo su nombre
+  técnico (η, φ, θγ, φγ, polarización, curvaturas, Γ fuente, FSO, AKS).
 - **Informes Markdown/PDF en el idioma activo.** El informe completo, el
   reducido, sus PDF, el glosario, los mensajes de guardado y «Copiar
   resultados» estaban escritos en español fijo (149 claves `rep.*` nuevas).
