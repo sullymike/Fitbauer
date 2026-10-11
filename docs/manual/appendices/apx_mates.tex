@@ -632,6 +632,21 @@ $P_k\pm\sigma_{P_k}$ se recorta a $P\ge0$ al representarla (la no-negatividad la
 hace asimétrica en bins clavados a cero). En modo TV se usa el operador efectivo
 $\sqrt{w}\,D$ en lugar de $L$.
 
+Esa covarianza es la del estimador \emph{sin} cotas: ignora $P\ge0$. Cuando la
+distribución tiene picos rodeados de bins a cero, la restricción recorta las
+oscilaciones que la fórmula lineal da por posibles, y $\sigma_{P_k}$ sale de 2 a 16
+veces mayor que la dispersión real de reajustes con ruido (con el estimador sin
+cotas, en cambio, coincide con el Monte Carlo al 1~\%). Por eso la banda que se
+\emph{dibuja} se obtiene por \textbf{Monte Carlo paramétrico}: se generan
+$R=100$ réplicas $\bm y^{(r)}=X\hat{\bm z}+\sqrt{\chi^2_\nu}\,\bm\sigma\odot\bm\epsilon^{(r)}$,
+$\bm\epsilon^{(r)}\sim\mathcal N(0,I)$, se re-resuelve el mismo problema acotado
+(mismo núcleo y $\alpha$; en TV, con su iteración IRLS completa) y
+$\sigma_{P_k}$ es la desviación típica de la $P$ normalizada entre réplicas. La
+banda es condicional a los globales ($\delta$, $\Gamma$, \dots), que no varían en
+las réplicas, y es bin a bin: los bins vecinos están anticorrelacionados, de modo
+que las magnitudes integradas son mucho más precisas que lo que sugiere la banda.
+MaxEnt no la calcula.
+
 \subsection{Distribuciones paramétricas}
 Como alternativa al histograma regularizado, se ajustan formas cerradas con pocos
 parámetros (mínimos cuadrados no lineales, sin $\alpha$):

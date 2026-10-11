@@ -134,8 +134,8 @@
 \contentsline {paragraph}{Compromiso.}{54}{section*.59}%
 \contentsline {paragraph}{Validación cruzada generalizada (GCV).}{54}{section*.60}%
 \contentsline {subsection}{\numberline {A.3.7}Barras de error de $P(B_{\mathrm {hf}})$}{54}{subsection.Alph1.3.7}%
-\contentsline {subsection}{\numberline {A.3.8}Distribuciones paramétricas}{54}{subsection.Alph1.3.8}%
-\contentsline {paragraph}{VBF (Voigt-Based Fitting, Rancourt--Ping 1991).}{54}{section*.61}%
+\contentsline {subsection}{\numberline {A.3.8}Distribuciones paramétricas}{55}{subsection.Alph1.3.8}%
+\contentsline {paragraph}{VBF (Voigt-Based Fitting, Rancourt--Ping 1991).}{55}{section*.61}%
 \contentsline {subsection}{\numberline {A.3.9}Correlación $\delta (H)$ y $\Delta E_{Q}(H)$ en el núcleo}{55}{subsection.Alph1.3.9}%
 \contentsline {subsection}{\numberline {A.3.10}Refinamiento global (VARPRO)}{55}{subsection.Alph1.3.10}%
 \contentsline {section}{\numberline {A.4}Apéndices}{55}{section.Alph1.4}%

@@ -1278,5 +1278,8 @@
   "tooltip.show_correlation": "Recta δ(x) o ΔEQ(x) que el kernel aplicó con las pendientes κ, con su banda 1σ si se refinaron. Continua donde la distribución tiene peso; punteada fuera, donde es una extrapolación.",
   "plot.correlation_ylabel": "{names} (mm/s)",
   "plot.kappa_fixed": "fija",
-  "plot.kappa_no_sigma": "sin σ: no convergió"
+  "plot.kappa_no_sigma": "sin σ: no convergió",
+  "plot.show_prob_band": "Banda 1σ de P",
+  "plot.prob_band_label": "P ± 1σ",
+  "tooltip.show_prob_band": "Incertidumbre 1σ de cada bin de P por Monte Carlo paramétrico: se reajusta la distribución sobre el modelo con ruido de la σ de los datos (escalada por el χ² reducido) y se mide la dispersión. Respeta P ≥ 0. No incluye la incertidumbre de δ, Γ ni de los demás globales. Solo forma Histograma con Tikhonov o TV."
 }

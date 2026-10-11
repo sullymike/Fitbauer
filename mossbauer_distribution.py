@@ -161,6 +161,9 @@ class BhfDistributionFit:
     fitted_dist_p: float | None = None
     effective_dof: float | None = None
     weight_sigma: np.ndarray | None = None
+    #: σ por bin de ``probability`` por Monte Carlo paramétrico (respeta P≥0);
+    #: solo si se pidió ``band_replicas``. Es la que se dibuja como banda.
+    probability_sigma: np.ndarray | None = None
     # VBF multi-gaussiano: lista de componentes (A_k, μ_k, σ_k) ordenados por μ.
     vbf_components: tuple[tuple[float, float, float], ...] | None = None
     # Metadatos del ajuste (para informes/sesión): forma, regularizador y
@@ -221,6 +224,8 @@ class BhfDistributionFit:
             "fitted_dist_p": self.fitted_dist_p,
             "effective_dof": self.effective_dof,
             "weight_sigma": [] if self.weight_sigma is None else self.weight_sigma.tolist(),
+            "probability_sigma": ([] if self.probability_sigma is None
+                                  else self.probability_sigma.tolist()),
             "vbf_components": [] if self.vbf_components is None else [list(c) for c in self.vbf_components],
             "shape": self.shape,
             "reg_mode": self.reg_mode,
@@ -1678,6 +1683,7 @@ def normalize_probability(weights: np.ndarray, bhf_centers: np.ndarray) -> np.nd
     return weights / area
 
 
+
 def _finite_1d(name: str, values: np.ndarray) -> np.ndarray:
     arr = np.asarray(values, dtype=float).reshape(-1)
     if arr.size == 0 or not np.all(np.isfinite(arr)):
@@ -1950,8 +1956,19 @@ def fit_hyperfine_distribution(
     source_bhf: float = 33.0,
     source_theta: float = 0.0,
     absorber_theta: float = 0.0,
+    band_replicas: int = 0,
+    band_seed: int = 0,
 ) -> BhfDistributionFit:
     """Ajusta una distribución Hesse-Rübartsch de BHF o ΔEQ.
+
+    ``band_replicas`` > 0 estima la banda 1σ de la P normalizada por Monte
+    Carlo paramétrico (``probability_sigma`` del resultado): se re-resuelve el
+    mismo problema acotado (mismo kernel, α y, en TV, los pesos IRLS finales)
+    sobre el modelo ajustado más ruido gaussiano de σ·√χ²_ν. A diferencia de la
+    covarianza linealizada (``weight_sigma``), respeta P ≥ 0: con picos
+    rodeados de bins a cero, la lineal la sobrestima varias veces. MaxEnt no
+    la calcula. Cuesta ``band_replicas`` resoluciones NNLS (milisegundos cada
+    una), así que conviene pedirla solo en el ajuste final.
 
     variable='bhf': centers son campos hiperfinos.
     variable='quad': centers son valores de ΔEQ con BHF fijo en ``bhf``.
@@ -2127,7 +2144,7 @@ def fit_hyperfine_distribution(
                       if _anchor_rows.size else _anchor_rows)
     _beta_eff = float(edge_anchor) * lambda_ref * ALPHA_REF_SCALE
 
-    def _solve(L_pen_scaled: np.ndarray):
+    def _solve(L_pen_scaled: np.ndarray, y_vec: np.ndarray | None = None):
         blocks = [np.sqrt(alpha_eff) * L_pen_scaled]
         if _anchor_scaled.size and _beta_eff > 0.0:
             blocks.append(np.sqrt(_beta_eff) * _anchor_scaled)
@@ -2135,7 +2152,8 @@ def fit_hyperfine_distribution(
         reg = np.zeros((L_all.shape[0], X.shape[1]), dtype=float)
         reg[:, dist_start:dist_end] = L_all
         X_aug = np.vstack([X_fit, reg])
-        y_aug = np.concatenate([y_fit, np.zeros(L_all.shape[0], dtype=float)])
+        y_aug = np.concatenate([y_fit if y_vec is None else y_vec,
+                                np.zeros(L_all.shape[0], dtype=float)])
         # Las cotas de p̃ = escala·P coinciden con las de P (0 e ∞ invariantes).
         res = solve_bounded_lsq(X_aug, y_aug, lower_arr, upper_arr, max_iter=2000)
         return res, res.x / scale  # deshace el escalado para recuperar P físico
@@ -2186,23 +2204,27 @@ def fit_hyperfine_distribution(
             eff = float(X.shape[1])
         return opt, opt.x, eff
 
-    if use_maxent:
-        result, params, eff_dof_maxent = _solve_maxent()
-        L_stats = None
-    elif use_tv:
+    def _solve_tv(y_vec: np.ndarray | None = None):
         # IRLS para ‖α^{1/2} D P‖₁: en cada iteración se resuelve un Tikhonov
         # ponderado con pesos w_k = 1/√((D P)_k² + ε²). Converge a la solución
         # de variación total, que preserva bordes (picos afilados).
         L_eff = L_scaled.copy()
-        result = None
-        params = None
+        res_tv = None
+        p_tv = None
         for _ in range(max(1, int(tv_iters))):
-            result, params = _solve(L_eff)
-            p_phys = params[dist_start:dist_end]
+            res_tv, p_tv = _solve(L_eff, y_vec)
+            p_phys = p_tv[dist_start:dist_end]
             dp = L @ p_phys  # primera diferencia del P físico
             eps = max(1e-3 * float(np.max(np.abs(p_phys))) if p_phys.size else 1e-6, 1e-9)
-            w = 1.0 / np.sqrt(dp ** 2 + eps ** 2)
-            L_eff = (np.sqrt(w)[:, None]) * L_scaled
+            w_tv = 1.0 / np.sqrt(dp ** 2 + eps ** 2)
+            L_eff = (np.sqrt(w_tv)[:, None]) * L_scaled
+        return res_tv, p_tv, w_tv
+
+    if use_maxent:
+        result, params, eff_dof_maxent = _solve_maxent()
+        L_stats = None
+    elif use_tv:
+        result, params, w = _solve_tv()
         # Operador efectivo (sin escala) para dof y covarianza: √w · D.
         L_stats = (np.sqrt(w)[:, None]) * L
     else:
@@ -2239,6 +2261,26 @@ def fit_hyperfine_distribution(
         except Exception:
             weight_sigma = None
 
+    prob_sigma = None
+    if band_replicas and int(band_replicas) > 1 and not use_maxent:
+        # Réplicas del espectro: modelo ajustado (en el espacio de trabajo
+        # blanqueado del solve) más ruido de la σ de los datos escalada por el
+        # χ²_ν efectivo, como la covarianza lineal y el ajuste discreto.
+        sig_w = sigma_arr if sigma_arr is not None else np.full(v.size, max(rms, 1e-12))
+        chi2_nu = float(np.sum((residuals / sig_w) ** 2)) / max(v.size - float(eff_dof), 1.0)
+        noise = np.sqrt(max(chi2_nu, 0.0))
+        model_fit = (X @ params) / (sigma_arr if sigma_arr is not None else 1.0)
+        rng = np.random.default_rng(int(band_seed))
+        reps = []
+        for _ in range(int(band_replicas)):
+            y_rep = model_fit + noise * rng.standard_normal(v.size) * (
+                1.0 if sigma_arr is not None else sig_w)
+            # TV re-itera su IRLS en cada réplica: con los pesos finales
+            # congelados la banda salía ~2× estrecha frente a reajustes reales.
+            p_rep = _solve_tv(y_rep)[1] if use_tv else _solve(L_scaled, y_rep)[1]
+            reps.append(normalize_probability(np.maximum(p_rep[dist_start:dist_end], 0.0), centers))
+        prob_sigma = np.std(np.asarray(reps), axis=0, ddof=1)
+
     return BhfDistributionFit(
         bhf_centers=centers,
         weights=weights,
@@ -2256,6 +2298,7 @@ def fit_hyperfine_distribution(
         sharp_weights=sharp_weights,
         effective_dof=eff_dof,
         weight_sigma=weight_sigma,
+        probability_sigma=prob_sigma,
         shape="Histograma",
         reg_mode=str(reg_mode),
         delta_slope=float(delta_slope),

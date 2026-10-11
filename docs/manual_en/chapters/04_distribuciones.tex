@@ -424,6 +424,12 @@ $\{P_j\}$ give almost the same spectrum), hence the need to \textbf{regularize}
         environments, asymmetric tails) and you do not want to impose a function.
   \item \textbf{Price}: you have to choose $\alpha$ well (use the L-curve,
         \S\ref{sec:lcurve}); it is the only shape that needs it.
+  \item \textbf{$1\sigma$ band}: with Tikhonov or TV, the distribution plot
+        draws $P\pm1\sigma$ per bin, estimated by Monte Carlo (100 refits with
+        noise; it respects $P\ge0$; appendix, \S\ref{sec:perr}). The
+        \menu{1$\sigma$ band of P} check hides it. It is a bin-by-bin
+        uncertainty: the area of a peak or $\langle x\rangle$ are much more
+        precise than its width suggests.
 \end{itemize}
 
 \subsection{Gaussian}

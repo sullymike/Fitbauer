@@ -1278,5 +1278,8 @@
   "tooltip.show_correlation": "Die Gerade δ(x) bzw. ΔEQ(x), die der Kernel mit den Steigungen κ angewandt hat, mit 1σ-Band, falls sie verfeinert wurden. Durchgezogen, wo die Verteilung Gewicht hat; gepunktet außerhalb, wo sie eine Extrapolation ist.",
   "plot.correlation_ylabel": "{names} (mm/s)",
   "plot.kappa_fixed": "fest",
-  "plot.kappa_no_sigma": "ohne σ: nicht konvergiert"
+  "plot.kappa_no_sigma": "ohne σ: nicht konvergiert",
+  "plot.show_prob_band": "1σ-Band von P",
+  "plot.prob_band_label": "P ± 1σ",
+  "tooltip.show_prob_band": "1σ-Unsicherheit jedes Bins von P aus einem parametrischen Monte Carlo: Die Verteilung wird am Modell plus Rauschen mit der σ der Daten (skaliert mit dem reduzierten χ²) neu gefittet und die Streuung gemessen. Berücksichtigt P ≥ 0. Enthält nicht die Unsicherheit von δ, Γ und den übrigen globalen Werten. Nur Form Histogramm mit Tikhonov oder TV."
 }

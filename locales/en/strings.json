@@ -1278,5 +1278,8 @@
   "tooltip.show_correlation": "The δ(x) or ΔEQ(x) line the kernel applied with the κ slopes, with its 1σ band if they were refined. Solid where the distribution has weight; dotted elsewhere, where it is an extrapolation.",
   "plot.correlation_ylabel": "{names} (mm/s)",
   "plot.kappa_fixed": "fixed",
-  "plot.kappa_no_sigma": "no σ: did not converge"
+  "plot.kappa_no_sigma": "no σ: did not converge",
+  "plot.show_prob_band": "1σ band of P",
+  "plot.prob_band_label": "P ± 1σ",
+  "tooltip.show_prob_band": "1σ uncertainty of each bin of P from a parametric Monte Carlo: the distribution is refitted on the model plus noise of the data σ (scaled by the reduced χ²) and the spread is measured. It respects P ≥ 0. It does not include the uncertainty of δ, Γ or the other global values. Histogram shape with Tikhonov or TV only."
 }

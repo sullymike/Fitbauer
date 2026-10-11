@@ -190,6 +190,36 @@ def test_vbf_sigma_limits_bound_every_component():
     assert r.as_dict()["vbf_sigma_bounds"] == [1.5, 3.0]
 
 
+
+@pytest.mark.parametrize("reg_mode", ["tikhonov", "tv"])
+def test_banda_mc_de_p_coincide_con_reajustes(reg_mode):
+    """La banda 1σ (band_replicas) es la dispersión real de P al reajustar con
+    ruido, respetando P ≥ 0; sin pedirla no se calcula."""
+    v = np.linspace(-6, 6, 300)
+    centers = md.parameter_grid(0.0, 3.0, 40)
+    P = (np.exp(-0.5 * ((centers - 0.8) / 0.12) ** 2)
+         + 0.6 * np.exp(-0.5 * ((centers - 1.8) / 0.15) ** 2))
+    K = md.build_hyperfine_distribution_kernel(v, centers, variable="quad", bhf=0.0,
+                                               delta=0.3, gamma=0.25)
+    y0 = 1.0 - K @ (P / P.sum() * 1.5)
+    sig = np.full(v.size, 4e-3)
+    kw = dict(variable="quad", bhf=0.0, delta=0.3, gamma=0.25, pmin=0.0, pmax=3.0,
+              nbins=40, alpha=1.0, sigma=sig, reg_mode=reg_mode, fit_slope=False)
+    rng = np.random.default_rng(2)
+    y = y0 + rng.normal(0, sig)
+    assert md.fit_hyperfine_distribution(v, y, **kw).probability_sigma is None
+    r = md.fit_hyperfine_distribution(v, y, band_replicas=80, **kw)
+    sp = r.probability_sigma
+    assert sp.shape == r.probability.shape and np.all(sp >= 0)
+    chi2nu = float(np.sum((r.residuals / sig) ** 2)) / (v.size - r.effective_dof)
+    reaj = [md.fit_hyperfine_distribution(
+        v, r.fitted_curve + np.sqrt(chi2nu) * rng.normal(0, sig), **kw).probability
+        for _ in range(60)]
+    mc = np.std(reaj, axis=0, ddof=1)
+    pico = r.probability > 0.2 * r.probability.max()
+    assert 0.7 < float(np.median(sp[pico] / mc[pico])) < 1.4
+    assert len(r.as_dict()["probability_sigma"]) == r.probability.size
+
 # ── MaxEnt ──────────────────────────────────────────────────────────────────
 def test_maxent_positive_normalized_and_peaked():
     v = np.linspace(-10, 10, 300)

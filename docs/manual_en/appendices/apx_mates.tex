@@ -627,6 +627,21 @@ $P_k\pm\sigma_{P_k}$ is clipped to $P\ge0$ when plotted (non-negativity makes it
 asymmetric in bins pinned to zero). In TV mode the effective operator $\sqrt{w}\,D$
 is used instead of $L$.
 
+That covariance belongs to the \emph{unconstrained} estimator: it ignores $P\ge0$.
+When the distribution has peaks surrounded by zero bins, the constraint cuts off the
+oscillations the linear formula allows, and $\sigma_{P_k}$ comes out 2 to 16 times
+larger than the actual spread of refits with noise (with the unconstrained estimator,
+by contrast, it matches the Monte Carlo to 1~\%). That is why the band that is
+\emph{plotted} comes from a \textbf{parametric Monte Carlo}: $R=100$ replicas
+$\bm y^{(r)}=X\hat{\bm z}+\sqrt{\chi^2_\nu}\,\bm\sigma\odot\bm\epsilon^{(r)}$,
+$\bm\epsilon^{(r)}\sim\mathcal N(0,I)$, are generated, the same constrained
+problem is solved again (same kernel and $\alpha$; in TV, with its full IRLS
+iteration) and $\sigma_{P_k}$ is the standard deviation of the normalized $P$
+across replicas. The band is conditional on the global values ($\delta$, $\Gamma$,
+\dots), which do not vary across replicas, and it is bin by bin: neighbouring bins
+are anticorrelated, so integrated quantities are much more precise than the band
+suggests. MaxEnt does not compute it.
+
 \subsection{Parametric distributions}
 As an alternative to the regularized histogram, closed forms with few parameters are
 fitted (nonlinear least squares, no $\alpha$):

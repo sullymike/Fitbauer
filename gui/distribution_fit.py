@@ -34,6 +34,10 @@ from mossbauer_distribution import (
 
 ROOT = Path(__file__).resolve().parents[1]
 
+#: Réplicas del Monte Carlo paramétrico de la banda 1σ de P (Histograma):
+#: ~0.05 s con Tikhonov y ~0.5 s con TV; error relativo de σ ≈ 7 %.
+DIST_BAND_REPLICAS = 100
+
 
 def _lcurve_corner_index(rough: np.ndarray, resid_norm: np.ndarray) -> int:
     """Índice de la esquina de la L-curve (criterio de máxima curvatura, Hansen).
@@ -549,6 +553,9 @@ class DistributionFitMixin:
                     source_bhf=dist_state.source_bhf,
                     source_theta=dist_state.source_theta,
                     absorber_theta=dist_state.absorber_theta,
+                    # Banda 1σ de P por Monte Carlo (respeta P ≥ 0): solo en el
+                    # ajuste que se muestra, no en cada evaluación externa.
+                    band_replicas=DIST_BAND_REPLICAS if final else 0,
                     **common)
             if shape == "VBF":
                 return fit_vbf_hyperfine_distribution(
@@ -1060,8 +1067,24 @@ class DistributionFitMixin:
         ax.set_xlabel(xlabel)
         ax.set_ylabel(title)
         ax.grid(True, alpha=0.3)
+        band = self._draw_probability_band(ax, xc, pr, result)
         corr_ax = self._draw_correlation_axis(ax, xc, pr, result)
         bottom = QtWidgets.QHBoxLayout()
+        if band is not None:
+            chk_b = QtWidgets.QCheckBox(tr("plot.show_prob_band"))
+            chk_b.setToolTip(tr("tooltip.show_prob_band"))
+            chk_b.setChecked(bool(getattr(self, "_dist_show_band", True)))
+
+            def _toggle_band(on: bool) -> None:
+                self._dist_show_band = bool(on)
+                for artist in band:
+                    artist.set_visible(bool(on))
+                cv.draw_idle()
+
+            _toggle_band(chk_b.isChecked())
+            chk_b.toggled.connect(_toggle_band)
+            self._dist_band_check = chk_b
+            bottom.addWidget(chk_b)
         if corr_ax is not None:
             chk = QtWidgets.QCheckBox(tr("plot.show_correlation"))
             chk.setToolTip(tr("tooltip.show_correlation"))
@@ -1082,7 +1105,28 @@ class DistributionFitMixin:
         bb.rejected.connect(dlg.reject); bottom.addWidget(bb)
         lay.addLayout(bottom)
         self._dist_dialog_axes = (ax, corr_ax)
+        self._dist_dialog_band = band
         dlg.exec()
+
+    @staticmethod
+    def _draw_probability_band(ax, xc, pr, result):
+        """Banda ±1σ de P(x) por Monte Carlo paramétrico (``probability_sigma``
+        del resultado: Histograma con Tikhonov o TV), recortada a P ≥ 0.
+        Devuelve sus artistas (relleno y leyenda) o None si no hay banda.
+
+        No se usa ``weight_sigma`` (covarianza linealizada): ignora P ≥ 0 y,
+        con picos rodeados de bins a cero, sale de 2 a 16 veces más ancha que
+        la dispersión real de reajustes con ruido.
+        """
+        sp = getattr(result, "probability_sigma", None)
+        if sp is None or len(sp) != len(pr) or not np.any(np.asarray(sp) > 0):
+            return None
+        sp = np.asarray(sp, dtype=float)
+        fill = ax.fill_between(xc, np.clip(pr - sp, 0.0, None), pr + sp,
+                               color="#1d4ed8", alpha=0.22, linewidth=0,
+                               label=tr("plot.prob_band_label"))
+        leg = ax.legend(handles=[fill], loc="upper left", fontsize=8, framealpha=0.85)
+        return (fill, leg)
 
     def _draw_correlation_axis(self, ax, xc, pr, result):
         """Eje derecho con δ(x)/ΔEQ(x) del kernel y su banda 1σ; None si no hay.

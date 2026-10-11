@@ -538,6 +538,40 @@ def test_pbhf_vbf_shape_fits_and_stores_components(win):
 
 
 
+
+def test_banda_de_p_con_check_en_el_dialogo(win, monkeypatch):
+    """Histograma: el ajuste final trae la banda MC de P; el diálogo la dibuja
+    con un check que la oculta y se recuerda. VBF no tiene banda ni check."""
+    win._load_file(DATA / "sintetico_dist_deq.adt")
+    captured = {}
+    win._show_distribution_dialog = lambda r: captured.setdefault("r", r)
+    win.mode_combo.setCurrentIndex(2)                     # P(ΔEQ)
+    d = win.dist_panel
+    _fix_dist_globals(d)
+    win.on_fit()
+    r = captured.pop("r")
+    assert r.probability_sigma is not None and r.probability_sigma.shape == r.probability.shape
+
+    monkeypatch.setattr(QtWidgets.QDialog, "exec", lambda self: 0)
+    del win._show_distribution_dialog
+    win._show_distribution_dialog(r)
+    fill, leg = win._dist_dialog_band
+    assert fill.get_visible() and leg.get_visible()
+    win._dist_band_check.setChecked(False)
+    assert not fill.get_visible() and not leg.get_visible()
+    win._show_distribution_dialog(r)                      # se recuerda
+    assert not win._dist_dialog_band[0].get_visible()
+    assert not win._dist_band_check.isChecked()
+
+    win._show_distribution_dialog = lambda r: captured.setdefault("r", r)
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("VBF"))
+    win.on_fit()
+    rv = captured.pop("r")
+    assert rv.probability_sigma is None
+    del win._show_distribution_dialog
+    win._show_distribution_dialog(rv)
+    assert win._dist_dialog_band is None
+
 def test_curva_de_correlacion_en_el_dialogo_de_pdeq(win, monkeypatch):
     """Con κδ libre, el diálogo P(ΔEQ) dibuja δ(ΔEQ) ± 1σ en el eje derecho y un
     check la oculta (y se recuerda); con κδ = 0 no hay eje ni check."""

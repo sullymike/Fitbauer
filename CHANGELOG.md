@@ -2,6 +2,21 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **Banda 1σ de P(x) en el gráfico de la distribución, con check.** La ayuda
+  decía que tras el ajuste se dibujaba una banda 1σ alrededor de P, pero
+  `weight_sigma` no se usaba en ningún gráfico. Además, esa σ (covarianza
+  linealizada) ignora P ≥ 0: con picos rodeados de bins a cero salía de 2 a 16
+  veces más ancha que la dispersión real de reajustes con ruido (sin cotas sí
+  coincide con el Monte Carlo al 1 %). La banda que se dibuja ahora sale de un
+  Monte Carlo paramétrico en `fit_hyperfine_distribution(band_replicas=…)`: se
+  re-resuelve el mismo problema acotado sobre el modelo más ruido σ·√χ²_ν
+  (TV repite su IRLS en cada réplica; congelar los pesos la estrechaba ~2×) y
+  se guarda la σ de la P normalizada (`probability_sigma`). Validada contra
+  reajustes completos (cociente 1.02–1.06 con Tikhonov y TV). La GUI la pide
+  solo en el ajuste final del Histograma (100 réplicas: ~0.05 s Tikhonov,
+  ~0.5 s TV). El check «Banda 1σ de P» la oculta y se recuerda. Ayuda (8
+  idiomas) y manual (es/en, capítulo y anexo matemático) explican qué mide y
+  que es bin a bin. `weight_sigma` se conserva sin cambios.
 - **Curva de correlación δ(x)/ΔEQ(x) en el gráfico de la distribución.** Con
   una pendiente κ distinta de 0, el diálogo «Ver distribución…» dibuja en un
   eje derecho la recta que aplicó el kernel: δ(ΔEQ) en P(ΔEQ) (Rancourt–Ping),

@@ -74,18 +74,18 @@
 \contentsline {subsection}{\numberline {5.5.6}2D: two variables at once}{36}{subsection.5.5.6}%
 \contentsline {subsection}{\numberline {5.5.7}Areas of each Gaussian (VBF)}{36}{subsection.5.5.7}%
 \contentsline {section}{\numberline {5.6}Histogram regularization}{36}{section.5.6}%
-\contentsline {subsection}{\numberline {5.6.1}Regularizers}{36}{subsection.5.6.1}%
+\contentsline {subsection}{\numberline {5.6.1}Regularizers}{37}{subsection.5.6.1}%
 \contentsline {subsection}{\numberline {5.6.2}The parameter $\alpha $}{37}{subsection.5.6.2}%
 \contentsline {subsection}{\numberline {5.6.3}Anchoring the grid edges}{37}{subsection.5.6.3}%
 \contentsline {section}{\numberline {5.7}The L-curve: choosing $\alpha $ with a criterion}{37}{section.5.7}%
 \contentsline {subsection}{\numberline {5.7.1}What it is and why it has an L shape}{37}{subsection.5.7.1}%
 \contentsline {subsection}{\numberline {5.7.2}The dialog, panel by panel}{38}{subsection.5.7.2}%
 \contentsline {subsection}{\numberline {5.7.3}Choosing $\alpha $: automatic or by hand}{38}{subsection.5.7.3}%
-\contentsline {subsection}{\numberline {5.7.4}How to interpret it in practice}{38}{subsection.5.7.4}%
+\contentsline {subsection}{\numberline {5.7.4}How to interpret it in practice}{39}{subsection.5.7.4}%
 \contentsline {section}{\numberline {5.8}Correlation $\delta (H)$ and $\Delta E_{Q}(H)$}{39}{section.5.8}%
-\contentsline {section}{\numberline {5.9}2D distributions: $P(B_{\mathrm {hf}}, \Delta E_{Q})$}{39}{section.5.9}%
+\contentsline {section}{\numberline {5.9}2D distributions: $P(B_{\mathrm {hf}}, \Delta E_{Q})$}{40}{section.5.9}%
 \contentsline {section}{\numberline {5.10}Sharp components alongside the distribution}{40}{section.5.10}%
-\contentsline {section}{\numberline {5.11}Step by step: fitting a $P(B_{\mathrm {hf}})$ from scratch}{40}{section.5.11}%
+\contentsline {section}{\numberline {5.11}Step by step: fitting a $P(B_{\mathrm {hf}})$ from scratch}{41}{section.5.11}%
 \contentsline {part}{Mathematical appendices}{41}{Item.35}%
 \contentsline {chapter}{\numberline {A}Mathematical manual of the fitting engine}{42}{appendix.A}%
 \contentsline {section}{\numberline {A.1}Forward model}{42}{section.A.1}%
@@ -135,12 +135,12 @@
 \contentsline {paragraph}{Generalized cross-validation (GCV).}{54}{section*.60}%
 \contentsline {subsection}{\numberline {A.3.7}Error bars of $P(B_{\mathrm {hf}})$}{54}{subsection.A.3.7}%
 \contentsline {subsection}{\numberline {A.3.8}Parametric distributions}{54}{subsection.A.3.8}%
-\contentsline {paragraph}{VBF (Voigt-Based Fitting, Rancourt--Ping 1991).}{54}{section*.61}%
-\contentsline {subsection}{\numberline {A.3.9}Correlation $\delta (H)$ and $\Delta E_{Q}(H)$ in the kernel}{54}{subsection.A.3.9}%
+\contentsline {paragraph}{VBF (Voigt-Based Fitting, Rancourt--Ping 1991).}{55}{section*.61}%
+\contentsline {subsection}{\numberline {A.3.9}Correlation $\delta (H)$ and $\Delta E_{Q}(H)$ in the kernel}{55}{subsection.A.3.9}%
 \contentsline {subsection}{\numberline {A.3.10}Global refinement (VARPRO)}{55}{subsection.A.3.10}%
 \contentsline {section}{\numberline {A.4}Appendices}{55}{section.A.4}%
 \contentsline {subsection}{\numberline {A.4.1}Sextet calibration}{55}{subsection.A.4.1}%
-\contentsline {subsection}{\numberline {A.4.2}Parameter bounds}{55}{subsection.A.4.2}%
+\contentsline {subsection}{\numberline {A.4.2}Parameter bounds}{56}{subsection.A.4.2}%
 \contentsline {subsection}{\numberline {A.4.3}Faddeeva function}{56}{subsection.A.4.3}%
 \contentsline {subsection}{\numberline {A.4.4}Summary of the optimization stack}{56}{subsection.A.4.4}%
 \contentsline {chapter}{\numberline {B}Voigt-based fitting (VBF)}{57}{appendix.B}%
