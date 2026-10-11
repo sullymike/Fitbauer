@@ -185,6 +185,9 @@ python fit_bhf_distribution_cli.py muestra.adt --shape binomial \
 python fit_bhf_distribution_cli.py muestra.adt --dist-2d --qmin -1 --qmax 1
 python fit_bhf_distribution_cli.py muestra.adt --dist-2d --shape vbf \
     --vbf-components 2 --qmin -1 --qmax 1
+
+# P(IS, DEQ) con dobletes (vidrios, amorfos):
+python fit_bhf_distribution_cli.py muestra.adt --dist-2d --pair delta-quad
 \end{lstlisting}
 
 \subsection{Distribución y forma}
@@ -288,9 +291,16 @@ Opción & Valores & Significado \\
 
 \subsection{Distribuciones bidimensionales}
 
-\code{-{}-dist-2d} ajusta $P(\BHF,\dEQ)$ (anexo~\ref{ap:dist-2d}) en una malla
-de \code{-{}-nbins} $\times$ \code{-{}-nbins-quad} celdas, con $\dEQ$ entre
-\code{-{}-qmin} y \code{-{}-qmax}. La forma elige el método:
+\code{-{}-dist-2d} ajusta una distribución bidimensional (anexo~\ref{ap:dist-2d})
+en una malla de \code{-{}-nbins} $\times$ \code{-{}-nbins-quad} celdas. La
+pareja de variables la elige \code{-{}-pair}, como los modos 2D de la GUI:
+\code{bhf-quad} para $P(\BHF,\dEQ)$ (por defecto), \code{delta-quad} para
+$P(\mathrm{IS},\dEQ)$ y \code{bhf-delta} para $P(\BHF,\mathrm{IS})$. La primera
+variable va entre \code{-{}-bmin} y \code{-{}-bmax}, y la segunda entre
+\code{-{}-qmin} y \code{-{}-qmax}; si no se dan, se usan los rangos de la GUI
+($\dEQ$ de $-1$ a $1$~mm/s con campo y de $0$ a $3$~mm/s sin él; IS de $-1$ a
+$2$~mm/s). Sin $\BHF$ en la pareja, el kernel usa el campo de
+\code{-{}-fixed-bhf} ($0$, dobletes, por defecto). La forma elige el método:
 
 \begin{itemize}[nosep]
   \item \code{histograma} (por defecto): histograma regularizado. La
@@ -302,8 +312,7 @@ de \code{-{}-nbins} $\times$ \code{-{}-nbins-quad} celdas, con $\dEQ$ entre
         sin $\alpha$.
 \end{itemize}
 
-La forma binomial y \code{-{}-scan-alpha} no están disponibles en 2D, y la línea
-de comandos todavía no tiene $P(\mathrm{IS},\dEQ)$: ese par solo está en la GUI.
+La forma binomial y \code{-{}-scan-alpha} no están disponibles en 2D.
 
 \subsection{Elección de \texorpdfstring{$\alpha$}{alfa}}
 
@@ -324,8 +333,9 @@ métricas; con VBF incluye los tríos $(A_j,\mu_j,\sigma_j)$ ajustados). Con
 \code{-{}-plot} se añade un PNG con el espectro y la distribución.
 
 En modo 2D la distribución se escribe como matriz en
-\file{*\_distribution2d.dat}, con sus dos ejes en \file{*\_bhf\_axis.dat}
-y \file{*\_quad\_axis.dat}, y el resumen incluye los momentos
+\file{*\_distribution2d.dat}, con sus dos ejes en \file{*\_<x>\_axis.dat}
+y \file{*\_<y>\_axis.dat} (\file{*\_bhf\_axis.dat} y \file{*\_quad\_axis.dat}
+con la pareja por defecto), y el resumen incluye la pareja y los momentos
 $\langle\BHF\rangle$, $\langle\dEQ\rangle$, las anchuras y la correlación
 $\BHF$--$\dEQ$; con las formas gaussianas, también las gaussianas ajustadas
 (\code{vbf2d\_components}).

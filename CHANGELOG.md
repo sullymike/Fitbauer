@@ -2,6 +2,12 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **La CLI de distribuciones admite las tres parejas 2D** de la GUI con
+  `--pair bhf-quad|delta-quad|bhf-delta`. Los rangos por defecto de la
+  segunda variable son los de la GUI (ΔEQ −1…1 con campo y 0…3 sin él; IS
+  −1…2), y los ficheros de ejes se nombran por variable
+  (`*_delta_axis.dat`…). La ayuda (`-h`) lleva las tildes que le faltaban y
+  el anexo «Herramientas de línea de comandos» del manual (es/en) lo explica.
 - **`EDGE_OUTLIER_SIGMAS` era una constante muerta** que decía 8 σ, mientras
   `edge_outlier_trim` aplicaba 25 σ por defecto. Ahora vale 25 y es el valor
   por defecto de la función, junto a `EDGE_OUTLIER_REL_DROP` (20 %). Sin

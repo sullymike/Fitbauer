@@ -182,6 +182,9 @@ python fit_bhf_distribution_cli.py sample.adt --shape binomial \
 python fit_bhf_distribution_cli.py sample.adt --dist-2d --qmin -1 --qmax 1
 python fit_bhf_distribution_cli.py sample.adt --dist-2d --shape vbf \
     --vbf-components 2 --qmin -1 --qmax 1
+
+# P(IS, DEQ) with doublets (glasses, amorphous materials):
+python fit_bhf_distribution_cli.py sample.adt --dist-2d --pair delta-quad
 \end{lstlisting}
 
 \subsection{Distribution and shape}
@@ -281,9 +284,16 @@ Option & Values & Meaning \\
 
 \subsection{Two-dimensional distributions}
 
-\code{-{}-dist-2d} fits $P(\BHF,\dEQ)$ (appendix~\ref{ap:dist-2d}) on a grid of
-\code{-{}-nbins} $\times$ \code{-{}-nbins-quad} cells, with $\dEQ$ between
-\code{-{}-qmin} and \code{-{}-qmax}. The shape selects the method:
+\code{-{}-dist-2d} fits a two-dimensional distribution (appendix~\ref{ap:dist-2d})
+on a grid of \code{-{}-nbins} $\times$ \code{-{}-nbins-quad} cells. The pair
+of variables is chosen with \code{-{}-pair}, like the 2D modes of the GUI:
+\code{bhf-quad} for $P(\BHF,\dEQ)$ (default), \code{delta-quad} for
+$P(\mathrm{IS},\dEQ)$ and \code{bhf-delta} for $P(\BHF,\mathrm{IS})$. The first
+variable spans \code{-{}-bmin} to \code{-{}-bmax} and the second
+\code{-{}-qmin} to \code{-{}-qmax}; when omitted, the GUI ranges are used
+($\dEQ$ from $-1$ to $1$~mm/s with a field and from $0$ to $3$~mm/s without; IS
+from $-1$ to $2$~mm/s). Without $\BHF$ in the pair, the kernel uses the field of
+\code{-{}-fixed-bhf} ($0$, doublets, by default). The shape selects the method:
 
 \begin{itemize}[nosep]
   \item \code{histograma} (default): regularized histogram, with
@@ -294,8 +304,7 @@ Option & Values & Meaning \\
         without $\alpha$.
 \end{itemize}
 
-The binomial shape and \code{-{}-scan-alpha} are not available in 2D, and the
-command line has no $P(\mathrm{IS},\dEQ)$ yet: that pair is only in the GUI.
+The binomial shape and \code{-{}-scan-alpha} are not available in 2D.
 
 \subsection{Choosing \texorpdfstring{$\alpha$}{alpha}}
 
@@ -316,8 +325,9 @@ VBF it includes the fitted $(A_j,\mu_j,\sigma_j)$ triplets). With
 \code{-{}-plot} a PNG with the spectrum and the distribution is added.
 
 In 2D mode the distribution is written as a matrix in
-\file{*\_distribution2d.dat}, with its two axes in \file{*\_bhf\_axis.dat}
-and \file{*\_quad\_axis.dat}, and the summary carries
+\file{*\_distribution2d.dat}, with its two axes in \file{*\_<x>\_axis.dat}
+and \file{*\_<y>\_axis.dat} (\file{*\_bhf\_axis.dat} and \file{*\_quad\_axis.dat}
+for the default pair), and the summary carries the pair and
 the moments $\langle\BHF\rangle$, $\langle\dEQ\rangle$, widths and the
 $\BHF$--$\dEQ$ correlation; with the Gaussian shapes, also the fitted
 Gaussians (\code{vbf2d\_components}).

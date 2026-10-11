@@ -117,6 +117,30 @@ def test_dist_cli_gaussiana_2d(tmp_path):
     assert (tmp_path / "out_distribution2d.dat").exists()
 
 
+def test_dist_cli_2d_pareja_is_quad(tmp_path):
+    """--pair delta-quad: P(IS, ΔEQ) con dobletes, como el modo 2D de la GUI.
+
+    La CLI solo hacía la pareja BHF–ΔEQ. Los ejes salen con el nombre de cada
+    variable y el rango de ΔEQ por defecto es el de dobletes (0–3 mm/s).
+    """
+    proc = _run_dist_cli(tmp_path, "--dist-2d", "--pair", "delta-quad",
+                         "--shape", "gaussiana", "--nbins", "15", "--nbins-quad", "11")
+    assert proc.returncode == 0, proc.stderr
+    summary = json.loads((tmp_path / "out_summary.json").read_text(encoding="utf-8"))
+    assert summary["pair"] == "delta-quad"
+    assert summary["qmin"] == 0.0 and summary["qmax"] == 3.0
+    assert (tmp_path / "out_delta_axis.dat").read_text(encoding="utf-8").startswith("# IS_mm_s")
+    assert (tmp_path / "out_quad_axis.dat").exists()
+    # El sintético P(ΔEQ) tiene el pico en ~1.4 mm/s.
+    _a, _mx, my, _sx, _sy, _rho = summary["vbf2d_components"][0]
+    assert 0.5 < my < 3.0
+
+
+def test_dist_cli_pair_exige_dist_2d(tmp_path):
+    proc = _run_dist_cli(tmp_path, "--pair", "delta-quad")
+    assert proc.returncode != 0 and "--dist-2d" in proc.stderr
+
+
 def test_dist_cli_2d_rechaza_binomial(tmp_path):
     proc = _run_dist_cli(tmp_path, "--dist-2d", "--shape", "binomial")
     assert proc.returncode != 0

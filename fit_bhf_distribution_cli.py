@@ -3,8 +3,9 @@
 
 Cubre los mismos modos que la GUI (mismo motor, ``mossbauer_distribution``):
 
-- Variable: ``--variable bhf`` (P(BHF), por defecto) o ``--variable quad``
-  (P(ΔEQ) con BHF fijo en ``--fixed-bhf``, 0 por defecto → doblete).
+- Variable: ``--variable bhf`` (P(BHF), por defecto), ``--variable quad``
+  (P(ΔEQ) con BHF fijo en ``--fixed-bhf``, 0 por defecto → doblete) o
+  ``--variable delta`` (P(IS)).
 - Forma: ``--shape histograma|gaussiana|vbf|binomial`` (Gaussiana = VBF con
   N=1 y línea Lorentziana; ``--vbf-components`` fija N para VBF; binomial =
   vecinos de soluto al estilo NORMOS-DIST ``DISTRI=3``, con
@@ -16,8 +17,10 @@ Cubre los mismos modos que la GUI (mismo motor, ``mossbauer_distribution``):
   (convenio de áreas NORMOS).
 - Perfil de línea del kernel: ``--profile Lorentziana|Voigt`` + ``--voigt-sigma``.
 - Correlación con la variable de la malla: ``--delta-slope``/``--quad-slope``.
-- Distribución 2D P(BHF, ΔEQ): ``--dist-2d`` (+ ``--qmin/--qmax/--nbins-quad/
-  --alpha-quad``).
+- Distribuciones 2D: ``--dist-2d`` con ``--pair bhf-quad`` (P(BHF, ΔEQ), por
+  defecto), ``--pair delta-quad`` (P(IS, ΔEQ)) o ``--pair bhf-delta``
+  (P(BHF, IS)). La primera variable usa ``--bmin/--bmax/--nbins`` y la segunda
+  ``--qmin/--qmax/--nbins-quad/--alpha-quad``.
 
 Ejemplos:
 
@@ -26,13 +29,15 @@ Ejemplos:
     python3 fit_bhf_distribution_cli.py muestra.adt --shape vbf --vbf-components 2
     python3 fit_bhf_distribution_cli.py muestra.adt --reg-mode maxent
     python3 fit_bhf_distribution_cli.py muestra.adt --dist-2d --qmin -1 --qmax 1
+    python3 fit_bhf_distribution_cli.py muestra.adt --dist-2d --pair delta-quad
 
 Genera tres ficheros (1D):
   *_bhf_spectrum.dat       velocidad, datos, ajuste, residuo, cuentas dobladas
   *_bhf_distribution.dat   variable, P, P_normalizada
   *_bhf_summary.json       parametros y metricas
 En modo 2D, la distribución se guarda como matriz *_distribution2d.dat con las
-mallas en *_bhf_axis.dat / *_quad_axis.dat.
+mallas en *_<x>_axis.dat / *_<y>_axis.dat (p. ej. *_bhf_axis.dat y
+*_quad_axis.dat para la pareja por defecto).
 """
 from __future__ import annotations
 
@@ -43,7 +48,7 @@ from pathlib import Path
 import core.blas_threads  # noqa: F401  (antes de numpy: BLAS con un hilo)
 import numpy as np
 
-from core.constants import SEXTET_PATTERNS, sextet_pattern
+from core.constants import BHF_DEFAULT_T, SEXTET_PATTERNS, sextet_pattern
 from core.physics import intensity_convention, line_asymmetry
 from core.param_overrides import effective_distribution_specs
 from core.params import DIST_VAR_DEFAULT_SPAN
@@ -59,28 +64,43 @@ from mossbauer_distribution import (
 from mossbauer_ws5 import folded_velocity_data, read_normos_sidecar_params
 
 
+#: Parejas 2D admitidas (x, y), como en la GUI.
+PAIRS_2D: dict[str, tuple[str, str]] = {
+    "bhf-quad": ("bhf", "quad"),
+    "delta-quad": ("delta", "quad"),
+    "bhf-delta": ("bhf", "delta"),
+}
+
+
+def _span_2d(var: str, con_campo: bool) -> tuple[float, float]:
+    """Rango por defecto de una variable de la malla 2D (mismo criterio que la GUI)."""
+    if var == "quad":
+        return DIST_VAR_DEFAULT_SPAN["quad±" if con_campo else "quad"]
+    return DIST_VAR_DEFAULT_SPAN[var]
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Ajusta una distribucion hiperfina P(BHF)/P(ΔEQ) a un WS5 doblado.")
-    parser.add_argument("input", type=Path, help="Fichero .ws5/.ADT")
+        description="Ajusta una distribución hiperfina P(BHF)/P(ΔEQ)/P(IS), 1D o 2D, a un espectro doblado.")
+    parser.add_argument("input", type=Path, help="Fichero .ws5/.adt (o CSV de velocidad)")
     parser.add_argument("--out-prefix", type=Path, default=None, help="Prefijo de salida; por defecto <input>_bhf")
-    parser.add_argument("--center", type=float, default=None, help="Centro interno de doblado. Si se omite usa .RES o busqueda chi2.")
-    parser.add_argument("--vmax", type=float, default=None, help="Velocidad maxima mm/s. Si se omite usa .JOB/.PLT o 12.")
+    parser.add_argument("--center", type=float, default=None, help="Centro interno de doblado. Si se omite usa .RES o búsqueda χ².")
+    parser.add_argument("--vmax", type=float, default=None, help="Velocidad máxima (mm/s). Si se omite usa .JOB/.PLT o 12.")
     parser.add_argument("--norm-percentile", type=float, default=90.0, help="Percentil para normalizar cuentas dobladas.")
 
     parser.add_argument("--variable", choices=["bhf", "quad", "delta"], default="bhf",
-                        help="Variable de la distribucion: bhf → P(BHF); "
+                        help="Variable de la distribución: bhf → P(BHF); "
                              "quad → P(ΔEQ) con BHF fijo; delta → P(δ), "
-                             "distribucion de desplazamiento isomerico "
+                             "distribución de desplazamiento isomérico "
                              "(paridad con METHOD=8 de NORMOS-DIST; con "
                              "--fixed-bhf 0 y --quad 0 el kernel son "
                              "singletes, que es el caso de NORMOS, pero "
-                             "tambien admite sexteto o doblete).")
+                             "también admite sexteto o doblete).")
     parser.add_argument("--fixed-bhf", type=float, default=0.0,
-                        help="BHF fijo (T) del kernel cuando --variable quad (0 = doblete).")
+                        help="BHF fijo (T) del kernel con --variable quad/delta o --pair delta-quad (0 = doblete).")
     parser.add_argument("--shape", choices=["histograma", "gaussiana", "vbf", "binomial"],
                         default="histograma",
-                        help="Forma de la distribucion (gaussiana = VBF con N=1 y linea Lorentziana).")
+                        help="Forma de la distribución (gaussiana = VBF con N=1 y línea Lorentziana).")
     parser.add_argument("--binomial-conc", type=float, default=10.0,
                         help="Binomial (NORMOS DISTRI=3): concentración de soluto "
                              "en %% (CONC). Fija salvo --fit-conc.")
@@ -95,23 +115,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fit-conc", action="store_true",
                         help="Binomial: ajustar también la concentración.")
     parser.add_argument("--vbf-components", type=int, default=2,
-                        help="Numero de gaussianas del VBF (solo --shape vbf).")
+                        help="Número de gaussianas del VBF (solo --shape vbf).")
     parser.add_argument("--reg-mode", choices=["tikhonov", "tv", "maxent"], default="tikhonov",
                         help="Regularizador del histograma Hesse-Rübartsch.")
     parser.add_argument("--profile", choices=["Lorentziana", "Voigt"], default="Lorentziana",
-                        help="Perfil de linea del kernel.")
+                        help="Perfil de línea del kernel.")
     parser.add_argument("--voigt-sigma", type=float, default=0.05,
                         help="Anchura gaussiana instrumental (mm/s) con --profile Voigt.")
     parser.add_argument("--delta-slope", type=float, default=0.0,
-                        help="Correlacion lineal δ(H): dδ/dH (mm/s por unidad de la malla). 0 = clasico.")
+                        help="Correlación lineal δ(H): dδ/dH (mm/s por unidad de la malla). 0 = clásico.")
     parser.add_argument("--quad-slope", type=float, default=0.0,
-                        help="Correlacion lineal ΔEQ(H): dΔEQ/dH. 0 = clasico.")
+                        help="Correlación lineal ΔEQ(H): dΔEQ/dH. 0 = clásico.")
     parser.add_argument("--d13", type=float, default=3.0,
-                        help="Ratio de area lineas (1,6)/(3,4) del kernel "
-                             "sextete (convenio NORMOS D13; 3 = patron "
-                             "estandar). Solo --shape histograma.")
+                        help="Razón de áreas de las líneas (1,6)/(3,4) del kernel "
+                             "sextete (convenio NORMOS D13; 3 = patrón "
+                             "estándar). Solo --shape histograma.")
     parser.add_argument("--d23", type=float, default=2.0,
-                        help="Ratio de area lineas (2,5)/(3,4) del kernel "
+                        help="Razón de áreas de las líneas (2,5)/(3,4) del kernel "
                              "sextete (convenio NORMOS D23; 2 = polvo, 0-4 = "
                              "textura). Solo --shape histograma.")
     parser.add_argument("--kernel-treatment",
@@ -142,28 +162,38 @@ def parse_args() -> argparse.Namespace:
                              "--source-polarized (0 = alineado).")
 
     parser.add_argument("--dist-2d", action="store_true",
-                        help="Distribucion bidimensional P(BHF, ΔEQ): histograma "
+                        help="Distribución bidimensional (pareja en --pair): histograma "
                              "regularizado, o con --shape gaussiana/vbf gaussianas "
                              "bivariantes (A, μ, σ, ρ).")
-    parser.add_argument("--qmin", type=float, default=-1.0, help="ΔEQ minimo (mm/s) en modo 2D.")
-    parser.add_argument("--qmax", type=float, default=1.0, help="ΔEQ maximo (mm/s) en modo 2D.")
-    parser.add_argument("--nbins-quad", type=int, default=21, help="Bins de ΔEQ en modo 2D.")
+    parser.add_argument("--pair", choices=list(PAIRS_2D), default="bhf-quad",
+                        help="Pareja de variables en modo 2D: bhf-quad → P(BHF, ΔEQ) "
+                             "(por defecto), delta-quad → P(IS, ΔEQ), bhf-delta → "
+                             "P(BHF, IS). La primera usa --bmin/--bmax/--nbins y la "
+                             "segunda --qmin/--qmax/--nbins-quad.")
+    parser.add_argument("--qmin", type=float, default=None,
+                        help="Mínimo de la segunda variable en modo 2D (mm/s). Por "
+                             "defecto −1 para ΔEQ con campo, 0 para ΔEQ sin campo, −1 para IS.")
+    parser.add_argument("--qmax", type=float, default=None,
+                        help="Máximo de la segunda variable en modo 2D (mm/s). Por "
+                             "defecto 1 para ΔEQ con campo, 3 sin campo, 2 para IS.")
+    parser.add_argument("--nbins-quad", type=int, default=21, help="Bins de la segunda variable en modo 2D.")
     parser.add_argument("--alpha-quad", type=float, default=None,
-                        help="Regularizacion en la direccion ΔEQ (2D); por defecto igual a --alpha.")
+                        help="Regularización en la dirección de la segunda variable (2D); "
+                             "por defecto igual a --alpha.")
 
-    parser.add_argument("--delta", type=float, default=None, help="CS/delta fijo. Por defecto intenta .RES o 0.")
-    parser.add_argument("--quad", type=float, default=None, help="DeltaEQ fijo. Por defecto intenta .RES/.JOB o 0.")
-    parser.add_argument("--gamma", type=float, default=None, help="Gamma FWHM fija. Por defecto intenta WID de .RES o 0.36.")
+    parser.add_argument("--delta", type=float, default=None, help="δ (desplazamiento isomérico) fijo. Por defecto intenta .RES o 0.")
+    parser.add_argument("--quad", type=float, default=None, help="ΔEQ fijo. Por defecto intenta .RES/.JOB o 0.")
+    parser.add_argument("--gamma", type=float, default=None, help="Γ FWHM fija. Por defecto intenta WID de .RES o 0.36.")
     parser.add_argument("--bmin", type=float, default=None,
-                        help="Minimo de la malla (T para bhf, mm/s para quad). Por defecto 0.")
+                        help="Mínimo de la malla (T para bhf, mm/s para quad/delta). Por defecto 0 T / 0 mm/s / −1 mm/s.")
     parser.add_argument("--bmax", type=float, default=None,
-                        help="Maximo de la malla (T para bhf, mm/s para quad). Por defecto 50 T / 3 mm/s.")
-    parser.add_argument("--nbins", type=int, default=50, help="Numero de bins de la malla")
-    parser.add_argument("--alpha", type=float, default=1e-2, help="Regularizacion")
-    parser.add_argument("--no-fit-baseline", action="store_true", help="Fija baseline")
-    parser.add_argument("--no-fit-slope", action="store_true", help="Fija slope")
-    parser.add_argument("--baseline", type=float, default=None, help="Baseline inicial/fijo")
-    parser.add_argument("--slope", type=float, default=0.0, help="Slope inicial/fijo")
+                        help="Máximo de la malla (T para bhf, mm/s para quad/delta). Por defecto 50 T / 3 mm/s / 2 mm/s.")
+    parser.add_argument("--nbins", type=int, default=50, help="Número de bins de la malla")
+    parser.add_argument("--alpha", type=float, default=1e-2, help="Regularización α")
+    parser.add_argument("--no-fit-baseline", action="store_true", help="Fija la línea base")
+    parser.add_argument("--no-fit-slope", action="store_true", help="Fija la pendiente")
+    parser.add_argument("--baseline", type=float, default=None, help="Línea base inicial/fija")
+    parser.add_argument("--slope", type=float, default=0.0, help="Pendiente inicial/fija")
     parser.add_argument(
         "--sharp-bhf",
         type=float,
@@ -171,34 +201,34 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help="Añade un sextete nítido no regularizado con este BHF. Repetible, p.ej. --sharp-bhf 33",
     )
-    parser.add_argument("--sharp-delta", type=float, default=None, help="Delta de sextetes nítidos; por defecto usa --delta")
-    parser.add_argument("--sharp-quad", type=float, default=None, help="Quad de sextetes nítidos; por defecto usa --quad")
-    parser.add_argument("--sharp-gamma", type=float, default=None, help="Gamma de sextetes nítidos; por defecto usa --gamma")
+    parser.add_argument("--sharp-delta", type=float, default=None, help="δ de los sextetes nítidos; por defecto usa --delta")
+    parser.add_argument("--sharp-quad", type=float, default=None, help="ΔEQ de los sextetes nítidos; por defecto usa --quad")
+    parser.add_argument("--sharp-gamma", type=float, default=None, help="Γ de los sextetes nítidos; por defecto usa --gamma")
 
-    parser.add_argument("--scan-alpha", action="store_true", help="Ademas escanea alpha para una L-curve simple")
+    parser.add_argument("--scan-alpha", action="store_true", help="Además escanea α para una L-curve simple")
     parser.add_argument("--alpha-min", type=float, default=1e-6)
     parser.add_argument("--alpha-max", type=float, default=1e2)
     parser.add_argument("--alpha-count", type=int, default=33)
-    parser.add_argument("--plot", action="store_true", help="Guarda PNG con espectro y P(BHF)")
+    parser.add_argument("--plot", action="store_true", help="Guarda PNG con el espectro y la distribución")
     parser.add_argument("--edge-anchor", type=float, default=0.0, metavar="B",
                         help="Anclaje de los extremos de la malla (BETA1/BETA2 "
                              "de NORMOS-DIST): fuerza P->0 en el primer y "
-                             "ultimo bin. 0 = sin anclaje. Util para que el "
+                             "último bin. 0 = sin anclaje. Útil para que el "
                              "histograma no apile peso espurio en el borde.")
     parser.add_argument("--intensity-convention", choices=("depth", "area"),
                         default="depth",
-                        help="Razones de intensidad entre lineas del kernel: "
-                             "'depth' (profundidad, historico) o 'area' (AREA, "
+                        help="Razones de intensidad entre líneas del kernel: "
+                             "'depth' (profundidad, histórico) o 'area' (AREA, "
                              "convenio D13/D23 de NORMOS). Solo difieren si las "
                              "anchuras relativas no son 1.")
     parser.add_argument("--line-asym", type=float, default=0.0, metavar="A",
-                        help="Asimetria de linea por interferencia (AKS de "
+                        help="Asimetría de línea por interferencia (AKS de "
                              "NORMOS-SITE): el perfil se multiplica por "
-                             "1 - A*(v-v0)/Gamma. 0 = linea simetrica.")
+                             "1 - A*(v-v0)/Γ. 0 = línea simétrica.")
     parser.add_argument("--sextet-pattern", choices=sorted(SEXTET_PATTERNS),
                         default="alpha_fe",
                         help="Convenio de posiciones del sexteto del kernel: "
-                             "'alpha_fe' (patron publicado de alfa-Fe, por "
+                             "'alpha_fe' (patrón publicado de α-Fe, por "
                              "defecto) o 'normos' (derivado de los momentos "
                              "nucleares, como NORMOS-SITE).")
     args = parser.parse_args()
@@ -209,6 +239,8 @@ def parse_args() -> argparse.Namespace:
                      "(las formas paramétricas no usan alpha).")
     if args.scan_alpha and args.dist_2d:
         parser.error("--scan-alpha no aplica en modo --dist-2d.")
+    if args.pair != "bhf-quad" and not args.dist_2d:
+        parser.error("--pair solo aplica con --dist-2d.")
     if args.dist_2d and args.shape == "binomial":
         parser.error("--dist-2d admite --shape histograma, gaussiana o vbf.")
     if (args.d13 != 3.0 or args.d23 != 2.0) and (
@@ -321,11 +353,16 @@ def maybe_plot(path: Path, v: np.ndarray, y: np.ndarray, fit: np.ndarray, B: np.
 
 
 def run_fit_2d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
-    """Ajuste 2D P(BHF, ΔEQ): histograma regularizado o gaussianas bivariantes."""
+    """Ajuste 2D (pareja de --pair): histograma regularizado o gaussianas bivariantes."""
+    x_var, y_var = PAIRS_2D[args.pair]
+    # Sin BHF en la pareja, el kernel usa el campo fijo (0 → dobletes), como la GUI.
+    kernel = dict(variable_x=x_var, variable_y=y_var,
+                  bhf=(args.fixed_bhf if "bhf" not in (x_var, y_var) else BHF_DEFAULT_T))
     if args.shape in ("gaussiana", "vbf"):
         return fit_vbf_2d_distribution(
             v, y,
             n_components=(1 if args.shape == "gaussiana" else args.vbf_components),
+            **kernel,
             delta=delta, quad=quad, gamma=gamma,
             bmin=bmin, bmax=bmax, nbins_bhf=args.nbins,
             qmin=args.qmin, qmax=args.qmax, nbins_quad=args.nbins_quad,
@@ -337,6 +374,7 @@ def run_fit_2d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
         )
     result = fit_bhf_quad_distribution(
         v, y,
+        **kernel,
         delta=delta, quad=quad, gamma=gamma,
         bmin=bmin, bmax=bmax, nbins_bhf=args.nbins,
         qmin=args.qmin, qmax=args.qmax, nbins_quad=args.nbins_quad,
@@ -435,8 +473,18 @@ def _run(args) -> None:
     # Mismo default de Γ que la GUI y el pipeline web (fuente única en core.params).
     _gamma_default = float(effective_distribution_specs()["gamma"].default)
     gamma = float(args.gamma if args.gamma is not None else sidecar.get("gamma", _gamma_default))
-    # Rango de la malla por defecto según la variable (T para BHF, mm/s para ΔEQ).
-    _rango_defecto = DIST_VAR_DEFAULT_SPAN[args.variable]
+    # Rango de la malla por defecto según la variable (T para BHF, mm/s para ΔEQ/IS).
+    if args.dist_2d:
+        x_var, y_var = PAIRS_2D[args.pair]
+        con_campo = "bhf" in (x_var, y_var) or args.fixed_bhf > 0
+        _rango_defecto = _span_2d(x_var, con_campo)
+        _rango_y = _span_2d(y_var, con_campo)
+        if args.qmin is None:
+            args.qmin = _rango_y[0]
+        if args.qmax is None:
+            args.qmax = _rango_y[1]
+    else:
+        _rango_defecto = DIST_VAR_DEFAULT_SPAN[args.variable]
     bmin = float(args.bmin) if args.bmin is not None else _rango_defecto[0]
     bmax = float(args.bmax) if args.bmax is not None else _rango_defecto[1]
 
@@ -556,7 +604,7 @@ def _run(args) -> None:
     print(f"OK {dist_name} [{args.shape}]: RMS={result.rms:.6g}, "
           f"peak={summary['peak_position']:.3g} {var_unit}, alpha={args.alpha:g}")
     print(f"  espectro:     {spectrum_path}")
-    print(f"  distribucion: {distribution_path}")
+    print(f"  distribución: {distribution_path}")
     print(f"  resumen:      {summary_path}")
 
 
@@ -575,11 +623,14 @@ def run_fit_1d_alpha(args, v, y, *, delta, quad, gamma, bmin, bmax,
 
 def write_outputs_2d(args, in_path, out_prefix, v, y, folded, center, vmax, norm,
                      delta, quad, gamma, bmin, bmax, result) -> None:
-    """Ficheros de salida del modo 2D P(BHF, ΔEQ)."""
+    """Ficheros de salida del modo 2D (pareja de --pair)."""
+    x_var, y_var = PAIRS_2D[args.pair]
+    nombre = {"bhf": "BHF_T", "quad": "DeltaEQ_mm_s", "delta": "IS_mm_s"}
+    etiqueta = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
     spectrum_path = out_prefix.with_name(out_prefix.name + "_spectrum.dat")
     matrix_path = out_prefix.with_name(out_prefix.name + "_distribution2d.dat")
-    bhf_axis_path = out_prefix.with_name(out_prefix.name + "_bhf_axis.dat")
-    quad_axis_path = out_prefix.with_name(out_prefix.name + "_quad_axis.dat")
+    bhf_axis_path = out_prefix.with_name(out_prefix.name + f"_{x_var}_axis.dat")
+    quad_axis_path = out_prefix.with_name(out_prefix.name + f"_{y_var}_axis.dat")
     summary_path = out_prefix.with_name(out_prefix.name + "_summary.json")
 
     save_dat(
@@ -588,10 +639,11 @@ def write_outputs_2d(args, in_path, out_prefix, v, y, folded, center, vmax, norm
         np.column_stack([v, y, result.fitted_curve, result.residuals, folded]),
     )
     save_dat(matrix_path,
-             "P_normalizada[i,j]: filas=BHF (ver _bhf_axis), columnas=DeltaEQ (ver _quad_axis)",
+             f"P_normalizada[i,j]: filas={nombre[x_var]} (ver _{x_var}_axis), "
+             f"columnas={nombre[y_var]} (ver _{y_var}_axis)",
              np.asarray(result.probability, dtype=float))
-    save_dat(bhf_axis_path, "BHF_T", np.asarray(result.bhf_centers, dtype=float))
-    save_dat(quad_axis_path, "DeltaEQ_mm_s", np.asarray(result.quad_centers, dtype=float))
+    save_dat(bhf_axis_path, nombre[x_var], np.asarray(result.bhf_centers, dtype=float))
+    save_dat(quad_axis_path, nombre[y_var], np.asarray(result.quad_centers, dtype=float))
 
     summary = result.as_dict()
     for key in ("BHF_centers", "quad_centers", "P", "probability",
@@ -602,6 +654,9 @@ def write_outputs_2d(args, in_path, out_prefix, v, y, folded, center, vmax, norm
             "input": str(in_path),
             "spectrum_file": str(spectrum_path),
             "distribution2d_file": str(matrix_path),
+            "pair": args.pair,
+            "x_axis_file": str(bhf_axis_path),
+            "y_axis_file": str(quad_axis_path),
             "bhf_axis_file": str(bhf_axis_path),
             "quad_axis_file": str(quad_axis_path),
             "center_internal": center,
@@ -617,14 +672,15 @@ def write_outputs_2d(args, in_path, out_prefix, v, y, folded, center, vmax, norm
     )
     summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    print(f"OK P(BHF,ΔEQ) 2D: RMS={result.rms:.6g}, "
-          f"<BHF>={result.mean_bhf if result.mean_bhf is None else round(result.mean_bhf, 3)} T, "
-          f"<ΔEQ>={result.mean_quad if result.mean_quad is None else round(result.mean_quad, 4)} mm/s")
+    ux = "T" if x_var == "bhf" else "mm/s"
+    print(f"OK P({etiqueta[x_var]},{etiqueta[y_var]}) 2D: RMS={result.rms:.6g}, "
+          f"<{etiqueta[x_var]}>={result.mean_bhf if result.mean_bhf is None else round(result.mean_bhf, 4)} {ux}, "
+          f"<{etiqueta[y_var]}>={result.mean_quad if result.mean_quad is None else round(result.mean_quad, 4)} mm/s")
     for i, (a, mx, my, sx, sy, rho) in enumerate(result.vbf2d_components or (), start=1):
-        print(f"  gaussiana {i}: A={a:.4g} μ=({mx:.4g} T, {my:.4g} mm/s) "
+        print(f"  gaussiana {i}: A={a:.4g} μ=({mx:.4g} {ux}, {my:.4g} mm/s) "
               f"σ=({sx:.3g}, {sy:.3g}) ρ={rho:.3f}")
     print(f"  espectro:      {spectrum_path}")
-    print(f"  distribucion:  {matrix_path}")
+    print(f"  distribución:  {matrix_path}")
     print(f"  resumen:       {summary_path}")
 
 
