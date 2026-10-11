@@ -138,11 +138,15 @@ Details of the parametrization:
         against the position and the area, improving the conditioning.
   \item \textbf{Physical bounds}: $A_j\ge0$ (non-negative areas),
         $\mu_j\in[\,B_{\mathrm{hf},\min},B_{\mathrm{hf},\max}]$ within the grid, and
-        $\sigma_j$ bounded between a fraction of a bin and the full range. The
-        baseline satisfies $b\ge0$ and the sharp amplitudes $a_m\ge0$.
+        $\sigma_j\in[\sigma_{\min},\sigma_{\max}]$, an interval common to all the
+        components. By default it runs from $10^{-3}$ to the full grid range (in
+        2D, from a quarter of a bin to the range of each axis); the GUI controls
+        \param{$\sigma$ min}/\param{$\sigma$ max} (or
+        \code{-{}-vbf-sigma-min}/\code{-{}-vbf-sigma-max} in the CLI) narrow it.
+        The baseline satisfies $b\ge0$ and the sharp amplitudes $a_m\ge0$.
   \item \textbf{Start}: the $N$ centers are seeded equispaced over the range,
-        with initial width $\sim(B_{\mathrm{hf},\max}-B_{\mathrm{hf},\min})/(3N)$ and area
-        distributed.
+        with initial width $\sim(B_{\mathrm{hf},\max}-B_{\mathrm{hf},\min})/(3N)$
+        (clipped to $[\sigma_{\min},\sigma_{\max}]$) and area distributed.
   \item \textbf{Ordering and identifiability}: since the model is invariant under
         permutations of the components (\emph{label switching}), on completion they
         are \textbf{ordered by $\mu_j$} before being saved, so that component $1$

@@ -224,6 +224,11 @@ quantities are fixed as global kernel parameters (next subsection).
   \item \menu{VBF components}: only with \textbf{VBF} (1D or 2D). Number of Gaussians (1--6)
         that make up the distribution. Start with 1--2 and add more only if the fit
         calls for it.
+  \item \menu{$\sigma$ min} / \menu{$\sigma$ max}: only with \textbf{Gaussian} and
+        \textbf{VBF} (1D or 2D; in 2D, one pair per axis). They bound the width
+        $\sigma$, common to all the Gaussians, in the units of the variable; $0$
+        (\emph{auto}) keeps the internal limits of the fit
+        (\S\ref{sec:forma-vbf}).
 \end{itemize}
 
 \subsection{Kernel parameters (each subspectrum)}
@@ -454,6 +459,18 @@ width and \textbf{area}, \S\ref{sec:vbf-areas}) instead of a structureless profi
 and it is more stable (few parameters, no regularization). Appendix~\ref{ap:vbf}
 develops its mathematics (direct model, Voigt profile, parametrization, populations
 and the case $N=1$ that corresponds to the \menu{Gaussian} shape).
+
+\paragraph{Bounded width.} The widths $\sigma_k$ move within an interval common
+to all the components. By default (\menu{$\sigma$ min} and \menu{$\sigma$ max} at
+$0$, \emph{auto}) it runs from $10^{-3}$ to the width of the grid range. Setting a
+\menu{$\sigma$ min} stops a Gaussian from collapsing into a peak narrower than the
+resolution; a \menu{$\sigma$ max} stops it from widening until it absorbs the
+background or another phase. It is the natural tool when, with $N\ge2$, one
+component degenerates. The maximum $\sigma$ must exceed the minimum, and a minimum
+$\sigma$ on its own must stay below the width of the range; the panel checks this
+before fitting. The bounds are saved in the session, the report shows the
+effective ones, and they return to \emph{auto} when the variable changes. They
+apply equally to the \menu{Gaussian} shape.
 
 \begin{itemize}[nosep]
   \item \textbf{When}: you expect \textbf{2--3} well-defined magnetic
@@ -758,6 +775,10 @@ Each axis has its own controls:
   \item $Y$ axis (e.g.\ $\dEQ$): \menu{min/max/bins of the second axis} and, with
         Histogram, its own \menu{log$_{10}\alpha$}, which is \textbf{regularized
         separately}.
+  \item With Gaussian and VBF, each axis also has its own \menu{$\sigma$ min} /
+        \menu{$\sigma$ max} pair (units of its variable; $0$ = \emph{auto}, from a
+        quarter of the grid step to the width of the range), as in 1D
+        (\S\ref{sec:forma-vbf}).
 \end{itemize}
 
 With the Gaussians the grid is only used to evaluate them: it must cover them with

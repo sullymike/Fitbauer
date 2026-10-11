@@ -639,7 +639,8 @@ fitted (nonlinear least squares, no $\alpha$):
 
 \paragraph{VBF (Voigt-Based Fitting, Rancourt--Ping 1991).} It generalizes the
 Gaussian to a sum of $N$ Gaussians ($N=1\ldots6$) over a Voigt kernel, each one
-with amplitude $A_j$, mean $\mu_j$ and width $\sigma_j$ (stored ordered by $\mu$).
+with amplitude $A_j$, mean $\mu_j$ and width $\sigma_j$ (stored ordered by $\mu$),
+with $\sigma_j\in[\sigma_{\min},\sigma_{\max}]$ common to all.
 Since the Gaussian kernel $\mathcal N$ is \textbf{normalized to unit area}, the
 coefficient $A_j$ \emph{is} the \textbf{area} of that component over the grid; its
 fraction $A_j/\sum_i A_i$ gives the \textbf{population} of each environment, which

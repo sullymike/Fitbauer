@@ -224,6 +224,11 @@ fijan como parámetros globales del núcleo (siguiente apartado).
   \item \menu{Componentes VBF}: solo con \textbf{VBF} (1D o 2D). Número de gaussianas (1--6)
         que suman la distribución. Empiece por 1--2 y añada solo si el ajuste lo
         pide.
+  \item \menu{$\sigma$ mín} / \menu{$\sigma$ máx}: solo con \textbf{Gaussiana} y
+        \textbf{VBF} (1D o 2D; en 2D, un par por eje). Acotan la anchura $\sigma$,
+        común a todas las gaussianas, en unidades de la variable; $0$
+        (\emph{auto}) deja los límites internos del ajuste
+        (§\ref{sec:forma-vbf}).
 \end{itemize}
 
 \subsection{Parámetros del núcleo (cada subespectro)}
@@ -452,6 +457,18 @@ entrega \textbf{parámetros con significado} por subpoblación (posición, anchu
 estable (pocos parámetros, sin regularización). El anexo~\ref{ap:vbf} desarrolla
 su matemática (modelo directo, perfil Voigt, parametrización, poblaciones y el
 caso $N=1$ que corresponde a la forma \menu{Gaussiana}).
+
+\paragraph{Anchura acotada.} Las anchuras $\sigma_k$ se mueven dentro de un
+intervalo común a todas las componentes. Por defecto (\menu{$\sigma$ mín} y
+\menu{$\sigma$ máx} en $0$, \emph{auto}) va de $10^{-3}$ a la anchura del rango
+de la malla. Fijar una \menu{$\sigma$ mín} impide que una gaussiana colapse en un
+pico más estrecho que la resolución; una \menu{$\sigma$ máx}, que se ensanche
+hasta absorber el fondo u otra fase. Es la herramienta natural cuando, con
+$N\ge2$, una componente degenera. La $\sigma$ máxima debe superar a la mínima, y
+una $\sigma$ mínima sola debe quedar por debajo de la anchura del rango; el panel
+lo comprueba antes de ajustar. Las cotas se guardan en la sesión, el informe
+muestra las efectivas y vuelven a \emph{auto} al cambiar de variable. Valen
+igual para la forma \menu{Gaussiana}.
 
 \begin{itemize}[nosep]
   \item \textbf{Cuándo}: espera \textbf{2--3 subpoblaciones} magnéticas bien
@@ -760,6 +777,10 @@ Cada eje tiene sus propios controles:
   \item Eje $Y$ (p.\,ej.\ $\dEQ$): \menu{mín/máx/bins del segundo eje} y, con
         Histograma, su propio \menu{log$_{10}\alpha$}, que se \textbf{regulariza
         por separado}.
+  \item Con Gaussiana y VBF, cada eje tiene además su par \menu{$\sigma$ mín} /
+        \menu{$\sigma$ máx} (unidades de su variable; $0$ = \emph{auto}, de un
+        cuarto de paso de malla a la anchura del rango), como en el 1D
+        (§\ref{sec:forma-vbf}).
 \end{itemize}
 
 Con las gaussianas la malla solo sirve para evaluarlas: debe cubrirlas con

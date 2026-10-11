@@ -499,6 +499,10 @@ class DistributionFitMixin:
                     delta_bounds=(d.delta._lo, d.delta._hi),
                     quad_bounds=(d.quad._lo, d.quad._hi),
                     gamma_bounds=(d.gamma._lo, d.gamma._hi),
+                    sigma_x_min=dist_state.vbf_sigma_min,
+                    sigma_x_max=dist_state.vbf_sigma_max,
+                    sigma_y_min=dist_state.vbf_sigma_min_y,
+                    sigma_y_max=dist_state.vbf_sigma_max_y,
                     progress=poll_cancel,
                 )
                 vbf2d_seed.setdefault("comps", res2d.vbf2d_components)
@@ -549,6 +553,8 @@ class DistributionFitMixin:
                     n_components=dist_state.vbf_n_components,
                     profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
                     delta_slope=dsl, quad_slope=qsl,
+                    sigma_min=dist_state.vbf_sigma_min,
+                    sigma_max=dist_state.vbf_sigma_max,
                     **common)
             if shape == "Gaussiana":
                 # "Gaussiana" = VBF con una sola gaussiana y línea Lorentziana (el
@@ -558,6 +564,8 @@ class DistributionFitMixin:
                 return fit_vbf_hyperfine_distribution(
                     v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins,
                     n_components=1, profile="Lorentz", shape="Gaussiana",
+                    sigma_min=dist_state.vbf_sigma_min,
+                    sigma_max=dist_state.vbf_sigma_max,
                     **common)
             if shape == "Binomial":
                 # Vecinos al estilo NORMOS (DISTRI=3): la malla no se usa; la

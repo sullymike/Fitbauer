@@ -175,6 +175,8 @@ python fit_bhf_distribution_cli.py muestra.adt --variable delta \
 
 # VBF con dos gaussianas; histograma MaxEnt:
 python fit_bhf_distribution_cli.py muestra.adt --shape vbf --vbf-components 2
+python fit_bhf_distribution_cli.py muestra.adt --shape vbf --vbf-sigma-min 0.5 \
+    --vbf-sigma-max 3
 python fit_bhf_distribution_cli.py muestra.adt --reg-mode maxent
 
 # Binomial al estilo NORMOS (DISTRI=3), 5 % de soluto, 12 vecinos:
@@ -207,6 +209,12 @@ Opción & Valores & Significado \\
   (capítulo~\ref{ch:distribuciones}). \code{gaussiana} es el VBF con $N=1$ y
   línea lorentziana. \\
 \code{-{}-vbf-components} & $N$ & Número de gaussianas del VBF (1D y 2D). \\
+\code{-{}-vbf-sigma-min}, \code{-{}-vbf-sigma-max} & $\sigma$ & Cotas de la
+  anchura $\sigma$, común a todas las gaussianas, en unidades de la variable
+  (eje $X$ en 2D). Solo con \code{gaussiana} y \code{vbf}; $0$ = automático
+  (por defecto). \\
+\code{-{}-vbf-sigma-min-y}, \code{-{}-vbf-sigma-max-y} & $\sigma$ & Lo mismo
+  para el eje $Y$ en 2D (mm/s). \\
 \code{-{}-reg-mode} & \code{tikhonov} $|$ \code{tv} $|$ \code{maxent} &
   Regularizador del histograma. \\
 \code{-{}-alpha} & $\alpha$ & Intensidad de la regularización del
@@ -309,7 +317,9 @@ $2$~mm/s). Sin $\BHF$ en la pareja, el kernel usa el campo de
         da).
   \item \code{gaussiana} o \code{vbf}: una o \code{-{}-vbf-components}
         gaussianas bivariantes $(A, \mu_x, \mu_y, \sigma_x, \sigma_y, \rho)$,
-        sin $\alpha$.
+        sin $\alpha$. \code{-{}-vbf-sigma-min}/\code{-{}-vbf-sigma-max} acotan
+        $\sigma_x$ y \code{-{}-vbf-sigma-min-y}/\code{-{}-vbf-sigma-max-y},
+        $\sigma_y$.
 \end{itemize}
 
 La forma binomial y \code{-{}-scan-alpha} no están disponibles en 2D.
@@ -329,7 +339,8 @@ En los ajustes 1D se escriben tres ficheros junto al de entrada (o con el
 prefijo de \code{-{}-out-prefix}): \file{*\_spectrum.dat} (velocidad, datos,
 ajuste, residuo, cuentas dobladas), \file{*\_distribution.dat} (malla, $P$, $P$
 normalizada) y \file{*\_summary.json} (todos los parámetros escalares y las
-métricas; con VBF incluye los tríos $(A_j,\mu_j,\sigma_j)$ ajustados). Con
+métricas; con VBF incluye los tríos $(A_j,\mu_j,\sigma_j)$ ajustados y las
+cotas de $\sigma$ aplicadas, \code{vbf\_sigma\_bounds}). Con
 \code{-{}-plot} se añade un PNG con el espectro y la distribución.
 
 En modo 2D la distribución se escribe como matriz en
@@ -338,4 +349,5 @@ y \file{*\_<y>\_axis.dat} (\file{*\_bhf\_axis.dat} y \file{*\_quad\_axis.dat}
 con la pareja por defecto), y el resumen incluye la pareja y los momentos
 $\langle\BHF\rangle$, $\langle\dEQ\rangle$, las anchuras y la correlación
 $\BHF$--$\dEQ$; con las formas gaussianas, también las gaussianas ajustadas
-(\code{vbf2d\_components}).
+(\code{vbf2d\_components}) y las cotas de $\sigma$ de cada eje
+(\code{vbf2d\_sigma\_bounds}).

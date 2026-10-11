@@ -7,7 +7,10 @@ Cubre los mismos modos que la GUI (mismo motor, ``mossbauer_distribution``):
   (P(ΔEQ) con BHF fijo en ``--fixed-bhf``, 0 por defecto → doblete) o
   ``--variable delta`` (P(IS)).
 - Forma: ``--shape histograma|gaussiana|vbf|binomial`` (Gaussiana = VBF con
-  N=1 y línea Lorentziana; ``--vbf-components`` fija N para VBF; binomial =
+  N=1 y línea Lorentziana; ``--vbf-components`` fija N para VBF;
+  ``--vbf-sigma-min``/``--vbf-sigma-max`` acotan la anchura σ común a todas
+  las gaussianas, y ``--vbf-sigma-min-y``/``--vbf-sigma-max-y`` la del eje Y
+  en 2D; 0 = automático; binomial =
   vecinos de soluto al estilo NORMOS-DIST ``DISTRI=3``, con
   ``--binomial-conc``/``--binomial-neighbors``/``--binomial-start``/
   ``--binomial-step`` y ``--fit-conc``).
@@ -27,6 +30,7 @@ Ejemplos:
     python3 fit_bhf_distribution_cli.py JA271025.ws5 --alpha 0.01 --nbins 50 --plot
     python3 fit_bhf_distribution_cli.py muestra.adt --variable quad --bmin 0 --bmax 3
     python3 fit_bhf_distribution_cli.py muestra.adt --shape vbf --vbf-components 2
+    python3 fit_bhf_distribution_cli.py muestra.adt --shape vbf --vbf-sigma-min 0.5 --vbf-sigma-max 3
     python3 fit_bhf_distribution_cli.py muestra.adt --reg-mode maxent
     python3 fit_bhf_distribution_cli.py muestra.adt --dist-2d --qmin -1 --qmax 1
     python3 fit_bhf_distribution_cli.py muestra.adt --dist-2d --pair delta-quad
@@ -116,6 +120,17 @@ def parse_args() -> argparse.Namespace:
                         help="Binomial: ajustar también la concentración.")
     parser.add_argument("--vbf-components", type=int, default=2,
                         help="Número de gaussianas del VBF (solo --shape vbf).")
+    parser.add_argument("--vbf-sigma-min", type=float, default=0.0,
+                        help="Gaussiana/VBF: σ mínima común a todas las gaussianas, "
+                             "en unidades de la variable (eje X en 2D). "
+                             "0 = automático (1e-3 en 1D, ¼ de paso de malla en 2D).")
+    parser.add_argument("--vbf-sigma-max", type=float, default=0.0,
+                        help="Gaussiana/VBF: σ máxima común a todas las gaussianas "
+                             "(eje X en 2D). 0 = automático (anchura del rango).")
+    parser.add_argument("--vbf-sigma-min-y", type=float, default=0.0,
+                        help="Gaussiana/VBF 2D: σ mínima del eje Y (mm/s). 0 = automático.")
+    parser.add_argument("--vbf-sigma-max-y", type=float, default=0.0,
+                        help="Gaussiana/VBF 2D: σ máxima del eje Y (mm/s). 0 = automático.")
     parser.add_argument("--reg-mode", choices=["tikhonov", "tv", "maxent"], default="tikhonov",
                         help="Regularizador del histograma Hesse-Rübartsch.")
     parser.add_argument("--profile", choices=["Lorentziana", "Voigt"], default="Lorentziana",
@@ -243,6 +258,17 @@ def parse_args() -> argparse.Namespace:
         parser.error("--pair solo aplica con --dist-2d.")
     if args.dist_2d and args.shape == "binomial":
         parser.error("--dist-2d admite --shape histograma, gaussiana o vbf.")
+    sig_x = (args.vbf_sigma_min, args.vbf_sigma_max)
+    sig_y = (args.vbf_sigma_min_y, args.vbf_sigma_max_y)
+    if any(v < 0 for v in sig_x + sig_y):
+        parser.error("--vbf-sigma-* no admite valores negativos (0 = automático).")
+    if any(v > 0 for v in sig_x + sig_y) and args.shape not in ("gaussiana", "vbf"):
+        parser.error("--vbf-sigma-* solo aplica a --shape gaussiana o vbf.")
+    if any(v > 0 for v in sig_y) and not args.dist_2d:
+        parser.error("--vbf-sigma-min-y/--vbf-sigma-max-y solo aplican con --dist-2d.")
+    for lo, hi, name in ((*sig_x, "--vbf-sigma"), (*sig_y, "--vbf-sigma-*-y")):
+        if lo > 0 and hi > 0 and hi <= lo:
+            parser.error(f"{name}: σ máx ({hi:g}) debe ser mayor que σ mín ({lo:g}).")
     if (args.d13 != 3.0 or args.d23 != 2.0) and (
             args.shape != "histograma" or args.dist_2d):
         parser.error("--d13/--d23 solo aplican a --shape histograma 1D.")
@@ -371,6 +397,8 @@ def run_fit_2d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
             baseline=args.baseline, slope=args.slope,
             sharp_components=sharp_components,
             profile=args.profile, voigt_sigma=args.voigt_sigma,
+            sigma_x_min=args.vbf_sigma_min, sigma_x_max=args.vbf_sigma_max,
+            sigma_y_min=args.vbf_sigma_min_y, sigma_y_max=args.vbf_sigma_max_y,
         )
     result = fit_bhf_quad_distribution(
         v, y,
@@ -439,6 +467,7 @@ def run_fit_1d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
             voigt_sigma=args.voigt_sigma,
             delta_slope=args.delta_slope, quad_slope=args.quad_slope,
             shape="Gaussiana" if gaussian else "VBF",
+            sigma_min=args.vbf_sigma_min, sigma_max=args.vbf_sigma_max,
             **common)
     if args.shape == "binomial":
         return fit_binomial_hyperfine_distribution(

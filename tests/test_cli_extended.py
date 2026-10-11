@@ -93,6 +93,28 @@ def test_dist_cli_shape_vbf(tmp_path):
     assert len(comps) == 1 and len(comps[0]) == 3
 
 
+
+def test_dist_cli_vbf_sigma_limits(tmp_path):
+    """--vbf-sigma-min/--vbf-sigma-max llegan al motor y al resumen."""
+    proc = _run_dist_cli(tmp_path, "--variable", "quad", "--shape", "vbf",
+                         "--vbf-components", "2", "--nbins", "25",
+                         "--vbf-sigma-min", "0.1", "--vbf-sigma-max", "0.4")
+    assert proc.returncode == 0, proc.stderr
+    summary = json.loads((tmp_path / "out_summary.json").read_text(encoding="utf-8"))
+    assert summary["vbf_sigma_bounds"] == [0.1, 0.4]
+    assert all(0.1 - 1e-9 <= c[2] <= 0.4 + 1e-9 for c in summary["vbf_components"])
+
+
+@pytest.mark.parametrize("extra", [
+    ("--vbf-sigma-max", "2"),                                   # histograma
+    ("--shape", "vbf", "--vbf-sigma-min", "3", "--vbf-sigma-max", "2"),
+    ("--shape", "vbf", "--vbf-sigma-min-y", "0.1"),             # -y sin --dist-2d
+    ("--shape", "vbf", "--vbf-sigma-min", "-1"),
+])
+def test_dist_cli_vbf_sigma_rechaza_combinaciones(tmp_path, extra):
+    proc = _run_dist_cli(tmp_path, *extra)
+    assert proc.returncode != 0 and "--vbf-sigma" in proc.stderr
+
 def test_dist_cli_shape_binomial_normos(tmp_path):
     """--shape binomial es la binomial de vecinos de NORMOS (12 vecinos)."""
     proc = _run_dist_cli(tmp_path, "--shape", "binomial", "--binomial-conc", "20",

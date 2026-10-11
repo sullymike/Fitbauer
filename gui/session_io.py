@@ -322,7 +322,8 @@ class SessionIOMixin:
                 if idx_shape >= 0:
                     self.dist_panel.shape_combo.setCurrentIndex(idx_shape)
             # Ajustes numéricos del panel de distribución (δ, ΔEQ, Γ, malla,
-            # α, κδ/κq y nº de gaussianas VBF). Antes no se restauraban.
+            # α, κδ/κq, nº de gaussianas VBF y sus límites σ). Antes no se
+            # restauraban.
             if hasattr(self, "dist_panel"):
                 dp = self.dist_panel
                 _num_ctls = {
@@ -340,6 +341,10 @@ class SessionIOMixin:
                     "dist_binom_conc": dp.binom_conc,
                     "dist_binom_start": dp.binom_start,
                     "dist_binom_step": dp.binom_step,
+                    "dist_vbf_sigma_min": dp.vbf_sigma_min,
+                    "dist_vbf_sigma_max": dp.vbf_sigma_max,
+                    "dist_vbf_sigma_min_y": dp.vbf_sigma_min_y,
+                    "dist_vbf_sigma_max_y": dp.vbf_sigma_max_y,
                 }
                 for key, ctl in _num_ctls.items():
                     # Las sesiones antiguas guardaban estos ajustes dentro de

@@ -65,6 +65,9 @@ COMPONENT_KINDS = (
 # Formas válidas de distribución hiperfina (selector del panel y validación).
 DISTRIBUTION_SHAPES = ("Histograma", "Gaussiana", "VBF", "Binomial", "Fija",
                        "2D", "Gaussiana 2D", "VBF 2D")
+#: Formas con gaussianas (VBF; la Gaussiana es VBF con N = 1): son las que
+#: usan los límites σ de las gaussianas (``vbf_sigma_*``).
+GAUSSIAN_DISTRIBUTION_SHAPES = ("Gaussiana", "VBF", "Gaussiana 2D", "VBF 2D")
 # Formas de los modos 2D: «2D» es el histograma regularizado (código histórico,
 # se muestra como «Histograma»); las otras dos, gaussianas bivariantes.
 DISTRIBUTION_SHAPES_2D = ("2D", "Gaussiana 2D", "VBF 2D")
@@ -233,6 +236,13 @@ DISTRIBUTION_PARAM_SPECS: dict[str, ParamSpec] = {
     "qmax":        ParamSpec(1.0,   -4.0,  4.0, 0.01, 3),
     "qbins":       ParamSpec(21.0,   5.0, 80.0,  1.0, 0),
     "log_alpha_q": ParamSpec( 0.0,  -6.0,  6.0,  0.1, 2),
+    # Límites de anchura σ de las gaussianas de VBF/Gaussiana, comunes a todas
+    # (unidades del eje: T o mm/s). 0 = automático (resolución de la malla /
+    # anchura total). El eje Y solo existe en las formas 2D.
+    "vbf_sigma_min":   ParamSpec(0.0, 0.0, 60.0, 0.01, 3),
+    "vbf_sigma_max":   ParamSpec(0.0, 0.0, 60.0, 0.01, 3),
+    "vbf_sigma_min_y": ParamSpec(0.0, 0.0, 15.0, 0.001, 3),
+    "vbf_sigma_max_y": ParamSpec(0.0, 0.0, 15.0, 0.001, 3),
 }
 
 # Constante física: pesos estándar de las 6 líneas del sextete Fe-57.

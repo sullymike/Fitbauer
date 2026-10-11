@@ -1272,6 +1272,70 @@ def test_formas_2d_gaussiana_y_vbf_en_el_panel(win):
     assert d.shape == "VBF"
 
 
+
+def test_limites_sigma_gaussianas_en_el_panel(win):
+    """σ mín/máx: solo con Gaussiana/VBF, par Y solo en 2D, unidades del eje y
+    vuelta a «auto» al cambiar la variable."""
+    from mossbauer_i18n import tr
+    d = win.dist_panel
+    win.mode_combo.setCurrentIndex(1)                     # P(BHF)
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("Histograma"))
+    assert not d._vbf_sigma_box.isVisibleTo(d)
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("VBF"))
+    assert d._vbf_sigma_box.isVisibleTo(d)
+    assert d.vbf_sigma_min.isVisibleTo(d) and not d.vbf_sigma_min_y.isVisibleTo(d)
+    assert d.vbf_sigma_min.label.text() == tr("slider.dist_vbf_sigma_min",
+                                              var=d._VAR_SHORT["bhf"], unit="T")
+    assert d.vbf_sigma_min.spin.specialValueText() == tr("bhf.vbf_sigma_auto")
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("Gaussiana"))
+    assert d._vbf_sigma_box.isVisibleTo(d)
+    d.vbf_sigma_min.set_value(1.0)
+    d.vbf_sigma_max.set_value(4.0)
+    st = d.to_view_state(variable=win.dist_variable)
+    assert (st.vbf_sigma_min, st.vbf_sigma_max) == (1.0, 4.0)
+    win.mode_combo.setCurrentIndex(4)                     # P(BHF, ΔEQ) 2D
+    assert d.vbf_sigma_min_y.isVisibleTo(d) and d.vbf_sigma_max_y.isVisibleTo(d)
+    assert "mm/s" in d.vbf_sigma_min_y.label.text()
+    assert d.vbf_sigma_min.value() == 1.0                 # el eje X sigue siendo BHF
+    win.mode_combo.setCurrentIndex(2)                     # P(ΔEQ): otra variable
+    assert d.vbf_sigma_min.value() == 0.0 and d.vbf_sigma_max.value() == 0.0
+    assert "mm/s" in d.vbf_sigma_min.label.text()
+
+
+def test_limites_sigma_llegan_al_ajuste_y_a_la_sesion(win, make_window, monkeypatch):
+    """Las cotas σ llegan al motor, se validan antes de ajustar y viajan en la sesión."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    captured = {}
+    win._show_distribution_dialog = lambda r: captured.setdefault("r", r)
+    win.mode_combo.setCurrentIndex(1)
+    d = win.dist_panel
+    _fix_dist_globals(d)
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("VBF"))
+    d.vbf_ncomp.setValue(2)
+    # máx ≤ mín: aviso y sin ajuste.
+    avisos = []
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning",
+                        lambda *a, **k: avisos.append(a))
+    d.vbf_sigma_min.set_value(3.0)
+    d.vbf_sigma_max.set_value(2.0)
+    win.on_fit()
+    assert avisos and "r" not in captured
+    d.vbf_sigma_min.set_value(0.5)
+    d.vbf_sigma_max.set_value(2.0)
+    win.on_fit()
+    r = captured["r"]
+    assert r.vbf_sigma_bounds == (0.5, 2.0)
+    assert all(0.5 - 1e-9 <= c[2] <= 2.0 + 1e-9 for c in r.vbf_components)
+
+    payload = win._session_payload()
+    win2 = make_window()
+    win2._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win2._apply_session_payload(payload)
+    d2 = win2.dist_panel
+    assert d2.shape == "VBF"
+    assert d2.vbf_sigma_min.value() == pytest.approx(0.5)
+    assert d2.vbf_sigma_max.value() == pytest.approx(2.0)
+
 def test_aviso_is_deq_2d_con_dobletes(win):
     d = win.dist_panel
     win.mode_combo.setCurrentIndex(5)                     # P(IS, ΔEQ) 2D
@@ -1296,6 +1360,22 @@ def test_capitulo_de_avisos_con_sus_anclas(loc):
         assert f"<a name='{anchor}'></a>" in html_doc, (loc, anchor)
     assert "[[#" not in html_doc
 
+
+
+@pytest.mark.parametrize("loc", ["es", "en", "fr", "de", "pt", "ru", "ja", "ch"])
+def test_ayuda_de_limites_sigma_con_su_ancla(loc):
+    """La ayuda de σ mín/máx (clic derecho en el control) llega a su sección."""
+    from gui.distribution_panel import VBF_SIGMA_HELP
+    from gui.help import HelpMixin
+    from mossbauer_help import get_help_groups, get_help_sections
+
+    capitulo, _, ancla = VBF_SIGMA_HELP.partition("#")
+    grupo, _, pos = capitulo.partition(".")
+    indices = [i for i, g in enumerate(get_help_groups(loc)) if g == grupo]
+    _title, _heading, content = get_help_sections(lang=loc)[indices[int(pos)]]
+    html_doc = HelpMixin._help_format_content(content)
+    assert f"<a name='{ancla}'></a>" in html_doc, loc
+    assert "--vbf-sigma-min" in content
 
 def test_el_aviso_enlaza_a_su_explicacion(win, app):
     """«Más información…» en el aviso abre la ayuda en la sección del aviso."""

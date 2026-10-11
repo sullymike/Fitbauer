@@ -139,6 +139,19 @@ class ReportMixin:
             val = getattr(result, key, None)
             if val is not None:
                 lines.append(f"| {lbl} | {_fmt(val)} |")
+        # Límites σ aplicados a las gaussianas (VBF/Gaussiana, 1D y 2D).
+        sb = getattr(result, "vbf_sigma_bounds", None)
+        if sb:
+            lines.append(f"| {_r('vbf_sigma_bounds')} ({var_lbl}) | "
+                         f"{_fmt(sb[0], '.4g')} – {_fmt(sb[1], '.4g')} {unit} |")
+        sb2 = getattr(result, "vbf2d_sigma_bounds", None)
+        if sb2:
+            for lbl_ax, var_ax, (s_lo, s_hi) in (
+                    (x2, getattr(result, "x_variable", "bhf"), sb2[0]),
+                    (y2, getattr(result, "y_variable", "quad"), sb2[1])):
+                u_ax = "T" if var_ax == "bhf" else "mm/s"
+                lines.append(f"| {_r('vbf_sigma_bounds')} ({lbl_ax}) | "
+                             f"{_fmt(s_lo, '.4g')} – {_fmt(s_hi, '.4g')} {u_ax} |")
         # Estadísticos 2D
         if is_2d:
             for key, lbl in (("mean_bhf", f"⟨{x2}⟩"), ("mean_quad", f"⟨{y2}⟩"),
@@ -163,7 +176,7 @@ class ReportMixin:
                 except Exception:
                     areas.append(0.0)
             area_tot = sum(areas)
-            lines.append(f"| # | {_r('col_area_a')} | {_r('col_area_pct')} | μ (T) | σ (T) |")
+            lines.append(f"| # | {_r('col_area_a')} | {_r('col_area_pct')} | μ ({unit}) | σ ({unit}) |")
             lines.append("|---|---|---|---|---|")
             for i, comp in enumerate(vbf, start=1):
                 try:

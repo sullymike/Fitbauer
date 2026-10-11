@@ -23,7 +23,7 @@ def test_validate_values_against_bounds_reports_nonfinite_and_out_of_range():
     )
 
     assert {issue.key for issue in issues} == {"a", "b"}
-    assert "fuera de límites" in format_validation_issues(issues)
+    assert "[0, 1]" in format_validation_issues(issues)
 
 
 def test_validate_fit_state_checks_shapes_bounds_and_component_kind():
@@ -103,3 +103,36 @@ def test_validate_distribution_parameters_accepts_all_shapes():
         issues = validate_distribution_parameters(state)
         assert not any(i.key == "shape" for i in issues), \
             f"forma válida {shape!r} rechazada"
+
+
+def test_validate_distribution_vbf_sigma_limits():
+    """σ mín/máx de las gaussianas: orden y σ mín sola frente a la anchura."""
+    from mossbauer_i18n import tr
+
+    def estado(**kw):
+        base = dict(delta=0.0, quad=0.0, fixed_bhf=33.0, gamma=0.18,
+                    bmin=0.0, bmax=50.0, qmin=-1.0, qmax=1.0, nbins=50,
+                    log_alpha=-2.0, shape="VBF", reg_mode="tikhonov",
+                    variable="BHF", vbf_sigma_min=0.0, vbf_sigma_max=0.0,
+                    vbf_sigma_min_y=0.0, vbf_sigma_max_y=0.0)
+        base.update(kw)
+        return SimpleNamespace(**base)
+
+    def claves(**kw):
+        return {i.key for i in validate_distribution_parameters(estado(**kw))}
+
+    assert not {"vbf_sigma", "vbf_sigma_y"} & claves()                 # auto
+    assert not {"vbf_sigma"} & claves(vbf_sigma_min=1.0, vbf_sigma_max=4.0)
+    assert "vbf_sigma" in claves(vbf_sigma_min=4.0, vbf_sigma_max=1.0)
+    assert "vbf_sigma" in claves(vbf_sigma_min=60.0)                   # ≥ anchura
+    # Solo las formas gaussianas los usan.
+    assert "vbf_sigma" not in claves(shape="Histograma", vbf_sigma_min=4.0,
+                                     vbf_sigma_max=1.0)
+    # En 2D el eje Y se comprueba con su propio rango.
+    assert "vbf_sigma_y" in claves(shape="VBF 2D", variable="BHF-ΔEQ",
+                                   vbf_sigma_min_y=3.0)
+    assert "vbf_sigma_y" not in claves(shape="VBF", vbf_sigma_min_y=3.0)
+    issues = validate_distribution_parameters(estado(vbf_sigma_min=4.0, vbf_sigma_max=1.0))
+    msg = next(i.message for i in issues if i.key == "vbf_sigma")
+    assert msg == tr("valid.vbf_sigma_order", var="BHF", min="4", max="1")
+

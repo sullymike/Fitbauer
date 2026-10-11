@@ -9,11 +9,18 @@ from PySide6 import QtCore, QtWidgets
 from dataclasses import astuple
 
 from mossbauer_i18n import tr
-from core.params import DIST_VAR_DEFAULT_SPAN, DIST_VAR_RANGE, DIST_RANGE_RESOLUTION, is_2d_shape
+from core.params import (DIST_VAR_DEFAULT_SPAN, DIST_VAR_RANGE, DIST_RANGE_RESOLUTION,
+                         GAUSSIAN_DISTRIBUTION_SHAPES, is_2d_shape)
 from core.param_overrides import effective_distribution_specs
 from gui.controls import ParamControl
+from gui.panels import attach_help_menu
 from mossbauer_distribution import BINOMIAL_BOUNDS, BINOMIAL_NEIGHBORS_NORMOS
 from gui.state import DistributionViewState
+
+
+#: Capítulo y ancla de la ayuda que explican los límites σ de las gaussianas.
+VBF_SIGMA_HELP = "distributions.2#vbf-sigma"
+
 
 #: Capítulo de ayuda que explica en detalle cada aviso del panel; cada aviso
 #: enlaza a su ancla (``[[#id]]`` en el help.json de todos los idiomas).
@@ -150,6 +157,13 @@ class DistributionPanel(QtWidgets.QGroupBox):
         self._vbf_row_widget = QtWidgets.QWidget()
         self._vbf_row_widget.setLayout(self.vbf_row)
         left_v.addWidget(self._vbf_row_widget)
+        # Límites de anchura σ comunes a todas las gaussianas (VBF y Gaussiana,
+        # 1D y 2D). Los controles se crean más abajo, con las specs efectivas.
+        self._vbf_sigma_box = QtWidgets.QWidget()
+        self._vbf_sigma_v = QtWidgets.QVBoxLayout(self._vbf_sigma_box)
+        self._vbf_sigma_v.setContentsMargins(0, 0, 0, 0)
+        self._vbf_sigma_v.setSpacing(2)
+        left_v.addWidget(self._vbf_sigma_box)
 
         # Binomial de vecinos (DISTRI=3 + CONC de NORMOS-DIST): n vecinos,
         # concentración del soluto y valor sin vecinos + cambio por vecino.
@@ -189,6 +203,20 @@ class DistributionPanel(QtWidgets.QGroupBox):
 
         _ds = effective_distribution_specs()
         self._dist_eff_specs = _ds  # cache para _dist_var_range
+        # σ mín/máx de las gaussianas: 0 se muestra como «auto» (límite
+        # automático del motor). Los *_y son del eje Y de las formas 2D.
+        self.vbf_sigma_min = ParamControl("", *astuple(_ds["vbf_sigma_min"]), with_fixed=False)
+        self.vbf_sigma_max = ParamControl("", *astuple(_ds["vbf_sigma_max"]), with_fixed=False)
+        self.vbf_sigma_min_y = ParamControl("", *astuple(_ds["vbf_sigma_min_y"]), with_fixed=False)
+        self.vbf_sigma_max_y = ParamControl("", *astuple(_ds["vbf_sigma_max_y"]), with_fixed=False)
+        for w in self._vbf_sigma_controls():
+            w.spin.setSpecialValueText(tr("bhf.vbf_sigma_auto", default="auto"))
+            w.set_help(tr("tooltip.dist_vbf_sigma", default=""))
+            attach_help_menu(self, w, VBF_SIGMA_HELP)
+            self._vbf_sigma_v.addWidget(w)
+            w.valueChanged.connect(lambda *_: self.paramChanged.emit())
+        # Variable de cada eje a la que pertenecen los σ (al cambiar, vuelven a auto).
+        self._vbf_sigma_owner: dict[str, str | None] = {"x": None, "y": None}
         self.delta     = ParamControl(tr("slider.dist_delta"),     *astuple(_ds["delta"]))
         self.quad      = ParamControl(tr("slider.dist_quad"),      *astuple(_ds["quad"]))
         self.fixed_bhf = ParamControl(tr("slider.dist_fixed_bhf"), *astuple(_ds["fixed_bhf"]), with_fixed=False)
@@ -435,6 +463,45 @@ class DistributionPanel(QtWidgets.QGroupBox):
             self.quad.setEnabled(not is_quad)
             self._switch_axis_range("x", var)
         self._sync_variable_controls(is_2d)
+        self._sync_vbf_sigma_controls(is_2d)
+
+    def _vbf_sigma_controls(self) -> tuple[ParamControl, ...]:
+        return (self.vbf_sigma_min, self.vbf_sigma_max,
+                self.vbf_sigma_min_y, self.vbf_sigma_max_y)
+
+    def _sync_vbf_sigma_controls(self, is_2d: bool) -> None:
+        """σ mín/máx de las gaussianas: visibles con VBF/Gaussiana, en unidades
+        de cada eje y con rango hasta la anchura de su eje. Si cambia la
+        variable de un eje, sus límites vuelven a «auto» (otras unidades)."""
+        gauss = self.shape in GAUSSIAN_DISTRIBUTION_SHAPES
+        self._vbf_sigma_box.setVisible(gauss)
+        if is_2d:
+            x_var, y_var = self._distribution_pair
+            y_key = "quad±" if (y_var == "quad" and x_var == "bhf") else y_var
+        else:
+            x_var, y_var, y_key = self._distribution_variable, None, None
+        for ctl in (self.vbf_sigma_min_y, self.vbf_sigma_max_y):
+            ctl.setVisible(gauss and is_2d)
+        for axis, var, key, (c_min, c_max) in (
+                ("x", x_var, x_var, (self.vbf_sigma_min, self.vbf_sigma_max)),
+                ("y", y_var, y_key, (self.vbf_sigma_min_y, self.vbf_sigma_max_y))):
+            if var is None:
+                continue
+            short = self._VAR_SHORT.get(var, var)
+            unit = self._VAR_UNIT.get(var, "")
+            c_min.label.setText(tr("slider.dist_vbf_sigma_min", var=short, unit=unit,
+                                   default=f"σ {short} mín ({unit})"))
+            c_max.label.setText(tr("slider.dist_vbf_sigma_max", var=short, unit=unit,
+                                   default=f"σ {short} máx ({unit})"))
+            lo, hi = self._dist_var_range(key)
+            sufijo = "_y" if axis == "y" else ""
+            for ctl, nombre in ((c_min, "vbf_sigma_min"), (c_max, "vbf_sigma_max")):
+                spec_hi = self._dist_eff_specs[nombre + sufijo].hi
+                ctl.set_range(0.0, max(min(float(hi) - float(lo), float(spec_hi)), 0.001))
+            if self._vbf_sigma_owner.get(axis) not in (None, var):
+                for ctl in (c_min, c_max):
+                    ctl.set_value(0.0)
+            self._vbf_sigma_owner[axis] = var
 
     def _variables(self, is_2d: bool) -> tuple[str, ...]:
         return tuple(self._distribution_pair) if is_2d else (self._distribution_variable,)
@@ -600,6 +667,10 @@ class DistributionPanel(QtWidgets.QGroupBox):
             source_theta=self.source_theta.value(),
             absorber_theta=self.absorber_theta.value(),
             vbf_n_components=int(self.vbf_ncomp.value()),
+            vbf_sigma_min=self.vbf_sigma_min.value(),
+            vbf_sigma_max=self.vbf_sigma_max.value(),
+            vbf_sigma_min_y=self.vbf_sigma_min_y.value(),
+            vbf_sigma_max_y=self.vbf_sigma_max_y.value(),
             binom_conc=self.binom_conc.value(),
             binom_neighbors=int(self.binom_neighbors.value()),
             binom_start=self.binom_start.value(),

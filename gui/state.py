@@ -361,6 +361,12 @@ class DistributionViewState:
     source_theta: float = 0.0
     absorber_theta: float = 0.0
     vbf_n_components: int = 2
+    # Límites de anchura σ de las gaussianas de VBF/Gaussiana, comunes a todas
+    # (unidades del eje X; los *_y, del eje Y de las formas 2D). 0 = automático.
+    vbf_sigma_min:   float = _DSPEC["vbf_sigma_min"].default
+    vbf_sigma_max:   float = _DSPEC["vbf_sigma_max"].default
+    vbf_sigma_min_y: float = _DSPEC["vbf_sigma_min_y"].default
+    vbf_sigma_max_y: float = _DSPEC["vbf_sigma_max_y"].default
     # Binomial de vecinos (NORMOS DISTRI=3): concentración en %, nº de vecinos,
     # valor sin vecinos y cambio por vecino (unidades de la variable).
     binom_conc: float = 10.0
@@ -427,6 +433,10 @@ class DistributionViewState:
             source_theta=_num("dist_source_theta", d.source_theta),
             absorber_theta=_num("dist_absorber_theta", d.absorber_theta),
             vbf_n_components=int(_num("dist_vbf_n_components", d.vbf_n_components)),
+            vbf_sigma_min=_num("dist_vbf_sigma_min", d.vbf_sigma_min),
+            vbf_sigma_max=_num("dist_vbf_sigma_max", d.vbf_sigma_max),
+            vbf_sigma_min_y=_num("dist_vbf_sigma_min_y", d.vbf_sigma_min_y),
+            vbf_sigma_max_y=_num("dist_vbf_sigma_max_y", d.vbf_sigma_max_y),
             binom_conc=_num("dist_binom_conc", d.binom_conc),
             binom_neighbors=int(_num("dist_binom_neighbors", d.binom_neighbors)),
             binom_start=_num("dist_binom_start", d.binom_start),
@@ -483,6 +493,10 @@ class DistributionViewState:
             "dist_source_theta": float(self.source_theta),
             "dist_absorber_theta": float(self.absorber_theta),
             "dist_vbf_n_components": int(self.vbf_n_components),
+            "dist_vbf_sigma_min": float(self.vbf_sigma_min),
+            "dist_vbf_sigma_max": float(self.vbf_sigma_max),
+            "dist_vbf_sigma_min_y": float(self.vbf_sigma_min_y),
+            "dist_vbf_sigma_max_y": float(self.vbf_sigma_max_y),
             "dist_binom_conc": float(self.binom_conc),
             "dist_binom_neighbors": int(self.binom_neighbors),
             "dist_binom_start": float(self.binom_start),

@@ -99,6 +99,9 @@ del código de la GUI.**
     para la GUI/sesión/informes.
   - **Correlación δ(H)/ΔEQ(H)** (`delta_slope`/`quad_slope` en el kernel): δ y ΔEQ varían
     linealmente con H (opt-in, 0 = clásico). Aplica a Histograma y VBF.
+  - **Cotas σ** de Gaussiana/VBF (1D y 2D, un par por eje): `vbf_sigma_bounds()` en
+    `mossbauer_distribution.py`; 0 = automático. Panel `σ mín/máx`, sesión
+    `dist_vbf_sigma_min/max[_y]`, CLI `--vbf-sigma-min/max[-y]`.
   - En modo distribución + nítidos, la GUI dibuja **todos los subespectros**: cada nítido por
     separado y la **envolvente de la distribución** (índice `idx=0` con estilo propio), además
     del modelo total. Esto vive en `DistributionFitMixin.on_fit_distribution`

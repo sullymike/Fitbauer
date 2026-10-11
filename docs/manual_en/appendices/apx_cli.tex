@@ -172,6 +172,8 @@ python fit_bhf_distribution_cli.py sample.adt --variable delta \
 
 # VBF with two Gaussian components; MaxEnt histogram:
 python fit_bhf_distribution_cli.py sample.adt --shape vbf --vbf-components 2
+python fit_bhf_distribution_cli.py sample.adt --shape vbf --vbf-sigma-min 0.5 \
+    --vbf-sigma-max 3
 python fit_bhf_distribution_cli.py sample.adt --reg-mode maxent
 
 # NORMOS-style binomial (DISTRI=3), 5 % solute, 12 neighbours:
@@ -203,6 +205,12 @@ Option & Values & Meaning \\
   \code{binomial} & Distribution shape (chapter~\ref{ch:distribuciones}).
   \code{gaussiana} is the VBF with $N=1$ and a Lorentzian line. \\
 \code{-{}-vbf-components} & $N$ & Number of Gaussians of the VBF (1D and 2D). \\
+\code{-{}-vbf-sigma-min}, \code{-{}-vbf-sigma-max} & $\sigma$ & Bounds on the
+  width $\sigma$, common to all the Gaussians, in the units of the variable
+  ($X$ axis in 2D). Only with \code{gaussiana} and \code{vbf}; $0$ =
+  automatic (default). \\
+\code{-{}-vbf-sigma-min-y}, \code{-{}-vbf-sigma-max-y} & $\sigma$ & The same
+  for the $Y$ axis in 2D (mm/s). \\
 \code{-{}-reg-mode} & \code{tikhonov} $|$ \code{tv} $|$ \code{maxent} &
   Histogram regularizer. \\
 \code{-{}-alpha} & $\alpha$ & Regularization strength of the histogram. \\
@@ -301,7 +309,9 @@ from $-1$ to $2$~mm/s). Without $\BHF$ in the pair, the kernel uses the field of
         (equal to \code{-{}-alpha} if omitted).
   \item \code{gaussiana} or \code{vbf}: one or \code{-{}-vbf-components}
         bivariate Gaussians $(A, \mu_x, \mu_y, \sigma_x, \sigma_y, \rho)$,
-        without $\alpha$.
+        without $\alpha$. \code{-{}-vbf-sigma-min}/\code{-{}-vbf-sigma-max} bound
+        $\sigma_x$ and \code{-{}-vbf-sigma-min-y}/\code{-{}-vbf-sigma-max-y},
+        $\sigma_y$.
 \end{itemize}
 
 The binomial shape and \code{-{}-scan-alpha} are not available in 2D.
@@ -321,7 +331,8 @@ For 1D fits three files are written next to the input (or under
 \code{-{}-out-prefix}): \file{*\_spectrum.dat} (velocity, data, fit,
 residual, folded counts), \file{*\_distribution.dat} (grid, $P$, normalized
 $P$) and \file{*\_summary.json} (all scalar parameters and metrics; for the
-VBF it includes the fitted $(A_j,\mu_j,\sigma_j)$ triplets). With
+VBF it includes the fitted $(A_j,\mu_j,\sigma_j)$ triplets and the applied
+$\sigma$ bounds, \code{vbf\_sigma\_bounds}). With
 \code{-{}-plot} a PNG with the spectrum and the distribution is added.
 
 In 2D mode the distribution is written as a matrix in
@@ -330,4 +341,5 @@ and \file{*\_<y>\_axis.dat} (\file{*\_bhf\_axis.dat} and \file{*\_quad\_axis.dat
 for the default pair), and the summary carries the pair and
 the moments $\langle\BHF\rangle$, $\langle\dEQ\rangle$, widths and the
 $\BHF$--$\dEQ$ correlation; with the Gaussian shapes, also the fitted
-Gaussians (\code{vbf2d\_components}).
+Gaussians (\code{vbf2d\_components}) and the $\sigma$ bounds of each axis
+(\code{vbf2d\_sigma\_bounds}).

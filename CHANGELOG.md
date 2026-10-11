@@ -2,6 +2,21 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **Cotas de la anchura σ en las formas Gaussiana y VBF (1D y 2D).** Hasta
+  ahora σ solo estaba limitada por dentro, entre 0.001 (¼ de paso en 2D) y la
+  anchura del rango, y con VBF de varias componentes una gaussiana podía
+  colapsar en un pico o ensancharse hasta comerse el fondo. El panel muestra
+  `σ mín`/`σ máx`, comunes a todas las gaussianas y en unidades de la
+  variable; en 2D hay un par por eje. 0 = «auto», el comportamiento anterior.
+  Las cotas se validan antes del ajuste (máx > mín; una mín sola, menor que
+  el rango), se guardan en la sesión (`dist_vbf_sigma_min/max[_y]`) y
+  vuelven a auto al cambiar la variable del eje. El informe muestra las
+  cotas efectivas y la tabla de componentes VBF da μ y σ en la unidad de la
+  variable (decía T siempre). El resultado las expone (`vbf_sigma_bounds`,
+  `vbf2d_sigma_bounds`) y la CLI admite `--vbf-sigma-min/--vbf-sigma-max` y
+  `--vbf-sigma-min-y/--vbf-sigma-max-y`. Figuran también en el diálogo de
+  límites, la ayuda de los 8 idiomas y el manual (es/en). Los mensajes de
+  `core/validation.py` pasan a `tr()` (`valid.*`).
 - **Botones estándar de Qt en el idioma de la interfaz.** «Cancel», «Yes»,
   «Open» y los diálogos de fichero salían en inglés en los ocho idiomas
   porque nunca se instalaba el traductor de Qt; ahora se carga el

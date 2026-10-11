@@ -137,10 +137,15 @@ Detalles de la parametrización:
         y el área, mejorando el condicionamiento.
   \item \textbf{Cotas físicas}: $A_j\ge0$ (áreas no negativas),
         $\mu_j\in[\,B_{\mathrm{hf},\min},B_{\mathrm{hf},\max}]$ dentro de la malla, y
-        $\sigma_j$ acotada entre una fracción de bin y el rango completo. La línea
-        base cumple $b\ge0$ y las amplitudes nítidas $a_m\ge0$.
+        $\sigma_j\in[\sigma_{\min},\sigma_{\max}]$, intervalo común a todas las
+        componentes. Por defecto va de $10^{-3}$ al rango completo de la malla
+        (en 2D, de un cuarto de bin al rango de cada eje); los controles
+        \param{$\sigma$ mín}/\param{$\sigma$ máx} de la GUI (o
+        \code{-{}-vbf-sigma-min}/\code{-{}-vbf-sigma-max} en la CLI) lo estrechan.
+        La línea base cumple $b\ge0$ y las amplitudes nítidas $a_m\ge0$.
   \item \textbf{Arranque}: los $N$ centros se siembran equiespaciados en el rango,
-        con anchura inicial $\sim(B_{\mathrm{hf},\max}-B_{\mathrm{hf},\min})/(3N)$ y área repartida.
+        con anchura inicial $\sim(B_{\mathrm{hf},\max}-B_{\mathrm{hf},\min})/(3N)$
+        (recortada a $[\sigma_{\min},\sigma_{\max}]$) y área repartida.
   \item \textbf{Orden e identificabilidad}: como el modelo es invariante ante
         permutaciones de las componentes (\emph{label switching}), al terminar se
         \textbf{ordenan por $\mu_j$} antes de guardarlas, de modo que la

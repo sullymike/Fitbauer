@@ -82,3 +82,26 @@ def test_vbf_2d_separa_dos_sitios_is_deq():
 def test_formas_2d_registradas():
     assert {"Gaussiana 2D", "VBF 2D"} <= set(DISTRIBUTION_SHAPES)
     assert is_2d_shape("2D") and is_2d_shape("VBF 2D") and not is_2d_shape("VBF")
+
+
+def test_vbf_2d_cotas_sigma_por_eje():
+    """σ mín/máx de cada eje acotan las anchuras; 0 deja el automático."""
+    v = np.linspace(-10, 10, 512)
+    xc = parameter_grid(20, 40, 41); yc = parameter_grid(-0.4, 0.4, 33)
+    y = _espectro(v, xc, yc, bivariate_gaussian_weights(xc, yc, 31.0, 0.05, 1.5, 0.08, 0.6),
+                  vx="bhf", vy="quad", seed=1)
+    comun = dict(n_components=1, variable_x="bhf", variable_y="quad", gamma=0.25,
+                 bmin=20, bmax=40, nbins_bhf=41, qmin=-0.4, qmax=0.4, nbins_quad=33,
+                 sigma=np.sqrt(y))
+    auto = fit_vbf_2d_distribution(v, y, **comun)
+    (sx_auto, sy_auto) = auto.vbf2d_sigma_bounds
+    dx, dy = xc[1] - xc[0], yc[1] - yc[0]
+    assert sx_auto == pytest.approx((0.25 * dx, xc[-1] - xc[0]))
+    assert sy_auto == pytest.approx((0.25 * dy, yc[-1] - yc[0]))
+
+    r = fit_vbf_2d_distribution(v, y, **comun, sigma_x_max=1.0, sigma_y_min=0.12)
+    assert r.success
+    (_a, _mx, _my, sx, sy, _rho), = r.vbf2d_components
+    assert sx <= 1.0 + 1e-9 and sy >= 0.12 - 1e-9
+    assert r.vbf2d_sigma_bounds[0][1] == 1.0 and r.vbf2d_sigma_bounds[1][0] == 0.12
+

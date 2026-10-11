@@ -105,6 +105,47 @@ def test_gaussiana_shape_is_vbf_single_lorentz():
     assert abs(r.fitted_dist_center - 30.0) < 1.5
 
 
+
+def test_vbf_sigma_bounds_auto_and_explicit():
+    """0/None = límites automáticos; una σ máx explícita manda sobre el mínimo
+    automático; máx ≤ mín es un error."""
+    import pytest
+    assert md.vbf_sigma_bounds(1e-3, 50.0) == (1e-3, 50.0)
+    assert md.vbf_sigma_bounds(1e-3, 50.0, 0.0, 0.0) == (1e-3, 50.0)
+    assert md.vbf_sigma_bounds(1e-3, 50.0, 0.5, 4.0) == (0.5, 4.0)
+    assert md.vbf_sigma_bounds(0.25, 50.0, None, 0.2) == (0.1, 0.2)
+    with pytest.raises(ValueError):
+        md.vbf_sigma_bounds(1e-3, 50.0, 3.0, 2.0)
+
+
+def test_vbf_sigma_limits_bound_every_component():
+    """σ mín/máx son comunes a todas las gaussianas y el resultado las expone."""
+    v = np.linspace(-10, 10, 400)
+    centers = md.parameter_grid(0.0, 50.0, 80)
+
+    def G(mu, s):
+        w = np.exp(-0.5 * ((centers - mu) / s) ** 2)
+        return w / np.trapezoid(w, centers)
+
+    # Una gaussiana estrecha (σ=0.6) y otra ancha (σ=6): las cotas [1.5, 3]
+    # tienen que ensanchar la primera y estrechar la segunda.
+    K = md.build_bhf_kernel(v, centers, delta=0.0, gamma=0.25)
+    y = 1.0 - K @ ((G(20.0, 0.6) + 0.8 * G(40.0, 6.0)) * 0.5)
+    libre = md.fit_vbf_hyperfine_distribution(v, y, n_components=2, profile="Lorentziana",
+                                              pmin=0, pmax=50, nbins=80, gamma=0.25)
+    assert libre.vbf_sigma_bounds == (1e-3, 50.0)        # automático
+    sig_libre = sorted(c[2] for c in libre.vbf_components)
+    assert sig_libre[0] < 1.5 and sig_libre[1] > 3.0
+
+    r = md.fit_vbf_hyperfine_distribution(v, y, n_components=2, profile="Lorentziana",
+                                          pmin=0, pmax=50, nbins=80, gamma=0.25,
+                                          sigma_min=1.5, sigma_max=3.0)
+    assert r.success and r.vbf_sigma_bounds == (1.5, 3.0)
+    for _a, _mu, sig in r.vbf_components:
+        assert 1.5 - 1e-9 <= sig <= 3.0 + 1e-9
+    assert r.as_dict()["vbf_sigma_bounds"] == [1.5, 3.0]
+
+
 # ── MaxEnt ──────────────────────────────────────────────────────────────────
 def test_maxent_positive_normalized_and_peaked():
     v = np.linspace(-10, 10, 300)

@@ -97,6 +97,9 @@ class BhfQuadDistribution2DFit:
     vbf2d_components: tuple[tuple[float, float, float, float, float, float], ...] | None = None
     #: δ/ΔEQ/Γ globales ajustados junto con las gaussianas 2D (solo los libres).
     fitted_globals: dict[str, float] | None = None
+    #: Límites de anchura aplicados a las gaussianas 2D:
+    #: ``((σx_mín, σx_máx), (σy_mín, σy_máx))``, en unidades de cada eje.
+    vbf2d_sigma_bounds: tuple[tuple[float, float], tuple[float, float]] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -104,6 +107,8 @@ class BhfQuadDistribution2DFit:
             "vbf2d_components": ([] if self.vbf2d_components is None
                                  else [list(c) for c in self.vbf2d_components]),
             "fitted_globals": dict(self.fitted_globals or {}),
+            "vbf2d_sigma_bounds": (None if self.vbf2d_sigma_bounds is None
+                                   else [list(b) for b in self.vbf2d_sigma_bounds]),
             "BHF_centers": self.bhf_centers.tolist(),
             "quad_centers": self.quad_centers.tolist(),
             "P": self.weights.tolist(),
@@ -164,6 +169,9 @@ class BhfDistributionFit:
     delta_slope: float = 0.0
     quad_slope: float = 0.0
     vbf_n_components: int | None = None
+    #: Límites de anchura ``(σ_mín, σ_máx)`` aplicados a las gaussianas del VBF
+    #: (y de la Gaussiana), en unidades de la variable distribuida.
+    vbf_sigma_bounds: tuple[float, float] | None = None
     #: Binomial de vecinos (NORMOS DISTRI=3): valor sin vecinos, paso por
     #: vecino y nº de vecinos. La concentración ajustada va en fitted_dist_p.
     binomial_start: float | None = None
@@ -207,6 +215,8 @@ class BhfDistributionFit:
             "delta_slope": self.delta_slope,
             "quad_slope": self.quad_slope,
             "vbf_n_components": self.vbf_n_components,
+            "vbf_sigma_bounds": (None if self.vbf_sigma_bounds is None
+                                 else list(self.vbf_sigma_bounds)),
             "binomial_start": self.binomial_start,
             "binomial_step": self.binomial_step,
             "binomial_n": self.binomial_n,
@@ -923,6 +933,33 @@ VBF_2D_SHAPES = ("Gaussiana 2D", "VBF 2D")
 VBF_2D_RHO_MAX = 0.95
 
 
+def vbf_sigma_bounds(auto_lo: float, auto_hi: float,
+                     sigma_min: float | None = None,
+                     sigma_max: float | None = None) -> tuple[float, float]:
+    """Límites ``(σ_mín, σ_máx)`` de las gaussianas de VBF/Gaussiana.
+
+    ``sigma_min``/``sigma_max`` son comunes a todas las gaussianas del ajuste y
+    van en unidades de la variable de la malla (T para BHF, mm/s para ΔEQ e
+    IS). ``None`` o un valor ≤ 0 deja el límite automático (``auto_lo`` /
+    ``auto_hi``: la resolución útil de la malla y su anchura total). Sirven
+    para impedir que una gaussiana se ensanche hasta hacer de fondo o se
+    estreche por debajo de lo que la malla resuelve. Una σ máx explícita por
+    debajo del mínimo automático manda sobre él: el mínimo baja a su mitad.
+    """
+    user_lo = sigma_min is not None and float(sigma_min) > 0
+    user_hi = sigma_max is not None and float(sigma_max) > 0
+    hi = float(sigma_max) if user_hi else float(auto_hi)
+    if user_lo:
+        lo = float(sigma_min)
+    elif user_hi:
+        lo = min(float(auto_lo), 0.5 * hi)
+    else:
+        lo = float(auto_lo)
+    if not (np.isfinite(lo) and np.isfinite(hi)) or not hi > lo:
+        raise ValueError(f"σ máx ({hi:g}) debe ser mayor que σ mín ({lo:g})")
+    return lo, hi
+
+
 def bivariate_gaussian_weights(
     x_centers: np.ndarray,
     y_centers: np.ndarray,
@@ -987,6 +1024,10 @@ def fit_vbf_2d_distribution(
     delta_bounds: tuple[float, float] = (-3.0, 3.0),
     quad_bounds: tuple[float, float] = (-4.0, 4.0),
     gamma_bounds: tuple[float, float] = (0.05, 3.0),
+    sigma_x_min: float | None = None,
+    sigma_x_max: float | None = None,
+    sigma_y_min: float | None = None,
+    sigma_y_max: float | None = None,
     progress=None,
 ) -> BhfQuadDistribution2DFit:
     """Distribución 2D paramétrica: suma de N gaussianas bivariantes (VBF 2D).
@@ -1015,6 +1056,11 @@ def fit_vbf_2d_distribution(
     funciona aquí: el óptimo interno es iterativo y su ruido de convergencia
     (y los saltos entre mínimos locales) arruinan las diferencias finitas
     externas — en la magnetita, o no se movían o tardaba minutos.
+
+    ``sigma_x_min``/``sigma_x_max`` y ``sigma_y_min``/``sigma_y_max`` limitan
+    la anchura de TODAS las gaussianas en cada eje (unidades del eje; ``None``
+    o ≤ 0 = automático: de un cuarto de paso de malla a su anchura total). Los
+    límites aplicados se devuelven en ``vbf2d_sigma_bounds``.
 
     ``progress`` (opcional, sin argumentos) se llama en cada evaluación del
     residuo y de la jacobiana; la GUI lo usa para atender «Cancelar», que
@@ -1179,8 +1225,10 @@ def fit_vbf_2d_distribution(
         lo.append(0.0); hi.append(np.inf); head0.append(float(baseline))
     if fit_slope:
         lo.append(-np.inf); hi.append(np.inf); head0.append(float(slope))
-    ls_x = (np.log(0.25 * dx), np.log(x_rng))
-    ls_y = (np.log(0.25 * dy), np.log(y_rng))
+    sx_bounds = vbf_sigma_bounds(0.25 * dx, x_rng, sigma_x_min, sigma_x_max)
+    sy_bounds = vbf_sigma_bounds(0.25 * dy, y_rng, sigma_y_min, sigma_y_max)
+    ls_x = (np.log(sx_bounds[0]), np.log(sx_bounds[1]))
+    ls_y = (np.log(sy_bounds[0]), np.log(sy_bounds[1]))
     for _ in range(N):
         lo += [0.0, x_lo, y_lo, ls_x[0], ls_y[0], -VBF_2D_RHO_MAX]
         hi += [np.inf, x_hi, y_hi, ls_x[1], ls_y[1], VBF_2D_RHO_MAX]
@@ -1289,6 +1337,7 @@ def fit_vbf_2d_distribution(
         rms=float(np.sqrt(np.mean(residuals ** 2))),
         success=bool(res.success),
         message=f"{shape} {variable_x}-{variable_y} N={N}: {summary}; {res.message}",
+        vbf2d_sigma_bounds=(tuple(sx_bounds), tuple(sy_bounds)),
         x_variable=str(variable_x),
         y_variable=str(variable_y),
         marginal_bhf=np.asarray(diag["marginal_bhf"], dtype=float),
@@ -2175,6 +2224,8 @@ def fit_vbf_hyperfine_distribution(
     quad_slope: float = 0.0,
     h_ref: float | None = None,
     shape: str = "VBF",
+    sigma_min: float | None = None,
+    sigma_max: float | None = None,
 ) -> BhfDistributionFit:
     """VBF (Voigt-Based Fitting, Rancourt–Ping 1991): P como suma de N gaussianas.
 
@@ -2187,6 +2238,11 @@ def fit_vbf_hyperfine_distribution(
     El caso ``n_components=1`` con ``profile="Lorentz"`` es la clásica **distribución
     gaussiana** simple: la GUI la ofrece con la etiqueta ``shape="Gaussiana"``, que
     se propaga al resultado mediante el parámetro ``shape``.
+
+    ``sigma_min``/``sigma_max`` limitan la anchura σ de TODAS las gaussianas
+    (unidades de la variable; ``None`` o ≤ 0 = automático: de 0.001 a la
+    anchura de la malla). Los límites aplicados se devuelven en
+    ``vbf_sigma_bounds``.
     """
     from scipy.optimize import least_squares
     v = _finite_1d("v", v); y = _finite_1d("y", y)
@@ -2248,8 +2304,9 @@ def fit_vbf_hyperfine_distribution(
             r = r - K_sharp @ np.maximum(x[n_lin + 3 * N:n_lin + 3 * N + n_sharp], 0.0)
         return r
 
-    log_sig_lo, log_sig_hi = np.log(1e-3), np.log(rng)
-    sig0 = max(rng / (3.0 * N), 1e-3)
+    sig_lo, sig_hi = vbf_sigma_bounds(1e-3, rng, sigma_min, sigma_max)
+    log_sig_lo, log_sig_hi = np.log(sig_lo), np.log(sig_hi)
+    sig0 = min(max(rng / (3.0 * N), sig_lo), sig_hi)
     mus0 = (np.linspace(float(pmin) + rng / (N + 1), float(pmax) - rng / (N + 1), N)
             if N > 1 else np.array([0.5 * (float(pmin) + float(pmax))]))
     lo, hi, x0 = [], [], []
@@ -2310,6 +2367,7 @@ def fit_vbf_hyperfine_distribution(
         delta_slope=float(delta_slope),
         quad_slope=float(quad_slope),
         vbf_n_components=int(N),
+        vbf_sigma_bounds=(float(sig_lo), float(sig_hi)),
     )
 
 

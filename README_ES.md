@@ -266,7 +266,7 @@ El espectro se modela como suma de muchos sextetes (o dobletes) en una malla reg
 residuo espectral ponderado² + α · rugosidad(P)²
 ```
 
-Con **L-curve α** se busca un buen compromiso entre residuo y suavidad. Además del histograma hay formas paramétricas (gaussiana, VBF multigaussiana, binomial al estilo NORMOS y fija). La opción **sumar componentes activos nítidos** combina la distribución con fases discretas (p. ej. una distribución ancha + Fe metálico a BHF ≈ 33 T). Los modos bidimensionales ajustan P(BHF, ΔEQ), P(IS, ΔEQ) y P(BHF, IS).
+Con **L-curve α** se busca un buen compromiso entre residuo y suavidad. Además del histograma hay formas paramétricas (gaussiana, VBF multigaussiana, binomial al estilo NORMOS y fija); en las gaussianas la anchura σ se puede acotar con **σ mín / σ máx**. La opción **sumar componentes activos nítidos** combina la distribución con fases discretas (p. ej. una distribución ancha + Fe metálico a BHF ≈ 33 T). Los modos bidimensionales ajustan P(BHF, ΔEQ), P(IS, ΔEQ) y P(BHF, IS).
 
 ### Modelos de relajación
 
