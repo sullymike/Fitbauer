@@ -171,7 +171,7 @@ class CalibrationActionsMixin:
         iso = info.get("isomer_shift")
         fija = tr("label.calib_fixed", default="fija") if vmax not in (None, "") else ""
         tag = f" · <b>{fija}</b>" if fija else ""
-        txt = f"Calibración [{src}] {sample}{tag}<br>"
+        txt = tr("calib.label", src=src, sample=sample) + f"{tag}<br>"
         if vmax is not None:
             try:
                 vmax_txt = f"{float(vmax):.4f}"

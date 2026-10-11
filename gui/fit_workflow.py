@@ -162,8 +162,8 @@ class FitWorkflowMixin:
                     bar.setRange(0, 0)
 
                 metric_parts: list[str] = []
-                for key, lbl in (("rms", "RMS"), ("best_rms", "mejor RMS"),
-                                 ("chi2", "χ²"), ("best_chi2", "mejor χ²")):
+                for key, lbl in (("rms", "RMS"), ("best_rms", tr("progress.best") + " RMS"),
+                                 ("chi2", "χ²"), ("best_chi2", tr("progress.best") + " χ²")):
                     if key in payload and payload[key] is not None:
                         metric_parts.append(f"{lbl}={_fmt_value(payload[key])}")
                 if metric_parts:

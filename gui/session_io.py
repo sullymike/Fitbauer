@@ -121,8 +121,8 @@ class SessionIOMixin:
             self.file.y_data = y
             self.file.velocity = self._velocity_for_folded(folded.size)
             self.file_label.setText(
-                f"<b>{spectrum.file_name or '—'}</b><br>"
-                f"{counts.size} canales (sesión)")
+                f"<b>{spectrum.file_name or '—'}</b><br>" +
+                tr("file.channels_session", n=counts.size))
             self.act_fit.setEnabled(True)
             self._set_quick_action_buttons_enabled(True)
             # Igual que _load_file: los resultados runtime (y el mapa 2D) del
@@ -525,7 +525,7 @@ class SessionIOMixin:
             Path(path).write_text(
                 json.dumps(data, indent=2, ensure_ascii=False, default=str),
                 encoding="utf-8")
-            self.statusBar().showMessage(f"Sesión guardada: {path}", 5000)
+            self.statusBar().showMessage(tr("status.session_saved", path=path), 5000)
             self.mark_saved()
             return True
         except Exception as exc:
@@ -655,7 +655,7 @@ class SessionIOMixin:
             destino.write_text(
                 model_state_to_job(
                     estado, stem=(destino.stem[:8].upper() or "FITBAUER"),
-                    titles=("Exportado de Fitbauer", nombre[:70])),
+                    titles=("Exported from Fitbauer", nombre[:70])),
                 encoding="ascii", errors="replace")
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, titulo, f"{type(exc).__name__}: {exc}")
@@ -687,7 +687,7 @@ class SessionIOMixin:
             return False
         try:
             self._apply_session_payload(data)
-            self.statusBar().showMessage(f"Sesión cargada: {path}", 5000)
+            self.statusBar().showMessage(tr("status.session_loaded", path=path), 5000)
             return True
         except Exception as exc:
             QtWidgets.QMessageBox.critical(

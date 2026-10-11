@@ -277,7 +277,7 @@ class BatchFitDialog(QtWidgets.QDialog):
                 # Construir state desde la UI parental
                 state = self.parent_win._build_state()
                 if state is None:
-                    raise RuntimeError("No hay modelo activo")
+                    raise RuntimeError(tr("batch.no_active_model"))
                 state.velocity = v
                 state.y_data = y
                 state.sigma_data = sigma
@@ -347,7 +347,7 @@ class BatchFitDialog(QtWidgets.QDialog):
             keys.update(r.get("free_keys", []) or r.get("values", {}).keys())
         try:
             write_results_csv(Path(path), sorted(keys), results)
-            self.progress.setText(f"TSV guardado: {path}")
+            self.progress.setText(tr("batch.tsv_saved", path=path))
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("batch.save_csv"),
                                             f"{type(exc).__name__}: {exc}")
@@ -361,7 +361,7 @@ class BatchFitDialog(QtWidgets.QDialog):
         if not trend:
             QtWidgets.QMessageBox.information(
                 self, tr("batch.show_trends"),
-                "No hay datos numéricos para representar.")
+                tr("batch.no_numeric_data"))
             return
         dlg = QtWidgets.QDialog(self)
         dlg.setWindowTitle(tr("msg.batch_title"))
@@ -596,7 +596,7 @@ class GlobalNeelFitDialog(QtWidgets.QDialog):
         if load_errors:
             QtWidgets.QMessageBox.warning(
                 self, tr("global_neel.title"),
-                "Errores al cargar espectros:\n" + "\n".join(load_errors))
+                tr("global_neel.load_errors") + "\n" + "\n".join(load_errors))
             self.btn_run.setEnabled(True)
             self.progress.setText("")
             self._refresh_table()
@@ -647,7 +647,7 @@ class GlobalNeelFitDialog(QtWidgets.QDialog):
         lines.append(f"  χ²_red = {redchi2:.4g}   cost={result.cost:.6g}   success={result.success}")
         lines.append(f"  {result.message}")
         lines.append("")
-        lines.append("Parámetros locales:")
+        lines.append(tr("global_neel.local_params"))
         for i, (e, loc) in enumerate(zip(self.entries, result.local)):
             lines.append(f"  [{e['path'].name}  T={e['temp_k']:g} K]  " +
                          "  ".join(f"{k}={v:.5g}" for k, v in loc.items()))
@@ -683,7 +683,7 @@ class GlobalNeelFitDialog(QtWidgets.QDialog):
                         [f"{result.shared.get(k, '')}" for k in shared_keys]
                     )
                     w.writerow(row_vals)
-            self.progress.setText(f"TSV guardado: {path}")
+            self.progress.setText(tr("batch.tsv_saved", path=path))
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("batch.save_csv"),
                                             f"{type(exc).__name__}: {exc}")
@@ -697,7 +697,7 @@ class GlobalNeelFitDialog(QtWidgets.QDialog):
         if not local_keys:
             QtWidgets.QMessageBox.information(
                 self, tr("batch.show_trends"),
-                "No hay datos numéricos para representar.")
+                tr("batch.no_numeric_data"))
             return
 
         temps = [e["temp_k"] for e in self.entries if e.get("temp_k") is not None]

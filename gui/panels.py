@@ -740,7 +740,7 @@ class InfoPanel(QtWidgets.QGroupBox):
                 f"AIC={s.get('aic', float('nan')):.4g}   "
                 f"BIC={s.get('bic', float('nan')):.4g}"
             )
-            lines.append(f"arranques: {view.n_starts()}   params libres: {len(view.free_keys())}")
+            lines.append(tr("results.starts_free", n=view.n_starts(), free=len(view.free_keys())))
             lines.append("")
         if view.free_keys():
             for estimate in view.parameters(keys=view.free_keys()):

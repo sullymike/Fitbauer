@@ -300,9 +300,10 @@ class ModelWorkflowMixin:
             return
         self._refold_current_data(float(center))
         if self.file.path is not None:
-            self.file_label.setText(f"<b>{self.file.path.name}</b><br>"
-                                    f"{self.file.counts.size} canales · centro={float(center):.3f} · "
-                                    f"norm={self.file.norm_factor:.4g}")
+            self.file_label.setText(f"<b>{self.file.path.name}</b><br>" +
+                                    tr("file.label_info", n=self.file.counts.size,
+                                       center=f"{float(center):.3f}",
+                                       norm=f"{self.file.norm_factor:.4g}"))
         self.statusBar().showMessage(tr("status.refolded", center=f"{float(center):.4f}", default=f"Refolded with center={float(center):.4f}"), 3000)
         self._refresh_plot()
 
@@ -841,10 +842,10 @@ class ModelWorkflowMixin:
     def on_open(self) -> None:
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, tr("file.open"), str(ROOT),
-            "Espectros Mössbauer (*.ws5 *.adt *.WS5 *.ADT *.csv *.txt *.dat *.exp);;"
+            f"{tr('filter.mossbauer_spectra')} (*.ws5 *.adt *.WS5 *.ADT *.csv *.txt *.dat *.exp);;"
             "WS5/ADT (*.ws5 *.adt *.WS5 *.ADT);;"
-            "Velocidad CSV (*.csv *.txt *.dat *.exp);;"
-            "All (*.*)")
+            f"{tr('filter.velocity_csv')} (*.csv *.txt *.dat *.exp);;"
+            f"{tr('filter.all')} (*.*)")
         if not path:
             return
         p = Path(path)
@@ -894,9 +895,9 @@ class ModelWorkflowMixin:
         self.file.y_data = y
         # actualiza UI
         self.calib.center.set_value(center)
-        self.file_label.setText(f"<b>{path.name}</b><br>"
-                                f"{counts.size} canales · centro={center:.3f} · "
-                                f"norm={norm:.4g}")
+        self.file_label.setText(f"<b>{path.name}</b><br>" +
+                                tr("file.label_info", n=counts.size, center=f"{center:.3f}",
+                                   norm=f"{norm:.4g}"))
         self.act_fit.setEnabled(True)
         self.act_init.setEnabled(True)
         if hasattr(self, 'act_identify_phases'):
@@ -917,7 +918,7 @@ class ModelWorkflowMixin:
         self._set_quick_action_buttons_enabled(True)
         self._add_recent(path)
         self.statusBar().showMessage(
-            f"{path.name} · {counts.size} canales · centro={center:.3f}")
+            tr("status.file_loaded", name=path.name, n=counts.size, center=f"{center:.3f}"))
         self.runtime_results.clear()
         self._refresh_plot()
 

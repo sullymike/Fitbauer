@@ -115,11 +115,11 @@ class DiscreteFitMixin:
         elif red < 3.0:
             quality = "⚠"
         else:
-            quality = "⚠ ajuste poco fiable —"
+            quality = tr("fit.unreliable")
         gui_result = GuiFitResult(
             mode="discrete",
             raw_result=result,
-            message=f"{quality} χ²={chi2:.4g}  χ²red={red:.4g}  ·  {result.n_starts} arranques",
+            message=f"{quality} χ²={chi2:.4g}  χ²red={red:.4g}  ·  " + tr("fit.n_starts", n=result.n_starts),
         )
         self.runtime_results.set_discrete_fit(result, gui_result=gui_result)
         self._finish_gui_fit_result(gui_result)

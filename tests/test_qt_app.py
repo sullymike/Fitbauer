@@ -1061,7 +1061,9 @@ def test_apply_web_calibration_metadata_sets_info_and_vmax(win, tmp_path):
     vmax_axis = float(max(abs(win.file.velocity)))
     channel = 2.0 * win.calib.vmax.value() / max(1, win.file.counts.size // 2 - 1)
     assert 0.0 <= win.calib.vmax.value() - vmax_axis < 1.5 * channel
-    assert any("Calibración web aplicada" in msg for msg in messages)
+    from mossbauer_i18n import tr
+    prefijo = tr("web.calib_applied", id="", vmax="", iso="").split("id=")[0]
+    assert any(msg.startswith(prefijo) for msg in messages)
 
 
 def test_apply_web_calibration_metadata_handles_missing_isomer_shift(win):

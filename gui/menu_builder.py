@@ -537,7 +537,7 @@ class MenuBuilderMixin:
         color_menu = view_menu.addMenu(tr("options.color_theme", default="Tema de color"))
         self.color_theme_group = QtGui.QActionGroup(self)
         for value, theme in COLOR_THEMES.items():
-            act = QtGui.QAction(theme.get("label", value), self, checkable=True)
+            act = QtGui.QAction(tr(f"theme.{value}", default=theme.get("label", value)), self, checkable=True)
             if value == self.color_theme:
                 act.setChecked(True)
             act.triggered.connect(lambda _checked=False, v=value: self._apply_color_theme(v))

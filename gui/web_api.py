@@ -243,17 +243,17 @@ class WebApiMixin:
             if token:
                 try:
                     if client.token_is_valid():
-                        debug("Token guardado válido; reusándolo.")
+                        debug(tr("web.token_reused"))
                         return client
                 except Exception:
                     pass
             user = e_user.text().strip(); pwd = e_pass.text()
             if not user or not pwd:
-                raise RuntimeError("Falta usuario o contraseña para hacer login.")
-            debug(f"Login como '{user}'...")
+                raise RuntimeError(tr("web.login_missing"))
+            debug(tr("web.login_as", user=user))
             client.login(user, pwd)
             creds["token"] = client.token
-            debug("Token nuevo recibido.")
+            debug(tr("web.token_received"))
             return client
 
         def persist():
@@ -275,7 +275,7 @@ class WebApiMixin:
             try:
                 client = build_client()
             except Exception as exc:
-                debug(f"ERROR login: {exc}")
+                debug(tr("web.error_login", exc=exc))
                 QtWidgets.QMessageBox.critical(dlg, tr("webapi.login"), str(exc))
                 return
             persist()
@@ -287,7 +287,7 @@ class WebApiMixin:
                     items = list(client.iter_medidas(
                         search=e_search.text().strip() or None, limit=200))
             except Exception as exc:
-                debug(f"ERROR consulta: {exc}")
+                debug(tr("web.error_query", exc=exc))
                 return
             table.setRowCount(0)
             for it in items:
@@ -310,7 +310,7 @@ class WebApiMixin:
                     elif c == 2 and sample:
                         cell.setToolTip(sample)
                     table.setItem(r, c, cell)
-            debug(f"{len(items)} resultados.")
+            debug(tr("web.n_results", n=len(items)))
 
         btn_search.clicked.connect(refresh)
         e_search.returnPressed.connect(refresh)
@@ -347,7 +347,7 @@ class WebApiMixin:
         def download(load_after: bool = True):
             rows = sorted({i.row() for i in table.selectedIndexes()})
             if not rows:
-                debug("Selecciona una fila primero.")
+                debug(tr("web.select_row"))
                 return
             item_id = table.item(rows[0], 0).text()
             selected_item = next((it for it in items if str(it.get("id", "")) == item_id), {})
@@ -367,18 +367,18 @@ class WebApiMixin:
                     try:
                         calib = client.get_calibracion_de_medida(item_id)
                     except Exception as exc:
-                        debug(f"(sin metadatos de calibración asociada: {exc})")
+                        debug(tr("web.calib_no_metadata", exc=exc))
                     if cb_with_calib.isChecked() and calib and "id" in calib:
                         try:
                             calib_path = client.download_calibracion_datafile(
                                 calib["id"], dest_dir=str(dest))
-                            debug(f"Calibración asociada → {calib_path}")
+                            debug(tr("web.calib_associated", path=calib_path))
                         except Exception as exc:
-                            debug(f"(no se descargó el fichero de calibración: {exc})")
+                            debug(tr("web.calib_not_downloaded", exc=exc))
             except Exception as exc:
                 QtWidgets.QMessageBox.critical(dlg, tr("button.download"), str(exc))
                 return
-            debug(f"Descargado: {p}")
+            debug(tr("web.downloaded", path=p))
             if not load_after:
                 table.clearSelection()
                 return
@@ -398,7 +398,7 @@ class WebApiMixin:
                         debug=debug,
                     )
                 else:
-                    debug("La medida cargada no trae calibración asociada aplicable.")
+                    debug(tr("web.no_applicable_calib"))
                 dlg.accept()
             except Exception as exc:
                 QtWidgets.QMessageBox.warning(dlg, tr("button.load", default="Load"), str(exc))
@@ -423,7 +423,7 @@ class WebApiMixin:
         """
         if not calibration:
             if debug is not None:
-                debug("La API no devolvió metadatos de calibración.")
+                debug(tr("web.api_no_calib"))
             return
 
         def first_value(data: dict, *keys: str):
@@ -466,19 +466,19 @@ class WebApiMixin:
         self.calibration_info = info
         self._refresh_calib_label()
         if debug is not None:
-            debug(f"Calibración web aplicada: id={info.get('calibration_id') or '—'} "
-                  f"Vmax={velocity if velocity not in (None, '') else '—'} "
-                  f"IS={iso if iso not in (None, '') else '—'}")
+            debug(tr("web.calib_applied", id=info.get('calibration_id') or '—',
+                     vmax=velocity if velocity not in (None, '') else '—',
+                     iso=iso if iso not in (None, '') else '—'))
 
         if velocity in (None, ""):
             if debug is not None:
-                debug("La calibración no trae velocity_calibrated; no se aplica Vmax.")
+                debug(tr("web.calib_no_velocity"))
             return
         try:
             vmax = float(velocity)
         except (TypeError, ValueError):
             if debug is not None:
-                debug(f"velocity_calibrated no numérico: {velocity!r}")
+                debug(tr("web.velocity_not_numeric", value=repr(velocity)))
             return
 
         self.calib.vmax.set_value(vmax)
@@ -507,7 +507,7 @@ class WebApiMixin:
         if not ok or not medida_id.strip():
             return
         note, ok_note = QtWidgets.QInputDialog.getText(
-            self, tr("file.upload_session"), "Nota (opcional):", text="")
+            self, tr("file.upload_session"), tr("web.note_optional"), text="")
         if not ok_note:
             # Cancelar el diálogo de nota aborta la subida (antes se subía igual).
             return

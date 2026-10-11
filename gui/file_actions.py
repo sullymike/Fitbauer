@@ -34,9 +34,10 @@ class FileActionsMixin:
         self.calib.center.set_value(center)
         self._building = False
         if self.file.path is not None:
-            self.file_label.setText(f"<b>{self.file.path.name}</b><br>"
-                                    f"{self.file.counts.size} canales · centro={float(center):.3f} · "
-                                    f"norm={self.file.norm_factor:.4g}")
+            self.file_label.setText(f"<b>{self.file.path.name}</b><br>" +
+                                    tr("file.label_info", n=self.file.counts.size,
+                                       center=f"{float(center):.3f}",
+                                       norm=f"{self.file.norm_factor:.4g}"))
         self.statusBar().showMessage(tr("status.center_found", center=f"{center:.4f}", default=f"Center detected: {center:.4f}"), 5000)
         self._refresh_plot()
 
@@ -196,7 +197,7 @@ class FileActionsMixin:
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, tr("file.compare_spectrum"),
             str(ROOT / "data_sample"),
-            "Espectros (*.ws5 *.adt *.csv *.txt *.dat *.exp);;Todos (*.*)")
+            f"{tr('filter.spectra')} (*.ws5 *.adt *.csv *.txt *.dat *.exp);;{tr('filter.all')} (*.*)")
         if not path:
             return
         fpath = Path(path)

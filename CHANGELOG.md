@@ -2,6 +2,12 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **Interfaz sin textos fijos en español.** Diálogos (ajuste global Néel,
+  batch, tendencias), barra de estado, registro del diálogo web, filtros de
+  fichero, etiqueta del fichero y de la calibración, temas de color, leyenda
+  «Nítido», mensajes de L-curve y de P fija pasan por `tr()` con 50 claves
+  nuevas en los 8 idiomas. El título por defecto del `.JOB` exportado queda
+  en inglés (va en un fichero ASCII).
 - **Ayuda en alemán, ruso, japonés y chino retraducidas y alineadas** con la
   española, igual que la francesa: los ocho idiomas tienen ya los mismos 32
   capítulos en el mismo orden (el test lo exige para todos). El texto por

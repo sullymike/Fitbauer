@@ -211,7 +211,7 @@ class DistributionFitMixin:
         if not self.is_distribution_mode:
             QtWidgets.QMessageBox.information(
                 self, tr("bhf.lcurve_alpha"),
-                "Disponible solo en modo distribución P(BHF) / P(ΔEQ).")
+                tr("bhf.lcurve_only_distribution"))
             return
         if self.file.velocity is None or self.file.y_data is None:
             return
@@ -228,7 +228,7 @@ class DistributionFitMixin:
         dist_state = d.to_view_state(variable=var)
         _fi = _eff_fi()
         alphas = np.logspace(_fi["lcurve_alpha_lo"].default, _fi["lcurve_alpha_hi"].default, int(_fi["lcurve_n_points"].default))
-        self.statusBar().showMessage(f"Escaneando α (n={len(alphas)})…")
+        self.statusBar().showMessage(tr("status.scanning_alpha", n=len(alphas)))
         QtWidgets.QApplication.processEvents()
         bmin = float(dist_state.bmin); bmax = max(bmin + 0.5, float(dist_state.bmax))
         nbins = max(5, int(dist_state.nbins))
@@ -397,11 +397,11 @@ class DistributionFitMixin:
         """Carga una distribución P fija desde fichero (dos columnas)."""
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, tr("bhf.load_fixed"), str(ROOT),
-            "Texto (*.txt *.dat *.csv *.tsv);;All (*.*)")
+            f"{tr('filter.text')} (*.txt *.dat *.csv *.tsv);;{tr('filter.all')} (*.*)")
         if not path:
             return
         self.dist_panel.fixed_path = Path(path)
-        self.statusBar().showMessage(f"P fija: {path}", 5000)
+        self.statusBar().showMessage(tr("status.fixed_p_loaded", path=path), 5000)
 
     # ── Ajuste distribución P(BHF) / P(ΔEQ) / P(IS) / 2D ───────────────────
     def on_fit_distribution(self) -> None:
@@ -439,7 +439,7 @@ class DistributionFitMixin:
         label = (f"P({label_map.get(pair[0], pair[0])}, {label_map.get(pair[1], pair[1])})"
                  if is_2d else f"P({label_map.get(var, var)})")
 
-        self.statusBar().showMessage(f"Ajustando {label} [{shape}]…")
+        self.statusBar().showMessage(tr("status.fitting_distribution", label=label, shape=shape))
         sharp_components, sharp_indices = self._active_sharp_components_for_distribution()
         calib_state = self.calib.to_view_state()
         fit_baseline = not calib_state.is_fixed("baseline")
@@ -575,7 +575,7 @@ class DistributionFitMixin:
                     **common)
             if shape == "Fija":
                 if dist_state.fixed_distribution_path is None:
-                    raise RuntimeError("Carga primero un fichero de P fija.")
+                    raise RuntimeError(tr("msg.fixed_p_missing"))
                 centers_arr, weights_arr = self._load_fixed_distribution(dist_state.fixed_distribution_path)
                 return fit_fixed_hyperfine_distribution(
                     v_arr, y_arr, centers_arr, weights_arr,
@@ -826,7 +826,7 @@ class DistributionFitMixin:
                     }
                 sharp_abs = component_absorption(self.file.velocity, comp_state.kind, params, extras=extras)
                 sharp_abs_sum += sharp_abs
-                components_for_plot.append((idx, f"Nítido {tr(f'kind.{comp_state.kind}', default=comp_state.kind)}", baseline_line - sharp_abs))
+                components_for_plot.append((idx, tr("plot.sharp_label", kind=tr(f"kind.{comp_state.kind}", default=comp_state.kind)), baseline_line - sharp_abs))
             if np.any(sharp_abs_sum > 0):
                 dist_name = label if is_2d else ("P(ΔEQ)" if var == "quad" else ("P(IS)" if var == "delta" else "P(BHF)"))
                 components_for_plot.insert(0, (0, dist_name, result.fitted_curve + sharp_abs_sum))
