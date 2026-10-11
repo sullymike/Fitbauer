@@ -17,6 +17,12 @@
   `--vbf-sigma-min-y/--vbf-sigma-max-y`. Figuran también en el diálogo de
   límites, la ayuda de los 8 idiomas y el manual (es/en). Los mensajes de
   `core/validation.py` pasan a `tr()` (`valid.*`).
+- **Avisos del motor de distribuciones traducidos.** Las notas que acompañan
+  al ajuste 2D (grados de libertad altos, malla con más pesos que canales,
+  gaussiana en el borde de la malla, mapa IS–ΔEQ no único con dobletes) y el
+  error de cotas σ de `vbf_sigma_bounds` estaban en español fijo; ahora usan
+  `tr()` (`bhf.note_*`, `bhf.vbf_sigma_order`). La nota de los dobletes dice
+  qué se compensa (σ IS, σ ΔEQ y ρ) en vez de «σ, σ y ρ».
 - **Botones estándar de Qt en el idioma de la interfaz.** «Cancel», «Yes»,
   «Open» y los diálogos de fichero salían en inglés en los ocho idiomas
   porque nunca se instalaba el traductor de Qt; ahora se carga el

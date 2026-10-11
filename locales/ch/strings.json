@@ -1268,5 +1268,10 @@
   "plimit.vbf_sigma_min": "VBF 高斯分布 σ 最小（X 轴；0 = 自动）",
   "plimit.vbf_sigma_max": "VBF 高斯分布 σ 最大（X 轴；0 = 自动）",
   "plimit.vbf_sigma_min_y": "VBF 高斯分布 σ 最小（2D Y 轴；0 = 自动）",
-  "plimit.vbf_sigma_max_y": "VBF 高斯分布 σ 最大（2D Y 轴；0 = 自动）"
+  "plimit.vbf_sigma_max_y": "VBF 高斯分布 σ 最大（2D Y 轴；0 = 自动）",
+  "bhf.note_high_dof": "有效自由度相对于通道数过高：存在过拟合风险。",
+  "bhf.note_2d_underdetermined": "二维网格的权重数多于通道数：没有强正则化时解不唯一。",
+  "bhf.note_gauss_edge": "有高斯分量触及网格边缘：请扩大范围以免被截断。",
+  "bhf.note_is_quad_doublets": "使用双线时 IS–ΔEQ 图不唯一：σ IS、σ ΔEQ 与 ρ 相互补偿。",
+  "bhf.vbf_sigma_order": "σ 最大（{max}）必须大于 σ 最小（{min}）"
 }

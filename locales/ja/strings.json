@@ -1268,5 +1268,10 @@
   "plimit.vbf_sigma_min": "VBF ガウス分布の σ 最小（X 軸、0 = 自動）",
   "plimit.vbf_sigma_max": "VBF ガウス分布の σ 最大（X 軸、0 = 自動）",
   "plimit.vbf_sigma_min_y": "VBF ガウス分布の σ 最小（2D の Y 軸、0 = 自動）",
-  "plimit.vbf_sigma_max_y": "VBF ガウス分布の σ 最大（2D の Y 軸、0 = 自動）"
+  "plimit.vbf_sigma_max_y": "VBF ガウス分布の σ 最大（2D の Y 軸、0 = 自動）",
+  "bhf.note_high_dof": "チャンネル数に対して実効自由度が大きく、過剰適合のおそれがあります。",
+  "bhf.note_2d_underdetermined": "2D 格子の重みの数がチャンネル数を上回っています。強い正則化なしでは解は一意に定まりません。",
+  "bhf.note_gauss_edge": "格子の端に接しているガウス成分があります。切り捨てられないよう範囲を広げてください。",
+  "bhf.note_is_quad_doublets": "ダブレットでは IS–ΔEQ マップは一意に定まりません。σ IS、σ ΔEQ、ρ が互いに補い合います。",
+  "bhf.vbf_sigma_order": "σ 最大（{max}）は σ 最小（{min}）より大きくなければなりません"
 }

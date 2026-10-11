@@ -1268,5 +1268,10 @@
   "plimit.vbf_sigma_min": "σ mín gaussianas VBF  (eje X; 0 = auto)",
   "plimit.vbf_sigma_max": "σ máx gaussianas VBF  (eje X; 0 = auto)",
   "plimit.vbf_sigma_min_y": "σ mín gaussianas VBF  (eje Y 2D; 0 = auto)",
-  "plimit.vbf_sigma_max_y": "σ máx gaussianas VBF  (eje Y 2D; 0 = auto)"
+  "plimit.vbf_sigma_max_y": "σ máx gaussianas VBF  (eje Y 2D; 0 = auto)",
+  "bhf.note_high_dof": "Grados de libertad efectivos altos frente al número de canales: riesgo de sobreajuste.",
+  "bhf.note_2d_underdetermined": "La malla 2D tiene más pesos que canales: la solución no es única sin regularización fuerte.",
+  "bhf.note_gauss_edge": "Alguna gaussiana toca el borde de la malla: amplía el rango para no truncarla.",
+  "bhf.note_is_quad_doublets": "Con dobletes el mapa IS–ΔEQ no es único: σ IS, σ ΔEQ y ρ se compensan.",
+  "bhf.vbf_sigma_order": "σ máx ({max}) debe ser mayor que σ mín ({min})"
 }

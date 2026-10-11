@@ -24,6 +24,7 @@ from scipy.optimize import lsq_linear, nnls
 # que NORMOS; ver CHANGELOG v4.0.2/v4.0.3): aquí solo se traduce la convención
 # relativa de intensidades del GUI (int2_rel/int3_rel) a pesos por línea.
 from core.constants import BHF_DEFAULT_T
+from mossbauer_i18n import tr
 from core import physics as core_physics
 from core.physics import (
     line_profile,
@@ -893,9 +894,9 @@ def fit_bhf_quad_distribution(
     n_weights = int(weights.size)
     dof_warning = None
     if eff_dof is not None and eff_dof > 0.7 * max(1, y.size):
-        dof_warning = "Grados de libertad efectivos altos frente al número de canales: riesgo de sobreajuste."
+        dof_warning = tr("bhf.note_high_dof")
     if n_weights > y.size:
-        dof_warning = (dof_warning + " " if dof_warning else "") + "La malla 2D tiene más pesos que canales: la solución no es única sin regularización fuerte."
+        dof_warning = (dof_warning + " " if dof_warning else "") + tr("bhf.note_2d_underdetermined")
     return BhfQuadDistribution2DFit(
         bhf_centers=bhf_centers,
         quad_centers=quad_centers,
@@ -956,7 +957,7 @@ def vbf_sigma_bounds(auto_lo: float, auto_hi: float,
     else:
         lo = float(auto_lo)
     if not (np.isfinite(lo) and np.isfinite(hi)) or not hi > lo:
-        raise ValueError(f"σ máx ({hi:g}) debe ser mayor que σ mín ({lo:g})")
+        raise ValueError(tr("bhf.vbf_sigma_order", max=f"{hi:g}", min=f"{lo:g}"))
     return lo, hi
 
 
@@ -1317,11 +1318,11 @@ def fit_vbf_2d_distribution(
             edge.append(c)
     notes = []
     if edge:
-        notes.append("Alguna gaussiana toca el borde de la malla: amplía el rango para no truncarla.")
+        notes.append(tr("bhf.note_gauss_edge"))
     if {str(variable_x), str(variable_y)} == {"delta", "quad"} and float(bhf) == 0.0:
         # Un doblete solo ve δ − ΔEQ/2 y δ + ΔEQ/2: de (σx, σy, ρ) solo se
         # determinan dos combinaciones (las anchuras de las dos líneas).
-        notes.append("Con dobletes el mapa IS–ΔEQ no es único: σ, σ y ρ se compensan.")
+        notes.append(tr("bhf.note_is_quad_doublets"))
     warning = " ".join(notes) or None
     return BhfQuadDistribution2DFit(
         bhf_centers=xc,

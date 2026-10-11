@@ -75,7 +75,8 @@ def test_vbf_2d_separa_dos_sitios_is_deq():
     assert frac == pytest.approx(0.3, abs=0.05)
     assert c1[1] == pytest.approx(0.35, abs=0.1) and c2[1] == pytest.approx(1.05, abs=0.05)
     assert c1[2] == pytest.approx(0.9, abs=0.1) and c2[2] == pytest.approx(2.1, abs=0.1)
-    assert "no es único" in (r.dof_warning or "")
+    from mossbauer_i18n import tr
+    assert tr("bhf.note_is_quad_doublets") in (r.dof_warning or "")
     assert np.sum((r.residuals / np.sqrt(y)) ** 2) / y.size < 1.2
 
 

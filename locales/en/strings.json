@@ -1268,5 +1268,10 @@
   "plimit.vbf_sigma_min": "VBF Gaussians σ min  (X axis; 0 = auto)",
   "plimit.vbf_sigma_max": "VBF Gaussians σ max  (X axis; 0 = auto)",
   "plimit.vbf_sigma_min_y": "VBF Gaussians σ min  (2D Y axis; 0 = auto)",
-  "plimit.vbf_sigma_max_y": "VBF Gaussians σ max  (2D Y axis; 0 = auto)"
+  "plimit.vbf_sigma_max_y": "VBF Gaussians σ max  (2D Y axis; 0 = auto)",
+  "bhf.note_high_dof": "Effective degrees of freedom are high relative to the number of channels: risk of overfitting.",
+  "bhf.note_2d_underdetermined": "The 2D grid has more weights than channels: the solution is not unique without strong regularisation.",
+  "bhf.note_gauss_edge": "A Gaussian touches the edge of the grid: widen the range so it is not truncated.",
+  "bhf.note_is_quad_doublets": "With doublets the IS–ΔEQ map is not unique: σ IS, σ ΔEQ and ρ compensate each other.",
+  "bhf.vbf_sigma_order": "σ max ({max}) must be greater than σ min ({min})"
 }

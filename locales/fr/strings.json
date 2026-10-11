@@ -1268,5 +1268,10 @@
   "plimit.vbf_sigma_min": "σ min des gaussiennes VBF  (axe X ; 0 = auto)",
   "plimit.vbf_sigma_max": "σ max des gaussiennes VBF  (axe X ; 0 = auto)",
   "plimit.vbf_sigma_min_y": "σ min des gaussiennes VBF  (axe Y 2D ; 0 = auto)",
-  "plimit.vbf_sigma_max_y": "σ max des gaussiennes VBF  (axe Y 2D ; 0 = auto)"
+  "plimit.vbf_sigma_max_y": "σ max des gaussiennes VBF  (axe Y 2D ; 0 = auto)",
+  "bhf.note_high_dof": "Degrés de liberté effectifs élevés par rapport au nombre de canaux : risque de surajustement.",
+  "bhf.note_2d_underdetermined": "La grille 2D a plus de poids que de canaux : la solution n’est pas unique sans régularisation forte.",
+  "bhf.note_gauss_edge": "Une gaussienne touche le bord de la grille : élargissez la plage pour ne pas la tronquer.",
+  "bhf.note_is_quad_doublets": "Avec des doublets, la carte IS–ΔEQ n’est pas unique : σ IS, σ ΔEQ et ρ se compensent.",
+  "bhf.vbf_sigma_order": "σ max ({max}) doit être supérieure à σ min ({min})"
 }

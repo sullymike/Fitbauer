@@ -1268,5 +1268,10 @@
   "plimit.vbf_sigma_min": "σ mín das gaussianas VBF  (eixo X; 0 = auto)",
   "plimit.vbf_sigma_max": "σ máx das gaussianas VBF  (eixo X; 0 = auto)",
   "plimit.vbf_sigma_min_y": "σ mín das gaussianas VBF  (eixo Y 2D; 0 = auto)",
-  "plimit.vbf_sigma_max_y": "σ máx das gaussianas VBF  (eixo Y 2D; 0 = auto)"
+  "plimit.vbf_sigma_max_y": "σ máx das gaussianas VBF  (eixo Y 2D; 0 = auto)",
+  "bhf.note_high_dof": "Graus de liberdade efetivos elevados face ao número de canais: risco de sobreajuste.",
+  "bhf.note_2d_underdetermined": "A malha 2D tem mais pesos do que canais: a solução não é única sem regularização forte.",
+  "bhf.note_gauss_edge": "Alguma gaussiana toca o bordo da malha: alargue o intervalo para não a truncar.",
+  "bhf.note_is_quad_doublets": "Com dubletos o mapa IS–ΔEQ não é único: σ IS, σ ΔEQ e ρ compensam-se.",
+  "bhf.vbf_sigma_order": "σ máx ({max}) tem de ser maior do que σ mín ({min})"
 }

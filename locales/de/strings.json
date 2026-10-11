@@ -1268,5 +1268,10 @@
   "plimit.vbf_sigma_min": "σ min der VBF-Gaußkurven  (X-Achse; 0 = auto)",
   "plimit.vbf_sigma_max": "σ max der VBF-Gaußkurven  (X-Achse; 0 = auto)",
   "plimit.vbf_sigma_min_y": "σ min der VBF-Gaußkurven  (2D-Y-Achse; 0 = auto)",
-  "plimit.vbf_sigma_max_y": "σ max der VBF-Gaußkurven  (2D-Y-Achse; 0 = auto)"
+  "plimit.vbf_sigma_max_y": "σ max der VBF-Gaußkurven  (2D-Y-Achse; 0 = auto)",
+  "bhf.note_high_dof": "Effektive Freiheitsgrade hoch im Verhältnis zur Kanalzahl: Gefahr der Überanpassung.",
+  "bhf.note_2d_underdetermined": "Das 2D-Gitter hat mehr Gewichte als Kanäle: Ohne starke Regularisierung ist die Lösung nicht eindeutig.",
+  "bhf.note_gauss_edge": "Eine Gaußkomponente berührt den Gitterrand: Bereich erweitern, damit sie nicht abgeschnitten wird.",
+  "bhf.note_is_quad_doublets": "Mit Dubletts ist die IS–ΔEQ-Karte nicht eindeutig: σ IS, σ ΔEQ und ρ kompensieren sich.",
+  "bhf.vbf_sigma_order": "σ max ({max}) muss größer als σ min ({min}) sein"
 }
