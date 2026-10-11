@@ -2,6 +2,10 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **Etiqueta de la polarización de Blume–Tjon.** En un componente Blume–Tjon
+  el control salía rotulado «slider.s_relax_polarization» en los ocho idiomas
+  porque faltaba la clave. Nuevo test: todo parámetro de componente tiene
+  etiqueta en los 8 catálogos.
 - **pytest ya no se queda colgado al terminar.** Tras el resumen, el proceso
   seguía al 100 % de CPU y acumulando memoria hasta que el sistema lo mataba
   (en CI, timeout con todos los tests en verde). Dos fugas de widgets, vistas

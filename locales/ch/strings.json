@@ -1281,5 +1281,6 @@
   "plot.kappa_no_sigma": "无 σ：未收敛",
   "plot.show_prob_band": "P 的 1σ 带",
   "plot.prob_band_label": "P ± 1σ",
-  "tooltip.show_prob_band": "通过参数化蒙特卡罗得到 P 各区间的 1σ 不确定度：在模型上加入数据 σ（按约化 χ² 缩放）的噪声后重新拟合分布，并测量其离散度。满足 P ≥ 0。不包含 δ、Γ 及其他全局参数的不确定度。仅适用于采用 Tikhonov 或 TV 的直方图形状。"
+  "tooltip.show_prob_band": "通过参数化蒙特卡罗得到 P 各区间的 1σ 不确定度：在模型上加入数据 σ（按约化 χ² 缩放）的噪声后重新拟合分布，并测量其离散度。满足 P ≥ 0。不包含 δ、Γ 及其他全局参数的不确定度。仅适用于采用 Tikhonov 或 TV 的直方图形状。",
+  "slider.s_relax_polarization": "极化 P"
 }

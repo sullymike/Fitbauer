@@ -1281,5 +1281,6 @@
   "plot.kappa_no_sigma": "ohne σ: nicht konvergiert",
   "plot.show_prob_band": "1σ-Band von P",
   "plot.prob_band_label": "P ± 1σ",
-  "tooltip.show_prob_band": "1σ-Unsicherheit jedes Bins von P aus einem parametrischen Monte Carlo: Die Verteilung wird am Modell plus Rauschen mit der σ der Daten (skaliert mit dem reduzierten χ²) neu gefittet und die Streuung gemessen. Berücksichtigt P ≥ 0. Enthält nicht die Unsicherheit von δ, Γ und den übrigen globalen Werten. Nur Form Histogramm mit Tikhonov oder TV."
+  "tooltip.show_prob_band": "1σ-Unsicherheit jedes Bins von P aus einem parametrischen Monte Carlo: Die Verteilung wird am Modell plus Rauschen mit der σ der Daten (skaliert mit dem reduzierten χ²) neu gefittet und die Streuung gemessen. Berücksichtigt P ≥ 0. Enthält nicht die Unsicherheit von δ, Γ und den übrigen globalen Werten. Nur Form Histogramm mit Tikhonov oder TV.",
+  "slider.s_relax_polarization": "Polarisation P"
 }

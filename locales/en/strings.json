@@ -1281,5 +1281,6 @@
   "plot.kappa_no_sigma": "no σ: did not converge",
   "plot.show_prob_band": "1σ band of P",
   "plot.prob_band_label": "P ± 1σ",
-  "tooltip.show_prob_band": "1σ uncertainty of each bin of P from a parametric Monte Carlo: the distribution is refitted on the model plus noise of the data σ (scaled by the reduced χ²) and the spread is measured. It respects P ≥ 0. It does not include the uncertainty of δ, Γ or the other global values. Histogram shape with Tikhonov or TV only."
+  "tooltip.show_prob_band": "1σ uncertainty of each bin of P from a parametric Monte Carlo: the distribution is refitted on the model plus noise of the data σ (scaled by the reduced χ²) and the spread is measured. It respects P ≥ 0. It does not include the uncertainty of δ, Γ or the other global values. Histogram shape with Tikhonov or TV only.",
+  "slider.s_relax_polarization": "Polarisation P"
 }

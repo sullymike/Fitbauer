@@ -1281,5 +1281,6 @@
   "plot.kappa_no_sigma": "sin σ: no convergió",
   "plot.show_prob_band": "Banda 1σ de P",
   "plot.prob_band_label": "P ± 1σ",
-  "tooltip.show_prob_band": "Incertidumbre 1σ de cada bin de P por Monte Carlo paramétrico: se reajusta la distribución sobre el modelo con ruido de la σ de los datos (escalada por el χ² reducido) y se mide la dispersión. Respeta P ≥ 0. No incluye la incertidumbre de δ, Γ ni de los demás globales. Solo forma Histograma con Tikhonov o TV."
+  "tooltip.show_prob_band": "Incertidumbre 1σ de cada bin de P por Monte Carlo paramétrico: se reajusta la distribución sobre el modelo con ruido de la σ de los datos (escalada por el χ² reducido) y se mide la dispersión. Respeta P ≥ 0. No incluye la incertidumbre de δ, Γ ni de los demás globales. Solo forma Histograma con Tikhonov o TV.",
+  "slider.s_relax_polarization": "Polarización P"
 }
