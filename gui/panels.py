@@ -454,6 +454,10 @@ class ComponentPanel(QtWidgets.QWidget):
         self.params_grid.setColumnStretch(1, 1)
         for name, label, val, lo, hi, step, dec in all_specs:
             ctl = ParamControl(label, val, lo, hi, step, dec)
+            # Con el panel como padre desde el principio: los que el tipo actual
+            # no coloca en el grid quedaban como ventanas huérfanas (16 por
+            # componente) que no se destruían con la ventana.
+            ctl.setParent(self)
             ctl.hide()
             self.params[name] = ctl
             ctl.valueChanged.connect(lambda *_: self.paramChanged.emit())

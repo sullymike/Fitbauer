@@ -2,6 +2,19 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **pytest ya no se queda colgado al terminar.** Tras el resumen, el proceso
+  seguía al 100 % de CPU y acumulando memoria hasta que el sistema lo mataba
+  (en CI, timeout con todos los tests en verde). Dos fugas de widgets, vistas
+  con gdb en `PySide::destroyQCoreApplication`, que al salir destruía uno a uno
+  los ~64 000 widgets que seguían vivos:
+  - El fixture `make_window` hacía `deleteLater()` + `processEvents()`, pero
+    `processEvents()` no ejecuta los `DeferredDelete`: ninguna ventana se
+    destruía en toda la sesión. Ahora se vacían con `sendPostedEvents`.
+  - Los 16 controles de parámetros que el tipo de componente no coloca en el
+    grid (Kündig, textura, relajación, Néel…) se creaban sin padre y quedaban
+    como ventanas huérfanas que no se destruían con la ventana: 160 por
+    ventana, también en la aplicación real. Ahora nacen con el panel como
+    padre.
 - **Banda 1σ de P(x) en el gráfico de la distribución, con check.** La ayuda
   decía que tras el ajuste se dibujaba una banda 1σ alrededor de P, pero
   `weight_sigma` no se usaba en ningún gráfico. Además, esa σ (covarianza

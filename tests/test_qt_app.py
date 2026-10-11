@@ -63,6 +63,11 @@ def make_window(app):
     for w in created:
         w.close()
         w.deleteLater()
+    # processEvents() NO ejecuta los DeferredDelete: sin esto ninguna ventana
+    # se destruía y se acumulaban todas (decenas de miles de widgets) hasta el
+    # cierre del intérprete, donde PySide::destroyQCoreApplication las borraba
+    # una a una y el proceso quedaba colgado al 100 % de CPU tras el resumen.
+    mq.QtCore.QCoreApplication.sendPostedEvents(None, mq.QtCore.QEvent.Type.DeferredDelete)
     app.processEvents()
 
 
