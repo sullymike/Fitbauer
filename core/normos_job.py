@@ -44,6 +44,8 @@ from pathlib import Path
 
 import numpy as np
 
+from mossbauer_i18n import tr
+
 from core.params import COMPONENT_PARAM_SPECS, component_defaults
 
 #: Posición del bloque de cada subespectro dentro de la numeración global de
@@ -123,7 +125,7 @@ def parse_job(text: str) -> dict:
     "titles": [...]}`` con los valores como cadenas tal cual aparecen.
     """
     if "&PARAM" not in text.upper():
-        raise NormosJobError("no se encontró el bloque &PARAM")
+        raise NormosJobError(tr("normos.e_no_param"))
     lineas = text.replace("\r\n", "\n").split("\n")
 
     bloques: dict[str, list[str]] = {"DATA": [], "PARAM": []}
@@ -283,13 +285,10 @@ def job_to_model_state(text: str) -> dict:
     avisos: list[str] = []
 
     if es_job_de_dist(param):
-        raise NormosJobError(
-            "es un trabajo de NORMOS-DIST (distribuciones), no de NORMOS-SITE: "
-            "su NSUB son los puntos de la malla de la distribución, no sitios "
-            "discretos. Configura la distribución desde el panel de Fitbauer.")
+        raise NormosJobError(tr("normos.e_dist_job"))
     nsub = int(_f(param.get("NSUB"), 1))
     if nsub < 1:
-        raise NormosJobError("NSUB no válido")
+        raise NormosJobError(tr("normos.e_nsub"))
 
     variables: dict[str, float] = {"baseline": 1.0, "slope": 0.0}
     fijos: dict[str, bool] = {}
@@ -315,8 +314,7 @@ def job_to_model_state(text: str) -> dict:
                            ("BKG(4)", "curv3"), ("BKG(5)", "curv4")):
         if clave in param and _f(param[clave]):
             avisos.append(
-                f"{clave} = {param[clave]}: el fondo polinómico de NORMOS está "
-                f"normalizado a (v/Δv)^k; revisa «{destino}» tras importar.")
+                tr("normos.w_bkg", name=clave, value=param[clave], target=destino))
 
     # ── Subespectros ────────────────────────────────────────────────────────
     denoms: dict[int, float] = {}
@@ -324,12 +322,11 @@ def job_to_model_state(text: str) -> dict:
         nline = int(_f(_idx(param, "NLINE", i), 6))
         kind = _TIPO_POR_NLINE.get(nline)
         if kind is None:
-            avisos.append(f"subespectro {i}: NLINE={nline} no soportado; se omite.")
+            avisos.append(tr("normos.w_nline", i=i, nline=nline))
             continue
         if nline == 8:
             avisos.append(
-                f"subespectro {i}: octete (NLINE=8) importado como sexteto; "
-                "las líneas 7,8 (ΔmI=±2) hay que añadirlas como singletes.")
+                tr("normos.w_octet", i=i))
         tipos[i] = kind
         activos[i] = True
         pref = f"s{i}_"
@@ -404,8 +401,7 @@ def job_to_model_state(text: str) -> dict:
         fuente = _clave_desde_indice(fuente_i, tipos)
         if not destino or not fuente:
             avisos.append(
-                f"ligadura NDEX({destino_i})={fuente_i}: índice fuera del "
-                "modelo importado; se omite.")
+                tr("normos.w_ndex_out", target=destino_i, source=fuente_i))
             continue
         factor = _f(param.get(f"FACTOR({destino_i})"), 1.0)
         offset = _f(param.get(f"CONST({destino_i})"), 0.0)
@@ -423,9 +419,7 @@ def job_to_model_state(text: str) -> dict:
                 factor *= den_s / den_d
                 offset /= den_d
                 avisos.append(
-                    f"ligadura de área NDEX({destino_i})={fuente_i} reescalada "
-                    "a profundidades con las anchuras del JOB; si el ajuste "
-                    "cambia las anchuras, revisa la razón de áreas.")
+                    tr("normos.w_area_link", target=destino_i, source=fuente_i))
         constraints.append({
             "target": destino, "source": fuente,
             "factor": factor, "offset": offset,
@@ -434,12 +428,10 @@ def job_to_model_state(text: str) -> dict:
     for clave in ("POLAR", "IFSC", "IFGK", "EFGB", "SRELAX", "IRELAX",
                   "VOIGT", "EMSPEC", "ISTYPE", "NADD", "NDECKS"):
         if clave in param or clave in data:
-            avisos.append(f"«{clave}» no se traslada: revisa el modelo a mano.")
+            avisos.append(tr("normos.w_key_not_carried", name=clave))
 
     avisos.append(
-        "BHF viene en la escala de NORMOS (posiciones derivadas de los momentos "
-        "nucleares). Para reproducirla, ajusta con "
-        "core.constants.sextet_pattern(\"normos\").")
+        tr("normos.w_bhf_scale"))
 
     estado = {
         "vars": variables, "fixed": fijos,
@@ -476,10 +468,7 @@ def _centro_desde_pfp(data: dict, avisos: list[str]) -> float | None:
     # NORMOS da el punto de doblado SUPERIOR (~2× el centro interno).
     centro = pfp / 2.0 if pfp >= 400.0 else pfp
     avisos.append(
-        f"PFP={pfp:g} es la SEMILLA de la búsqueda del punto de doblado, no el "
-        "punto final: NORMOS lo refina en dos ciclos y lo cuantiza a múltiplos "
-        "de medio canal. No se impone — Fitbauer hace su propia búsqueda. Si "
-        "quieres forzarlo, ponlo a mano en «Centro».")
+        tr("normos.w_pfp_seed", pfp=f"{pfp:g}"))
     return centro
 
 
@@ -516,8 +505,7 @@ def job_to_distribution_state(text: str) -> dict:
                 if int(_f(_idx(param, "NSB", i), 0)) > 0] or [1])
     if nblk > 1:
         avisos.append(
-            f"el trabajo tiene {nblk} bloques de distribución (NSB(2..)>0); "
-            "Fitbauer solo maneja uno: se importa el bloque 1.")
+            tr("normos.w_n_blocks", n=nblk))
     if nsb1 < 2:
         raise NormosJobError(
             "la malla de la distribución tiene menos de 2 puntos "
@@ -527,28 +515,22 @@ def job_to_distribution_state(text: str) -> dict:
     distri = int(_f(_idx(param, "DISTRI", 1), 1))
     variable = _VARIABLE_POR_METHOD.get(method)
     if variable is None:
-        avisos.append(f"METHOD={method} desconocido; se asume distribución de BHF.")
+        avisos.append(tr("normos.w_method_unknown", method=method))
         variable = "bhf"
     if method == 2:
         avisos.append(
-            "METHOD=2 (asimetría de primer orden a la Brand): Fitbauer modela "
-            "esa asimetría con la correlación δ(H), ya trasladada desde DTI, "
-            "pero no con el desarrollo de Brand completo.")
+            tr("normos.w_method2"))
     if method == 3:
         avisos.append(
-            "METHOD=3 (suma sobre vecinos de Billard & Chamberod) no está en "
-            "Fitbauer: se importa como distribución simple con las mismas "
-            "correlaciones δ(H)/ΔEQ(H).")
+            tr("normos.w_method3"))
     if method in (5, 7):
         avisos.append(
-            f"METHOD={method} lee la distribución de un fichero externo; en "
-            "Fitbauer eso es la forma «Fija»: carga el fichero a mano.")
+            tr("normos.w_method_file", method=method))
 
     forma = _FORMA_POR_DISTRI.get(distri)
     if forma is None:
         avisos.append(
-            "DISTRI=4 (Czjzek si METHOD=6, Le Caer si METHOD=7) no está "
-            "implementado en Fitbauer: se importa como histograma.")
+            tr("normos.w_distri4"))
         forma = "Histograma"
     conc = _f(param.get("CONC"), 0.0)
     if distri == 3:
@@ -565,8 +547,7 @@ def job_to_distribution_state(text: str) -> dict:
     if paso <= 0.0:
         paso = 1.0
         avisos.append(
-            f"{paso_clave} no positivo: NORMOS usa 1.0 por defecto y aquí "
-            "también, pero comprueba el rango de la malla.")
+            tr("normos.w_step", name=paso_clave))
     bmin, bmax = inicio, inicio + (nsb1 - 1) * paso
 
     dti = _f(_idx(param, "DTI", 1), 0.0)
@@ -582,9 +563,7 @@ def job_to_distribution_state(text: str) -> dict:
     quad_slope = 0.0
     if variable == "bhf" and dtq:
         avisos.append(
-            f"DTQ={dtq:g} aparece en el .JOB pero NORMOS lo IGNORA en las "
-            "distribuciones de campo (METHOD 1-5): solo DTI modula el "
-            "subespectro. No se traslada.")
+            tr("normos.w_dtq_ignored", dtq=f"{dtq:g}"))
 
     gamma = _f(_idx(param, "WID", 1), 0.25) or 0.25
     delta = _f(_idx(param, "ISO", 1), 0.0)
@@ -592,14 +571,12 @@ def job_to_distribution_state(text: str) -> dict:
     campo_fijo = _f(_idx(param, "BHF", 1), 0.0) if variable != "bhf" else 33.0
     if variable == "delta" and campo_fijo > 0.0:
         avisos.append(
-            f"BHF={campo_fijo:g} con METHOD=8: la P(IS) de Fitbauer usa siempre "
-            "B = 0; se importa sin campo.")
+            tr("normos.w_is_field", bhf=f"{campo_fijo:g}"))
         campo_fijo = 0.0
 
     if _f(_idx(param, "STI", 1), 0.0) or _f(_idx(param, "STG", 1), 0.0):
         avisos.append(
-            "STI/STG (anchura gaussiana del desplazamiento isomérico) no se "
-            "traslada; en Fitbauer la vía equivalente es el perfil Voigt.")
+            tr("normos.w_sti"))
 
     # ── Regularización ──────────────────────────────────────────────────────
     # SMOOTH (``distauxl.for``) construye λ·D₂ᵀD₂ y SUMA BETA1/BETA2 a las dos
@@ -612,14 +589,10 @@ def job_to_distribution_state(text: str) -> dict:
     edge_anchor = max(beta1, beta2) / lamda if lamda > 0.0 else 0.0
     if lamda > 0.0:
         avisos.append(
-            f"LAMDA={lamda:g} no se traslada tal cual: el α de Fitbauer es "
-            "adimensional (normalizado por λ_ref) y el de NORMOS absoluto. "
-            "Usa la L-curve para fijarlo.")
+            tr("normos.w_lamda", lamda=f"{lamda:g}"))
     if beta1 != beta2 and (beta1 or beta2):
         avisos.append(
-            f"BETA1={beta1:g} y BETA2={beta2:g} anclan los dos extremos de la "
-            "malla con pesos distintos; Fitbauer usa un solo edge_anchor y se "
-            f"toma el mayor ({edge_anchor:g} relativo a λ).")
+            tr("normos.w_beta12", b1=f"{beta1:g}", b2=f"{beta2:g}", anchor=f"{edge_anchor:g}"))
 
     forma_reg = "maxent" if _b(param.get("MAXENT")) else "tikhonov"
     exacto = _b(_idx(param, "EXACT", 1))
@@ -660,9 +633,7 @@ def job_to_distribution_state(text: str) -> dict:
         estado["dist_binom_step"] = paso
         if nsb1 != 13:
             avisos.append(
-                f"Binomial con NSB={nsb1}: NORMOS usa 13 subespectros (0–12 "
-                "vecinos) y con NSB≠13 trunca o rellena con pesos sin sentido; "
-                "Fitbauer usa siempre los 13.")
+                tr("normos.w_binomial_nsb", nsb=nsb1))
     if method == 4:
         estado["dist_source_bhf"] = _f(param.get("BHS"), 33.0)
         estado["dist_source_theta"] = _f(param.get("THETAS"), 0.0)
@@ -675,12 +646,11 @@ def job_to_distribution_state(text: str) -> dict:
         nxll = int(_f(_idx(param, "NXLL", i), 6))
         if nxll < 0:
             avisos.append(
-                f"sitio cristalino {i}: NXLL={nxll} apunta a un espectro de "
-                "spline en fichero; no se importa.")
+                tr("normos.w_nxll_spline", i=i, nxll=nxll))
             continue
         kind = _TIPO_POR_NLINE.get(nxll)
         if kind is None:
-            avisos.append(f"sitio cristalino {i}: NXLL={nxll} no soportado; se omite.")
+            avisos.append(tr("normos.w_nxll", i=i, nxll=nxll))
             continue
         n_sharp += 1
         idx = n_sharp
@@ -733,10 +703,7 @@ def job_to_distribution_state(text: str) -> dict:
 
     if edge_anchor > 0.0:
         avisos.append(
-            f"BETA1/BETA2 anclan los extremos de la malla (β/λ = "
-            f"{edge_anchor:g}). El panel de la GUI no expone ese control: si "
-            "lo necesitas, pásalo como «edge_anchor» a "
-            "fit_hyperfine_distribution.")
+            tr("normos.w_beta_gui", anchor=f"{edge_anchor:g}"))
 
     # Claves que el usuario escribió pero que el namelist de DIST no acepta
     # (``distname.for``): NORMOS las lee y las tira sin avisar.
@@ -745,14 +712,10 @@ def job_to_distribution_state(text: str) -> dict:
                           "AKS", "PHS", "MIX", "IFTRAN", "WDS", "FSO"})
     if ignoradas:
         avisos.append(
-            "NORMOS-DIST IGNORA estas claves del .JOB (no están en su "
-            f"namelist &PARAM): {', '.join(ignoradas)}. Si venían de un "
-            "trabajo de SITE, ese subespectro no entró en el ajuste.")
+            tr("normos.w_dist_ignored", keys=", ".join(ignoradas)))
 
     avisos.append(
-        "BHF viene en la escala de NORMOS (posiciones derivadas de los "
-        "momentos nucleares). Para reproducirla, ajusta con "
-        "core.constants.sextet_pattern(\"normos\").")
+        tr("normos.w_bhf_scale"))
 
     vmax = _f(data.get("VMAX"), 0.0) or None
     if vmax:
@@ -789,7 +752,7 @@ def _clave_desde_indice(indice: int, tipos: dict[int, str]) -> str | None:
 def model_state_to_job(state: dict, stem: str = "FITBAUER",
                        vmax: float | None = None,
                        center: float | None = None,
-                       titles: tuple[str, str] = ("Exportado de Fitbauer", ""),
+                       titles: tuple[str, str] = ("Exported from Fitbauer", ""),
                        data_extra: dict | None = None) -> str:
     """Exporta un ``model_state`` de Fitbauer al formato ``.JOB`` de NORMOS.
 

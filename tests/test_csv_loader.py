@@ -233,7 +233,7 @@ def test_narrow_range_raises(tmp_path):
     counts = [2_000_000.0] * 20
     lines = "\n".join(f"{v:.6f},{c:.1f}" for v, c in zip(velocities, counts))
     p = _write_csv(tmp_path, lines)
-    with pytest.raises(ValueError, match="Rango"):
+    with pytest.raises(ValueError, match="1 mm/s"):
         load_velocity_csv(p)
 
 

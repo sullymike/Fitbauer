@@ -306,3 +306,23 @@ def test_claves_tr_usadas_existen_en_catalogo():
     assert len(usadas) > 300, "el barrido de claves tr() no encontró casi nada"
     assert not faltan, f"claves tr() sin entrada en el catálogo ES: {faltan}"
 
+
+def test_marcadores_iguales_en_todos_los_idiomas():
+    """Cada clave usa los mismos marcadores {…} en los ocho catálogos.
+
+    Una traducción con un marcador mal escrito hace que str.format falle y tr()
+    devuelva el texto sin rellenar, en silencio. Además, ninguno puede
+    llamarse ``key``: choca con el primer argumento de tr().
+    """
+    import json as _json
+    import re as _re
+    marcas = lambda s: sorted(set(_re.findall(r"\{(\w+)(?:[:!][^}]*)?\}", s)))
+    cats = {loc: _json.loads((ROOT / "locales" / loc / "strings.json").read_text(encoding="utf-8"))
+            for loc in LOCALES}
+    for clave, texto in cats["es"].items():
+        if not isinstance(texto, str):
+            continue
+        ref = marcas(texto)
+        assert "key" not in ref, clave
+        for loc, cat in cats.items():
+            assert marcas(cat[clave]) == ref, (loc, clave)

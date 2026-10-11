@@ -2,6 +2,14 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **Mensajes de `core/` que ve el usuario, traducidos.** El progreso del
+  ajuste (fases DE, arranques, bootstrap, verosimilitud perfilada), los
+  errores al cargar CSV/WS5 y los 26 avisos de importación de `.JOB` de NORMOS
+  usan `tr()` (`mossbauer_i18n` no depende de Qt). Se conservan los tokens
+  técnicos (`METHOD=8`, `NSB=…`, `PFP=`…) y los tests los comprueban a ellos
+  en vez de palabras españolas. Nuevo test: cada clave usa los mismos
+  marcadores `{…}` en los 8 catálogos y ninguno se llama `key` (chocaba con
+  el primer argumento de `tr()`).
 - **Diálogo de límites de parámetros en los 8 idiomas.** Sus etiquetas
   vivían en el propio diálogo solo en es/en/fr, y en alemán, portugués, ruso,
   japonés y chino caían al español. Pasan a los catálogos (`plimit.*`), con

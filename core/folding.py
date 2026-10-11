@@ -10,6 +10,8 @@ from pathlib import Path
 
 import numpy as np
 
+from mossbauer_i18n import tr
+
 # ── Cargador de espectros ya doblados en espacio de velocidad ─────────────────
 
 #: Cuentas máximas usadas al convertir transmisión normalizada (≤1) a cuentas.
@@ -75,10 +77,7 @@ def load_velocity_csv(path: str | Path) -> dict:
         ys.append(y)
 
     if len(velocities) < 10:
-        raise ValueError(
-            f"Se encontraron solo {len(velocities)} puntos válidos en {path}; "
-            "se requieren al menos 10."
-        )
+        raise ValueError(tr("load.too_few_points", n=len(velocities), path=path))
 
     vel = np.array(velocities, dtype=float)
     y_arr = np.array(ys, dtype=float)
@@ -87,10 +86,7 @@ def load_velocity_csv(path: str | Path) -> dict:
     # valores > 100 y col1 (y) tiene todos los valores en [-20, 20], es probable
     # que el fichero tenga intensidad en la primera columna y velocidad en la segunda.
     if np.all(vel > 100.0) and np.all((y_arr >= -20.0) & (y_arr <= 20.0)):
-        raise ValueError(
-            "El fichero parece tener las columnas en orden inverso (intensidad, velocidad). "
-            "Invierte las columnas o usa un fichero con velocidad en la primera columna."
-        )
+        raise ValueError(tr("load.columns_swapped"))
 
     # Convertir transmisión normalizada a cuentas si todos los valores son ≤ 1.
     if float(np.max(y_arr)) <= 1.0:
@@ -104,10 +100,7 @@ def load_velocity_csv(path: str | Path) -> dict:
     # Validación de rango de velocidades.
     v_range = float(vel[-1] - vel[0])
     if v_range < 1.0:
-        raise ValueError(
-            f"Rango de velocidades demasiado estrecho ({v_range:.3f} mm/s). "
-            "Se requiere al menos 1 mm/s de rango."
-        )
+        raise ValueError(tr("load.range_too_narrow", range=f"{v_range:.3f}"))
 
     # Deduplicación de velocidades: si dos velocidades consecutivas son iguales
     # (o más cercanas que 1e-9), se promedian sus valores y se conserva uno.
@@ -145,12 +138,12 @@ def read_ws5_counts(path: Path) -> np.ndarray:
             # al bloque abierto en vez de tragar números de la cabecera XML.
             source = text[m_open.end():]
         elif re.search(r"<\?xml|<ws5|<spectrum", text, re.I):
-            raise ValueError(f"Fichero WS5 sin bloque <data> legible: {path}")
+            raise ValueError(tr("load.ws5_no_data", path=path))
         else:
             source = text
     counts = np.array([float(x) for x in re.findall(r"[-+]?\d+(?:\.\d+)?", source)])
     if counts.size < 2:
-        raise ValueError(f"No se encontraron cuentas suficientes en {path}")
+        raise ValueError(tr("load.not_enough_counts", path=path))
     return counts
 
 

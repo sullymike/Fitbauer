@@ -112,7 +112,7 @@ def test_avisa_de_lo_que_no_traslada():
 def test_octete_avisa_de_las_lineas_extra():
     job = JOB_C2.replace("NLINE(1)=6", "NLINE(1)=8")
     avisos = " ".join(job_to_model_state(job)["warnings"])
-    assert "octete" in avisos.lower()
+    assert "NLINE=8" in avisos and "(ΔmI=±2)" in avisos
 
 
 @pytest.mark.parametrize("nline,kind", [(1, "Singlete"), (2, "Doblete"),
@@ -429,7 +429,7 @@ def test_dtq_no_se_traslada_en_distribuciones_de_campo():
     job = JOB_DIST_XL.replace("DTI=0.01,", "DTI=0.01, DTQ=0.03,")
     r = job_to_distribution_state(job)
     assert r["model_state"]["dist_quad_slope"] == 0.0
-    assert any("DTQ" in a and "IGNORA" in a for a in r["warnings"])
+    assert any("DTQ" in a and "METHOD 1-5" in a for a in r["warnings"])
     # En cambio DTI sí, normalizado por el paso de la malla.
     assert r["model_state"]["dist_delta_slope"] == pytest.approx(0.01 / 5.0)
 
@@ -594,7 +594,7 @@ def test_pfp_es_semilla_y_no_se_impone_como_centro():
     r = job_to_model_state(JOB_C2)
     assert r["center"] == pytest.approx(256.5)          # se informa…
     assert "center" not in r["model_state"]["vars"]     # …pero no se impone
-    assert any("SEMILLA" in a for a in r["warnings"])
+    assert any(a.startswith("PFP=") for a in r["warnings"])
 
 
 def test_resuelve_el_espectro_declarado_en_el_job(tmp_path):

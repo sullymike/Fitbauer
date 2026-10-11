@@ -18,6 +18,8 @@ from dataclasses import dataclass, field
 from typing import Callable
 import time
 
+from mossbauer_i18n import tr
+
 from contextlib import nullcontext
 
 import numpy as np
@@ -620,7 +622,7 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
                 or now - float(progress_state.get("last", 0.0)) >= 0.25):
             progress_state["last"] = now
             payload: dict[str, object] = {
-                "phase": progress_state.get("phase") or "Ajuste",
+                "phase": progress_state.get("phase") or tr("progress.fit_generic"),
                 "detail": progress_state.get("detail") or "",
                 "iteration": int(progress_state["eval"]),
                 "rms": float(np.sqrt(np.mean(r ** 2))) if r.size else 0.0,
@@ -653,14 +655,14 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
     # 4. Opcional: pre-pasada Differential Evolution.
     if state.global_opt:
         progress_state.update({
-            "phase": "Optimización global (DE)...",
-            "detail": "Búsqueda global previa al ajuste local",
+            "phase": tr("progress.fit_global"),
+            "detail": tr("progress.fit_global_detail"),
             "eval": 0,
             "max_eval": None,
             "last": 0.0,
         })
-        progress_cb({"phase": "Optimización global (DE)...",
-                     "detail": "Búsqueda global previa al ajuste local",
+        progress_cb({"phase": tr("progress.fit_global"),
+                     "detail": tr("progress.fit_global_detail"),
                      "params": _progress_params(x0_arr)})
         try:
             def _de_objective(x: np.ndarray) -> float:
@@ -691,15 +693,15 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
     for cand in candidates:
         n_starts += 1
         progress_state.update({
-            "phase": f"Ajuste {n_starts}/{len(candidates)}...",
-            "detail": "Optimizando parámetros libres",
+            "phase": tr("progress.fit_start", i=n_starts, n=len(candidates)),
+            "detail": tr("progress.fit_start_detail"),
             "eval": 0,
             "max_eval": 7000,
             "last": 0.0,
         })
         progress_cb({
-            "phase": f"Ajuste {n_starts}/{len(candidates)}...",
-            "detail": "Optimizando parámetros libres",
+            "phase": tr("progress.fit_start", i=n_starts, n=len(candidates)),
+            "detail": tr("progress.fit_start_detail"),
             "iteration": 0,
             "max_iter": 7000,
             "params": _progress_params(cand),
@@ -736,8 +738,8 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
     if state.auto_global and not state.global_opt and result is not None:
         _dof = max(1, int(np.asarray(state.y_data).size) - len(free_keys))
         if 2.0 * float(result.cost) / _dof > float(state.auto_global_chi2):
-            progress_state.update({"phase": "Escalado global (DE)...",
-                                   "detail": "χ²red alto tras multistart",
+            progress_state.update({"phase": tr("progress.auto_global"),
+                                   "detail": tr("progress.auto_global_detail"),
                                    "eval": 0, "max_eval": None, "last": 0.0})
             try:
                 def _de_objective_auto(x: np.ndarray) -> float:
@@ -990,7 +992,7 @@ def bootstrap_errors(
 
     samples: dict[str, list[float]] = {k: [] for k in base.free_keys}
     for i in range(int(n_rep)):
-        progress_cb(f"Bootstrap {i + 1}/{n_rep}", i + 1, n_rep)
+        progress_cb(tr("progress.bootstrap_step", i=i + 1, n=n_rep), i + 1, n_rep)
         if poisson:
             # c_sim ~ Poisson(λ = model0·norm·k) / k, con k=2 por el promedio de
             # dos canales del doblado triangular; en seno no se dobla (k=1).
@@ -1070,7 +1072,7 @@ def profile_likelihood(
     results: dict[str, dict] = {}
     n = len(free_keys)
     for i, key in enumerate(free_keys, 1):
-        progress_cb(f"Perfilando {key} ({i}/{n})", i, n)
+        progress_cb(tr("progress.profile_lik_step", name=key, i=i, n=n), i, n)
         best = float(base.values[key])
         sigma_est = float(base.errors.get(key) or 0.0)
         if sigma_est <= 0:

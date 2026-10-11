@@ -154,7 +154,7 @@ class DiscreteFitMixin:
         QtWidgets.QApplication.processEvents()
 
         def _progress(msg: str, _i: int, _n: int) -> None:
-            self.statusBar().showMessage(f"{msg}…")
+            self.statusBar().showMessage(msg)
             QtWidgets.QApplication.processEvents()
 
         try:
