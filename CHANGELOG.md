@@ -2,6 +2,11 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **Botones estándar de Qt en el idioma de la interfaz.** «Cancel», «Yes»,
+  «Open» y los diálogos de fichero salían en inglés en los ocho idiomas
+  porque nunca se instalaba el traductor de Qt; ahora se carga el
+  `qtbase_<idioma>.qm` que trae PySide6 (sin error si falta). El informe
+  muestra el perfil de línea traducido en vez del valor interno.
 - **README_ES** recupera las secciones «Modos de ajuste» y «Estructura del
   proyecto». En los dos README, el ajuste discreto admite hasta diez
   componentes (decían tres), Γ es FWHM (decía HWHM) y se citan P(IS) y los

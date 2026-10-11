@@ -2862,3 +2862,25 @@ def test_limites_de_parametros_tienen_etiqueta_en_todos_los_idiomas():
         for nombre in effective_specs(categoria):
             for loc, cat in catalogos.items():
                 assert cat.get(f"plimit.{nombre}"), (loc, categoria, nombre)
+
+
+def test_botones_estandar_de_qt_en_el_idioma_activo(app):
+    """Los botones estándar de Qt salen en el idioma de la interfaz.
+
+    Nunca se instalaba el traductor de Qt, así que «Cancel», «Yes» o los
+    diálogos de fichero salían en inglés en los ocho idiomas.
+    """
+    from PySide6 import QtWidgets
+    from gui.qt_translations import install_qt_translator
+    try:
+        assert install_qt_translator("es")
+        caja = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Cancel)
+        assert caja.button(QtWidgets.QDialogButtonBox.Cancel).text().replace("&", "") == "Cancelar"
+        assert not install_qt_translator("en")      # inglés: no hace falta traductor
+        caja = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Cancel)
+        assert caja.button(QtWidgets.QDialogButtonBox.Cancel).text().replace("&", "") == "Cancel"
+    finally:
+        traductor = getattr(app, "_fitbauer_qt_translator", None)
+        if traductor is not None:
+            app.removeTranslator(traductor)
+            app._fitbauer_qt_translator = None

@@ -379,7 +379,10 @@ class ReportMixin:
         norm_factor = getattr(self.file, "norm_factor", None)
         if norm_factor is not None:
             lines.append(f"| {_r('normalization')} | / {norm_factor:.6g} |")
-        lines.append(f"| {_r('line_profile')} | {calib_state.line_profile} |")
+        perfil = {"Lorentziana": tr("options.profile_lorentzian"),
+                  "Voigt": tr("options.profile_voigt")}.get(calib_state.line_profile,
+                                                           calib_state.line_profile)
+        lines.append(f"| {_r('line_profile')} | {perfil} |")
         lines.append("")
 
         # ── Calibración ──────────────────────────────────────────────────

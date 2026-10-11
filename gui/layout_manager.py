@@ -6,7 +6,8 @@ from pathlib import Path
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from mossbauer_i18n import tr, available_languages, set_language
+from gui.qt_translations import install_qt_translator
+from mossbauer_i18n import tr, available_languages, get_language, set_language
 from core.data_io import SETTINGS_PATH, update_settings
 from core.plot_styles import apply_rc
 from gui.state import UiPreferencesState
@@ -541,6 +542,7 @@ class LayoutSettingsMixin:
             self.plot_style_name = prefs.plot_style
         if prefs.ui_language and prefs.ui_language in available_languages():
             set_language(prefs.ui_language)
+        install_qt_translator(get_language())
         self.recent_files = [p for p in prefs.recent_files if Path(p).exists()][:5]
         if prefs.color_theme in COLOR_THEMES:
             self.color_theme = prefs.color_theme
