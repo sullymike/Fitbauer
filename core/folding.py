@@ -258,9 +258,14 @@ EDGE_TRIM_DEFAULT = 0
 CENTER_SEARCH_EDGE_GUARD = 1
 
 #: Umbral (en σ de Poisson) para considerar que un punto doblado del borde es un
-#: canal muerto y recortarlo. Generoso a propósito: solo dispara con fallos
-#: reales de adquisición, no con ruido.
-EDGE_OUTLIER_SIGMAS = 8.0
+#: canal muerto y recortarlo: un salto AISLADO de más de estas σ respecto a la
+#: mediana de sus vecinos. Generoso a propósito: solo dispara con fallos reales
+#: de adquisición, no con ruido (un canal muerto real daba ~210 σ).
+EDGE_OUTLIER_SIGMAS = 25.0
+
+#: Caída relativa del punto extremo respecto a la mediana de sus vecinos a
+#: partir de la cual también se recorta (un canal a cero deja el punto al 50 %).
+EDGE_OUTLIER_REL_DROP = 0.2
 
 #: Orden de la interpolación subcanal del doblado (1 = lineal, 3 = cúbica).
 #:
@@ -611,8 +616,8 @@ def fold_and_normalize(counts: np.ndarray, center: float,
 
 def edge_outlier_trim(folded: np.ndarray,
                       max_trim: int = 3,
-                      rel_threshold: float = 0.2,
-                      sigmas: float = 25.0) -> int:
+                      rel_threshold: float = EDGE_OUTLIER_REL_DROP,
+                      sigmas: float = EDGE_OUTLIER_SIGMAS) -> int:
     """Cuántos puntos hay que recortar de CADA extremo del espectro doblado.
 
     Devuelve 0 con datos sanos. Un punto del borde se descarta si:

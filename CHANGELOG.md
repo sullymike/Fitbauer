@@ -2,6 +2,10 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **`EDGE_OUTLIER_SIGMAS` era una constante muerta** que decía 8 σ, mientras
+  `edge_outlier_trim` aplicaba 25 σ por defecto. Ahora vale 25 y es el valor
+  por defecto de la función, junto a `EDGE_OUTLIER_REL_DROP` (20 %). Sin
+  cambio de resultados.
 - **Mensajes de `core/` que ve el usuario, traducidos.** El progreso del
   ajuste (fases DE, arranques, bootstrap, verosimilitud perfilada), los
   errores al cargar CSV/WS5 y los 26 avisos de importación de `.JOB` de NORMOS
