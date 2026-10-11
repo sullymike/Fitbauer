@@ -303,7 +303,9 @@ Two optional slopes that couple $\delta$ and $\dEQ$ to the value of the field
 and Binomial. Their meaning depends on the variable: in $P(\BHF)$ they are
 $d\delta/dH$ and $d\dEQ/dH$ (mm/s·T$^{-1}$); in $P(\dEQ)$ only $d\delta/d\dEQ$
 exists (the dimensionless Rancourt--Ping coupling) and in $P(\text{IS})$ only
-$d\dEQ/d\delta$. They go back to 0 when the variable changes.
+$d\dEQ/d\delta$. They go back to 0 when the variable changes. With a non-zero
+slope, the distribution plot draws the corresponding line on the right axis
+(\S\ref{sec:correlacion}).
 
 \subsection{The grid of values}
 
@@ -729,6 +731,17 @@ improve when $\kappa_\delta$/$\kappa_q$ are freed (by unchecking their lock).
 
 They apply to the \textbf{Histogram} and \textbf{VBF} shapes. The fitted values of
 $\kappa_\delta$ and $\kappa_q$ are shown in the status panel and in the reports.
+
+\textbf{In the plot.} With a non-zero slope, the distribution plot
+(\boton{Show distribution…}) adds on the \textbf{right axis} the $\delta(x)$ or
+$\dEQ(x)$ line the kernel applied, with its \textbf{$1\sigma$ band} if the slope or
+the global value was refined (appendix, \S\ref{sec:dist-corr}). In $P(\dEQ)$ it is
+the Rancourt--Ping $\delta(\dEQ)$. The legend gives $\kappa\pm\sigma$: if $|\kappa|$
+does not clearly exceed its $\sigma$, the correlation is \emph{not} established.
+The line is solid where $P$ has weight ($\ge 2$~\% of the maximum) and dotted
+elsewhere, where it is an extrapolation the data do not constrain. The
+\menu{Show $\delta$/$\Delta$EQ correlation} check hides it and the choice is remembered; if the
+refinement does not converge, the legend says so and no band is drawn.
 
 \begin{truco}
 Always start with $\kappa=0$. Activate them only if, after a good fit without

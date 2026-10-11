@@ -1273,5 +1273,10 @@
   "bhf.note_2d_underdetermined": "2D 格子の重みの数がチャンネル数を上回っています。強い正則化なしでは解は一意に定まりません。",
   "bhf.note_gauss_edge": "格子の端に接しているガウス成分があります。切り捨てられないよう範囲を広げてください。",
   "bhf.note_is_quad_doublets": "ダブレットでは IS–ΔEQ マップは一意に定まりません。σ IS、σ ΔEQ、ρ が互いに補い合います。",
-  "bhf.vbf_sigma_order": "σ 最大（{max}）は σ 最小（{min}）より大きくなければなりません"
+  "bhf.vbf_sigma_order": "σ 最大（{max}）は σ 最小（{min}）より大きくなければなりません",
+  "plot.show_correlation": "δ/ΔEQ の相関を表示（右軸）",
+  "tooltip.show_correlation": "カーネルが傾き κ で適用した δ(x) または ΔEQ(x) の直線。κ を精密化した場合は 1σ 帯付き。分布に重みがある範囲は実線、それ以外は外挿なので点線です。",
+  "plot.correlation_ylabel": "{names}（mm/s）",
+  "plot.kappa_fixed": "固定",
+  "plot.kappa_no_sigma": "σ なし：未収束"
 }

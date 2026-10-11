@@ -1273,5 +1273,10 @@
   "bhf.note_2d_underdetermined": "La grille 2D a plus de poids que de canaux : la solution n’est pas unique sans régularisation forte.",
   "bhf.note_gauss_edge": "Une gaussienne touche le bord de la grille : élargissez la plage pour ne pas la tronquer.",
   "bhf.note_is_quad_doublets": "Avec des doublets, la carte IS–ΔEQ n’est pas unique : σ IS, σ ΔEQ et ρ se compensent.",
-  "bhf.vbf_sigma_order": "σ max ({max}) doit être supérieure à σ min ({min})"
+  "bhf.vbf_sigma_order": "σ max ({max}) doit être supérieure à σ min ({min})",
+  "plot.show_correlation": "Afficher la corrélation δ/ΔEQ (axe de droite)",
+  "tooltip.show_correlation": "Droite δ(x) ou ΔEQ(x) appliquée par le noyau avec les pentes κ, avec sa bande 1σ si elles ont été affinées. Continue là où la distribution a du poids ; pointillée ailleurs, où c’est une extrapolation.",
+  "plot.correlation_ylabel": "{names} (mm/s)",
+  "plot.kappa_fixed": "fixe",
+  "plot.kappa_no_sigma": "sans σ : pas de convergence"
 }

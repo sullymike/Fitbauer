@@ -5,6 +5,7 @@ Se ejecutan con QT_QPA_PLATFORM=offscreen para no necesitar display real.
 """
 from __future__ import annotations
 
+import dataclasses
 import os
 import sys
 from pathlib import Path
@@ -535,6 +536,48 @@ def test_pbhf_vbf_shape_fits_and_stores_components(win):
     mus = [c[1] for c in r.vbf_components]
     assert mus == sorted(mus)
 
+
+
+def test_curva_de_correlacion_en_el_dialogo_de_pdeq(win, monkeypatch):
+    """Con κδ libre, el diálogo P(ΔEQ) dibuja δ(ΔEQ) ± 1σ en el eje derecho y un
+    check la oculta (y se recuerda); con κδ = 0 no hay eje ni check."""
+    import numpy as np
+    win._load_file(DATA / "sintetico_dist_deq.adt")
+    captured = {}
+    win._show_distribution_dialog = lambda r: captured.setdefault("r", r)
+    win.mode_combo.setCurrentIndex(2)                     # P(ΔEQ)
+    d = win.dist_panel
+    d.gamma.set_fixed(True)
+    d.delta.set_fixed(False)
+    d.delta_slope.set_fixed(False)
+    d.delta_slope.set_value(0.05)
+    win.on_fit()
+    r = captured["r"]
+    assert r.fit_variable == "quad" and r.slope_ref == pytest.approx(np.mean(r.bhf_centers))
+    assert {"dist_delta", "dist_delta_slope"} <= set(r.global_values["free"])
+    curvas = win._distribution_correlation_curves(r)
+    assert [c["label"] for c in curvas] == ["δ(ΔEQ)"]
+    c = curvas[0]
+    assert c["has_error"] and c["slope_sigma"] > 0
+    # La curva es la que aplicó el kernel: δ final en la referencia.
+    j = int(np.argmin(np.abs(r.bhf_centers - r.slope_ref)))
+    assert c["curve"][j] == pytest.approx(
+        r.global_values["dist_delta"] + r.delta_slope * (r.bhf_centers[j] - r.slope_ref))
+
+    monkeypatch.setattr(QtWidgets.QDialog, "exec", lambda self: 0)
+    del win._show_distribution_dialog                     # el método real
+    win._show_distribution_dialog(r)
+    ax, cax = win._dist_dialog_axes
+    assert cax is not None and cax.get_visible()
+    win._dist_corr_check.setChecked(False)
+    assert not cax.get_visible() and win._dist_show_correlation is False
+    win._show_distribution_dialog(r)                      # se recuerda
+    assert not win._dist_dialog_axes[1].get_visible()
+    assert not win._dist_corr_check.isChecked()
+
+    sin_k = dataclasses.replace(r, delta_slope=0.0)
+    win._show_distribution_dialog(sin_k)
+    assert win._dist_dialog_axes[1] is None
 
 def test_pbhf_maxent_reg_mode_fits(win):
     """El modo de regularización 'maxent' ajusta un histograma P(BHF) positivo."""

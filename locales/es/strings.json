@@ -1273,5 +1273,10 @@
   "bhf.note_2d_underdetermined": "La malla 2D tiene más pesos que canales: la solución no es única sin regularización fuerte.",
   "bhf.note_gauss_edge": "Alguna gaussiana toca el borde de la malla: amplía el rango para no truncarla.",
   "bhf.note_is_quad_doublets": "Con dobletes el mapa IS–ΔEQ no es único: σ IS, σ ΔEQ y ρ se compensan.",
-  "bhf.vbf_sigma_order": "σ máx ({max}) debe ser mayor que σ mín ({min})"
+  "bhf.vbf_sigma_order": "σ máx ({max}) debe ser mayor que σ mín ({min})",
+  "plot.show_correlation": "Mostrar correlación δ/ΔEQ (eje derecho)",
+  "tooltip.show_correlation": "Recta δ(x) o ΔEQ(x) que el kernel aplicó con las pendientes κ, con su banda 1σ si se refinaron. Continua donde la distribución tiene peso; punteada fuera, donde es una extrapolación.",
+  "plot.correlation_ylabel": "{names} (mm/s)",
+  "plot.kappa_fixed": "fija",
+  "plot.kappa_no_sigma": "sin σ: no convergió"
 }

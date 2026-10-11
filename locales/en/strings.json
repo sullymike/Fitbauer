@@ -1273,5 +1273,10 @@
   "bhf.note_2d_underdetermined": "The 2D grid has more weights than channels: the solution is not unique without strong regularisation.",
   "bhf.note_gauss_edge": "A Gaussian touches the edge of the grid: widen the range so it is not truncated.",
   "bhf.note_is_quad_doublets": "With doublets the IS–ΔEQ map is not unique: σ IS, σ ΔEQ and ρ compensate each other.",
-  "bhf.vbf_sigma_order": "σ max ({max}) must be greater than σ min ({min})"
+  "bhf.vbf_sigma_order": "σ max ({max}) must be greater than σ min ({min})",
+  "plot.show_correlation": "Show δ/ΔEQ correlation (right axis)",
+  "tooltip.show_correlation": "The δ(x) or ΔEQ(x) line the kernel applied with the κ slopes, with its 1σ band if they were refined. Solid where the distribution has weight; dotted elsewhere, where it is an extrapolation.",
+  "plot.correlation_ylabel": "{names} (mm/s)",
+  "plot.kappa_fixed": "fixed",
+  "plot.kappa_no_sigma": "no σ: did not converge"
 }

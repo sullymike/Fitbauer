@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -50,6 +51,50 @@ def test_fit_hyperfine_distribution_accepts_slopes():
                                       fit_slope=False, delta_slope=0.003)
     assert r.success and np.all(r.weights >= -1e-9)
 
+
+
+def test_correlation_curve_y_banda():
+    """δ(x) = δ + κ(x − ref) y σ²(x) = σ²_δ + (x − ref)²σ²_κ + 2(x − ref)cov."""
+    x = np.array([0.0, 1.0, 2.0])
+    y, s = md.correlation_curve(x, 0.3, 0.1, 1.0)
+    np.testing.assert_allclose(y, [0.2, 0.3, 0.4])
+    assert np.all(s == 0.0)                          # sin varianzas: sin banda
+    y, s = md.correlation_curve(x, 0.3, 0.1, 1.0, var_base=0.04, var_slope=0.01,
+                                cov_base_slope=0.01)
+    np.testing.assert_allclose(s ** 2, [0.04 + 0.01 - 0.02, 0.04, 0.04 + 0.01 + 0.02])
+
+
+def test_global_parameter_covariance_coincide_con_mco_lineal():
+    """En un modelo lineal la covarianza linealizada es la de mínimos cuadrados."""
+    rng = np.random.default_rng(3)
+    x = np.linspace(-1, 1, 200)
+    y = 0.5 + 2.0 * x + rng.normal(0, 0.1, x.size)
+    J = np.column_stack([np.ones_like(x), x])
+    coef, *_ = np.linalg.lstsq(J, y, rcond=None)
+    r = y - J @ coef
+    cov = md.global_parameter_covariance(J, r)
+    s2 = float(r @ r) / (x.size - 2)
+    np.testing.assert_allclose(cov, s2 * np.linalg.inv(J.T @ J))
+    # Los grados de libertad que consume la distribución reducen el denominador.
+    cov_dof = md.global_parameter_covariance(J, r, inner_dof=50)
+    np.testing.assert_allclose(cov_dof, cov * (x.size - 2) / (x.size - 52))
+    assert md.global_parameter_covariance(J[:2], r[:2]) is None   # sin dof
+
+
+def test_slope_ref_es_la_referencia_del_kernel():
+    """El resultado guarda la x en la que δ y ΔEQ valen sus globales."""
+    v = np.linspace(-10, 10, 300)
+    centers = _grid()
+    K = md.build_bhf_kernel(v, centers, delta=0.0)
+    P = np.exp(-0.5 * ((centers - 33) / 3.0) ** 2)
+    y = 1.0 - K @ (P / P.sum() * 2.0)
+    r = md.fit_hyperfine_distribution(v, y, pmin=0, pmax=50, nbins=40, alpha=1e-3,
+                                      fit_slope=False, delta_slope=0.003)
+    assert r.slope_ref == pytest.approx(float(np.mean(r.bhf_centers)))
+    assert r.as_dict()["slope_ref"] == r.slope_ref
+    rv = md.fit_vbf_hyperfine_distribution(v, y, n_components=1, pmin=0, pmax=50,
+                                           nbins=40, delta_slope=0.003)
+    assert rv.slope_ref == pytest.approx(float(np.mean(rv.bhf_centers)))
 
 # ── Hueco 2: VBF multi-gaussiano ────────────────────────────────────────────
 def test_vbf_recovers_two_gaussians():
@@ -109,7 +154,6 @@ def test_gaussiana_shape_is_vbf_single_lorentz():
 def test_vbf_sigma_bounds_auto_and_explicit():
     """0/None = límites automáticos; una σ máx explícita manda sobre el mínimo
     automático; máx ≤ mín es un error."""
-    import pytest
     assert md.vbf_sigma_bounds(1e-3, 50.0) == (1e-3, 50.0)
     assert md.vbf_sigma_bounds(1e-3, 50.0, 0.0, 0.0) == (1e-3, 50.0)
     assert md.vbf_sigma_bounds(1e-3, 50.0, 0.5, 4.0) == (0.5, 4.0)

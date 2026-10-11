@@ -1273,5 +1273,10 @@
   "bhf.note_2d_underdetermined": "二维网格的权重数多于通道数：没有强正则化时解不唯一。",
   "bhf.note_gauss_edge": "有高斯分量触及网格边缘：请扩大范围以免被截断。",
   "bhf.note_is_quad_doublets": "使用双线时 IS–ΔEQ 图不唯一：σ IS、σ ΔEQ 与 ρ 相互补偿。",
-  "bhf.vbf_sigma_order": "σ 最大（{max}）必须大于 σ 最小（{min}）"
+  "bhf.vbf_sigma_order": "σ 最大（{max}）必须大于 σ 最小（{min}）",
+  "plot.show_correlation": "显示 δ/ΔEQ 相关（右轴）",
+  "tooltip.show_correlation": "核函数按斜率 κ 应用的 δ(x) 或 ΔEQ(x) 直线；若斜率经过精修则附 1σ 带。分布有权重处为实线，其余为外推，显示为虚线。",
+  "plot.correlation_ylabel": "{names}（mm/s）",
+  "plot.kappa_fixed": "固定",
+  "plot.kappa_no_sigma": "无 σ：未收敛"
 }

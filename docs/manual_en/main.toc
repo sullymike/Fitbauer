@@ -141,7 +141,7 @@
 \contentsline {section}{\numberline {A.4}Appendices}{55}{section.A.4}%
 \contentsline {subsection}{\numberline {A.4.1}Sextet calibration}{55}{subsection.A.4.1}%
 \contentsline {subsection}{\numberline {A.4.2}Parameter bounds}{55}{subsection.A.4.2}%
-\contentsline {subsection}{\numberline {A.4.3}Faddeeva function}{55}{subsection.A.4.3}%
+\contentsline {subsection}{\numberline {A.4.3}Faddeeva function}{56}{subsection.A.4.3}%
 \contentsline {subsection}{\numberline {A.4.4}Summary of the optimization stack}{56}{subsection.A.4.4}%
 \contentsline {chapter}{\numberline {B}Voigt-based fitting (VBF)}{57}{appendix.B}%
 \contentsline {section}{\numberline {B.1}Motivation: a basis of Gaussians for $P(B_{\mathrm {hf}})$}{57}{section.B.1}%

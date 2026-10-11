@@ -302,7 +302,9 @@ Dos pendientes opcionales que acoplan $\delta$ y $\dEQ$ al valor del campo
 Binomial. Su significado depende de la variable: en $P(\BHF)$ son $d\delta/dH$ y
 $d\dEQ/dH$ (mm/s·T$^{-1}$); en $P(\dEQ)$ solo existe $d\delta/d\dEQ$ (el
 acoplamiento de Rancourt--Ping, adimensional) y en $P(\text{IS})$ solo
-$d\dEQ/d\delta$. Al cambiar de variable vuelven a 0.
+$d\dEQ/d\delta$. Al cambiar de variable vuelven a 0. Con una pendiente distinta
+de 0, el gráfico de la distribución dibuja la recta correspondiente en el eje
+derecho (§\ref{sec:correlacion}).
 
 \subsection{La malla de valores}
 
@@ -731,6 +733,17 @@ residuo mejora al liberar $\kappa_\delta$/$\kappa_q$ (desmarcando su candado).
 
 Aplican a las formas \textbf{Histograma} y \textbf{VBF}. Los valores ajustados de
 $\kappa_\delta$ y $\kappa_q$ se muestran en el panel de estado y en los informes.
+
+\textbf{En el gráfico.} Con alguna pendiente distinta de cero, el gráfico de la
+distribución (\boton{Ver distribución…}) añade en el \textbf{eje derecho} la recta
+$\delta(x)$ o $\dEQ(x)$ que aplicó el núcleo, con su \textbf{banda $1\sigma$} si la
+pendiente o el global se refinaron (anexo, §\ref{sec:dist-corr}). En $P(\dEQ)$ es
+la $\delta(\dEQ)$ de Rancourt--Ping. La leyenda da $\kappa\pm\sigma$: si $|\kappa|$
+no supera claramente su $\sigma$, la correlación \emph{no} está demostrada. La
+recta es continua donde $P$ tiene peso ($\ge 2$~\% del máximo) y punteada fuera,
+donde es una extrapolación que los datos no restringen. La casilla
+\menu{Mostrar correlación $\delta$/$\Delta$EQ} la oculta y la elección se recuerda; si el
+refinado no converge, la leyenda lo indica y no se dibuja banda.
 
 \begin{truco}
 Empiece siempre con $\kappa=0$. Actívelos solo si, tras un buen ajuste sin

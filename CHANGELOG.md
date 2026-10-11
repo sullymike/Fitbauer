@@ -2,6 +2,19 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **Curva de correlación δ(x)/ΔEQ(x) en el gráfico de la distribución.** Con
+  una pendiente κ distinta de 0, el diálogo «Ver distribución…» dibuja en un
+  eje derecho la recta que aplicó el kernel: δ(ΔEQ) en P(ΔEQ) (Rancourt–Ping),
+  δ(H) y ΔEQ(H) en P(BHF), ΔEQ(IS) en P(IS). Lleva banda 1σ cuando el global o
+  la pendiente se refinaron: la covarianza sale de la jacobiana del bucle
+  externo en el óptimo (`global_parameter_covariance`), y la banda propaga
+  σ_δ, σ_κ y su covarianza (`correlation_curve`). La leyenda da κ ± σ, o «fija»,
+  o «sin σ» si el refinado agotó sus evaluaciones. Continua donde P tiene peso
+  (≥ 2 % del máximo) y punteada fuera; el eje se escala a esa zona. Un check la
+  oculta y la elección se recuerda. El resultado guarda la referencia de la
+  correlación (`slope_ref`: media de la malla, o el valor sin vecinos en la
+  binomial) y, en memoria, la variable, los globales finales y su covarianza.
+  Ayuda (8 idiomas) y manual (es/en) actualizados.
 - **Cotas de la anchura σ en las formas Gaussiana y VBF (1D y 2D).** Hasta
   ahora σ solo estaba limitada por dentro, entre 0.001 (¼ de paso en 2D) y la
   anchura del rango, y con VBF de varias componentes una gaussiana podía

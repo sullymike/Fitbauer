@@ -664,6 +664,15 @@ con $H_{\text{ref}}$ un campo de referencia. Así el núcleo $K_{ik}$ se constru
 usando $(\delta_k,\Delta E_{Q,k})$ en cada columna en vez de valores globales. Con
 $\kappa_\delta=\kappa_q=0$ se recupera el caso clásico. Las pendientes se refinan
 en el bucle externo (\S\ref{sec:refine}) y aplican al Histograma y al VBF.
+Su covarianza, junto con la de $\delta_0$ y $\Delta E_{Q,0}$, se estima
+linealizando en el óptimo del bucle externo,
+$\operatorname{Cov}(\bm\eta)=s^2(J^\top J)^{-1}$ con
+$s^2=\|\bm r\|^2/(n-\nu_{\text{ef}}-p)$, donde $J$ es la jacobiana del residuo
+proyectado, $\nu_{\text{ef}}$ los grados de libertad efectivos de la distribución
+y $p$ el número de parámetros externos. La banda de la recta es
+$\sigma^2(x)=\sigma^2_{\delta_0}+(x-H_{\text{ref}})^2\sigma^2_{\kappa}
++2(x-H_{\text{ref}})\operatorname{cov}(\delta_0,\kappa)$, con
+$H_{\text{ref}}$ la media de la malla (el valor sin vecinos en la binomial).
 
 \subsection{Refinamiento global (VARPRO)}\label{sec:refine}
 Cuando se activa, un bucle externo no lineal optimiza los parámetros de forma

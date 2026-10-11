@@ -660,6 +660,15 @@ with $H_{\text{ref}}$ a reference field. Thus the kernel $K_{ik}$ is built using
 $(\delta_k,\Delta E_{Q,k})$ in each column instead of global values. With
 $\kappa_\delta=\kappa_q=0$ the classic case is recovered. The slopes are refined in
 the outer loop (\S\ref{sec:refine}) and apply to the Histogram and to the VBF.
+Their covariance, together with that of $\delta_0$ and $\Delta E_{Q,0}$, is
+estimated by linearizing at the optimum of the outer loop,
+$\operatorname{Cov}(\bm\eta)=s^2(J^\top J)^{-1}$ with
+$s^2=\|\bm r\|^2/(n-\nu_{\text{eff}}-p)$, where $J$ is the Jacobian of the
+projected residual, $\nu_{\text{eff}}$ the effective degrees of freedom of the
+distribution and $p$ the number of outer parameters. The band of the line is
+$\sigma^2(x)=\sigma^2_{\delta_0}+(x-H_{\text{ref}})^2\sigma^2_{\kappa}
++2(x-H_{\text{ref}})\operatorname{cov}(\delta_0,\kappa)$, with
+$H_{\text{ref}}$ the mean of the grid (the no-neighbour value for the binomial).
 
 \subsection{Global refinement (VARPRO)}\label{sec:refine}
 When enabled, a nonlinear outer loop optimizes the shape parameters

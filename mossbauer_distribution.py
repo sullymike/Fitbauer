@@ -169,6 +169,17 @@ class BhfDistributionFit:
     reg_mode: str | None = None
     delta_slope: float = 0.0
     quad_slope: float = 0.0
+    #: Valor de la variable de la malla en el que δ y ΔEQ valen sus globales:
+    #: δ(x) = δ + delta_slope·(x − slope_ref), ídem ΔEQ(x). Es la media de la
+    #: malla (o el valor sin vecinos de la binomial).
+    slope_ref: float | None = None
+    #: Lo rellena quien orquesta el ajuste (la GUI) cuando refina δ/ΔEQ y las
+    #: pendientes en una capa externa: variable de la malla, valores finales
+    #: de los globales y su covarianza ``{(clave_i, clave_j): cov}``. Solo
+    #: en memoria (no van a ``as_dict``).
+    fit_variable: str | None = None
+    global_values: dict | None = None
+    global_cov: dict | None = None
     vbf_n_components: int | None = None
     #: Límites de anchura ``(σ_mín, σ_máx)`` aplicados a las gaussianas del VBF
     #: (y de la Gaussiana), en unidades de la variable distribuida.
@@ -215,6 +226,7 @@ class BhfDistributionFit:
             "reg_mode": self.reg_mode,
             "delta_slope": self.delta_slope,
             "quad_slope": self.quad_slope,
+            "slope_ref": self.slope_ref,
             "vbf_n_components": self.vbf_n_components,
             "vbf_sigma_bounds": (None if self.vbf_sigma_bounds is None
                                  else list(self.vbf_sigma_bounds)),
@@ -1560,6 +1572,56 @@ def distribution_weight_sigma(
     return np.sqrt(var)
 
 
+
+def global_parameter_covariance(
+    jac: np.ndarray,
+    residuals: np.ndarray,
+    inner_dof: float = 0.0,
+) -> np.ndarray | None:
+    """Covarianza linealizada de los parámetros globales del bucle externo.
+
+    ``jac`` es la jacobiana de los residuos respecto a los parámetros externos
+    (δ, ΔEQ, Γ, pendientes…) con los pesos de la distribución re-ajustados en
+    cada evaluación (proyección de variables), y ``inner_dof`` los grados de
+    libertad efectivos que consume la distribución. Cov = s²·(JᵀJ)⁻¹ con
+    s² = Σr²/(n − inner_dof − p). Devuelve ``None`` si no quedan grados de
+    libertad o la jacobiana no es finita.
+    """
+    J = np.atleast_2d(np.asarray(jac, dtype=float))
+    r = np.asarray(residuals, dtype=float).ravel()
+    if J.shape[0] != r.size or not (np.all(np.isfinite(J)) and np.all(np.isfinite(r))):
+        return None
+    dof = float(r.size) - float(inner_dof) - float(J.shape[1])
+    if dof <= 0:
+        return None
+    s2 = float(np.dot(r, r)) / dof
+    return s2 * np.linalg.pinv(J.T @ J)
+
+
+def correlation_curve(
+    centers: np.ndarray,
+    base: float,
+    slope: float,
+    ref: float,
+    *,
+    var_base: float = 0.0,
+    var_slope: float = 0.0,
+    cov_base_slope: float = 0.0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Recta de correlación y(x) = base + slope·(x − ref) y su σ por punto.
+
+    Es la δ(H), ΔEQ(H), δ(ΔEQ) o ΔEQ(IS) que el kernel aplica a cada columna
+    de la malla. La σ propaga las varianzas de ``base`` y ``slope`` y su
+    covarianza: σ²(x) = σ²_b + (x − ref)²·σ²_k + 2(x − ref)·cov(b, k).
+    Con varianzas nulas (parámetros fijos) la banda es cero.
+    """
+    x = np.asarray(centers, dtype=float)
+    dx = x - float(ref)
+    curve = float(base) + float(slope) * dx
+    var = float(var_base) + dx * dx * float(var_slope) + 2.0 * dx * float(cov_base_slope)
+    return curve, np.sqrt(np.clip(var, 0.0, None))
+
+
 def solve_bounded_lsq(
     A: np.ndarray,
     b: np.ndarray,
@@ -2198,6 +2260,7 @@ def fit_hyperfine_distribution(
         reg_mode=str(reg_mode),
         delta_slope=float(delta_slope),
         quad_slope=float(quad_slope),
+        slope_ref=float(np.mean(centers)) if h_ref is None else float(h_ref),
     )
 
 
@@ -2367,6 +2430,7 @@ def fit_vbf_hyperfine_distribution(
         shape=str(shape),
         delta_slope=float(delta_slope),
         quad_slope=float(quad_slope),
+        slope_ref=float(np.mean(centers)) if h_ref is None else float(h_ref),
         vbf_n_components=int(N),
         vbf_sigma_bounds=(float(sig_lo), float(sig_hi)),
     )
@@ -2559,6 +2623,7 @@ def fit_binomial_hyperfine_distribution(
         shape="Binomial",
         delta_slope=float(delta_slope),
         quad_slope=float(quad_slope),
+        slope_ref=float(p["start"]),
         binomial_start=float(p["start"]),
         binomial_step=float(p["step"]),
         binomial_n=n,

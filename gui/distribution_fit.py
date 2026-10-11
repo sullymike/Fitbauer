@@ -1,6 +1,7 @@
 """Ajuste de distribuciones hiperfinas desde la GUI Qt."""
 from __future__ import annotations
 
+import dataclasses
 import time
 from pathlib import Path
 
@@ -27,6 +28,8 @@ from mossbauer_distribution import (
     fit_fixed_hyperfine_distribution,
     fit_bhf_quad_distribution,
     fit_vbf_2d_distribution,
+    correlation_curve,
+    global_parameter_covariance,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -647,6 +650,9 @@ class DistributionFitMixin:
         max_outer_evals = 25 * (len(outer_specs) + 1)
         progress_state: dict = {"eval": 0, "best_rms": np.inf, "last_update": 0.0,
                                 "best_cost": np.inf, "best_x": None}
+        # Jacobiana y residuos del bucle externo en el óptimo: dan la
+        # covarianza de δ/ΔEQ/pendientes (banda de la curva de correlación).
+        outer_opt: dict = {}
 
         class _OuterBudgetExhausted(Exception):
             pass
@@ -739,6 +745,7 @@ class DistributionFitMixin:
                     opt = least_squares(residual_outer, x0, bounds=(lo, hi),
                                         max_nfev=max_outer_evals)
                     fitted_x_local = opt.x
+                    outer_opt.update(jac=opt.jac, fun=opt.fun)
                 except _OuterBudgetExhausted:
                     best_x = progress_state["best_x"]
                     fitted_x_local = x0 if best_x is None else best_x
@@ -765,6 +772,7 @@ class DistributionFitMixin:
         if hasattr(self, "act_undo_fit"):
             self.act_undo_fit.setEnabled(True)
         result, fitted_x = fit_output
+        global_cov = self._distribution_global_covariance(outer_specs, outer_opt, result)
 
         self._building = True
         self.calib.baseline.set_value(float(result.baseline))
@@ -796,6 +804,15 @@ class DistributionFitMixin:
             for idx, weight in zip(sharp_indices, result.sharp_weights):
                 self.components_panels[idx - 1].params["depth"].set_value(float(weight))
         self._building = False
+        # Globales finales, su covarianza y la variable van con el resultado
+        # (no con la ventana): si el diálogo se reabre más tarde, la curva
+        # δ(x)/ΔEQ(x) y su banda son las de este ajuste.
+        if not is_2d:
+            result = dataclasses.replace(
+                result, fit_variable=var, global_cov=global_cov,
+                global_values={"dist_delta": float(d.delta.value()),
+                               "dist_quad": float(d.quad.value()),
+                               "free": [k for k, *_ in outer_specs]})
 
         # Componentes para el gráfico
         # TODO (punto 4): los nítidos se reconstruyen aquí con component_absorption
@@ -946,6 +963,70 @@ class DistributionFitMixin:
             self._record_fit_history("distribution", r.stats)
         self._show_distribution_dialog(result)
 
+    @staticmethod
+    def _distribution_global_covariance(outer_specs, outer_opt, result) -> dict:
+        """{(clave_i, clave_j): cov} de los globales lineales del bucle externo.
+
+        Claves ``dist_delta``, ``dist_quad``, ``dist_delta_slope``,
+        ``dist_quad_slope``. Vacío si no hubo bucle externo o si se agotó el
+        presupuesto de evaluaciones (no hay jacobiana fiable en ese punto).
+        """
+        if not outer_specs or "jac" not in outer_opt:
+            return {}
+        cov = global_parameter_covariance(
+            outer_opt["jac"], outer_opt["fun"],
+            float(getattr(result, "effective_dof", None) or 0.0))
+        if cov is None:
+            return {}
+        lineales = {i: k for i, (k, kind, _lo, _hi) in enumerate(outer_specs)
+                    if kind == "lin" and not k.startswith("sharp:")}
+        return {(lineales[i], lineales[j]): float(cov[i, j])
+                for i in lineales for j in lineales}
+
+    def _distribution_correlation_curves(self, result) -> list[dict]:
+        """Curvas δ(x)/ΔEQ(x) que el kernel aplicó en un ajuste 1D, con su σ.
+
+        Una por pendiente no nula que tenga sentido con la variable: P(BHF)
+        δ(H) y ΔEQ(H); P(ΔEQ) δ(ΔEQ); P(IS) ΔEQ(IS). Cada entrada lleva
+        ``label``, ``curve``, ``sigma`` y ``has_error`` (False si ni el global
+        ni la pendiente se refinaron: la banda es nula).
+        """
+        var = getattr(result, "fit_variable", None) or self.dist_variable
+        centers = np.asarray(result.bhf_centers, dtype=float)
+        ref = getattr(result, "slope_ref", None)
+        if centers.size < 2:
+            return []
+        if ref is None:
+            ref = float(np.mean(centers))
+        cov = getattr(result, "global_cov", None) or {}
+        d = self.dist_panel
+        valores = getattr(result, "global_values", None) or {
+            "dist_delta": float(d.delta.value()), "dist_quad": float(d.quad.value())}
+        short = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}.get(var, var)
+        candidatos = []
+        if var in ("bhf", "quad"):
+            candidatos.append(("δ", "dist_delta", "dist_delta_slope",
+                               valores["dist_delta"], float(result.delta_slope or 0.0)))
+        if var in ("bhf", "delta"):
+            candidatos.append(("ΔEQ", "dist_quad", "dist_quad_slope",
+                               valores["dist_quad"], float(result.quad_slope or 0.0)))
+        out = []
+        for nombre, k_base, k_slope, base, slope in candidatos:
+            if slope == 0.0:
+                continue
+            curve, sigma = correlation_curve(
+                centers, base, slope, float(ref),
+                var_base=cov.get((k_base, k_base), 0.0),
+                var_slope=cov.get((k_slope, k_slope), 0.0),
+                cov_base_slope=cov.get((k_base, k_slope), 0.0))
+            var_k = float(cov.get((k_slope, k_slope), 0.0))
+            out.append({"label": f"{nombre}({short})", "curve": curve, "sigma": sigma,
+                        "has_error": bool(np.any(sigma > 0)),
+                        "slope": slope,
+                        "slope_free": k_slope in (valores.get("free") or ()),
+                        "slope_sigma": float(np.sqrt(var_k)) if var_k > 0 else None})
+        return out
+
     def _show_distribution_dialog(self, result) -> None:
         from core.result_views import DistributionResultView
         view = DistributionResultView(result)
@@ -955,7 +1036,7 @@ class DistributionFitMixin:
             self._show_distribution_dialog_1d(result)
 
     def _show_distribution_dialog_1d(self, result) -> None:
-        var = self.dist_variable
+        var = getattr(result, "fit_variable", None) or self.dist_variable
         title = {"quad": "P(ΔEQ)", "delta": "P(IS)"}.get(var, "P(BHF)")
         xlabel = tr({"quad": "plot.distribution_xlabel_deq",
                      "delta": "plot.distribution_xlabel_is"}.get(
@@ -979,10 +1060,72 @@ class DistributionFitMixin:
         ax.set_xlabel(xlabel)
         ax.set_ylabel(title)
         ax.grid(True, alpha=0.3)
+        corr_ax = self._draw_correlation_axis(ax, xc, pr, result)
+        bottom = QtWidgets.QHBoxLayout()
+        if corr_ax is not None:
+            chk = QtWidgets.QCheckBox(tr("plot.show_correlation"))
+            chk.setToolTip(tr("tooltip.show_correlation"))
+            chk.setChecked(bool(getattr(self, "_dist_show_correlation", True)))
+            corr_ax.set_visible(chk.isChecked())
+
+            def _toggle(on: bool) -> None:
+                self._dist_show_correlation = bool(on)
+                corr_ax.set_visible(bool(on))
+                cv.draw_idle()
+
+            chk.toggled.connect(_toggle)
+            self._dist_corr_check = chk
+            bottom.addWidget(chk)
+        bottom.addStretch(1)
         cv.draw_idle()
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
-        bb.rejected.connect(dlg.reject); lay.addWidget(bb)
+        bb.rejected.connect(dlg.reject); bottom.addWidget(bb)
+        lay.addLayout(bottom)
+        self._dist_dialog_axes = (ax, corr_ax)
         dlg.exec()
+
+    def _draw_correlation_axis(self, ax, xc, pr, result):
+        """Eje derecho con δ(x)/ΔEQ(x) del kernel y su banda 1σ; None si no hay.
+
+        La recta se dibuja continua donde P(x) tiene peso (≥ 2 % del máximo) y
+        punteada fuera: ahí es una extrapolación que los datos no restringen.
+        La banda solo se dibuja en la zona con peso.
+        """
+        curves = self._distribution_correlation_curves(result)
+        if not curves:
+            return None
+        cax = ax.twinx()
+        pmax = float(np.max(pr)) if pr.size else 0.0
+        mask = pr >= 0.02 * pmax if pmax > 0 else np.ones_like(pr, dtype=bool)
+        colores = ("#dc2626", "#16a34a")
+        for c, color in zip(curves, colores):
+            y, sg = c["curve"], c["sigma"]
+            cax.plot(xc, y, ":", color=color, lw=1.0, alpha=0.7)
+            label = c["label"] + (" ± 1σ" if c["has_error"] else "")
+            if c["slope_sigma"] is not None:
+                label += f"   κ = {c['slope']:.3g} ± {c['slope_sigma']:.2g}"
+            elif c.get("slope_free"):
+                label += f"   κ = {c['slope']:.3g} ({tr('plot.kappa_no_sigma')})"
+            else:
+                label += f"   κ = {c['slope']:.3g} ({tr('plot.kappa_fixed')})"
+            cax.plot(xc, np.where(mask, y, np.nan), "-", color=color, lw=1.8,
+                     label=label)
+            if c["has_error"]:
+                cax.fill_between(xc, y - sg, y + sg, where=mask, color=color,
+                                 alpha=0.18, linewidth=0)
+        # Escala del eje: la zona con peso y su banda, no la recta extrapolada
+        # (que, con una pendiente grande, aplastaría lo que importa).
+        zona = [np.concatenate([(c["curve"] - c["sigma"])[mask],
+                                (c["curve"] + c["sigma"])[mask]]) for c in curves]
+        zona = np.concatenate(zona) if zona else np.array([])
+        if zona.size and np.all(np.isfinite(zona)):
+            lo, hi = float(np.min(zona)), float(np.max(zona))
+            pad = max(0.15 * (hi - lo), 0.01)
+            cax.set_ylim(lo - pad, hi + pad)
+        cax.set_ylabel(tr("plot.correlation_ylabel",
+                          names=", ".join(c["label"] for c in curves)))
+        cax.legend(loc="upper right", fontsize=8, framealpha=0.85)
+        return cax
 
     def _show_distribution_dialog_2d(self, result, view) -> None:
         import numpy as np
