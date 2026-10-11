@@ -13,6 +13,23 @@ from core.result_views import discrete_result_view, distribution_result_view
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _r(key: str, **kwargs) -> str:
+    """Texto del informe en el idioma activo (claves ``rep.*``)."""
+    return tr(f"rep.{key}", **kwargs)
+
+
+def error_source_text(source: str) -> str:
+    """Traduce la fuente de σ guardada en el estado (valor interno en español)."""
+    import re
+    s = str(source)
+    if s.startswith("covarianza"):
+        return _r("err_cov")
+    m = re.match(r"bootstrap Monte Carlo \(n=(\d+)\)", s)
+    if m:
+        return _r("err_boot", n=m.group(1))
+    return s
+
+
 class ReportMixin:
     def _distribution_report_lines(self, *, short: bool = False) -> list[str]:
         """Bloque de informe del ajuste de distribución P(BHF)/P(ΔEQ).
@@ -61,9 +78,9 @@ class ReportMixin:
 
         lines: list[str] = []
         if short:
-            bits = [f"forma **{shape}**"]
+            bits = [_r("dist_short_shape", shape=shape)]
             if reg_mode:
-                bits.append(f"reg. {reg_mode}")
+                bits.append(_r("dist_short_reg", mode=reg_mode))
             if regularized_2d:
                 bits.append(f"α{x2}={_fmt(getattr(result, 'alpha_bhf', None), '.3g')}")
                 bits.append(f"α{y2}={_fmt(getattr(result, 'alpha_quad', None), '.3g')}")
@@ -79,31 +96,31 @@ class ReportMixin:
                 bits.append(f"κδ={_fmt(dsl, '.3g')}")
             if qsl:
                 bits.append(f"κq={_fmt(qsl, '.3g')}")
-            lines.append("**Distribución:** " + " · ".join(bits))
+            lines.append(f"**{_r('dist_label')}:** " + " · ".join(bits))
             lines.append("")
             return lines
 
-        lines.append("## 🌫️ Ajuste de distribución")
+        lines.append(f"## 🌫️ {_r('dist_header')}")
         lines.append("")
-        lines.append("| Campo | Valor |")
+        lines.append(f"| {_r('col_field')} | {_r('col_value')} |")
         lines.append("|---|---|")
-        lines.append(f"| Forma | {shape} |")
+        lines.append(f"| {_r('shape')} | {shape} |")
         if reg_mode:
-            lines.append(f"| Regularizador | {reg_mode} |")
-        lines.append(f"| Variable | {var_lbl} |")
+            lines.append(f"| {_r('regularizer')} | {reg_mode} |")
+        lines.append(f"| {_r('variable')} | {var_lbl} |")
         if regularized_2d:
             lines.append(f"| α ({x2}) | {_fmt(getattr(result, 'alpha_bhf', None))} |")
             lines.append(f"| α ({y2}) | {_fmt(getattr(result, 'alpha_quad', None))} |")
         elif not is_2d:
-            lines.append(f"| α (regularización) | {_fmt(getattr(result, 'alpha', None))} |")
-        lines.append(f"| Línea base | {_fmt(result.baseline)} |")
-        lines.append(f"| Pendiente del fondo | {_fmt(result.slope)} |")
+            lines.append(f"| {_r('alpha_reg')} | {_fmt(getattr(result, 'alpha', None))} |")
+        lines.append(f"| {_r('baseline')} | {_fmt(result.baseline)} |")
+        lines.append(f"| {_r('bg_slope')} | {_fmt(result.slope)} |")
         lines.append(f"| RMS | {_fmt(result.rms)} |")
         eff = getattr(result, "effective_dof", None)
         if eff is not None:
-            lines.append(f"| Grados efectivos de libertad | {_fmt(eff)} |")
+            lines.append(f"| {_r('eff_dof')} | {_fmt(eff)} |")
         if mean_x is not None:
-            lines.append(f"| ⟨{var_lbl}⟩ (media) | {_fmt(mean_x)} {unit} |")
+            lines.append(f"| ⟨{var_lbl}⟩ ({_r('mean')}) | {_fmt(mean_x)} {unit} |")
         if std_x is not None:
             lines.append(f"| σ ({var_lbl}) | {_fmt(std_x)} {unit} |")
         # Correlación δ(H)/ΔEQ(H)
@@ -113,12 +130,12 @@ class ReportMixin:
             lines.append(f"| κδ = dδ/dH | {_fmt(dsl)} mm/s·T⁻¹ |")
             lines.append(f"| κq = dΔEQ/dH | {_fmt(qsl)} mm/s·T⁻¹ |")
         # Estadísticos paramétricos (Gaussiana/Binomial)
-        for key, lbl in (("fitted_dist_center", "Centro (paramétrico)"),
-                         ("fitted_dist_sigma", "σ (paramétrico)"),
-                         ("fitted_dist_p", "c (binomial, fracción de soluto)"),
-                         ("binomial_n", "Vecinos (binomial)"),
-                         ("binomial_start", "Valor sin vecinos (binomial)"),
-                         ("binomial_step", "Cambio por vecino (binomial)")):
+        for key, lbl in (("fitted_dist_center", _r("param_center")),
+                         ("fitted_dist_sigma", _r("param_sigma")),
+                         ("fitted_dist_p", _r("binom_c")),
+                         ("binomial_n", _r("binom_n")),
+                         ("binomial_start", _r("binom_start")),
+                         ("binomial_step", _r("binom_step"))):
             val = getattr(result, key, None)
             if val is not None:
                 lines.append(f"| {lbl} | {_fmt(val)} |")
@@ -126,7 +143,7 @@ class ReportMixin:
         if is_2d:
             for key, lbl in (("mean_bhf", f"⟨{x2}⟩"), ("mean_quad", f"⟨{y2}⟩"),
                              ("sigma_bhf", f"σ({x2})"), ("sigma_quad", f"σ({y2})"),
-                             ("corr_bhf_quad", f"Correlación {x2}–{y2}")):
+                             ("corr_bhf_quad", f"{_r('correlation')} {x2}–{y2}")):
                 val = getattr(result, key, None)
                 if val is not None:
                     lines.append(f"| {lbl} | {_fmt(val)} |")
@@ -135,7 +152,7 @@ class ReportMixin:
         # Componentes VBF (multi-gaussiano)
         vbf = getattr(result, "vbf_components", None)
         if vbf:
-            lines.append("### Componentes VBF (Voigt-based fitting)")
+            lines.append(f"### {_r('vbf_header')}")
             lines.append("")
             # A_k es el área (integral) de cada gaussiana: gauss_weights está
             # normalizada a área unidad, así que A_k = área y A_k/ΣA = fracción.
@@ -146,7 +163,7 @@ class ReportMixin:
                 except Exception:
                     areas.append(0.0)
             area_tot = sum(areas)
-            lines.append("| # | A (área) | Área % | μ (T) | σ (T) |")
+            lines.append(f"| # | {_r('col_area_a')} | {_r('col_area_pct')} | μ (T) | σ (T) |")
             lines.append("|---|---|---|---|---|")
             for i, comp in enumerate(vbf, start=1):
                 try:
@@ -162,10 +179,10 @@ class ReportMixin:
         # Gaussianas bivariantes (Gaussiana 2D / VBF 2D)
         g2 = getattr(result, "vbf2d_components", None)
         if g2:
-            lines.append("### Gaussianas 2D")
+            lines.append(f"### {_r('g2d_header')}")
             lines.append("")
             area_tot = sum(float(c[0]) for c in g2)
-            lines.append(f"| # | A (área) | Área % | μ {x2} | μ {y2} | σ {x2} | σ {y2} | ρ |")
+            lines.append(f"| # | {_r('col_area_a')} | {_r('col_area_pct')} | μ {x2} | μ {y2} | σ {x2} | σ {y2} | ρ |")
             lines.append("|---|---|---|---|---|---|---|---|")
             for i, (a, mx, my, sx, sy, rho) in enumerate(g2, start=1):
                 frac = (100.0 * float(a) / area_tot) if area_tot > 0 else 0.0
@@ -181,9 +198,9 @@ class ReportMixin:
             if sw is not None and np.asarray(sw).size:
                 sw = np.asarray(sw, dtype=float)
                 sc = np.asarray(sc, dtype=float) if sc is not None else None
-                lines.append("### Componentes nítidos")
+                lines.append(f"### {_r('sharp_header')}")
                 lines.append("")
-                lines.append("| # | Centro (T) | Peso |")
+                lines.append(f"| # | {_r('col_center_t')} | {_r('col_weight')} |")
                 lines.append("|---|---|---|")
                 for i in range(sw.size):
                     c = _fmt(sc[i], '.4g') if sc is not None and i < sc.size else "—"
@@ -240,7 +257,7 @@ class ReportMixin:
                 return None
             return "\t".join((etiqueta or clave, num(valores.get(clave)),
                               num(vista.error_for(clave)),
-                              "" if clave in libres else "fijo"))
+                              "" if clave in libres else _r("fixed")))
 
         lineas: list[str] = []
         nombre = self.file.path.name if getattr(self.file, "path", None) else "—"
@@ -251,7 +268,7 @@ class ReportMixin:
             if valor is not None:
                 lineas.append(f"# {etiqueta}\t{num(valor)}")
         lineas.append("")
-        lineas.append("parametro\tvalor\terror\tfijo")
+        lineas.append(_r("copy_header"))
 
         # Globales: los de siempre, más cualquiera que se haya liberado.
         globales = ["vmax", "center", "baseline", "slope"]
@@ -268,7 +285,7 @@ class ReportMixin:
             if not cp.enabled.isChecked():
                 continue
             lineas.append("")
-            lineas.append(f"# componente {cp.idx}\t{cp.kind}")
+            lineas.append(f"# {_r('copy_component')} {cp.idx}\t{cp.kind}")
             for nombre_p in sorted(cp.relevant_params()):
                 f = fila(f"s{cp.idx}_{nombre_p}", nombre_p)
                 if f:
@@ -313,11 +330,11 @@ class ReportMixin:
             return f"± {v:.3g}" if v is not None and v > 0 else "—"
 
         lines: list[str] = []
-        lines.append("# 📊 Mössbauer Fe-57 — Informe de ajuste")
+        lines.append(f"# 📊 Mössbauer Fe-57 — {_r('title')}")
         lines.append("")
         lines.append(
-            f"**Fichero:** `{file_name}` · **Fecha:** "
-            f"{datetime.now().strftime('%Y-%m-%d %H:%M')} · **Programa:** "
+            f"**{_r('file')}:** `{file_name}` · **{_r('date')}:** "
+            f"{datetime.now().strftime('%Y-%m-%d %H:%M')} · **{_r('program')}:** "
             f"{APP_NAME} v{APP_VERSION} (Qt)"
         )
         lines.append("")
@@ -335,11 +352,11 @@ class ReportMixin:
                 bits.append(f"AIC = {st['aic']:.4g}")
             if st.get("bic") is not None:
                 bits.append(f"BIC = {st['bic']:.4g}")
-            lines.append("> ### 🎯 Resumen del ajuste")
+            lines.append(f"> ### 🎯 {_r('summary_header')}")
             lines.append("> " + " · ".join(bits))
             lines.append(
-                f"> {len(fit_view.free_keys())} parámetros libres · "
-                f"σ: {self.runtime_results.error_source}"
+                f"> {_r('n_free', n=len(fit_view.free_keys()))} · "
+                f"σ: {error_source_text(self.runtime_results.error_source)}"
             )
             lines.append("")
 
@@ -347,69 +364,69 @@ class ReportMixin:
         lines.extend(self._distribution_report_lines())
 
         # ── Espectro y plegado ──────────────────────────────────────────
-        lines.append("## 📁 Espectro y plegado")
+        lines.append(f"## 📁 {_r('sec_spectrum')}")
         lines.append("")
-        lines.append("| Campo | Valor |")
+        lines.append(f"| {_r('col_field')} | {_r('col_value')} |")
         lines.append("|---|---|")
-        lines.append(f"| Fichero | `{file_name}` |")
+        lines.append(f"| {_r('file')} | `{file_name}` |")
         n_chan = self.file.counts.size if self.file.counts is not None else 0
-        lines.append(f"| Canales leídos | {n_chan} |")
+        lines.append(f"| {_r('channels_read')} | {n_chan} |")
         center_val = float(calib_state.center)
-        lines.append(f"| Folding point centro | {center_val:.5f} |")
-        lines.append(f"| Folding point Normos (≈ 2·centro) | {2.0 * center_val:.5f} |")
+        lines.append(f"| {_r('fp_center')} | {center_val:.5f} |")
+        lines.append(f"| {_r('fp_normos')} | {2.0 * center_val:.5f} |")
         if self.file.folded is not None:
-            lines.append(f"| Pares doblados | {int(self.file.folded.size)} |")
+            lines.append(f"| {_r('folded_pairs')} | {int(self.file.folded.size)} |")
         norm_factor = getattr(self.file, "norm_factor", None)
         if norm_factor is not None:
-            lines.append(f"| Normalización | / {norm_factor:.6g} |")
-        lines.append(f"| Perfil de línea | {calib_state.line_profile} |")
+            lines.append(f"| {_r('normalization')} | / {norm_factor:.6g} |")
+        lines.append(f"| {_r('line_profile')} | {calib_state.line_profile} |")
         lines.append("")
 
         # ── Calibración ──────────────────────────────────────────────────
-        lines.append("## 🎛️ Calibración y escala de velocidades")
+        lines.append(f"## 🎛️ {_r('sec_calib')}")
         lines.append("")
-        lines.append("| Campo | Valor |")
+        lines.append(f"| {_r('col_field')} | {_r('col_value')} |")
         lines.append("|---|---|")
         lines.append(f"| Vmax | {calib_state.vmax:.6g} mm/s |")
-        lines.append(f"| Línea base | {calib_state.baseline:.6g} |")
-        lines.append(f"| Pendiente del fondo | {calib_state.slope:.6g} |")
-        lines.append(f"| Ajustar Vmax con el patrón | "
-                     f"{'sí' if calib_state.fit_velocity else 'no'} |")
+        lines.append(f"| {_r('baseline')} | {calib_state.baseline:.6g} |")
+        lines.append(f"| {_r('bg_slope')} | {calib_state.slope:.6g} |")
+        lines.append(f"| {_r('fit_vmax')} | "
+                     f"{_r('yes') if calib_state.fit_velocity else _r('no')} |")
         if ci:
             sample = ci.get("calibration_sample") or ci.get("calibration_file_name") or "—"
-            lines.append(f"| Origen calibración | {ci.get('source', '?')} |")
-            lines.append(f"| Muestra | {sample} |")
+            lines.append(f"| {_r('calib_source')} | {ci.get('source', '?')} |")
+            lines.append(f"| {_r('sample')} | {sample} |")
             if ci.get("calibration_file_name"):
-                lines.append(f"| Fichero calibración | `{ci['calibration_file_name']}` |")
+                lines.append(f"| {_r('calib_file')} | `{ci['calibration_file_name']}` |")
             if ci.get("velocity_calibrated") is not None:
                 lines.append(
-                    f"| Vmax calibrada | {float(ci['velocity_calibrated']):.6g} mm/s |"
+                    f"| {_r('vmax_calibrated')} | {float(ci['velocity_calibrated']):.6g} mm/s |"
                 )
             if iso_ref is not None:
-                lines.append(f"| δ de referencia (iso_ref) | {iso_ref:.6g} mm/s |")
+                lines.append(f"| {_r('iso_ref_row')} | {iso_ref:.6g} mm/s |")
             if ci.get("calibration_date"):
-                lines.append(f"| Fecha calibración | {ci['calibration_date']} |")
+                lines.append(f"| {_r('calib_date')} | {ci['calibration_date']} |")
         cal_unc = self.calibration_uncertainty_text()
         if cal_unc:
             lines.append("")
             lines.append(f"> ℹ️ {cal_unc}")
         elif not ci:
             lines.append("")
-            lines.append("> ⚠️ Sin calibración activa; los δ no están corregidos.")
+            lines.append(f"> ⚠️ {_r('no_calib')}")
         lines.append("")
 
         # ── Bondad y diagnóstico del ajuste ──────────────────────────────
         stats = ({metric.key: metric.value for metric in fit_view.metrics()} if fit_view is not None else {}) or {}
         rms = self._info_rms()
         if stats or not (rms != rms):  # rms != rms ⇒ NaN
-            lines.append("## 📐 Bondad y diagnóstico")
+            lines.append(f"## 📐 {_r('sec_goodness')}")
             lines.append("")
-            lines.append("| Indicador | Valor |")
+            lines.append(f"| {_r('col_indicator')} | {_r('col_value')} |")
             lines.append("|---|---|")
             if stats.get("chi2") is not None:
                 lines.append(f"| χ² | {stats['chi2']:.6g} |")
             if stats.get("red_chi2") is not None:
-                lines.append(f"| χ² reducido | {stats['red_chi2']:.6g} |")
+                lines.append(f"| {_r('red_chi2')} | {stats['red_chi2']:.6g} |")
             if stats.get("dof") is not None:
                 lines.append(f"| dof | {int(stats['dof'])} |")
             if stats.get("aic") is not None:
@@ -417,28 +434,26 @@ class ReportMixin:
             if stats.get("bic") is not None:
                 lines.append(f"| BIC | {stats['bic']:.6g} |")
             if stats.get("n_params") is not None:
-                lines.append(f"| Nº parámetros del modelo | {int(stats['n_params'])} |")
+                lines.append(f"| {_r('n_params')} | {int(stats['n_params'])} |")
             if rms == rms:  # not NaN
-                lines.append(f"| RMS del ajuste | {rms:.6g} |")
+                lines.append(f"| {_r('fit_rms')} | {rms:.6g} |")
             if fit_view is not None:
-                lines.append(f"| Autoarranques probados | {int(fit_view.n_starts())} |")
+                lines.append(f"| {_r('n_starts')} | {int(fit_view.n_starts())} |")
             lines.append("")
             # Diagnóstico residual
             if any(k in stats for k in ("resid_lag1", "resid_runs_z", "resid_antisym_corr")):
-                lines.append("**Diagnóstico del residuo**")
+                lines.append(f"**{_r('resid_diag')}**")
                 lines.append("")
-                lines.append("| Estadístico | Valor | Umbral de aviso |")
+                lines.append(f"| {_r('col_statistic')} | {_r('col_value')} | {_r('col_threshold')} |")
                 lines.append("|---|---|---|")
-                lines.append(f"| Autocorrelación lag-1 | {stats.get('resid_lag1', float('nan')):.3f} | \\|·\\| > 0.35 |")
-                lines.append(f"| Runs test (z) | {stats.get('resid_runs_z', float('nan')):.3f} | \\|·\\| > 2.0 |")
-                lines.append(f"| Correlación antisimétrica | {stats.get('resid_antisym_corr', float('nan')):.3f} | > 0.45 |")
+                lines.append(f"| {_r('lag1')} | {stats.get('resid_lag1', float('nan')):.3f} | \\|·\\| > 0.35 |")
+                lines.append(f"| {_r('runs')} | {stats.get('resid_runs_z', float('nan')):.3f} | \\|·\\| > 2.0 |")
+                lines.append(f"| {_r('antisym')} | {stats.get('resid_antisym_corr', float('nan')):.3f} | > 0.45 |")
                 lines.append("")
                 if (abs(stats.get("resid_lag1", 0.0)) > 0.35
                         or abs(stats.get("resid_runs_z", 0.0)) > 2.0
                         or stats.get("resid_antisym_corr", 0.0) > 0.45):
-                    lines.append("> ⚠️ El residuo parece tener estructura no aleatoria. "
-                                 "Revisa modelo, *folding point*, calibración Vmax o si "
-                                 "faltan componentes.")
+                    lines.append(f"> ⚠️ {_r('resid_warning')}")
                     lines.append("")
             # Correlaciones
             corr = fit_view.correlations() if fit_view is not None else {}
@@ -446,15 +461,15 @@ class ReportMixin:
             max_abs = corr.get("max_abs_corr")
             if max_pair and max_abs is not None:
                 lines.append(
-                    f"_Correlación máxima:_ `{max_pair[0]}` ↔ `{max_pair[1]}` con "
-                    f"|r| = **{float(max_abs):.3f}**."
+                    _r("max_corr", p1=max_pair[0], p2=max_pair[1],
+                       r=f"{float(max_abs):.3f}")
                 )
                 lines.append("")
             high = corr.get("high_pairs") or []
             if high:
-                lines.append("**⚠️ Parámetros muy correlacionados (|r| ≥ 0.95)**")
+                lines.append(f"**⚠️ {_r('high_corr')}**")
                 lines.append("")
-                lines.append("| Par | r |")
+                lines.append(f"| {_r('col_pair')} | r |")
                 lines.append("|---|---|")
                 for hp in high:
                     lines.append(f"| `{hp['param1']}` ↔ `{hp['param2']}` | {hp['corr']:.3f} |")
@@ -464,9 +479,9 @@ class ReportMixin:
         pct_active, areas, percentages = self.component_area_percentages()
         pct_errors = self.component_percentage_errors()
         if pct_active:
-            lines.append("## 🥧 Análisis de áreas por componente")
+            lines.append(f"## 🥧 {_r('sec_areas')}")
             lines.append("")
-            lines.append("| Componente | Tipo | % área | σ (%) | Área absoluta |")
+            lines.append(f"| {_r('col_component')} | {_r('col_type')} | {_r('col_pct_area')} | σ (%) | {_r('col_abs_area')} |")
             lines.append("|---|---|---|---|---|")
             for idx, area, pct in zip(pct_active, areas, percentages):
                 comp_state = self.components_panels[idx - 1].to_view_state()
@@ -479,12 +494,12 @@ class ReportMixin:
             lines.append("")
 
         # ── Componentes (parámetros + magnitudes físicas) ───────────────
-        lines.append("## 🧪 Componentes")
+        lines.append(f"## 🧪 {_r('sec_components')}")
         lines.append("")
         for comp_state in active_components:
             kind = comp_state.kind
             kind_disp = tr(f"kind.{kind}", default=kind)
-            lines.append(f"### 🔹 Componente {comp_state.idx} — {kind_disp}")
+            lines.append(f"### 🔹 {_r('component_title', idx=comp_state.idx, kind=kind_disp)}")
             lines.append("")
             used = USED_BY.get(kind, set())
             uses_gamma2 = "gamma2" in used
@@ -492,78 +507,73 @@ class ReportMixin:
             uses_bhf = "bhf" in used
             uses_quad = "quad" in used
             uses_int1 = "int1" in used  # True for magnetic/relaxation kinds
-            lines.append("**Parámetros**")
+            lines.append(f"**{_r('params')}**")
             lines.append("")
-            lines.append("| Parámetro | Valor | Estado |")
+            lines.append(f"| {_r('col_param')} | {_r('col_value')} | {_r('col_state')} |")
             lines.append("|---|---|---|")
             for k, value in comp_state.values.items():
                 if k not in used:
                     continue
-                state_lbl = "🔒 fijo" if comp_state.is_fixed(k) else "🔓 libre"
+                state_lbl = f"🔒 {_r('fixed')}" if comp_state.is_fixed(k) else f"🔓 {_r('free')}"
                 lines.append(f"| `s{comp_state.idx}_{k}` | {value:.6g} | {state_lbl} |")
             lines.append("")
             # Magnitudes físicas derivadas: anchuras reales e intensidades absolutas
             g1 = comp_state.value("gamma1")
-            lines.append("**Magnitudes físicas derivadas**")
+            lines.append(f"**{_r('derived')}**")
             lines.append("")
-            lines.append("| Magnitud | Valor |")
+            lines.append(f"| {_r('col_quantity')} | {_r('col_value')} |")
             lines.append("|---|---|")
             if uses_gamma2 and uses_gamma3:
                 g2 = g1 * comp_state.value("gamma2", 1.0)
                 g3 = g1 * comp_state.value("gamma3", 1.0)
-                lines.append(f"| Γ FWHM reales 1 / 2 / 3 (mm/s) | {g1:.4g} / {g2:.4g} / {g3:.4g} |")
-                lines.append(f"| Γ relativas 2 / 3 | {comp_state.value('gamma2', 1.0):.4g} / {comp_state.value('gamma3', 1.0):.4g} |")
+                lines.append(f"| {_r('real_g123')} | {g1:.4g} / {g2:.4g} / {g3:.4g} |")
+                lines.append(f"| {_r('rel_g23')} | {comp_state.value('gamma2', 1.0):.4g} / {comp_state.value('gamma3', 1.0):.4g} |")
             elif uses_gamma2:
                 g2 = g1 * comp_state.value("gamma2", 1.0)
-                lines.append(f"| Γ FWHM reales 1 / 2 (mm/s) | {g1:.4g} / {g2:.4g} |")
-                lines.append(f"| Γ relativa 2 | {comp_state.value('gamma2', 1.0):.4g} |")
+                lines.append(f"| {_r('real_g12')} | {g1:.4g} / {g2:.4g} |")
+                lines.append(f"| {_r('rel_g2')} | {comp_state.value('gamma2', 1.0):.4g} |")
             else:
                 lines.append(f"| Γ FWHM (mm/s) | {g1:.4g} |")
-            lines.append(f"| Profundidad | {comp_state.value('depth'):.6g} |")
+            lines.append(f"| {_r('depth')} | {comp_state.value('depth'):.6g} |")
             if uses_bhf:
                 lines.append(f"| BHF | {comp_state.value('bhf'):.6g} T |")
-            lines.append(f"| δ (sin corregir) | {comp_state.value('delta'):.6g} mm/s |")
+            lines.append(f"| {_r('delta_uncorr')} | {comp_state.value('delta'):.6g} mm/s |")
             if uses_quad:
                 lines.append(f"| ΔEQ | {comp_state.value('quad'):.6g} mm/s |")
             if iso_ref is not None:
                 lines.append(
-                    f"| **δ corregido** (iso_ref = {iso_ref:.6g}) | "
+                    f"| **{_r('delta_corr')}** (iso_ref = {iso_ref:.6g}) | "
                     f"**{comp_state.value('delta') - iso_ref:.6g} mm/s** |"
                 )
             if uses_int1:
                 i3_real = comp_state.value("int3", 1.0)
                 i2_real = i3_real * comp_state.value("int2", 1.0)
                 i1_real = i3_real * comp_state.value("int1", 1.0)
-                lines.append(f"| Intensidades reales I₁ / I₂ / I₃ | {i1_real:.4g} / {i2_real:.4g} / {i3_real:.4g} |")
+                lines.append(f"| {_r('real_int')} | {i1_real:.4g} / {i2_real:.4g} / {i3_real:.4g} |")
             lines.append("")
             # Textura derivada: solo para Sextete
             if kind == "Sextete":
                 derived = self.texture_derived(comp_state)
                 if derived is not None:
-                    lines.append("**🧭 Magnitudes derivadas de la textura (t = sin²θ)**")
+                    lines.append(f"**🧭 {_r('texture_header')}**")
                     lines.append("")
-                    lines.append("| Magnitud | Valor | σ |")
+                    lines.append(f"| {_r('col_quantity')} | {_r('col_value')} | σ |")
                     lines.append("|---|---|---|")
-                    lines.append(f"| t (parámetro de textura) | {derived['t']:.4g} | {_ferr(derived['sigma_t'])} |")
-                    lines.append(f"| θ (ángulo respecto a γ) | {derived['theta_deg']:.4g}° | {_ferr(derived['sigma_theta_deg'])} |")
+                    lines.append(f"| {_r('t_param')} | {derived['t']:.4g} | {_ferr(derived['sigma_t'])} |")
+                    lines.append(f"| {_r('theta')} | {derived['theta_deg']:.4g}° | {_ferr(derived['sigma_theta_deg'])} |")
                     lines.append(f"| R₂₃ = I₂/I₃ | {derived['r23']:.4g} | {_ferr(derived['sigma_r23'])} |")
                     lines.append(f"| S = ⟨P₂(cos θ)⟩ | {derived['s']:.4g} | {_ferr(derived['sigma_s'])} |")
                     lines.append("")
-                    lines.append("> 💡 **Interpretación:** *t = sin²θ* parametriza la razón de "
-                                 "intensidades I₂/I₃ del sextete: t = 0 ⇒ campo paralelo al rayo γ "
-                                 "(I₂ = 0), t = 2/3 ⇒ muestra random (θ ≈ 54.7°, R₂₃ = 2), "
-                                 "t = 1 ⇒ campo perpendicular (R₂₃ = 4). *S* es un parámetro de "
-                                 "orden tipo Hermans: **+1** alineado al γ, **0** isótropo, "
-                                 "**−½** perpendicular.")
+                    lines.append(f"> 💡 **{_r('interpretation')}:** {_r('texture_note')}")
                     lines.append("")
 
         # ── δ corregidos por calibración (resumen) ──────────────────────
         if iso_ref is not None and active_components:
-            lines.append("## 🎯 δ corregidos por calibración")
+            lines.append(f"## 🎯 {_r('sec_dcorr')}")
             lines.append("")
-            lines.append(f"_Referencia isomérica de la calibración:_ **{iso_ref:.6g} mm/s**.")
+            lines.append(f"_{_r('iso_ref_line')}:_ **{iso_ref:.6g} mm/s**.")
             lines.append("")
-            lines.append("| Componente | Tipo | δ ajustado (mm/s) | δ corregido (mm/s) |")
+            lines.append(f"| {_r('col_component')} | {_r('col_type')} | {_r('col_delta_fit')} | {_r('col_delta_corr')} |")
             lines.append("|---|---|---|---|")
             for comp_state in active_components:
                 d = comp_state.value("delta")
@@ -575,11 +585,11 @@ class ReportMixin:
 
         # ── Parámetros libres (resumen rápido para tabla del ajuste) ────
         if fit_view is not None and fit_view.free_keys():
-            lines.append("## 📈 Parámetros del ajuste (libres)")
+            lines.append(f"## 📈 {_r('sec_free')}")
             lines.append("")
-            lines.append(f"_Fuente de σ:_ {self.runtime_results.error_source}")
+            lines.append(f"_{_r('sigma_source')}:_ {error_source_text(self.runtime_results.error_source)}")
             lines.append("")
-            lines.append("| Parámetro | Valor | σ |")
+            lines.append(f"| {_r('col_param')} | {_r('col_value')} | σ |")
             lines.append("|---|---|---|")
             for estimate in fit_view.parameters(keys=fit_view.free_keys()):
                 val = estimate.value
@@ -592,14 +602,14 @@ class ReportMixin:
         # ── Fijados y restricciones ──────────────────────────────────────
         fixed = self._fixed_param_keys()
         if fixed:
-            lines.append("## 🔒 Parámetros fijados")
+            lines.append(f"## 🔒 {_r('sec_fixed')}")
             lines.append("")
             lines.append(", ".join(f"`{k}`" for k in fixed))
             lines.append("")
         if self.constraints:
-            lines.append("## 🔗 Restricciones entre parámetros")
+            lines.append(f"## 🔗 {_r('sec_constraints')}")
             lines.append("")
-            lines.append("| Destino | Fórmula |")
+            lines.append(f"| {_r('col_target')} | {_r('col_formula')} |")
             lines.append("|---|---|")
             for c in self.constraints:
                 lines.append(
@@ -610,22 +620,24 @@ class ReportMixin:
             lines.append("")
 
         # ── Glosario ─────────────────────────────────────────────────────
-        lines.append("## 📖 Glosario de parámetros")
+        lines.append(f"## 📖 {_r('sec_glossary')}")
         lines.append("")
-        lines.append("| Símbolo | Magnitud | Unidad | Observación |")
+        lines.append(f"| {_r('col_symbol')} | {_r('col_quantity')} | {_r('col_unit')} | {_r('col_remark')} |")
         lines.append("|---|---|---|---|")
-        lines.append("| δ | Desplazamiento isomérico | mm/s | Densidad de carga electrónica en el núcleo; referido a α-Fe. |")
-        lines.append("| ΔEQ (`quad`) | Desdoblamiento cuadrupolar | mm/s | Asimetría del gradiente de campo eléctrico en el núcleo. |")
-        lines.append("| BHF | Campo hiperfino magnético | T | Magnetismo local sentido por el núcleo. |")
-        lines.append("| Γ (FWHM) | Anchura de línea | mm/s | Anchura total a media altura del perfil de línea. |")
-        lines.append("| `depth` | Profundidad de absorción | (rel.) | Amplitud relativa del componente; ligada al efecto Mössbauer y al espesor. |")
-        lines.append("| `int1/2/3` | Intensidades relativas | (rel.) | Razones nominales 3 : I₂ : 1 para un sextete. |")
-        lines.append("| `texture` (t) | Parámetro de textura | (0–1) | t = sin²θ con θ = ángulo del campo respecto al γ; controla I₂/I₃. |")
-        lines.append("| `beta` (β) | Ángulo EFG–BHF | ° | Solo en tratamiento Kündig fijo del cuadrupolo. |")
-        lines.append("| `voigt_sigma` | σ gaussiana del perfil Voigt | mm/s | Anchura instrumental gaussiana convolucionada. |")
-        lines.append("| `sat_scale` | Factor de saturación | (rel.) | Solo en modelo de absorbente grueso. |")
-        lines.append("| `baseline` / `slope` | Línea base | (rel.) | Nivel y pendiente del fondo de transmisión. |")
-        lines.append("| Vmax (`vmax`) | Velocidad máxima | mm/s | Calibración de la escala de velocidades. |")
+        for sym, name, unit, note in (
+                ("δ", "gl_delta", "mm/s", "gl_delta_note"),
+                ("ΔEQ (`quad`)", "gl_quad", "mm/s", "gl_quad_note"),
+                ("BHF", "gl_bhf", "T", "gl_bhf_note"),
+                ("Γ (FWHM)", "gl_gamma", "mm/s", "gl_gamma_note"),
+                ("`depth`", "gl_depth", "(rel.)", "gl_depth_note"),
+                ("`int1/2/3`", "gl_int", "(rel.)", "gl_int_note"),
+                ("`texture` (t)", "gl_texture", "(0–1)", "gl_texture_note"),
+                ("`beta` (β)", "gl_beta", "°", "gl_beta_note"),
+                ("`voigt_sigma`", "gl_voigt", "mm/s", "gl_voigt_note"),
+                ("`sat_scale`", "gl_sat", "(rel.)", "gl_sat_note"),
+                ("`baseline` / `slope`", "baseline", "(rel.)", "gl_baseline_note"),
+                ("Vmax (`vmax`)", "gl_vmax", "mm/s", "gl_vmax_note")):
+            lines.append(f"| {sym} | {_r(name)} | {unit} | {_r(note)} |")
         lines.append("")
 
         return lines
@@ -899,7 +911,7 @@ class ReportMixin:
             return _state["ax"]
 
         def _new_section_page(title, color, *, continuation=False):
-            head = f"{title} (cont.)" if continuation else title
+            head = f"{title} ({_r('continued')})" if continuation else title
             fig, ax = _open_page(head, color)
             _state["fig"], _state["ax"] = fig, ax
 
@@ -912,7 +924,7 @@ class ReportMixin:
                                    facecolor=SECTION_COLOR, edgecolor="none"))
             ax.text(0.5, 0.88, "Mössbauer Fe-57", color="white",
                     fontsize=22, fontweight="bold", va="center", ha="center")
-            ax.text(0.5, 0.82, "Informe de ajuste", color=ACCENT,
+            ax.text(0.5, 0.82, _r("title"), color=ACCENT,
                     fontsize=14, va="center", ha="center")
             file_name = self.file.path.name if self.file.path else "—"
             ax.text(0.5, 0.72, file_name, color=TEXT_DARK, fontsize=12,
@@ -928,7 +940,7 @@ class ReportMixin:
             if fit_view is not None and fit_view.metrics():
                 st = {metric.key: metric.value for metric in fit_view.metrics()}
                 if st.get("red_chi2") is not None:
-                    boxes.append(("χ² reducido", f"{st['red_chi2']:.4g}"))
+                    boxes.append((_r("red_chi2"), f"{st['red_chi2']:.4g}"))
                 if st.get("chi2") is not None and st.get("dof") is not None:
                     boxes.append(("χ² · dof", f"{st['chi2']:.4g} · {int(st['dof'])}"))
                 if st.get("aic") is not None:
@@ -936,10 +948,10 @@ class ReportMixin:
                 if st.get("bic") is not None:
                     boxes.append(("BIC", f"{st['bic']:.4g}"))
             n_active = sum(1 for cp in self.components_panels if cp.to_view_state().enabled)
-            boxes.append(("Componentes activos", str(n_active)))
+            boxes.append((_r("active_components"), str(n_active)))
             if fit_view is not None:
-                boxes.append(("Parámetros libres", str(len(fit_view.free_keys()))))
-                boxes.append(("Fuente σ", str(self.runtime_results.error_source)))
+                boxes.append((_r("free_params"), str(len(fit_view.free_keys()))))
+                boxes.append((_r("sigma_source"), error_source_text(self.runtime_results.error_source)))
 
             cols = 2
             box_w, box_h = 0.42, 0.07
@@ -1031,7 +1043,7 @@ class ReportMixin:
         lines = self._build_report_lines()
         try:
             Path(path).write_text("\n".join(lines), encoding="utf-8")
-            self.statusBar().showMessage(f"Informe guardado: {path}", 5000)
+            self.statusBar().showMessage(_r("saved", path=path), 5000)
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("file.export_report"),
                                             f"{type(exc).__name__}: {exc}")
@@ -1048,11 +1060,11 @@ class ReportMixin:
         try:
             pdf_path = Path(path).with_suffix(".pdf")
             self._render_pdf_report(pdf_path, lines)
-            self.statusBar().showMessage(f"Informe + PDF guardados: {path}", 5000)
+            self.statusBar().showMessage(_r("saved_pdf", path=path), 5000)
         except Exception as exc:
             QtWidgets.QMessageBox.warning(
                 self, tr("file.export_report"),
-                f"No se pudo generar el PDF: {type(exc).__name__}: {exc}")
+                _r("pdf_failed", error=f"{type(exc).__name__}: {exc}"))
 
     # ── Informe reducido ────────────────────────────────────────────────
     def _build_short_report_lines(self) -> list[str]:
@@ -1090,19 +1102,19 @@ class ReportMixin:
 
         # Calibración ISO en una línea
         if iso_ref is not None:
-            lines.append(f"_Referencia isomérica: **{iso_ref:.6g} mm/s**_")
+            lines.append(f"_{_r('iso_ref_short')}: **{iso_ref:.6g} mm/s**_")
             lines.append("")
 
         # Ajuste de distribución en una línea (si aplica)
         lines.extend(self._distribution_report_lines(short=True))
 
         # ── Parámetros por componente ───────────────────────────────────
-        lines.append("## Parámetros")
+        lines.append(f"## {_r('params')}")
         lines.append("")
         for comp_state in active_components:
             kind = comp_state.kind
             kind_disp = tr(f"kind.{kind}", default=kind)
-            lines.append(f"**Componente {comp_state.idx} — {kind_disp}**")
+            lines.append(f"**{_r('component_title', idx=comp_state.idx, kind=kind_disp)}**")
             lines.append("")
             used = USED_BY.get(kind, set())
             uses_bhf = "bhf" in used
@@ -1116,7 +1128,7 @@ class ReportMixin:
                 for est in fit_view.parameters():
                     free_vals[est.key] = (est.value or 0.0, est.error)
 
-            lines.append("| Parámetro | Valor | σ | Estado |")
+            lines.append(f"| {_r('col_param')} | {_r('col_value')} | σ | {_r('col_state')} |")
             lines.append("|---|---|---|---|")
             for k, v in comp_state.values.items():
                 if k not in used:
@@ -1124,7 +1136,7 @@ class ReportMixin:
                 key = f"s{comp_state.idx}_{k}"
                 err = free_vals.get(key, (None, None))[1]
                 err_txt = f"± {err:.3g}" if err is not None and err > 0 else "—"
-                fixed_txt = "fijo" if comp_state.is_fixed(k) else "libre"
+                fixed_txt = _r("fixed") if comp_state.is_fixed(k) else _r("free")
                 lines.append(f"| `{key}` | {v:.6g} | {err_txt} | {fixed_txt} |")
 
             # Magnitudes clave derivadas
@@ -1152,9 +1164,9 @@ class ReportMixin:
         pct_active, areas, percentages = self.component_area_percentages()
         pct_errors = self.component_percentage_errors()
         if pct_active:
-            lines.append("## Áreas")
+            lines.append(f"## {_r('sec_areas_short')}")
             lines.append("")
-            lines.append("| Comp. | Tipo | % área | σ (%) |")
+            lines.append(f"| {_r('col_comp_short')} | {_r('col_type')} | {_r('col_pct_area')} | σ (%) |")
             lines.append("|---|---|---|---|")
             for idx, area, pct in zip(pct_active, areas, percentages):
                 cs = self.components_panels[idx - 1].to_view_state()
@@ -1284,7 +1296,7 @@ class ReportMixin:
                 err = free_vals.get(key, (None, None))[1]
                 err_txt = f"±{err:.3g}" if err is not None and err > 0 else "—"
                 param_rows.append([key, f"{v:.6g}", err_txt,
-                                   "fijo" if comp_state.is_fixed(k) else "libre"])
+                                   _r("fixed") if comp_state.is_fixed(k) else _r("free")])
 
             needed = LABEL_H + (len(param_rows) + 1) * ROW_H + 0.018 + GAP * 2
             if y - needed < BOTTOM + 0.05:
@@ -1295,14 +1307,14 @@ class ReportMixin:
             ax.add_patch(Rectangle((LEFT, y - LABEL_H), W, LABEL_H,
                                    facecolor=LBLUE, edgecolor="none"))
             ax.text(LEFT + 0.006, y - LABEL_H * 0.52,
-                    f"Componente {comp_state.idx} — {kind_disp}",
+                    _r("component_title", idx=comp_state.idx, kind=kind_disp),
                     color=BLUE, fontsize=FS_LBL, fontweight="bold",
                     va="center", ha="left")
             y -= LABEL_H
 
             # Tabla de parámetros
             y = _draw_table(ax, y,
-                            ["Parámetro", "Valor", "σ", "Estado"],
+                            [_r("col_param"), _r("col_value"), "σ", _r("col_state")],
                             param_rows,
                             [0.38, 0.22, 0.22, 0.18])
 
@@ -1343,12 +1355,12 @@ class ReportMixin:
 
             ax.add_patch(Rectangle((LEFT, y - LABEL_H), W, LABEL_H,
                                    facecolor=LBLUE, edgecolor="none"))
-            ax.text(LEFT + 0.006, y - LABEL_H * 0.52, "Análisis de áreas",
+            ax.text(LEFT + 0.006, y - LABEL_H * 0.52, _r("areas_title"),
                     color=BLUE, fontsize=FS_LBL, fontweight="bold",
                     va="center", ha="left")
             y -= LABEL_H
             _draw_table(ax, y,
-                        ["Comp.", "Tipo", "% área", "σ (%)"],
+                        [_r("col_comp_short"), _r("col_type"), _r("col_pct_area"), "σ (%)"],
                         area_rows,
                         [0.10, 0.45, 0.25, 0.20])
 
@@ -1602,7 +1614,7 @@ class ReportMixin:
             return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, tr("file.export_short_report"),
-            str(ROOT / (self.file.path.stem + "_resumen")),
+            str(ROOT / (self.file.path.stem + "_" + _r("short_suffix"))),
             "Markdown (*.md);;All (*.*)")
         if not path:
             return
@@ -1613,7 +1625,7 @@ class ReportMixin:
         md_path = Path(path)
         try:
             md_path.write_text("\n".join(lines), encoding="utf-8")
-            self.statusBar().showMessage(f"Informe reducido guardado: {path}", 5000)
+            self.statusBar().showMessage(_r("short_saved", path=path), 5000)
         except Exception as exc:
             QtWidgets.QMessageBox.critical(
                 self, tr("file.export_short_report"),
@@ -1632,8 +1644,8 @@ class ReportMixin:
             pdf_path = md_path.with_suffix(".pdf")
             self._render_short_pdf_report(pdf_path)
             self.statusBar().showMessage(
-                f"Informe reducido (.md + .pdf) guardado: {md_path.stem}", 5000)
+                _r("short_saved_pdf", name=md_path.stem), 5000)
         except Exception as exc:
             QtWidgets.QMessageBox.warning(
                 self, tr("file.export_short_report"),
-                f"No se pudo generar el PDF: {type(exc).__name__}: {exc}")
+                _r("pdf_failed", error=f"{type(exc).__name__}: {exc}"))

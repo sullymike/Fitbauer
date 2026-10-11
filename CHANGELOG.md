@@ -2,6 +2,12 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **Informes Markdown/PDF en el idioma activo.** El informe completo, el
+  reducido, sus PDF, el glosario, los mensajes de guardado y «Copiar
+  resultados» estaban escritos en español fijo (149 claves `rep.*` nuevas).
+  La fuente de σ se traduce al mostrarla; su valor interno no cambia. El test
+  que comprueba que las claves `tr()` existen cubre también el atajo `_r()`
+  de los informes, y otro genera los dos informes en los 8 idiomas.
 - **Interfaz sin textos fijos en español.** Diálogos (ajuste global Néel,
   batch, tendencias), barra de estado, registro del diálogo web, filtros de
   fichero, etiqueta del fichero y de la calibración, temas de color, leyenda

@@ -296,9 +296,13 @@ def test_claves_tr_usadas_existen_en_catalogo():
     for f in fuentes:
         if not f.exists():
             continue
-        for m in _re.finditer(r'(?<![A-Za-z_])tr\(\s*"([^"{}]+)"',
-                              f.read_text(encoding="utf-8")):
+        texto = f.read_text(encoding="utf-8")
+        for m in _re.finditer(r'(?<![A-Za-z_])tr\(\s*"([^"{}]+)"', texto):
             usadas.setdefault(m.group(1), set()).add(f.name)
+        # Los informes usan el atajo _r("x") == tr("rep.x").
+        for m in _re.finditer(r'(?<![A-Za-z_])_r\(\s*[\'"]([\w.]+)[\'"]', texto):
+            usadas.setdefault("rep." + m.group(1), set()).add(f.name)
     faltan = {k: sorted(v) for k, v in usadas.items() if k not in catalogo}
     assert len(usadas) > 300, "el barrido de claves tr() no encontró casi nada"
     assert not faltan, f"claves tr() sin entrada en el catálogo ES: {faltan}"
+

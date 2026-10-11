@@ -894,7 +894,32 @@ def test_export_report_writes_markdown(win, tmp_path):
         QtWidgets.QFileDialog.getSaveFileName = old
     assert out.exists()
     content = out.read_text(encoding="utf-8")
-    assert "Mössbauer" in content and "Componentes" in content
+    from mossbauer_i18n import tr
+    assert "Mössbauer" in content and tr("rep.sec_components") in content
+
+
+def test_informe_se_genera_en_todos_los_idiomas(win):
+    """El informe completo y el reducido salen en el idioma activo.
+
+    Estaban escritos en español fijo. Se comprueba que no queda ninguna clave
+    sin traducir (``rep.*``) y que el inglés no arrastra palabras españolas.
+    """
+    import re
+    from mossbauer_i18n import get_language, set_language
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.on_fit()
+    original = get_language()
+    try:
+        for lang in ("es", "en", "fr", "de", "pt", "ru", "ja", "ch"):
+            set_language(lang)
+            texto = "\n".join(win._build_report_lines() + win._build_short_report_lines())
+            assert not re.search(r"\brep\.[a-z_]+", texto), lang
+            if lang == "en":
+                for palabra in ("Parámetro", "Componente", "Calibración", "Línea base",
+                                "fijo", "libre", "Glosario", "Fichero"):
+                    assert palabra not in texto, palabra
+    finally:
+        set_language(original)
 
 
 def test_auto_fit_from_minima(win):
@@ -1320,7 +1345,8 @@ def test_ajuste_gaussiana_2d_desde_la_gui(win):
     assert np.asarray(res.probability).ndim == 2
     assert win.canvas.last_render.get("dist_map_2d") is res
     report = "\n".join(win._distribution_report_lines())
-    assert "Gaussianas 2D" in report and "α (" not in report
+    from mossbauer_i18n import tr
+    assert tr("rep.g2d_header") in report and "α (" not in report
     payload = win._session_payload()
     assert payload["model_state"]["dist_shape"] == "VBF 2D"
     win.mode_combo.setCurrentIndex(0)
@@ -2466,10 +2492,12 @@ def test_copiar_resultados_deja_una_tabla_pegable(win, app, monkeypatch):
 
     assert texto.startswith("# siderita_FeCO3.adt")
     assert any(l.startswith("# chi2_red") for l in lineas)
-    assert "parametro\tvalor\terror\tfijo" in lineas
-    assert any(l.startswith("# componente 1\tDoblete") for l in lineas)
+    from mossbauer_i18n import tr
+    assert tr("rep.copy_header") in lineas
+    comp = tr("rep.copy_component")
+    assert any(l.startswith(f"# {comp} 1\tDoblete") for l in lineas)
     # Solo el componente activo, y sin los parámetros que su tipo no usa.
-    assert not any(l.startswith("# componente 2") for l in lineas)
+    assert not any(l.startswith(f"# {comp} 2") for l in lineas)
     assert not any(l.startswith("bhf\t") for l in lineas), "un doblete no tiene BHF"
     # Y compacto: volcarlo todo daban 269 líneas.
     assert len(lineas) < 40
@@ -2818,3 +2846,4 @@ def test_cancelar_detiene_un_ajuste_vbf_2d(win, monkeypatch):
     assert errores == []                    # cancelado, no un error
     assert llamadas == [1]
     assert win.runtime_results.distribution_result is previo
+
