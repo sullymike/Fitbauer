@@ -34,7 +34,9 @@ Departamento de Química Física · UAM
 - [Funciones principales](#funciones-principales)
 - [Capturas del programa](#capturas-del-programa)
 - [Arranque rápido](#arranque-rápido)
+- [Modos de ajuste](#modos-de-ajuste) — discreto, distribuciones y relajación
 - [Instalación](#instalación) — requisitos, script instalador, instalación manual, ejecución, actualización, problemas
+- [Estructura del proyecto](#estructura-del-proyecto)
 - [Historial de cambios](#historial-de-cambios)
 - [Licencia](#licencia)
 
@@ -238,6 +240,44 @@ Cargar espectro → revisar folding/Vmax → elegir modelo → ajustar
 
 ---
 
+## Modos de ajuste
+
+### Ajuste discreto
+
+Hasta diez componentes simultáneos (singlete / doblete / sextete, más los tipos de relajación de abajo). Cada componente tiene su tipo, sus parámetros y su estado fijo/libre. El botón **Ajustar** optimiza todos los parámetros libres; el panel de estado muestra las áreas integradas, los errores por covarianza o por bootstrap (Monte Carlo) y la estadística del ajuste.
+
+En los sextetes, los parámetros principales son:
+
+| Parámetro | Significado |
+|-----------|-------------|
+| δ (IS) | Desplazamiento isomérico (mm/s) |
+| ΔEQ | Desdoblamiento cuadrupolar de primer orden (mm/s) |
+| BHF | Campo hiperfino (T) |
+| Γ 1,6 | FWHM de las líneas externas (mm/s) |
+| Γ 2,5 rel / Γ 3,4 rel | Anchuras relativas de las líneas 2,5 y 3,4 |
+| Profundidad | Amplitud global de absorción |
+| int1 / int2 | Intensidades relativas (≈ D13, D23); int3 fijo a 1 |
+
+### Distribuciones: P(BHF), P(ΔEQ), P(IS) y 2D
+
+El espectro se modela como suma de muchos sextetes (o dobletes) en una malla regular. La optimización, al estilo Hesse-Rübartsch, minimiza:
+
+```
+residuo espectral ponderado² + α · rugosidad(P)²
+```
+
+Con **L-curve α** se busca un buen compromiso entre residuo y suavidad. Además del histograma hay formas paramétricas (gaussiana, VBF multigaussiana, binomial al estilo NORMOS y fija). La opción **sumar componentes activos nítidos** combina la distribución con fases discretas (p. ej. una distribución ancha + Fe metálico a BHF ≈ 33 T). Los modos bidimensionales ajustan P(BHF, ΔEQ), P(IS, ΔEQ) y P(BHF, IS).
+
+### Modelos de relajación
+
+| Tipo | Descripción |
+|------|-------------|
+| Relajacion | Interpolación fenomenológica bloqueado/superparamagnético |
+| BlumeTjon | Intercambio dinámico de dos estados ±BHF |
+| NeelSize | Néel–Arrhenius + distribución lognormal de tamaños (también como ajuste global multitemperatura) |
+
+---
+
 ## Instalación
 
 Fitbauer es una aplicación de Python: **no hay un `.exe` compilado**. Se ejecuta
@@ -374,6 +414,20 @@ La carpeta `dist/Fitbauer/` se ejecuta después sin ninguna instalación de Pyth
 | `ImportError` de PySide6, o error de *"platform plugin"* de Qt en Linux | Instala las bibliotecas de sistema que Qt necesita — en Debian/Ubuntu: `libgl1`, `libxkbcommon-x11-0`, `libegl1`. En una máquina sin pantalla usa `QT_QPA_PLATFORM=offscreen`. |
 | Falla la generación del PDF | El informe Markdown se guarda igualmente; la exportación a PDF necesita bibliotecas de render opcionales en algunos sistemas. |
 | No se crea la entrada de menú | Vuelve a ejecutar `python install.py --menu-only` (en macOS este paso se omite a propósito). |
+
+---
+
+## Estructura del proyecto
+
+```
+core/          Motor de física y ajuste (sin dependencia de la GUI)
+gui/           GUI modular Qt/Matplotlib — solo controladores finos
+locales/       Traducciones: en / es / fr / de / pt / ru / ja / ch
+data_sample/   Espectros y sesiones de ejemplo
+tests/         Tests de física, ajuste, CLI y Qt
+```
+
+Los motores de física y de ajuste viven solo en `core/`; la GUI es un cliente fino. Los detalles están en [`docs/architecture.md`](docs/architecture.md).
 
 ---
 

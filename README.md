@@ -245,7 +245,7 @@ Open spectrum → check folding/Vmax → choose model → fit
 
 ### Discrete fit
 
-Up to three simultaneous components (singlet / doublet / sextet). Each component has independent type, parameters and fixed/free status. The **Fit** button optimises all free parameters; the status panel reports integrated areas, covariance errors or bootstrap errors (Monte Carlo), and fit statistics.
+Up to ten simultaneous components (singlet / doublet / sextet, plus the relaxation types below). Each component has its own type, parameters and fixed/free status. The **Fit** button optimises all free parameters; the status panel reports integrated areas, covariance or bootstrap (Monte Carlo) errors, and fit statistics.
 
 For sextets the main parameters are:
 
@@ -254,12 +254,12 @@ For sextets the main parameters are:
 | δ (IS) | Isomer shift (mm/s) |
 | ΔEQ | First-order quadrupole splitting (mm/s) |
 | BHF | Hyperfine field (T) |
-| Γ 1,6 | HWHM of outer lines (mm/s) |
+| Γ 1,6 | FWHM of the outer lines (mm/s) |
 | Γ 2,5 rel / Γ 3,4 rel | Relative widths of lines 2,5 and 3,4 |
 | Depth | Global absorption amplitude |
 | int1 / int2 | Relative intensities (≈ D13, D23); int3 fixed to 1 |
 
-### Distribution P(BHF) / P(ΔEQ)
+### Distributions: P(BHF), P(ΔEQ), P(IS) and 2D
 
 Models the spectrum as a sum of many sextets (or doublets) on a regular grid. The Hesse-Rübartsch-style optimisation minimises:
 
@@ -267,7 +267,7 @@ Models the spectrum as a sum of many sextets (or doublets) on a regular grid. Th
 weighted spectral residual² + α · roughness(P)²
 ```
 
-Use **L-curve α** to find a good compromise between residual and smoothness. The **Add active sharp components** option mixes the distribution with discrete phases (e.g. a broad distribution + metallic Fe at BHF ≈ 33 T).
+Use **L-curve α** to find a good compromise between residual and smoothness. Besides the histogram there are parametric shapes (Gaussian, VBF multi-Gaussian, NORMOS-style binomial, fixed). The **Add active sharp components** option mixes the distribution with discrete phases (e.g. a broad distribution + metallic Fe at BHF ≈ 33 T). Two-dimensional modes fit P(BHF, ΔEQ), P(IS, ΔEQ) and P(BHF, IS).
 
 ### Relaxation models
 
@@ -275,7 +275,7 @@ Use **L-curve α** to find a good compromise between residual and smoothness. Th
 |------|-------------|
 | Relajacion | Phenomenological blocked/superparamagnetic interpolation |
 | BlumeTjon | Dynamic two-state ±BHF exchange |
-| NeelSize | Néel–Arrhenius + lognormal size distribution |
+| NeelSize | Néel–Arrhenius + lognormal size distribution (also as a global multi-temperature fit) |
 
 ---
 

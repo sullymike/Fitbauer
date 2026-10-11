@@ -2,6 +2,10 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **README_ES** recupera las secciones «Modos de ajuste» y «Estructura del
+  proyecto». En los dos README, el ajuste discreto admite hasta diez
+  componentes (decían tres), Γ es FWHM (decía HWHM) y se citan P(IS) y los
+  modos 2D. `CLAUDE.md` ya no habla de tres idiomas ni de tres componentes.
 - **La CLI de distribuciones admite las tres parejas 2D** de la GUI con
   `--pair bhf-quad|delta-quad|bhf-delta`. Los rangos por defecto de la
   segunda variable son los de la GUI (ΔEQ −1…1 con campo y 0…3 sin él; IS

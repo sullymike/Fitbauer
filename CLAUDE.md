@@ -7,7 +7,7 @@ sesión (web o VS Code) arranque con contexto sin tener que re-descubrir la arqu
 
 **Fitbauer** — *Software for Mössbauer spectrum fitting and analysis*. Aplicación de
 escritorio para cargar, doblar (fold), simular y ajustar espectros Mössbauer de Fe-57.
-Autor: Jorge Sánchez Marcos (Dpto. de Química Física · UAM). Idiomas: ES/EN/FR.
+Autor: Jorge Sánchez Marcos (Dpto. de Química Física · UAM). Idiomas: ES/EN/FR/DE/PT/RU/JA/ZH (catálogos en `locales/`; `ch` es el chino).
 
 ## Arranque y desarrollo
 
@@ -81,12 +81,12 @@ del código de la GUI.**
 - `fit_bhf_distribution_cli.py`, `mossbauer_bhf_pipeline.py` — CLIs/pipeline de distribución.
 - `mossbauer_ws5.py` — lectura WS5/folding (reexports de `core.folding` + variantes para los CLIs de distribución).
 - `mossbauer_api_client.py`, `mossbauer_updater.py` — descarga web de espectros/calibraciones y actualizaciones.
-- `mossbauer_i18n.py`, `mossbauer_help.py`, `locales/` — traducciones ES/EN/FR y ayuda.
+- `mossbauer_i18n.py`, `mossbauer_help.py`, `locales/` — traducciones (8 idiomas) y ayuda.
 - `layout/presets.py` — presets de disposición usados por la GUI Qt. (`panels/` es vestigial: vacío.)
 
 ## Modos de ajuste
 
-- **Discreto**: hasta tres componentes (singlete/doblete/sextete), perfiles Lorentz/Voigt,
+- **Discreto**: hasta diez componentes (singlete/doblete/sextete y tipos de relajación), perfiles Lorentz/Voigt,
   pesos Poisson, χ²/AIC/BIC, multistart, errores por covarianza/bootstrap, textura de sextete.
 - **Distribución** `P(BHF)` / `P(ΔEQ)`: suma de muchos sextetes/dobletes en una malla,
   regularización por segunda diferencia (α), L-curve, y **componentes "nítidos"** simultáneos.
