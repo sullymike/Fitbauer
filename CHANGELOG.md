@@ -1,6 +1,6 @@
 # Changelog
 
-## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
+## v5.2.0 — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS, formas 2D y bandas de error
 
 - **Documentación pública al día.** `BHF_DISTRIBUTION(_EN).md` reescritos:
   P(IS) y los núcleos de cada modo, formas (gaussiana, VBF con cotas de σ,
