@@ -167,16 +167,22 @@ def page_cli(lang: str) -> str:
             "```\n\n"
             "<details><summary>Full options</summary>\n\n```text\n{help1}\n```\n</details>\n\n"
             "## Distribution fitting — `fit_bhf_distribution_cli.py`\n\n"
-            "Covers the same modes as the GUI: `P(BHF)` and `P(ΔEQ)`, histogram / Gaussian / VBF\n"
-            "/ binomial shapes, Tikhonov / TV / MaxEnt regularization, Voigt kernels, δ(H) and\n"
-            "ΔEQ(H) correlations, and 2D distributions.\n\n"
+            "Covers the same modes as the GUI: `P(BHF)`, `P(ΔEQ)` and `P(IS)`, histogram /\n"
+            "Gaussian / VBF / binomial shapes (with σ bounds for the Gaussians), Tikhonov / TV /\n"
+            "MaxEnt regularization, Voigt kernels, δ(x) and ΔEQ(x) correlations, and the three 2D\n"
+            "pairs (`--pair`) as a histogram or as bivariate Gaussians.\n\n"
             "```bash\n"
             "python fit_bhf_distribution_cli.py sample.ws5 --bmin 0 --bmax 50 --nbins 50 \\\n"
             "    --gamma 0.18 --alpha 0.01 --plot --scan-alpha\n\n"
-            "# P(ΔEQ) with fixed BHF (0 = doublet); VBF shape; maximum entropy\n"
+            "# P(ΔEQ) with doublets; VBF with bounded widths; maximum entropy\n"
             "python fit_bhf_distribution_cli.py sample.adt --variable quad --bmax 3\n"
-            "python fit_bhf_distribution_cli.py sample.adt --shape vbf --vbf-components 2\n"
-            "python fit_bhf_distribution_cli.py sample.adt --reg-mode maxent\n"
+            "python fit_bhf_distribution_cli.py sample.adt --shape vbf --vbf-components 2 \\\n"
+            "    --vbf-sigma-min 0.5 --vbf-sigma-max 3\n"
+            "python fit_bhf_distribution_cli.py sample.adt --reg-mode maxent\n\n"
+            "# NORMOS-style binomial (5 % solute, 12 neighbours); 2D P(IS, ΔEQ)\n"
+            "python fit_bhf_distribution_cli.py sample.adt --shape binomial \\\n"
+            "    --binomial-conc 5 --binomial-start 33 --binomial-step -2.5\n"
+            "python fit_bhf_distribution_cli.py sample.adt --dist-2d --pair delta-quad\n"
             "```\n\n"
             "<details><summary>Full options</summary>\n\n```text\n{help2}\n```\n</details>\n\n"
             "See also: [Distribution fitting](Distribution-fitting) · [Batch fitting](Batch-fitting)\n"
@@ -186,7 +192,7 @@ def page_cli(lang: str) -> str:
             "# Línea de comandos\n\n"
             "Fitbauer ajusta sin necesidad de display: ambos CLIs usan los mismos motores que la\n"
             f"GUI (`core/`), así que los resultados son idénticos. Referencia completa con ejemplos\n"
-            f"en el [manual en inglés]({BLOB}/docs/manual_en/main.pdf), apéndice *Command-line tools*.\n\n"
+            f"en el [manual de usuario]({BLOB}/docs/manual/main.pdf), anexo *Herramientas de línea de comandos*.\n\n"
             "## Ajuste discreto — `mossbauer_fit_cli.py`\n\n"
             "Parte de una plantilla de sesión guardada desde la GUI (**Archivo ▸ Guardar sesión…**)\n"
             "y uno o más espectros. Con varios espectros ejecuta una serie con warm-start: cada\n"
@@ -200,16 +206,22 @@ def page_cli(lang: str) -> str:
             "```\n\n"
             "<details><summary>Todas las opciones</summary>\n\n```text\n{help1}\n```\n</details>\n\n"
             "## Ajuste de distribuciones — `fit_bhf_distribution_cli.py`\n\n"
-            "Cubre los mismos modos que la GUI: `P(BHF)` y `P(ΔEQ)`, formas histograma / gaussiana\n"
-            "/ VBF / binomial, regularización Tikhonov / TV / MaxEnt, kernel Voigt, correlaciones\n"
-            "δ(H) y ΔEQ(H), y distribuciones 2D.\n\n"
+            "Cubre los mismos modos que la GUI: `P(BHF)`, `P(ΔEQ)` y `P(IS)`, formas histograma /\n"
+            "gaussiana / VBF / binomial (con cotas de σ para las gaussianas), regularización Tikhonov /\n"
+            "TV / MaxEnt, kernel Voigt, correlaciones δ(x) y ΔEQ(x), y las tres parejas 2D (`--pair`)\n"
+            "como histograma o como gaussianas bivariantes.\n\n"
             "```bash\n"
             "python fit_bhf_distribution_cli.py muestra.ws5 --bmin 0 --bmax 50 --nbins 50 \\\n"
             "    --gamma 0.18 --alpha 0.01 --plot --scan-alpha\n\n"
-            "# P(ΔEQ) con BHF fijo (0 = doblete); forma VBF; máxima entropía\n"
+            "# P(ΔEQ) con dobletes; VBF con anchuras acotadas; máxima entropía\n"
             "python fit_bhf_distribution_cli.py muestra.adt --variable quad --bmax 3\n"
-            "python fit_bhf_distribution_cli.py muestra.adt --shape vbf --vbf-components 2\n"
-            "python fit_bhf_distribution_cli.py muestra.adt --reg-mode maxent\n"
+            "python fit_bhf_distribution_cli.py muestra.adt --shape vbf --vbf-components 2 \\\n"
+            "    --vbf-sigma-min 0.5 --vbf-sigma-max 3\n"
+            "python fit_bhf_distribution_cli.py muestra.adt --reg-mode maxent\n\n"
+            "# Binomial al estilo NORMOS (5 % de soluto, 12 vecinos); 2D P(IS, ΔEQ)\n"
+            "python fit_bhf_distribution_cli.py muestra.adt --shape binomial \\\n"
+            "    --binomial-conc 5 --binomial-start 33 --binomial-step -2.5\n"
+            "python fit_bhf_distribution_cli.py muestra.adt --dist-2d --pair delta-quad\n"
             "```\n\n"
             "<details><summary>Todas las opciones</summary>\n\n```text\n{help2}\n```\n</details>\n\n"
             "Ver también: [Distribuciones](ES-Distribuciones) · [Ajuste en serie](ES-Ajuste-en-serie)\n"
@@ -246,7 +258,7 @@ its reduced χ². See [NORMOS (.JOB)](NORMOS-interoperability) and the
 | See the typical workflow | [User flows](User-flows) |
 | Understand folding and the folding point | [Folding](Folding) |
 | Check the velocity calibration | [Calibration (33 T)](Calibration-33T) |
-| Fit `P(BHF)` or `P(ΔEQ)` distributions | [Distribution fitting](Distribution-fitting) |
+| Fit `P(BHF)`, `P(ΔEQ)`, `P(IS)` or 2D distributions | [Distribution fitting](Distribution-fitting) |
 | Get realistic error bars | [Profile likelihood](Profile-likelihood) |
 | Fit a whole temperature series | [Batch fitting](Batch-fitting) |
 | Open a NORMOS `.JOB` | [NORMOS (.JOB)](NORMOS-interoperability) |
@@ -291,7 +303,7 @@ reducido. Ver [NORMOS (.JOB)](ES-NORMOS-interoperabilidad) y los
 | Ver el flujo de trabajo típico | [Flujos de usuario](ES-Flujos-de-usuario) |
 | Entender el plegado y el folding point | [Plegado](ES-Plegado) |
 | Comprobar la calibración de velocidad | [Calibración (33 T)](ES-Calibracion-33T) |
-| Ajustar distribuciones `P(BHF)` o `P(ΔEQ)` | [Distribuciones](ES-Distribuciones) |
+| Ajustar distribuciones `P(BHF)`, `P(ΔEQ)`, `P(IS)` o 2D | [Distribuciones](ES-Distribuciones) |
 | Obtener barras de error realistas | [Verosimilitud perfilada](ES-Verosimilitud-perfilada) |
 | Ajustar una serie de temperaturas | [Ajuste en serie](ES-Ajuste-en-serie) |
 | Abrir un `.JOB` de NORMOS | [NORMOS (.JOB)](ES-NORMOS-interoperabilidad) |

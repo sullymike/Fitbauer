@@ -79,8 +79,8 @@ La sesión JSON mantiene compatibilidad con formatos históricos.
 Opciones principales:
 
 - **Guardar ajuste**: exporta velocidad, datos, modelo y residuo en texto.
-- **Exportar Plotly**: figura HTML interactiva.
-- **Exportar informe**: Markdown y, si está disponible, PDF.
+- **Exportar informe**: Markdown y, si está disponible, PDF; también un informe reducido.
+- **Exportar trabajo de NORMOS**: escribe el modelo como fichero `.JOB`.
 
 El informe incluye trazabilidad, calibración, parámetros, áreas, métricas, correlaciones y diagnóstico residual.
 

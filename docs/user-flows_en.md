@@ -79,8 +79,8 @@ The JSON session keeps compatibility with historical formats.
 Main options:
 
 - **Save fit**: exports velocity, data, model and residual in text.
-- **Export Plotly**: interactive HTML figure.
-- **Export report**: Markdown and, if available, PDF.
+- **Export report**: Markdown and, if available, PDF; also a short report.
+- **Export NORMOS job**: writes the model as a `.JOB` file.
 
 The report includes traceability, calibration, parameters, areas, metrics, correlations and residual diagnostics.
 

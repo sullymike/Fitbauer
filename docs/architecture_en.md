@@ -16,12 +16,19 @@ Pure code, without Qt/Tk:
 
 - `physics.py`: line shapes and component absorption.
 - `fit_engine.py`: discrete fitting and bootstrap.
-- `mossbauer_distribution.py`: fitting of `P(BHF)` / `P(ΔEQ)` distributions.
+- `mossbauer_distribution.py` (at the repository root, Qt-free): `P(BHF)`, `P(ΔEQ)`, `P(IS)` and 2D distributions — regularized histogram, Gaussian, VBF, binomial and fixed shapes.
 - `session.py`: `ModelState` and headless session.
 - `reconstruction.py`: reconstruction of models, residuals, subspectra, areas and distribution curves.
 - `validation.py`: structural and parameter-bounds validation.
 - `result_views.py`: result reading API for reports and panels.
 - `params.py`: canonical registry of parameters, defaults and bounds.
+- `param_overrides.py`: parameter limits edited by the user (*Parameter limits* dialog); the rest of the code uses its `effective_*` functions.
+- `hamiltonian.py` / `relaxation.py`: full magnetic + quadrupole Hamiltonian; relaxation and multi-temperature Néel–Arrhenius global fit.
+- `normos_job.py`: reading and writing of NORMOS `.JOB` files.
+- `phase_id.py`: phase suggestions by comparison with the reference database.
+- `blas_threads.py`: single-threaded BLAS/LAPACK (imported before numpy); with Fitbauer's matrices, spreading work across cores cost more than the computation.
+
+User-facing text goes through `mossbauer_i18n.tr()` (Qt-free), with catalogues in `locales/` for 8 languages.
 
 ### `gui/`
 
@@ -31,6 +38,9 @@ Modular Qt interface. It must not contain physics engines or heavy fitting logic
 - `fit_workflow.py`: common GUI fitting flow: progress, errors and render.
 - `model_workflow.py`: loading/folding, construction of `FitState`, plot/info update.
 - `discrete_fit.py` and `distribution_fit.py`: specific orchestration of each mode.
+- `distribution_panel.py`: distribution panel; shows only the controls used by the active variable and shape.
+- `param_limits_dialog.py`: parameter limits dialog.
+- `qt_translations.py`: installs the Qt translator (`qtbase_<language>.qm`) for standard buttons and dialogs.
 - `session_io.py`: JSON session via `ProjectState`.
 - `reports.py`: user outputs backed by `core.result_views`.
 - `compat.py`: historical compatibility of symbols/patches from the old `mossbauer_qt.py`.

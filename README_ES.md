@@ -121,7 +121,7 @@ que no es propietario.
 
 | | NORMOS | Fitbauer |
 |---|---|---|
-| **Distribuciones 2D** | — | P(BHF,ΔEQ), P(IS,ΔEQ), P(BHF,IS) |
+| **Distribuciones 2D** | — | P(BHF,ΔEQ), P(IS,ΔEQ), P(BHF,IS), como histograma o como gaussianas bivariantes (VBF) |
 | **Regularizadores** | Tikhonov y máxima entropía | además **variación total** (preserva bordes) |
 | **Elección de α** | a mano | L-curve y criterio GCV, con tabla exportable |
 | **P(IS)** | núcleo de singletes | núcleo de singlete, doblete o sexteto |
@@ -266,7 +266,7 @@ El espectro se modela como suma de muchos sextetes (o dobletes) en una malla reg
 residuo espectral ponderado² + α · rugosidad(P)²
 ```
 
-Con **L-curve α** se busca un buen compromiso entre residuo y suavidad. Además del histograma hay formas paramétricas (gaussiana, VBF multigaussiana, binomial al estilo NORMOS y fija); en las gaussianas la anchura σ se puede acotar con **σ mín / σ máx**. La opción **sumar componentes activos nítidos** combina la distribución con fases discretas (p. ej. una distribución ancha + Fe metálico a BHF ≈ 33 T). Los modos bidimensionales ajustan P(BHF, ΔEQ), P(IS, ΔEQ) y P(BHF, IS).
+Con **L-curve α** se busca un buen compromiso entre residuo y suavidad. Además del histograma hay formas paramétricas (gaussiana, VBF multigaussiana, binomial al estilo NORMOS y fija); en las gaussianas la anchura σ se puede acotar con **σ mín / σ máx**. La opción **sumar componentes activos nítidos** combina la distribución con fases discretas (p. ej. una distribución ancha + Fe metálico a BHF ≈ 33 T). Los modos bidimensionales ajustan P(BHF, ΔEQ), P(IS, ΔEQ) y P(BHF, IS), como histograma regularizado o como gaussianas bivariantes. El gráfico de la distribución muestra una banda 1σ por Monte Carlo para el histograma y, cuando δ o ΔEQ se correlacionan con la variable de la malla (pendientes κ), la recta δ(x)/ΔEQ(x) con su incertidumbre; cada superposición se puede ocultar.
 
 ### Modelos de relajación
 

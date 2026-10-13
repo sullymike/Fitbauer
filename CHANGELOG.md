@@ -2,6 +2,16 @@
 
 ## Sin publicar — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS y formas 2D
 
+- **Documentación pública al día.** `BHF_DISTRIBUTION(_EN).md` reescritos:
+  P(IS) y los núcleos de cada modo, formas (gaussiana, VBF con cotas de σ,
+  binomial, fija) también en 2D, MaxEnt, anclaje de bordes, física del núcleo,
+  refinado global, banda 1σ y curva de correlación, avisos del panel y CLI con
+  `--pair`, binomial y cotas σ. Decían que la corrección de espesor funcionaba
+  en modo distribución; no está implementada y ahora lo dicen. README,
+  `docs/architecture*.md` y `gui/README.md` con los módulos nuevos; fuera los
+  restos de Plotly (`gui/README.md`, `docs/user-flows*.md`). El generador del
+  wiki (`scripts/build_wiki.py`) lleva los ejemplos nuevos de la CLI y remite
+  al anexo de línea de comandos del manual en español.
 - **Etiqueta de la polarización de Blume–Tjon.** En un componente Blume–Tjon
   el control salía rotulado «slider.s_relax_polarization» en los ocho idiomas
   porque faltaba la clave. Nuevo test: todo parámetro de componente tiene

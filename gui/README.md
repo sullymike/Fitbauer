@@ -1,6 +1,6 @@
 # GUI Qt
 
-Implementación modular de la interfaz Qt/Plotly de Fitbauer.
+Implementación modular de la interfaz Qt (PySide6 + Matplotlib) de Fitbauer.
 
 `mossbauer_qt.py` debe permanecer como wrapper fino: define `MossbauerQtWindow`,
 compone `WindowMixins` y contiene `main()`. La lógica de interfaz vive aquí.
@@ -14,16 +14,18 @@ compone `WindowMixins` y contiene `main()`. La lógica de interfaz vive aquí.
 - `layout_manager.py` — presets de layout, temas, settings y apilado/pestañas.
 - `controls.py` — controles reutilizables (`ParamControl`).
 - `panels.py` — paneles de calibración, componentes e información.
-- `distribution_panel.py` — controles de `P(BHF)` / `P(ΔEQ)` y snapshot
-  `DistributionViewState` mediante `to_view_state()`.
+- `distribution_panel.py` — controles de `P(BHF)` / `P(ΔEQ)` / `P(IS)` y 2D (solo
+  los que usan la variable y la forma activas) y snapshot `DistributionViewState`
+  mediante `to_view_state()`.
 - `canvas.py` — canvas Matplotlib y render incremental.
 - `model_workflow.py` — carga de espectro, folding/refolding, `ModelState`/`FitState`,
   actualización de plot e info.
 - `fit_workflow.py` — flujo común de ajustes GUI: progreso y render compartido.
 - `discrete_fit.py` — ajuste discreto y bootstrap.
-- `distribution_fit.py` — ajuste de distribuciones, L-curve y componentes nítidos.
+- `distribution_fit.py` — ajuste de distribuciones, L-curve, componentes nítidos y
+  gráfico de P(x) (banda 1σ y curva de correlación δ/ΔEQ).
 - `minima_analysis.py` — detección de mínimos e inicialización automática.
-- `plotly_tools.py` — figura Plotly, HTML incremental y editor semi-manual de mínimos.
+- `minima_editor.py` — editor semi-manual de mínimos sobre el canvas Matplotlib.
 - `fit_tools.py` — batch, restricciones, perfil likelihood, presets físicos y resumen IA.
 - `state.py` — estado runtime (`FileState`, `RuntimeResultState`) y snapshots serializables
   (`ComponentViewState`, `SpectrumState`, `CalibrationState`, `FitOptionsState`,
@@ -35,6 +37,10 @@ compone `WindowMixins` y contiene `main()`. La lógica de interfaz vive aquí.
 - `web_api.py` — API web del laboratorio.
 - `updates.py` — GitHub Releases y actualización.
 - `help.py` — ayuda integrada y acerca de.
+- `param_limits_dialog.py` — diálogo de límites de parámetros.
+- `qt_translations.py` — traductor de Qt para botones y diálogos estándar.
+- `dialogs.py`, `fit_history.py`, `phase_id_actions.py` — diálogos auxiliares,
+  historial de ajustes e identificación de fases.
 - `calibration_actions.py`, `file_actions.py` — acciones auxiliares.
 - `branding.py`, `bridges.py`, `state.py`, `themes.py` — piezas de soporte.
 
@@ -53,7 +59,7 @@ Motores (`core.fit_engine`, `mossbauer_distribution`)
   ↓
 Reconstrucción/render (`core.reconstruction`, `FitWorkflowMixin`)
   ↓
-Canvas, Plotly, informes y exportaciones
+Canvas, informes y exportaciones
 ```
 
 ## Flujos de usuario cubiertos por módulos
@@ -62,7 +68,7 @@ Canvas, Plotly, informes y exportaciones
 - **Ajuste discreto**: `discrete_fit.py` orquesta; el cálculo vive en `core.fit_engine`.
 - **Distribución**: `distribution_fit.py` orquesta; la reconstrucción de curvas vive en `core.reconstruction`.
 - **Sesiones**: `session_io.py` usa `ProjectState` y conserva el JSON histórico.
-- **Informes/Plotly**: consumen `core.result_views` para no depender directamente de atributos internos de resultados.
+- **Informes**: consumen `core.result_views` para no depender directamente de atributos internos de resultados.
 - **Compatibilidad**: `compat.py` concentra accesos a símbolos históricos parcheables de `mossbauer_qt.py`.
 
 ## Tests específicos por módulo

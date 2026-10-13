@@ -16,12 +16,19 @@ Código puro, sin Qt/Tk:
 
 - `physics.py`: formas de línea y absorción de componentes.
 - `fit_engine.py`: ajuste discreto y bootstrap.
-- `mossbauer_distribution.py`: ajuste de distribuciones `P(BHF)` / `P(ΔEQ)`.
+- `mossbauer_distribution.py` (en la raíz, sin Qt): distribuciones `P(BHF)`, `P(ΔEQ)`, `P(IS)` y 2D — histograma regularizado, gaussiana, VBF, binomial y fija.
 - `session.py`: `ModelState` y sesión headless.
 - `reconstruction.py`: reconstrucción de modelos, residuos, subespectros, áreas y curvas de distribución.
 - `validation.py`: validación estructural y de límites de parámetros.
 - `result_views.py`: API de lectura de resultados para informes y paneles.
 - `params.py`: registro canónico de parámetros, defaults y límites.
+- `param_overrides.py`: límites de parámetros editados por el usuario (diálogo «Límites de parámetros»); el resto del código usa sus `effective_*`.
+- `hamiltonian.py` / `relaxation.py`: Hamiltoniano magnético + cuadrupolar completo; relajación y ajuste global Néel–Arrhenius multi-temperatura.
+- `normos_job.py`: lectura y escritura de ficheros `.JOB` de NORMOS.
+- `phase_id.py`: sugerencia de fases por comparación con la base de referencia.
+- `blas_threads.py`: BLAS/LAPACK con un solo hilo (se importa antes que numpy); con las matrices de Fitbauer el reparto entre núcleos costaba más que el cálculo.
+
+Los textos que ve el usuario pasan por `mossbauer_i18n.tr()` (sin Qt), con catálogos en `locales/` para 8 idiomas.
 
 ### `gui/`
 
@@ -31,6 +38,9 @@ Interfaz Qt modular. No debe contener motores físicos ni lógica de ajuste pesa
 - `fit_workflow.py`: flujo común de ajuste GUI: progreso, errores y render.
 - `model_workflow.py`: carga/folding, construcción de `FitState`, actualización de plot/info.
 - `discrete_fit.py` y `distribution_fit.py`: orquestación específica de cada modo.
+- `distribution_panel.py`: panel de distribución; muestra solo los controles que usan la variable y la forma activas.
+- `param_limits_dialog.py`: diálogo de límites de parámetros.
+- `qt_translations.py`: instala el traductor de Qt (`qtbase_<idioma>.qm`) para los botones y diálogos estándar.
 - `session_io.py`: sesión JSON mediante `ProjectState`.
 - `reports.py`: salidas de usuario apoyadas en `core.result_views`.
 - `compat.py`: compatibilidad histórica de símbolos/parches del antiguo `mossbauer_qt.py`.
