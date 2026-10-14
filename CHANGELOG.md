@@ -2,6 +2,11 @@
 
 ## Sin publicar
 
+- **Errores de los globales en 2D por el mismo método que en 1D.** La
+  jacobiana del bucle externo se recalcula al final por diferencias centradas
+  también en los modos 2D. En el histograma 2D el ajuste interno es lineal y
+  la de least_squares ya era estable, pero si se agotaba el presupuesto de
+  evaluaciones los globales se quedaban sin error; ahora lo tienen.
 - **Gaussiana, VBF, Binomial y Fija ponderan con la σ de los datos.** El
   histograma, el Czjzek y las formas 2D ya lo hacían; estas cuatro ajustaban
   con todos los canales pesando igual. Con la σ de conteo los canales con

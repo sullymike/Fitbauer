@@ -769,29 +769,28 @@ class DistributionFitMixin:
                 except _OuterBudgetExhausted:
                     best_x = progress_state["best_x"]
                     fitted_x_local = x0 if best_x is None else best_x
-                    # En 1D la jacobiana se calcula igualmente en el mejor
-                    # punto (abajo); en 2D no hay errores de los globales.
+                    # La jacobiana se calcula igualmente en el mejor punto
+                    # (abajo), también en 2D.
                 delta_final, quad_final, gamma_final, sharp_final, dslope_final, qslope_final = expand(fitted_x_local)
                 update_progress(tr("progress.distribution_compute_final",
                                    default="Calculando distribución final…"))
                 result_local = run_fit(delta_final, quad_final, gamma_final, sharp_final,
                                        dslope_final, qslope_final)
-                if not is_2d:
-                    # Jacobiana del bucle externo por diferencias centradas con
-                    # un paso razonable: la que deja least_squares usa ~1e-8 y
-                    # ahí manda la tolerancia del ajuste interno, no la física
-                    # (σ de Γ y sus correlaciones cambiaban ×3 entre ajustes
-                    # casi idénticos). Con los mismos ajustes sale cómo se
-                    # mueven la media y la anchura de P con cada global.
-                    update_progress(tr("progress.distribution_correlations",
-                                       default="Correlaciones de P con los globales…"))
-                    xb = np.asarray(fitted_x_local, dtype=float)
-                    jac, dm = self._distribution_outer_derivatives(
-                        lambda x: run_fit(*expand(x), final=False), xb, lo, hi)
-                    if jac is not None:
-                        outer_opt.update(jac=jac, fun=np.asarray(result_local.residuals), x=xb)
-                    if getattr(result_local, "moment_cov", None) is not None:
-                        outer_opt["dm_dx"] = dm
+                # Jacobiana del bucle externo por diferencias centradas con un
+                # paso razonable, en 1D y en 2D: la que deja least_squares usa
+                # ~1e-8 y ahí manda la tolerancia del ajuste interno, no la
+                # física (σ de Γ y sus correlaciones cambiaban ×3 entre
+                # ajustes casi idénticos). En 1D, con los mismos ajustes sale
+                # cómo se mueven la media y la anchura de P con cada global.
+                update_progress(tr("progress.distribution_correlations",
+                                   default="Correlaciones de P con los globales…"))
+                xb = np.asarray(fitted_x_local, dtype=float)
+                jac, dm = self._distribution_outer_derivatives(
+                    lambda x: run_fit(*expand(x), final=False), xb, lo, hi)
+                if jac is not None:
+                    outer_opt.update(jac=jac, fun=np.asarray(result_local.residuals), x=xb)
+                if not is_2d and getattr(result_local, "moment_cov", None) is not None:
+                    outer_opt["dm_dx"] = dm
             else:
                 update_progress(tr("progress.distribution_compute", shape=shape,
                                    default=f"Calculando distribución {shape}…"))

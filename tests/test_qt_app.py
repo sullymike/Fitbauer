@@ -3314,3 +3314,27 @@ def test_correlaciones_en_estado_y_parametros(win):
     assert ip.corr_labels and "s1_bhf" in ip.corr_labels
     assert len(ip.corr_labels) == np.asarray(ip.corr_matrix).shape[0]
     assert win._correlation_report_figure() is not None
+
+
+def test_errores_de_los_globales_en_el_histograma_2d(win):
+    """En 2D la covarianza de los globales también sale de la jacobiana por
+    diferencias centradas (antes, de la de least_squares, o nada si se agotaba
+    el presupuesto)."""
+    win._load_file(DATA / "magnetita_Fe3O4.adt")
+    win._show_distribution_dialog = lambda r: None
+    win.mode_combo.setCurrentIndex(4)                     # P(BHF, ΔEQ) 2D
+    d = win.dist_panel
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("2D"))
+    d.nbins.set_value(10)
+    d.qbins.set_value(5)
+    d.gamma.set_fixed(False)
+    sigmas = []
+    for g0 in (0.30, 0.40):                               # dos arranques
+        d.gamma.set_value(g0)
+        win.on_fit()
+        cov = win.runtime_results.distribution_result.global_cov
+        assert cov and cov[("dist_gamma", "dist_gamma")] > 0
+        assert ("dist_P_mean", "dist_P_mean") not in cov   # sin momentos en 2D
+        sigmas.append(cov[("dist_gamma", "dist_gamma")] ** 0.5)
+    # Estable: con la jacobiana de least_squares cambiaba ×3 entre ajustes.
+    assert max(sigmas) / min(sigmas) < 1.5
