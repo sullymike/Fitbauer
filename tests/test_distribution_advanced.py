@@ -452,3 +452,17 @@ def test_correlacion_gamma_anchura_coincide_con_el_ajuste_conjunto():
     r_gui = (D @ cov_g)[1, 0] / np.sqrt(mom[1, 1] * cov_g[0, 0])
     assert r_conjunto < -0.8
     assert r_gui == pytest.approx(r_conjunto, abs=0.05)
+
+
+def test_matriz_de_correlacion_desde_parejas_o_completa():
+    from core.result_views import correlation_matrix
+    pares = [{"param1": "a", "param2": "b", "corr": -0.9},
+             {"param1": "b", "param2": "c", "corr": 0.3}]
+    labels, m = correlation_matrix({"pairs": pares})
+    assert labels == ["a", "b", "c"]
+    assert m[0, 1] == m[1, 0] == -0.9 and m[1, 2] == 0.3
+    assert np.isnan(m[0, 2]) and np.allclose(np.diag(m), 1.0)
+    labels, m = correlation_matrix({"keys": ["x", "y"], "matrix": [[1, 0.5], [0.5, 1]]})
+    assert labels == ["x", "y"] and m[0, 1] == 0.5
+    assert correlation_matrix({}) is None
+    assert correlation_matrix({"pairs": []}) is None

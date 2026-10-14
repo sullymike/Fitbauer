@@ -1032,7 +1032,7 @@ class DistributionFitMixin:
         # free_keys guía qué parámetros muestra el panel; sin esto no salía ninguno.
         r.free_keys = list(r.values.keys())
         r.errors = czjzek_errors
-        r.correlations = {"pairs": resumen["corr_pairs"]}
+        r.correlations = resumen["correlations"]
         r.n_starts = 1
         self.info_panel.show_result(r)
         if hasattr(self, "_record_fit_history"):
@@ -1245,8 +1245,18 @@ class DistributionFitMixin:
                                   "corr": float(cov[(a, b)] / den)})
         pairs.sort(key=lambda p: -abs(p["corr"]))
         high = [(p["param1"], p["param2"], p["corr"]) for p in pairs if abs(p["corr"]) >= 0.95]
+        # Matriz en orden fijo (globales y luego media/anchura de P).
+        matriz = np.eye(len(claves))
+        for i, a in enumerate(claves):
+            for j, b in enumerate(claves):
+                if i != j:
+                    den = np.sqrt(cov[(a, a)] * cov[(b, b)])
+                    matriz[i, j] = cov.get((a, b), np.nan) / den if den > 0 else np.nan
+        corr_info = {"pairs": pairs, "keys": [etiquetas[k] for k in claves],
+                     "matrix": matriz.tolist()}
         return {"goodness": goodness, "moments": moments, "globals": filas,
-                "high_corr": high, "corr_pairs": pairs, "variable": variable,
+                "high_corr": high, "corr_pairs": pairs, "correlations": corr_info,
+                "variable": variable,
                 "is_2d": is_2d, "has_sigma": sigma is not None}
 
     def _export_distribution_data(self, result=None, parent=None) -> str | None:

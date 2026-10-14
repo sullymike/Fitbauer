@@ -3272,27 +3272,37 @@ def test_forma_czjzek_en_la_gui(win, tmp_path):
 
 
 def test_correlaciones_en_estado_y_parametros(win):
-    """El panel de estado lista las correlaciones: en P(ΔEQ) con Γ libre sale
-    la compensación Γ ↔ σ(ΔEQ); en el discreto, las parejas de parámetros."""
+    """El panel de estado muestra la matriz de correlación como tabla de
+    colores: en P(ΔEQ) con Γ libre, la compensación Γ ↔ σ(ΔEQ); en el
+    discreto, entre los parámetros libres. El informe lleva la matriz y el
+    PDF su mapa de calor."""
+    import numpy as np
     from mossbauer_i18n import tr
     win._show_distribution_dialog = lambda r: None
     win._load_file(DATA / "sintetico_dist_deq.adt")
     win.mode_combo.setCurrentIndex(2)                     # P(ΔEQ)
     d = win.dist_panel
     d.shape_combo.setCurrentIndex(d.shape_combo.findData("Gaussiana"))
-    d.delta.set_value(0.2408); d.gamma.set_value(0.2); d.gamma.set_fixed(False)
+    d.delta.set_value(0.2408); d.delta.set_fixed(False)
+    d.gamma.set_value(0.2); d.gamma.set_fixed(False)
     d.bmin.set_value(0.0); d.bmax.set_value(2.5); d.nbins.set_value(40)
     win.on_fit()
-    texto = win.info_panel.text.toPlainText()
-    assert "σ(ΔEQ)" in texto and "⟨ΔEQ⟩" in texto and "Γ" in texto
-    linea = next(l for l in texto.splitlines() if "Γ ↔ σ(ΔEQ)" in l or "σ(ΔEQ) ↔ Γ" in l)
-    assert float(linea.split("r =")[1].split()[0]) < -0.5
+    ip = win.info_panel
+    assert ip.corr_labels == ["δ", "Γ", "⟨ΔEQ⟩", "σ(ΔEQ)"]
+    m = np.asarray(ip.corr_matrix)
+    assert np.allclose(m, m.T, equal_nan=True) and np.allclose(np.diag(m), 1.0)
+    assert m[1, 3] < -0.9                                 # Γ ↔ σ(ΔEQ)
+    html = ip.text.toHtml()
+    assert "<table" in html and "bgcolor" in html
+    texto = ip.text.toPlainText()
+    assert tr("info.corr_matrix_title") in texto
     assert "χ²red=" in texto and "dof=0 " not in texto      # bondad real
     informe = "\n".join(win._build_report_lines())
-    assert tr("rep.corr_table", thr="0.5") in informe
+    assert tr("info.corr_matrix_title") in informe and "| 2 Γ |" in informe
+    assert win._correlation_report_figure() is not None
     win.mode_combo.setCurrentIndex(0)
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
     win.on_fit()
-    texto = win.info_panel.text.toPlainText()
-    assert (tr("info.corr_header", thr="0.5") in texto
-            or tr("info.corr_none", thr="0.5", r="", p1="", p2="").split("(")[0] in texto)
+    assert ip.corr_labels and "s1_bhf" in ip.corr_labels
+    assert len(ip.corr_labels) == np.asarray(ip.corr_matrix).shape[0]
+    assert win._correlation_report_figure() is not None

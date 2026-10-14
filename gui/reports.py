@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
+
 from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
@@ -40,8 +42,85 @@ def correlation_table_lines(pairs: list[dict], *, threshold: float = 0.5,
         r = float(p["corr"])
         flag = "⚠" if abs(r) >= 0.95 else ("!" if abs(r) >= 0.8 else "")
         lines.append(f"| {q(p['param1'])} ↔ {q(p['param2'])} | {r:+.3f} | {flag} |")
-    lines += ["", f"_{tr('info.corr_legend').strip()}_", ""]
+    lines += ["", f"> ℹ️ {tr('info.corr_legend').strip()}", ""]
     return lines
+
+
+#: Hasta cuántos parámetros cabe la matriz como tabla en el informe; con más,
+#: lista de parejas (la figura del PDF la dibuja siempre).
+CORR_MATRIX_MAX = 12
+
+
+def correlation_report_lines(corr: dict | None, *, code: bool = False) -> list[str]:
+    """Correlaciones en el informe: matriz parámetro × parámetro (o parejas).
+
+    Filas y columnas son los parámetros (columnas numeradas para que quepa);
+    |r| ≥ 0.95 en negrita. Con más de ``CORR_MATRIX_MAX`` parámetros cae a
+    la lista de parejas de :func:`correlation_table_lines`.
+    """
+    from core.result_views import correlation_matrix
+
+    datos = correlation_matrix(corr)
+    if datos is None:
+        return []
+    labels, m = datos
+    if len(labels) > CORR_MATRIX_MAX:
+        return correlation_table_lines((corr or {}).get("pairs") or [], code=code)
+    q = (lambda s: f"`{s}`") if code else (lambda s: s)
+    lines = [f"**{tr('info.corr_matrix_title')}**", "",
+             "| | " + " | ".join(str(k + 1) for k in range(len(labels))) + " |",
+             "|---|" + "---|" * len(labels)]
+    for i, lab in enumerate(labels):
+        celdas = []
+        for j in range(len(labels)):
+            r = m[i, j]
+            if i == j:
+                celdas.append("—")
+            elif not np.isfinite(r):
+                celdas.append("·")
+            else:
+                celdas.append(f"**{r:+.2f}**" if abs(r) >= 0.95 else f"{r:+.2f}")
+        lines.append(f"| {i + 1} {q(lab)} | " + " | ".join(celdas) + " |")
+    # Como nota (> …): el PDF ajusta al ancho los recuadros, no los párrafos.
+    lines += ["", f"> ℹ️ {_r('corr_matrix_note')}", ""]
+    return lines
+
+
+def correlation_figure(corr: dict | None, title: str = ""):
+    """Mapa de calor de la matriz de correlación (rojo +, azul −) o None."""
+    from matplotlib.figure import Figure
+
+    from core.result_views import correlation_matrix
+
+    datos = correlation_matrix(corr)
+    if datos is None:
+        return None
+    labels, m = datos
+    n = len(labels)
+    lado = min(max(3.2, 0.55 * n + 2.0), 9.0)
+    fig = Figure(figsize=(lado + 1.0, lado), dpi=100, constrained_layout=True)
+    ax = fig.add_subplot(111)
+    import matplotlib
+
+    cmap = matplotlib.colormaps["RdBu_r"].copy()
+    cmap.set_bad("#d1d5db")                  # diagonal y parejas sin dato
+    m_plot = np.array(m, dtype=float)
+    np.fill_diagonal(m_plot, np.nan)
+    im = ax.imshow(np.ma.masked_invalid(m_plot), cmap=cmap, vmin=-1, vmax=1)
+    ax.set_xticks(range(n), [str(k + 1) for k in range(n)])
+    ax.set_yticks(range(n), [f"{k + 1} {lab}" for k, lab in enumerate(labels)])
+    if n <= 16:
+        for i in range(n):
+            for j in range(n):
+                if i != j and np.isfinite(m[i, j]):
+                    r = m[i, j]
+                    ax.text(j, i, f"{r:+.2f}", ha="center", va="center",
+                            fontsize=8 if n <= 10 else 6,
+                            color="white" if abs(r) >= 0.55 else "#1f2937",
+                            fontweight="bold" if abs(r) >= 0.95 else "normal")
+    fig.colorbar(im, ax=ax, shrink=0.8, label="r")
+    ax.set_title(title or tr("info.corr_matrix_title"), fontsize=11)
+    return fig
 
 
 def error_source_text(source: str) -> str:
@@ -232,7 +311,7 @@ class ReportMixin:
                 lines.append(f"> ⚠️ {_r('high_corr')}: {a} ↔ {b}, r = {r:.3f}")
                 lines.append("")
         # Correlaciones entre globales y con la media/anchura de P.
-        lines.extend(correlation_table_lines(s.get("corr_pairs") or []))
+        lines.extend(correlation_report_lines(s.get("correlations")))
 
         # ── La distribución ─────────────────────────────────────────────
         lines.append(f"### 📊 {_r('dist_stats_header')}")
@@ -343,6 +422,20 @@ class ReportMixin:
                 lines.append(f"> ⚠️ {a}")
                 lines.append("")
         return lines
+
+    def _correlation_report_figure(self):
+        """Mapa de calor de las correlaciones del ajuste activo, o None."""
+        try:
+            if self._distribution_report_active():
+                result = getattr(self.runtime_results, "distribution_result", None)
+                corr = (self._distribution_summary(result).get("correlations")
+                        if result is not None else None)
+            else:
+                result = self.runtime_results.fit_result
+                corr = getattr(result, "correlations", None) if result is not None else None
+            return correlation_figure(corr)
+        except Exception:
+            return None
 
     def _distribution_report_figure(self):
         """Figura de la distribución para el PDF (P(x) o el mapa 2D), o None."""
@@ -676,8 +769,7 @@ class ReportMixin:
             if high:
                 lines.append(f"> ⚠️ {_r('high_corr')}")
                 lines.append("")
-            lines.extend(correlation_table_lines(
-                corr.get("pairs") or high, code=True))
+            lines.extend(correlation_report_lines(corr, code=True))
 
         # ── Análisis de áreas ───────────────────────────────────────────
         pct_active, areas, percentages = self.component_area_percentages()
@@ -1211,6 +1303,9 @@ class ReportMixin:
             fig_dist = self._distribution_report_figure()
             if fig_dist is not None:
                 pdf.savefig(fig_dist, bbox_inches="tight")
+            fig_corr = self._correlation_report_figure()
+            if fig_corr is not None:
+                pdf.savefig(fig_corr, bbox_inches="tight")
 
     def on_export_report(self) -> None:
         """Exporta un informe Markdown del ajuste actual."""
@@ -1614,6 +1709,9 @@ class ReportMixin:
             fig_dist = self._distribution_report_figure()
             if fig_dist is not None:
                 pdf.savefig(fig_dist, bbox_inches="tight")
+            fig_corr = self._correlation_report_figure()
+            if fig_corr is not None:
+                pdf.savefig(fig_corr, bbox_inches="tight")
 
     def _render_odt_report(self, odt_path: Path, md_lines: list[str],
                             fig_png_path: Path | None = None) -> None:

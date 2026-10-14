@@ -715,37 +715,57 @@ class ComponentPanel(QtWidgets.QWidget):
                 ctl.set_value(v)
 
 
-#: Umbral a partir del cual una correlación se lista en el panel de estado.
-CORRELATION_SHOW = 0.5
+def _mezcla(c1: tuple[int, int, int], c2: tuple[int, int, int], t: float) -> str:
+    """Color entre ``c1`` (t=0) y ``c2`` (t=1) en ``#rrggbb``."""
+    t = min(max(float(t), 0.0), 1.0)
+    return "#%02x%02x%02x" % tuple(int(round(a + (b - a) * t)) for a, b in zip(c1, c2))
 
 
-def correlation_lines(corr: dict, *, threshold: float = CORRELATION_SHOW,
-                      limit: int = 12) -> list[str]:
-    """Líneas del panel de estado con las correlaciones entre parámetros.
+#: Rojo para r > 0, azul para r < 0 (como un mapa de calor RdBu).
+_ROJO, _AZUL = (220, 38, 38), (37, 99, 235)
 
-    ``corr`` trae ``pairs`` (todas las parejas, ``param1``/``param2``/``corr``)
-    o, en resultados antiguos, solo ``high_pairs``. Lista las de |r| ≥
-    ``threshold`` de mayor a menor, marcando ⚠ las ≥ 0.95 (el ajuste no las
-    separa) y ! las ≥ 0.8; si no hay ninguna, dice cuál es la máxima.
+
+def correlation_matrix_html(labels: list[str], matrix, *, base=(255, 255, 255),
+                            text=(31, 41, 55)) -> str:
+    """Tabla HTML de correlaciones: filas y columnas = parámetros.
+
+    El color de cada celda codifica r (rojo positiva, azul negativa, más
+    intenso cuanto mayor |r|), así que se lee de un vistazo. Las columnas se
+    numeran para que la tabla sea estrecha; las filas llevan número y
+    nombre. |r| ≥ 0.95 va en negrita. ``base``/``text`` son los colores del
+    tema (fondo y texto) para que encaje también en el tema oscuro.
     """
-    pairs = list(corr.get("pairs") or corr.get("high_pairs") or [])
-    if not pairs:
-        return []
-    pairs.sort(key=lambda p: -abs(float(p["corr"])))
-    shown = [p for p in pairs if abs(float(p["corr"])) >= threshold]
-    if not shown:
-        top = pairs[0]
-        return [tr("info.corr_none", thr=f"{threshold:g}", r=f"{float(top['corr']):+.3f}",
-                   p1=top["param1"], p2=top["param2"])]
-    lines = [tr("info.corr_header", thr=f"{threshold:g}")]
-    for p in shown[:limit]:
-        r = float(p["corr"])
-        flag = "  ⚠" if abs(r) >= 0.95 else ("  !" if abs(r) >= 0.8 else "")
-        lines.append(f"  {p['param1']} ↔ {p['param2']}: r = {r:+.3f}{flag}")
-    if len(shown) > limit:
-        lines.append(tr("info.correlation_more", n=len(shown) - limit))
-    lines.append(tr("info.corr_legend"))
-    return lines
+    import html as _html
+
+    import numpy as np
+
+    m = np.asarray(matrix, dtype=float)
+    n = len(labels)
+    gris = _mezcla(base, text, 0.18)
+    filas = ["<table cellspacing='1' cellpadding='3' style='font-size:8pt;'>",
+             "<tr><td></td>" + "".join(
+                 f"<td align='center'><b>{k + 1}</b></td>" for k in range(n)) + "</tr>"]
+    for i, lab in enumerate(labels):
+        celdas = [f"<td><b>{i + 1}</b>&nbsp;{_html.escape(str(lab))}</td>"]
+        for j in range(n):
+            r = m[i, j]
+            if i == j:
+                celdas.append(f"<td bgcolor='{gris}'></td>")
+                continue
+            if not np.isfinite(r):
+                celdas.append("<td align='center'>·</td>")
+                continue
+            a = abs(r)
+            fondo = _mezcla(base, _ROJO if r > 0 else _AZUL, a)
+            color = "#ffffff" if a >= 0.55 else "#%02x%02x%02x" % text
+            valor = f"{r:+.2f}".replace("0.", ".")
+            if a >= 0.95:
+                valor = f"<b>{valor}</b>"
+            celdas.append(f"<td align='center' bgcolor='{fondo}' "
+                          f"style='color:{color};'>{valor}</td>")
+        filas.append("<tr>" + "".join(celdas) + "</tr>")
+    filas.append("</table>")
+    return "".join(filas)
 
 
 class InfoPanel(QtWidgets.QGroupBox):
@@ -761,8 +781,27 @@ class InfoPanel(QtWidgets.QGroupBox):
         self.text.setStyleSheet("QTextEdit { font-family: monospace; font-size: 10pt; }")
         v.addWidget(self.text)
 
-    def set_lines(self, lines: list[str]) -> None:
-        self.text.setPlainText("\n".join(lines) if lines else "—")
+    def set_lines(self, lines: list[str], correlations: dict | None = None) -> None:
+        """Texto del panel y, si hay ``correlations``, su tabla de colores."""
+        import html as _html
+
+        from core.result_views import correlation_matrix
+
+        datos = correlation_matrix(correlations)
+        self.corr_labels, self.corr_matrix = datos if datos else (None, None)
+        if datos is None:
+            self.text.setPlainText("\n".join(lines) if lines else "—")
+            return
+        pal = self.text.palette()
+        base = pal.color(pal.ColorRole.Base).getRgb()[:3]
+        texto = pal.color(pal.ColorRole.Text).getRgb()[:3]
+        cuerpo = _html.escape("\n".join(lines))
+        leyenda = _html.escape(tr("info.corr_matrix_legend"))
+        self.text.setHtml(
+            f"<pre style='font-family: monospace; font-size: 10pt;'>{cuerpo}</pre>"
+            f"<p><b>{_html.escape(tr('info.corr_matrix_title'))}</b></p>"
+            + correlation_matrix_html(datos[0], datos[1], base=base, text=texto)
+            + f"<p style='font-size:8pt;'>{leyenda}</p>")
 
     def show_result(self, result) -> None:
         """Compatibilidad para llamadas antiguas: muestra sólo el ajuste."""
@@ -787,8 +826,4 @@ class InfoPanel(QtWidgets.QGroupBox):
                     lines.append(f"  {estimate.key:14s} = {val:.6g}  ± {err:.3g}")
                 else:
                     lines.append(f"  {estimate.key:14s} = {val:.6g}")
-        corr_lines = correlation_lines(view.correlations())
-        if corr_lines:
-            lines.append("")
-            lines.extend(corr_lines)
-        self.set_lines(lines)
+        self.set_lines(lines, view.correlations())

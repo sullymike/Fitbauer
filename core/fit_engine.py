@@ -912,6 +912,9 @@ def _correlation_summary(cov: np.ndarray, free_keys: list[str]) -> dict[str, obj
         return {}
     idx = np.unravel_index(np.argmax(np.abs(corr)), corr.shape)
     max_pair = (free_keys[int(idx[0])], free_keys[int(idx[1])]) if idx[0] != idx[1] else ()
+    n_k = min(len(free_keys), corr.shape[0])
+    matrix = np.array(corr[:n_k, :n_k], dtype=float)
+    np.fill_diagonal(matrix, 1.0)
     pairs = []
     for i in range(min(len(free_keys), corr.shape[0])):
         for j in range(i + 1, min(len(free_keys), corr.shape[0])):
@@ -926,6 +929,10 @@ def _correlation_summary(cov: np.ndarray, free_keys: list[str]) -> dict[str, obj
         "max_pair": list(max_pair),
         "high_pairs": high_pairs,
         "pairs": pairs,
+        # Matriz completa (diagonal 1) en el orden de ``keys``: la tabla de
+        # colores del panel de estado y la figura del informe.
+        "keys": list(free_keys[:n_k]),
+        "matrix": matrix.tolist(),
     }
 
 

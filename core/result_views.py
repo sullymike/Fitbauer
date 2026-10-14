@@ -228,3 +228,35 @@ def discrete_result_view(result: Any, *, fixed: Mapping[str, bool] | None = None
 
 def distribution_result_view(result: Any) -> DistributionResultView:
     return DistributionResultView(result)
+
+
+def correlation_matrix(corr: Mapping[str, Any] | None) -> tuple[list[str], np.ndarray] | None:
+    """(etiquetas, matriz r) de un resumen de correlaciones, o None.
+
+    Usa ``keys``/``matrix`` si están; si no, la reconstruye con ``pairs`` (o
+    ``high_pairs``) en el orden en que aparecen los parámetros. La diagonal
+    vale 1 y las parejas sin dato, NaN. Hace falta al menos dos parámetros.
+    """
+    if not corr:
+        return None
+    keys = corr.get("keys")
+    mat = corr.get("matrix")
+    if keys and mat is not None:
+        m = np.asarray(mat, dtype=float)
+        if m.shape == (len(keys), len(keys)) and len(keys) >= 2:
+            return list(keys), m
+    pairs = corr.get("pairs") or corr.get("high_pairs") or []
+    etiquetas: list[str] = []
+    for p in pairs:
+        for k in (p["param1"], p["param2"]):
+            if k not in etiquetas:
+                etiquetas.append(k)
+    if len(etiquetas) < 2:
+        return None
+    idx = {k: i for i, k in enumerate(etiquetas)}
+    m = np.full((len(etiquetas), len(etiquetas)), np.nan)
+    np.fill_diagonal(m, 1.0)
+    for p in pairs:
+        i, j = idx[p["param1"]], idx[p["param2"]]
+        m[i, j] = m[j, i] = float(p["corr"])
+    return etiquetas, m

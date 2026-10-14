@@ -25,7 +25,7 @@ from core.reconstruction import (
 from core.session import ModelState
 from core.validation import format_validation_issues, validate_fit_state
 from gui.controls import ParamControl
-from gui.panels import ComponentPanel, correlation_lines
+from gui.panels import ComponentPanel
 from gui.fit_workflow import GuiFitRenderState
 from gui.state import FileState, FitOptionsState, PlotViewState, UiActionState
 
@@ -558,8 +558,7 @@ class ModelWorkflowMixin:
         if cal_unc:
             lines.append(cal_unc)
         corr = result.correlations if result is not None else {}
-        if corr:
-            lines.extend(correlation_lines(corr))
+        # Las correlaciones van como tabla de colores al final (set_lines).
         lines.append("")
         if len(pct_active) > 1:
             lines.append(tr("info.area_percent_header"))
@@ -612,7 +611,7 @@ class ModelWorkflowMixin:
             for c in cons:
                 lines.append(tr("info.constraint_line", target=c["target"], factor=float(c.get("factor", 1.0)),
                                source=c["source"], offset=float(c.get("offset", 0.0))))
-        self.info_panel.set_lines(lines)
+        self.info_panel.set_lines(lines, corr or None)
 
     # ── Construcción del FitState a partir de la UI ───────────────────────
     def _fit_options_state(self) -> FitOptionsState:
