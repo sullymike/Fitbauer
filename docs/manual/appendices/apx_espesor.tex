@@ -128,9 +128,11 @@ Cuándo \emph{no}:
 \section{Cómo se aplica en el ajuste}
 
 \subsection{Selección y parámetro}
-En el panel de calibración hay un selector \emph{Absorbente: \code{thin} /
-\code{thickness}} y un \emph{slider} de escala de saturación $C$
-(\code{sat\_scale}), activo sólo en modo grueso. $C$ es un parámetro global
+En el panel \emph{Velocidad, folding y fondo} hay un selector \emph{Absorbente}
+con tres opciones: \emph{Delgado (lineal)} (\code{thin}), \emph{Grueso (saturación)}
+(\code{thickness}) e \emph{Integral de transmisión} (\code{transmission}). En modo
+grueso aparece el \emph{slider} de la escala de saturación $C$
+(\code{sat\_scale}). $C$ es un parámetro global
 (como la base o la pendiente), ajustable o fijable.
 
 \subsection{Modo discreto}
@@ -138,31 +140,19 @@ El optimizador no lineal (TRF) ya ajusta una función arbitraria, así que basta
 con que el modelo directo use \eqref{eq:thick}: $C$ entra como un parámetro libre
 más y se refina junto al resto. No cambia el algoritmo, sólo el forward.
 
-\subsection{Modo distribución \texorpdfstring{$P(\BHF)$}{P(BHF)}}
-Aquí la exponencial \emph{rompe la linealidad} en los pesos $P$, sobre la que se
-apoya todo el solver regularizado. La solución es una \emph{transformada inversa}
-que recupera la linealidad: dado el dato $y$, se invierte la saturación para
-obtener la absorción lineal observada
-\begin{equation}
-  A_{\text{obs}}(v) \;=\; -\,C\,\ln\!\Bigl(1 - \tfrac{b + s\,v - y(v)}{C}\Bigr),
-  \label{eq:invtransform}
-\end{equation}
-que \emph{sí} es lineal en $P$ ($A_{\text{obs}}=K\,P+\dots$). Se resuelve el
-sistema lineal regularizado habitual (Tikhonov/TV, no negatividad) sobre
-$A_{\text{obs}}$, y el modelo se \emph{re-satura} con \eqref{eq:thick} para
-calcular residuos y la curva mostrada. El ruido se propaga por la transformada,
-\begin{equation}
-  \sigma_{A} \;=\; \sigma_y\,\frac{dA_{\text{obs}}}{dy} \;=\; \sigma_y\,e^{A_{\text{obs}}/C},
-\end{equation}
-de modo que los canales saturados pesan correctamente. Un lazo externo no lineal
-(esquema separable tipo VARPRO) refina $(b,s,C)$ mientras el solve lineal interno
-recupera $P$ en cada iteración.
+\subsection{Modo distribución: no se aplica}
+El ajuste de distribución supone siempre un absorbente \textbf{delgado}: la
+corrección de espesor \emph{no está implementada} en modo distribución, sea cual
+sea la opción del selector. La razón es que la exponencial \emph{rompe la
+linealidad} en los pesos $P$, sobre la que se apoya todo el resolvedor regularizado
+(no negatividad, $\alpha$, banda $1\sigma$, L-curve). El panel de distribución
+muestra un aviso cuando el selector no está en \emph{Delgado}.
 
-\begin{nota}
-La transformada \eqref{eq:invtransform} exige $b+s\,v-y < C$ en todo canal (la
-absorción aparente no puede exceder la plateau de saturación); el programa recorta
-el argumento al dominio válido $(0,1]$ antes del logaritmo.
-\end{nota}
+En una muestra gruesa, una distribución ajustada como delgada absorbe el efecto
+del espesor: sale algo más ancha y con áreas relativas sesgadas hacia las líneas
+débiles. Para distribuciones conviene usar muestras delgadas; si no es posible,
+un ajuste discreto en modo grueso, comparado con el delgado, indica cuánto
+cambian anchuras y áreas.
 
 %======================================================================
 \section{Qué cambia en la vista}
@@ -177,8 +167,6 @@ el argumento al dominio válido $(0,1]$ antes del logaritmo.
         —es justamente la corrección buscada.
   \item Aparece el valor ajustado de $C$ (escala de saturación) entre los
         parámetros globales. Un $C$ grande indica muestra prácticamente delgada.
-  \item En modo distribución, $P(\BHF)$ se muestra ya des-saturada; su área
-        integrada refleja la fracción real.
 \end{itemize}
 
 %======================================================================
@@ -203,17 +191,14 @@ Consecuencias prácticas:
   \item \textbf{Un único $C$.} No se ajusta una escala por componente (sería
         no físico y degeneraría con las profundidades): $C$ es global y describe el
         espesor efectivo de la muestra.
-  \item \textbf{Compatibilidad.} En modo distribución, los sextetes ``nítidos''
-        añadidos y la propia distribución comparten la misma corrección, porque
-        todos contribuyen a $A_{\text{tot}}$.
 \end{itemize}
 
 \begin{nota}[Limitación del modelo]
 Es una saturación exponencial efectiva (Lambert–Beer), que captura el efecto
 dominante del espesor (compresión, ensanchamiento, áreas insesgadas) con un único
-parámetro. No es la integral de transmisión completa de Margulies–Ehrman
-(convolución con la línea de la fuente), que sería un refinamiento de segundo
-orden raramente necesario en la práctica.
+parámetro. Para el tratamiento completo, la opción \emph{Integral de transmisión}
+convoluciona la línea de la fuente con $1-e^{-\tau(v)}$, como NORMOS, con la
+anchura de la fuente y su fracción resonante como parámetros globales.
 \end{nota}
 
 %======================================================================
@@ -228,8 +213,8 @@ Modelo & $T=b+s v - C(1-e^{-A_{\text{tot}}/C})$ \\
 Parámetro nuevo & $C$ (escala de saturación), global, $C\to\infty$ = delgado\\
 Cuándo & muestras gruesas / absorción profunda / cuantificación de fases\\
 Discreto & $C$ libre en el TRF; sólo cambia el modelo directo\\
-Distribución & transformada inversa $A_{\text{obs}}=-C\ln(1-(b+sv-y)/C)$ + VARPRO $(b,s,C)$\\
-Vista & curva saturada; áreas/$P$ des-saturadas; se muestra $C$\\
+Distribución & no se aplica: se supone absorbente delgado (el panel lo avisa)\\
+Vista & curva saturada; áreas des-saturadas; se muestra $C$\\
 Subespectros & una sola $C$ satura la suma $\sum_c A_c$ (acoplamiento físico)\\
 Beneficio clave & áreas/fracciones de fase insesgadas, anchuras y $\chi^2$ mejores\\
 \bottomrule

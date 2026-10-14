@@ -128,9 +128,11 @@ When \emph{not}:
 \section{How it is applied in the fit}
 
 \subsection{Selection and parameter}
-In the calibration panel there is a selector \emph{Absorber: \code{thin} /
-\code{thickness}} and a saturation-scale $C$ \emph{slider}
-(\code{sat\_scale}), active only in thick mode. $C$ is a global parameter
+In the \emph{Velocity, folding and background} panel there is an \emph{Absorber}
+selector with three options: \emph{Thin (linear)} (\code{thin}), \emph{Thick
+(saturation)} (\code{thickness}) and \emph{Transmission integral}
+(\code{transmission}). In thick mode the saturation-scale $C$ \emph{slider}
+(\code{sat\_scale}) appears. $C$ is a global parameter
 (like the baseline or the slope), adjustable or fixable.
 
 \subsection{Discrete mode}
@@ -139,31 +141,19 @@ for the forward model to use \eqref{eq:thick}: $C$ enters as one more free
 parameter and is refined together with the rest. The algorithm does not change,
 only the forward model.
 
-\subsection{Distribution mode \texorpdfstring{$P(\BHF)$}{P(BHF)}}
-Here the exponential \emph{breaks the linearity} in the weights $P$, on which the
-whole regularized solver relies. The solution is an \emph{inverse transform}
-that recovers linearity: given the datum $y$, the saturation is inverted to
-obtain the observed linear absorption
-\begin{equation}
-  A_{\text{obs}}(v) \;=\; -\,C\,\ln\!\Bigl(1 - \tfrac{b + s\,v - y(v)}{C}\Bigr),
-  \label{eq:invtransform}
-\end{equation}
-which \emph{is} linear in $P$ ($A_{\text{obs}}=K\,P+\dots$). The usual
-regularized linear system (Tikhonov/TV, non-negativity) is solved over
-$A_{\text{obs}}$, and the model is \emph{re-saturated} with \eqref{eq:thick} to
-compute residuals and the displayed curve. The noise propagates through the transform,
-\begin{equation}
-  \sigma_{A} \;=\; \sigma_y\,\frac{dA_{\text{obs}}}{dy} \;=\; \sigma_y\,e^{A_{\text{obs}}/C},
-\end{equation}
-so that the saturated channels are weighted correctly. An outer nonlinear
-loop (separable VARPRO-type scheme) refines $(b,s,C)$ while the inner linear solve
-recovers $P$ at each iteration.
+\subsection{Distribution mode: not applied}
+The distribution fit always assumes a \textbf{thin} absorber: the thickness
+correction is \emph{not implemented} in distribution mode, whatever the selector
+says. The reason is that the exponential \emph{breaks the linearity} in the weights
+$P$, on which the whole regularized solver relies (non-negativity, $\alpha$,
+$1\sigma$ band, L-curve). The distribution panel shows a warning when the selector
+is not on \emph{Thin}.
 
-\begin{nota}
-The transform \eqref{eq:invtransform} requires $b+s\,v-y < C$ in every channel (the
-apparent absorption cannot exceed the saturation plateau); the program clips
-the argument to the valid domain $(0,1]$ before the logarithm.
-\end{nota}
+In a thick sample, a distribution fitted as thin absorbs the thickness effect: it
+comes out somewhat broader, with relative areas biased towards the weak lines.
+Thin samples are advisable for distributions; when that is not possible, a
+discrete fit in thick mode, compared with the thin one, shows how much widths
+and areas change.
 
 %======================================================================
 \section{What changes in the view}
@@ -178,8 +168,6 @@ the argument to the valid domain $(0,1]$ before the logarithm.
         fit —which is precisely the intended correction.
   \item The fitted value of $C$ (saturation scale) appears among the
         global parameters. A large $C$ indicates a practically thin sample.
-  \item In distribution mode, $P(\BHF)$ is shown already de-saturated; its
-        integrated area reflects the real fraction.
 \end{itemize}
 
 %======================================================================
@@ -205,17 +193,14 @@ Practical consequences:
   \item \textbf{A single $C$.} A scale per component is not fitted (it would be
         unphysical and would degenerate with the depths): $C$ is global and describes the
         effective thickness of the sample.
-  \item \textbf{Compatibility.} In distribution mode, the added ``sharp''
-        sextets and the distribution itself share the same correction, because
-        they all contribute to $A_{\text{tot}}$.
 \end{itemize}
 
 \begin{nota}[Model limitation]
 It is an effective exponential saturation (Lambert–Beer), which captures the
 dominant thickness effect (compression, broadening, unbiased areas) with a single
-parameter. It is not the full Margulies–Ehrman transmission integral
-(convolution with the source line), which would be a second-order refinement
-rarely necessary in practice.
+parameter. For the full treatment, the \emph{Transmission integral} option
+convolves the source line with $1-e^{-\tau(v)}$, as NORMOS does, with the source
+width and its resonant fraction as global parameters.
 \end{nota}
 
 %======================================================================
@@ -230,8 +215,8 @@ Model & $T=b+s v - C(1-e^{-A_{\text{tot}}/C})$ \\
 New parameter & $C$ (saturation scale), global, $C\to\infty$ = thin\\
 When & thick samples / deep absorption / phase quantification\\
 Discrete & $C$ free in the TRF; only the forward model changes\\
-Distribution & inverse transform $A_{\text{obs}}=-C\ln(1-(b+sv-y)/C)$ + VARPRO $(b,s,C)$\\
-View & saturated curve; areas/$P$ de-saturated; $C$ is shown\\
+Distribution & not applied: a thin absorber is assumed (the panel warns)\\
+View & saturated curve; areas de-saturated; $C$ is shown\\
 Subspectra & a single $C$ saturates the sum $\sum_c A_c$ (physical coupling)\\
 Key benefit & unbiased areas/phase fractions, better widths and $\chi^2$\\
 \bottomrule

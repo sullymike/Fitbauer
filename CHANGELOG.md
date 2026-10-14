@@ -2,6 +2,11 @@
 
 ## Sin publicar
 
+- **Anexo de espesor corregido.** Describía para el modo distribución una
+  transformada inversa con refinado de C que nunca se implementó; ahora dice
+  que las distribuciones suponen absorbente delgado. Además el selector tiene
+  tres opciones (no dos) y la integral de transmisión completa sí existe en el
+  ajuste discreto, al contrario de lo que decía su nota.
 - **Aviso de absorbente grueso en distribución.** Con «Absorbente» en grueso o
   integral de transmisión, el ajuste de distribución se hacía en silencio como
   delgado (la corrección no está implementada ahí). El panel de distribución lo

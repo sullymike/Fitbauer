@@ -192,8 +192,8 @@
 \contentsline {section}{\numberline {F.5}How it is applied in the fit}{77}{section.F.5}%
 \contentsline {subsection}{\numberline {F.5.1}Selection and parameter}{77}{subsection.F.5.1}%
 \contentsline {subsection}{\numberline {F.5.2}Discrete mode}{77}{subsection.F.5.2}%
-\contentsline {subsection}{\numberline {F.5.3}Distribution mode $P(B_{\mathrm {hf}})$}{77}{subsection.F.5.3}%
-\contentsline {section}{\numberline {F.6}What changes in the view}{78}{section.F.6}%
+\contentsline {subsection}{\numberline {F.5.3}Distribution mode: not applied}{77}{subsection.F.5.3}%
+\contentsline {section}{\numberline {F.6}What changes in the view}{77}{section.F.6}%
 \contentsline {section}{\numberline {F.7}Several subspectra}{78}{section.F.7}%
 \contentsline {section}{\numberline {F.8}Summary}{78}{section.F.8}%
 \contentsline {chapter}{\numberline {G}Command-line tools}{79}{appendix.G}%
