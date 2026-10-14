@@ -51,7 +51,9 @@ amplitud libre no negativa, ajustada junto a la distribución.
   el signo). Admite κδ y nítidos; el informe da σ y ΔEQ₀ con su error. Para decidir
   entre Czjzek, Gaussiana o Histograma, compara su AIC/BIC. Es el `DISTRI=4` con
   `METHOD=6` de NORMOS-DIST, con σ² = STG² + DTQ² (comprobado con su binario), y los
-  `.JOB` así se importan con esta forma.
+  `.JOB` así se importan con esta forma. σ y ΔEQ₀ tienen sus controles en el panel
+  (arranque del ajuste, con su «Fijo»); en el CLI, `--czjzek-sigma`/`--czjzek-delta0`
+  y `--fix-czjzek-sigma`/`--fix-czjzek-delta0`.
 
 - **Cotas de la anchura de las gaussianas.** En Gaussiana y VBF la anchura σ, común a
   todas las gaussianas, se puede acotar con **σ mín / σ máx** (unidades de la variable;

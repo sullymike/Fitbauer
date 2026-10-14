@@ -2,15 +2,23 @@
 
 ## Sin publicar
 
+- **σ y ΔEQ₀ de Czjzek se pueden fijar.** Nuevos controles «σ Czjzek» y
+  «ΔEQ₀ ordenado» en el panel (solo con las formas de Czjzek): dan el arranque
+  del ajuste, recogen los valores ajustados y, con su «Fijo», no se ajustan.
+  Así se reproduce un STG fijo de NORMOS: el importador pone σ = √(STG² + DTQ²)
+  en el control y lo fija si el `.JOB` trae `STGFIT=.FALSE.`. Se guardan en la
+  sesión. CLI: `--czjzek-sigma`, `--czjzek-delta0`, `--fix-czjzek-sigma`,
+  `--fix-czjzek-delta0`.
 - **El estilo de gráfico «clásico» heredaba el anterior.** No define
   parámetros de matplotlib, así que tras «publicación» se quedaban la letra
   serif, los ticks hacia dentro y el marco de la leyenda. Al cambiar de
   estilo, todo lo que algún estilo modifica vuelve antes a su valor por defecto.
-- **Errores de los globales en 2D por el mismo método que en 1D.** La
-  jacobiana del bucle externo se recalcula al final por diferencias centradas
-  también en los modos 2D. En el histograma 2D el ajuste interno es lineal y
-  la de least_squares ya era estable, pero si se agotaba el presupuesto de
-  evaluaciones los globales se quedaban sin error; ahora lo tienen.
+- **Errores de los globales en 2D aunque se agote el presupuesto.** Si el
+  bucle externo agotaba sus evaluaciones, los globales del histograma 2D se
+  quedaban sin error; ahora la jacobiana se calcula en el mejor punto por
+  diferencias centradas. Con el optimizador convergido se sigue usando la
+  suya, que en 2D es estable (el ajuste interno es lineal). Esa fase, en 1D y
+  en 2D, se muestra en la barra de progreso con su propio tope.
 - **Gaussiana, VBF, Binomial y Fija ponderan con la σ de los datos.** El
   histograma, el Czjzek y las formas 2D ya lo hacían; estas cuatro ajustaban
   con todos los canales pesando igual. Con la σ de conteo los canales con

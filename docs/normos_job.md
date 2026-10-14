@@ -127,7 +127,8 @@ traducido importa tanto como lo que sí:
   «Czjzek»: una sonda del binario de NORMOS-DIST (09.09.1993) da exactamente la
   misma P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²), con **σ² = STG² + DTQ²** (exponente 4.000 y σ
   al 1e-5 con DTQ de 0.06 a 0.36; no depende de QUA ni de WID). En Fitbauer σ
-  se ajusta siempre; el aviso de importación da el σ equivalente.
+  se importa como valor del control «σ Czjzek», fijo si el `.JOB` trae
+  `STGFIT=.FALSE.`; el aviso de importación da el σ equivalente.
 - El modelo de vecinos de Billard–Chamberod (`METHOD=3`).
 - Varios bloques de distribución solapados: Fitbauer maneja uno.
 - El parámetro de suavizado `LAMDA`. El de NORMOS es absoluto y el `alpha` de

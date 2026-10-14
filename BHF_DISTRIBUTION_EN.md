@@ -52,7 +52,9 @@ non-negative amplitude, fitted together with the distribution.
   report gives σ and ΔEQ₀ with their errors. To choose between Czjzek, Gaussian or
   Histogram, compare their AIC/BIC. It is NORMOS-DIST's `DISTRI=4` with `METHOD=6`,
   with σ² = STG² + DTQ² (checked against its binary), and such `.JOB` files are
-  imported with this shape.
+  imported with this shape. σ and ΔEQ₀ have their controls in the panel (starting
+  point of the fit, with a «Fixed» box); in the CLI, `--czjzek-sigma`/`--czjzek-delta0`
+  and `--fix-czjzek-sigma`/`--fix-czjzek-delta0`.
 
 - **Width bounds of the Gaussians.** In the Gaussian and VBF shapes the width σ, common
   to all the Gaussians, can be bounded with **σ min / σ max** (units of the variable;
