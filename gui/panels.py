@@ -819,11 +819,14 @@ class InfoPanel(QtWidgets.QGroupBox):
             lines.append(tr("results.starts_free", n=view.n_starts(), free=len(view.free_keys())))
             lines.append("")
         if view.free_keys():
+            # Ancho de la columna de nombres según el más largo (los rótulos
+            # «⟨ΔEQ⟩ media de P» no caben en 14 caracteres).
+            ancho = max([14] + [len(str(k)) for k in view.free_keys()])
             for estimate in view.parameters(keys=view.free_keys()):
                 val = estimate.value if estimate.value is not None else float("nan")
                 err = estimate.error
                 if err is not None and err > 0:
-                    lines.append(f"  {estimate.key:14s} = {val:.6g}  ± {err:.3g}")
+                    lines.append(f"  {estimate.key:{ancho}s} = {val:.6g}  ± {err:.3g}")
                 else:
-                    lines.append(f"  {estimate.key:14s} = {val:.6g}")
+                    lines.append(f"  {estimate.key:{ancho}s} = {val:.6g}")
         self.set_lines(lines, view.correlations())

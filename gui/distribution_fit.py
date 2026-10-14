@@ -986,11 +986,13 @@ class DistributionFitMixin:
             area_tot = sum(max(float(c[0]), 0.0) for c in vbf)
             for i, comp in enumerate(vbf, start=1):
                 try:
-                    a, mu, _sg = comp
+                    a, mu, sg = comp
                     a = max(float(a), 0.0)
                     r.values[f"vbf{i}_area"] = a
                     r.values[f"vbf{i}_area%"] = (100.0 * a / area_tot) if area_tot > 0 else 0.0
                     r.values[f"vbf{i}_mu"] = float(mu)
+                    # σ de cada gaussiana junto a su μ (antes solo salía μ).
+                    r.values[f"vbf{i}_sigma"] = float(sg)
                 except Exception:
                     pass
         # Gaussianas 2D: área, % y centro (μx, μy) de cada una.
@@ -1025,7 +1027,8 @@ class DistributionFitMixin:
         if m and not resumen["is_2d"]:
             short = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}.get(
                 resumen["variable"], resumen["variable"])
-            for mk, lbl in (("mean", f"⟨{short}⟩"), ("std", f"σ({short})")):
+            for mk, lbl in (("mean", tr("info.p_mean", var=short)),
+                            ("std", tr("info.p_width", var=short))):
                 r.values[lbl] = m[mk]
                 if m.get(f"{mk}_sigma"):
                     czjzek_errors[lbl] = m[f"{mk}_sigma"]
@@ -1229,8 +1232,10 @@ class DistributionFitMixin:
         # Media y anchura de P: su σ incluye la de los globales (ver
         # _distribution_global_covariance) y entran en las correlaciones.
         short = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}.get(variable, variable)
-        for key, lbl, mk in (("dist_P_mean", f"⟨{short}⟩", "mean"),
-                             ("dist_P_std", f"σ({short})", "std")):
+        # No son controles del panel: son la media y la anchura de la P
+        # ajustada, y el rótulo lo dice.
+        for key, lbl, mk in (("dist_P_mean", tr("info.p_mean", var=short), "mean"),
+                             ("dist_P_std", tr("info.p_width", var=short), "std")):
             var_m = cov.get((key, key))
             if moments and var_m is not None and var_m > 0:
                 moments[f"{mk}_sigma"] = float(np.sqrt(var_m))

@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- **Media y anchura de P rotuladas como tales.** En el panel, la matriz de
+  correlación y el informe, ⟨ΔEQ⟩ y σ(ΔEQ) pasan a «⟨ΔEQ⟩ media de P» y
+  «σ(ΔEQ) anchura de P»: no son controles del panel sino momentos de la
+  distribución ajustada, y se confundían con parámetros. El panel muestra
+  también la σ de cada gaussiana (`vbf{i}_sigma`) junto a su μ, para
+  compararlas (en la Gaussiana coinciden casi con la media y la anchura de P).
 - **Correlaciones como matriz de colores.** El panel «Estado y parámetros»
   muestra la matriz de correlación como tabla: filas y columnas son los
   parámetros, rojo si r > 0 y azul si r < 0, más intenso cuanto mayor |r|,

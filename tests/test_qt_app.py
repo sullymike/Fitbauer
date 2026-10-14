@@ -3288,7 +3288,13 @@ def test_correlaciones_en_estado_y_parametros(win):
     d.bmin.set_value(0.0); d.bmax.set_value(2.5); d.nbins.set_value(40)
     win.on_fit()
     ip = win.info_panel
-    assert ip.corr_labels == ["δ", "Γ", "⟨ΔEQ⟩", "σ(ΔEQ)"]
+    assert ip.corr_labels == ["δ", "Γ", tr("info.p_mean", var="ΔEQ"),
+                              tr("info.p_width", var="ΔEQ")]
+    # La media y la anchura de P se rotulan como tales, y cada gaussiana
+    # lleva su σ junto a su μ.
+    texto0 = ip.text.toPlainText()
+    assert tr("info.p_width", var="ΔEQ") in texto0
+    assert "vbf1_mu" in texto0 and "vbf1_sigma" in texto0
     m = np.asarray(ip.corr_matrix)
     assert np.allclose(m, m.T, equal_nan=True) and np.allclose(np.diag(m), 1.0)
     assert m[1, 3] < -0.9                                 # Γ ↔ σ(ΔEQ)
