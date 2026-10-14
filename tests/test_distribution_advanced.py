@@ -96,6 +96,66 @@ def test_slope_ref_es_la_referencia_del_kernel():
                                            nbins=40, delta_slope=0.003)
     assert rv.slope_ref == pytest.approx(float(np.mean(rv.bhf_centers)))
 
+def test_diagnosticos_de_residuos_distinguen_ruido_de_estructura():
+    """lag-1 ≈ 0 y |z| de rachas pequeño con ruido blanco; con una onda lenta
+    en los residuos lag-1 → 1 y z muy negativo (pocas rachas)."""
+    rng = np.random.default_rng(3)
+    blanco = rng.standard_normal(512)
+    assert abs(md.residual_lag1(blanco)) < 0.15
+    assert abs(md.residual_runs_z(blanco)) < 3.0
+    onda = np.sin(np.linspace(0, 6 * np.pi, 512)) + 0.1 * blanco
+    assert md.residual_lag1(onda) > 0.8
+    assert md.residual_runs_z(onda) < -10.0
+    assert np.isnan(md.residual_runs_z(np.ones(10)))
+
+
+def test_bondad_de_distribucion_chi2_reducido_y_aic_como_el_discreto():
+    """Con el modelo correcto y la σ verdadera, χ²_ν ≈ 1; AIC/BIC usan la
+    misma definición que el ajuste discreto (N·ln(χ²/N) + 2k, + k·ln N)."""
+    v = np.linspace(-10, 10, 400)
+    centers = _grid()
+    K = md.build_bhf_kernel(v, centers, delta=0.0)
+    P = np.exp(-0.5 * ((centers - 33) / 3.0) ** 2)
+    clean = 1.0 - K @ (P / P.sum() * 2.0)
+    sigma = np.full(v.size, 2e-3)
+    y = clean + np.random.default_rng(5).normal(0.0, 2e-3, v.size)
+    r = md.fit_hyperfine_distribution(v, y, pmin=0, pmax=50, nbins=40, alpha=1.0,
+                                      sigma=sigma)
+    g = md.distribution_goodness(r.residuals, sigma, r.effective_dof, n_outer=2)
+    assert g["n_params"] == pytest.approx(r.effective_dof + 2)
+    assert g["dof"] == pytest.approx(v.size - g["n_params"])
+    assert 0.8 < g["red_chi2"] < 1.25
+    chi2 = float(np.sum((r.residuals / sigma) ** 2))
+    n = v.size
+    assert g["aic"] == pytest.approx(n * np.log(chi2 / n) + 2 * g["n_params"])
+    assert g["bic"] == pytest.approx(n * np.log(chi2 / n) + g["n_params"] * np.log(n))
+    # Sin σ: solo RMS y diagnósticos.
+    g0 = md.distribution_goodness(r.residuals, None, r.effective_dof)
+    assert "chi2" not in g0 and g0["rms"] == pytest.approx(r.rms)
+
+
+def test_formas_parametricas_guardan_sus_parametros_ajustados():
+    """VBF, binomial y fija cuentan sus parámetros ajustados como dof."""
+    v = np.linspace(-10, 10, 300)
+    centers = _grid()
+    K = md.build_bhf_kernel(v, centers, delta=0.0)
+    P = np.exp(-0.5 * ((centers - 33) / 3.0) ** 2)
+    y = 1.0 - K @ (P / P.sum() * 2.0)
+    rv = md.fit_vbf_hyperfine_distribution(v, y, n_components=2, pmin=0, pmax=50, nbins=40)
+    assert rv.effective_dof == 2 + 3 * 2          # fondo + pendiente + (A, μ, σ)×2
+    rb = md.fit_binomial_hyperfine_distribution(v, y, pmin=0, pmax=50)
+    assert rb.effective_dof is not None and rb.effective_dof >= 3
+
+
+def test_momentos_de_la_distribucion():
+    x = np.linspace(-6, 14, 201)          # malla simétrica en torno a μ
+    p = np.exp(-0.5 * ((x - 4.0) / 1.5) ** 2)
+    m = md.distribution_moments(x, p)
+    assert m["mean"] == pytest.approx(4.0, abs=1e-3)
+    assert m["std"] == pytest.approx(1.5, rel=1e-2)
+    assert m["mode"] == pytest.approx(4.0)
+    assert md.distribution_moments(x, np.zeros_like(x)) == {}
+
 # ── Hueco 2: VBF multi-gaussiano ────────────────────────────────────────────
 def test_vbf_recovers_two_gaussians():
     v = np.linspace(-10, 10, 400)

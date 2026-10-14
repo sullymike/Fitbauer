@@ -1371,6 +1371,7 @@ def fit_vbf_2d_distribution(
         shape=str(shape),
         vbf2d_components=comps,
         fitted_globals=({name: glob_values(res.x)[name] for name, *_ in glob} or None),
+        effective_dof=float(res.x.size),
     )
 
 
@@ -1601,6 +1602,102 @@ def global_parameter_covariance(
         return None
     s2 = float(np.dot(r, r)) / dof
     return s2 * np.linalg.pinv(J.T @ J)
+
+
+def residual_lag1(residuals: np.ndarray) -> float:
+    """Autocorrelación de los residuos a un canal de distancia.
+
+    Ruido blanco da ≈ 0 (±1/√N); valores claramente positivos indican
+    estructura que el modelo no explica (líneas mal descritas, fondo).
+    """
+    r = np.asarray(residuals, dtype=float).ravel()
+    r = r - float(np.mean(r)) if r.size else r
+    den = float(np.sum(r * r))
+    if r.size < 3 or den <= 0.0:
+        return float("nan")
+    return float(np.sum(r[1:] * r[:-1]) / den)
+
+
+def residual_runs_z(residuals: np.ndarray) -> float:
+    """Test de rachas de Wald–Wolfowitz sobre el signo de los residuos.
+
+    Devuelve z = (rachas − esperadas)/σ. Con ruido blanco |z| < 2 en el 95 %
+    de los casos; z muy negativo = pocas rachas = residuos con estructura.
+    """
+    r = np.asarray(residuals, dtype=float).ravel()
+    s = np.sign(r[r != 0.0])
+    n1, n2 = int(np.sum(s > 0)), int(np.sum(s < 0))
+    n = n1 + n2
+    if n1 == 0 or n2 == 0 or n < 3:
+        return float("nan")
+    runs = 1 + int(np.sum(s[1:] != s[:-1]))
+    mu = 2.0 * n1 * n2 / n + 1.0
+    var = (mu - 1.0) * (mu - 2.0) / (n - 1.0)
+    return float((runs - mu) / np.sqrt(var)) if var > 0 else float("nan")
+
+
+def distribution_goodness(
+    residuals: np.ndarray,
+    sigma: np.ndarray | None,
+    n_params: float | None,
+    n_outer: int = 0,
+) -> dict[str, float]:
+    """Bondad de un ajuste de distribución, comparable con la del discreto.
+
+    ``n_params`` son los grados de libertad que consume el ajuste interno
+    (``effective_dof``: la traza del operador regularizado en el histograma,
+    el número de parámetros en las formas paramétricas) y ``n_outer`` los
+    globales refinados por el bucle externo (δ, ΔEQ, Γ, pendientes…).
+    k = n_params + n_outer; ν = N − k. χ² usa la σ de los datos; AIC y BIC
+    siguen la misma definición que el ajuste discreto
+    (N·ln(χ²/N) + 2k y N·ln(χ²/N) + k·ln N), así que se pueden comparar
+    modelos discretos y de distribución sobre el mismo espectro.
+    Sin ``sigma`` solo se devuelven RMS y los diagnósticos de residuos.
+    """
+    r = np.asarray(residuals, dtype=float).ravel()
+    n = int(r.size)
+    out: dict[str, float] = {
+        "n_points": float(n),
+        "rms": float(np.sqrt(np.mean(r ** 2))) if n else float("nan"),
+        "resid_lag1": residual_lag1(r),
+        "resid_runs_z": residual_runs_z(r),
+    }
+    if sigma is None or n == 0:
+        return out
+    s = np.maximum(np.asarray(sigma, dtype=float).ravel(), 1e-300)
+    if s.size != n:
+        return out
+    chi2 = float(np.sum((r / s) ** 2))
+    out["chi2"] = chi2
+    if n_params is None:
+        return out
+    k = float(n_params) + float(n_outer)
+    nu = float(n) - k
+    out["n_params"] = k
+    if nu > 0:
+        out["dof"] = nu
+        out["red_chi2"] = chi2 / nu
+    logl = n * np.log(max(chi2 / n, 1e-300))
+    out["aic"] = float(logl + 2.0 * k)
+    out["bic"] = float(logl + k * np.log(n))
+    return out
+
+
+def distribution_moments(centers: np.ndarray, probability: np.ndarray) -> dict[str, float]:
+    """Media, desviación típica y moda de una P(x) 1D sobre su malla.
+
+    Sirve igual para densidades (histograma, gaussianas) que para la binomial
+    (P_k que suman 1): solo usa los pesos relativos. Vacío si P es nula.
+    """
+    x = np.asarray(centers, dtype=float).ravel()
+    p = np.clip(np.asarray(probability, dtype=float).ravel(), 0.0, None)
+    tot = float(np.sum(p))
+    if x.size == 0 or x.size != p.size or tot <= 0.0:
+        return {}
+    w = p / tot
+    mean = float(np.sum(w * x))
+    std = float(np.sqrt(max(float(np.sum(w * (x - mean) ** 2)), 0.0)))
+    return {"mean": mean, "std": std, "mode": float(x[int(np.argmax(p))])}
 
 
 def correlation_curve(
@@ -2491,6 +2588,9 @@ def fit_vbf_hyperfine_distribution(
         slope_ref=float(np.mean(centers)) if h_ref is None else float(h_ref),
         vbf_n_components=int(N),
         vbf_sigma_bounds=(float(sig_lo), float(sig_hi)),
+        # Forma paramétrica: los grados de libertad que consume son sus
+        # parámetros ajustados (gaussianas, fondo libre y nítidos libres).
+        effective_dof=float(res.x.size),
     )
 
 
@@ -2685,6 +2785,7 @@ def fit_binomial_hyperfine_distribution(
         binomial_start=float(p["start"]),
         binomial_step=float(p["step"]),
         binomial_n=n,
+        effective_dof=float(res.x.size),
     )
 
 
@@ -2788,6 +2889,7 @@ def fit_fixed_hyperfine_distribution(
         sharp_bhf_centers=sharp_bhf_centers,
         sharp_weights=sharp_weights_arr,
         shape="Fija",
+        effective_dof=float(result.x.size),
     )
 
 
