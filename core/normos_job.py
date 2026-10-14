@@ -528,9 +528,17 @@ def job_to_distribution_state(text: str) -> dict:
             tr("normos.w_method_file", method=method))
 
     forma = _FORMA_POR_DISTRI.get(distri)
-    if forma is None:
+    # DISTRI=4 con METHOD=6 es el Czjzek de NORMOS: la misma P ∝ ΔEQ⁴·
+    # exp(−ΔEQ²/2σ²) que la forma «Czjzek» de Fitbauer, con σ² = STG² + DTQ²
+    # (sonda del binario DIST 09.09.1993, 2026-10-14: exponente 4.000 y σ al
+    # 1e-5 con DTQ de 0.06 a 0.36, independiente de QUA y WID). Con otro
+    # METHOD no hay forma equivalente: se importa como histograma.
+    czjzek = distri == 4 and method == 6
+    if forma is None and czjzek:
+        forma = "Czjzek"
+    elif forma is None:
         avisos.append(
-            tr("normos.w_distri4"))
+            tr("normos.w_distri4", method=method))
         forma = "Histograma"
     conc = _f(param.get("CONC"), 0.0)
     if distri == 3:
@@ -574,7 +582,19 @@ def job_to_distribution_state(text: str) -> dict:
             tr("normos.w_is_field", bhf=f"{campo_fijo:g}"))
         campo_fijo = 0.0
 
-    if _f(_idx(param, "STI", 1), 0.0) or _f(_idx(param, "STG", 1), 0.0):
+    if czjzek and campo_fijo > 0.0:
+        # Czjzek solo se ofrece con dobletes: con sextetes de campo fijo la
+        # forma no aplica.
+        avisos.append(tr("normos.w_czjzek_field", bhf=f"{campo_fijo:g}"))
+        forma = "Histograma"
+        czjzek = False
+    if czjzek:
+        # En el Czjzek, STG es su anchura (no la de IS); Fitbauer ajusta σ.
+        stg = _f(_idx(param, "STG", 1), 0.0)
+        sigma = float(np.hypot(stg, paso))
+        avisos.append(tr("normos.w_czjzek", stg=f"{stg:g}", dtq=f"{paso:g}",
+                         sigma=f"{sigma:.4g}"))
+    elif _f(_idx(param, "STI", 1), 0.0) or _f(_idx(param, "STG", 1), 0.0):
         avisos.append(
             tr("normos.w_sti"))
 

@@ -510,13 +510,52 @@ def test_campo_en_distribucion_de_cuadrupolo_activa_la_opcion_avanzada():
     assert any("METHOD=8" in a for a in r["warnings"])
 
 
-def test_czjzek_avisa_de_que_no_esta_implementado():
+def test_distri4_fuera_de_cuadrupolo_se_importa_como_histograma():
     from core.normos_job import job_to_distribution_state
 
+    # METHOD=1 (campo): el Czjzek de NORMOS es de cuadrupolo (METHOD=6).
     r = job_to_distribution_state(JOB_DIST_XL.replace("DISTRI=1,", "DISTRI=4,"))
-    assert any("Czjzek" in a for a in r["warnings"])
+    assert any("METHOD=1" in a for a in r["warnings"])
     assert r["model_state"]["dist_shape"] == "Histograma"
 
+
+JOB_DIST_CZJZEK = JOB_DIST_XL.replace("METHOD=1, DISTRI=1, NSUB=10,",
+                                      "METHOD=6, DISTRI=4, NSUB=25, STG=0.6,") \
+    .replace("QUA=-0.015, QUAFIT=.false.,", "QUA=0.0, DTQ=0.18,") \
+    .replace("BHF=0., BHFFIT=.false., DTB=5.0, DTBFIT=.true.,", "BHF=0.,")
+
+
+def test_czjzek_de_normos_se_importa_como_forma_czjzek():
+    """DISTRI=4 + METHOD=6 es la forma Czjzek de Fitbauer, con σ² = STG² + DTQ²."""
+    from core.normos_job import job_to_distribution_state
+
+    r = job_to_distribution_state(JOB_DIST_CZJZEK)
+    st = r["model_state"]
+    assert st["dist_shape"] == "Czjzek"
+    assert st["dist_variable"] == "ΔEQ"
+    assert not st["dist_field_enabled"]
+    aviso = next(a for a in r["warnings"] if "Czjzek" in a)
+    assert "0.6261" in aviso or "0.626" in aviso           # √(0.6² + 0.18²)
+    assert not any("Voigt" in a for a in r["warnings"])   # STG no es el de IS
+    # Con sextetes de campo fijo la forma no aplica.
+    r = job_to_distribution_state(JOB_DIST_CZJZEK.replace("BHF=0.,", "BHF=5.,"))
+    assert r["model_state"]["dist_shape"] == "Histograma"
+
+
+def test_pesos_czjzek_iguales_a_los_de_normos_dist():
+    """Tabla de áreas relativas de NORMOS-DIST 09.09.1993 (DISTRI=4, METHOD=6,
+    STG=0.6, QUA=0, DTQ=0.18): la forma Czjzek de Fitbauer con
+    σ = √(STG² + DTQ²) la reproduce hasta el redondeo de la tabla."""
+    import numpy as np
+    import mossbauer_distribution as md
+
+    dq = np.array([0.36, 0.54, 0.72, 0.9, 1.08, 1.26, 1.44, 1.62, 1.8, 1.98,
+                   2.16, 2.34, 2.52])
+    p_normos = np.array([3.926, 16.17, 38.278, 64.451, 84.865, 91.924, 84.421,
+                         67.029, 46.626, 28.686, 15.72, 7.714, 3.403])
+    w = md.czjzek_weights(dq, np.hypot(0.6, 0.18))
+    w = w / w.max() * p_normos.max()
+    assert np.max(np.abs(w - p_normos)) < 2e-3
 
 def test_un_job_de_site_no_pasa_por_el_lector_de_dist():
     from core.normos_job import job_to_distribution_state
