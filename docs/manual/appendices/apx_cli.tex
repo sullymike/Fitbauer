@@ -15,7 +15,7 @@ dos tipos de ajuste:
   \item \file{fit\_bhf\_distribution\_cli.py} --- ajustes de
         \textbf{distribuciones hiperfinas}: $P(\BHF)$, $P(\dEQ)$ o
         $P(\mathrm{IS})$, todas las formas 1D (histograma, gaussiana, VBF,
-        binomial), todos los regularizadores (Tikhonov, TV, MaxEnt), la física
+        binomial, Czjzek), todos los regularizadores (Tikhonov, TV, MaxEnt), la física
         del kernel del panel de la GUI (Hamiltoniano completo, fuente
         polarizada, textura), kernels Voigt, correlaciones con el campo y la
         distribución 2D $P(\BHF,\dEQ)$, como histograma o como gaussianas
@@ -183,6 +183,10 @@ python fit_bhf_distribution_cli.py muestra.adt --reg-mode maxent
 python fit_bhf_distribution_cli.py muestra.adt --shape binomial \
     --binomial-conc 5 --binomial-start 33 --binomial-step -2.5
 
+# P(dEQ) de Czjzek extendida (vidrio con Fe3+):
+python fit_bhf_distribution_cli.py muestra.adt --variable quad --bmax 3 \
+    --shape czjzek-ext
+
 # Distribución 2D: histograma regularizado, o dos gaussianas bivariantes:
 python fit_bhf_distribution_cli.py muestra.adt --dist-2d --qmin -1 --qmax 1
 python fit_bhf_distribution_cli.py muestra.adt --dist-2d --shape vbf \
@@ -205,9 +209,10 @@ Opción & Valores & Significado \\
   \code{-{}-fixed-bhf} ($0$~T $\Rightarrow$ dobletes, o singletes si además
   \code{-{}-quad 0}). \\
 \code{-{}-shape} & \code{histograma} $|$ \code{gaussiana} $|$ \code{vbf} $|$
-  \code{binomial} & Forma de la distribución
+  \code{binomial} $|$ \code{czjzek} $|$ \code{czjzek-ext} & Forma de la distribución
   (capítulo~\ref{ch:distribuciones}). \code{gaussiana} es el VBF con $N=1$ y
-  línea lorentziana. \\
+  línea lorentziana; \code{czjzek} y \code{czjzek-ext} solo con
+  \code{-{}-variable quad} y dobletes (§\ref{sec:forma-czjzek}). \\
 \code{-{}-vbf-components} & $N$ & Número de gaussianas del VBF (1D y 2D). \\
 \code{-{}-vbf-sigma-min}, \code{-{}-vbf-sigma-max} & $\sigma$ & Cotas de la
   anchura $\sigma$, común a todas las gaussianas, en unidades de la variable

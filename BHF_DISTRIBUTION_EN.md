@@ -6,7 +6,7 @@ chapter *Distributions* and its appendices.
 
 ## Main files
 
-- `mossbauer_distribution.py`: the engine — Hesse–Rübartsch histogram (`P ≥ 0` with Tikhonov, TV or MaxEnt regularization), parametric shapes (Gaussian, VBF, binomial, fixed) and 2D distributions.
+- `mossbauer_distribution.py`: the engine — Hesse–Rübartsch histogram (`P ≥ 0` with Tikhonov, TV or MaxEnt regularization), parametric shapes (Gaussian, VBF, binomial, fixed, Czjzek) and 2D distributions.
 - `mossbauer_ws5.py`: reading/folding of `.ws5` files and Normos sidecars.
 - `mossbauer_bhf_pipeline.py`: high-level function for the web endpoint.
 - `fit_bhf_distribution_cli.py`: headless CLI; writes `.dat`, `.json` and `.png` files.
@@ -39,6 +39,18 @@ non-negative amplitude, fitted together with the distribution.
 | **VBF** (Rancourt–Ping) | sum of N Gaussians, each with its area A, centre μ and width σ | none |
 | **Binomial** (as NORMOS-DIST `DISTRI=3`) | solute-neighbour model: value without neighbours, change per neighbour, concentration | none |
 | **Fixed** | a distribution loaded from a file; only its amplitude | none |
+| **Czjzek** (`P(ΔEQ)` with doublets only) | \|ΔEQ\| of a random electric field gradient: $P \propto \Delta^4 e^{-\Delta^2/2\sigma^2}$; σ only | none |
+| **Extended Czjzek** (Le Caër–Brand) | random on top of an ordered environment ΔEQ₀: non-central χ with 5 degrees of freedom; σ and ΔEQ₀ | none |
+
+- **Czjzek.** In glasses and amorphous materials the ΔEQ distribution is usually not
+  Gaussian. If the charges around the Fe are random, the 5 independent components of the
+  field gradient are Gaussian and ΔEQ, proportional to their norm, follows a χ
+  distribution with 5 degrees of freedom: asymmetric, zero at ΔEQ = 0, mode at 2σ, mean
+  ≈ 2.13σ and a fixed relative width (≈ 0.32). The extended version adds an ordered
+  tensor of norm ΔEQ₀; with ΔEQ₀ ≫ σ it tends to a Gaussian. Doublets only see the
+  marginal of |ΔEQ| (neither η nor the sign). It accepts κδ and sharp components; the
+  report gives σ and ΔEQ₀ with their errors. To choose between Czjzek, Gaussian or
+  Histogram, compare their AIC/BIC.
 
 - **Width bounds of the Gaussians.** In the Gaussian and VBF shapes the width σ, common
   to all the Gaussians, can be bounded with **σ min / σ max** (units of the variable;
@@ -90,7 +102,7 @@ The `edge_pileup` diagnostic warns when that happens; widening the grid is the f
   grid variable, $\delta_j = \delta + \kappa_\delta\,(x_j - x_{\text{ref}})$, with
   $x_{\text{ref}}$ the centre of the grid. In `P(BHF)` they are dδ/dH and dΔEQ/dH; in
   `P(ΔEQ)` only dδ/dΔEQ exists (the Rancourt–Ping coupling); in `P(IS)` only dΔEQ/dδ.
-  0 = classical model. Histogram, VBF and binomial.
+  0 = classical model. Histogram, VBF, binomial and Czjzek.
 - **Hamiltonian kernel** (histogram `P(BHF)`): each column from the full
   magnetic + quadrupole Hamiltonian with powder average, with EFG asymmetry η — the
   analogue of NORMOS-DIST EXACT.
@@ -170,6 +182,8 @@ python3 fit_bhf_distribution_cli.py sample.adt --shape vbf --vbf-components 2 \
   --vbf-sigma-min 0.5 --vbf-sigma-max 3
 python3 fit_bhf_distribution_cli.py sample.adt --shape binomial \
   --binomial-conc 5 --binomial-start 33 --binomial-step -2.5
+# Czjzek P(ΔEQ) (pure or extended) for a glass:
+python3 fit_bhf_distribution_cli.py sample.adt --variable quad --bmax 3 --shape czjzek-ext
 
 # Histogram regularizer: tikhonov (default), tv, maxent:
 python3 fit_bhf_distribution_cli.py sample.adt --reg-mode maxent

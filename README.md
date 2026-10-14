@@ -267,7 +267,7 @@ Models the spectrum as a sum of many sextets (or doublets) on a regular grid. Th
 weighted spectral residual² + α · roughness(P)²
 ```
 
-Use **L-curve α** to find a good compromise between residual and smoothness. Besides the histogram there are parametric shapes (Gaussian, VBF multi-Gaussian, NORMOS-style binomial, fixed); in the Gaussian shapes the width σ can be bounded with **σ min / σ max**. The **Add active sharp components** option mixes the distribution with discrete phases (e.g. a broad distribution + metallic Fe at BHF ≈ 33 T). Two-dimensional modes fit P(BHF, ΔEQ), P(IS, ΔEQ) and P(BHF, IS), as a regularized histogram or as bivariate Gaussians. The distribution plot shows a Monte Carlo 1σ band for the histogram and, when δ or ΔEQ are correlated with the grid variable (κ slopes), the δ(x)/ΔEQ(x) line with its uncertainty; each overlay can be switched off.
+Use **L-curve α** to find a good compromise between residual and smoothness. Besides the histogram there are parametric shapes (Gaussian, VBF multi-Gaussian, NORMOS-style binomial, fixed and, for P(ΔEQ) of glasses and amorphous materials, pure or extended Czjzek); in the Gaussian shapes the width σ can be bounded with **σ min / σ max**. The **Add active sharp components** option mixes the distribution with discrete phases (e.g. a broad distribution + metallic Fe at BHF ≈ 33 T). Two-dimensional modes fit P(BHF, ΔEQ), P(IS, ΔEQ) and P(BHF, IS), as a regularized histogram or as bivariate Gaussians. The distribution plot shows a Monte Carlo 1σ band for the histogram and, when δ or ΔEQ are correlated with the grid variable (κ slopes), the δ(x)/ΔEQ(x) line with its uncertainty; each overlay can be switched off.
 
 ### Relaxation models
 

@@ -2,6 +2,23 @@
 
 ## Sin publicar
 
+- **Formas de Czjzek para P(ΔEQ).** Dos formas paramétricas nuevas para la
+  distribución de |ΔEQ| de sólidos desordenados (vidrios, amorfos), solo en
+  P(ΔEQ) con dobletes:
+  - **Czjzek**: gradiente de campo aleatorio (Czjzek et al. 1981); las 5
+    componentes del tensor son gaussianas y ΔEQ/σ sigue una χ de 5 grados de
+    libertad, P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²): asimétrica, cero en el origen, moda
+    en 2σ. Se ajusta σ.
+  - **Czjzek extendido** (Le Caër–Brand 1998): aleatorio sobre un entorno
+    ordenado de norma ΔEQ₀, χ no central de 5 grados de libertad; tiende a
+    una gaussiana con ΔEQ₀ ≫ σ. Se ajustan σ y ΔEQ₀.
+
+  Residuos ponderados con la σ de los datos, errores de σ y ΔEQ₀ por la
+  jacobiana, varios arranques, κδ y nítidos. En el panel, el informe, la
+  cabecera del `.dat` exportado, la sesión y el CLI (`--shape czjzek` /
+  `czjzek-ext`). Ayuda (8 idiomas), `BHF_DISTRIBUTION`, README y manuales. El
+  importador de NORMOS sigue leyendo `DISTRI=4` como histograma (no se ha
+  comprobado que la parametrización coincida) y su aviso lo dice.
 - **Japonés y chino en gráficos e informes PDF.** matplotlib solo usaba
   DejaVu, que no tiene kanji ni hanzi: los rótulos del gráfico y los informes
   PDF en `ja` y `ch` salían con cuadros vacíos. Ahora la familia activa lleva

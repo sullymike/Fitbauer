@@ -13,7 +13,7 @@ interactively. Two scripts cover the two fitting worlds:
         intervals and warm-start batch series.
   \item \file{fit\_bhf\_distribution\_cli.py} --- \textbf{hyperfine
         distribution} fits: $P(\BHF)$, $P(\dEQ)$ or $P(\mathrm{IS})$, every 1D
-        shape (histogram, Gaussian, VBF, binomial), every regularizer
+        shape (histogram, Gaussian, VBF, binomial, Czjzek), every regularizer
         (Tikhonov, TV, MaxEnt), the kernel physics of the GUI panel (full
         Hamiltonian, polarized source, texture), Voigt kernels, field
         correlations and the 2D distribution $P(\BHF,\dEQ)$ as a histogram or
@@ -180,6 +180,10 @@ python fit_bhf_distribution_cli.py sample.adt --reg-mode maxent
 python fit_bhf_distribution_cli.py sample.adt --shape binomial \
     --binomial-conc 5 --binomial-start 33 --binomial-step -2.5
 
+# Extended Czjzek P(dEQ) (glass with Fe3+):
+python fit_bhf_distribution_cli.py sample.adt --variable quad --bmax 3 \
+    --shape czjzek-ext
+
 # 2D distribution: regularized histogram, or two bivariate Gaussians:
 python fit_bhf_distribution_cli.py sample.adt --dist-2d --qmin -1 --qmax 1
 python fit_bhf_distribution_cli.py sample.adt --dist-2d --shape vbf \
@@ -202,8 +206,10 @@ Option & Values & Meaning \\
   \code{-{}-fixed-bhf} ($0$~T $\Rightarrow$ doublets, or singlets when
   \code{-{}-quad 0} too). \\
 \code{-{}-shape} & \code{histograma} $|$ \code{gaussiana} $|$ \code{vbf} $|$
-  \code{binomial} & Distribution shape (chapter~\ref{ch:distribuciones}).
-  \code{gaussiana} is the VBF with $N=1$ and a Lorentzian line. \\
+  \code{binomial} $|$ \code{czjzek} $|$ \code{czjzek-ext} & Distribution shape (chapter~\ref{ch:distribuciones}).
+  \code{gaussiana} is the VBF with $N=1$ and a Lorentzian line;
+  \code{czjzek} and \code{czjzek-ext} only with \code{-{}-variable quad} and
+  doublets (\S\ref{sec:forma-czjzek}). \\
 \code{-{}-vbf-components} & $N$ & Number of Gaussians of the VBF (1D and 2D). \\
 \code{-{}-vbf-sigma-min}, \code{-{}-vbf-sigma-max} & $\sigma$ & Bounds on the
   width $\sigma$, common to all the Gaussians, in the units of the variable

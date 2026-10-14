@@ -642,7 +642,8 @@ fitted (nonlinear least squares, no $\alpha$):
   \text{Gaussian:}\quad & P_k\propto \exp\!\bigl(-\tfrac12((c_k-\mu)/\varsigma)^2\bigr), & (b,s,A,\mu,\log\varsigma),\\
   \text{VBF:}\quad & P_k = \sum_{j=1}^{N} A_j\,\mathcal N(c_k;\mu_j,\sigma_j), & (b,s,\{A_j,\mu_j,\log\sigma_j\}_{j=1}^N),\\
   \text{Binomial:}\quad & P_k\propto \binom{n-1}{k-1}p^{k-1}(1-p)^{n-k}, & (b,s,A,\mathrm{logit}\,p),\\
-  \text{Fixed:}\quad & P_k=\phi_k\ \text{(preloaded)}, & (b,s,A).
+  \text{Fixed:}\quad & P_k=\phi_k\ \text{(preloaded)}, & (b,s,A),\\
+  \text{Czjzek:}\quad & P_k\propto c_k^{4}\,e^{-c_k^2/2\sigma^2}\ \text{(extended: non-central $\chi$, \S\ref{sec:forma-czjzek})}, & (b,s,A,\log\sigma\,[,\Delta_0]).
 \end{align}
 
 \paragraph{VBF (Voigt-Based Fitting, Rancourt--Ping 1991).} It generalizes the

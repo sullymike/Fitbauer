@@ -213,7 +213,7 @@ quantities are fixed as global kernel parameters (next subsection).
 
 \begin{itemize}[nosep]
   \item \menu{Shape}: the family of $P$ that is fitted---Histogram, Gaussian, VBF,
-        Binomial or Fixed---(\S\ref{sec:formas-dist} details them). It is the
+        Binomial, Fixed or, in $P(\dEQ)$, Czjzek---(\S\ref{sec:formas-dist} details them). It is the
         decision that most conditions the rest of the controls. In the 2D modes
         the list changes to two-dimensional Histogram, Gaussian and VBF
         (\S\ref{sec:dist-2d}). The panel only shows the controls that the
@@ -299,8 +299,8 @@ against it (0.4\,\% of the peak).
 
 Two optional slopes that couple $\delta$ and $\dEQ$ to the value of the field
 (\S\ref{sec:correlacion}). By default they are \textbf{0} (no correlation) and are
-\textbf{fixed}; to refine them, uncheck their lock. They apply to Histogram, VBF
-and Binomial. Their meaning depends on the variable: in $P(\BHF)$ they are
+\textbf{fixed}; to refine them, uncheck their lock. They apply to Histogram, VBF,
+Binomial and Czjzek. Their meaning depends on the variable: in $P(\BHF)$ they are
 $d\delta/dH$ and $d\dEQ/dH$ (mm/s·T$^{-1}$); in $P(\dEQ)$ only $d\delta/d\dEQ$
 exists (the dimensionless Rancourt--Ping coupling) and in $P(\text{IS})$ only
 $d\dEQ/d\delta$. They go back to 0 when the variable changes. With a non-zero
@@ -385,6 +385,8 @@ $A_k, \mu_k, \sigma_k$ per component (\S\ref{sec:vbf-areas}). \\[3pt]
 \textbf{Binomial} & Solute neighbours, NORMOS-DIST style (e.g.\
 alloys). \\[3pt]
 \textbf{Fixed} & Distribution imposed by the user (read from a file). \\[3pt]
+\textbf{Czjzek} & $P(\dEQ)$ of a disordered solid (glasses, amorphous materials),
+pure or extended with an ordered environment (\S\ref{sec:forma-czjzek}). \\[3pt]
 \textbf{2D} & Joint distribution of two variables, as a histogram or as bivariate
 Gaussians (\S\ref{sec:dist-2d}). \\
 \bottomrule
@@ -529,6 +531,45 @@ weight), loaded with \menu{Load fixed P…}. The shape is \emph{not} fitted (onl
 amplitude and baseline): it serves to \textbf{reuse} a known $P$---from a previous
 fit, from the literature or theoretical---and compare or simulate with it over
 different spectra.
+
+\subsection{Czjzek and extended Czjzek}
+\label{sec:forma-czjzek}
+
+A \textbf{parametric} shape for $P(\dEQ)$ with doublets in \textbf{disordered}
+solids. If the charges around the Fe are placed at random, the 5 independent
+components of the electric field gradient tensor (symmetric and traceless) are
+Gaussian with equal variance (Czjzek et al., 1981). The splitting
+$\dEQ=\tfrac{eQ}{2}|V_{zz}|\sqrt{1+\eta^2/3}$ is proportional to the norm of
+that 5-component vector, so $\dEQ/\sigma$ follows a $\chi$ distribution with 5
+degrees of freedom:
+\[
+  P(\dEQ) \;\propto\; \dEQ^{4}\,\exp\!\Bigl(-\frac{\dEQ^{2}}{2\sigma^{2}}\Bigr).
+\]
+It is asymmetric, with a tail towards high $\dEQ$; it is zero at $\dEQ=0$; its
+mode is at $2\sigma$ and its mean at $\approx 2.13\,\sigma$, and its relative
+width is fixed (deviation/mean $\approx 0.32$).
+
+The \textbf{extended} model (Le Caër and Brand, 1998) adds to the random tensor
+that of an ordered environment, of norm $\Delta E_{Q,0}$. Since the random part is
+isotropic in the 5 dimensions, $\dEQ/\sigma$ follows a \emph{non-central} $\chi$
+distribution with 5 degrees of freedom and parameter $\Delta E_{Q,0}/\sigma$. With
+$\Delta E_{Q,0}=0$ the pure model is recovered; with $\Delta E_{Q,0}\gg\sigma$ it tends to a
+Gaussian centred at $\Delta E_{Q,0}$ with width $\sigma$.
+
+\begin{itemize}[nosep]
+  \item \textbf{Fits}: amplitude and $\sigma$; in the extended model, also
+        $\Delta E_{Q,0}\ge 0$. The report gives $\sigma$ and $\Delta E_{Q,0}$ with their
+        errors. Near $\Delta E_{Q,0}=0$ the spectrum only depends on $\Delta E_{Q,0}^2$ and
+        there is no linear error to give.
+  \item \textbf{What the spectrum sees}: doublets see neither $\eta$ nor the
+        sign of $\dEQ$; the marginal of $|\dEQ|$ is fitted.
+  \item \textbf{Accepts}: the $\kappa_\delta$ correlation and sharp components.
+        Only offered in $P(\dEQ)$ without the fixed-field sextet option.
+  \item \textbf{When}: Fe$^{3+}$ in glasses and amorphous materials. Compare its
+        AIC/BIC with those of the Gaussian, VBF or Histogram: a distribution with
+        weight near $\dEQ=0$, or narrow and nearly symmetric, is not of Czjzek
+        type.
+\end{itemize}
 
 \subsection{2D: two variables at once}
 \label{sec:forma-2d}

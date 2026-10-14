@@ -71,141 +71,142 @@
 \contentsline {paragraph}{Bounded width.}{35}{section*.24}%
 \contentsline {subsection}{\numberline {5.5.4}Binomial}{35}{subsection.5.5.4}%
 \contentsline {subsection}{\numberline {5.5.5}Fixed}{36}{subsection.5.5.5}%
-\contentsline {subsection}{\numberline {5.5.6}2D: two variables at once}{36}{subsection.5.5.6}%
-\contentsline {subsection}{\numberline {5.5.7}Areas of each Gaussian (VBF)}{36}{subsection.5.5.7}%
-\contentsline {section}{\numberline {5.6}Histogram regularization}{36}{section.5.6}%
+\contentsline {subsection}{\numberline {5.5.6}Czjzek and extended Czjzek}{36}{subsection.5.5.6}%
+\contentsline {subsection}{\numberline {5.5.7}2D: two variables at once}{37}{subsection.5.5.7}%
+\contentsline {subsection}{\numberline {5.5.8}Areas of each Gaussian (VBF)}{37}{subsection.5.5.8}%
+\contentsline {section}{\numberline {5.6}Histogram regularization}{37}{section.5.6}%
 \contentsline {subsection}{\numberline {5.6.1}Regularizers}{37}{subsection.5.6.1}%
 \contentsline {subsection}{\numberline {5.6.2}The parameter $\alpha $}{37}{subsection.5.6.2}%
 \contentsline {subsection}{\numberline {5.6.3}Anchoring the grid edges}{37}{subsection.5.6.3}%
-\contentsline {section}{\numberline {5.7}The L-curve: choosing $\alpha $ with a criterion}{37}{section.5.7}%
-\contentsline {subsection}{\numberline {5.7.1}What it is and why it has an L shape}{37}{subsection.5.7.1}%
+\contentsline {section}{\numberline {5.7}The L-curve: choosing $\alpha $ with a criterion}{38}{section.5.7}%
+\contentsline {subsection}{\numberline {5.7.1}What it is and why it has an L shape}{38}{subsection.5.7.1}%
 \contentsline {subsection}{\numberline {5.7.2}The dialog, panel by panel}{38}{subsection.5.7.2}%
 \contentsline {subsection}{\numberline {5.7.3}Choosing $\alpha $: automatic or by hand}{38}{subsection.5.7.3}%
 \contentsline {subsection}{\numberline {5.7.4}How to interpret it in practice}{39}{subsection.5.7.4}%
 \contentsline {section}{\numberline {5.8}Correlation $\delta (H)$ and $\Delta E_{Q}(H)$}{39}{section.5.8}%
 \contentsline {section}{\numberline {5.9}2D distributions: $P(B_{\mathrm {hf}}, \Delta E_{Q})$}{40}{section.5.9}%
-\contentsline {section}{\numberline {5.10}Sharp components alongside the distribution}{40}{section.5.10}%
+\contentsline {section}{\numberline {5.10}Sharp components alongside the distribution}{41}{section.5.10}%
 \contentsline {section}{\numberline {5.11}Step by step: fitting a $P(B_{\mathrm {hf}})$ from scratch}{41}{section.5.11}%
-\contentsline {part}{Mathematical appendices}{41}{Item.35}%
-\contentsline {chapter}{\numberline {A}Mathematical manual of the fitting engine}{42}{appendix.A}%
-\contentsline {section}{\numberline {A.1}Forward model}{42}{section.A.1}%
-\contentsline {subsection}{\numberline {A.1.1}Transmission spectrum}{42}{subsection.A.1.1}%
-\contentsline {subsubsection}{Drive waveform and velocity axis}{42}{section*.26}%
-\contentsline {subsection}{\numberline {A.1.2}Line profiles}{43}{subsection.A.1.2}%
-\contentsline {subsubsection}{Lorentzian}{43}{section*.27}%
-\contentsline {subsubsection}{Pseudo-Voigt (Faddeeva)}{43}{section*.28}%
-\contentsline {subsection}{\numberline {A.1.3}Magnetic sextet}{44}{subsection.A.1.3}%
-\contentsline {subsubsection}{First-order treatment}{44}{section*.31}%
-\contentsline {subsubsection}{Kündig treatment (full axial Hamiltonian)}{44}{section*.33}%
-\contentsline {subsubsection}{Polycrystalline average}{46}{section*.34}%
-\contentsline {subsection}{\numberline {A.1.4}Intensities and texture}{47}{subsection.A.1.4}%
-\contentsline {subsubsection}{Free intensities}{47}{section*.36}%
-\contentsline {subsubsection}{Texture parameter}{47}{section*.37}%
-\contentsline {subsection}{\numberline {A.1.5}Doublet and singlet}{47}{subsection.A.1.5}%
-\contentsline {section}{\numberline {A.2}Discrete fit}{48}{section.A.2}%
-\contentsline {subsection}{\numberline {A.2.1}Parametrization and constraints}{48}{subsection.A.2.1}%
-\contentsline {subsection}{\numberline {A.2.2}Data statistics}{48}{subsection.A.2.2}%
-\contentsline {subsubsection}{Gauss mode}{48}{section*.39}%
-\contentsline {subsubsection}{Poisson mode (IRLS)}{48}{section*.40}%
-\contentsline {subsubsection}{Propagation of the calibration uncertainty}{48}{section*.41}%
-\contentsline {subsection}{\numberline {A.2.3}Cost functional and robust losses}{49}{subsection.A.2.3}%
-\contentsline {subsection}{\numberline {A.2.4}Optimization}{49}{subsection.A.2.4}%
-\contentsline {subsubsection}{Trust region (TRF)}{49}{section*.43}%
-\contentsline {subsubsection}{Multistart}{49}{section*.44}%
-\contentsline {subsubsection}{Global optimization (optional)}{50}{section*.46}%
-\contentsline {subsection}{\numberline {A.2.5}Uncertainties and diagnostics}{50}{subsection.A.2.5}%
-\contentsline {subsubsection}{Covariance}{50}{section*.47}%
-\contentsline {subsubsection}{Goodness-of-fit statistics}{50}{section*.49}%
-\contentsline {subsubsection}{Residual diagnostics}{50}{section*.50}%
-\contentsline {subsubsection}{Bootstrap}{51}{section*.51}%
-\contentsline {section}{\numberline {A.3}Distribution fit}{51}{section.A.3}%
-\contentsline {subsection}{\numberline {A.3.1}Discretization and kernel}{51}{subsection.A.3.1}%
-\contentsline {subsection}{\numberline {A.3.2}Augmented linear system}{51}{subsection.A.3.2}%
-\contentsline {subsubsection}{Column-scale preconditioning}{52}{section*.52}%
-\contentsline {subsection}{\numberline {A.3.3}Regularization}{52}{subsection.A.3.3}%
-\contentsline {subsubsection}{Tikhonov (smoothness, L2)}{52}{section*.54}%
-\contentsline {subsubsection}{Total variation (edges, L1)}{52}{section*.55}%
-\contentsline {subsubsection}{Maximum entropy (MaxEnt)}{53}{section*.56}%
-\contentsline {subsection}{\numberline {A.3.4}Poisson likelihood in the distribution}{53}{subsection.A.3.4}%
-\contentsline {subsection}{\numberline {A.3.5}Effective degrees of freedom}{53}{subsection.A.3.5}%
-\contentsline {subsection}{\numberline {A.3.6}Selection of the regularization parameter}{53}{subsection.A.3.6}%
-\contentsline {subsubsection}{Dimensionless $\alpha $}{53}{section*.57}%
-\contentsline {subsection}{\numberline {A.3.7}Error bars of $P(B_{\mathrm {hf}})$}{54}{subsection.A.3.7}%
-\contentsline {subsection}{\numberline {A.3.8}Parametric distributions}{54}{subsection.A.3.8}%
-\contentsline {paragraph}{VBF (Voigt-Based Fitting, Rancourt--Ping 1991).}{54}{section*.58}%
-\contentsline {subsection}{\numberline {A.3.9}Correlation $\delta (H)$ and $\Delta E_{Q}(H)$ in the kernel}{55}{subsection.A.3.9}%
-\contentsline {subsection}{\numberline {A.3.10}Global refinement (VARPRO)}{55}{subsection.A.3.10}%
-\contentsline {section}{\numberline {A.4}Appendices}{55}{section.A.4}%
-\contentsline {subsection}{\numberline {A.4.1}Sextet calibration}{55}{subsection.A.4.1}%
-\contentsline {subsection}{\numberline {A.4.2}Parameter bounds}{56}{subsection.A.4.2}%
-\contentsline {subsection}{\numberline {A.4.3}Faddeeva function}{56}{subsection.A.4.3}%
-\contentsline {subsection}{\numberline {A.4.4}Summary of the optimization stack}{56}{subsection.A.4.4}%
-\contentsline {chapter}{\numberline {B}Voigt-based fitting (VBF)}{57}{appendix.B}%
-\contentsline {section}{\numberline {B.1}Motivation: a basis of Gaussians for $P(B_{\mathrm {hf}})$}{57}{section.B.1}%
-\contentsline {section}{\numberline {B.2}From field to spectrum: the forward model}{57}{section.B.2}%
-\contentsline {paragraph}{Gaussian kernel normalized to unit area.}{58}{section*.59}%
-\contentsline {section}{\numberline {B.3}Why "Voigt-based"}{58}{section.B.3}%
-\contentsline {paragraph}{The dual reading of the Gaussian broadening.}{58}{section*.60}%
-\contentsline {section}{\numberline {B.4}Least-squares problem and parametrization}{58}{section.B.4}%
-\contentsline {section}{\numberline {B.5}Areas, populations and percentages}{59}{section.B.5}%
-\contentsline {section}{\numberline {B.6}Correlation $\delta (H)$ and $\Delta E_{Q}(H)$}{60}{section.B.6}%
-\contentsline {section}{\numberline {B.7}Case $N=1$: the "Gaussian" shape}{60}{section.B.7}%
-\contentsline {section}{\numberline {B.8}VBF versus the histogram}{60}{section.B.8}%
-\contentsline {section}{\numberline {B.9}Best practices}{60}{section.B.9}%
-\contentsline {chapter}{\numberline {C}Isomer-shift distributions $P(\mathrm {IS})$}{62}{appendix.C}%
-\contentsline {section}{\numberline {C.1}Physical motivation}{62}{section.C.1}%
-\contentsline {section}{\numberline {C.2}One-dimensional distribution $P(\delta )$}{62}{section.C.2}%
-\contentsline {section}{\numberline {C.3}Two-dimensional distribution $P(\delta ,\Delta E_Q)$}{63}{section.C.3}%
-\contentsline {section}{\numberline {C.4}Interpretation of $P(\delta ,\Delta E_Q)$}{63}{section.C.4}%
-\contentsline {section}{\numberline {C.5}Distribution $P(B_{\mathrm {hf}},\delta )$}{64}{section.C.5}%
-\contentsline {section}{\numberline {C.6}Identifiability risks}{64}{section.C.6}%
-\contentsline {section}{\numberline {C.7}Good practices}{64}{section.C.7}%
-\contentsline {chapter}{\numberline {D}Two-dimensional distributions $P(B_{\mathrm {hf}},\Delta E_{Q})$}{65}{appendix.D}%
-\contentsline {section}{\numberline {D.1}Motivation}{65}{section.D.1}%
-\contentsline {section}{\numberline {D.2}Spectral model}{65}{section.D.2}%
-\contentsline {section}{\numberline {D.3}2D regularization}{65}{section.D.3}%
-\contentsline {paragraph}{Dimensionless $\alpha _B$, $\alpha _Q$.}{66}{section*.64}%
-\contentsline {section}{\numberline {D.4}Marginals, moments and correlation}{66}{section.D.4}%
-\contentsline {section}{\numberline {D.5}Simultaneous sharp components}{67}{section.D.5}%
-\contentsline {section}{\numberline {D.6}Choosing $\alpha _B$ and $\alpha _Q$}{67}{section.D.6}%
-\contentsline {section}{\numberline {D.7}Overfitting risk}{68}{section.D.7}%
-\contentsline {section}{\numberline {D.8}Good practices}{68}{section.D.8}%
-\contentsline {chapter}{\numberline {E}Magnetic relaxation models}{69}{appendix.E}%
-\contentsline {section}{\numberline {E.1}Physical motivation}{69}{section.E.1}%
-\contentsline {section}{\numberline {E.2}Common notation}{69}{section.E.2}%
-\contentsline {section}{\numberline {E.3}Phenomenological model \texttt {\small Relajacion}}{70}{section.E.3}%
-\contentsline {subsection}{\numberline {E.3.1}Definition}{70}{subsection.E.3.1}%
-\contentsline {subsection}{\numberline {E.3.2}Blocked fraction and phenomenological rate}{70}{subsection.E.3.2}%
-\contentsline {section}{\numberline {E.4}Dynamic model \texttt {\small BlumeTjon}: two states}{71}{section.E.4}%
-\contentsline {subsection}{\numberline {E.4.1}Exchange matrix}{71}{subsection.E.4.1}%
-\contentsline {subsection}{\numberline {E.4.2}Exchange profile for one transition}{71}{subsection.E.4.2}%
-\contentsline {subsection}{\numberline {E.4.3}Limits}{72}{subsection.E.4.3}%
-\contentsline {subsection}{\numberline {E.4.4}Population polarization}{72}{subsection.E.4.4}%
-\contentsline {section}{\numberline {E.5}Néel--Arrhenius and size distribution}{73}{section.E.5}%
-\contentsline {section}{\numberline {E.6}Global multi-temperature fit}{73}{section.E.6}%
-\contentsline {section}{\numberline {E.7}Relation to fitting and reports}{74}{section.E.7}%
-\contentsline {chapter}{\numberline {F}Thickness correction}{75}{appendix.F}%
-\contentsline {section}{\numberline {F.1}The problem: thin vs. thick absorber}{75}{section.F.1}%
-\contentsline {section}{\numberline {F.2}Exponential saturation model}{75}{section.F.2}%
-\contentsline {section}{\numberline {F.3}Benefits}{76}{section.F.3}%
-\contentsline {section}{\numberline {F.4}When to apply it}{76}{section.F.4}%
-\contentsline {section}{\numberline {F.5}How it is applied in the fit}{77}{section.F.5}%
-\contentsline {subsection}{\numberline {F.5.1}Selection and parameter}{77}{subsection.F.5.1}%
-\contentsline {subsection}{\numberline {F.5.2}Discrete mode}{77}{subsection.F.5.2}%
-\contentsline {subsection}{\numberline {F.5.3}Distribution mode: not applied}{77}{subsection.F.5.3}%
-\contentsline {section}{\numberline {F.6}What changes in the view}{77}{section.F.6}%
-\contentsline {section}{\numberline {F.7}Several subspectra}{78}{section.F.7}%
-\contentsline {section}{\numberline {F.8}Summary}{78}{section.F.8}%
-\contentsline {chapter}{\numberline {G}Command-line tools}{79}{appendix.G}%
-\contentsline {section}{\numberline {G.1}Discrete fits: \textcolor {black!70}{\texttt {\small mossbauer\_fit\_cli.py}}}{79}{section.G.1}%
-\contentsline {subsection}{\numberline {G.1.1}Options}{80}{subsection.G.1.1}%
-\contentsline {subsection}{\numberline {G.1.2}NORMOS conventions}{80}{subsection.G.1.2}%
-\contentsline {subsection}{\numberline {G.1.3}Advanced errors}{81}{subsection.G.1.3}%
-\contentsline {subsection}{\numberline {G.1.4}Warm-start series}{81}{subsection.G.1.4}%
-\contentsline {section}{\numberline {G.2}Distribution fits: \textcolor {black!70}{\texttt {\small fit\_bhf\_distribution\_cli.py}}}{81}{section.G.2}%
-\contentsline {subsection}{\numberline {G.2.1}Distribution and shape}{82}{subsection.G.2.1}%
-\contentsline {subsection}{\numberline {G.2.2}Kernel}{83}{subsection.G.2.2}%
-\contentsline {subsection}{\numberline {G.2.3}Grid, background and folding}{83}{subsection.G.2.3}%
-\contentsline {subsection}{\numberline {G.2.4}Two-dimensional distributions}{83}{subsection.G.2.4}%
-\contentsline {subsection}{\numberline {G.2.5}Choosing $\alpha $}{84}{subsection.G.2.5}%
-\contentsline {subsection}{\numberline {G.2.6}Output files}{84}{subsection.G.2.6}%
+\contentsline {part}{Mathematical appendices}{42}{Item.35}%
+\contentsline {chapter}{\numberline {A}Mathematical manual of the fitting engine}{43}{appendix.A}%
+\contentsline {section}{\numberline {A.1}Forward model}{43}{section.A.1}%
+\contentsline {subsection}{\numberline {A.1.1}Transmission spectrum}{43}{subsection.A.1.1}%
+\contentsline {subsubsection}{Drive waveform and velocity axis}{43}{section*.26}%
+\contentsline {subsection}{\numberline {A.1.2}Line profiles}{44}{subsection.A.1.2}%
+\contentsline {subsubsection}{Lorentzian}{44}{section*.27}%
+\contentsline {subsubsection}{Pseudo-Voigt (Faddeeva)}{44}{section*.28}%
+\contentsline {subsection}{\numberline {A.1.3}Magnetic sextet}{45}{subsection.A.1.3}%
+\contentsline {subsubsection}{First-order treatment}{45}{section*.31}%
+\contentsline {subsubsection}{Kündig treatment (full axial Hamiltonian)}{45}{section*.33}%
+\contentsline {subsubsection}{Polycrystalline average}{47}{section*.34}%
+\contentsline {subsection}{\numberline {A.1.4}Intensities and texture}{48}{subsection.A.1.4}%
+\contentsline {subsubsection}{Free intensities}{48}{section*.36}%
+\contentsline {subsubsection}{Texture parameter}{48}{section*.37}%
+\contentsline {subsection}{\numberline {A.1.5}Doublet and singlet}{48}{subsection.A.1.5}%
+\contentsline {section}{\numberline {A.2}Discrete fit}{49}{section.A.2}%
+\contentsline {subsection}{\numberline {A.2.1}Parametrization and constraints}{49}{subsection.A.2.1}%
+\contentsline {subsection}{\numberline {A.2.2}Data statistics}{49}{subsection.A.2.2}%
+\contentsline {subsubsection}{Gauss mode}{49}{section*.39}%
+\contentsline {subsubsection}{Poisson mode (IRLS)}{49}{section*.40}%
+\contentsline {subsubsection}{Propagation of the calibration uncertainty}{49}{section*.41}%
+\contentsline {subsection}{\numberline {A.2.3}Cost functional and robust losses}{50}{subsection.A.2.3}%
+\contentsline {subsection}{\numberline {A.2.4}Optimization}{50}{subsection.A.2.4}%
+\contentsline {subsubsection}{Trust region (TRF)}{50}{section*.43}%
+\contentsline {subsubsection}{Multistart}{50}{section*.44}%
+\contentsline {subsubsection}{Global optimization (optional)}{51}{section*.46}%
+\contentsline {subsection}{\numberline {A.2.5}Uncertainties and diagnostics}{51}{subsection.A.2.5}%
+\contentsline {subsubsection}{Covariance}{51}{section*.47}%
+\contentsline {subsubsection}{Goodness-of-fit statistics}{51}{section*.49}%
+\contentsline {subsubsection}{Residual diagnostics}{51}{section*.50}%
+\contentsline {subsubsection}{Bootstrap}{52}{section*.51}%
+\contentsline {section}{\numberline {A.3}Distribution fit}{52}{section.A.3}%
+\contentsline {subsection}{\numberline {A.3.1}Discretization and kernel}{52}{subsection.A.3.1}%
+\contentsline {subsection}{\numberline {A.3.2}Augmented linear system}{52}{subsection.A.3.2}%
+\contentsline {subsubsection}{Column-scale preconditioning}{53}{section*.52}%
+\contentsline {subsection}{\numberline {A.3.3}Regularization}{53}{subsection.A.3.3}%
+\contentsline {subsubsection}{Tikhonov (smoothness, L2)}{53}{section*.54}%
+\contentsline {subsubsection}{Total variation (edges, L1)}{53}{section*.55}%
+\contentsline {subsubsection}{Maximum entropy (MaxEnt)}{54}{section*.56}%
+\contentsline {subsection}{\numberline {A.3.4}Poisson likelihood in the distribution}{54}{subsection.A.3.4}%
+\contentsline {subsection}{\numberline {A.3.5}Effective degrees of freedom}{54}{subsection.A.3.5}%
+\contentsline {subsection}{\numberline {A.3.6}Selection of the regularization parameter}{54}{subsection.A.3.6}%
+\contentsline {subsubsection}{Dimensionless $\alpha $}{54}{section*.57}%
+\contentsline {subsection}{\numberline {A.3.7}Error bars of $P(B_{\mathrm {hf}})$}{55}{subsection.A.3.7}%
+\contentsline {subsection}{\numberline {A.3.8}Parametric distributions}{55}{subsection.A.3.8}%
+\contentsline {paragraph}{VBF (Voigt-Based Fitting, Rancourt--Ping 1991).}{56}{section*.58}%
+\contentsline {subsection}{\numberline {A.3.9}Correlation $\delta (H)$ and $\Delta E_{Q}(H)$ in the kernel}{56}{subsection.A.3.9}%
+\contentsline {subsection}{\numberline {A.3.10}Global refinement (VARPRO)}{56}{subsection.A.3.10}%
+\contentsline {section}{\numberline {A.4}Appendices}{56}{section.A.4}%
+\contentsline {subsection}{\numberline {A.4.1}Sextet calibration}{56}{subsection.A.4.1}%
+\contentsline {subsection}{\numberline {A.4.2}Parameter bounds}{57}{subsection.A.4.2}%
+\contentsline {subsection}{\numberline {A.4.3}Faddeeva function}{57}{subsection.A.4.3}%
+\contentsline {subsection}{\numberline {A.4.4}Summary of the optimization stack}{57}{subsection.A.4.4}%
+\contentsline {chapter}{\numberline {B}Voigt-based fitting (VBF)}{58}{appendix.B}%
+\contentsline {section}{\numberline {B.1}Motivation: a basis of Gaussians for $P(B_{\mathrm {hf}})$}{58}{section.B.1}%
+\contentsline {section}{\numberline {B.2}From field to spectrum: the forward model}{58}{section.B.2}%
+\contentsline {paragraph}{Gaussian kernel normalized to unit area.}{59}{section*.59}%
+\contentsline {section}{\numberline {B.3}Why "Voigt-based"}{59}{section.B.3}%
+\contentsline {paragraph}{The dual reading of the Gaussian broadening.}{59}{section*.60}%
+\contentsline {section}{\numberline {B.4}Least-squares problem and parametrization}{59}{section.B.4}%
+\contentsline {section}{\numberline {B.5}Areas, populations and percentages}{60}{section.B.5}%
+\contentsline {section}{\numberline {B.6}Correlation $\delta (H)$ and $\Delta E_{Q}(H)$}{61}{section.B.6}%
+\contentsline {section}{\numberline {B.7}Case $N=1$: the "Gaussian" shape}{61}{section.B.7}%
+\contentsline {section}{\numberline {B.8}VBF versus the histogram}{61}{section.B.8}%
+\contentsline {section}{\numberline {B.9}Best practices}{61}{section.B.9}%
+\contentsline {chapter}{\numberline {C}Isomer-shift distributions $P(\mathrm {IS})$}{63}{appendix.C}%
+\contentsline {section}{\numberline {C.1}Physical motivation}{63}{section.C.1}%
+\contentsline {section}{\numberline {C.2}One-dimensional distribution $P(\delta )$}{63}{section.C.2}%
+\contentsline {section}{\numberline {C.3}Two-dimensional distribution $P(\delta ,\Delta E_Q)$}{64}{section.C.3}%
+\contentsline {section}{\numberline {C.4}Interpretation of $P(\delta ,\Delta E_Q)$}{64}{section.C.4}%
+\contentsline {section}{\numberline {C.5}Distribution $P(B_{\mathrm {hf}},\delta )$}{65}{section.C.5}%
+\contentsline {section}{\numberline {C.6}Identifiability risks}{65}{section.C.6}%
+\contentsline {section}{\numberline {C.7}Good practices}{65}{section.C.7}%
+\contentsline {chapter}{\numberline {D}Two-dimensional distributions $P(B_{\mathrm {hf}},\Delta E_{Q})$}{66}{appendix.D}%
+\contentsline {section}{\numberline {D.1}Motivation}{66}{section.D.1}%
+\contentsline {section}{\numberline {D.2}Spectral model}{66}{section.D.2}%
+\contentsline {section}{\numberline {D.3}2D regularization}{66}{section.D.3}%
+\contentsline {paragraph}{Dimensionless $\alpha _B$, $\alpha _Q$.}{67}{section*.64}%
+\contentsline {section}{\numberline {D.4}Marginals, moments and correlation}{67}{section.D.4}%
+\contentsline {section}{\numberline {D.5}Simultaneous sharp components}{68}{section.D.5}%
+\contentsline {section}{\numberline {D.6}Choosing $\alpha _B$ and $\alpha _Q$}{68}{section.D.6}%
+\contentsline {section}{\numberline {D.7}Overfitting risk}{69}{section.D.7}%
+\contentsline {section}{\numberline {D.8}Good practices}{69}{section.D.8}%
+\contentsline {chapter}{\numberline {E}Magnetic relaxation models}{70}{appendix.E}%
+\contentsline {section}{\numberline {E.1}Physical motivation}{70}{section.E.1}%
+\contentsline {section}{\numberline {E.2}Common notation}{70}{section.E.2}%
+\contentsline {section}{\numberline {E.3}Phenomenological model \texttt {\small Relajacion}}{71}{section.E.3}%
+\contentsline {subsection}{\numberline {E.3.1}Definition}{71}{subsection.E.3.1}%
+\contentsline {subsection}{\numberline {E.3.2}Blocked fraction and phenomenological rate}{71}{subsection.E.3.2}%
+\contentsline {section}{\numberline {E.4}Dynamic model \texttt {\small BlumeTjon}: two states}{72}{section.E.4}%
+\contentsline {subsection}{\numberline {E.4.1}Exchange matrix}{72}{subsection.E.4.1}%
+\contentsline {subsection}{\numberline {E.4.2}Exchange profile for one transition}{72}{subsection.E.4.2}%
+\contentsline {subsection}{\numberline {E.4.3}Limits}{73}{subsection.E.4.3}%
+\contentsline {subsection}{\numberline {E.4.4}Population polarization}{73}{subsection.E.4.4}%
+\contentsline {section}{\numberline {E.5}Néel--Arrhenius and size distribution}{74}{section.E.5}%
+\contentsline {section}{\numberline {E.6}Global multi-temperature fit}{74}{section.E.6}%
+\contentsline {section}{\numberline {E.7}Relation to fitting and reports}{75}{section.E.7}%
+\contentsline {chapter}{\numberline {F}Thickness correction}{76}{appendix.F}%
+\contentsline {section}{\numberline {F.1}The problem: thin vs. thick absorber}{76}{section.F.1}%
+\contentsline {section}{\numberline {F.2}Exponential saturation model}{76}{section.F.2}%
+\contentsline {section}{\numberline {F.3}Benefits}{77}{section.F.3}%
+\contentsline {section}{\numberline {F.4}When to apply it}{77}{section.F.4}%
+\contentsline {section}{\numberline {F.5}How it is applied in the fit}{78}{section.F.5}%
+\contentsline {subsection}{\numberline {F.5.1}Selection and parameter}{78}{subsection.F.5.1}%
+\contentsline {subsection}{\numberline {F.5.2}Discrete mode}{78}{subsection.F.5.2}%
+\contentsline {subsection}{\numberline {F.5.3}Distribution mode: not applied}{78}{subsection.F.5.3}%
+\contentsline {section}{\numberline {F.6}What changes in the view}{78}{section.F.6}%
+\contentsline {section}{\numberline {F.7}Several subspectra}{79}{section.F.7}%
+\contentsline {section}{\numberline {F.8}Summary}{79}{section.F.8}%
+\contentsline {chapter}{\numberline {G}Command-line tools}{80}{appendix.G}%
+\contentsline {section}{\numberline {G.1}Discrete fits: \textcolor {black!70}{\texttt {\small mossbauer\_fit\_cli.py}}}{80}{section.G.1}%
+\contentsline {subsection}{\numberline {G.1.1}Options}{81}{subsection.G.1.1}%
+\contentsline {subsection}{\numberline {G.1.2}NORMOS conventions}{81}{subsection.G.1.2}%
+\contentsline {subsection}{\numberline {G.1.3}Advanced errors}{82}{subsection.G.1.3}%
+\contentsline {subsection}{\numberline {G.1.4}Warm-start series}{82}{subsection.G.1.4}%
+\contentsline {section}{\numberline {G.2}Distribution fits: \textcolor {black!70}{\texttt {\small fit\_bhf\_distribution\_cli.py}}}{82}{section.G.2}%
+\contentsline {subsection}{\numberline {G.2.1}Distribution and shape}{83}{subsection.G.2.1}%
+\contentsline {subsection}{\numberline {G.2.2}Kernel}{84}{subsection.G.2.2}%
+\contentsline {subsection}{\numberline {G.2.3}Grid, background and folding}{84}{subsection.G.2.3}%
+\contentsline {subsection}{\numberline {G.2.4}Two-dimensional distributions}{84}{subsection.G.2.4}%
+\contentsline {subsection}{\numberline {G.2.5}Choosing $\alpha $}{85}{subsection.G.2.5}%
+\contentsline {subsection}{\numberline {G.2.6}Output files}{85}{subsection.G.2.6}%

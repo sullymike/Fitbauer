@@ -213,7 +213,7 @@ fijan como parámetros globales del núcleo (siguiente apartado).
 
 \begin{itemize}[nosep]
   \item \menu{Forma}: la familia de $P$ que se ajusta —Histograma, Gaussiana,
-        VBF, Binomial o Fija— (§\ref{sec:formas-dist} las detalla). Es la
+        VBF, Binomial, Fija o, en $P(\dEQ)$, Czjzek— (§\ref{sec:formas-dist} las detalla). Es la
         decisión que más condiciona el resto de controles. En los modos 2D la
         lista cambia a Histograma, Gaussiana y VBF bidimensionales
         (§\ref{sec:dist-2d}). El panel solo muestra los controles que usan la
@@ -298,8 +298,8 @@ METHOD=4/POLAR de NORMOS-DIST, validado contra él (0.4\% del pico).
 
 Dos pendientes opcionales que acoplan $\delta$ y $\dEQ$ al valor del campo
 (§\ref{sec:correlacion}). Por defecto valen \textbf{0} (sin correlación) y están
-\textbf{fijas}; para refinarlas, desmarque su candado. Aplican a Histograma, VBF y
-Binomial. Su significado depende de la variable: en $P(\BHF)$ son $d\delta/dH$ y
+\textbf{fijas}; para refinarlas, desmarque su candado. Aplican a Histograma, VBF,
+Binomial y Czjzek. Su significado depende de la variable: en $P(\BHF)$ son $d\delta/dH$ y
 $d\dEQ/dH$ (mm/s·T$^{-1}$); en $P(\dEQ)$ solo existe $d\delta/d\dEQ$ (el
 acoplamiento de Rancourt--Ping, adimensional) y en $P(\text{IS})$ solo
 $d\dEQ/d\delta$. Al cambiar de variable vuelven a 0. Con una pendiente distinta
@@ -384,6 +384,8 @@ guarda $A_k, \mu_k, \sigma_k$ por componente (§\ref{sec:vbf-areas}). \\[3pt]
 \textbf{Binomial} & Vecinos de soluto al estilo NORMOS-DIST (p.\,ej.\
 aleaciones). \\[3pt]
 \textbf{Fija} & Distribución impuesta por el usuario (leída de fichero). \\[3pt]
+\textbf{Czjzek} & $P(\dEQ)$ de un sólido desordenado (vidrios, amorfos), pura o
+extendida con un entorno ordenado (§\ref{sec:forma-czjzek}). \\[3pt]
 \textbf{2D} & Distribución conjunta de dos variables, como histograma o como
 gaussianas bivariantes (§\ref{sec:dist-2d}). \\
 \bottomrule
@@ -526,6 +528,44 @@ columnas (valor y peso), cargado con \menu{Cargar P fija…}. La forma \emph{no}
 ajusta (solo amplitud y línea base): sirve para \textbf{reutilizar} una $P$
 conocida —de un ajuste anterior, de la literatura o teórica— y comparar o simular
 con ella sobre distintos espectros.
+
+\subsection{Czjzek y Czjzek extendido}
+\label{sec:forma-czjzek}
+
+Forma \textbf{paramétrica} para $P(\dEQ)$ con dobletes en sólidos
+\textbf{desordenados}. Si las cargas que rodean al Fe están repartidas al azar,
+las 5 componentes independientes del tensor gradiente de campo eléctrico
+(simétrico y de traza nula) son gaussianas de igual varianza (Czjzek et al.,
+1981). El desdoblamiento $\dEQ=\tfrac{eQ}{2}|V_{zz}|\sqrt{1+\eta^2/3}$ es
+proporcional a la norma de ese vector de 5 componentes, así que $\dEQ/\sigma$
+sigue una distribución $\chi$ de 5 grados de libertad:
+\[
+  P(\dEQ) \;\propto\; \dEQ^{4}\,\exp\!\Bigl(-\frac{\dEQ^{2}}{2\sigma^{2}}\Bigr).
+\]
+Es asimétrica, con cola hacia $\dEQ$ altos; vale cero en $\dEQ=0$; tiene la moda
+en $2\sigma$ y la media en $\approx 2.13\,\sigma$, y su anchura relativa es fija
+(desviación/media $\approx 0.32$).
+
+El modelo \textbf{extendido} (Le Caër y Brand, 1998) suma al tensor aleatorio el
+de un entorno ordenado, de norma $\Delta E_{Q,0}$. Como la parte aleatoria es isótropa
+en las 5 dimensiones, $\dEQ/\sigma$ sigue una $\chi$ \emph{no central} de 5
+grados de libertad y parámetro $\Delta E_{Q,0}/\sigma$. Con $\Delta E_{Q,0}=0$ se recupera el
+modelo puro; con $\Delta E_{Q,0}\gg\sigma$ tiende a una gaussiana de centro $\Delta E_{Q,0}$ y
+anchura $\sigma$.
+
+\begin{itemize}[nosep]
+  \item \textbf{Ajusta}: amplitud y $\sigma$; en el extendido, también
+        $\Delta E_{Q,0}\ge 0$. El informe da $\sigma$ y $\Delta E_{Q,0}$ con su error. Cerca de
+        $\Delta E_{Q,0}=0$ el espectro solo depende de $\Delta E_{Q,0}^2$ y no hay error lineal
+        que dar.
+  \item \textbf{Qué ve el espectro}: los dobletes no ven $\eta$ ni el signo de
+        $\dEQ$; se ajusta la marginal de $|\dEQ|$.
+  \item \textbf{Admite}: la correlación $\kappa_\delta$ y componentes nítidos.
+        Solo se ofrece en $P(\dEQ)$ sin la opción de sextetes de campo fijo.
+  \item \textbf{Cuándo}: Fe$^{3+}$ en vidrios y amorfos. Compare su AIC/BIC con
+        los de la Gaussiana, el VBF o el Histograma: una distribución con peso
+        cerca de $\dEQ=0$, o estrecha y casi simétrica, no es de tipo Czjzek.
+\end{itemize}
 
 \subsection{2D: dos variables a la vez}
 \label{sec:forma-2d}
