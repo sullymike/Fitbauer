@@ -129,7 +129,7 @@ format, which is not proprietary.
 | **Series of spectra** | one file at a time | **sequential batch fitting** with warm start |
 | **Superparamagnetism** | — | Néel–Arrhenius with lognormal size distribution and **global multi-temperature fit** |
 | **Voigt profile** | approximate pseudo-Voigt | exact Voigt |
-| **Diagnostics** | χ² | plus residual tests (lag-1, runs), correlations and insufficient-grid warning |
+| **Diagnostics** | χ² | plus residual tests (lag-1, runs), correlations (also of P with Γ, δ…) and insufficient-grid warning |
 | **Outputs** | text | Markdown/PDF reports, TSV with subspectra and complete JSON session |
 | **Headless use** | — | CLI for discrete and distribution fits |
 | **Platform** | DOS | Windows, macOS and Linux |

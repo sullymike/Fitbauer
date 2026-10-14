@@ -131,7 +131,7 @@ que no es propietario.
 | **Series de espectros** | un fichero cada vez | **ajuste secuencial en serie** con arranque en caliente |
 | **Superparamagnetismo** | — | Néel–Arrhenius con distribución lognormal de tamaños y **ajuste global multitemperatura** |
 | **Perfil Voigt** | pseudo-Voigt aproximado | Voigt exacto |
-| **Diagnóstico** | χ² | además residuos (lag-1, rachas, antisimetría), correlaciones y aviso de malla insuficiente |
+| **Diagnóstico** | χ² | además residuos (lag-1, rachas), correlaciones (también de P con Γ, δ…) y aviso de malla insuficiente |
 | **Salidas** | texto | informes Markdown/PDF, TSV con subespectros y sesión JSON completa |
 | **Uso sin interfaz** | — | CLI para ajuste discreto y de distribuciones |
 | **Plataforma** | DOS | Windows, macOS y Linux |

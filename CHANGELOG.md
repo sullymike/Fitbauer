@@ -2,6 +2,26 @@
 
 ## Sin publicar
 
+- **Correlaciones en «Estado y parámetros» y en el informe.** El panel solo
+  daba la correlación máxima y las parejas con |r| ≥ 0.95, y en modo
+  distribución nada. Ahora lista todas las parejas con |r| ≥ 0.5, de mayor a
+  menor (⚠ ≥ 0.95, ! ≥ 0.8), y si no hay ninguna da la máxima; el informe
+  añade la misma tabla.
+  - Discreto: entre todos los parámetros libres, incluidos vmax, el centro y
+    σ Voigt cuando se ajustan (antes quedaban fuera).
+  - Distribución: entre los globales refinados (δ, ΔEQ, Γ, κ) y la **media y
+    la anchura de P**, que llevan ahora su error. Con P reajustada en cada
+    punto: cov(m, g) = D·C y cov(m) = C_int + D·C·Dᵀ, con D la sensibilidad
+    de los momentos a cada global (diferencias centradas, 2n ajustes internos
+    al final) y C_int de las réplicas Monte Carlo del histograma o de la
+    covarianza de los parámetros de la forma (nuevo `moment_cov` del
+    resultado). Comprobado contra el ajuste conjunto de todos los parámetros
+    (σ_P–Γ: −0.93 frente a −0.94).
+  - El panel de estado en modo distribución ponía el RMS como «χ²red» y dof,
+    AIC y BIC a 0 (también en el historial de ajustes): ahora da la bondad
+    real y los globales con su σ.
+  - La ayuda y los manuales dejan de mencionar la correlación antisimétrica,
+    retirada del diagnóstico del residuo.
 - **Formas de Czjzek para P(ΔEQ).** Dos formas paramétricas nuevas para la
   distribución de |ΔEQ| de sólidos desordenados (vidrios, amorfos), solo en
   P(ΔEQ) con dobletes:

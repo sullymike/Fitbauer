@@ -411,7 +411,9 @@ From the final Jacobian $J=U\Sigma V^\top$ (SVD, truncated singular values):
   \qquad \hat\sigma_{x_k}=\sqrt{\widehat{\mathrm{Cov}}_{kk}}.\;}
   \label{eq:cov}
 \end{equation}
-Correlations $|\rho_{kl}|\ge0{,}95$ are reported as a warning of degeneracy.
+It gives the correlation matrix $\rho_{kl}$ (including $v_{\max}$, the centre and the
+Voigt $\sigma$ when they are fitted). The status panel and the report list the pairs
+with $|\rho_{kl}|\ge0{,}5$; $|\rho_{kl}|\ge0{,}95$ is a warning of degeneracy.
 
 \begin{figure}[htbp]\centering
   \includegraphics[width=0.82\textwidth]{apx_profile}
@@ -433,11 +435,10 @@ Correlations $|\rho_{kl}|\ge0{,}95$ are reported as a warning of degeneracy.
 To detect non-random structure (with $\tilde r=r-\bar r$):
 \begin{align}
   \text{lag-1 autocorrelation:}\quad &\rho_1=\frac{\sum_i\tilde r_i\tilde r_{i+1}}{\sum_i\tilde r_i^2},\\
-  \text{runs (Wald–Wolfowitz):}\quad &Z=\frac{R-\mu_R}{\sigma_R},\\
-  \text{antisymmetric correlation:}\quad &c_{\text{as}}=\frac{\tilde{\bm r}\cdot(-\tilde{\bm r}^{\text{rev}})}{\tilde{\bm r}\cdot\tilde{\bm r}},
+  \text{runs (Wald–Wolfowitz):}\quad &Z=\frac{R-\mu_R}{\sigma_R},
 \end{align}
-with warnings if $|\rho_1|>0{,}35$, $|Z|>2$ or $c_{\text{as}}>0{,}45$ (this last one
-detects centering/calibration errors).
+on the normalized residuals in velocity order, with warnings if $|\rho_1|>0{,}35$ or
+$|Z|>2$. The same statistics are computed in distribution fits.
 
 \subsubsection{Bootstrap}
 Monte Carlo estimation of errors: $M$ replicas of synthetic data
@@ -688,6 +689,23 @@ optimizer (separable VARPRO-type scheme):
   \min_{\bm\eta}\;\bigl\|W^{1/2}\bigl[X(\bm\eta)\,\hat{\bm z}(\bm\eta)-\bm y\bigr]\bigr\|^2,
   \qquad \hat{\bm z}(\bm\eta)=\argmin_{\bm z}\eqref{eq:dist-min}.
 \end{equation}
+
+\paragraph{Correlation of $P$ with the globals.} To know whether a width of $P$
+trades off against $\Gamma$ (or its mean against $\delta$), Fitbauer correlates the
+globals $\bm\eta$ with the mean $m_1$ and the deviation $m_2$ of $P$. Since
+$\hat{\bm z}$ is refitted at each $\bm\eta$, in the linear approximation the moments
+are $\bm m=\bm m^*(\bm\eta)+\bm\varepsilon$, with $D=\partial\bm m^*/\partial\bm\eta$
+(central differences refitting $P$) and $\bm\varepsilon$ the noise with the globals
+fixed, independent of $\hat{\bm\eta}$:
+\begin{equation}
+  \operatorname{Cov}(\bm m,\bm\eta)=D\,C_\eta,\qquad
+  \operatorname{Cov}(\bm m)=C_m^{\text{int}}+D\,C_\eta D^\top,
+\end{equation}
+where $C_\eta$ is the covariance of the outer loop and $C_m^{\text{int}}$ comes from
+the Monte Carlo replicas (Histogram) or from the covariance of the shape parameters
+(Gaussian, VBF, binomial, Czjzek). In a synthetic $P(\dEQ)$ example with free
+$\Gamma$, the $\sigma_P$--$\Gamma$ correlation obtained this way ($-0{,}93$) matches
+that of the joint fit of all parameters ($-0{,}94$).
 
 %======================================================================
 

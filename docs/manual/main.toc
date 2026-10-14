@@ -117,36 +117,37 @@
 \contentsline {subsection}{\numberline {A.2.5}Incertidumbres y diagnósticos}{51}{subsection.Alph1.2.5}%
 \contentsline {subsubsection}{Covarianza}{51}{section*.47}%
 \contentsline {subsubsection}{Estadísticos de bondad de ajuste}{51}{section*.49}%
-\contentsline {subsubsection}{Diagnósticos del residuo}{52}{section*.50}%
+\contentsline {subsubsection}{Diagnósticos del residuo}{51}{section*.50}%
 \contentsline {subsubsection}{Bootstrap}{52}{section*.51}%
 \contentsline {section}{\numberline {A.3}Ajuste de distribución}{52}{section.Alph1.3}%
 \contentsline {subsection}{\numberline {A.3.1}Discretización y núcleo}{52}{subsection.Alph1.3.1}%
-\contentsline {subsection}{\numberline {A.3.2}Sistema lineal aumentado}{53}{subsection.Alph1.3.2}%
+\contentsline {subsection}{\numberline {A.3.2}Sistema lineal aumentado}{52}{subsection.Alph1.3.2}%
 \contentsline {subsubsection}{Preacondicionamiento por escala de columnas}{53}{section*.52}%
 \contentsline {subsection}{\numberline {A.3.3}Regularización}{53}{subsection.Alph1.3.3}%
 \contentsline {subsubsection}{Tikhonov (suavidad, L2)}{53}{section*.54}%
-\contentsline {subsubsection}{Variación total (bordes, L1)}{54}{section*.55}%
+\contentsline {subsubsection}{Variación total (bordes, L1)}{53}{section*.55}%
 \contentsline {subsubsection}{Máxima entropía (MaxEnt)}{54}{section*.56}%
 \contentsline {subsection}{\numberline {A.3.4}Verosimilitud Poisson en la distribución}{54}{subsection.Alph1.3.4}%
 \contentsline {subsection}{\numberline {A.3.5}Grados de libertad efectivos}{54}{subsection.Alph1.3.5}%
 \contentsline {subsection}{\numberline {A.3.6}Selección del parámetro de regularización}{54}{subsection.Alph1.3.6}%
 \contentsline {subsubsection}{$\alpha $ adimensional}{54}{section*.57}%
 \contentsline {subsection}{\numberline {A.3.7}Barras de error de $P(B_{\mathrm {hf}})$}{55}{subsection.Alph1.3.7}%
-\contentsline {subsection}{\numberline {A.3.8}Distribuciones paramétricas}{56}{subsection.Alph1.3.8}%
+\contentsline {subsection}{\numberline {A.3.8}Distribuciones paramétricas}{55}{subsection.Alph1.3.8}%
 \contentsline {paragraph}{VBF (Voigt-Based Fitting, Rancourt--Ping 1991).}{56}{section*.58}%
 \contentsline {subsection}{\numberline {A.3.9}Correlación $\delta (H)$ y $\Delta E_{Q}(H)$ en el núcleo}{56}{subsection.Alph1.3.9}%
 \contentsline {subsection}{\numberline {A.3.10}Refinamiento global (VARPRO)}{56}{subsection.Alph1.3.10}%
-\contentsline {section}{\numberline {A.4}Apéndices}{57}{section.Alph1.4}%
-\contentsline {subsection}{\numberline {A.4.1}Calibración del sextete}{57}{subsection.Alph1.4.1}%
+\contentsline {paragraph}{Correlación de $P$ con los globales.}{56}{section*.59}%
+\contentsline {section}{\numberline {A.4}Apéndices}{56}{section.Alph1.4}%
+\contentsline {subsection}{\numberline {A.4.1}Calibración del sextete}{56}{subsection.Alph1.4.1}%
 \contentsline {subsection}{\numberline {A.4.2}Cotas de los parámetros}{57}{subsection.Alph1.4.2}%
 \contentsline {subsection}{\numberline {A.4.3}Función de Faddeeva}{57}{subsection.Alph1.4.3}%
 \contentsline {subsection}{\numberline {A.4.4}Resumen de la pila de optimización}{57}{subsection.Alph1.4.4}%
 \contentsline {chapter}{\numberline {B}Ajuste por Voigt (VBF)}{58}{appendix.Alph2}%
 \contentsline {section}{\numberline {B.1}Motivación: una base de gaussianas para $P(B_{\mathrm {hf}})$}{58}{section.Alph2.1}%
 \contentsline {section}{\numberline {B.2}Del campo al espectro: el modelo directo}{58}{section.Alph2.2}%
-\contentsline {paragraph}{Núcleo gaussiano normalizado a área unidad.}{59}{section*.59}%
+\contentsline {paragraph}{Núcleo gaussiano normalizado a área unidad.}{59}{section*.60}%
 \contentsline {section}{\numberline {B.3}Por qué «basado en Voigt»}{59}{section.Alph2.3}%
-\contentsline {paragraph}{La doble lectura del ensanchamiento gaussiano.}{59}{section*.60}%
+\contentsline {paragraph}{La doble lectura del ensanchamiento gaussiano.}{59}{section*.61}%
 \contentsline {section}{\numberline {B.4}Problema de mínimos cuadrados y parametrización}{59}{section.Alph2.4}%
 \contentsline {section}{\numberline {B.5}Áreas, poblaciones y porcentajes}{60}{section.Alph2.5}%
 \contentsline {section}{\numberline {B.6}Correlación $\delta (H)$ y $\Delta E_{Q}(H)$}{61}{section.Alph2.6}%
@@ -165,7 +166,7 @@
 \contentsline {section}{\numberline {D.1}Motivación}{67}{section.Alph4.1}%
 \contentsline {section}{\numberline {D.2}Modelo espectral}{67}{section.Alph4.2}%
 \contentsline {section}{\numberline {D.3}Regularización 2D}{67}{section.Alph4.3}%
-\contentsline {paragraph}{$\alpha _B$, $\alpha _Q$ adimensionales.}{68}{section*.64}%
+\contentsline {paragraph}{$\alpha _B$, $\alpha _Q$ adimensionales.}{68}{section*.65}%
 \contentsline {section}{\numberline {D.4}Marginales, momentos y correlación}{68}{section.Alph4.4}%
 \contentsline {section}{\numberline {D.5}Componentes nítidas simultáneas}{69}{section.Alph4.5}%
 \contentsline {section}{\numberline {D.6}Elección de $\alpha _B$ y $\alpha _Q$}{69}{section.Alph4.6}%

@@ -414,7 +414,9 @@ A partir del Jacobiano final $J=U\Sigma V^\top$ (SVD, valores singulares truncad
   \qquad \hat\sigma_{x_k}=\sqrt{\widehat{\mathrm{Cov}}_{kk}}.\;}
   \label{eq:cov}
 \end{equation}
-Se reportan correlaciones $|\rho_{kl}|\ge0{,}95$ como aviso de degeneración.
+De ella sale la matriz de correlación $\rho_{kl}$ (incluidos $v_{\max}$, el centro y
+$\sigma$ Voigt cuando se ajustan). El panel de estado y el informe listan las parejas
+con $|\rho_{kl}|\ge0{,}5$; $|\rho_{kl}|\ge0{,}95$ es aviso de degeneración.
 
 \begin{figure}[htbp]\centering
   \includegraphics[width=0.82\textwidth]{apx_profile}
@@ -436,11 +438,11 @@ Se reportan correlaciones $|\rho_{kl}|\ge0{,}95$ como aviso de degeneración.
 Para detectar estructura no aleatoria (con $\tilde r=r-\bar r$):
 \begin{align}
   \text{autocorrelación lag-1:}\quad &\rho_1=\frac{\sum_i\tilde r_i\tilde r_{i+1}}{\sum_i\tilde r_i^2},\\
-  \text{rachas (Wald–Wolfowitz):}\quad &Z=\frac{R-\mu_R}{\sigma_R},\\
-  \text{correlación antisimétrica:}\quad &c_{\text{as}}=\frac{\tilde{\bm r}\cdot(-\tilde{\bm r}^{\text{rev}})}{\tilde{\bm r}\cdot\tilde{\bm r}},
+  \text{rachas (Wald–Wolfowitz):}\quad &Z=\frac{R-\mu_R}{\sigma_R},
 \end{align}
-con avisos si $|\rho_1|>0{,}35$, $|Z|>2$ o $c_{\text{as}}>0{,}45$ (esta última
-detecta errores de centrado/calibración).
+sobre los residuos normalizados en orden de velocidad, con avisos si
+$|\rho_1|>0{,}35$ o $|Z|>2$. Los mismos estadísticos se calculan en los ajustes de
+distribución.
 
 \subsubsection{Bootstrap}
 Estimación Monte Carlo de errores: $M$ réplicas de datos sintéticos
@@ -692,6 +694,23 @@ residuo al optimizador (esquema separable tipo VARPRO):
   \min_{\bm\eta}\;\bigl\|W^{1/2}\bigl[X(\bm\eta)\,\hat{\bm z}(\bm\eta)-\bm y\bigr]\bigr\|^2,
   \qquad \hat{\bm z}(\bm\eta)=\argmin_{\bm z}\eqref{eq:dist-min}.
 \end{equation}
+
+\paragraph{Correlación de $P$ con los globales.} Para saber si una anchura de $P$
+se compensa con $\Gamma$ (o su media con $\delta$), Fitbauer correlaciona los
+globales $\bm\eta$ con la media $m_1$ y la desviación $m_2$ de $P$. Como $\hat{\bm
+z}$ se reajusta en cada $\bm\eta$, en la aproximación lineal los momentos son
+$\bm m=\bm m^*(\bm\eta)+\bm\varepsilon$, con $D=\partial\bm m^*/\partial\bm\eta$
+(diferencias centradas reajustando $P$) y $\bm\varepsilon$ el ruido con los
+globales fijos, independiente de $\hat{\bm\eta}$:
+\begin{equation}
+  \operatorname{Cov}(\bm m,\bm\eta)=D\,C_\eta,\qquad
+  \operatorname{Cov}(\bm m)=C_m^{\text{int}}+D\,C_\eta D^\top,
+\end{equation}
+donde $C_\eta$ es la covarianza del bucle externo y $C_m^{\text{int}}$ sale de las
+réplicas Monte Carlo (Histograma) o de la covarianza de los parámetros de la forma
+(Gaussiana, VBF, binomial, Czjzek). En un ejemplo sintético de $P(\dEQ)$ con
+$\Gamma$ libre, la correlación $\sigma_P$--$\Gamma$ así obtenida ($-0{,}93$) coincide
+con la del ajuste conjunto de todos los parámetros ($-0{,}94$).
 
 %======================================================================
 

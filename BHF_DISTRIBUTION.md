@@ -146,6 +146,14 @@ Cada superposición tiene una casilla que la oculta; la elección se recuerda.
   lag-1 y test de rachas del residuo), los globales con su σ, la distribución, los
   nítidos y los avisos (p. ej. peso acumulado en el borde de la malla). El PDF añade la
   figura de P(x) o el mapa 2D.
+- **Correlaciones.** El panel «Estado y parámetros» y el informe listan las parejas con
+  |r| ≥ 0.5 entre los globales refinados (δ, ΔEQ, Γ, κ) y la **media y la anchura de P**
+  (⚠ si |r| ≥ 0.95, ! si |r| ≥ 0.8). Es lo que dice si la anchura de la distribución se
+  está compensando con Γ en ese ajuste. Se calculan con P reajustada: la parte de los
+  globales (sensibilidad de los momentos de P a cada global, por diferencias centradas)
+  más la interna (réplicas Monte Carlo del histograma o covarianza de los parámetros de
+  la forma). La media y la anchura de P llevan así un error que incluye el de los
+  globales.
 
 ## Avisos del panel de distribución
 

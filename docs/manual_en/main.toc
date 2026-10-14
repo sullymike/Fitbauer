@@ -136,6 +136,7 @@
 \contentsline {paragraph}{VBF (Voigt-Based Fitting, Rancourt--Ping 1991).}{56}{section*.58}%
 \contentsline {subsection}{\numberline {A.3.9}Correlation $\delta (H)$ and $\Delta E_{Q}(H)$ in the kernel}{56}{subsection.A.3.9}%
 \contentsline {subsection}{\numberline {A.3.10}Global refinement (VARPRO)}{56}{subsection.A.3.10}%
+\contentsline {paragraph}{Correlation of $P$ with the globals.}{56}{section*.59}%
 \contentsline {section}{\numberline {A.4}Appendices}{56}{section.A.4}%
 \contentsline {subsection}{\numberline {A.4.1}Sextet calibration}{56}{subsection.A.4.1}%
 \contentsline {subsection}{\numberline {A.4.2}Parameter bounds}{57}{subsection.A.4.2}%
@@ -144,9 +145,9 @@
 \contentsline {chapter}{\numberline {B}Voigt-based fitting (VBF)}{58}{appendix.B}%
 \contentsline {section}{\numberline {B.1}Motivation: a basis of Gaussians for $P(B_{\mathrm {hf}})$}{58}{section.B.1}%
 \contentsline {section}{\numberline {B.2}From field to spectrum: the forward model}{58}{section.B.2}%
-\contentsline {paragraph}{Gaussian kernel normalized to unit area.}{59}{section*.59}%
+\contentsline {paragraph}{Gaussian kernel normalized to unit area.}{59}{section*.60}%
 \contentsline {section}{\numberline {B.3}Why "Voigt-based"}{59}{section.B.3}%
-\contentsline {paragraph}{The dual reading of the Gaussian broadening.}{59}{section*.60}%
+\contentsline {paragraph}{The dual reading of the Gaussian broadening.}{59}{section*.61}%
 \contentsline {section}{\numberline {B.4}Least-squares problem and parametrization}{59}{section.B.4}%
 \contentsline {section}{\numberline {B.5}Areas, populations and percentages}{60}{section.B.5}%
 \contentsline {section}{\numberline {B.6}Correlation $\delta (H)$ and $\Delta E_{Q}(H)$}{61}{section.B.6}%
@@ -165,7 +166,7 @@
 \contentsline {section}{\numberline {D.1}Motivation}{66}{section.D.1}%
 \contentsline {section}{\numberline {D.2}Spectral model}{66}{section.D.2}%
 \contentsline {section}{\numberline {D.3}2D regularization}{66}{section.D.3}%
-\contentsline {paragraph}{Dimensionless $\alpha _B$, $\alpha _Q$.}{67}{section*.64}%
+\contentsline {paragraph}{Dimensionless $\alpha _B$, $\alpha _Q$.}{67}{section*.65}%
 \contentsline {section}{\numberline {D.4}Marginals, moments and correlation}{67}{section.D.4}%
 \contentsline {section}{\numberline {D.5}Simultaneous sharp components}{68}{section.D.5}%
 \contentsline {section}{\numberline {D.6}Choosing $\alpha _B$ and $\alpha _Q$}{68}{section.D.6}%
