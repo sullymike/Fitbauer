@@ -1,5 +1,17 @@
 # Changelog
 
+## Sin publicar
+
+- **El Czjzek de NORMOS se importa como forma Czjzek.** Una sonda del binario
+  de NORMOS-DIST (09.09.1993, `DISTRI=4` con `METHOD=6`) muestra que usa
+  exactamente la misma P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) que la forma «Czjzek» de
+  Fitbauer —exponente 4.000 y residuos al nivel del redondeo de su tabla—, con
+  σ² = STG² + DTQ²: NORMOS ensancha su STG con el paso de la malla (σ al 1e-5
+  con DTQ de 0.06 a 0.36; no depende de QUA ni de WID). Los `.JOB` con
+  `DISTRI=4` y `METHOD=6` se importan ahora con la forma Czjzek y un aviso con
+  el σ equivalente (antes, como histograma). Con otro `METHOD`, o con sextetes
+  de campo fijo, siguen como histograma. Test con la tabla de pesos de NORMOS.
+
 ## v5.2.1 — informes y exportación de distribuciones, forma de Czjzek y matriz de correlación
 
 - **Media y anchura de P rotuladas como tales.** En el panel, la matriz de

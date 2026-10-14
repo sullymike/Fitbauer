@@ -351,8 +351,12 @@ El importador avisa de cada uno de estos puntos, porque lo que \emph{no} se ha
 traducido importa tanto como lo que sí:
 
 \begin{itemize}[nosep]
-  \item Distribuciones Czjzek / Le Caër (\code{DISTRI=4}) y el modelo de vecinos
-        de Billard--Chamberod (\code{METHOD=3}).
+  \item El Czjzek de NORMOS fuera del cuadrupolo (\code{DISTRI=4} con
+        \code{METHOD}~$\neq$~6) y el modelo de vecinos de Billard--Chamberod
+        (\code{METHOD=3}). \code{DISTRI=4} con \code{METHOD=6} sí se traslada,
+        a la forma Czjzek (§\ref{sec:forma-czjzek}): es la misma $P$, con
+        $\sigma^2=\mathrm{STG}^2+\mathrm{DTQ}^2$ (comprobado con el binario de
+        NORMOS-DIST).
   \item Varios bloques de distribución solapados: Fitbauer maneja uno.
   \item El parámetro de suavizado \code{LAMDA}. El de NORMOS es absoluto y el
         $\alpha$ de Fitbauer adimensional, así que no hay conversión uno a uno:

@@ -119,9 +119,12 @@ permite reproducir sus ajustes.
 El importador avisa de cada uno de estos puntos, porque lo que **no** se ha
 traducido importa tanto como lo que sí:
 
-- Distribuciones Czjzek / Le Caër (`DISTRI=4`): se importan como histograma.
-  Fitbauer tiene las formas «Czjzek» y «Czjzek extendido» para P(ΔEQ), pero no
-  se ha comprobado que su parametrización coincida con la de NORMOS.
+- El Czjzek de NORMOS fuera del cuadrupolo (`DISTRI=4` con `METHOD` ≠ 6), que
+  se importa como histograma. Con `METHOD=6` sí se traslada, a la forma
+  «Czjzek»: una sonda del binario de NORMOS-DIST (09.09.1993) da exactamente la
+  misma P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²), con **σ² = STG² + DTQ²** (exponente 4.000 y σ
+  al 1e-5 con DTQ de 0.06 a 0.36; no depende de QUA ni de WID). En Fitbauer σ
+  se ajusta siempre; el aviso de importación da el σ equivalente.
 - El modelo de vecinos de Billard–Chamberod (`METHOD=3`).
 - Varios bloques de distribución solapados: Fitbauer maneja uno.
 - El parámetro de suavizado `LAMDA`. El de NORMOS es absoluto y el `alpha` de

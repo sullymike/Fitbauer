@@ -49,7 +49,9 @@ amplitud libre no negativa, ajustada junto a la distribución.
   fija (≈ 0.32). La versión extendida añade un tensor ordenado de norma ΔEQ₀; con
   ΔEQ₀ ≫ σ tiende a una gaussiana. Los dobletes solo ven la marginal de |ΔEQ| (ni η ni
   el signo). Admite κδ y nítidos; el informe da σ y ΔEQ₀ con su error. Para decidir
-  entre Czjzek, Gaussiana o Histograma, compara su AIC/BIC.
+  entre Czjzek, Gaussiana o Histograma, compara su AIC/BIC. Es el `DISTRI=4` con
+  `METHOD=6` de NORMOS-DIST, con σ² = STG² + DTQ² (comprobado con su binario), y los
+  `.JOB` así se importan con esta forma.
 
 - **Cotas de la anchura de las gaussianas.** En Gaussiana y VBF la anchura σ, común a
   todas las gaussianas, se puede acotar con **σ mín / σ máx** (unidades de la variable;

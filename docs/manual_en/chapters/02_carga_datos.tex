@@ -350,8 +350,12 @@ The importer warns about each of these, because what was \emph{not} translated
 matters as much as what was:
 
 \begin{itemize}[nosep]
-  \item Czjzek / Le Caër distributions (\code{DISTRI=4}) and the
-        Billard--Chamberod neighbour model (\code{METHOD=3}).
+  \item NORMOS's Czjzek outside the quadrupole (\code{DISTRI=4} with
+        \code{METHOD}~$\neq$~6) and the Billard--Chamberod neighbour model
+        (\code{METHOD=3}). \code{DISTRI=4} with \code{METHOD=6} is carried
+        over, to the Czjzek shape (\S\ref{sec:forma-czjzek}): it is the same
+        $P$, with $\sigma^2=\mathrm{STG}^2+\mathrm{DTQ}^2$ (checked against the
+        NORMOS-DIST binary).
   \item Several overlapping distribution blocks: Fitbauer handles one.
   \item The \code{LAMDA} smoothing parameter. NORMOS's is absolute and
         Fitbauer's $\alpha$ is dimensionless, so there is no one-to-one

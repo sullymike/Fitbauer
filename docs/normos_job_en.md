@@ -117,9 +117,12 @@ makes its fits reproducible.
 The importer warns about each of these, because what was **not** translated matters
 as much as what was:
 
-- Czjzek / Le Caër distributions (`DISTRI=4`): imported as a histogram. Fitbauer
-  has the «Czjzek» and «Extended Czjzek» shapes for P(ΔEQ), but their
-  parametrisation has not been checked against NORMOS.
+- NORMOS's Czjzek outside the quadrupole (`DISTRI=4` with `METHOD` ≠ 6), which
+  is imported as a histogram. With `METHOD=6` it is carried over, to the
+  «Czjzek» shape: a probe of the NORMOS-DIST binary (09.09.1993) gives exactly
+  the same P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²), with **σ² = STG² + DTQ²** (exponent 4.000
+  and σ to 1e-5 with DTQ from 0.06 to 0.36; independent of QUA and WID). In
+  Fitbauer σ is always fitted; the import warning gives the equivalent σ.
 - The Billard–Chamberod neighbour model (`METHOD=3`).
 - Several overlapping distribution blocks: Fitbauer handles one.
 - The `LAMDA` smoothing parameter. NORMOS's is absolute and Fitbauer's `alpha` is

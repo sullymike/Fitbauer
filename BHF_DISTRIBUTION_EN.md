@@ -50,7 +50,9 @@ non-negative amplitude, fitted together with the distribution.
   tensor of norm ΔEQ₀; with ΔEQ₀ ≫ σ it tends to a Gaussian. Doublets only see the
   marginal of |ΔEQ| (neither η nor the sign). It accepts κδ and sharp components; the
   report gives σ and ΔEQ₀ with their errors. To choose between Czjzek, Gaussian or
-  Histogram, compare their AIC/BIC.
+  Histogram, compare their AIC/BIC. It is NORMOS-DIST's `DISTRI=4` with `METHOD=6`,
+  with σ² = STG² + DTQ² (checked against its binary), and such `.JOB` files are
+  imported with this shape.
 
 - **Width bounds of the Gaussians.** In the Gaussian and VBF shapes the width σ, common
   to all the Gaussians, can be bounded with **σ min / σ max** (units of the variable;
