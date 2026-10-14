@@ -102,8 +102,8 @@ def correlation_figure(corr: dict | None, title: str = ""):
     ax = fig.add_subplot(111)
     import matplotlib
 
-    cmap = matplotlib.colormaps["RdBu_r"].copy()
-    cmap.set_bad("#d1d5db")                  # diagonal y parejas sin dato
+    # Gris para la diagonal y las parejas sin dato.
+    cmap = matplotlib.colormaps["RdBu_r"].with_extremes(bad="#d1d5db")
     m_plot = np.array(m, dtype=float)
     np.fill_diagonal(m_plot, np.nan)
     im = ax.imshow(np.ma.masked_invalid(m_plot), cmap=cmap, vmin=-1, vmax=1)
