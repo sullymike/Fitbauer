@@ -1,6 +1,6 @@
 # Changelog
 
-## Sin publicar
+## v5.2.1 — informes y exportación de distribuciones, forma de Czjzek y matriz de correlación
 
 - **Media y anchura de P rotuladas como tales.** En el panel, la matriz de
   correlación y el informe, ⟨ΔEQ⟩ y σ(ΔEQ) pasan a «⟨ΔEQ⟩ media de P» y
