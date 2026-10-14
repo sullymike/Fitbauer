@@ -2,6 +2,21 @@
 
 ## Sin publicar
 
+- **Informes de distribución.** En modo distribución, el informe completo y el
+  reducido (Markdown y PDF) mostraban el componente discreto de los paneles —un
+  sextete que no formaba parte del ajuste—, un RMS que era el del modelo
+  discreto y la figura del espectro, y nada más. Ahora cuentan el ajuste hecho:
+  montaje (modo, forma, regularizador, α, malla); bondad (N, χ², k, ν, χ²ᵣ,
+  AIC y BIC con la misma definición que el discreto, para poder comparar
+  modelos, RMS, autocorrelación lag-1 y test de rachas del residuo);
+  parámetros globales con su σ y si se refinaron (δ corregido si hay
+  calibración); la distribución (media, σ, moda, gaussianas VBF/2D,
+  binomial); los componentes nítidos con su profundidad ajustada, y avisos
+  (peso acumulado en el borde de la malla, que se calculaba pero no se
+  mostraba en ningún sitio, y el aviso del panel). Los PDF añaden la figura
+  de P(x) con su banda o el mapa 2D del ajuste actual (antes, el del último
+  diálogo 2D abierto, aunque fuera de otro ajuste). Glosario sin los
+  parámetros exclusivos del discreto y con P(x), α, κ, k y ν. 8 idiomas.
 - **Exportar los datos de la distribución.** Botón «Guardar datos…» en los
   diálogos de P(x) y del mapa 2D, y **Archivo → Exportar distribución…**:
   TSV con la variable, P normalizada, σ de P (banda Monte Carlo), el peso y las

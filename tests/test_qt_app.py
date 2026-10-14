@@ -1027,6 +1027,49 @@ def test_informe_se_genera_en_todos_los_idiomas(win):
         set_language(original)
 
 
+@pytest.mark.parametrize("modo", [1, 4])                  # P(BHF) 1D y P(BHF, ΔEQ) 2D
+def test_informe_de_distribucion(win, tmp_path, modo):
+    """En modo distribución el informe cuenta el ajuste de distribución
+    (bondad, globales con σ, la distribución) y no los paneles discretos;
+    los PDF llevan la figura de P o el mapa del resultado actual."""
+    import re
+    from mossbauer_i18n import get_language, set_language, tr
+    win._load_file(DATA / "sintetico_dist_bhf_bimodal.adt")
+    win._show_distribution_dialog = lambda r: None
+    win.mode_combo.setCurrentIndex(modo)
+    d = win.dist_panel
+    if modo == 4:
+        d.nbins.set_value(12)
+        d.shape_combo.setCurrentIndex(d.shape_combo.findData("Gaussiana 2D"))
+    else:
+        d.nbins.set_value(30)
+        d.gamma.set_fixed(False)
+    win.on_fit()
+    completo = "\n".join(win._build_report_lines())
+    corto = "\n".join(win._build_short_report_lines())
+    for texto in (completo, corto):
+        assert "χ²ᵣ" in texto and "AIC" in texto
+        assert tr("rep.globals_header") in texto
+        assert tr("rep.sec_components") not in texto       # nada del discreto
+        assert "s1_" not in texto
+    assert tr("rep.dist_stats_header") in completo
+    assert tr("rep.resid_diag") in completo
+    if modo == 1:
+        assert re.search(r"\| Γ \| [0-9.]+ mm/s \| ± [0-9.e-]+ \|", completo)
+    win._render_pdf_report(tmp_path / "c.pdf", win._build_report_lines())
+    win._render_short_pdf_report(tmp_path / "r.pdf")
+    assert (tmp_path / "c.pdf").stat().st_size > 0 and (tmp_path / "r.pdf").stat().st_size > 0
+    assert win._distribution_report_figure() is not None
+    original = get_language()
+    try:
+        for lang in ("en", "ja"):
+            set_language(lang)
+            texto = "\n".join(win._build_report_lines() + win._build_short_report_lines())
+            assert not re.search(r"\brep\.[a-z_]+", texto), lang
+    finally:
+        set_language(original)
+
+
 def test_auto_fit_from_minima(win):
     """Auto-fit = init + fit; sobre α-Fe recupera BHF≈33."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")

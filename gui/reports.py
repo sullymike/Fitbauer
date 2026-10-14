@@ -31,18 +31,30 @@ def error_source_text(source: str) -> str:
 
 
 class ReportMixin:
-    def _distribution_report_lines(self, *, short: bool = False) -> list[str]:
-        """Bloque de informe del ajuste de distribución P(BHF)/P(ΔEQ).
+    def _distribution_report_active(self) -> bool:
+        """¿El informe es de distribución? (modo distribución en la GUI)."""
+        return bool(getattr(self, "is_distribution_mode", False))
 
-        Devuelve ``[]`` si no hay un resultado de distribución activo. Cubre
-        forma, regularizador, α, correlación δ(H)/ΔEQ(H) (κδ/κq), componentes
-        VBF y nítidos, y estadísticos de la distribución.
+    def _distribution_report_lines(self, *, short: bool = False) -> list[str]:
+        """Bloque de informe del ajuste de distribución (1D y 2D).
+
+        Completo: montaje (modo, forma, regularizador, α, malla), bondad del
+        ajuste (χ², ν, χ²ᵣ, AIC/BIC comparables con el discreto, RMS y
+        diagnóstico del residuo), parámetros globales con su σ, la
+        distribución (media, σ, moda, gaussianas VBF/2D, binomial), los
+        componentes nítidos y los avisos. Reducido: una línea de montaje, otra
+        de bondad y la tabla de globales. ``[]`` si no hay resultado.
         """
+        import html
+        import re
+
         import numpy as np
         result = getattr(self.runtime_results, "distribution_result", None)
         if result is None:
             return []
         view = distribution_result_view(result)
+        s = self._distribution_summary(result)
+        g, m = s["goodness"], s["moments"]
 
         def _fmt(v, nd=".6g"):
             try:
@@ -53,93 +65,161 @@ class ReportMixin:
         shape = getattr(result, "shape", None) or "—"
         reg_mode = getattr(result, "reg_mode", None)
         is_2d = view.is_2d()
-        # Solo el histograma 2D («2D») está regularizado; Gaussiana/VBF 2D no.
         regularized_2d = is_2d and shape == "2D"
         _short = {"bhf": "BHF", "quad": "ΔEQ", "delta": "δ"}
         x2 = _short.get(getattr(result, "x_variable", "bhf"), "BHF")
         y2 = _short.get(getattr(result, "y_variable", "quad"), "ΔEQ")
+        var = s["variable"] or "bhf"
+        var_lbl = _short.get(var, "BHF")
+        unit = "T" if var == "bhf" else "mm/s"
+        modo = f"P({x2}, {y2})" if is_2d else f"P({ {'delta': 'IS'}.get(var, var_lbl) })"
+        iso_ref = self.calibration_iso_ref()
 
-        # Media y σ de la distribución 1D a partir de centros + pesos.
-        mean_x = std_x = None
-        try:
-            if not is_2d:
-                x = np.asarray(result.bhf_centers, dtype=float)
-                w = np.asarray(result.weights, dtype=float)
-                wsum = float(w.sum())
-                if wsum > 0:
-                    mean_x = float(np.sum(x * w) / wsum)
-                    std_x = float(np.sqrt(max(0.0, np.sum(w * (x - mean_x) ** 2) / wsum)))
-        except Exception:
-            mean_x, std_x = None, None
+        def _bondad_bits() -> list[str]:
+            bits = []
+            if "red_chi2" in g:
+                bits.append(f"χ²ᵣ = **{g['red_chi2']:.4g}**")
+            if "chi2" in g:
+                bits.append(f"χ² = {g['chi2']:.4g}")
+            if "dof" in g:
+                bits.append(f"ν = {g['dof']:.4g}")
+            for k, lbl in (("aic", "AIC"), ("bic", "BIC")):
+                if k in g:
+                    bits.append(f"{lbl} = {g[k]:.4g}")
+            return bits
 
-        var_lbl = "ΔEQ" if getattr(result, "x_variable", "bhf") == "quad" else (
-            "δ" if getattr(result, "x_variable", "bhf") == "delta" else "BHF")
-        unit = "mm/s" if var_lbl in ("ΔEQ", "δ") else "T"
+        def _tabla_globales() -> list[str]:
+            if not s["globals"]:
+                return []
+            out = [f"| {_r('col_param')} | {_r('col_value')} | σ | {_r('col_state')} |",
+                   "|---|---|---|---|"]
+            for f in s["globals"]:
+                err = f"± {f['sigma']:.3g}" if f["sigma"] else "—"
+                estado = f"🔓 {_r('free')}" if f["free"] else f"🔒 {_r('fixed')}"
+                out.append(f"| {f['label']} | {f['value']:.6g} {f['unit']} | {err} | {estado} |")
+                if f["key"] == "dist_delta" and iso_ref is not None:
+                    out.append(f"| {_r('delta_corr')} (iso_ref = {iso_ref:.6g}) | "
+                               f"**{f['value'] - iso_ref:.6g} mm/s** | {err} | |")
+            return out
 
         lines: list[str] = []
         if short:
-            bits = [_r("dist_short_shape", shape=shape)]
+            bits = [modo, _r("dist_short_shape", shape=shape)]
             if reg_mode:
                 bits.append(_r("dist_short_reg", mode=reg_mode))
             if regularized_2d:
                 bits.append(f"α{x2}={_fmt(getattr(result, 'alpha_bhf', None), '.3g')}")
                 bits.append(f"α{y2}={_fmt(getattr(result, 'alpha_quad', None), '.3g')}")
-            elif not is_2d:
+            elif not is_2d and shape == "Histograma":
                 bits.append(f"α={_fmt(getattr(result, 'alpha', None), '.3g')}")
-            if mean_x is not None:
-                bits.append(f"⟨{var_lbl}⟩={_fmt(mean_x, '.4g')} {unit}")
-            if std_x is not None:
-                bits.append(f"σ={_fmt(std_x, '.3g')} {unit}")
-            dsl = float(getattr(result, "delta_slope", 0.0) or 0.0)
-            qsl = float(getattr(result, "quad_slope", 0.0) or 0.0)
-            if dsl:
-                bits.append(f"κδ={_fmt(dsl, '.3g')}")
-            if qsl:
-                bits.append(f"κq={_fmt(qsl, '.3g')}")
+            if m:
+                bits.append(f"⟨{var_lbl}⟩={m['mean']:.4g} {unit}")
+                bits.append(f"σ={m['std']:.3g} {unit}")
             lines.append(f"**{_r('dist_label')}:** " + " · ".join(bits))
             lines.append("")
+            if _bondad_bits():
+                lines.append("> " + " · ".join(_bondad_bits()))
+                lines.append("")
+            tabla = _tabla_globales()
+            if tabla:
+                lines.append(f"## {_r('globals_header')}")
+                lines.append("")
+                lines.extend(tabla)
+                lines.append("")
             return lines
 
+        # ── Montaje ─────────────────────────────────────────────────────
         lines.append(f"## 🌫️ {_r('dist_header')}")
         lines.append("")
         lines.append(f"| {_r('col_field')} | {_r('col_value')} |")
         lines.append("|---|---|")
+        lines.append(f"| {_r('dist_mode')} | {modo} |")
         lines.append(f"| {_r('shape')} | {shape} |")
-        if reg_mode:
+        if reg_mode and (shape == "Histograma" or regularized_2d):
             lines.append(f"| {_r('regularizer')} | {reg_mode} |")
-        lines.append(f"| {_r('variable')} | {var_lbl} |")
         if regularized_2d:
             lines.append(f"| α ({x2}) | {_fmt(getattr(result, 'alpha_bhf', None))} |")
             lines.append(f"| α ({y2}) | {_fmt(getattr(result, 'alpha_quad', None))} |")
-        elif not is_2d:
+        elif not is_2d and shape == "Histograma":
             lines.append(f"| {_r('alpha_reg')} | {_fmt(getattr(result, 'alpha', None))} |")
+        ejes = [(x2, view.result.bhf_centers)]
+        if is_2d:
+            ejes.append((y2, view.result.quad_centers))
+        for lbl, c in ejes:
+            c = np.asarray(c, dtype=float)
+            if c.size:
+                lines.append(f"| {_r('grid')} ({lbl}) | {c.min():.4g} – {c.max():.4g}, "
+                             f"{_r('n_bins', n=c.size)} |")
         lines.append(f"| {_r('baseline')} | {_fmt(result.baseline)} |")
         lines.append(f"| {_r('bg_slope')} | {_fmt(result.slope)} |")
-        lines.append(f"| RMS | {_fmt(result.rms)} |")
-        eff = getattr(result, "effective_dof", None)
-        if eff is not None:
-            lines.append(f"| {_r('eff_dof')} | {_fmt(eff)} |")
-        if mean_x is not None:
-            lines.append(f"| ⟨{var_lbl}⟩ ({_r('mean')}) | {_fmt(mean_x)} {unit} |")
-        if std_x is not None:
-            lines.append(f"| σ ({var_lbl}) | {_fmt(std_x)} {unit} |")
-        # Correlación δ(H)/ΔEQ(H)
-        dsl = float(getattr(result, "delta_slope", 0.0) or 0.0)
-        qsl = float(getattr(result, "quad_slope", 0.0) or 0.0)
-        if dsl or qsl:
-            lines.append(f"| κδ = dδ/dH | {_fmt(dsl)} mm/s·T⁻¹ |")
-            lines.append(f"| κq = dΔEQ/dH | {_fmt(qsl)} mm/s·T⁻¹ |")
-        # Estadísticos paramétricos (Gaussiana/Binomial)
-        for key, lbl in (("fitted_dist_center", _r("param_center")),
-                         ("fitted_dist_sigma", _r("param_sigma")),
-                         ("fitted_dist_p", _r("binom_c")),
+        lines.append("")
+
+        # ── Bondad del ajuste ───────────────────────────────────────────
+        lines.append(f"### 📐 {_r('sec_goodness')}")
+        lines.append("")
+        lines.append(f"| {_r('col_indicator')} | {_r('col_value')} |")
+        lines.append("|---|---|")
+        lines.append(f"| {_r('n_points')} | {int(g['n_points'])} |")
+        if "chi2" in g:
+            lines.append(f"| χ² | {g['chi2']:.6g} |")
+        if "n_params" in g:
+            lines.append(f"| {_r('k_dist')} | {g['n_params']:.4g} |")
+        if "dof" in g:
+            lines.append(f"| ν = N − k | {g['dof']:.6g} |")
+        if "red_chi2" in g:
+            lines.append(f"| {_r('red_chi2')} | {g['red_chi2']:.6g} |")
+        for k, lbl in (("aic", "AIC"), ("bic", "BIC")):
+            if k in g:
+                lines.append(f"| {lbl} | {g[k]:.6g} |")
+        lines.append(f"| {_r('fit_rms')} | {g['rms']:.6g} |")
+        lines.append("")
+        if not s["has_sigma"]:
+            lines.append(f"> ⚠️ {_r('dist_no_sigma')}")
+            lines.append("")
+        elif "aic" in g:
+            lines.append(f"> ℹ️ {_r('dist_aic_note')}")
+            lines.append("")
+        lag1, runs = g.get("resid_lag1"), g.get("resid_runs_z")
+        if lag1 is not None and lag1 == lag1:
+            lines.append(f"**{_r('resid_diag')}**")
+            lines.append("")
+            lines.append(f"| {_r('col_statistic')} | {_r('col_value')} | {_r('col_threshold')} |")
+            lines.append("|---|---|---|")
+            lines.append(f"| {_r('lag1')} | {lag1:.3f} | ∉ [−0.35, 0.35] |")
+            if runs is not None and runs == runs:
+                lines.append(f"| {_r('runs')} | {runs:.3f} | ∉ [−2, 2] |")
+            lines.append("")
+            if abs(lag1) > 0.35 or (runs is not None and runs == runs and abs(runs) > 2.0):
+                lines.append(f"> ⚠️ {_r('resid_warning')}")
+                lines.append("")
+
+        # ── Parámetros globales ─────────────────────────────────────────
+        tabla = _tabla_globales()
+        if tabla:
+            lines.append(f"### 🎚️ {_r('globals_header')}")
+            lines.append("")
+            lines.extend(tabla)
+            lines.append("")
+            for a, b, r in s["high_corr"]:
+                lines.append(f"> ⚠️ {_r('high_corr')}: {a} ↔ {b}, r = {r:.3f}")
+                lines.append("")
+
+        # ── La distribución ─────────────────────────────────────────────
+        lines.append(f"### 📊 {_r('dist_stats_header')}")
+        lines.append("")
+        lines.append(f"| {_r('col_quantity')} | {_r('col_value')} |")
+        lines.append("|---|---|")
+        if m:
+            lines.append(f"| ⟨{var_lbl}⟩ ({_r('mean')}) | {m['mean']:.6g} {unit} |")
+            lines.append(f"| σ ({var_lbl}) | {m['std']:.6g} {unit} |")
+            lines.append(f"| {_r('mode_peak')} | {m['mode']:.6g} {unit} |")
+        for key, lbl in (("fitted_dist_p", _r("binom_c")),
                          ("binomial_n", _r("binom_n")),
                          ("binomial_start", _r("binom_start")),
                          ("binomial_step", _r("binom_step"))):
             val = getattr(result, key, None)
             if val is not None:
                 lines.append(f"| {lbl} | {_fmt(val)} |")
-        # Límites σ aplicados a las gaussianas (VBF/Gaussiana, 1D y 2D).
         sb = getattr(result, "vbf_sigma_bounds", None)
         if sb:
             lines.append(f"| {_r('vbf_sigma_bounds')} ({var_lbl}) | "
@@ -152,7 +232,6 @@ class ReportMixin:
                 u_ax = "T" if var_ax == "bhf" else "mm/s"
                 lines.append(f"| {_r('vbf_sigma_bounds')} ({lbl_ax}) | "
                              f"{_fmt(s_lo, '.4g')} – {_fmt(s_hi, '.4g')} {u_ax} |")
-        # Estadísticos 2D
         if is_2d:
             for key, lbl in (("mean_bhf", f"⟨{x2}⟩"), ("mean_quad", f"⟨{y2}⟩"),
                              ("sigma_bhf", f"σ({x2})"), ("sigma_quad", f"σ({y2})"),
@@ -160,39 +239,26 @@ class ReportMixin:
                 val = getattr(result, key, None)
                 if val is not None:
                     lines.append(f"| {lbl} | {_fmt(val)} |")
+        if getattr(result, "probability_sigma", None) is not None:
+            lines.append(f"| σ(P) | {_r('dist_band_note')} |")
         lines.append("")
 
-        # Componentes VBF (multi-gaussiano)
         vbf = getattr(result, "vbf_components", None)
         if vbf:
-            lines.append(f"### {_r('vbf_header')}")
+            lines.append(f"**{_r('vbf_header')}**")
             lines.append("")
-            # A_k es el área (integral) de cada gaussiana: gauss_weights está
-            # normalizada a área unidad, así que A_k = área y A_k/ΣA = fracción.
-            areas = []
-            for comp in vbf:
-                try:
-                    areas.append(max(float(comp[0]), 0.0))
-                except Exception:
-                    areas.append(0.0)
-            area_tot = sum(areas)
+            # A_k es el área de cada gaussiana (normalizadas a área unidad).
+            area_tot = sum(max(float(c[0]), 0.0) for c in vbf)
             lines.append(f"| # | {_r('col_area_a')} | {_r('col_area_pct')} | μ ({unit}) | σ ({unit}) |")
             lines.append("|---|---|---|---|---|")
-            for i, comp in enumerate(vbf, start=1):
-                try:
-                    a, mu, sg = comp
-                    frac = (100.0 * float(a) / area_tot) if area_tot > 0 else 0.0
-                    lines.append(
-                        f"| {i} | {_fmt(a, '.4g')} | {_fmt(frac, '.1f')} | "
-                        f"{_fmt(mu, '.4g')} | {_fmt(sg, '.4g')} |")
-                except Exception:
-                    pass
+            for i, (a, mu, sg) in enumerate(vbf, start=1):
+                frac = (100.0 * float(a) / area_tot) if area_tot > 0 else 0.0
+                lines.append(f"| {i} | {_fmt(a, '.4g')} | {_fmt(frac, '.1f')} | "
+                             f"{_fmt(mu, '.4g')} | {_fmt(sg, '.4g')} |")
             lines.append("")
-
-        # Gaussianas bivariantes (Gaussiana 2D / VBF 2D)
         g2 = getattr(result, "vbf2d_components", None)
         if g2:
-            lines.append(f"### {_r('g2d_header')}")
+            lines.append(f"**{_r('g2d_header')}**")
             lines.append("")
             area_tot = sum(float(c[0]) for c in g2)
             lines.append(f"| # | {_r('col_area_a')} | {_r('col_area_pct')} | μ {x2} | μ {y2} | σ {x2} | σ {y2} | ρ |")
@@ -204,24 +270,85 @@ class ReportMixin:
                     f"{_fmt(my, '.4g')} | {_fmt(sx, '.4g')} | {_fmt(sy, '.4g')} | {_fmt(rho, '.3f')} |")
             lines.append("")
 
-        # Componentes nítidos
+        # ── Componentes nítidos ─────────────────────────────────────────
         sw = getattr(result, "sharp_weights", None)
-        sc = getattr(result, "sharp_bhf_centers", None)
-        try:
-            if sw is not None and np.asarray(sw).size:
-                sw = np.asarray(sw, dtype=float)
-                sc = np.asarray(sc, dtype=float) if sc is not None else None
-                lines.append(f"### {_r('sharp_header')}")
-                lines.append("")
-                lines.append(f"| # | {_r('col_center_t')} | {_r('col_weight')} |")
-                lines.append("|---|---|---|")
-                for i in range(sw.size):
-                    c = _fmt(sc[i], '.4g') if sc is not None and i < sc.size else "—"
-                    lines.append(f"| {i + 1} | {c} | {_fmt(sw[i], '.4g')} |")
-                lines.append("")
-        except Exception:
-            pass
+        sharp, indices = self._active_sharp_components_for_distribution()
+        if sw is not None and np.asarray(sw).size and sharp and len(indices) == np.asarray(sw).size:
+            lines.append(f"### 🔹 {_r('sharp_header')}")
+            lines.append("")
+            lines.append(f"| # | {_r('col_type')} | δ (mm/s) | ΔEQ (mm/s) | BHF (T) | Γ (mm/s) | {_r('depth')} |")
+            lines.append("|---|---|---|---|---|---|---|")
+            for idx, comp, w in zip(indices, sharp, np.asarray(sw, dtype=float)):
+                kind = tr(f"kind.{comp['kind']}", default=comp["kind"])
+                bhf = f"{comp['bhf']:.5g}" if comp["kind"] in (
+                    "Sextete", "Relajacion", "BlumeTjon", "NeelSize") else "—"
+                quad = f"{comp['quad']:.4g}" if comp["kind"] != "Singlete" else "—"
+                lines.append(f"| {idx} | {kind} | {comp['delta']:.4g} | {quad} | {bhf} | "
+                             f"{comp['gamma']:.4g} | {w:.4g} |")
+            lines.append("")
 
+        # ── Avisos ──────────────────────────────────────────────────────
+        avisos = []
+        pile = getattr(result, "edge_pileup", None)
+        if pile is not None and pile > 0.3:
+            avisos.append(_r("dist_edge_pileup", pct=f"{100.0 * pile:.0f}"))
+        if getattr(result, "dof_warning", None):
+            avisos.append(str(result.dof_warning))
+        panel = getattr(getattr(self, "dist_panel", None), "var_warning", None)
+        if panel is not None and panel.text():
+            txt = html.unescape(re.sub(r"<a\b.*?</a>", "", panel.text()))
+            avisos.append(re.sub(r"<[^>]+>", "", txt).strip().lstrip("⚠").strip())
+        if avisos:
+            lines.append(f"### ⚠️ {_r('warnings_header')}")
+            lines.append("")
+            for a in avisos:
+                lines.append(f"> ⚠️ {a}")
+                lines.append("")
+        return lines
+
+    def _distribution_report_figure(self):
+        """Figura de la distribución para el PDF (P(x) o el mapa 2D), o None."""
+        result = getattr(self.runtime_results, "distribution_result", None)
+        if result is None or not self._distribution_report_active():
+            return None
+        try:
+            if distribution_result_view(result).is_2d():
+                return self._distribution_figure_2d(result)
+            return self._distribution_figure_1d(result)[0]
+        except Exception:
+            return None
+
+    def _glossary_lines(self, *, distribution: bool = False) -> list[str]:
+        """Glosario del informe; en distribución, sin los parámetros que solo
+        tiene el ajuste discreto y con α, κ y P(x)."""
+        lines: list[str] = []
+        filas = (
+            ("δ", "gl_delta", "mm/s", "gl_delta_note"),
+            ("ΔEQ (`quad`)", "gl_quad", "mm/s", "gl_quad_note"),
+            ("BHF", "gl_bhf", "T", "gl_bhf_note"),
+            ("Γ (FWHM)", "gl_gamma", "mm/s", "gl_gamma_note"),
+            ("`depth`", "gl_depth", "(rel.)", "gl_depth_note"),
+            ("`int1/2/3`", "gl_int", "(rel.)", "gl_int_note"),
+            ("`texture` (t)", "gl_texture", "(0–1)", "gl_texture_note"),
+            ("`beta` (β)", "gl_beta", "°", "gl_beta_note"),
+            ("`voigt_sigma`", "gl_voigt", "mm/s", "gl_voigt_note"),
+            ("`sat_scale`", "gl_sat", "(rel.)", "gl_sat_note"),
+            ("`baseline` / `slope`", "baseline", "(rel.)", "gl_baseline_note"),
+            ("Vmax (`vmax`)", "gl_vmax", "mm/s", "gl_vmax_note"))
+        if distribution:
+            solo_discreto = {"gl_depth", "gl_int", "gl_texture", "gl_beta", "gl_sat"}
+            filas = tuple(f for f in filas if f[1] not in solo_discreto) + (
+                ("P(x)", "gl_p", "—", "gl_p_note"),
+                ("α", "gl_alpha", "—", "gl_alpha_note"),
+                ("κδ / κq", "gl_kappa", "mm/s·T⁻¹ / —", "gl_kappa_note"),
+                ("k, ν", "gl_k", "—", "gl_k_note"))
+        lines.append(f"## 📖 {_r('sec_glossary')}")
+        lines.append("")
+        lines.append(f"| {_r('col_symbol')} | {_r('col_quantity')} | {_r('col_unit')} | {_r('col_remark')} |")
+        lines.append("|---|---|---|---|")
+        for sym, name, unit, note in filas:
+            lines.append(f"| {sym} | {_r(name)} | {unit} | {_r(note)} |")
+        lines.append("")
         return lines
 
     # ── Copiar resultados al portapapeles ────────────────────────────────
@@ -352,7 +479,27 @@ class ReportMixin:
         )
         lines.append("")
 
-        if fit_view is not None and fit_view.metrics():
+        dist_mode = self._distribution_report_active()
+        dist_result = getattr(self.runtime_results, "distribution_result", None)
+        if dist_mode and dist_result is not None:
+            g = self._distribution_summary(dist_result)["goodness"]
+            bits = []
+            if "red_chi2" in g:
+                bits.append(f"χ²ᵣ = **{g['red_chi2']:.4g}**")
+            if "chi2" in g:
+                bits.append(f"χ² = {g['chi2']:.4g}")
+            if "dof" in g:
+                bits.append(f"ν = {g['dof']:.4g}")
+            for k, lbl in (("aic", "AIC"), ("bic", "BIC")):
+                if k in g:
+                    bits.append(f"{lbl} = {g[k]:.4g}")
+            lines.append(f"> ### 🎯 {_r('summary_header')}")
+            lines.append("> " + (" · ".join(bits) if bits else f"RMS = {g['rms']:.4g}"))
+            lines.append("")
+        elif dist_mode:
+            lines.append(f"> ⚠️ {_r('no_dist_result')}")
+            lines.append("")
+        elif fit_view is not None and fit_view.metrics():
             st = {metric.key: metric.value for metric in fit_view.metrics()}
             bits = []
             if st.get("red_chi2") is not None:
@@ -374,7 +521,8 @@ class ReportMixin:
             lines.append("")
 
         # ── Ajuste de distribución (si aplica) ──────────────────────────
-        lines.extend(self._distribution_report_lines())
+        if dist_mode:
+            lines.extend(self._distribution_report_lines())
 
         # ── Espectro y plegado ──────────────────────────────────────────
         lines.append(f"## 📁 {_r('sec_spectrum')}")
@@ -430,6 +578,13 @@ class ReportMixin:
             lines.append("")
             lines.append(f"> ⚠️ {_r('no_calib')}")
         lines.append("")
+
+        # En modo distribución lo que sigue (bondad, áreas y componentes del
+        # ajuste discreto, fijados…) describe los paneles discretos, no el
+        # ajuste hecho: solo el glosario.
+        if dist_mode:
+            lines.extend(self._glossary_lines(distribution=True))
+            return lines
 
         # ── Bondad y diagnóstico del ajuste ──────────────────────────────
         stats = ({metric.key: metric.value for metric in fit_view.metrics()} if fit_view is not None else {}) or {}
@@ -635,27 +790,7 @@ class ReportMixin:
                 )
             lines.append("")
 
-        # ── Glosario ─────────────────────────────────────────────────────
-        lines.append(f"## 📖 {_r('sec_glossary')}")
-        lines.append("")
-        lines.append(f"| {_r('col_symbol')} | {_r('col_quantity')} | {_r('col_unit')} | {_r('col_remark')} |")
-        lines.append("|---|---|---|---|")
-        for sym, name, unit, note in (
-                ("δ", "gl_delta", "mm/s", "gl_delta_note"),
-                ("ΔEQ (`quad`)", "gl_quad", "mm/s", "gl_quad_note"),
-                ("BHF", "gl_bhf", "T", "gl_bhf_note"),
-                ("Γ (FWHM)", "gl_gamma", "mm/s", "gl_gamma_note"),
-                ("`depth`", "gl_depth", "(rel.)", "gl_depth_note"),
-                ("`int1/2/3`", "gl_int", "(rel.)", "gl_int_note"),
-                ("`texture` (t)", "gl_texture", "(0–1)", "gl_texture_note"),
-                ("`beta` (β)", "gl_beta", "°", "gl_beta_note"),
-                ("`voigt_sigma`", "gl_voigt", "mm/s", "gl_voigt_note"),
-                ("`sat_scale`", "gl_sat", "(rel.)", "gl_sat_note"),
-                ("`baseline` / `slope`", "baseline", "(rel.)", "gl_baseline_note"),
-                ("Vmax (`vmax`)", "gl_vmax", "mm/s", "gl_vmax_note")):
-            lines.append(f"| {sym} | {_r(name)} | {unit} | {_r(note)} |")
-        lines.append("")
-
+        lines.extend(self._glossary_lines())
         return lines
 
     @staticmethod
@@ -1037,12 +1172,12 @@ class ReportMixin:
                 pdf.savefig(_state["fig"], bbox_inches="tight")
 
             pdf.savefig(self.canvas.fig, bbox_inches="tight")
-            fig2d = getattr(self, "_dist_map_2d_fig", None)
-            if fig2d is not None:
-                try:
-                    pdf.savefig(fig2d, bbox_inches="tight")
-                except Exception:
-                    pass
+            # La figura de la distribución se construye del resultado actual
+            # (antes: la del último diálogo 2D abierto, aunque fuera de otro
+            # ajuste, y ninguna en 1D).
+            fig_dist = self._distribution_report_figure()
+            if fig_dist is not None:
+                pdf.savefig(fig_dist, bbox_inches="tight")
 
     def on_export_report(self) -> None:
         """Exporta un informe Markdown del ajuste actual."""
@@ -1100,6 +1235,17 @@ class ReportMixin:
         lines.append(f"_{datetime.now().strftime('%Y-%m-%d %H:%M')} · {APP_NAME} v{APP_VERSION}_")
         lines.append("")
 
+        # En modo distribución, el resumen del ajuste de distribución (los
+        # paneles discretos no describen el ajuste hecho).
+        if self._distribution_report_active():
+            dist_lines = self._distribution_report_lines(short=True)
+            if not dist_lines:
+                dist_lines = [f"> ⚠️ {_r('no_dist_result')}", ""]
+            if iso_ref is not None:
+                lines.append(f"_{_r('iso_ref_short')}: **{iso_ref:.6g} mm/s**_")
+                lines.append("")
+            return lines + dist_lines
+
         # Métricas de bondad en una sola línea
         if fit_view is not None and fit_view.metrics():
             st = {m.key: m.value for m in fit_view.metrics()}
@@ -1120,9 +1266,6 @@ class ReportMixin:
         if iso_ref is not None:
             lines.append(f"_{_r('iso_ref_short')}: **{iso_ref:.6g} mm/s**_")
             lines.append("")
-
-        # Ajuste de distribución en una línea (si aplica)
-        lines.extend(self._distribution_report_lines(short=True))
 
         # ── Parámetros por componente ───────────────────────────────────
         lines.append(f"## {_r('params')}")
@@ -1272,7 +1415,18 @@ class ReportMixin:
 
         # ── Cabecera ────────────────────────────────────────────────────
         metrics_parts = []
-        if fit_view is not None and fit_view.metrics():
+        dist_mode = self._distribution_report_active()
+        dist_result = getattr(self.runtime_results, "distribution_result", None)
+        if dist_mode:
+            # Los paneles discretos no describen el ajuste de distribución.
+            active_components, pct_active = [], []
+            if dist_result is not None:
+                g = self._distribution_summary(dist_result)["goodness"]
+                for k, lbl, fmt in (("red_chi2", "χ²ᵣ", ".4g"), ("dof", "ν", ".4g"),
+                                    ("aic", "AIC", ".4g"), ("bic", "BIC", ".4g")):
+                    if k in g:
+                        metrics_parts.append(f"{lbl}={g[k]:{fmt}}")
+        elif fit_view is not None and fit_view.metrics():
             st = {m.key: m.value for m in fit_view.metrics()}
             if st.get("red_chi2") is not None:
                 metrics_parts.append(f"χ²ᵣ={st['red_chi2']:.4g}")
@@ -1293,6 +1447,45 @@ class ReportMixin:
         ax.text(LEFT + 0.006, y - HDR_H * 0.52, hdr,
                 color="white", fontsize=FS_HDR, va="center", ha="left")
         y -= HDR_H + GAP * 2
+
+        # ── Ajuste de distribución: los bloques del informe completo ────
+        if dist_mode:
+            md = self._distribution_report_lines() or [f"> {_r('no_dist_result')}"]
+            for kind, data in self._md_to_blocks(md):
+                if kind == "h3":
+                    if y - (LABEL_H + 3 * ROW_H) < BOTTOM + 0.05:
+                        ax = _new_page()
+                        y = TOP
+                    ax.add_patch(Rectangle((LEFT, y - LABEL_H), W, LABEL_H,
+                                           facecolor=LBLUE, edgecolor="none"))
+                    ax.text(LEFT + 0.006, y - LABEL_H * 0.52, self._md_strip_inline(data),
+                            color=BLUE, fontsize=FS_LBL, fontweight="bold",
+                            va="center", ha="left")
+                    y -= LABEL_H
+                elif kind == "table":
+                    header, rows = data
+                    header = [self._md_strip_inline(h) for h in header]
+                    rows = [[self._md_strip_inline(c).replace("\\|", "|") for c in r]
+                            for r in rows]
+                    if y - (len(rows) + 1) * ROW_H - GAP < BOTTOM + 0.02:
+                        ax = _new_page()
+                        y = TOP
+                    n = max(len(header), 1)
+                    fracs = ([0.45, 0.55] if n == 2 else [1.0 / n] * n)
+                    y = _draw_table(ax, y, header, rows, fracs)
+                elif kind == "callout":
+                    import textwrap
+                    partes = [w for ln in data
+                              for w in (textwrap.wrap(self._md_strip_inline(ln), 125) or [""])]
+                    for ln in partes:
+                        if y - 0.016 < BOTTOM + 0.02:
+                            ax = _new_page()
+                            y = TOP
+                        ax.text(LEFT + 0.006, y - 0.002, ln,
+                                color="#374151", fontsize=FS_DRV, fontstyle="italic",
+                                va="top", ha="left")
+                        y -= 0.016
+                    y -= GAP
 
         # ── Componentes activos ─────────────────────────────────────────
         for comp_state in active_components:
@@ -1385,12 +1578,9 @@ class ReportMixin:
             for fig, _ in pages:
                 pdf.savefig(fig, bbox_inches="tight")
             pdf.savefig(self.canvas.fig, bbox_inches="tight")
-            fig2d = getattr(self, "_dist_map_2d_fig", None)
-            if fig2d is not None:
-                try:
-                    pdf.savefig(fig2d, bbox_inches="tight")
-                except Exception:
-                    pass
+            fig_dist = self._distribution_report_figure()
+            if fig_dist is not None:
+                pdf.savefig(fig_dist, bbox_inches="tight")
 
     def _render_odt_report(self, odt_path: Path, md_lines: list[str],
                             fig_png_path: Path | None = None) -> None:

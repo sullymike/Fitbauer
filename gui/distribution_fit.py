@@ -1197,18 +1197,17 @@ class DistributionFitMixin:
         else:
             self._show_distribution_dialog_1d(result)
 
-    def _show_distribution_dialog_1d(self, result) -> None:
+    def _distribution_figure_1d(self, result):
+        """Figura de P(x) 1D con su banda 1σ y la curva δ(x)/ΔEQ(x) si las hay.
+
+        La usan el diálogo y el informe PDF. Devuelve (fig, ax, banda, eje_corr).
+        """
         var = getattr(result, "fit_variable", None) or self.dist_variable
         title = {"quad": "P(ΔEQ)", "delta": "P(IS)"}.get(var, "P(BHF)")
         xlabel = tr({"quad": "plot.distribution_xlabel_deq",
                      "delta": "plot.distribution_xlabel_is"}.get(
                          var, "plot.distribution_xlabel_bhf"))
-        dlg = QtWidgets.QDialog(self)
-        dlg.setWindowTitle(title)
-        dlg.resize(720, 480)
-        lay = QtWidgets.QVBoxLayout(dlg)
         fig = Figure(figsize=(8.0, 4.5), dpi=96, constrained_layout=True)
-        cv = FigureCanvas(fig); lay.addWidget(cv, stretch=1)
         ax = fig.add_subplot(111)
         xc = np.asarray(result.bhf_centers, dtype=float)
         pr = np.asarray(result.probability, dtype=float)
@@ -1224,6 +1223,99 @@ class DistributionFitMixin:
         ax.grid(True, alpha=0.3)
         band = self._draw_probability_band(ax, xc, pr, result)
         corr_ax = self._draw_correlation_axis(ax, xc, pr, result)
+        return fig, ax, band, corr_ax
+
+    def _distribution_figure_2d(self, result, view=None):
+        """Mapa P(x, y) con sus marginales; lo usan el diálogo y el informe PDF."""
+        from matplotlib.gridspec import GridSpec
+        from core.result_views import DistributionResultView
+        view = view if view is not None else DistributionResultView(result)
+        xc, yc, P = view.probability_2d()
+        xlbl, ylbl = view.var_labels_2d()
+        mx, my = view.marginals_2d()
+        xv = getattr(result, "x_variable", "bhf")
+        yv = getattr(result, "y_variable", "quad")
+        _short = {"bhf": "B_HF", "quad": "ΔEQ", "delta": "δ"}
+        title_map = f"P({_short.get(xv, xv)}, {_short.get(yv, yv)})"
+        fig = Figure(figsize=(8.5, 7.0), dpi=96, constrained_layout=True)
+
+        # Disposición: fila superior = marginal x; columna derecha = marginal y;
+        # celda principal = heatmap 2D.
+        has_marginals = mx is not None and my is not None
+        if has_marginals:
+            gs = GridSpec(2, 2, figure=fig,
+                          width_ratios=[4, 1], height_ratios=[1, 4],
+                          hspace=0.06, wspace=0.06)
+            ax_main  = fig.add_subplot(gs[1, 0])
+            ax_top   = fig.add_subplot(gs[0, 0], sharex=ax_main)
+            ax_right = fig.add_subplot(gs[1, 1], sharey=ax_main)
+        else:
+            gs = GridSpec(1, 1, figure=fig)
+            ax_main = fig.add_subplot(gs[0, 0])
+            ax_top = ax_right = None
+
+        cmap = "viridis"
+        im = ax_main.pcolormesh(xc, yc, P.T, cmap=cmap, shading="auto")
+        if P.size >= 4:
+            try:
+                ax_main.contour(xc, yc, P.T, levels=5,
+                                colors="white", linewidths=0.6, alpha=0.5)
+            except Exception:
+                pass
+        fig.colorbar(im, ax=ax_main, fraction=0.046, pad=0.04, label="P(x, y)")
+        ax_main.set_xlabel(xlbl, fontsize=10)
+        ax_main.set_ylabel(ylbl, fontsize=10)
+        ax_main.set_title(title_map, fontsize=11, fontweight="bold")
+        ax_main.grid(False)
+
+        if has_marginals and ax_top is not None and ax_right is not None:
+            # Marginal X (superior)
+            norm_x = float(mx.max()) or 1.0
+            ax_top.fill_between(xc, mx / norm_x, 0, color="#3b82f6", alpha=0.55)
+            ax_top.plot(xc, mx / norm_x, "-", color="#1d4ed8", lw=1.5)
+            ax_top.set_ylabel("P(x)", fontsize=8)
+            ax_top.tick_params(labelbottom=False, labelsize=7)
+            ax_top.grid(True, alpha=0.25)
+            ax_top.set_title("")
+            # Marginal Y (derecha) — horizontal
+            norm_y = float(my.max()) or 1.0
+            ax_right.fill_betweenx(yc, my / norm_y, 0, color="#f59e0b", alpha=0.55)
+            ax_right.plot(my / norm_y, yc, "-", color="#d97706", lw=1.5)
+            ax_right.set_xlabel("P(y)", fontsize=8)
+            ax_right.tick_params(labelleft=False, labelsize=7)
+            ax_right.grid(True, alpha=0.25)
+
+        # Estadísticas en texto
+        lines = []
+        for attr, fmt, name in (
+            ("mean_bhf",  ".3f", f"⟨{_short.get(xv, xv)}⟩"),
+            ("sigma_bhf", ".3f", f"σ({_short.get(xv, xv)})"),
+            ("mean_quad", ".3f", f"⟨{_short.get(yv, yv)}⟩"),
+            ("sigma_quad",".3f", f"σ({_short.get(yv, yv)})"),
+            ("corr_bhf_quad", ".3f", "ρ(x,y)"),
+        ):
+            val = getattr(result, attr, None)
+            if val is not None:
+                lines.append(f"{name} = {val:{fmt}}")
+        if lines:
+            ax_main.annotate(
+                "  ".join(lines),
+                xy=(0.01, 0.01), xycoords="axes fraction",
+                fontsize=7.5, color="white",
+                bbox=dict(boxstyle="round,pad=0.25", fc="#00000080", ec="none"),
+            )
+
+        return fig
+
+    def _show_distribution_dialog_1d(self, result) -> None:
+        var = getattr(result, "fit_variable", None) or self.dist_variable
+        title = {"quad": "P(ΔEQ)", "delta": "P(IS)"}.get(var, "P(BHF)")
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(title)
+        dlg.resize(720, 480)
+        lay = QtWidgets.QVBoxLayout(dlg)
+        fig, ax, band, corr_ax = self._distribution_figure_1d(result)
+        cv = FigureCanvas(fig); lay.addWidget(cv, stretch=1)
         bottom = QtWidgets.QHBoxLayout()
         if band is not None:
             chk_b = QtWidgets.QCheckBox(tr("plot.show_prob_band"))
@@ -1330,11 +1422,6 @@ class DistributionFitMixin:
         return cax
 
     def _show_distribution_dialog_2d(self, result, view) -> None:
-        import numpy as np
-        from matplotlib.gridspec import GridSpec
-        xc, yc, P = view.probability_2d()
-        xlbl, ylbl = view.var_labels_2d()
-        mx, my = view.marginals_2d()
         xv = getattr(result, "x_variable", "bhf")
         yv = getattr(result, "y_variable", "quad")
         _short = {"bhf": "B_HF", "quad": "ΔEQ", "delta": "δ"}
@@ -1345,75 +1432,8 @@ class DistributionFitMixin:
         dlg.resize(820, 700)
         lay = QtWidgets.QVBoxLayout(dlg)
 
-        fig = Figure(figsize=(8.5, 7.0), dpi=96, constrained_layout=True)
+        fig = self._distribution_figure_2d(result, view)
         cv = FigureCanvas(fig); lay.addWidget(cv, stretch=1)
-
-        # Disposición: fila superior = marginal x; columna derecha = marginal y;
-        # celda principal = heatmap 2D.
-        has_marginals = mx is not None and my is not None
-        if has_marginals:
-            gs = GridSpec(2, 2, figure=fig,
-                          width_ratios=[4, 1], height_ratios=[1, 4],
-                          hspace=0.06, wspace=0.06)
-            ax_main  = fig.add_subplot(gs[1, 0])
-            ax_top   = fig.add_subplot(gs[0, 0], sharex=ax_main)
-            ax_right = fig.add_subplot(gs[1, 1], sharey=ax_main)
-        else:
-            gs = GridSpec(1, 1, figure=fig)
-            ax_main = fig.add_subplot(gs[0, 0])
-            ax_top = ax_right = None
-
-        cmap = "viridis"
-        im = ax_main.pcolormesh(xc, yc, P.T, cmap=cmap, shading="auto")
-        if P.size >= 4:
-            try:
-                ax_main.contour(xc, yc, P.T, levels=5,
-                                colors="white", linewidths=0.6, alpha=0.5)
-            except Exception:
-                pass
-        fig.colorbar(im, ax=ax_main, fraction=0.046, pad=0.04, label="P(x, y)")
-        ax_main.set_xlabel(xlbl, fontsize=10)
-        ax_main.set_ylabel(ylbl, fontsize=10)
-        ax_main.set_title(title_map, fontsize=11, fontweight="bold")
-        ax_main.grid(False)
-
-        if has_marginals and ax_top is not None and ax_right is not None:
-            # Marginal X (superior)
-            norm_x = float(mx.max()) or 1.0
-            ax_top.fill_between(xc, mx / norm_x, 0, color="#3b82f6", alpha=0.55)
-            ax_top.plot(xc, mx / norm_x, "-", color="#1d4ed8", lw=1.5)
-            ax_top.set_ylabel("P(x)", fontsize=8)
-            ax_top.tick_params(labelbottom=False, labelsize=7)
-            ax_top.grid(True, alpha=0.25)
-            ax_top.set_title("")
-            # Marginal Y (derecha) — horizontal
-            norm_y = float(my.max()) or 1.0
-            ax_right.fill_betweenx(yc, my / norm_y, 0, color="#f59e0b", alpha=0.55)
-            ax_right.plot(my / norm_y, yc, "-", color="#d97706", lw=1.5)
-            ax_right.set_xlabel("P(y)", fontsize=8)
-            ax_right.tick_params(labelleft=False, labelsize=7)
-            ax_right.grid(True, alpha=0.25)
-
-        # Estadísticas en texto
-        lines = []
-        for attr, fmt, name in (
-            ("mean_bhf",  ".3f", f"⟨{_short.get(xv, xv)}⟩"),
-            ("sigma_bhf", ".3f", f"σ({_short.get(xv, xv)})"),
-            ("mean_quad", ".3f", f"⟨{_short.get(yv, yv)}⟩"),
-            ("sigma_quad",".3f", f"σ({_short.get(yv, yv)})"),
-            ("corr_bhf_quad", ".3f", "ρ(x,y)"),
-        ):
-            val = getattr(result, attr, None)
-            if val is not None:
-                lines.append(f"{name} = {val:{fmt}}")
-        if lines:
-            ax_main.annotate(
-                "  ".join(lines),
-                xy=(0.01, 0.01), xycoords="axes fraction",
-                fontsize=7.5, color="white",
-                bbox=dict(boxstyle="round,pad=0.25", fc="#00000080", ec="none"),
-            )
-
         cv.draw_idle()
 
         # Persist for the PDF report
