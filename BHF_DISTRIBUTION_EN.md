@@ -121,6 +121,21 @@ them and, at each step, the distribution is re-solved exactly (VARPRO scheme).
 
 Each overlay has a check that hides it; the choice is remembered.
 
+## Data and reports
+
+- **File → Export distribution…** (or **Save data…** in the P(x) or 2D map dialog) saves
+  the distribution as tab-separated text: variable, normalised P, σ of P, weight and,
+  with κ slopes, the δ(x)/ΔEQ(x) curve with its σ; in 2D, one row per cell. The header
+  (`#`) summarises shape, α, χ², ν, reduced χ², AIC, BIC and the globals with their σ.
+- **Save fit…** exports velocity, data, the distribution model and the residual, with the
+  same P table at the end.
+- In distribution mode the **report** (full and short, Markdown and PDF) holds the setup,
+  the goodness of fit (N, χ², k, ν, reduced χ², AIC and BIC —same definition as the
+  discrete fit, to compare models on the same spectrum—, RMS, lag-1 autocorrelation and
+  runs test of the residual), the globals with their σ, the distribution, the sharp
+  components and the warnings (e.g. weight piled up at the grid edge). The PDF adds the
+  P(x) plot or the 2D map.
+
 ## Warnings of the distribution panel
 
 The panel warns, with a link to the help, about combinations that fit well but do not

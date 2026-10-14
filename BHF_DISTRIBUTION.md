@@ -121,6 +121,21 @@ y, en cada paso, la distribución se resuelve de nuevo de forma exacta (esquema 
 
 Cada superposición tiene una casilla que la oculta; la elección se recuerda.
 
+## Datos e informes
+
+- **Archivo → Exportar distribución…** (o **Guardar datos…** en el diálogo de P(x) o del
+  mapa 2D) guarda la distribución en texto tabulado: variable, P normalizada, σ de P,
+  peso y, con pendientes κ, la curva δ(x)/ΔEQ(x) con su σ; en 2D, una fila por celda.
+  La cabecera (`#`) resume forma, α, χ², ν, χ²ᵣ, AIC, BIC y los globales con su σ.
+- **Guardar ajuste…** exporta velocidad, datos, modelo de la distribución y residuo, con
+  la misma tabla de P al final.
+- El **informe** (completo y reducido, Markdown y PDF) recoge en modo distribución el
+  montaje, la bondad del ajuste (N, χ², k, ν, χ²ᵣ, AIC y BIC —misma definición que el
+  ajuste discreto, para comparar modelos sobre el mismo espectro—, RMS, autocorrelación
+  lag-1 y test de rachas del residuo), los globales con su σ, la distribución, los
+  nítidos y los avisos (p. ej. peso acumulado en el borde de la malla). El PDF añade la
+  figura de P(x) o el mapa 2D.
+
 ## Avisos del panel de distribución
 
 El panel avisa, con un enlace a la ayuda, de combinaciones que ajustan bien pero no
