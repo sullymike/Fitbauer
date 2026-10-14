@@ -330,3 +330,59 @@ def test_tabla_de_datos_de_la_distribucion_1d_y_2d(tmp_path):
     assert rows.shape == (12, 4)
     fila = rows[(rows[:, 0] == 20.0) & (rows[:, 1] == 0.3)][0]
     assert fila[2] == p2[1, 3]
+
+
+# ── Forma de Czjzek (P(ΔEQ) de sólidos desordenados) ────────────────────────
+@pytest.mark.parametrize("delta0", [0.0, 0.8])
+def test_czjzek_coincide_con_la_norma_de_un_tensor_aleatorio(delta0):
+    """La densidad es la de |u₀ + U| con U gaussiano en 5 dimensiones."""
+    sigma = 0.3
+    rng = np.random.default_rng(7)
+    u0 = np.zeros(5); u0[2] = delta0          # orientación arbitraria: solo cuenta |u₀|
+    muestras = np.linalg.norm(u0 + rng.normal(0.0, sigma, (400_000, 5)), axis=1)
+    bordes = np.linspace(0.0, 3.0, 61)
+    hist, _ = np.histogram(muestras, bins=bordes, density=True)
+    centros = 0.5 * (bordes[1:] + bordes[:-1])
+    p = md.czjzek_weights(centros, sigma, delta0)
+    assert np.max(np.abs(p - hist)) < 0.03 * np.max(hist)
+
+
+def test_czjzek_puro_moda_en_dos_sigma_y_cero_en_el_origen():
+    x = np.linspace(0.0, 3.0, 3001)
+    p = md.czjzek_weights(x, 0.25)
+    assert x[np.argmax(p)] == pytest.approx(0.5, abs=2e-3)
+    assert p[0] == 0.0
+    m = md.distribution_moments(x, p)
+    assert m["mean"] == pytest.approx(2.128 * 0.25, rel=5e-3)
+    assert m["std"] / m["mean"] == pytest.approx(0.323, abs=5e-3)
+    # Con ΔEQ₀ ≫ σ tiende a una gaussiana centrada en ΔEQ₀.
+    q = md.czjzek_weights(x, 0.05, 1.5)
+    mq = md.distribution_moments(x, q)
+    assert mq["mean"] == pytest.approx(1.5 + 2 * 0.05 ** 2 / 1.5, abs=5e-3)
+    assert mq["std"] == pytest.approx(0.05, rel=0.05)
+
+
+@pytest.mark.parametrize("extended,delta0", [(False, None), (True, 0.9)])
+def test_ajuste_czjzek_recupera_sus_parametros(extended, delta0):
+    v = np.linspace(-4, 4, 400)
+    centers = md.parameter_grid(0.0, 3.0, 120)
+    K = md.build_hyperfine_distribution_kernel(v, centers, variable="quad",
+                                               delta=0.35, gamma=0.25)
+    sig_true = 0.25 if not extended else 0.2
+    P = md.czjzek_weights(centers, sig_true, delta0 or 0.0)
+    rng = np.random.default_rng(3)
+    ruido = 2e-3
+    y = 1.0 - K @ (P * 0.08) + rng.normal(0.0, ruido, v.size)
+    r = md.fit_czjzek_hyperfine_distribution(
+        v, y, extended=extended, variable="quad", delta=0.35, gamma=0.25,
+        pmin=0.0, pmax=3.0, nbins=120, sigma=np.full(v.size, ruido))
+    assert r.success and r.shape == ("Czjzek ext." if extended else "Czjzek")
+    assert r.czjzek_sigma == pytest.approx(sig_true, abs=4 * r.czjzek_sigma_err + 1e-3)
+    assert 0 < r.czjzek_sigma_err < 0.05
+    if extended:
+        assert r.czjzek_delta0 == pytest.approx(delta0, abs=4 * r.czjzek_delta0_err + 1e-3)
+    else:
+        assert r.czjzek_delta0 is None
+    assert r.effective_dof == 2 + (3 if extended else 2)
+    g = md.distribution_goodness(r.residuals, np.full(v.size, ruido), r.effective_dof)
+    assert g["red_chi2"] == pytest.approx(1.0, abs=0.25)

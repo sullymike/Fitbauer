@@ -220,6 +220,13 @@ class ReportMixin:
             val = getattr(result, key, None)
             if val is not None:
                 lines.append(f"| {lbl} | {_fmt(val)} |")
+        for key, lbl in (("czjzek_sigma", _r("czjzek_sigma")),
+                         ("czjzek_delta0", _r("czjzek_delta0"))):
+            val = getattr(result, key, None)
+            if val is not None:
+                err = getattr(result, f"{key}_err", None)
+                txt = _fmt(val, ".4g") + (f" ± {_fmt(err, '.2g')}" if err is not None else "")
+                lines.append(f"| {lbl} | {txt} mm/s |")
         sb = getattr(result, "vbf_sigma_bounds", None)
         if sb:
             lines.append(f"| {_r('vbf_sigma_bounds')} ({var_lbl}) | "

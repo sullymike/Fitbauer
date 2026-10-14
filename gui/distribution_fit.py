@@ -19,12 +19,13 @@ from core.plot_styles import get_style
 from core.reconstruction import reconstruct_distribution_curves
 from core.validation import format_validation_issues, validate_distribution_parameters
 from core.param_overrides import effective_fit_init_specs as _eff_fi, effective_distribution_specs as _eff_ds
-from core.params import is_2d_shape
+from core.params import CZJZEK_SHAPES, is_2d_shape
 from gui.fit_workflow import GuiFitRenderState, GuiFitResult
 from mossbauer_distribution import (
     fit_hyperfine_distribution,
     fit_vbf_hyperfine_distribution,
     fit_binomial_hyperfine_distribution,
+    fit_czjzek_hyperfine_distribution,
     fit_fixed_hyperfine_distribution,
     fit_bhf_quad_distribution,
     fit_vbf_2d_distribution,
@@ -577,6 +578,15 @@ class DistributionFitMixin:
                     sigma_min=dist_state.vbf_sigma_min,
                     sigma_max=dist_state.vbf_sigma_max,
                     **common)
+            if shape in CZJZEK_SHAPES:
+                # |ΔEQ| de un gradiente de campo aleatorio (Czjzek) o aleatorio
+                # sobre uno ordenado (extendido): paramétrica, con σ de datos.
+                return fit_czjzek_hyperfine_distribution(
+                    v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins,
+                    extended=(shape == "Czjzek ext."),
+                    profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
+                    delta_slope=dsl, quad_slope=qsl, sigma=self.file.sigma,
+                    **common)
             if shape == "Binomial":
                 # Vecinos al estilo NORMOS (DISTRI=3): la malla no se usa; la
                 # concentración es dato salvo que se desmarque su «Fijo».
@@ -620,7 +630,7 @@ class DistributionFitMixin:
         # externa (son no lineales). Solo con Histograma/VBF y si no están fijas.
         # Solo las pendientes que tienen sentido con la variable (las visibles):
         # P(BHF) ambas, P(ΔEQ) solo δ(ΔEQ), P(IS) solo ΔEQ(δ); en 2D ninguna.
-        if shape in ("Histograma", "VBF", "Binomial"):
+        if shape in ("Histograma", "VBF", "Binomial", *CZJZEK_SHAPES):
             if not dist_state.is_fixed("delta_slope") and var in ("bhf", "quad"):
                 outer_specs.append(("dist_delta_slope", "lin", d.delta_slope._lo, d.delta_slope._hi))
             if not dist_state.is_fixed("quad_slope") and var in ("bhf", "delta"):
@@ -991,9 +1001,18 @@ class DistributionFitMixin:
             r.values["binom_conc%"] = 100.0 * float(result.fitted_dist_p)
             r.values["binom_start"] = float(result.binomial_start)
             r.values["binom_step"] = float(result.binomial_step)
+        # Czjzek: escala σ del desorden y ΔEQ₀ del entorno ordenado (extendido).
+        czjzek_errors = {}
+        for key in ("czjzek_sigma", "czjzek_delta0"):
+            val = getattr(result, key, None)
+            if val is not None:
+                r.values[key] = float(val)
+                err = getattr(result, f"{key}_err", None)
+                if err is not None:
+                    czjzek_errors[key] = float(err)
         # free_keys guía qué parámetros muestra el panel; sin esto no salía ninguno.
         r.free_keys = list(r.values.keys())
-        r.errors = {}
+        r.errors = czjzek_errors
         r.correlations = {}
         r.n_starts = 1
         self.info_panel.show_result(r)
@@ -1172,6 +1191,11 @@ class DistributionFitMixin:
             err = f"±{f['sigma']:.3g}" if f["sigma"] else ""
             estado = "free" if f["free"] else "fixed"
             header.append(f"{f['label']} = {f['value']:.6g}{err} {f['unit']} ({estado})".strip())
+        for key, lbl in (("czjzek_sigma", "Czjzek sigma"), ("czjzek_delta0", "Czjzek dEQ0")):
+            val = getattr(result, key, None)
+            if val is not None:
+                err = getattr(result, f"{key}_err", None)
+                header.append(f"{lbl} = {val:.6g}" + (f"±{err:.3g}" if err else "") + " mm/s")
         extra = {}
         if not s["is_2d"]:
             nombres = {"δ": "delta", "ΔEQ": "dEQ"}

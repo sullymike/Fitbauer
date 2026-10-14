@@ -6,7 +6,10 @@ Cubre los mismos modos que la GUI (mismo motor, ``mossbauer_distribution``):
 - Variable: ``--variable bhf`` (P(BHF), por defecto), ``--variable quad``
   (P(ΔEQ) con BHF fijo en ``--fixed-bhf``, 0 por defecto → doblete) o
   ``--variable delta`` (P(IS)).
-- Forma: ``--shape histograma|gaussiana|vbf|binomial`` (Gaussiana = VBF con
+- Forma: ``--shape histograma|gaussiana|vbf|binomial|czjzek|czjzek-ext``
+  (czjzek: P(ΔEQ) de un gradiente de campo aleatorio, χ de 5 grados de
+  libertad; czjzek-ext: más un entorno ordenado ΔEQ₀; solo ``--variable quad``
+  con dobletes). Gaussiana = VBF con
   N=1 y línea Lorentziana; ``--vbf-components`` fija N para VBF;
   ``--vbf-sigma-min``/``--vbf-sigma-max`` acotan la anchura σ común a todas
   las gaussianas, y ``--vbf-sigma-min-y``/``--vbf-sigma-max-y`` la del eje Y
@@ -61,6 +64,7 @@ from mossbauer_distribution import (
     fit_bhf_quad_distribution,
     fit_vbf_2d_distribution,
     fit_binomial_hyperfine_distribution,
+    fit_czjzek_hyperfine_distribution,
     fit_hyperfine_distribution,
     fit_vbf_hyperfine_distribution,
     second_difference_matrix,
@@ -102,9 +106,12 @@ def parse_args() -> argparse.Namespace:
                              "también admite sexteto o doblete).")
     parser.add_argument("--fixed-bhf", type=float, default=0.0,
                         help="BHF fijo (T) del kernel con --variable quad/delta o --pair delta-quad (0 = doblete).")
-    parser.add_argument("--shape", choices=["histograma", "gaussiana", "vbf", "binomial"],
+    parser.add_argument("--shape", choices=["histograma", "gaussiana", "vbf", "binomial",
+                                            "czjzek", "czjzek-ext"],
                         default="histograma",
-                        help="Forma de la distribución (gaussiana = VBF con N=1 y línea Lorentziana).")
+                        help="Forma de la distribución (gaussiana = VBF con N=1 y línea "
+                             "Lorentziana; czjzek/czjzek-ext = |ΔEQ| de un gradiente de "
+                             "campo aleatorio, solo con --variable quad y dobletes).")
     parser.add_argument("--binomial-conc", type=float, default=10.0,
                         help="Binomial (NORMOS DISTRI=3): concentración de soluto "
                              "en %% (CONC). Fija salvo --fit-conc.")
@@ -256,6 +263,10 @@ def parse_args() -> argparse.Namespace:
         parser.error("--scan-alpha no aplica en modo --dist-2d.")
     if args.pair != "bhf-quad" and not args.dist_2d:
         parser.error("--pair solo aplica con --dist-2d.")
+    if args.shape.startswith("czjzek") and (
+            args.dist_2d or args.variable != "quad" or args.fixed_bhf > 0):
+        parser.error("--shape czjzek/czjzek-ext solo aplica a --variable quad con "
+                     "dobletes (--fixed-bhf 0), en 1D.")
     if args.dist_2d and args.shape == "binomial":
         parser.error("--dist-2d admite --shape histograma, gaussiana o vbf.")
     sig_x = (args.vbf_sigma_min, args.vbf_sigma_max)
@@ -468,6 +479,12 @@ def run_fit_1d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
             delta_slope=args.delta_slope, quad_slope=args.quad_slope,
             shape="Gaussiana" if gaussian else "VBF",
             sigma_min=args.vbf_sigma_min, sigma_max=args.vbf_sigma_max,
+            **common)
+    if args.shape in ("czjzek", "czjzek-ext"):
+        return fit_czjzek_hyperfine_distribution(
+            v, y, extended=args.shape == "czjzek-ext",
+            profile=args.profile, voigt_sigma=args.voigt_sigma,
+            delta_slope=args.delta_slope, quad_slope=args.quad_slope,
             **common)
     if args.shape == "binomial":
         return fit_binomial_hyperfine_distribution(

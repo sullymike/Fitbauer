@@ -3237,3 +3237,35 @@ def test_botones_estandar_de_qt_en_el_idioma_activo(app):
         if traductor is not None:
             app.removeTranslator(traductor)
             app._fitbauer_qt_translator = None
+
+
+def test_forma_czjzek_en_la_gui(win, tmp_path):
+    """Czjzek solo se ofrece en P(ΔEQ) con dobletes; ajusta, informa y se guarda."""
+    from mossbauer_i18n import tr
+    d = win.dist_panel
+    item = lambda code: d.shape_combo.model().item(d.shape_combo.findData(code))
+    win.mode_combo.setCurrentIndex(1)                     # P(BHF)
+    assert not item("Czjzek").isEnabled() and not item("Czjzek ext.").isEnabled()
+    win._load_file(DATA / "sintetico_dist_deq.adt")
+    win._show_distribution_dialog = lambda r: None
+    win.mode_combo.setCurrentIndex(2)                     # P(ΔEQ)
+    assert item("Czjzek").isEnabled() and item("Czjzek ext.").isEnabled()
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("Czjzek ext."))
+    assert d.shape == "Czjzek ext." and d.delta_slope.isEnabled()
+    # Con sextetes de campo fijo deja de tener sentido: vuelve a Histograma.
+    d.fixed_bhf.set_value(30.0)
+    d.field_enabled.setChecked(True)
+    assert d.shape == "Histograma" and not item("Czjzek").isEnabled()
+    d.field_enabled.setChecked(False)
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("Czjzek"))
+    d.bmin.set_value(0.0); d.bmax.set_value(2.5); d.nbins.set_value(40)
+    win.on_fit()
+    res = win.runtime_results.distribution_result
+    assert res.shape == "Czjzek" and res.czjzek_sigma > 0 and res.czjzek_sigma_err > 0
+    texto = "\n".join(win._build_report_lines())
+    assert tr("rep.czjzek_sigma") in texto and tr("rep.czjzek_delta0") not in texto
+    # La sesión conserva la forma.
+    payload = win._session_payload()
+    win.mode_combo.setCurrentIndex(1)
+    win._apply_session_payload(payload)
+    assert win.mode_combo.currentIndex() == 2 and d.shape == "Czjzek"

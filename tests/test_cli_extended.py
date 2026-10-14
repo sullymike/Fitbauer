@@ -94,6 +94,21 @@ def test_dist_cli_shape_vbf(tmp_path):
 
 
 
+@pytest.mark.parametrize("shape,label", [("czjzek", "Czjzek"), ("czjzek-ext", "Czjzek ext.")])
+def test_dist_cli_shape_czjzek(tmp_path, shape, label):
+    proc = _run_dist_cli(tmp_path, "--variable", "quad", "--shape", shape, "--nbins", "40")
+    assert proc.returncode == 0, proc.stderr
+    summary = json.loads((tmp_path / "out_summary.json").read_text(encoding="utf-8"))
+    assert summary["shape"] == label
+    assert summary["czjzek_sigma"] > 0
+    assert (summary["czjzek_delta0"] is None) == (shape == "czjzek")
+
+
+def test_dist_cli_czjzek_solo_con_cuadrupolo(tmp_path):
+    proc = _run_dist_cli(tmp_path, "--shape", "czjzek")         # --variable bhf
+    assert proc.returncode == 2 and "czjzek" in proc.stderr
+
+
 def test_dist_cli_vbf_sigma_limits(tmp_path):
     """--vbf-sigma-min/--vbf-sigma-max llegan al motor y al resumen."""
     proc = _run_dist_cli(tmp_path, "--variable", "quad", "--shape", "vbf",

@@ -64,7 +64,11 @@ COMPONENT_KINDS = (
 
 # Formas válidas de distribución hiperfina (selector del panel y validación).
 DISTRIBUTION_SHAPES = ("Histograma", "Gaussiana", "VBF", "Binomial", "Fija",
+                       "Czjzek", "Czjzek ext.",
                        "2D", "Gaussiana 2D", "VBF 2D")
+#: Formas de Czjzek (pura y extendida): solo tienen sentido para P(ΔEQ), la
+#: distribución de |ΔEQ| de un gradiente de campo eléctrico aleatorio.
+CZJZEK_SHAPES = ("Czjzek", "Czjzek ext.")
 #: Formas con gaussianas (VBF; la Gaussiana es VBF con N = 1): son las que
 #: usan los límites σ de las gaussianas (``vbf_sigma_*``).
 GAUSSIAN_DISTRIBUTION_SHAPES = ("Gaussiana", "VBF", "Gaussiana 2D", "VBF 2D")

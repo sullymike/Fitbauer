@@ -198,6 +198,13 @@ class BhfDistributionFit:
     binomial_start: float | None = None
     binomial_step: float | None = None
     binomial_n: int | None = None
+    #: Czjzek (``shape="Czjzek"``/``"Czjzek ext."``): escala σ del desorden
+    #: aleatorio y ΔEQ₀ del entorno ordenado (``None`` en el modelo puro),
+    #: con sus errores 1σ.
+    czjzek_sigma: float | None = None
+    czjzek_sigma_err: float | None = None
+    czjzek_delta0: float | None = None
+    czjzek_delta0_err: float | None = None
     #: Diagnóstico de MALLA INSUFICIENTE: ``max(P[0], P[-1]) / max(P)``.
     #:
     #: Si la distribución real se sale del rango, el histograma de
@@ -244,6 +251,10 @@ class BhfDistributionFit:
             "binomial_start": self.binomial_start,
             "binomial_step": self.binomial_step,
             "binomial_n": self.binomial_n,
+            "czjzek_sigma": self.czjzek_sigma,
+            "czjzek_sigma_err": self.czjzek_sigma_err,
+            "czjzek_delta0": self.czjzek_delta0,
+            "czjzek_delta0_err": self.czjzek_delta0_err,
         }
 
 
@@ -2627,6 +2638,232 @@ def fit_vbf_hyperfine_distribution(
         # Forma paramétrica: los grados de libertad que consume son sus
         # parámetros ajustados (gaussianas, fondo libre y nítidos libres).
         effective_dof=float(res.x.size),
+    )
+
+
+#: Grados de libertad del modelo de Czjzek: las 5 componentes independientes
+#: del tensor gradiente de campo eléctrico (simétrico y de traza nula).
+CZJZEK_DOF = 5
+
+
+def czjzek_weights(centers: np.ndarray, sigma: float, delta0: float = 0.0) -> np.ndarray:
+    """Densidad de ΔEQ del modelo de Czjzek (puro o extendido), de área 1 en la malla.
+
+    Si las cargas que rodean al Fe están distribuidas al azar (vidrios,
+    amorfos), las 5 componentes independientes del gradiente de campo
+    eléctrico son gaussianas de igual varianza (Czjzek et al. 1981), y
+    ΔEQ = (eQ/2)·|Vzz|·√(1 + η²/3) es proporcional a la norma de ese
+    vector de 5 componentes. Por tanto ΔEQ/σ sigue una distribución χ de 5
+    grados de libertad::
+
+        P(ΔEQ) ∝ ΔEQ⁴ · exp(−ΔEQ²/2σ²)     (moda 2σ, media ≈ 2.13σ)
+
+    En el modelo extendido (Le Caër y Brand 1998) el tensor es la suma de uno
+    fijo, el del entorno ordenado, y del aleatorio de Czjzek. Como la parte
+    aleatoria es isótropa en las 5 dimensiones, ΔEQ solo depende de la norma
+    de la parte fija, ``delta0``: ΔEQ/σ sigue una χ no central de 5 grados de
+    libertad y parámetro ΔEQ₀/σ. Con ΔEQ₀ = 0 es el modelo puro; con
+    ΔEQ₀ ≫ σ tiende a una gaussiana de centro ΔEQ₀ y anchura σ.
+
+    El ajuste de dobletes no ve η (ni el signo de ΔEQ): solo la marginal de
+    |ΔEQ|, que es esta. Los nodos con ΔEQ ≤ 0 pesan cero.
+    """
+    from scipy.special import ive
+
+    c = np.asarray(centers, dtype=float)
+    sigma = max(float(sigma), 1e-9)
+    lam = max(float(delta0), 0.0) / sigma
+    x = c / sigma
+    pos = x > 0.0
+    logw = np.full(c.shape, -np.inf)
+    k = CZJZEK_DOF
+    with np.errstate(divide="ignore", invalid="ignore", under="ignore"):
+        if lam < 1e-6:
+            logw[pos] = (k - 1) * np.log(x[pos]) - 0.5 * x[pos] ** 2
+        else:
+            # χ no central: x^{k/2}·λ^{1−k/2}·e^{−(x−λ)²/2}·Ive_{k/2−1}(λx),
+            # con la Bessel escalada (Ive = I·e^{−z}) para no desbordar.
+            logw[pos] = (0.5 * k * np.log(x[pos]) - 0.5 * (x[pos] - lam) ** 2
+                         + np.log(ive(0.5 * k - 1.0, lam * x[pos])))
+    w = np.zeros_like(c)
+    if np.any(np.isfinite(logw)):
+        w = np.exp(logw - np.max(logw[np.isfinite(logw)]))
+        w[~np.isfinite(w)] = 0.0
+    if not np.any(w > 0.0):
+        # σ ≪ paso de malla: toda la densidad en el nodo de la moda.
+        moda = max(float(delta0), 2.0 * sigma)
+        w = np.zeros_like(c)
+        w[int(np.argmin(np.abs(c - moda)))] = 1.0
+    area = np.trapezoid(w, c) if w.size > 1 else float(w[0])
+    return w / max(float(area), 1e-12)
+
+
+def fit_czjzek_hyperfine_distribution(
+    v: np.ndarray,
+    y: np.ndarray,
+    *,
+    extended: bool = False,
+    profile: str = "Lorentz",
+    voigt_sigma: float = 0.05,
+    variable: str = "quad",
+    delta: float = 0.0,
+    quad: float = 0.0,
+    bhf: float = BHF_DEFAULT_T,
+    gamma: float = 0.18,
+    pmin: float = 0.0,
+    pmax: float = 3.0,
+    nbins: int = 120,
+    baseline: float | None = None,
+    slope: float | None = None,
+    fit_baseline: bool = True,
+    fit_slope: bool = True,
+    sharp_components: list[dict[str, float]] | None = None,
+    delta_slope: float = 0.0,
+    quad_slope: float = 0.0,
+    h_ref: float | None = None,
+    sigma: np.ndarray | None = None,
+) -> BhfDistributionFit:
+    """P(ΔEQ) con la forma de Czjzek (``extended=False``) o Czjzek extendida.
+
+    Ver :func:`czjzek_weights`. Parámetros ajustados: área A, escala σ y, en
+    el modelo extendido, ΔEQ₀ ≥ 0; más fondo y nítidos libres. Admite la
+    correlación δ(ΔEQ) (``delta_slope``). Con ``sigma`` (σ de los datos) los
+    residuos se ponderan y los errores de σ y ΔEQ₀ son absolutos; sin ella se
+    escalan con el χ² reducido.
+    """
+    from scipy.optimize import least_squares
+    v = _finite_1d("v", v); y = _finite_1d("y", y)
+    centers = parameter_grid(pmin, pmax, nbins)
+    with line_profile(profile, voigt_sigma):
+        K = build_hyperfine_distribution_kernel(
+            v, centers, variable=variable, delta=delta, quad=quad, bhf=bhf, gamma=gamma,
+            delta_slope=delta_slope, quad_slope=quad_slope, h_ref=h_ref)
+        K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
+            v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
+    n_sharp = K_sharp.shape[1] if K_sharp is not None else 0
+    if baseline is None:
+        baseline = float(np.percentile(y, 90))
+    if slope is None:
+        slope = 0.0
+    weights_data = None
+    if sigma is not None:
+        s_arr = np.asarray(sigma, dtype=float).ravel()
+        if s_arr.size == y.size and np.all(np.isfinite(s_arr)):
+            weights_data = 1.0 / np.maximum(s_arr, 1e-12)
+    hi_grid = max(float(pmax), 1e-3)
+    rng = max(float(pmax) - float(pmin), 1e-3)
+    amp0 = max(1e-6, float(np.percentile(y, 90) - np.min(y)))
+    n_lin = int(fit_baseline) + int(fit_slope)
+    n_shape = 3 if extended else 2          # A, log σ[, ΔEQ₀]
+
+    def lin_part(x: np.ndarray) -> tuple[float, float]:
+        i = 0
+        if fit_baseline:
+            b0 = float(x[0]); i = 1
+        else:
+            b0 = float(baseline)
+        sl = float(x[i]) if fit_slope else float(slope)
+        return b0, sl
+
+    def shape_part(x: np.ndarray) -> tuple[float, float, float]:
+        A, log_sig = float(x[n_lin]), float(x[n_lin + 1])
+        d0 = float(x[n_lin + 2]) if extended else 0.0
+        return max(A, 0.0), float(np.exp(log_sig)), max(d0, 0.0)
+
+    def model(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        b0, sl = lin_part(x)
+        A, sg, d0 = shape_part(x)
+        w = A * czjzek_weights(centers, sg, d0)
+        m = b0 + sl * v - K @ w - fixed_sharp_abs
+        if K_sharp is not None and n_sharp:
+            m = m - K_sharp @ np.maximum(x[n_lin + n_shape:n_lin + n_shape + n_sharp], 0.0)
+        return m, w
+
+    def residual(x: np.ndarray) -> np.ndarray:
+        r = model(x)[0] - y
+        return r * weights_data if weights_data is not None else r
+
+    sig_lo, sig_hi = 1e-3, max(hi_grid, 1e-2)
+    lo, hi = [], []
+    lin0: list[float] = []
+    if fit_baseline:
+        lo.append(0.0); hi.append(np.inf); lin0.append(float(baseline))
+    if fit_slope:
+        lo.append(-np.inf); hi.append(np.inf); lin0.append(float(slope))
+    lo += [0.0, np.log(sig_lo)]; hi += [np.inf, np.log(sig_hi)]
+    if extended:
+        lo.append(0.0); hi.append(hi_grid)
+    lo += [0.0] * n_sharp; hi += [np.inf] * n_sharp
+    lo_arr, hi_arr = np.array(lo), np.array(hi)
+    sharp0 = [amp0 / max(n_sharp, 1)] * n_sharp
+    # Varios arranques baratos (el kernel ya está construido): la moda de la
+    # χ₅ es 2σ, así que se reparten modas por la malla.
+    starts = []
+    for frac in (0.25, 0.45, 0.65):
+        moda = float(pmin) + frac * rng
+        if extended:
+            starts.append([amp0, np.log(max(rng / 8.0, sig_lo)), moda])
+            starts.append([amp0, np.log(max(moda / 2.0, sig_lo)), 0.0])
+        else:
+            starts.append([amp0, np.log(max(moda / 2.0, sig_lo))])
+    res = None
+    for st in starts:
+        x0 = np.clip(np.array(lin0 + st + sharp0, dtype=float), lo_arr, hi_arr)
+        cand = least_squares(residual, x0, bounds=(lo_arr, hi_arr), max_nfev=2000)
+        if res is None or cand.cost < res.cost:
+            res = cand
+
+    fitted, w = model(res.x)
+    b0_fit, sl_fit = lin_part(res.x)
+    A_fit, sig_fit, d0_fit = shape_part(res.x)
+    residuals = y - fitted
+    sharp_weights_free = (np.maximum(res.x[n_lin + n_shape:n_lin + n_shape + n_sharp], 0.0)
+                          if n_sharp else None)
+    sharp_weights_arr = merge_sharp_weights(sharp_weights_free, sharp_fixed_mask, fixed_sharp_weights)
+    # Errores 1σ de σ y ΔEQ₀ por la jacobiana (σ en log: dσ = σ·d log σ).
+    sig_err = d0_err = None
+    try:
+        J = np.asarray(res.jac, dtype=float)
+        dof = max(y.size - res.x.size, 1)
+        scale = 1.0 if weights_data is not None else float(2.0 * res.cost / dof)
+        cov = scale * np.linalg.pinv(J.T @ J)
+        sig_err = float(sig_fit * np.sqrt(max(cov[n_lin + 1, n_lin + 1], 0.0)))
+        if extended:
+            d0_err = float(np.sqrt(max(cov[n_lin + 2, n_lin + 2], 0.0)))
+    except Exception:
+        pass
+    if extended and d0_fit <= 1e-6 * hi_grid:
+        # En ΔEQ₀ = 0 la densidad solo depende de ΔEQ₀² (jacobiana nula): no
+        # hay error lineal que dar; el ajuste equivale al Czjzek puro.
+        d0_fit, d0_err = 0.0, None
+    label = "Czjzek ext." if extended else "Czjzek"
+    resumen = (f"σ={sig_fit:.4g}" + (f", ΔEQ₀={d0_fit:.4g}" if extended else "")
+               + f", A={A_fit:.3g}")
+    return BhfDistributionFit(
+        bhf_centers=centers,
+        weights=w,
+        probability=normalize_probability(w, centers),
+        fitted_curve=fitted,
+        residuals=residuals,
+        baseline=b0_fit,
+        slope=sl_fit,
+        alpha=0.0,
+        rms=float(np.sqrt(np.mean(residuals ** 2))),
+        success=bool(res.success),
+        message=f"{label} {variable}: {resumen}; {res.message}",
+        sharp_bhf_centers=sharp_bhf_centers,
+        sharp_weights=sharp_weights_arr,
+        fitted_dist_center=float(d0_fit) if extended else None,
+        fitted_dist_sigma=float(sig_fit),
+        shape=label,
+        delta_slope=float(delta_slope),
+        quad_slope=float(quad_slope),
+        slope_ref=float(np.mean(centers)) if h_ref is None else float(h_ref),
+        effective_dof=float(res.x.size),
+        czjzek_sigma=float(sig_fit),
+        czjzek_sigma_err=sig_err,
+        czjzek_delta0=float(d0_fit) if extended else None,
+        czjzek_delta0_err=d0_err,
     )
 
 
