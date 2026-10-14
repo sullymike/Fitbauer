@@ -540,6 +540,9 @@ class LayoutSettingsMixin:
     def _apply_ui_preferences_state(self, prefs: UiPreferencesState) -> None:
         if prefs.plot_style in ("classic", "modern", "publication", "dark"):
             self.plot_style_name = prefs.plot_style
+        # La tipografía del estilo (y el respaldo CJK) solo se aplicaba al
+        # cambiar de estilo en el menú, no al arrancar.
+        apply_rc(self.plot_style_name)
         if prefs.ui_language and prefs.ui_language in available_languages():
             set_language(prefs.ui_language)
         install_qt_translator(get_language())

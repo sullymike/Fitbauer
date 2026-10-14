@@ -13,6 +13,7 @@ aplica los ``rc`` overrides sobre el ``rcParams`` global.
 from __future__ import annotations
 
 from copy import deepcopy
+from functools import lru_cache
 
 import matplotlib
 
@@ -170,6 +171,57 @@ def get_style(name: str) -> dict:
     return deepcopy(STYLES.get(name, STYLES["classic"]))
 
 
+#: Fuentes con glifos CJK, por orden de preferencia (Linux, Windows, macOS).
+#: DejaVu no tiene kanji/hanzi: sin respaldo, los textos en japonés y chino
+#: del gráfico y de los informes PDF salen como cuadros vacíos.
+_CJK_FONTS = (
+    "Noto Sans CJK JP", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans SC",
+    "Source Han Sans", "Source Han Sans JP", "Source Han Sans SC",
+    "Yu Gothic", "Meiryo", "MS Gothic", "Microsoft YaHei", "SimHei",
+    "Hiragino Sans", "PingFang SC", "Arial Unicode MS",
+    "WenQuanYi Zen Hei", "WenQuanYi Micro Hei", "IPAexGothic", "IPAGothic",
+    "TakaoGothic", "Droid Sans Fallback", "Noto Serif CJK JP", "Noto Serif CJK SC",
+)
+
+
+@lru_cache(maxsize=1)
+def cjk_fonts() -> tuple[str, ...]:
+    """Fuentes CJK instaladas que matplotlib puede usar (vacío si no hay)."""
+    from matplotlib import font_manager
+
+    instaladas = {f.name for f in font_manager.fontManager.ttflist}
+    return tuple(n for n in _CJK_FONTS if n in instaladas)
+
+
+def ensure_cjk_fallback() -> None:
+    """Añade una fuente CJK como respaldo por glifo a la familia activa.
+
+    matplotlib (≥ 3.6) usa, para cada carácter, la primera fuente de
+    ``font.family`` que lo tiene. Una familia genérica («sans-serif») se
+    resuelve a una sola fuente, así que se sustituye por la primera fuente
+    instalada de su lista seguida de la CJK. Sin fuentes CJK no toca nada.
+    """
+    cjk = cjk_fonts()
+    if not cjk:
+        return
+    from matplotlib import font_manager
+
+    familia = matplotlib.rcParams["font.family"]
+    familia = [familia] if isinstance(familia, str) else list(familia)
+    instaladas = {f.name for f in font_manager.fontManager.ttflist}
+    concretas: list[str] = []
+    for fam in familia:
+        if fam in ("sans-serif", "serif", "monospace", "cursive", "fantasy"):
+            fam = next((n for n in matplotlib.rcParams[f"font.{fam}"] if n in instaladas),
+                       "DejaVu Sans")
+        if fam not in concretas and fam not in cjk:
+            concretas.append(fam)
+    # Con un estilo serif (publicación) se prefiere una CJK serif si la hay.
+    serif = [n for n in cjk if "Serif" in n or "Mincho" in n]
+    eleccion = serif[0] if familia[0] == "serif" and serif else cjk[0]
+    matplotlib.rcParams["font.family"] = concretas + [eleccion]
+
+
 def apply_rc(name: str) -> None:
     """Aplica los rcParams del estilo sobre la configuración global."""
     style = STYLES.get(name)
@@ -178,3 +230,4 @@ def apply_rc(name: str) -> None:
     rc = style.get("rc") or {}
     for k, v in rc.items():
         matplotlib.rcParams[k] = v
+    ensure_cjk_fallback()

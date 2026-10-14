@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **Japonés y chino en gráficos e informes PDF.** matplotlib solo usaba
+  DejaVu, que no tiene kanji ni hanzi: los rótulos del gráfico y los informes
+  PDF en `ja` y `ch` salían con cuadros vacíos. Ahora la familia activa lleva
+  como respaldo por glifo la primera fuente CJK instalada (Noto Sans CJK,
+  Yu Gothic, Microsoft YaHei, Hiragino…; serif con el estilo «publicación»).
+  Además, la tipografía del estilo de gráfico guardado se aplica al arrancar
+  (antes solo al cambiarlo en el menú).
 - **Diagnóstico del residuo en el ajuste discreto.** El panel de información
   y el informe leían la autocorrelación lag-1, el test de rachas y una
   «correlación antisimétrica» que nada calculaba desde que se retiró la

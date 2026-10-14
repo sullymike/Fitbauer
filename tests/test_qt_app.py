@@ -724,9 +724,42 @@ def test_plot_styles_apply(win):
         assert style in STYLES, f"estilo inexistente en el registro: {style}"
         win._set_plot_style(style)
         assert win.plot_style_name == style
-        for k, v in (STYLES[style].get("rc") or {}).items():
+        rc = STYLES[style].get("rc") or {}
+        for k, v in rc.items():
+            if k == "font.family":
+                continue                  # genérica → fuente concreta + CJK
             assert str(v) in str(matplotlib.rcParams[k]), (
                 f"{style}: rc {k}={v} no aplicado")
+        if "font.family" in rc:
+            familia = list(matplotlib.rcParams["font.family"])
+            assert familia[0] in rc[f"font.{rc['font.family']}"]
+
+
+def test_respaldo_cjk_en_graficos_e_informes():
+    """Con una fuente CJK instalada, la familia activa la lleva como respaldo.
+
+    DejaVu no tiene kanji/hanzi: sin respaldo, el gráfico y los PDF en
+    japonés y chino salían con cuadros vacíos.
+    """
+    import io
+    import warnings
+
+    import matplotlib
+    from matplotlib.figure import Figure
+
+    from core.plot_styles import apply_rc, cjk_fonts
+    if not cjk_fonts():
+        pytest.skip("sin fuentes CJK en el sistema")
+    for style in ("modern", "publication"):
+        apply_rc(style)
+        familia = list(matplotlib.rcParams["font.family"])
+        assert familia[-1] in cjk_fonts() and familia[0] not in cjk_fonts()
+        fig = Figure()
+        fig.text(0.1, 0.5, "速度 拟合报告 スペクトル")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")         # «Glyph … missing» → fallo
+            fig.savefig(io.BytesIO(), format="pdf")
+    apply_rc("modern")
 
 
 def test_sigma_context_menu_toggle_profile(win):
