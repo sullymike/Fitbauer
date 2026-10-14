@@ -766,37 +766,29 @@ class DistributionFitMixin:
                 except _OuterBudgetExhausted:
                     best_x = progress_state["best_x"]
                     fitted_x_local = x0 if best_x is None else best_x
-                    if not is_2d:
-                        # Sin jacobiana del optimizador no habría errores de
-                        # los globales: se calcula en el mejor punto (p + 1
-                        # ajustes internos, milisegundos en 1D).
-                        def _resid(x: np.ndarray) -> np.ndarray:
-                            return run_fit(*expand(x), final=False).residuals
-
-                        xb = np.asarray(fitted_x_local, dtype=float)
-                        f0 = _resid(xb)
-                        jac = np.empty((f0.size, xb.size))
-                        for i in range(xb.size):
-                            h = 1.5e-8 ** 0.5 * max(1.0, abs(xb[i]))
-                            # Diferencia hacia dentro si el punto toca la cota.
-                            h = -h if xb[i] + h > hi[i] else h
-                            xi = xb.copy(); xi[i] += h
-                            jac[:, i] = (_resid(xi) - f0) / h
-                        outer_opt.update(jac=jac, fun=f0, x=xb)
+                    # En 1D la jacobiana se calcula igualmente en el mejor
+                    # punto (abajo); en 2D no hay errores de los globales.
                 delta_final, quad_final, gamma_final, sharp_final, dslope_final, qslope_final = expand(fitted_x_local)
                 update_progress(tr("progress.distribution_compute_final",
                                    default="Calculando distribución final…"))
                 result_local = run_fit(delta_final, quad_final, gamma_final, sharp_final,
                                        dslope_final, qslope_final)
-                if (not is_2d and "jac" in outer_opt
-                        and getattr(result_local, "moment_cov", None) is not None):
-                    # Cómo se mueven la media y la anchura de P al mover cada
-                    # global (P reajustada): da su correlación con δ, Γ, κ…
+                if not is_2d:
+                    # Jacobiana del bucle externo por diferencias centradas con
+                    # un paso razonable: la que deja least_squares usa ~1e-8 y
+                    # ahí manda la tolerancia del ajuste interno, no la física
+                    # (σ de Γ y sus correlaciones cambiaban ×3 entre ajustes
+                    # casi idénticos). Con los mismos ajustes sale cómo se
+                    # mueven la media y la anchura de P con cada global.
                     update_progress(tr("progress.distribution_correlations",
                                        default="Correlaciones de P con los globales…"))
-                    outer_opt["dm_dx"] = self._distribution_moment_sensitivity(
-                        lambda x: run_fit(*expand(x), final=False),
-                        np.asarray(fitted_x_local, dtype=float), lo, hi)
+                    xb = np.asarray(fitted_x_local, dtype=float)
+                    jac, dm = self._distribution_outer_derivatives(
+                        lambda x: run_fit(*expand(x), final=False), xb, lo, hi)
+                    if jac is not None:
+                        outer_opt.update(jac=jac, fun=np.asarray(result_local.residuals), x=xb)
+                    if getattr(result_local, "moment_cov", None) is not None:
+                        outer_opt["dm_dx"] = dm
             else:
                 update_progress(tr("progress.distribution_compute", shape=shape,
                                    default=f"Calculando distribución {shape}…"))
@@ -1048,32 +1040,47 @@ class DistributionFitMixin:
         self._show_distribution_dialog(result)
 
     @staticmethod
-    def _distribution_moment_sensitivity(fit_at, x: np.ndarray, lo: np.ndarray,
-                                         hi: np.ndarray) -> np.ndarray | None:
-        """Derivadas (2 × n) de la media y la desviación de P respecto a x.
+    def _distribution_outer_derivatives(fit_at, x: np.ndarray, lo: np.ndarray,
+                                        hi: np.ndarray):
+        """(jacobiana del residuo, derivadas de los momentos de P) respecto a x.
 
         Diferencias centradas reajustando la distribución en x ± h (2n ajustes
         internos); h es una milésima del intervalo permitido de cada parámetro.
+        La jacobiana es N × n; las derivadas de (media, desviación) de P,
+        2 × n. Cualquiera de las dos es None si no se pudo calcular.
         """
         from mossbauer_distribution import distribution_moments
 
-        def momentos(xi: np.ndarray) -> np.ndarray:
+        def evalua(xi: np.ndarray):
             r = fit_at(xi)
             m = distribution_moments(r.bhf_centers, r.probability)
-            return np.array([m["mean"], m["std"]], dtype=float)
+            mom = np.array([m.get("mean", np.nan), m.get("std", np.nan)], dtype=float)
+            return np.asarray(r.residuals, dtype=float), mom
 
         try:
-            D = np.empty((2, x.size))
+            J = D = None
             for i in range(x.size):
                 span = float(hi[i] - lo[i]) if np.isfinite(hi[i] - lo[i]) else 1.0
                 h = 1e-3 * max(span, 1e-6)
                 a, b = max(x[i] - h, lo[i]), min(x[i] + h, hi[i])
                 xa, xb = x.copy(), x.copy()
                 xa[i], xb[i] = a, b
-                D[:, i] = (momentos(xb) - momentos(xa)) / (b - a)
-            return D if np.all(np.isfinite(D)) else None
+                (ra, ma), (rb, mb) = evalua(xa), evalua(xb)
+                if J is None:
+                    J = np.empty((ra.size, x.size)); D = np.empty((2, x.size))
+                J[:, i] = (rb - ra) / (b - a)
+                D[:, i] = (mb - ma) / (b - a)
+            if J is None or not np.all(np.isfinite(J)):
+                return None, None
+            return J, (D if np.all(np.isfinite(D)) else None)
         except Exception:
-            return None
+            return None, None
+
+    @staticmethod
+    def _distribution_moment_sensitivity(fit_at, x: np.ndarray, lo: np.ndarray,
+                                         hi: np.ndarray) -> np.ndarray | None:
+        """Derivadas (2 × n) de la media y la desviación de P respecto a x."""
+        return DistributionFitMixin._distribution_outer_derivatives(fit_at, x, lo, hi)[1]
 
     @staticmethod
     def _distribution_global_covariance(outer_specs, outer_opt, result) -> dict:
