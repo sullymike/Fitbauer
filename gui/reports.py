@@ -168,7 +168,9 @@ class ReportMixin:
             lines.append(f"| α ({y2}) | {_fmt(getattr(result, 'alpha_quad', None))} |")
         elif not is_2d and shape == "Histograma":
             lines.append(f"| {_r('alpha_reg')} | {_fmt(getattr(result, 'alpha', None))} |")
-        ejes = [(x2, view.result.bhf_centers)]
+        # En 1D el resultado no trae x_variable: la etiqueta es la variable
+        # ajustada (antes ponía «BHF» también en P(ΔEQ) y P(IS)).
+        ejes = [(x2 if is_2d else var_lbl, view.result.bhf_centers)]
         if is_2d:
             ejes.append((y2, view.result.quad_centers))
         for lbl, c in ejes:
