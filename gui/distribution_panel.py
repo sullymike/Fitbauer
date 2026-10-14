@@ -73,7 +73,7 @@ class DistributionPanel(QtWidgets.QGroupBox):
         shape_row.addWidget(self.shape_combo, stretch=1)
         left_v.addLayout(shape_row)
 
-        # Aviso de uso (P(IS) con Γ libre, P(ΔEQ) con campo): oculto si no aplica.
+        # Aviso de uso (P(IS)/P(ΔEQ) con Γ libre, P(ΔEQ) con campo): oculto si no aplica.
         self.var_warning = QtWidgets.QLabel()
         self.var_warning.setObjectName("DistWarning")
         self.var_warning.setWordWrap(True)
@@ -545,6 +545,12 @@ class DistributionPanel(QtWidgets.QGroupBox):
             text = tr("bhf.warn_is_gamma", default=(
                 "⚠ Una distribución de IS ensancha todas las líneas por igual y "
                 "se confunde con Γ: fija Γ para que P(IS) tenga sentido."))
+        elif (vars_ == ("quad",) and self.effective_fixed_bhf() <= 0.0
+              and not self.gamma.is_fixed()):
+            anchor = "quad-gamma"
+            text = tr("bhf.warn_quad_gamma", default=(
+                "⚠ Con dobletes, P(ΔEQ) ensancha las dos líneas igual que Γ y "
+                "ambas se compensan: fija Γ para que la anchura de P(ΔEQ) sea fiable."))
         elif vars_ == ("delta", "quad") and self.effective_fixed_bhf() <= 0.0:
             anchor = "is-quad-doublets"
             text = tr("bhf.warn_is_quad_2d", default=(

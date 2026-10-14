@@ -143,6 +143,10 @@ significan lo que parece:
 
 - **P(IS) con Γ libre**: una distribución de desplazamientos isoméricos ensancha todas
   las líneas por igual y se confunde con Γ. Fije Γ a la anchura instrumental.
+- **P(ΔEQ) con dobletes y Γ libre**: P(ΔEQ) ensancha las dos líneas del doblete igual
+  que Γ (en sintéticos, correlación σ–Γ de −0.90 a −0.95 y error de σ unas 3 veces
+  mayor). Fije también aquí Γ. En P(BHF) no hace falta: el campo ensancha las líneas
+  externas unas 6 veces más que las internas y Γ se separa.
 - **P(ΔEQ) con sextetes de campo fijo**: el núcleo de primer orden solo vale si ΔEQ es
   pequeño frente al desdoblamiento magnético.
 - **P(IS, ΔEQ) con dobletes**: el espectro solo ve la distribución de cada línea, así que

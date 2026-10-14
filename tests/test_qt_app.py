@@ -1548,7 +1548,7 @@ def test_capitulo_de_avisos_con_sus_anclas(loc):
     indices = [i for i, g in enumerate(get_help_groups(loc)) if g == grupo]
     _title, _heading, content = get_help_sections(lang=loc)[indices[int(pos)]]
     html_doc = HelpMixin._help_format_content(content)
-    for anchor in ("is-gamma", "quad-field", "is-quad-doublets", "thin-absorber"):
+    for anchor in ("is-gamma", "quad-gamma", "quad-field", "is-quad-doublets", "thin-absorber"):
         assert f"<a name='{anchor}'></a>" in html_doc, (loc, anchor)
     assert "[[#" not in html_doc
 
@@ -1596,6 +1596,19 @@ def test_el_aviso_enlaza_a_su_explicacion(win, app):
     d.gamma.set_fixed(False)
     d._sync_warning()
     assert d.warning_anchor == "is-gamma"
+    win.mode_combo.setCurrentIndex(2)                     # P(ΔEQ) con dobletes
+    d.gamma.set_fixed(False)
+    d._sync_warning()
+    assert d.warning_anchor == "quad-gamma"
+    d.gamma.set_fixed(True)
+    d._sync_warning()
+    assert d.warning_anchor is None
+    d.field_enabled.setChecked(True)                      # sextetes: Γ se separa
+    d.fixed_bhf.set_value(30.0)
+    d.gamma.set_fixed(False)
+    d._sync_warning()
+    assert d.warning_anchor == "quad-field"
+    d.field_enabled.setChecked(False)
     win._help_dialog.close()
     app.processEvents()
 

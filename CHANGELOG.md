@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- **Aviso de P(ΔEQ) con Γ libre.** El panel avisaba de P(IS) con Γ libre pero
+  no de P(ΔEQ) con dobletes, donde la compensación es igual de fuerte (en
+  espectros sintéticos con P gaussiana, correlación σ–Γ de −0.90 a −0.95 y
+  error de σ unas 3 veces mayor; con P(BHF), −0.5 a −0.7). Nuevo aviso con su
+  sección de ayuda (`#quad-gamma`) en 8 idiomas; no salta con la opción de
+  sextetes de campo fijo, donde Γ sí se separa.
 - **Informes de distribución.** En modo distribución, el informe completo y el
   reducido (Markdown y PDF) mostraban el componente discreto de los paneles —un
   sextete que no formaba parte del ajuste—, un RMS que era el del modelo

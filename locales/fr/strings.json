@@ -918,6 +918,7 @@
   "bhf.field_advanced_tip": "Décoché, chaque colonne de P(ΔEQ) est un doublet (B = 0), le cas habituel. Cochez-le seulement pour distribuer le déplacement quadripolaire d'un sextet à champ fixe.",
   "bhf.warn_thin_absorber": "⚠ L'ajustement de distribution suppose un absorbeur mince : le réglage « Absorbeur » ne s'applique pas ici.",
   "bhf.warn_is_gamma": "⚠ Une distribution d'IS élargit toutes les raies de la même façon et se confond avec Γ : fixez Γ (case « Fixe ») pour que P(IS) ait un sens.",
+  "bhf.warn_quad_gamma": "⚠ Avec des doublets, P(ΔEQ) élargit les deux raies comme Γ et les deux se compensent : fixez Γ (case « Fixe ») pour que la largeur de P(ΔEQ) soit fiable.",
   "bhf.warn_quad_field": "⚠ Avec B ≠ 0 chaque colonne est un sextet au premier ordre : valable seulement si ΔEQ est très inférieur à l'éclatement magnétique (inadapté aux champs appliqués de quelques teslas).",
   "bhf.warn_is_quad_2d": "⚠ Avec des doublets, seule la distribution de chaque raie (δ ± ΔEQ/2) est observée : la carte IS–ΔEQ n'est pas unique (σ IS, σ ΔEQ et ρ se compensent). Pour la corrélation IS–ΔEQ, utilisez P(ΔEQ) avec κδ.",
   "slider.dist_delta_inactive": "δ (inutilisé : distribué)",

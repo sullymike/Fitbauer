@@ -143,6 +143,10 @@ mean what they seem:
 
 - **P(IS) with free Γ**: a distribution of isomer shifts broadens every line equally and
   is confused with Γ. Fix Γ to the instrumental width.
+- **P(ΔEQ) with doublets and free Γ**: P(ΔEQ) broadens both lines of the doublet just
+  like Γ (in synthetic spectra, σ–Γ correlation of −0.90 to −0.95 and a σ error about
+  3 times larger). Fix Γ here too. P(BHF) does not need it: the field broadens the outer
+  lines about 6 times more than the inner ones, so Γ separates.
 - **P(ΔEQ) with fixed-field sextets**: the first-order kernel is valid only when ΔEQ is
   small compared to the magnetic splitting.
 - **P(IS, ΔEQ) with doublets**: the spectrum only sees the distribution of each line,
