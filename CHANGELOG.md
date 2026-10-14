@@ -1,6 +1,6 @@
 # Changelog
 
-## Sin publicar
+## v5.2.2 — Czjzek de NORMOS, mallas en sus nodos y ponderación con la σ de los datos
 
 - **σ y ΔEQ₀ de Czjzek se pueden fijar.** Nuevos controles «σ Czjzek» y
   «ΔEQ₀ ordenado» en el panel (solo con las formas de Czjzek): dan el arranque
