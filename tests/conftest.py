@@ -90,3 +90,41 @@ def _convenios_del_nucleo_por_defecto():
     set_sextet_pattern("alpha_fe")
     physics.INTENSITY_CONVENTION = "depth"
     physics.RELAX_CONVENTION = "blume"
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Guarda el código de salida para :func:`pytest_unconfigure`."""
+    session.config._fitbauer_exitstatus = int(exitstatus)
+
+
+def pytest_unconfigure(config):
+    """Sale sin pasar por la destrucción de objetos Qt al cerrar Python.
+
+    En CI la suite pasaba entera y después el proceso moría con «Segmentation
+    fault» (exit 139) al apagar el intérprete: PySide6 destruía ventanas,
+    lienzos de matplotlib y diálogos en el orden que elegía el recolector,
+    a veces después de la QApplication. Aquí, con el resumen de pytest ya
+    impreso, se cierran y destruyen los widgets que queden y se termina con
+    ``os._exit`` y el mismo código de salida de pytest (un test que falla
+    sigue dando un código distinto de 0).
+    """
+    import os
+
+    status = getattr(config, "_fitbauer_exitstatus", None)
+    if status is None or "PySide6.QtWidgets" not in sys.modules:
+        return
+    try:
+        from PySide6 import QtCore, QtWidgets
+
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            for w in QtWidgets.QApplication.topLevelWidgets():
+                w.close()
+                w.deleteLater()
+            QtCore.QCoreApplication.sendPostedEvents(None, QtCore.QEvent.DeferredDelete)
+            app.processEvents()
+    except Exception:
+        pass
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(status)
