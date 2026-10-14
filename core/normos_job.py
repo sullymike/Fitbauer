@@ -649,6 +649,12 @@ def job_to_distribution_state(text: str) -> dict:
         "dist_kernel_treatment": "hamiltonian" if exacto else "1st_order",
         "dist_kernel_eta": _f(param.get("ETA"), 0.0),
     }
+    if forma == "Czjzek":
+        # σ equivalente al STG de NORMOS; fijo si el .JOB no lo refina.
+        estado["dist_czjzek_sigma"] = sigma
+        bandera = _idx(param, "STGFIT", 1)
+        if bandera is not None:
+            estado["dist_fixed"] = {"czjzek_sigma": not _b(bandera)}
     if forma == "Binomial":
         # DISTRI=3 con CONC>0: 13 subespectros (0…12 vecinos) que empiezan en
         # BHF/QUA/ISO y avanzan DTB/DTQ/DTI por vecino (sonda DIST 2026-10-09).

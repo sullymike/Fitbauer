@@ -104,6 +104,18 @@ def test_dist_cli_shape_czjzek(tmp_path, shape, label):
     assert (summary["czjzek_delta0"] is None) == (shape == "czjzek")
 
 
+def test_dist_cli_czjzek_sigma_fija(tmp_path):
+    proc = _run_dist_cli(tmp_path, "--variable", "quad", "--shape", "czjzek", "--nbins", "40",
+                         "--czjzek-sigma", "0.4", "--fix-czjzek-sigma")
+    assert proc.returncode == 0, proc.stderr
+    summary = json.loads((tmp_path / "out_summary.json").read_text(encoding="utf-8"))
+    assert summary["czjzek_sigma"] == pytest.approx(0.4)
+    assert summary["czjzek_sigma_err"] is None
+    proc = _run_dist_cli(tmp_path, "--variable", "quad", "--shape", "czjzek",
+                         "--fix-czjzek-sigma")
+    assert proc.returncode == 2 and "--czjzek-sigma" in proc.stderr
+
+
 def test_dist_cli_czjzek_solo_con_cuadrupolo(tmp_path):
     proc = _run_dist_cli(tmp_path, "--shape", "czjzek")         # --variable bhf
     assert proc.returncode == 2 and "czjzek" in proc.stderr

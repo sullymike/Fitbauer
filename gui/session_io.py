@@ -341,6 +341,8 @@ class SessionIOMixin:
                     "dist_binom_conc": dp.binom_conc,
                     "dist_binom_start": dp.binom_start,
                     "dist_binom_step": dp.binom_step,
+                    "dist_czjzek_sigma": dp.czjzek_sigma,
+                    "dist_czjzek_delta0": dp.czjzek_delta0,
                     "dist_vbf_sigma_min": dp.vbf_sigma_min,
                     "dist_vbf_sigma_max": dp.vbf_sigma_max,
                     "dist_vbf_sigma_min_y": dp.vbf_sigma_min_y,
@@ -381,6 +383,7 @@ class SessionIOMixin:
                     "delta_slope": dp.delta_slope, "quad_slope": dp.quad_slope,
                     "binom_conc": dp.binom_conc, "binom_start": dp.binom_start,
                     "binom_step": dp.binom_step,
+                    "czjzek_sigma": dp.czjzek_sigma, "czjzek_delta0": dp.czjzek_delta0,
                 }
                 for name, ctl in _fix_ctls.items():
                     if name in fixed_map:

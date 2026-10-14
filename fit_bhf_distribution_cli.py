@@ -112,6 +112,15 @@ def parse_args() -> argparse.Namespace:
                         help="Forma de la distribución (gaussiana = VBF con N=1 y línea "
                              "Lorentziana; czjzek/czjzek-ext = |ΔEQ| de un gradiente de "
                              "campo aleatorio, solo con --variable quad y dobletes).")
+    parser.add_argument("--czjzek-sigma", type=float, default=None,
+                        help="Czjzek: σ inicial (mm/s). Equivale a √(STG² + DTQ²) "
+                             "de NORMOS-DIST.")
+    parser.add_argument("--fix-czjzek-sigma", action="store_true",
+                        help="Czjzek: no ajustar σ (requiere --czjzek-sigma).")
+    parser.add_argument("--czjzek-delta0", type=float, default=None,
+                        help="Czjzek extendido: ΔEQ₀ inicial (mm/s).")
+    parser.add_argument("--fix-czjzek-delta0", action="store_true",
+                        help="Czjzek extendido: no ajustar ΔEQ₀ (requiere --czjzek-delta0).")
     parser.add_argument("--binomial-conc", type=float, default=10.0,
                         help="Binomial (NORMOS DISTRI=3): concentración de soluto "
                              "en %% (CONC). Fija salvo --fit-conc.")
@@ -267,6 +276,10 @@ def parse_args() -> argparse.Namespace:
             args.dist_2d or args.variable != "quad" or args.fixed_bhf > 0):
         parser.error("--shape czjzek/czjzek-ext solo aplica a --variable quad con "
                      "dobletes (--fixed-bhf 0), en 1D.")
+    if args.fix_czjzek_sigma and args.czjzek_sigma is None:
+        parser.error("--fix-czjzek-sigma requiere --czjzek-sigma.")
+    if args.fix_czjzek_delta0 and args.czjzek_delta0 is None:
+        parser.error("--fix-czjzek-delta0 requiere --czjzek-delta0.")
     if args.dist_2d and args.shape == "binomial":
         parser.error("--dist-2d admite --shape histograma, gaussiana o vbf.")
     sig_x = (args.vbf_sigma_min, args.vbf_sigma_max)
@@ -483,6 +496,8 @@ def run_fit_1d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
     if args.shape in ("czjzek", "czjzek-ext"):
         return fit_czjzek_hyperfine_distribution(
             v, y, extended=args.shape == "czjzek-ext",
+            czjzek_sigma=args.czjzek_sigma, fit_czjzek_sigma=not args.fix_czjzek_sigma,
+            czjzek_delta0=args.czjzek_delta0, fit_czjzek_delta0=not args.fix_czjzek_delta0,
             profile=args.profile, voigt_sigma=args.voigt_sigma,
             delta_slope=args.delta_slope, quad_slope=args.quad_slope,
             **common)

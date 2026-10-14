@@ -197,6 +197,25 @@ class DistributionPanel(QtWidgets.QGroupBox):
         left_v.addWidget(self._binom_box)
         self._binom_owner: str | None = None
 
+        # Czjzek: σ del desorden y ΔEQ₀ del entorno ordenado (extendido). Son
+        # el arranque del ajuste y se pueden fijar (como el STG de NORMOS);
+        # tras ajustar recogen los valores ajustados.
+        self._czjzek_box = QtWidgets.QWidget()
+        cz_v = QtWidgets.QVBoxLayout(self._czjzek_box)
+        cz_v.setContentsMargins(0, 0, 0, 0)
+        cz_v.setSpacing(2)
+        self.czjzek_sigma = ParamControl(
+            tr("slider.dist_czjzek_sigma", default="σ Czjzek (mm/s)"),
+            0.3, 0.005, 3.0, 0.001, 4)
+        self.czjzek_delta0 = ParamControl(
+            tr("slider.dist_czjzek_delta0", default="ΔEQ₀ ordenado (mm/s)"),
+            0.8, 0.0, 5.0, 0.001, 4)
+        for w in (self.czjzek_sigma, self.czjzek_delta0):
+            cz_v.addWidget(w)
+            w.valueChanged.connect(lambda *_: self.paramChanged.emit())
+            w.fixedChanged.connect(lambda *_: self.paramChanged.emit())
+        left_v.addWidget(self._czjzek_box)
+
         self.btn_load_fixed = QtWidgets.QPushButton(tr("bhf.load_fixed"))
         self.btn_load_fixed.clicked.connect(self.loadFixedRequested)
         self.btn_load_fixed.setEnabled(False)
@@ -407,6 +426,8 @@ class DistributionPanel(QtWidgets.QGroupBox):
         # Binomial: sus propios controles en lugar de la malla.
         is_binomial = self.shape == "Binomial"
         self._binom_box.setVisible(is_binomial)
+        self._czjzek_box.setVisible(self.shape in CZJZEK_SHAPES)
+        self.czjzek_delta0.setVisible(self.shape == "Czjzek ext.")
         for ctl in (self.bmin, self.bmax, self.nbins):
             ctl.setVisible(not is_binomial)
         # Correlación δ(H)/ΔEQ(H): Histograma, VBF, Binomial y Czjzek.
@@ -713,6 +734,8 @@ class DistributionPanel(QtWidgets.QGroupBox):
             binom_neighbors=int(self.binom_neighbors.value()),
             binom_start=self.binom_start.value(),
             binom_step=self.binom_step.value(),
+            czjzek_sigma=self.czjzek_sigma.value(),
+            czjzek_delta0=self.czjzek_delta0.value(),
             qmin=self.qmin.value(),
             qmax=self.qmax.value(),
             qbins=max(1, int(round(self.qbins.value()))),
@@ -726,6 +749,8 @@ class DistributionPanel(QtWidgets.QGroupBox):
                 "binom_conc": self.binom_conc.is_fixed(),
                 "binom_start": self.binom_start.is_fixed(),
                 "binom_step": self.binom_step.is_fixed(),
+                "czjzek_sigma": self.czjzek_sigma.is_fixed(),
+                "czjzek_delta0": self.czjzek_delta0.is_fixed(),
             },
         )
 

@@ -541,6 +541,12 @@ def test_czjzek_de_normos_se_importa_como_forma_czjzek():
     aviso = next(a for a in r["warnings"] if "Czjzek" in a)
     assert "0.6261" in aviso or "0.626" in aviso           # √(0.6² + 0.18²)
     assert not any("Voigt" in a for a in r["warnings"])   # STG no es el de IS
+    # σ equivalente al STG, como valor del panel; fijo si el .JOB no lo refina.
+    assert st["dist_czjzek_sigma"] == pytest.approx(np.hypot(0.6, 0.18))
+    assert "dist_fixed" not in st
+    st = job_to_distribution_state(
+        JOB_DIST_CZJZEK.replace("STG=0.6,", "STG=0.6, STGFIT=.FALSE.,"))["model_state"]
+    assert st["dist_fixed"] == {"czjzek_sigma": True}
     # Con sextetes de campo fijo la forma no aplica.
     r = job_to_distribution_state(JOB_DIST_CZJZEK.replace("BHF=0.,", "BHF=5.,"))
     assert r["model_state"]["dist_shape"] == "Histograma"

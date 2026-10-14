@@ -373,6 +373,9 @@ class DistributionViewState:
     binom_neighbors: int = 12
     binom_start: float = 33.0
     binom_step: float = -2.5
+    # Czjzek: σ (mm/s) y ΔEQ₀ del entorno ordenado (forma extendida).
+    czjzek_sigma: float = 0.3
+    czjzek_delta0: float = 0.8
     # Malla del eje Y de la distribución 2D (antes no se persistían).
     qmin:        float = _DSPEC["qmin"].default
     qmax:        float = _DSPEC["qmax"].default
@@ -441,6 +444,8 @@ class DistributionViewState:
             binom_neighbors=int(_num("dist_binom_neighbors", d.binom_neighbors)),
             binom_start=_num("dist_binom_start", d.binom_start),
             binom_step=_num("dist_binom_step", d.binom_step),
+            czjzek_sigma=_num("dist_czjzek_sigma", d.czjzek_sigma),
+            czjzek_delta0=_num("dist_czjzek_delta0", d.czjzek_delta0),
             qmin=_num("dist_qmin", d.qmin),
             qmax=_num("dist_qmax", d.qmax),
             qbins=int(_num("dist_qbins", d.qbins)),
@@ -501,6 +506,8 @@ class DistributionViewState:
             "dist_binom_neighbors": int(self.binom_neighbors),
             "dist_binom_start": float(self.binom_start),
             "dist_binom_step": float(self.binom_step),
+            "dist_czjzek_sigma": float(self.czjzek_sigma),
+            "dist_czjzek_delta0": float(self.czjzek_delta0),
             "dist_qmin": float(self.qmin),
             "dist_qmax": float(self.qmax),
             "dist_qbins": int(self.qbins),

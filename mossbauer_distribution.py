@@ -2795,8 +2795,17 @@ def fit_czjzek_hyperfine_distribution(
     quad_slope: float = 0.0,
     h_ref: float | None = None,
     sigma: np.ndarray | None = None,
+    czjzek_sigma: float | None = None,
+    fit_czjzek_sigma: bool = True,
+    czjzek_delta0: float | None = None,
+    fit_czjzek_delta0: bool = True,
 ) -> BhfDistributionFit:
     """P(ΔEQ) con la forma de Czjzek (``extended=False``) o Czjzek extendida.
+
+    ``czjzek_sigma``/``czjzek_delta0`` son los valores iniciales (o los fijos,
+    con ``fit_czjzek_sigma``/``fit_czjzek_delta0`` a False: así se reproduce
+    un STG fijo de NORMOS-DIST, con σ = √(STG² + DTQ²)). Sin valor, se prueban
+    varios arranques repartidos por la malla.
 
     Ver :func:`czjzek_weights`. Parámetros ajustados: área A, escala σ y, en
     el modelo extendido, ΔEQ₀ ≥ 0; más fondo y nítidos libres. Admite la
@@ -2823,7 +2832,11 @@ def fit_czjzek_hyperfine_distribution(
     rng = max(float(pmax) - float(pmin), 1e-3)
     amp0 = max(1e-6, float(np.percentile(y, 90) - np.min(y)))
     n_lin = int(fit_baseline) + int(fit_slope)
-    n_shape = 3 if extended else 2          # A, log σ[, ΔEQ₀]
+    libre_sig = bool(fit_czjzek_sigma) or czjzek_sigma is None
+    libre_d0 = extended and (bool(fit_czjzek_delta0) or czjzek_delta0 is None)
+    sig_fijo = max(float(czjzek_sigma or 0.0), 1e-9)
+    d0_fijo = max(float(czjzek_delta0 or 0.0), 0.0) if extended else 0.0
+    n_shape = 1 + int(libre_sig) + int(libre_d0)   # A[, log σ][, ΔEQ₀]
 
     def lin_part(x: np.ndarray) -> tuple[float, float]:
         i = 0
@@ -2835,9 +2848,12 @@ def fit_czjzek_hyperfine_distribution(
         return b0, sl
 
     def shape_part(x: np.ndarray) -> tuple[float, float, float]:
-        A, log_sig = float(x[n_lin]), float(x[n_lin + 1])
-        d0 = float(x[n_lin + 2]) if extended else 0.0
-        return max(A, 0.0), float(np.exp(log_sig)), max(d0, 0.0)
+        k = n_lin
+        A = float(x[k]); k += 1
+        sg = float(np.exp(x[k])) if libre_sig else sig_fijo
+        k += int(libre_sig)
+        d0 = float(x[k]) if libre_d0 else d0_fijo
+        return max(A, 0.0), sg, max(d0, 0.0)
 
     def model(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         b0, sl = lin_part(x)
@@ -2859,22 +2875,36 @@ def fit_czjzek_hyperfine_distribution(
         lo.append(0.0); hi.append(np.inf); lin0.append(float(baseline))
     if fit_slope:
         lo.append(-np.inf); hi.append(np.inf); lin0.append(float(slope))
-    lo += [0.0, np.log(sig_lo)]; hi += [np.inf, np.log(sig_hi)]
-    if extended:
+    lo.append(0.0); hi.append(np.inf)
+    if libre_sig:
+        lo.append(np.log(sig_lo)); hi.append(np.log(sig_hi))
+    if libre_d0:
         lo.append(0.0); hi.append(hi_grid)
     lo += [0.0] * n_sharp; hi += [np.inf] * n_sharp
     lo_arr, hi_arr = np.array(lo), np.array(hi)
     sharp0 = [amp0 / max(n_sharp, 1)] * n_sharp
     # Varios arranques baratos (el kernel ya está construido): la moda de la
     # χ₅ es 2σ, así que se reparten modas por la malla.
-    starts = []
+    candidatos: list[tuple[float, float]] = []      # (σ, ΔEQ₀) de arranque
+    if czjzek_sigma is not None or czjzek_delta0 is not None:
+        candidatos.append((czjzek_sigma if czjzek_sigma is not None else rng / 8.0,
+                           czjzek_delta0 if czjzek_delta0 is not None else 0.0))
     for frac in (0.25, 0.45, 0.65):
         moda = float(pmin) + frac * rng
         if extended:
-            starts.append([amp0, np.log(max(rng / 8.0, sig_lo)), moda])
-            starts.append([amp0, np.log(max(moda / 2.0, sig_lo)), 0.0])
+            candidatos.append((rng / 8.0, moda))
+            candidatos.append((moda / 2.0, 0.0))
         else:
-            starts.append([amp0, np.log(max(moda / 2.0, sig_lo))])
+            candidatos.append((moda / 2.0, 0.0))
+    starts = []
+    for sg0, d00 in candidatos:
+        st = [amp0]
+        if libre_sig:
+            st.append(np.log(max(float(sg0), sig_lo)))
+        if libre_d0:
+            st.append(min(max(float(d00), 0.0), hi_grid))
+        if st not in starts:
+            starts.append(st)
     res = None
     for st in starts:
         x0 = np.clip(np.array(lin0 + st + sharp0, dtype=float), lo_arr, hi_arr)
@@ -2896,12 +2926,15 @@ def fit_czjzek_hyperfine_distribution(
         dof = max(y.size - res.x.size, 1)
         scale = 1.0 if weights_data is not None else float(2.0 * res.cost / dof)
         cov = scale * np.linalg.pinv(J.T @ J)
-        sig_err = float(sig_fit * np.sqrt(max(cov[n_lin + 1, n_lin + 1], 0.0)))
-        if extended:
-            d0_err = float(np.sqrt(max(cov[n_lin + 2, n_lin + 2], 0.0)))
+        k = n_lin + 1
+        if libre_sig:
+            sig_err = float(sig_fit * np.sqrt(max(cov[k, k], 0.0)))
+            k += 1
+        if libre_d0:
+            d0_err = float(np.sqrt(max(cov[k, k], 0.0)))
     except Exception:
         pass
-    if extended and d0_fit <= 1e-6 * hi_grid:
+    if libre_d0 and d0_fit <= 1e-6 * hi_grid:
         # En ΔEQ₀ = 0 la densidad solo depende de ΔEQ₀² (jacobiana nula): no
         # hay error lineal que dar; el ajuste equivale al Czjzek puro.
         d0_fit, d0_err = 0.0, None

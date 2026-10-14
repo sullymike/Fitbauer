@@ -587,6 +587,10 @@ class DistributionFitMixin:
                 return fit_czjzek_hyperfine_distribution(
                     v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins,
                     extended=(shape == "Czjzek ext."),
+                    czjzek_sigma=dist_state.czjzek_sigma,
+                    fit_czjzek_sigma=not dist_state.is_fixed("czjzek_sigma"),
+                    czjzek_delta0=dist_state.czjzek_delta0,
+                    fit_czjzek_delta0=not dist_state.is_fixed("czjzek_delta0"),
                     profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
                     delta_slope=dsl, quad_slope=qsl,
                     **common)
@@ -845,6 +849,10 @@ class DistributionFitMixin:
                     cp.params[pname].set_value(value)
         for name, value in (getattr(result, "fitted_globals", None) or {}).items():
             {"delta": d.delta, "quad": d.quad, "gamma": d.gamma}[name].set_value(float(value))
+        if getattr(result, "czjzek_sigma", None) is not None:
+            d.czjzek_sigma.set_value(float(result.czjzek_sigma))
+            if getattr(result, "czjzek_delta0", None) is not None:
+                d.czjzek_delta0.set_value(float(result.czjzek_delta0))
         if getattr(result, "binomial_start", None) is not None:
             d.binom_start.set_value(float(result.binomial_start))
             d.binom_step.set_value(float(result.binomial_step))

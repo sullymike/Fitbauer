@@ -497,3 +497,22 @@ def test_formas_parametricas_ponderan_con_la_sigma_de_los_datos():
     rb_con = md.fit_binomial_hyperfine_distribution(v, y_mal, pmin=20, pmax=40, sigma=sigma)
     rb_sin = md.fit_binomial_hyperfine_distribution(v, y_mal, pmin=20, pmax=40)
     assert rb_con.binomial_start != pytest.approx(rb_sin.binomial_start, abs=1e-6)
+
+
+def test_czjzek_con_sigma_o_delta0_fijos():
+    """σ (y ΔEQ₀) se pueden fijar, como el STG de NORMOS: no se mueven, no
+    tienen error y no cuentan como grado de libertad."""
+    v = np.linspace(-4, 4, 400)
+    c = md.parameter_grid(0.0, 3.0, 120)
+    K = md.build_hyperfine_distribution_kernel(v, c, variable="quad", delta=0.35, gamma=0.25)
+    y = 1.0 - K @ (md.czjzek_weights(c, 0.25) * 0.08)
+    kw = dict(variable="quad", delta=0.35, gamma=0.25, pmin=0.0, pmax=3.0, nbins=120)
+    libre = md.fit_czjzek_hyperfine_distribution(v, y, czjzek_sigma=0.4, **kw)
+    assert libre.czjzek_sigma == pytest.approx(0.25, abs=1e-3)   # 0.4 solo arranca
+    fijo = md.fit_czjzek_hyperfine_distribution(v, y, czjzek_sigma=0.3,
+                                                fit_czjzek_sigma=False, **kw)
+    assert fijo.czjzek_sigma == 0.3 and fijo.czjzek_sigma_err is None
+    assert fijo.effective_dof == libre.effective_dof - 1
+    ext = md.fit_czjzek_hyperfine_distribution(v, y, extended=True, czjzek_delta0=0.5,
+                                               fit_czjzek_delta0=False, **kw)
+    assert ext.czjzek_delta0 == 0.5 and ext.czjzek_delta0_err is None

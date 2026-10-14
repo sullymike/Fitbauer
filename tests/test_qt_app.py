@@ -3283,11 +3283,22 @@ def test_forma_czjzek_en_la_gui(win, tmp_path):
     assert res.shape == "Czjzek" and res.czjzek_sigma > 0 and res.czjzek_sigma_err > 0
     texto = "\n".join(win._build_report_lines())
     assert tr("rep.czjzek_sigma") in texto and tr("rep.czjzek_delta0") not in texto
-    # La sesión conserva la forma.
+    # El panel recoge la σ ajustada; los controles solo se ven con Czjzek.
+    assert d.czjzek_sigma.value() == pytest.approx(res.czjzek_sigma, rel=1e-3)
+    assert d._czjzek_box.isVisibleTo(d) and not d.czjzek_delta0.isVisibleTo(d)
+    # σ fija: el ajuste la respeta.
+    d.czjzek_sigma.set_value(0.35); d.czjzek_sigma.set_fixed(True)
+    win.on_fit()
+    res = win.runtime_results.distribution_result
+    assert res.czjzek_sigma == pytest.approx(0.35) and res.czjzek_sigma_err is None
+    # La sesión conserva la forma, σ y su «fijo».
     payload = win._session_payload()
     win.mode_combo.setCurrentIndex(1)
+    assert not d._czjzek_box.isVisibleTo(d)
+    d.czjzek_sigma.set_fixed(False); d.czjzek_sigma.set_value(0.2)
     win._apply_session_payload(payload)
     assert win.mode_combo.currentIndex() == 2 and d.shape == "Czjzek"
+    assert d.czjzek_sigma.value() == pytest.approx(0.35) and d.czjzek_sigma.is_fixed()
 
 
 def test_correlaciones_en_estado_y_parametros(win):
