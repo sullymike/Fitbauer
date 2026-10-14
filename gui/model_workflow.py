@@ -163,6 +163,8 @@ class ModelWorkflowMixin:
     def _sync_absorber_model_from_panel(self, *args) -> None:
         if hasattr(self, "calib"):
             self.absorber_model = self.calib.to_view_state().absorber_model
+            if hasattr(self, "dist_panel"):
+                self.dist_panel.set_absorber_model(self.absorber_model)
 
     def _set_quick_action_buttons_enabled(self, enabled: bool) -> None:
         for name in ("btn_sim_fit", "btn_sim_auto_min", "btn_sim_ai"):

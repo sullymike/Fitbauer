@@ -912,6 +912,7 @@
   "slider.dist_bmax_delta": "IS máx (mm/s)",
   "bhf.field_advanced": "Sexteto com campo fixo (avançado)",
   "bhf.field_advanced_tip": "Desmarcado, cada coluna de P(ΔEQ) é um dubleto (B = 0), o caso normal. Marque-o só para distribuir o deslocamento quadrupolar de um sexteto com campo fixo.",
+  "bhf.warn_thin_absorber": "⚠ O ajuste de distribuição supõe um absorvente fino: «Absorvente» não se aplica aqui.",
   "bhf.warn_is_gamma": "⚠ Uma distribuição de IS alarga todas as linhas por igual e confunde-se com Γ: fixe Γ (caixa «Fixo») para que P(IS) faça sentido.",
   "bhf.warn_quad_field": "⚠ Com B ≠ 0 cada coluna é um sexteto de primeira ordem: só é válido se ΔEQ for muito menor que o desdobramento magnético (não serve para campos aplicados de poucos teslas).",
   "bhf.warn_is_quad_2d": "⚠ Com dupletos só se observa a distribuição de cada linha (δ ± ΔEQ/2): o mapa IS–ΔEQ não é único (σ IS, σ ΔEQ e ρ compensam-se). Para a correlação IS–ΔEQ use P(ΔEQ) com κδ.",

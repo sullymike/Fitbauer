@@ -912,6 +912,7 @@
   "slider.dist_bmax_delta": "IS Max (mm/s)",
   "bhf.field_advanced": "Sextett mit festem Feld (erweitert)",
   "bhf.field_advanced_tip": "Nicht markiert ist jede P(ΔEQ)-Spalte ein Dublett (B = 0), der Normalfall. Nur markieren, um die Quadrupolverschiebung eines Sextetts bei festem Feld zu verteilen.",
+  "bhf.warn_thin_absorber": "⚠ Verteilungsfits setzen einen dünnen Absorber voraus: die Einstellung „Absorber“ wird hier nicht angewendet.",
   "bhf.warn_is_gamma": "⚠ Eine IS-Verteilung verbreitert alle Linien gleich und ist mit Γ korreliert: Γ fixieren (Kästchen „Fest“), damit P(IS) sinnvoll ist.",
   "bhf.warn_quad_field": "⚠ Mit B ≠ 0 ist jede Spalte ein Sextett erster Ordnung: nur gültig, wenn ΔEQ viel kleiner als die magnetische Aufspaltung ist (ungeeignet für angelegte Felder von wenigen Tesla).",
   "bhf.warn_is_quad_2d": "⚠ Bei Dubletts wird nur die Verteilung jeder Linie (δ ± ΔEQ/2) beobachtet: Die IS–ΔEQ-Karte ist nicht eindeutig (σ IS, σ ΔEQ und ρ kompensieren sich). Für die IS–ΔEQ-Korrelation P(ΔEQ) mit κδ verwenden.",

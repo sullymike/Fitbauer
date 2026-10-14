@@ -86,6 +86,9 @@ class DistributionPanel(QtWidgets.QGroupBox):
         self.var_warning.linkActivated.connect(self._open_warning_help)
         self.var_warning.setVisible(False)
         self.warning_anchor: str | None = None
+        # Modelo de absorbente del panel de calibración: las distribuciones
+        # solo implementan el absorbente delgado (lo fija la ventana).
+        self._absorber_model = "thin"
         left_v.addWidget(self.var_warning)
 
         reg_row = QtWidgets.QHBoxLayout()
@@ -523,11 +526,21 @@ class DistributionPanel(QtWidgets.QGroupBox):
         self.fixed_bhf.setVisible(optional and self.field_enabled.isChecked())
         self._sync_warning()
 
+    def set_absorber_model(self, model: str) -> None:
+        """Recibe el modelo de absorbente activo (delgado/grueso/transmisión)."""
+        self._absorber_model = str(model or "thin")
+        self._sync_warning()
+
     def _sync_warning(self) -> None:
         text = ""
         anchor = None
         vars_ = self._variables(self._shape_choices_2d)
-        if vars_ == ("delta",) and not self.gamma.is_fixed():
+        if self._absorber_model != "thin":
+            anchor = "thin-absorber"
+            text = tr("bhf.warn_thin_absorber", default=(
+                "⚠ El ajuste de distribución supone un absorbente delgado: la "
+                "corrección de espesor del panel de calibración no se aplica."))
+        elif vars_ == ("delta",) and not self.gamma.is_fixed():
             anchor = "is-gamma"
             text = tr("bhf.warn_is_gamma", default=(
                 "⚠ Una distribución de IS ensancha todas las líneas por igual y "

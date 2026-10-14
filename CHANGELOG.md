@@ -2,6 +2,10 @@
 
 ## Sin publicar
 
+- **Aviso de absorbente grueso en distribución.** Con «Absorbente» en grueso o
+  integral de transmisión, el ajuste de distribución se hacía en silencio como
+  delgado (la corrección no está implementada ahí). El panel de distribución lo
+  avisa ahora, con su sección en el capítulo de avisos de la ayuda (8 idiomas).
 - **La elección de α describe lo que hace la GUI.** La ayuda (8 idiomas), los
   README, `BHF_DISTRIBUTION(_EN).md` y el anexo matemático del manual decían
   que la L-curve proponía tres valores (codo, «compromiso» y GCV) con una

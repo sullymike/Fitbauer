@@ -912,6 +912,7 @@
   "slider.dist_bmax_delta": "IS max (mm/s)",
   "bhf.field_advanced": "Sextet with fixed field (advanced)",
   "bhf.field_advanced_tip": "Unchecked, each P(ΔEQ) column is a doublet (B = 0), the usual case. Check it only to distribute the quadrupole shift of a sextet at a fixed field.",
+  "bhf.warn_thin_absorber": "⚠ Distribution fits assume a thin absorber: the «Absorber» setting is not applied here.",
   "bhf.warn_is_gamma": "⚠ An IS distribution broadens all lines equally and trades off against Γ: fix Γ («Fixed» box) for P(IS) to be meaningful.",
   "bhf.warn_quad_field": "⚠ With B ≠ 0 each column is a first-order sextet: valid only if ΔEQ is much smaller than the magnetic splitting (not suitable for applied fields of a few tesla).",
   "bhf.warn_is_quad_2d": "⚠ With doublets only the distribution of each line (δ ± ΔEQ/2) is observed: the IS–ΔEQ map is not unique (σ IS, σ ΔEQ and ρ trade off). For the IS–ΔEQ correlation use P(ΔEQ) with κδ.",

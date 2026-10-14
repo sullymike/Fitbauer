@@ -1438,7 +1438,7 @@ def test_capitulo_de_avisos_con_sus_anclas(loc):
     indices = [i for i, g in enumerate(get_help_groups(loc)) if g == grupo]
     _title, _heading, content = get_help_sections(lang=loc)[indices[int(pos)]]
     html_doc = HelpMixin._help_format_content(content)
-    for anchor in ("is-gamma", "quad-field", "is-quad-doublets"):
+    for anchor in ("is-gamma", "quad-field", "is-quad-doublets", "thin-absorber"):
         assert f"<a name='{anchor}'></a>" in html_doc, (loc, anchor)
     assert "[[#" not in html_doc
 
@@ -1488,6 +1488,22 @@ def test_el_aviso_enlaza_a_su_explicacion(win, app):
     assert d.warning_anchor == "is-gamma"
     win._help_dialog.close()
     app.processEvents()
+
+
+def test_aviso_de_absorbente_grueso_en_distribucion(win):
+    """La distribución supone absorbente delgado: el panel lo avisa si no lo es."""
+    d = win.dist_panel
+    win.mode_combo.setCurrentIndex(1)                     # P(BHF)
+    combo = win.calib.absorber_combo
+    combo.setCurrentIndex(combo.findData("thin"))
+    assert d.warning_anchor is None
+    for model in ("thickness", "transmission"):
+        combo.setCurrentIndex(combo.findData(model))
+        assert d.warning_anchor == "thin-absorber"
+        assert d.var_warning.isVisibleTo(d)
+    combo.setCurrentIndex(combo.findData("thin"))
+    assert d.warning_anchor is None
+    assert not d.var_warning.isVisibleTo(d)
 
 
 def test_ajuste_gaussiana_2d_desde_la_gui(win):
