@@ -2,6 +2,20 @@
 
 ## Sin publicar
 
+- **Correlaciones como matriz de colores.** El panel «Estado y parámetros»
+  muestra la matriz de correlación como tabla: filas y columnas son los
+  parámetros, rojo si r > 0 y azul si r < 0, más intenso cuanto mayor |r|,
+  negrita si |r| ≥ 0.95; se lee sin leer números. El informe lleva la misma
+  matriz (lista de parejas si hay más de 12 parámetros) y el PDF, su mapa de
+  calor.
+- **Errores de los globales de las distribuciones inestables.** La
+  covarianza de δ, ΔEQ, Γ y κ salía de la jacobiana que deja `least_squares`,
+  con paso ~1e-8: a esa escala manda la tolerancia del ajuste interno de P, y
+  la derivada respecto a Γ cambiaba ×3.6 entre ajustes casi idénticos (σ(Γ) y
+  sus correlaciones con ella). En 1D se recalcula al final por diferencias
+  centradas con paso de una milésima del rango, en los mismos ajustes que dan
+  la sensibilidad de los momentos de P.
+- **Informe de P(ΔEQ)/P(IS): la malla se rotulaba «(BHF)».**
 - **Correlaciones en «Estado y parámetros» y en el informe.** El panel solo
   daba la correlación máxima y las parejas con |r| ≥ 0.95, y en modo
   distribución nada. Ahora lista todas las parejas con |r| ≥ 0.5, de mayor a

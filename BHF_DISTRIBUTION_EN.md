@@ -147,10 +147,11 @@ Each overlay has a check that hides it; the choice is remembered.
   runs test of the residual), the globals with their σ, the distribution, the sharp
   components and the warnings (e.g. weight piled up at the grid edge). The PDF adds the
   P(x) plot or the 2D map.
-- **Correlations.** The "Status and parameters" panel and the report list the pairs with
-  |r| ≥ 0.5 between the refined globals (δ, ΔEQ, Γ, κ) and the **mean and width of P**
-  (⚠ if |r| ≥ 0.95, ! if |r| ≥ 0.8). This tells whether the width of the distribution is
-  trading off against Γ in that fit. They are computed with P refitted: the part due to
+- **Correlations.** The "Status and parameters" panel shows the correlation matrix as a
+  colour table (red positive, blue negative, stronger the larger |r|; bold if
+  |r| ≥ 0.95) between the refined globals (δ, ΔEQ, Γ, κ) and the **mean and width of
+  P**. The report carries the same matrix and the PDF its heat map. This tells whether
+  the width of the distribution is trading off against Γ in that fit. They are computed with P refitted: the part due to
   the globals (sensitivity of the moments of P to each global, by central differences)
   plus the internal one (Monte Carlo replicas of the histogram or covariance of the shape
   parameters). The mean and width of P thus carry an error that includes that of the

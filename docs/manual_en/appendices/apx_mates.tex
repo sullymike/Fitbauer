@@ -412,8 +412,9 @@ From the final Jacobian $J=U\Sigma V^\top$ (SVD, truncated singular values):
   \label{eq:cov}
 \end{equation}
 It gives the correlation matrix $\rho_{kl}$ (including $v_{\max}$, the centre and the
-Voigt $\sigma$ when they are fitted). The status panel and the report list the pairs
-with $|\rho_{kl}|\ge0{,}5$; $|\rho_{kl}|\ge0{,}95$ is a warning of degeneracy.
+Voigt $\sigma$ when they are fitted). The status panel shows it as a colour table
+(red $\rho>0$, blue $\rho<0$, stronger the larger $|\rho|$), and the report as a
+table and heat map; $|\rho_{kl}|\ge0{,}95$ is a warning of degeneracy.
 
 \begin{figure}[htbp]\centering
   \includegraphics[width=0.82\textwidth]{apx_profile}
