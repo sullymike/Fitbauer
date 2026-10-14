@@ -49,8 +49,11 @@ Two families are recognised automatically:
 | **NORMOS-DIST** | the points of a **grid** | P(BHF)/P(ΔEQ) panel |
 
 For DIST jobs Fitbauer translates the grid (origin and step), the shape (histogram,
-Gaussian, binomial or fixed), the δ(x) correlation and the edge anchors; the
-"crystalline" subspectra (`NXLS`) become sharp components.
+Gaussian, binomial, fixed or Czjzek), the δ(x) correlation and the edge anchors; the
+"crystalline" subspectra (`NXLS`) become sharp components. NORMOS computes each
+subspectrum at a node (origin + k·step) and Fitbauer at the centre of each bin, so
+the edges of the imported grid lie half a step outside the first and last nodes:
+the centres fall exactly on the NORMOS nodes.
 
 ## Exporting
 

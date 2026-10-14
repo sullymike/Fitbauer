@@ -1415,18 +1415,20 @@ def test_qt_update_available_dialog_can_offer_release_download(win, monkeypatch)
 def test_qt_distribution_range_limits_follow_mode(win):
     """Qt también ajusta límites de P(BHF) frente a P(ΔEQ)."""
     win.mode_combo.setCurrentIndex(1)
-    assert win.dist_panel.bmin.spin.minimum() == 0.0
+    # El borde inferior admite medio paso por debajo de 0: una malla importada
+    # de NORMOS pone el centro del primer bin en su primer nodo (BHF = 0).
+    assert win.dist_panel.bmin.spin.minimum() == -10.0
     assert win.dist_panel.bmin.spin.maximum() == 60.0
-    assert win.dist_panel.bmax.spin.minimum() == 0.0
+    assert win.dist_panel.bmax.spin.minimum() == -10.0
     assert win.dist_panel.bmax.spin.maximum() == 60.0
 
     win.dist_panel.bmin.set_value(10.0)
     win.dist_panel.bmax.set_value(50.0)
     win.mode_combo.setCurrentIndex(2)
 
-    assert win.dist_panel.bmin.spin.minimum() == 0.0
+    assert win.dist_panel.bmin.spin.minimum() == -2.0
     assert win.dist_panel.bmin.spin.maximum() == 7.0
-    assert win.dist_panel.bmax.spin.minimum() == 0.0
+    assert win.dist_panel.bmax.spin.minimum() == -2.0
     assert win.dist_panel.bmax.spin.maximum() == 7.0
     # Cada variable tiene su malla: P(ΔEQ) arranca en 0–3 mm/s y al volver a
     # P(BHF) se recupera 10–50 T (antes quedaba recortada a 7–7).

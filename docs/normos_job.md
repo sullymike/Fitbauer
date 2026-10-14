@@ -51,8 +51,11 @@ Se reconocen solas dos familias:
 | **NORMOS-DIST** | los puntos de una **malla** | panel P(BHF)/P(ΔEQ) |
 
 En los de DIST se traduce la malla (origen y paso), la forma (histograma,
-gaussiana, binomial o fija), la correlación δ(x) y los anclajes de borde; los
-subespectros «cristalinos» (`NXLS`) pasan a ser componentes nítidos.
+gaussiana, binomial, fija o Czjzek), la correlación δ(x) y los anclajes de borde;
+los subespectros «cristalinos» (`NXLS`) pasan a ser componentes nítidos. NORMOS
+calcula cada subespectro en un nodo (origen + k·paso) y Fitbauer en el centro de
+cada bin, así que los bordes de la malla importada quedan medio paso por fuera
+del primer y el último nodo: los centros caen exactamente en los nodos de NORMOS.
 
 ## Exportar
 

@@ -556,7 +556,12 @@ def job_to_distribution_state(text: str) -> dict:
         paso = 1.0
         avisos.append(
             tr("normos.w_step", name=paso_clave))
-    bmin, bmax = inicio, inicio + (nsb1 - 1) * paso
+    # NORMOS calcula los subespectros EN los nodos inicio + k·paso; la malla
+    # de Fitbauer da centros de bins, así que los bordes van medio paso por
+    # fuera (antes los nodos quedaban desplazados medio paso y el paso era
+    # (NSB−1)/NSB del de NORMOS: 0.173 en vez de 0.18 con NSB = 25).
+    bmin = inicio - 0.5 * paso
+    bmax = inicio + (nsb1 - 1) * paso + 0.5 * paso
 
     dti = _f(_idx(param, "DTI", 1), 0.0)
     dtq = _f(_idx(param, "DTQ", 1), 0.0)

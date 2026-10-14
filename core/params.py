@@ -225,15 +225,18 @@ DISTRIBUTION_PARAM_SPECS: dict[str, ParamSpec] = {
     "fixed_bhf":   ParamSpec(0.0,           0.0, 60.0,   0.01,  3),
     "gamma":       ParamSpec(0.36,          0.06,  2.0,  0.001, 4),
     # Malla eje X  (BHF / ΔEQ / IS según modo)
-    "bmin":        ParamSpec(0.0,    0.0,  60.0,  0.1, 2),
-    "bmax":        ParamSpec(50.0,   0.0,  60.0,  0.1, 2),
+    # Cuatro decimales y un mínimo algo por debajo de 0: una malla importada
+    # de NORMOS pone los CENTROS de los bins en sus nodos (QUA + k·DTQ), así
+    # que el borde inferior queda medio paso por debajo del primer nodo.
+    "bmin":        ParamSpec(0.0,  -10.0,  60.0,  0.1, 4),
+    "bmax":        ParamSpec(50.0, -10.0,  60.0,  0.1, 4),
     "nbins":       ParamSpec(50.0,  10.0, 100.0,  1.0, 0),
     "log_alpha":   ParamSpec( 0.0,  -6.0,   6.0,  0.1, 2),
     # Límites exteriores del eje X en modo IS (δ) y ΔEQ distribuido.
     # Controlan hasta dónde pueden llegar los sliders bmin/bmax en esos modos.
     "is_lo":       ParamSpec(-2.5, -10.0,  0.0,  0.1, 2),
     "is_hi":       ParamSpec( 2.5,   0.0, 10.0,  0.1, 2),
-    "quad_lo":     ParamSpec( 0.0,  -7.0,  0.0,  0.1, 2),
+    "quad_lo":     ParamSpec(-2.0,  -7.0,  0.0,  0.1, 2),
     "quad_hi":     ParamSpec( 7.0,   0.0, 15.0,  0.1, 2),
     # Malla eje Y en modo 2D (ΔEQ o IS)
     "qmin":        ParamSpec(-1.0,  -4.0,  4.0, 0.01, 3),
@@ -300,7 +303,7 @@ PEAK_DETECTION_SPECS: dict[str, ParamSpec] = {
 # Rango dinámico de la malla del histograma según la variable distribuida.
 # El panel de distribución llama a set_range() con estos valores al cambiar de modo.
 DIST_VAR_RANGE: dict[str, tuple[float, float]] = {
-    "bhf":   (0.0,  60.0),
+    "bhf":   (-10.0, 60.0),
     "quad":  (0.0,   7.0),
     "delta": (-2.5,  2.5),
 }

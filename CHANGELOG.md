@@ -2,6 +2,19 @@
 
 ## Sin publicar
 
+- **La malla importada de NORMOS-DIST no coincidía con la suya.** NORMOS
+  calcula los subespectros en los nodos QUA + k·DTQ (o BHF + k·DTB…); el
+  importador pasaba ese rango como bordes y Fitbauer pone los nodos en los
+  centros de los bins, así que quedaban desplazados medio paso y con un paso
+  (NSB−1)/NSB del de NORMOS (0.173 en vez de 0.18 con NSB = 25). Ahora los
+  bordes van medio paso por fuera y los centros caen en los nodos. Para que
+  quepa, `bmin`/`bmax` admiten 4 decimales y un mínimo algo por debajo de 0
+  (−10 T en BHF, −2 mm/s en ΔEQ); los rangos por defecto no cambian.
+  **Cambian los resultados de los `.JOB` de DIST importados.**
+- **Segfault al terminar la suite en CI** (exit 139 en 6 de 9 ejecuciones):
+  los tests pasaban y el proceso moría al apagar Python, al destruir PySide6
+  los objetos Qt en desorden. La sesión de pytest cierra ahora los widgets y
+  sale con su propio código.
 - **El Czjzek de NORMOS se importa como forma Czjzek.** Una sonda del binario
   de NORMOS-DIST (09.09.1993, `DISTRI=4` con `METHOD=6`) muestra que usa
   exactamente la misma P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) que la forma «Czjzek» de

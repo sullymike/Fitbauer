@@ -385,10 +385,14 @@ def test_un_job_de_dist_se_carga_en_el_panel_de_distribucion():
     s = r["model_state"]
     assert r["variable"] == "bhf"
     assert s["dist_shape"] == "Histograma"
-    # La malla es BHF + (k-1)·DTB, k = 1..NSB (distcalf.for: RH = BHF+PP*DTB).
-    assert s["dist_bmin"] == pytest.approx(0.0)
-    assert s["dist_bmax"] == pytest.approx(45.0)
+    # Los nodos son BHF + (k-1)·DTB, k = 1..NSB (distcalf.for: RH = BHF+PP*DTB);
+    # los CENTROS de los bins de Fitbauer caen en ellos: bordes medio paso fuera.
+    assert s["dist_bmin"] == pytest.approx(-2.5)
+    assert s["dist_bmax"] == pytest.approx(47.5)
     assert s["dist_nbins"] == 10
+    import mossbauer_distribution as md
+    centros = md.parameter_grid(s["dist_bmin"], s["dist_bmax"], s["dist_nbins"])
+    assert centros == pytest.approx(0.0 + 5.0 * np.arange(10))
     assert s["dist_gamma"] == pytest.approx(0.3)
     assert s["dist_delta"] == pytest.approx(0.5)
     # El panel de distribución, no el modo discreto.
@@ -413,8 +417,8 @@ def test_la_malla_de_cuadrupolo_usa_qua_y_dtq():
                       .replace("QUA=-0.015", "QUA=0.25")
                       .replace("DTB=5.0", "DTB=5.0, DTQ=0.05"))
     s = job_to_distribution_state(job)["model_state"]
-    assert s["dist_bmin"] == pytest.approx(0.25)
-    assert s["dist_bmax"] == pytest.approx(0.25 + 9 * 0.05)
+    assert s["dist_bmin"] == pytest.approx(0.25 - 0.025)
+    assert s["dist_bmax"] == pytest.approx(0.25 + 9 * 0.05 + 0.025)
 
 
 def test_dtq_no_se_traslada_en_distribuciones_de_campo():
@@ -595,8 +599,8 @@ def test_la_gui_importa_un_job_de_dist_en_el_panel(tmp_path, monkeypatch):
         assert win.mode_combo.currentIndex() == 1
         assert win.dist_variable == "bhf"
         d = win.dist_panel.to_view_state(variable="bhf")
-        assert d.bmin == pytest.approx(0.0)
-        assert d.bmax == pytest.approx(45.0)
+        assert d.bmin == pytest.approx(-2.5)      # centros en los nodos de NORMOS
+        assert d.bmax == pytest.approx(47.5)
         assert d.nbins == 10
         assert d.gamma == pytest.approx(0.3)
         assert d.use_sharp is True
