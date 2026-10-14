@@ -3166,8 +3166,10 @@ def test_ajuste_2d_con_nitidos_respeta_el_tope_de_evaluaciones(win, monkeypatch)
     monkeypatch.setattr(win, "_open_progress_dialog", open_spy)
     win.on_fit()
     assert win.runtime_results.distribution_result is not None
-    (tope,) = max_iter
-    assert len(calls) <= tope + 1          # + la evaluación final
+    # El refinado anuncia su tope; si lo agota, la jacobiana de los errores
+    # es una fase aparte con el suyo (2 ajustes por parámetro externo).
+    assert 1 <= len(max_iter) <= 2
+    assert len(calls) <= sum(max_iter) + 1          # + la evaluación final
 
 
 def test_cancelar_detiene_un_ajuste_vbf_2d(win, monkeypatch):
