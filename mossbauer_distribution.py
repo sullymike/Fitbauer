@@ -101,6 +101,10 @@ class BhfQuadDistribution2DFit:
     #: Límites de anchura aplicados a las gaussianas 2D:
     #: ``((σx_mín, σx_máx), (σy_mín, σy_máx))``, en unidades de cada eje.
     vbf2d_sigma_bounds: tuple[tuple[float, float], tuple[float, float]] | None = None
+    #: Valores finales de los globales (δ, ΔEQ, Γ, pendientes) y cuáles se
+    #: refinaron, y su covarianza {(clave_i, clave_j): cov} (los pone la GUI).
+    global_values: dict | None = None
+    global_cov: dict | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {

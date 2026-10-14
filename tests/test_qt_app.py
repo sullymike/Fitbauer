@@ -618,6 +618,29 @@ def test_curva_de_correlacion_en_el_dialogo_de_pdeq(win, monkeypatch):
     win._show_distribution_dialog(sin_k)
     assert win._dist_dialog_axes[1] is None
 
+def test_globales_de_la_distribucion_con_sus_errores(win):
+    """El resultado guarda δ, ΔEQ, Γ y pendientes finales; Γ (refinada en
+    log Γ) lleva su varianza en unidades de Γ, coherente con la de log Γ."""
+    import numpy as np
+    win._load_file(DATA / "sintetico_dist_deq.adt")
+    captured = {}
+    win._show_distribution_dialog = lambda r: captured.setdefault("r", r)
+    win.mode_combo.setCurrentIndex(2)                     # P(ΔEQ)
+    d = win.dist_panel
+    d.delta.set_fixed(False)
+    d.gamma.set_fixed(False)
+    win.on_fit()
+    r = captured["r"]
+    gv, cov = r.global_values, r.global_cov
+    assert {"dist_delta", "dist_gamma"} <= set(gv["free"])
+    assert gv["dist_gamma"] == pytest.approx(d.gamma.value())
+    assert cov[("dist_gamma", "dist_gamma")] > 0
+    assert cov[("dist_delta", "dist_gamma")] == pytest.approx(
+        cov[("dist_gamma", "dist_delta")])
+    # σ(Γ)/Γ pequeño pero no nulo: está en mm/s, no en unidades de log Γ.
+    assert 1e-4 < np.sqrt(cov[("dist_gamma", "dist_gamma")]) / gv["dist_gamma"] < 0.5
+
+
 def test_pbhf_maxent_reg_mode_fits(win):
     """El modo de regularización 'maxent' ajusta un histograma P(BHF) positivo."""
     import numpy as np

@@ -752,10 +752,27 @@ class DistributionFitMixin:
                     opt = least_squares(residual_outer, x0, bounds=(lo, hi),
                                         max_nfev=max_outer_evals)
                     fitted_x_local = opt.x
-                    outer_opt.update(jac=opt.jac, fun=opt.fun)
+                    outer_opt.update(jac=opt.jac, fun=opt.fun, x=opt.x)
                 except _OuterBudgetExhausted:
                     best_x = progress_state["best_x"]
                     fitted_x_local = x0 if best_x is None else best_x
+                    if not is_2d:
+                        # Sin jacobiana del optimizador no habría errores de
+                        # los globales: se calcula en el mejor punto (p + 1
+                        # ajustes internos, milisegundos en 1D).
+                        def _resid(x: np.ndarray) -> np.ndarray:
+                            return run_fit(*expand(x), final=False).residuals
+
+                        xb = np.asarray(fitted_x_local, dtype=float)
+                        f0 = _resid(xb)
+                        jac = np.empty((f0.size, xb.size))
+                        for i in range(xb.size):
+                            h = 1.5e-8 ** 0.5 * max(1.0, abs(xb[i]))
+                            # Diferencia hacia dentro si el punto toca la cota.
+                            h = -h if xb[i] + h > hi[i] else h
+                            xi = xb.copy(); xi[i] += h
+                            jac[:, i] = (_resid(xi) - f0) / h
+                        outer_opt.update(jac=jac, fun=f0, x=xb)
                 delta_final, quad_final, gamma_final, sharp_final, dslope_final, qslope_final = expand(fitted_x_local)
                 update_progress(tr("progress.distribution_compute_final",
                                    default="Calculando distribución final…"))
@@ -814,12 +831,23 @@ class DistributionFitMixin:
         # Globales finales, su covarianza y la variable van con el resultado
         # (no con la ventana): si el diálogo se reabre más tarde, la curva
         # δ(x)/ΔEQ(x) y su banda son las de este ajuste.
-        if not is_2d:
+        # Las gaussianas 2D ajustan δ/ΔEQ/Γ dentro (``fitted_globals``), sin
+        # bucle externo ni covarianza de esos globales.
+        libres = [k for k, *_ in outer_specs if not k.startswith("sharp:")]
+        libres += [f"dist_{n}" for n in (getattr(result, "fitted_globals", None) or {})]
+        global_values = {"dist_delta": float(d.delta.value()),
+                         "dist_quad": float(d.quad.value()),
+                         "dist_gamma": float(d.gamma.value()),
+                         "dist_delta_slope": float(d.delta_slope.value()),
+                         "dist_quad_slope": float(d.quad_slope.value()),
+                         "free": libres}
+        if is_2d:
+            result = dataclasses.replace(result, global_cov=global_cov,
+                                         global_values=global_values)
+        else:
             result = dataclasses.replace(
                 result, fit_variable=var, global_cov=global_cov,
-                global_values={"dist_delta": float(d.delta.value()),
-                               "dist_quad": float(d.quad.value()),
-                               "free": [k for k, *_ in outer_specs]})
+                global_values=global_values)
 
         # Componentes para el gráfico
         # TODO (punto 4): los nítidos se reconstruyen aquí con component_absorption
@@ -972,11 +1000,13 @@ class DistributionFitMixin:
 
     @staticmethod
     def _distribution_global_covariance(outer_specs, outer_opt, result) -> dict:
-        """{(clave_i, clave_j): cov} de los globales lineales del bucle externo.
+        """{(clave_i, clave_j): cov} de los globales del bucle externo.
 
-        Claves ``dist_delta``, ``dist_quad``, ``dist_delta_slope``,
-        ``dist_quad_slope``. Vacío si no hubo bucle externo o si se agotó el
-        presupuesto de evaluaciones (no hay jacobiana fiable en ese punto).
+        Claves ``dist_delta``, ``dist_quad``, ``dist_gamma``,
+        ``dist_delta_slope``, ``dist_quad_slope``, en unidades físicas: Γ se
+        refina en log Γ y su covarianza se pasa a Γ con dΓ = Γ·d(log Γ).
+        Vacío si no hubo bucle externo o si se agotó el presupuesto de
+        evaluaciones (no hay jacobiana fiable en ese punto).
         """
         if not outer_specs or "jac" not in outer_opt:
             return {}
@@ -985,10 +1015,13 @@ class DistributionFitMixin:
             float(getattr(result, "effective_dof", None) or 0.0))
         if cov is None:
             return {}
-        lineales = {i: k for i, (k, kind, _lo, _hi) in enumerate(outer_specs)
-                    if kind == "lin" and not k.startswith("sharp:")}
-        return {(lineales[i], lineales[j]): float(cov[i, j])
-                for i in lineales for j in lineales}
+        x = np.asarray(outer_opt.get("x", np.zeros(len(outer_specs))), dtype=float)
+        globales = {i: k for i, (k, _kind, _lo, _hi) in enumerate(outer_specs)
+                    if not k.startswith("sharp:")}
+        escala = {i: (float(np.exp(x[i])) if outer_specs[i][1] == "loggamma" else 1.0)
+                  for i in globales}
+        return {(globales[i], globales[j]): float(cov[i, j]) * escala[i] * escala[j]
+                for i in globales for j in globales}
 
     def _distribution_correlation_curves(self, result) -> list[dict]:
         """Curvas δ(x)/ΔEQ(x) que el kernel aplicó en un ajuste 1D, con su σ.
