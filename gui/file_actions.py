@@ -78,15 +78,14 @@ class FileActionsMixin:
         dist_res = None
         if is_dist:
             dist_res = getattr(self.runtime_results, "distribution_result", None)
-            if (dist_res is not None and hasattr(dist_res, "model_at_v")
-                    and np.asarray(dist_res.model_at_v).size == v.size):
-                model = np.asarray(dist_res.model_at_v, dtype=float)
+            # El modelo es la curva del ajuste de distribución, no el discreto
+            # de los paneles (antes se buscaban campos que no existen y se
+            # exportaba el modelo discreto).
+            m = (np.asarray(dist_res.fitted_curve, dtype=float)
+                 if dist_res is not None else None)
+            if m is not None and m.size == v.size:
+                model = m
                 residual = y - model
-            elif dist_res is not None and hasattr(dist_res, "model"):
-                m = np.asarray(dist_res.model, dtype=float)
-                if m.size == v.size:
-                    model = m
-                    residual = y - model
 
         # ── Subespectros por componente (solo modo discreto) ──────────
         comp_curves: list[tuple[int, str, np.ndarray]] = []
@@ -148,27 +147,17 @@ class FileActionsMixin:
             rows.append(self.file.folded)
 
         # ── Bloque de la distribución P(x) (rejilla propia ≠ velocidad) ──
+        # Mismas columnas que «Exportar distribución…» (2D: una fila por celda).
         dist_block: list[str] = []
         if is_dist and dist_res is not None:
+            from mossbauer_distribution import distribution_data_table
             try:
-                centers = np.asarray(getattr(dist_res, "bhf_centers"), dtype=float)
-                prob = np.asarray(getattr(dist_res, "probability"), dtype=float)
-                weights = np.asarray(getattr(dist_res, "weights"), dtype=float)
-                if prob.ndim == 2:
-                    # 2D: exportamos la marginal en el eje X (BHF).
-                    marg = getattr(dist_res, "marginal_bhf", None)
-                    prob = (np.asarray(marg, dtype=float) if marg is not None
-                            else prob.sum(axis=1))
-                    weights = prob
-                if centers.size and centers.size == prob.size:
-                    xlbl = {"quad": "quad_mm_s", "delta": "delta_mm_s"}.get(
-                        getattr(dist_res, "x_variable", "bhf"), "BHF_T")
-                    dist_block.append("")
-                    dist_block.append("# --- Distribution P(x) ---")
-                    dist_block.append(f"{xlbl}\tP_normalized\tweight")
-                    for i in range(centers.size):
-                        dist_block.append(
-                            f"{centers[i]:.8g}\t{prob[i]:.8g}\t{weights[i]:.8g}")
+                dcols, drows = distribution_data_table(dist_res)
+                dist_block.append("")
+                dist_block.append("# --- Distribution P(x) ---")
+                dist_block.append("\t".join(dcols))
+                for row in drows:
+                    dist_block.append("\t".join(f"{val:.8g}" for val in row))
             except Exception:
                 dist_block = []
 

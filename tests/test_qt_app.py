@@ -1249,6 +1249,50 @@ def test_save_fit_writes_tsv(win, tmp_path):
     assert "velocity_mm_s" in col_line and "data_norm" in col_line and "model" in col_line
 
 
+def test_exportar_distribucion_y_guardar_ajuste_en_modo_distribucion(win, tmp_path, monkeypatch):
+    """«Exportar distribución…» escribe P(x) con σ y un resumen en la cabecera;
+    «Guardar ajuste…» en modo distribución exporta el modelo de la distribución
+    (antes, el discreto de los paneles)."""
+    import numpy as np
+    win._load_file(DATA / "sintetico_dist_bhf_bimodal.adt")
+    captured = {}
+    win._show_distribution_dialog = lambda r: captured.setdefault("r", r)
+    win.mode_combo.setCurrentIndex(1)                     # P(BHF)
+    _fix_dist_globals(win.dist_panel)
+    win.dist_panel.nbins.set_value(30)
+    win.on_fit()
+    r = captured["r"]
+    out = tmp_path / "dist.dat"
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getSaveFileName",
+                        staticmethod(lambda *a, **k: (str(out), "TSV (*.dat)")))
+    assert win.act_export_distribution.isEnabled()
+    win.act_export_distribution.trigger()
+    lines = out.read_text(encoding="utf-8").splitlines()
+    cabecera = [l for l in lines if l.startswith("#")]
+    assert any("red_chi2=" in l and "aic=" in l for l in cabecera)
+    assert any(l.startswith("# Γ = ") for l in cabecera)
+    cols = next(l for l in lines if not l.startswith("#")).split("\t")
+    assert cols == ["BHF_T", "P_normalized", "sigma_P", "weight"]
+    datos = np.loadtxt(out, comments="#", skiprows=len(cabecera) + 1)
+    assert datos.shape == (r.bhf_centers.size, 4)
+    assert np.allclose(datos[:, 1], r.probability, rtol=1e-6)
+
+    fit_out = tmp_path / "fit.dat"
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getSaveFileName",
+                        staticmethod(lambda *a, **k: (str(fit_out), "TSV (*.dat)")))
+    win.on_save_fit()
+    texto = fit_out.read_text(encoding="utf-8").splitlines()
+    cols = next(l for l in texto if not l.startswith("#")).split("\t")
+    filas = []
+    for l in texto[texto.index("\t".join(cols)) + 1:]:
+        if not l.strip() or l.startswith("#"):
+            break
+        filas.append([float(x) for x in l.split("\t")])
+    modelo = np.asarray(filas)[:, cols.index("model")]
+    assert np.allclose(modelo, r.fitted_curve, rtol=1e-6)
+    assert "BHF_T\tP_normalized\tsigma_P\tweight" in texto
+
+
 def test_qt_check_updates_uses_releaseinfo_without_tk_dict_bug(win, monkeypatch):
     """El actualizador Qt maneja ReleaseInfo (dataclass), no un dict de GitHub."""
     release = mq.ReleaseInfo(

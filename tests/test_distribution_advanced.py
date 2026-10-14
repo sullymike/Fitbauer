@@ -298,3 +298,35 @@ def test_maxent_positive_normalized_and_peaked():
     peak = float(r.bhf_centers[int(np.argmax(r.weights))])
     assert 28.0 < peak < 38.0
     assert r.effective_dof is not None and r.effective_dof > 0
+
+
+def test_tabla_de_datos_de_la_distribucion_1d_y_2d(tmp_path):
+    """1D: x, P, σ_P (si hay banda), peso y columnas extra; 2D: una fila por
+    celda en formato largo, con P(x_i, y_j) en su sitio."""
+    v = np.linspace(-10, 10, 300)
+    centers = _grid()
+    K = md.build_bhf_kernel(v, centers, delta=0.0)
+    P = np.exp(-0.5 * ((centers - 33) / 3.0) ** 2)
+    y = 1.0 - K @ (P / P.sum() * 2.0)
+    r = md.fit_hyperfine_distribution(v, y, pmin=0, pmax=50, nbins=40, alpha=1.0,
+                                      band_replicas=20)
+    extra = {"delta_curve_mm_s": np.zeros(40), "mal": np.zeros(3)}
+    cols, rows = md.distribution_data_table(r, extra)
+    assert cols == ["BHF_T", "P_normalized", "sigma_P", "weight", "delta_curve_mm_s"]
+    assert rows.shape == (40, 5)
+    out = tmp_path / "d.dat"
+    md.write_distribution_data(out, r, header=["línea 1"])
+    texto = out.read_text(encoding="utf-8").splitlines()
+    assert texto[0] == "# línea 1" and texto[1] == "BHF_T\tP_normalized\tsigma_P\tweight"
+
+    p2 = np.arange(12, dtype=float).reshape(3, 4)
+    r2 = md.BhfQuadDistribution2DFit(
+        bhf_centers=np.array([10.0, 20.0, 30.0]), quad_centers=np.array([0.0, 0.1, 0.2, 0.3]),
+        weights=p2.ravel(), probability=p2, fitted_curve=np.zeros(1), residuals=np.zeros(1),
+        baseline=1.0, slope=0.0, alpha_bhf=1.0, alpha_quad=1.0, rms=0.0, success=True,
+        message="", x_variable="bhf", y_variable="quad")
+    cols, rows = md.distribution_data_table(r2)
+    assert cols == ["BHF_T", "dEQ_mm_s", "P_normalized", "weight"]
+    assert rows.shape == (12, 4)
+    fila = rows[(rows[:, 0] == 20.0) & (rows[:, 1] == 0.3)][0]
+    assert fila[2] == p2[1, 3]

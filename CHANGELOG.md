@@ -2,6 +2,14 @@
 
 ## Sin publicar
 
+- **Exportar los datos de la distribución.** Botón «Guardar datos…» en los
+  diálogos de P(x) y del mapa 2D, y **Archivo → Exportar distribución…**:
+  TSV con la variable, P normalizada, σ de P (banda Monte Carlo), el peso y las
+  curvas δ(x)/ΔEQ(x) con su σ; en 2D, una fila por celda. La cabecera resume
+  forma, α, χ²/ν/χ²ᵣ/AIC/BIC y los globales con sus errores.
+- **«Guardar ajuste…» en modo distribución exportaba el modelo discreto** de
+  los paneles en lugar de la curva de la distribución, y en 2D solo la marginal
+  de un eje. Ahora exporta el modelo ajustado y el mapa completo.
 - **Anexo de espesor corregido.** Describía para el modo distribución una
   transformada inversa con refinado de C que nunca se implementó; ahora dice
   que las distribuciones suponen absorbente delgado. Además el selector tiene

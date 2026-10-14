@@ -14,6 +14,7 @@ interfaz.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -1702,6 +1703,68 @@ def distribution_moments(centers: np.ndarray, probability: np.ndarray) -> dict[s
     mean = float(np.sum(w * x))
     std = float(np.sqrt(max(float(np.sum(w * (x - mean) ** 2)), 0.0)))
     return {"mean": mean, "std": std, "mode": float(x[int(np.argmax(p))])}
+
+
+#: Nombre de columna de cada variable distribuida en los ficheros de datos.
+DATA_COLUMN_NAMES = {"bhf": "BHF_T", "quad": "dEQ_mm_s", "delta": "IS_mm_s"}
+
+
+def distribution_data_table(
+    result: "BhfDistributionFit | BhfQuadDistribution2DFit",
+    extra_columns: dict[str, np.ndarray] | None = None,
+) -> tuple[list[str], np.ndarray]:
+    """Tabla (columnas, filas) con los datos de una distribución ajustada.
+
+    1D: variable, P normalizada, σ de P (si hay banda Monte Carlo), peso sin
+    normalizar y las columnas extra (p. ej. la curva δ(x) y su σ).
+    2D: formato largo, una fila por celda: x, y, P normalizada y peso.
+    """
+    if isinstance(result, BhfQuadDistribution2DFit):
+        x = np.asarray(result.bhf_centers, dtype=float)
+        yv = np.asarray(result.quad_centers, dtype=float)
+        p = np.asarray(result.probability, dtype=float)
+        w = np.asarray(result.weights, dtype=float).reshape(p.shape)
+        gx, gy = np.meshgrid(x, yv, indexing="ij")
+        cols = [DATA_COLUMN_NAMES.get(result.x_variable, "x"),
+                DATA_COLUMN_NAMES.get(result.y_variable, "y"),
+                "P_normalized", "weight"]
+        return cols, np.column_stack([gx.ravel(), gy.ravel(), p.ravel(), w.ravel()])
+    x = np.asarray(result.bhf_centers, dtype=float)
+    cols = [DATA_COLUMN_NAMES.get(result.fit_variable or "bhf", "x"), "P_normalized"]
+    data = [x, np.asarray(result.probability, dtype=float)]
+    sp = result.probability_sigma
+    if sp is not None and np.asarray(sp).size == x.size:
+        cols.append("sigma_P")
+        data.append(np.asarray(sp, dtype=float))
+    cols.append("weight")
+    data.append(np.asarray(result.weights, dtype=float))
+    for name, col in (extra_columns or {}).items():
+        col = np.asarray(col, dtype=float)
+        if col.size == x.size:
+            cols.append(name)
+            data.append(col)
+    return cols, np.column_stack(data)
+
+
+def write_distribution_data(
+    path: str | Path,
+    result: "BhfDistributionFit | BhfQuadDistribution2DFit",
+    *,
+    header: list[str] | tuple[str, ...] = (),
+    extra_columns: dict[str, np.ndarray] | None = None,
+) -> None:
+    """Escribe la distribución en texto separado por tabuladores.
+
+    Las líneas de ``header`` van como comentarios ``# …``; después, la fila
+    de nombres de columna y los datos (ver :func:`distribution_data_table`).
+    """
+    cols, rows = distribution_data_table(result, extra_columns)
+    with open(path, "w", encoding="utf-8") as fh:
+        for line in header:
+            fh.write(f"# {line}\n")
+        fh.write("\t".join(cols) + "\n")
+        for row in rows:
+            fh.write("\t".join(f"{v:.8g}" for v in row) + "\n")
 
 
 def correlation_curve(

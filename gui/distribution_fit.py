@@ -13,7 +13,7 @@ from matplotlib.figure import Figure
 from scipy.optimize import least_squares
 
 from mossbauer_i18n import tr
-from core.constants import BHF_DEFAULT_T, SEXTET_PARAM_NAMES
+from core.constants import APP_VERSION, BHF_DEFAULT_T, SEXTET_PARAM_NAMES
 from core.physics import component_absorption
 from core.plot_styles import get_style
 from core.reconstruction import reconstruct_distribution_curves
@@ -840,7 +840,10 @@ class DistributionFitMixin:
                          "dist_gamma": float(d.gamma.value()),
                          "dist_delta_slope": float(d.delta_slope.value()),
                          "dist_quad_slope": float(d.quad_slope.value()),
-                         "free": libres}
+                         "free": libres,
+                         # Parámetros del bucle externo (globales y de los
+                         # nítidos): consumen grados de libertad.
+                         "n_outer": len(outer_specs)}
         if is_2d:
             result = dataclasses.replace(result, global_cov=global_cov,
                                          global_values=global_values)
@@ -1067,6 +1070,125 @@ class DistributionFitMixin:
                         "slope_sigma": float(np.sqrt(var_k)) if var_k > 0 else None})
         return out
 
+    def _distribution_summary(self, result) -> dict:
+        """Lo que el informe y la exportación cuentan de un ajuste de distribución.
+
+        ``goodness`` (χ², ν, χ²_ν, AIC, BIC, RMS, lag-1, rachas), ``moments``
+        (1D: media, σ, moda de P), ``globals`` (filas δ/ΔEQ/Γ/κ con valor, σ,
+        libre y unidad), ``high_corr`` (pares de globales con |r| ≥ 0.95) y
+        ``variable``/``pair``.
+        """
+        from core.result_views import DistributionResultView
+        from mossbauer_distribution import distribution_goodness, distribution_moments
+
+        is_2d = DistributionResultView(result).is_2d()
+        gv = getattr(result, "global_values", None) or {}
+        cov = getattr(result, "global_cov", None) or {}
+        free = set(gv.get("free") or ())
+        sigma = getattr(self.file, "sigma", None)
+        res = np.asarray(result.residuals, dtype=float)
+        if sigma is not None and np.asarray(sigma).size != res.size:
+            sigma = None
+        goodness = distribution_goodness(
+            res, sigma, getattr(result, "effective_dof", None),
+            n_outer=int(gv.get("n_outer", 0)))
+        if is_2d:
+            dvars = (getattr(result, "x_variable", "bhf"), getattr(result, "y_variable", "quad"))
+            variable, moments = None, {}
+        else:
+            variable = getattr(result, "fit_variable", None) or self.dist_variable
+            dvars = (variable,)
+            moments = distribution_moments(result.bhf_centers, result.probability)
+        kappa_unit = "mm/s·T⁻¹" if variable == "bhf" else ""
+        filas = []
+        candidatos = [("dist_delta", "δ", "mm/s", "delta" not in dvars),
+                      ("dist_quad", "ΔEQ", "mm/s", "quad" not in dvars),
+                      ("dist_gamma", "Γ", "mm/s", True),
+                      ("dist_delta_slope", "κδ", kappa_unit, variable in ("bhf", "quad")),
+                      ("dist_quad_slope", "κq", kappa_unit, variable in ("bhf", "delta"))]
+        for key, label, unit, aplica in candidatos:
+            if not aplica or key not in gv:
+                continue
+            value = float(gv[key])
+            if key.endswith("_slope") and value == 0.0 and key not in free:
+                continue
+            var = cov.get((key, key))
+            filas.append({"key": key, "label": label, "value": value, "unit": unit,
+                          "sigma": float(np.sqrt(var)) if var and var > 0 else None,
+                          "free": key in free})
+        etiquetas = {f["key"]: f["label"] for f in filas}
+        high = []
+        claves = [f["key"] for f in filas if f["sigma"]]
+        for i, a in enumerate(claves):
+            for b in claves[i + 1:]:
+                den = np.sqrt(cov[(a, a)] * cov[(b, b)])
+                r = float(cov.get((a, b), 0.0) / den) if den > 0 else 0.0
+                if abs(r) >= 0.95:
+                    high.append((etiquetas[a], etiquetas[b], r))
+        return {"goodness": goodness, "moments": moments, "globals": filas,
+                "high_corr": high, "variable": variable, "is_2d": is_2d,
+                "has_sigma": sigma is not None}
+
+    def _export_distribution_data(self, result=None, parent=None) -> str | None:
+        """Guarda los datos de la distribución (TSV) con un resumen en la cabecera.
+
+        1D: variable, P normalizada, σ de P (banda Monte Carlo), peso y las
+        curvas δ(x)/ΔEQ(x) con su σ. 2D: una fila por celda (x, y, P, peso).
+        Devuelve la ruta escrita o None.
+        """
+        from datetime import datetime
+        from mossbauer_distribution import write_distribution_data
+
+        result = result if result is not None else getattr(
+            self.runtime_results, "distribution_result", None)
+        if result is None:
+            QtWidgets.QMessageBox.information(
+                parent or self, tr("file.export_distribution"),
+                tr("msg.no_distribution_result"))
+            return None
+        stem = self.file.path.stem if self.file.path else "distribution"
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            parent or self, tr("file.export_distribution"),
+            str(ROOT / f"{stem}_distribution.dat"),
+            "TSV (*.dat *.tsv *.txt);;All (*.*)")
+        if not path:
+            return None
+        s = self._distribution_summary(result)
+        g = s["goodness"]
+        header = [f"Fitbauer v{APP_VERSION} — {self.file.path.name if self.file.path else '—'}"
+                  f" — {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                  f"shape={getattr(result, 'shape', None) or '—'}"
+                  f"  reg_mode={getattr(result, 'reg_mode', None) or '—'}"]
+        alphas = [f"{k}={float(getattr(result, k)):.6g}"
+                  for k in ("alpha", "alpha_bhf", "alpha_quad")
+                  if getattr(result, k, None) is not None]
+        if alphas:
+            header.append("  ".join(alphas))
+        stats = [f"{k}={g[k]:.6g}" for k in ("chi2", "dof", "red_chi2", "aic", "bic", "rms")
+                 if k in g]
+        if stats:
+            header.append("  ".join(stats))
+        for f in s["globals"]:
+            err = f"±{f['sigma']:.3g}" if f["sigma"] else ""
+            estado = "free" if f["free"] else "fixed"
+            header.append(f"{f['label']} = {f['value']:.6g}{err} {f['unit']} ({estado})".strip())
+        extra = {}
+        if not s["is_2d"]:
+            nombres = {"δ": "delta", "ΔEQ": "dEQ"}
+            for c in self._distribution_correlation_curves(result):
+                base = nombres.get(c["label"].split("(")[0], "corr")
+                extra[f"{base}_curve_mm_s"] = c["curve"]
+                if c["has_error"]:
+                    extra[f"{base}_curve_sigma"] = c["sigma"]
+        try:
+            write_distribution_data(path, result, header=header, extra_columns=extra)
+        except OSError as exc:
+            QtWidgets.QMessageBox.critical(parent or self, tr("file.export_distribution"),
+                                           f"{type(exc).__name__}: {exc}")
+            return None
+        self.statusBar().showMessage(tr("status.distribution_saved", path=path), 5000)
+        return path
+
     def _show_distribution_dialog(self, result) -> None:
         from core.result_views import DistributionResultView
         view = DistributionResultView(result)
@@ -1134,6 +1256,9 @@ class DistributionFitMixin:
             bottom.addWidget(chk)
         bottom.addStretch(1)
         cv.draw_idle()
+        btn_data = QtWidgets.QPushButton(tr("button.save_distribution_data"))
+        btn_data.clicked.connect(lambda: self._export_distribution_data(result, dlg))
+        bottom.addWidget(btn_data)
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
         bb.rejected.connect(dlg.reject); bottom.addWidget(bb)
         lay.addLayout(bottom)
@@ -1317,6 +1442,9 @@ class DistributionFitMixin:
 
         btn_save.clicked.connect(_save_figure)
         btn_row.addWidget(btn_save)
+        btn_data = QtWidgets.QPushButton(tr("button.save_distribution_data"))
+        btn_data.clicked.connect(lambda: self._export_distribution_data(result, dlg))
+        btn_row.addWidget(btn_data)
         btn_row.addStretch()
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
         bb.rejected.connect(dlg.reject)
