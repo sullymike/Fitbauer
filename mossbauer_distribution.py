@@ -1915,6 +1915,21 @@ def merge_sharp_weights(
     return out
 
 
+# TODO (lejano): corrección de espesor en las distribuciones. Hoy todas suponen
+# absorbente delgado (la GUI avisa si «Absorbente» no está en delgado). Plan:
+#  - Formas paramétricas (Gaussiana, VBF, binomial, gaussianas 2D): ya van por
+#    least_squares; basta saturar la absorción total como total_model() del
+#    discreto (sat_scale, o src_fwhm/src_frac en la integral de transmisión).
+#  - Histograma (Tikhonov/TV/MaxEnt, 1D y 2D): la exponencial rompe la
+#    linealidad en P. Gauss–Newton: reescalar el núcleo con exp(−A_k/C) (o la
+#    convolución con la fuente) del paso anterior y repetir el NNLS, 3–6 veces.
+#    La banda MC y la L-curve lo heredan; el histograma 2D se encarece igual.
+#  - C como global más en el bucle externo de la GUI; sesión, informes, CLI.
+#  - Validar: una malla de un solo bin debe reproducir el sextete grueso del
+#    discreto; recuperar una P(BHF) sintética gruesa. Fijar C suele ser mejor
+#    que liberarlo (una P ancha imita el aplanamiento de las líneas intensas).
+#  - Documentación: anexo apx_espesor (sección «Modo distribución») y el aviso
+#    «thin-absorber» de la ayuda, que habrá que retirar.
 def fit_hyperfine_distribution(
     v: np.ndarray,
     y: np.ndarray,
