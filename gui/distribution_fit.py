@@ -542,11 +542,14 @@ class DistributionFitMixin:
                 baseline=calib_state.baseline, slope=calib_state.slope,
                 fit_baseline=fit_baseline, fit_slope=fit_slope,
                 sharp_components=sharp_for_fit,
+                # σ de los datos: TODAS las formas ponderan los residuos con
+                # ella (antes Gaussiana, VBF, Binomial y Fija no lo hacían).
+                sigma=self.file.sigma,
             )
             if shape == "Histograma":
                 return fit_hyperfine_distribution(
                     v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins, alpha=alpha,
-                    sigma=self.file.sigma, reg_mode=dist_state.reg_mode,
+                    reg_mode=dist_state.reg_mode,
                     profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
                     delta_slope=dsl, quad_slope=qsl,
                     kernel_treatment=dist_state.kernel_treatment,
@@ -585,7 +588,7 @@ class DistributionFitMixin:
                     v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins,
                     extended=(shape == "Czjzek ext."),
                     profile=calib_state.line_profile, voigt_sigma=calib_state.voigt_sigma,
-                    delta_slope=dsl, quad_slope=qsl, sigma=self.file.sigma,
+                    delta_slope=dsl, quad_slope=qsl,
                     **common)
             if shape == "Binomial":
                 # Vecinos al estilo NORMOS (DISTRI=3): la malla no se usa; la

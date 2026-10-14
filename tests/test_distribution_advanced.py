@@ -466,3 +466,34 @@ def test_matriz_de_correlacion_desde_parejas_o_completa():
     assert labels == ["x", "y"] and m[0, 1] == 0.5
     assert correlation_matrix({}) is None
     assert correlation_matrix({"pairs": []}) is None
+
+
+def test_formas_parametricas_ponderan_con_la_sigma_de_los_datos():
+    """Gaussiana/VBF, binomial y Fija usan la σ de los datos: canales con σ
+    enorme (aquí, corrompidos) no pesan; sin σ, arrastran el ajuste."""
+    v = np.linspace(-10, 10, 400)
+    centers = _grid()
+    K = md.build_bhf_kernel(v, centers, delta=0.0)
+    P = np.exp(-0.5 * ((centers - 33) / 3.0) ** 2)
+    y = 1.0 - K @ (P / P.sum() * 2.0)
+    malo = v > 0
+    y_mal = y.copy()
+    y_mal[malo] += 0.02 * np.sin(3 * v[malo])            # estructura espuria
+    sigma = np.where(malo, 1e3, 1e-3)
+    con = md.fit_vbf_hyperfine_distribution(v, y_mal, n_components=1, pmin=0, pmax=50,
+                                            nbins=40, sigma=sigma)
+    sin = md.fit_vbf_hyperfine_distribution(v, y_mal, n_components=1, pmin=0, pmax=50,
+                                            nbins=40)
+    ref = md.fit_vbf_hyperfine_distribution(v, y, n_components=1, pmin=0, pmax=50, nbins=40)
+    mu = lambda r: r.vbf_components[0][1]
+    assert abs(mu(con) - mu(ref)) < abs(mu(sin) - mu(ref))
+    assert abs(np.mean(con.residuals[~malo])) < abs(np.mean(sin.residuals[~malo])) + 1e-9
+    # Fija: el problema lineal ponderado ignora los canales con σ enorme.
+    rf_con = md.fit_fixed_hyperfine_distribution(v, y_mal, centers, P, sigma=sigma)
+    rf_sin = md.fit_fixed_hyperfine_distribution(v, y_mal, centers, P)
+    assert (np.sqrt(np.mean(rf_con.residuals[~malo] ** 2))
+            < np.sqrt(np.mean(rf_sin.residuals[~malo] ** 2)))
+    # Binomial: acepta la σ y la usa (resultado distinto con datos corrompidos).
+    rb_con = md.fit_binomial_hyperfine_distribution(v, y_mal, pmin=20, pmax=40, sigma=sigma)
+    rb_sin = md.fit_binomial_hyperfine_distribution(v, y_mal, pmin=20, pmax=40)
+    assert rb_con.binomial_start != pytest.approx(rb_sin.binomial_start, abs=1e-6)

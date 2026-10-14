@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- **Gaussiana, VBF, Binomial y Fija ponderan con la σ de los datos.** El
+  histograma, el Czjzek y las formas 2D ya lo hacían; estas cuatro ajustaban
+  con todos los canales pesando igual. Con la σ de conteo los canales con
+  menos cuentas pesan menos, y los errores y la covarianza de la media y la
+  anchura de P quedan en la misma escala para todas las formas. **Cambian
+  ligeramente los resultados de esas formas.**
 - **La malla importada de NORMOS-DIST no coincidía con la suya.** NORMOS
   calcula los subespectros en los nodos QUA + k·DTQ (o BHF + k·DTB…); el
   importador pasaba ese rango como bordes y Fitbauer pone los nodos en los

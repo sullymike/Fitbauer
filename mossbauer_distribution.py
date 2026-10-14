@@ -1691,6 +1691,16 @@ def distribution_moments(centers: np.ndarray, probability: np.ndarray) -> dict[s
     return {"mean": mean, "std": std, "mode": float(x[int(np.argmax(p))])}
 
 
+def data_weights(sigma: np.ndarray | None, n: int) -> np.ndarray | None:
+    """1/σ por canal para ponderar los residuos, o None si no hay σ válida."""
+    if sigma is None:
+        return None
+    s = np.asarray(sigma, dtype=float).ravel()
+    if s.size != n or not np.all(np.isfinite(s)):
+        return None
+    return 1.0 / np.maximum(s, 1e-12)
+
+
 def moment_samples_cov(samples: list[tuple[np.ndarray, np.ndarray]]) -> np.ndarray | None:
     """Covarianza 2×2 de (media, desviación) sobre muestras ``(centros, P)``."""
     filas = []
@@ -2546,8 +2556,12 @@ def fit_vbf_hyperfine_distribution(
     shape: str = "VBF",
     sigma_min: float | None = None,
     sigma_max: float | None = None,
+    sigma: np.ndarray | None = None,
 ) -> BhfDistributionFit:
     """VBF (Voigt-Based Fitting, Rancourt–Ping 1991): P como suma de N gaussianas.
+
+    Con ``sigma`` (σ de los datos por canal) los residuos se ponderan, como en
+    el histograma y el Czjzek; sin ella, todos los canales pesan igual.
 
     Ajusta ``n_components`` gaussianas sobre un kernel Voigt (o Lorentziano). Cada
     componente aporta parámetros con significado físico (A_k, μ_k, σ_k), que se
@@ -2616,13 +2630,15 @@ def fit_vbf_hyperfine_distribution(
             w = w + max(float(A), 0.0) * gauss_weights(float(mu), float(np.exp(log_sig)))
         return w
 
+    pesos = data_weights(sigma, y.size)
+
     def residual(x: np.ndarray) -> np.ndarray:
         b0, sl = lin_part(x)
         w = total_w(comp_view(x))
         r = b0 + sl * v - K @ w - fixed_sharp_abs - y
         if K_sharp is not None and n_sharp:
             r = r - K_sharp @ np.maximum(x[n_lin + 3 * N:n_lin + 3 * N + n_sharp], 0.0)
-        return r
+        return r * pesos if pesos is not None else r
 
     sig_lo, sig_hi = vbf_sigma_bounds(1e-3, rng, sigma_min, sigma_max)
     log_sig_lo, log_sig_hi = np.log(sig_lo), np.log(sig_hi)
@@ -2694,7 +2710,7 @@ def fit_vbf_hyperfine_distribution(
         effective_dof=float(res.x.size),
         moment_cov=parametric_moment_cov(
             lambda x: (centers, total_w(comp_view(x))), res.x, res.jac,
-            float(res.cost), y.size, weighted=False),
+            float(res.cost), y.size, weighted=pesos is not None),
     )
 
 
@@ -2802,11 +2818,7 @@ def fit_czjzek_hyperfine_distribution(
         baseline = float(np.percentile(y, 90))
     if slope is None:
         slope = 0.0
-    weights_data = None
-    if sigma is not None:
-        s_arr = np.asarray(sigma, dtype=float).ravel()
-        if s_arr.size == y.size and np.all(np.isfinite(s_arr)):
-            weights_data = 1.0 / np.maximum(s_arr, 1e-12)
+    weights_data = data_weights(sigma, y.size)
     hi_grid = max(float(pmax), 1e-3)
     rng = max(float(pmax) - float(pmin), 1e-3)
     amp0 = max(1e-6, float(np.percentile(y, 90) - np.min(y)))
@@ -2985,6 +2997,7 @@ def fit_binomial_hyperfine_distribution(
     sharp_components: list[dict[str, float]] | None = None,
     delta_slope: float = 0.0,
     quad_slope: float = 0.0,
+    sigma: np.ndarray | None = None,
 ) -> BhfDistributionFit:
     """Distribución binomial de vecinos al estilo NORMOS-DIST (``DISTRI=3``).
 
@@ -3086,8 +3099,11 @@ def fit_binomial_hyperfine_distribution(
                 fitted = fitted - K_sharp @ np.maximum(x[n_head:n_head + n_sharp], 0.0)
             return fitted, w, p
 
-        res = least_squares(lambda x: model(x)[0] - y, np.array(x0, dtype=float),
-                            bounds=(np.array(lo), np.array(hi)), max_nfev=2000)
+        # Residuos ponderados con la σ de los datos, si la hay.
+        pesos = data_weights(sigma, y.size)
+        res = least_squares(
+            lambda x: (model(x)[0] - y) * (pesos if pesos is not None else 1.0),
+            np.array(x0, dtype=float), bounds=(np.array(lo), np.array(hi)), max_nfev=2000)
         fitted, w, p = model(res.x)
     sharp_weights_free = np.maximum(res.x[n_head:n_head + n_sharp], 0.0) if n_sharp else None
     sharp_weights_arr = merge_sharp_weights(sharp_weights_free, sharp_fixed_mask, fixed_sharp_weights)
@@ -3124,7 +3140,7 @@ def fit_binomial_hyperfine_distribution(
         effective_dof=float(res.x.size),
         moment_cov=parametric_moment_cov(
             lambda x: _binomial_sample(unpack(x)), res.x, res.jac, float(res.cost),
-            y.size, weighted=False),
+            y.size, weighted=pesos is not None),
     )
 
 
@@ -3146,10 +3162,12 @@ def fit_fixed_hyperfine_distribution(
     profile: str = "Lorentz",
     voigt_sigma: float = 0.05,
     sharp_components: list[dict[str, float]] | None = None,
+    sigma: np.ndarray | None = None,
 ) -> BhfDistributionFit:
     """Ajusta amplitud de una distribución fija dada por centros y pesos.
 
     Opcionalmente suma componentes nítidos (sharp_components) con amplitud libre >= 0.
+    Con ``sigma`` (σ de los datos) el problema lineal se pondera por canal.
     """
     v = _finite_1d("v", v); y = _finite_1d("y", y)
     centers = _finite_1d("centers", centers)
@@ -3195,6 +3213,9 @@ def fit_fixed_hyperfine_distribution(
             lo.append(0.0)
             hi.append(np.inf)
     X = np.column_stack(cols)
+    pesos = data_weights(sigma, y.size)
+    if pesos is not None:
+        X, rhs = X * pesos[:, None], rhs * pesos
     result = solve_bounded_lsq(X, rhs, lo, hi)
     i = 0
     if fit_baseline:
