@@ -386,3 +386,69 @@ def test_ajuste_czjzek_recupera_sus_parametros(extended, delta0):
     assert r.effective_dof == 2 + (3 if extended else 2)
     g = md.distribution_goodness(r.residuals, np.full(v.size, ruido), r.effective_dof)
     assert g["red_chi2"] == pytest.approx(1.0, abs=0.25)
+
+
+# ── Correlaciones de P con los globales ─────────────────────────────────────
+def test_covarianza_de_momentos_en_todas_las_formas():
+    v = np.linspace(-10, 10, 300)
+    centers = _grid()
+    K = md.build_bhf_kernel(v, centers, delta=0.0)
+    P = np.exp(-0.5 * ((centers - 33) / 3.0) ** 2)
+    rng = np.random.default_rng(1)
+    y = 1.0 - K @ (P / P.sum() * 2.0) + rng.normal(0, 2e-3, v.size)
+    s = np.full(v.size, 2e-3)
+    resultados = [
+        md.fit_hyperfine_distribution(v, y, pmin=0, pmax=50, nbins=40, alpha=1e-2,
+                                      sigma=s, band_replicas=40),
+        md.fit_vbf_hyperfine_distribution(v, y, n_components=1, pmin=0, pmax=50, nbins=40),
+        md.fit_binomial_hyperfine_distribution(v, y, pmin=20, pmax=40),
+    ]
+    for r in resultados:
+        assert r.moment_cov is not None and r.moment_cov.shape == (2, 2), r.shape
+        assert np.all(np.diag(r.moment_cov) > 0), r.shape
+    # Sin réplicas el histograma no la estima.
+    assert md.fit_hyperfine_distribution(v, y, pmin=0, pmax=50, nbins=40,
+                                         alpha=1e-2).moment_cov is None
+
+
+def test_correlacion_gamma_anchura_coincide_con_el_ajuste_conjunto():
+    """La correlación σ_P–Γ que da la GUI (P reajustada + sensibilidad) es la
+    del ajuste conjunto de todos los parámetros a la vez."""
+    pytest.importorskip("PySide6")
+    from scipy.optimize import least_squares
+    from gui.distribution_fit import DistributionFitMixin
+
+    v = np.linspace(-6, 6, 240)
+    c = md.parameter_grid(0.0, 3.0, 60)
+
+    def gw(mu, s):
+        w = np.exp(-0.5 * ((c - mu) / s) ** 2)
+        return w / np.trapezoid(w, c)
+
+    ruido = 1e-3
+    K = md.build_hyperfine_distribution_kernel(v, c, variable="quad", delta=0.3, gamma=0.25)
+    y = 1.0 - K @ (0.06 * gw(1.0, 0.25)) + np.random.default_rng(2).normal(0, ruido, v.size)
+
+    def conjunto(x):
+        b, A, mu, ls, lg = x
+        Kg = md.build_hyperfine_distribution_kernel(v, c, variable="quad", delta=0.3,
+                                                    gamma=float(np.exp(lg)))
+        return (b - Kg @ (A * gw(mu, np.exp(ls))) - y) / ruido
+
+    r = least_squares(conjunto, [1.0, 0.06, 1.0, np.log(0.25), np.log(0.25)])
+    C = np.linalg.pinv(r.jac.T @ r.jac)
+    r_conjunto = C[3, 4] / np.sqrt(C[3, 3] * C[4, 4])
+
+    def interno(lg):
+        return md.fit_vbf_hyperfine_distribution(
+            v, y, n_components=1, profile="Lorentz", variable="quad", delta=0.3,
+            gamma=float(np.exp(lg)), pmin=0, pmax=3, nbins=60, fit_slope=False)
+
+    o = least_squares(lambda x: interno(x[0]).residuals / ruido, [np.log(0.2)], diff_step=1e-4)
+    cov_g = np.linalg.pinv(o.jac.T @ o.jac)
+    D = DistributionFitMixin._distribution_moment_sensitivity(
+        lambda x: interno(x[0]), o.x, np.array([np.log(0.05)]), np.array([np.log(1.0)]))
+    mom = interno(o.x[0]).moment_cov + D @ cov_g @ D.T
+    r_gui = (D @ cov_g)[1, 0] / np.sqrt(mom[1, 1] * cov_g[0, 0])
+    assert r_conjunto < -0.8
+    assert r_gui == pytest.approx(r_conjunto, abs=0.05)

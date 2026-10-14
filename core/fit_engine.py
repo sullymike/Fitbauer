@@ -791,7 +791,12 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
             for key, err in zip(progress_keys,
                                 np.sqrt(np.maximum(np.diag(cov_all), 0.0))):
                 errors[key] = float(err)
-            correlations = _correlation_summary(cov, free_keys)
+            # Con vmax/centro/σ Voigt libres también: vmax se correlaciona con
+            # los campos y quedaba fuera del resumen.
+            keys_all = list(progress_keys)
+            correlations = (_correlation_summary(cov_all, keys_all)
+                            if len(keys_all) == cov_all.shape[0]
+                            else _correlation_summary(cov, free_keys))
         except Exception:
             cov = None
             errors = {}
@@ -907,16 +912,20 @@ def _correlation_summary(cov: np.ndarray, free_keys: list[str]) -> dict[str, obj
         return {}
     idx = np.unravel_index(np.argmax(np.abs(corr)), corr.shape)
     max_pair = (free_keys[int(idx[0])], free_keys[int(idx[1])]) if idx[0] != idx[1] else ()
-    high_pairs = []
-    for i in range(len(free_keys)):
-        for j in range(i + 1, len(free_keys)):
-            r = float(corr[i, j])
-            if abs(r) >= 0.95:
-                high_pairs.append({"param1": free_keys[i], "param2": free_keys[j], "corr": r})
+    pairs = []
+    for i in range(min(len(free_keys), corr.shape[0])):
+        for j in range(i + 1, min(len(free_keys), corr.shape[0])):
+            pairs.append({"param1": free_keys[i], "param2": free_keys[j],
+                          "corr": float(corr[i, j])})
+    # Todas las parejas, de mayor a menor |r|: el panel de estado y el
+    # informe enseñan las relevantes, no solo las de |r| ≥ 0.95.
+    pairs.sort(key=lambda p: -abs(p["corr"]))
+    high_pairs = [p for p in pairs if abs(p["corr"]) >= 0.95]
     return {
         "max_abs_corr": float(np.max(np.abs(corr))),
         "max_pair": list(max_pair),
         "high_pairs": high_pairs,
+        "pairs": pairs,
     }
 
 

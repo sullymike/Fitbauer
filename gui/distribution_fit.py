@@ -788,6 +788,15 @@ class DistributionFitMixin:
                                    default="Calculando distribución final…"))
                 result_local = run_fit(delta_final, quad_final, gamma_final, sharp_final,
                                        dslope_final, qslope_final)
+                if (not is_2d and "jac" in outer_opt
+                        and getattr(result_local, "moment_cov", None) is not None):
+                    # Cómo se mueven la media y la anchura de P al mover cada
+                    # global (P reajustada): da su correlación con δ, Γ, κ…
+                    update_progress(tr("progress.distribution_correlations",
+                                       default="Correlaciones de P con los globales…"))
+                    outer_opt["dm_dx"] = self._distribution_moment_sensitivity(
+                        lambda x: run_fit(*expand(x), final=False),
+                        np.asarray(fitted_x_local, dtype=float), lo, hi)
             else:
                 update_progress(tr("progress.distribution_compute", shape=shape,
                                    default=f"Calculando distribución {shape}…"))
@@ -960,8 +969,12 @@ class DistributionFitMixin:
         class _R:
             pass
         r = _R()
-        r.stats = {"chi2": float(np.sum(result.residuals**2)), "red_chi2": float(result.rms),
-                   "dof": 0.0, "aic": 0.0, "bic": 0.0}
+        # Bondad real (χ² con la σ de los datos, ν = N − k, AIC/BIC): antes
+        # se ponía el RMS como «χ²red» y dof/AIC/BIC a 0, también en el
+        # historial de ajustes.
+        resumen = self._distribution_summary(result)
+        r.stats = {k: float(v) for k, v in resumen["goodness"].items()
+                   if k in ("chi2", "red_chi2", "dof", "aic", "bic", "n_params")}
         # El resultado 2D expone alpha_bhf/alpha_quad en vez de un único alpha.
         alpha_val = getattr(result, "alpha", None)
         if alpha_val is None:
@@ -1010,10 +1023,24 @@ class DistributionFitMixin:
                 err = getattr(result, f"{key}_err", None)
                 if err is not None:
                     czjzek_errors[key] = float(err)
+        # Globales (δ, ΔEQ, Γ, κ) y media/anchura de P, con su σ: son las
+        # magnitudes entre las que se dan las correlaciones de debajo.
+        for f in resumen["globals"]:
+            r.values[f["label"]] = f["value"]
+            if f["sigma"]:
+                czjzek_errors[f["label"]] = f["sigma"]
+        m = resumen["moments"]
+        if m and not resumen["is_2d"]:
+            short = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}.get(
+                resumen["variable"], resumen["variable"])
+            for mk, lbl in (("mean", f"⟨{short}⟩"), ("std", f"σ({short})")):
+                r.values[lbl] = m[mk]
+                if m.get(f"{mk}_sigma"):
+                    czjzek_errors[lbl] = m[f"{mk}_sigma"]
         # free_keys guía qué parámetros muestra el panel; sin esto no salía ninguno.
         r.free_keys = list(r.values.keys())
         r.errors = czjzek_errors
-        r.correlations = {}
+        r.correlations = {"pairs": resumen["corr_pairs"]}
         r.n_starts = 1
         self.info_panel.show_result(r)
         if hasattr(self, "_record_fit_history"):
@@ -1021,29 +1048,85 @@ class DistributionFitMixin:
         self._show_distribution_dialog(result)
 
     @staticmethod
+    def _distribution_moment_sensitivity(fit_at, x: np.ndarray, lo: np.ndarray,
+                                         hi: np.ndarray) -> np.ndarray | None:
+        """Derivadas (2 × n) de la media y la desviación de P respecto a x.
+
+        Diferencias centradas reajustando la distribución en x ± h (2n ajustes
+        internos); h es una milésima del intervalo permitido de cada parámetro.
+        """
+        from mossbauer_distribution import distribution_moments
+
+        def momentos(xi: np.ndarray) -> np.ndarray:
+            r = fit_at(xi)
+            m = distribution_moments(r.bhf_centers, r.probability)
+            return np.array([m["mean"], m["std"]], dtype=float)
+
+        try:
+            D = np.empty((2, x.size))
+            for i in range(x.size):
+                span = float(hi[i] - lo[i]) if np.isfinite(hi[i] - lo[i]) else 1.0
+                h = 1e-3 * max(span, 1e-6)
+                a, b = max(x[i] - h, lo[i]), min(x[i] + h, hi[i])
+                xa, xb = x.copy(), x.copy()
+                xa[i], xb[i] = a, b
+                D[:, i] = (momentos(xb) - momentos(xa)) / (b - a)
+            return D if np.all(np.isfinite(D)) else None
+        except Exception:
+            return None
+
+    @staticmethod
     def _distribution_global_covariance(outer_specs, outer_opt, result) -> dict:
-        """{(clave_i, clave_j): cov} de los globales del bucle externo.
+        """{(clave_i, clave_j): cov} de los globales y de los momentos de P.
 
         Claves ``dist_delta``, ``dist_quad``, ``dist_gamma``,
         ``dist_delta_slope``, ``dist_quad_slope``, en unidades físicas: Γ se
         refina en log Γ y su covarianza se pasa a Γ con dΓ = Γ·d(log Γ).
-        Vacío si no hubo bucle externo o si se agotó el presupuesto de
-        evaluaciones (no hay jacobiana fiable en ese punto).
+        Si el resultado trae ``moment_cov`` añade ``dist_P_mean`` y
+        ``dist_P_std`` (media y desviación de P). Con P reajustada en cada
+        punto, los momentos son m = m*(g) + ruido interno, y en la
+        aproximación lineal (D = dm*/dg, C = cov de los globales):
+
+            cov(m, g) = D·C        cov(m) = cov_interna(m) + D·C·Dᵀ
+
+        Sin bucle externo solo queda la parte interna. Vacío si se agotó el
+        presupuesto de evaluaciones en 2D (no hay jacobiana fiable).
         """
-        if not outer_specs or "jac" not in outer_opt:
-            return {}
-        cov = global_parameter_covariance(
-            outer_opt["jac"], outer_opt["fun"],
-            float(getattr(result, "effective_dof", None) or 0.0))
-        if cov is None:
-            return {}
-        x = np.asarray(outer_opt.get("x", np.zeros(len(outer_specs))), dtype=float)
-        globales = {i: k for i, (k, _kind, _lo, _hi) in enumerate(outer_specs)
-                    if not k.startswith("sharp:")}
-        escala = {i: (float(np.exp(x[i])) if outer_specs[i][1] == "loggamma" else 1.0)
-                  for i in globales}
-        return {(globales[i], globales[j]): float(cov[i, j]) * escala[i] * escala[j]
-                for i in globales for j in globales}
+        mom = getattr(result, "moment_cov", None)
+        out: dict = {}
+        cov = None
+        if outer_specs and "jac" in outer_opt:
+            cov = global_parameter_covariance(
+                outer_opt["jac"], outer_opt["fun"],
+                float(getattr(result, "effective_dof", None) or 0.0))
+        if cov is not None:
+            x = np.asarray(outer_opt.get("x", np.zeros(len(outer_specs))), dtype=float)
+            globales = {i: k for i, (k, _kind, _lo, _hi) in enumerate(outer_specs)
+                        if not k.startswith("sharp:")}
+            escala = {i: (float(np.exp(x[i])) if outer_specs[i][1] == "loggamma" else 1.0)
+                      for i in globales}
+            out = {(globales[i], globales[j]): float(cov[i, j]) * escala[i] * escala[j]
+                   for i in globales for j in globales}
+        if mom is None:
+            return out
+        mom = np.asarray(mom, dtype=float)
+        claves_m = ("dist_P_mean", "dist_P_std")
+        D = outer_opt.get("dm_dx") if cov is not None else None
+        if D is not None:
+            D = np.asarray(D, dtype=float)
+            c_mg = D @ cov
+            mom = mom + c_mg @ D.T
+            for a, ka in enumerate(claves_m):
+                for i, kg in globales.items():
+                    out[(ka, kg)] = out[(kg, ka)] = float(c_mg[a, i]) * escala[i]
+        elif cov is not None:
+            # Hubo globales libres pero no su efecto sobre P: sin la parte
+            # cruzada, los momentos no deben mezclarse con ellos.
+            return out
+        for a, ka in enumerate(claves_m):
+            for b, kb in enumerate(claves_m):
+                out[(ka, kb)] = float(mom[a, b])
+        return out
 
     def _distribution_correlation_curves(self, result) -> list[dict]:
         """Curvas δ(x)/ΔEQ(x) que el kernel aplicó en un ajuste 1D, con su σ.
@@ -1136,17 +1219,28 @@ class DistributionFitMixin:
                           "sigma": float(np.sqrt(var)) if var and var > 0 else None,
                           "free": key in free})
         etiquetas = {f["key"]: f["label"] for f in filas}
-        high = []
-        claves = [f["key"] for f in filas if f["sigma"]]
+        # Media y anchura de P: su σ incluye la de los globales (ver
+        # _distribution_global_covariance) y entran en las correlaciones.
+        short = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}.get(variable, variable)
+        for key, lbl, mk in (("dist_P_mean", f"⟨{short}⟩", "mean"),
+                             ("dist_P_std", f"σ({short})", "std")):
+            var_m = cov.get((key, key))
+            if moments and var_m is not None and var_m > 0:
+                moments[f"{mk}_sigma"] = float(np.sqrt(var_m))
+                etiquetas[key] = lbl
+        pairs = []
+        claves = [k for k in etiquetas if cov.get((k, k), 0.0) > 0]
         for i, a in enumerate(claves):
             for b in claves[i + 1:]:
                 den = np.sqrt(cov[(a, a)] * cov[(b, b)])
-                r = float(cov.get((a, b), 0.0) / den) if den > 0 else 0.0
-                if abs(r) >= 0.95:
-                    high.append((etiquetas[a], etiquetas[b], r))
+                if (a, b) in cov and den > 0:
+                    pairs.append({"param1": etiquetas[a], "param2": etiquetas[b],
+                                  "corr": float(cov[(a, b)] / den)})
+        pairs.sort(key=lambda p: -abs(p["corr"]))
+        high = [(p["param1"], p["param2"], p["corr"]) for p in pairs if abs(p["corr"]) >= 0.95]
         return {"goodness": goodness, "moments": moments, "globals": filas,
-                "high_corr": high, "variable": variable, "is_2d": is_2d,
-                "has_sigma": sigma is not None}
+                "high_corr": high, "corr_pairs": pairs, "variable": variable,
+                "is_2d": is_2d, "has_sigma": sigma is not None}
 
     def _export_distribution_data(self, result=None, parent=None) -> str | None:
         """Guarda los datos de la distribución (TSV) con un resumen en la cabecera.

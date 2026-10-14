@@ -715,6 +715,39 @@ class ComponentPanel(QtWidgets.QWidget):
                 ctl.set_value(v)
 
 
+#: Umbral a partir del cual una correlación se lista en el panel de estado.
+CORRELATION_SHOW = 0.5
+
+
+def correlation_lines(corr: dict, *, threshold: float = CORRELATION_SHOW,
+                      limit: int = 12) -> list[str]:
+    """Líneas del panel de estado con las correlaciones entre parámetros.
+
+    ``corr`` trae ``pairs`` (todas las parejas, ``param1``/``param2``/``corr``)
+    o, en resultados antiguos, solo ``high_pairs``. Lista las de |r| ≥
+    ``threshold`` de mayor a menor, marcando ⚠ las ≥ 0.95 (el ajuste no las
+    separa) y ! las ≥ 0.8; si no hay ninguna, dice cuál es la máxima.
+    """
+    pairs = list(corr.get("pairs") or corr.get("high_pairs") or [])
+    if not pairs:
+        return []
+    pairs.sort(key=lambda p: -abs(float(p["corr"])))
+    shown = [p for p in pairs if abs(float(p["corr"])) >= threshold]
+    if not shown:
+        top = pairs[0]
+        return [tr("info.corr_none", thr=f"{threshold:g}", r=f"{float(top['corr']):+.3f}",
+                   p1=top["param1"], p2=top["param2"])]
+    lines = [tr("info.corr_header", thr=f"{threshold:g}")]
+    for p in shown[:limit]:
+        r = float(p["corr"])
+        flag = "  ⚠" if abs(r) >= 0.95 else ("  !" if abs(r) >= 0.8 else "")
+        lines.append(f"  {p['param1']} ↔ {p['param2']}: r = {r:+.3f}{flag}")
+    if len(shown) > limit:
+        lines.append(tr("info.correlation_more", n=len(shown) - limit))
+    lines.append(tr("info.corr_legend"))
+    return lines
+
+
 class InfoPanel(QtWidgets.QGroupBox):
     """Panel de estado y parámetros, equivalente al resumen de la GUI Tk."""
 
@@ -754,11 +787,8 @@ class InfoPanel(QtWidgets.QGroupBox):
                     lines.append(f"  {estimate.key:14s} = {val:.6g}  ± {err:.3g}")
                 else:
                     lines.append(f"  {estimate.key:14s} = {val:.6g}")
-        corr = view.correlations()
-        pairs = corr.get("high_pairs") or []
-        if pairs:
+        corr_lines = correlation_lines(view.correlations())
+        if corr_lines:
             lines.append("")
-            lines.append(tr("info.correlation_warning"))
-            for p in pairs[:6]:
-                lines.append(f"  {p['param1']} ↔ {p['param2']}: r={float(p['corr']):.3f}")
+            lines.extend(corr_lines)
         self.set_lines(lines)

@@ -205,6 +205,11 @@ class BhfDistributionFit:
     czjzek_sigma_err: float | None = None
     czjzek_delta0: float | None = None
     czjzek_delta0_err: float | None = None
+    #: Covarianza 2×2 de (media, desviación) de P debida al ruido con los
+    #: globales (δ, ΔEQ, Γ, κ) FIJOS: de las réplicas Monte Carlo en el
+    #: histograma, de la covarianza de los parámetros en las formas
+    #: paramétricas. La GUI le suma la parte que viene de los globales.
+    moment_cov: np.ndarray | None = None
     #: Diagnóstico de MALLA INSUFICIENTE: ``max(P[0], P[-1]) / max(P)``.
     #:
     #: Si la distribución real se sale del rango, el histograma de
@@ -255,6 +260,7 @@ class BhfDistributionFit:
             "czjzek_sigma_err": self.czjzek_sigma_err,
             "czjzek_delta0": self.czjzek_delta0,
             "czjzek_delta0_err": self.czjzek_delta0_err,
+            "moment_cov": None if self.moment_cov is None else self.moment_cov.tolist(),
         }
 
 
@@ -1685,6 +1691,51 @@ def distribution_moments(centers: np.ndarray, probability: np.ndarray) -> dict[s
     return {"mean": mean, "std": std, "mode": float(x[int(np.argmax(p))])}
 
 
+def moment_samples_cov(samples: list[tuple[np.ndarray, np.ndarray]]) -> np.ndarray | None:
+    """Covarianza 2×2 de (media, desviación) sobre muestras ``(centros, P)``."""
+    filas = []
+    for centers, prob in samples:
+        m = distribution_moments(centers, prob)
+        if m:
+            filas.append((m["mean"], m["std"]))
+    if len(filas) < 3:
+        return None
+    return np.atleast_2d(np.cov(np.asarray(filas, dtype=float), rowvar=False))
+
+
+def parametric_moment_cov(
+    sample_fn,
+    x_hat: np.ndarray,
+    jac: np.ndarray,
+    cost: float,
+    n_data: int,
+    *,
+    weighted: bool,
+    n_samples: int = 200,
+    seed: int = 0,
+) -> np.ndarray | None:
+    """Covarianza de (media, desviación) de P en una forma paramétrica.
+
+    Muestrea los parámetros con su covarianza lineal (de la jacobiana; si
+    los residuos no van ponderados, escalada por χ²/ν) y calcula los momentos
+    de la P de cada muestra: ``sample_fn(x) -> (centros, P)``. Así la
+    no linealidad de la forma (σ en log, amplitudes ≥ 0) entra sin derivar.
+    """
+    try:
+        x_hat = np.asarray(x_hat, dtype=float)
+        J = np.asarray(jac, dtype=float)
+        dof = max(int(n_data) - x_hat.size, 1)
+        scale = 1.0 if weighted else float(2.0 * cost / dof)
+        cov = scale * np.linalg.pinv(J.T @ J)
+        vals, vecs = np.linalg.eigh(0.5 * (cov + cov.T))
+        raiz = vecs * np.sqrt(np.clip(vals, 0.0, None))
+        rng = np.random.default_rng(int(seed))
+        z = rng.standard_normal((int(n_samples), x_hat.size))
+        return moment_samples_cov([sample_fn(x_hat + raiz @ zi) for zi in z])
+    except Exception:
+        return None
+
+
 #: Nombre de columna de cada variable distribuida en los ficheros de datos.
 DATA_COLUMN_NAMES = {"bhf": "BHF_T", "quad": "dEQ_mm_s", "delta": "IS_mm_s"}
 
@@ -2421,6 +2472,7 @@ def fit_hyperfine_distribution(
             weight_sigma = None
 
     prob_sigma = None
+    moment_cov = None
     if band_replicas and int(band_replicas) > 1 and not use_maxent:
         # Réplicas del espectro: modelo ajustado (en el espacio de trabajo
         # blanqueado del solve) más ruido de la σ de los datos escalada por el
@@ -2439,6 +2491,7 @@ def fit_hyperfine_distribution(
             p_rep = _solve_tv(y_rep)[1] if use_tv else _solve(L_scaled, y_rep)[1]
             reps.append(normalize_probability(np.maximum(p_rep[dist_start:dist_end], 0.0), centers))
         prob_sigma = np.std(np.asarray(reps), axis=0, ddof=1)
+        moment_cov = moment_samples_cov([(centers, r) for r in reps])
 
     return BhfDistributionFit(
         bhf_centers=centers,
@@ -2458,6 +2511,7 @@ def fit_hyperfine_distribution(
         effective_dof=eff_dof,
         weight_sigma=weight_sigma,
         probability_sigma=prob_sigma,
+        moment_cov=moment_cov,
         shape="Histograma",
         reg_mode=str(reg_mode),
         delta_slope=float(delta_slope),
@@ -2638,6 +2692,9 @@ def fit_vbf_hyperfine_distribution(
         # Forma paramétrica: los grados de libertad que consume son sus
         # parámetros ajustados (gaussianas, fondo libre y nítidos libres).
         effective_dof=float(res.x.size),
+        moment_cov=parametric_moment_cov(
+            lambda x: (centers, total_w(comp_view(x))), res.x, res.jac,
+            float(res.cost), y.size, weighted=False),
     )
 
 
@@ -2864,6 +2921,9 @@ def fit_czjzek_hyperfine_distribution(
         czjzek_sigma_err=sig_err,
         czjzek_delta0=float(d0_fit) if extended else None,
         czjzek_delta0_err=d0_err,
+        moment_cov=parametric_moment_cov(
+            lambda x: (centers, model(x)[1]), res.x, res.jac, float(res.cost), y.size,
+            weighted=weights_data is not None),
     )
 
 
@@ -2958,6 +3018,9 @@ def fit_binomial_hyperfine_distribution(
 
     def centers_for(st: float, sp: float) -> np.ndarray:
         return st + sp * k
+
+    def _binomial_sample(p: dict) -> tuple[np.ndarray, np.ndarray]:
+        return centers_for(p["start"], p["step"]), binomial_neighbor_weights(p["conc"], n)
 
     def kernel(st: float, sp: float) -> np.ndarray:
         # h_ref = start: δ y ΔEQ globales son los de la configuración sin vecinos.
@@ -3059,6 +3122,9 @@ def fit_binomial_hyperfine_distribution(
         binomial_step=float(p["step"]),
         binomial_n=n,
         effective_dof=float(res.x.size),
+        moment_cov=parametric_moment_cov(
+            lambda x: _binomial_sample(unpack(x)), res.x, res.jac, float(res.cost),
+            y.size, weighted=False),
     )
 
 

@@ -25,7 +25,7 @@ from core.reconstruction import (
 from core.session import ModelState
 from core.validation import format_validation_issues, validate_fit_state
 from gui.controls import ParamControl
-from gui.panels import ComponentPanel
+from gui.panels import ComponentPanel, correlation_lines
 from gui.fit_workflow import GuiFitRenderState
 from gui.state import FileState, FitOptionsState, PlotViewState, UiActionState
 
@@ -559,17 +559,7 @@ class ModelWorkflowMixin:
             lines.append(cal_unc)
         corr = result.correlations if result is not None else {}
         if corr:
-            max_pair = corr.get("max_pair") or []
-            if max_pair:
-                lines.append(tr("info.max_correlation", value=f"{float(corr.get('max_abs_corr', 0.0)):.3f}",
-                               p1=max_pair[0], p2=max_pair[1]))
-            high_pairs = corr.get("high_pairs") or []
-            if high_pairs:
-                lines.append(tr("info.correlation_warning"))
-                for pair in high_pairs[:6]:
-                    lines.append(f"  {pair['param1']} ↔ {pair['param2']}: r={float(pair['corr']):.3f}")
-                if len(high_pairs) > 6:
-                    lines.append(tr("info.correlation_more", n=len(high_pairs) - 6))
+            lines.extend(correlation_lines(corr))
         lines.append("")
         if len(pct_active) > 1:
             lines.append(tr("info.area_percent_header"))

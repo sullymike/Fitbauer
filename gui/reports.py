@@ -18,6 +18,32 @@ def _r(key: str, **kwargs) -> str:
     return tr(f"rep.{key}", **kwargs)
 
 
+def correlation_table_lines(pairs: list[dict], *, threshold: float = 0.5,
+                            code: bool = False) -> list[str]:
+    """Tabla Markdown con las parejas de |r| ≥ ``threshold``, de mayor a menor.
+
+    ⚠ marca |r| ≥ 0.95 (no separables) y ! |r| ≥ 0.8. Sin parejas que
+    lleguen al umbral devuelve una línea con la máxima.
+    """
+    pairs = sorted(pairs or [], key=lambda p: -abs(float(p["corr"])))
+    if not pairs:
+        return []
+    q = (lambda s: f"`{s}`") if code else (lambda s: s)
+    shown = [p for p in pairs if abs(float(p["corr"])) >= threshold]
+    if not shown:
+        top = pairs[0]
+        return [tr("info.corr_none", thr=f"{threshold:g}", r=f"{float(top['corr']):+.3f}",
+                   p1=q(top["param1"]), p2=q(top["param2"])), ""]
+    lines = [f"**{_r('corr_table', thr=f'{threshold:g}')}**", "",
+             f"| {_r('col_pair')} | r | |", "|---|---|---|"]
+    for p in shown:
+        r = float(p["corr"])
+        flag = "⚠" if abs(r) >= 0.95 else ("!" if abs(r) >= 0.8 else "")
+        lines.append(f"| {q(p['param1'])} ↔ {q(p['param2'])} | {r:+.3f} | {flag} |")
+    lines += ["", f"_{tr('info.corr_legend').strip()}_", ""]
+    return lines
+
+
 def error_source_text(source: str) -> str:
     """Traduce la fuente de σ guardada en el estado (valor interno en español)."""
     import re
@@ -203,6 +229,8 @@ class ReportMixin:
             for a, b, r in s["high_corr"]:
                 lines.append(f"> ⚠️ {_r('high_corr')}: {a} ↔ {b}, r = {r:.3f}")
                 lines.append("")
+        # Correlaciones entre globales y con la media/anchura de P.
+        lines.extend(correlation_table_lines(s.get("corr_pairs") or []))
 
         # ── La distribución ─────────────────────────────────────────────
         lines.append(f"### 📊 {_r('dist_stats_header')}")
@@ -210,8 +238,9 @@ class ReportMixin:
         lines.append(f"| {_r('col_quantity')} | {_r('col_value')} |")
         lines.append("|---|---|")
         if m:
-            lines.append(f"| ⟨{var_lbl}⟩ ({_r('mean')}) | {m['mean']:.6g} {unit} |")
-            lines.append(f"| σ ({var_lbl}) | {m['std']:.6g} {unit} |")
+            pm = lambda k: (f" ± {m[k + '_sigma']:.2g}" if m.get(k + "_sigma") else "")
+            lines.append(f"| ⟨{var_lbl}⟩ ({_r('mean')}) | {m['mean']:.6g}{pm('mean')} {unit} |")
+            lines.append(f"| σ ({var_lbl}) | {m['std']:.6g}{pm('std')} {unit} |")
             lines.append(f"| {_r('mode_peak')} | {m['mode']:.6g} {unit} |")
         for key, lbl in (("fitted_dist_p", _r("binom_c")),
                          ("binomial_n", _r("binom_n")),
@@ -643,13 +672,10 @@ class ReportMixin:
                 lines.append("")
             high = corr.get("high_pairs") or []
             if high:
-                lines.append(f"**⚠️ {_r('high_corr')}**")
+                lines.append(f"> ⚠️ {_r('high_corr')}")
                 lines.append("")
-                lines.append(f"| {_r('col_pair')} | r |")
-                lines.append("|---|---|")
-                for hp in high:
-                    lines.append(f"| `{hp['param1']}` ↔ `{hp['param2']}` | {hp['corr']:.3f} |")
-                lines.append("")
+            lines.extend(correlation_table_lines(
+                corr.get("pairs") or high, code=True))
 
         # ── Análisis de áreas ───────────────────────────────────────────
         pct_active, areas, percentages = self.component_area_percentages()

@@ -3269,3 +3269,30 @@ def test_forma_czjzek_en_la_gui(win, tmp_path):
     win.mode_combo.setCurrentIndex(1)
     win._apply_session_payload(payload)
     assert win.mode_combo.currentIndex() == 2 and d.shape == "Czjzek"
+
+
+def test_correlaciones_en_estado_y_parametros(win):
+    """El panel de estado lista las correlaciones: en P(ΔEQ) con Γ libre sale
+    la compensación Γ ↔ σ(ΔEQ); en el discreto, las parejas de parámetros."""
+    from mossbauer_i18n import tr
+    win._show_distribution_dialog = lambda r: None
+    win._load_file(DATA / "sintetico_dist_deq.adt")
+    win.mode_combo.setCurrentIndex(2)                     # P(ΔEQ)
+    d = win.dist_panel
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("Gaussiana"))
+    d.delta.set_value(0.2408); d.gamma.set_value(0.2); d.gamma.set_fixed(False)
+    d.bmin.set_value(0.0); d.bmax.set_value(2.5); d.nbins.set_value(40)
+    win.on_fit()
+    texto = win.info_panel.text.toPlainText()
+    assert "σ(ΔEQ)" in texto and "⟨ΔEQ⟩" in texto and "Γ" in texto
+    linea = next(l for l in texto.splitlines() if "Γ ↔ σ(ΔEQ)" in l or "σ(ΔEQ) ↔ Γ" in l)
+    assert float(linea.split("r =")[1].split()[0]) < -0.5
+    assert "χ²red=" in texto and "dof=0 " not in texto      # bondad real
+    informe = "\n".join(win._build_report_lines())
+    assert tr("rep.corr_table", thr="0.5") in informe
+    win.mode_combo.setCurrentIndex(0)
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.on_fit()
+    texto = win.info_panel.text.toPlainText()
+    assert (tr("info.corr_header", thr="0.5") in texto
+            or tr("info.corr_none", thr="0.5", r="", p1="", p2="").split("(")[0] in texto)
