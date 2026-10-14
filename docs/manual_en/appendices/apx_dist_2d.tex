@@ -135,31 +135,17 @@ is useful for separating a known discrete phase from a disordered background,
 but it can also transfer weight artificially between map and sharp components if
 they overlap.
 
-\section{2D regularization L-surface}
+\section{Choosing \texorpdfstring{$\alpha_B$ and $\alpha_Q$}{alpha B and alpha Q}}
 
-In 1D an L-curve is used. In 2D there are two regularizations, so the analogue
-is a surface in $(\alpha_B,\alpha_Q)$. For each pair the following are computed:
-\begin{align}
-  R(\alpha_B,\alpha_Q)&=\|W(\bm y-X\bm z)\|,\\
-  G(\alpha_B,\alpha_Q)&=\sqrt{\|D_B^2P\|^2+\|D_Q^2P\|^2},\\
-  \mathrm{RMS}(\alpha_B,\alpha_Q)&=\sqrt{\langle r_k^2\rangle}.
-\end{align}
-The GUI shows a map of RMS versus $\log_{10}\alpha_B$ and
-$\log_{10}\alpha_Q$ and a projection of $R$ versus $G$. Two points are
-proposed: the RMS minimum and a geometric compromise between residual and
-roughness. Neither is an automatic answer; the stability of the map must be
-verified visually.
-
-\begin{figure}[htbp]\centering
-  \includegraphics[width=0.72\textwidth]{apx_lsurface}
-  \caption{2D regularization L-surface, analogous to the L-curve but with two
-  parameters. The RMS is low when both regularizations are weak (lower-left
-  corner: the map fits the noise) and grows as they are strengthened (upper
-  right: over-smoothing). The compromise corner (star) balances fit and
-  smoothness on each axis; it is advisable to check that the solution is stable
-  around it.}
-  \label{fig:apx_lsurface}
-\end{figure}
+In 1D the L-curve is used. In 2D there are two regularizations and the analogue
+would be a surface in $(\alpha_B,\alpha_Q)$, but Fitbauer does not compute it: the
+\emph{L-curve} button is active only for the 1D histogram. $\alpha_B$ and
+$\alpha_Q$ are chosen by hand. Since each axis is scaled with its own
+$\lambda_{\text{ref}}$ (\S\ref{sec:alpha-dimless}), $\log_{10}\alpha\approx0$ is
+the natural data/smoothness balance on both and a good starting point; the
+L-curve of the corresponding 1D mode (for example $P(\BHF)$ for $\alpha_B$) gives
+the order of magnitude. Then vary each $\alpha$ in steps of 0.5 and check that
+the map, its marginals and the RMS are stable: no choice is an automatic answer.
 
 \section{Overfitting risk}
 

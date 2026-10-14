@@ -134,31 +134,18 @@ no se regularizan; compiten con la distribución sólo a través del residuo. Es
 es útil para separar una fase discreta conocida de un fondo desordenado, pero
 también puede transferir peso artificialmente entre mapa y nítidos si solapan.
 
-\section{L-surface de regularización 2D}
+\section{Elección de \texorpdfstring{$\alpha_B$ y $\alpha_Q$}{alpha B y alpha Q}}
 
-En 1D se usa una curva L. En 2D hay dos regularizaciones, por lo que el análogo
-es una superficie en $(\alpha_B,\alpha_Q)$. Para cada pareja se calculan
-\begin{align}
-  R(\alpha_B,\alpha_Q)&=\|W(\bm y-X\bm z)\|,\\
-  G(\alpha_B,\alpha_Q)&=\sqrt{\|D_B^2P\|^2+\|D_Q^2P\|^2},\\
-  \mathrm{RMS}(\alpha_B,\alpha_Q)&=\sqrt{\langle r_k^2\rangle}.
-\end{align}
-La GUI muestra un mapa de RMS frente a $\log_{10}\alpha_B$ y
-$\log_{10}\alpha_Q$ y una proyección $R$ frente a $G$. Se proponen dos puntos:
-el mínimo de RMS y un compromiso geométrico entre residuo y rugosidad. Ninguno
-es una respuesta automática; debe verificarse visualmente la estabilidad del
-mapa.
-
-\begin{figure}[htbp]\centering
-  \includegraphics[width=0.72\textwidth]{apx_lsurface}
-  \caption{L-surface de regularización 2D, análoga a la L-curve pero con dos
-  parámetros. El RMS es bajo cuando ambas regularizaciones son débiles (esquina
-  inferior izquierda: el mapa ajusta el ruido) y crece al reforzarlas (arriba a
-  la derecha: sobre-suavizado). La esquina de compromiso (estrella) equilibra
-  ajuste y suavidad en cada eje; conviene comprobar que la solución es estable
-  alrededor de ella.}
-  \label{fig:apx_lsurface}
-\end{figure}
+En 1D se usa la curva L. En 2D hay dos regularizaciones y su análogo sería una
+superficie en $(\alpha_B,\alpha_Q)$, pero Fitbauer no la calcula: el botón
+\emph{L-curve} solo está activo para el histograma 1D. $\alpha_B$ y $\alpha_Q$ se
+eligen a mano. Como cada eje se escala con su propia $\lambda_{\text{ref}}$
+(\S\ref{sec:alpha-dimless}), $\log_{10}\alpha\approx0$ es en ambos el equilibrio
+natural datos/suavidad y un buen punto de partida; la L-curve del modo 1D
+correspondiente (por ejemplo $P(\BHF)$ para $\alpha_B$) orienta sobre el orden
+de magnitud. Después conviene variar cada $\alpha$ en pasos de 0.5 y comprobar
+que el mapa, sus marginales y el RMS son estables: ninguna elección es una
+respuesta automática.
 
 \section{Riesgo de sobreajuste}
 

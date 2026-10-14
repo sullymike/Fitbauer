@@ -1,5 +1,17 @@
 # Changelog
 
+## Sin publicar
+
+- **La elección de α describe lo que hace la GUI.** La ayuda (8 idiomas), los
+  README, `BHF_DISTRIBUTION(_EN).md` y el anexo matemático del manual decían
+  que la L-curve proponía tres valores (codo, «compromiso» y GCV) con una
+  gráfica de χ² reducido y un botón «Guardar tabla»; eso era de la interfaz Tk.
+  El diálogo marca el codo (curvatura de Menger) y se elige otro α con un clic.
+  El anexo 2D describía una L-surface (αB, αQ) que la GUI no tiene: ahora explica
+  cómo elegir αB/αQ a mano, y se retira su figura ilustrativa. La ayuda 2D
+  ofrecía además una exportación TSV del mapa que no existe: el diálogo guarda
+  la figura y la malla numérica la escribe el CLI.
+
 ## v5.2.0 — distribuciones P(ΔEQ)/P(IS), binomial de NORMOS, formas 2D y bandas de error
 
 - **Documentación pública al día.** `BHF_DISTRIBUTION(_EN).md` reescritos:

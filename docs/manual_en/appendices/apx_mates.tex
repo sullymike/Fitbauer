@@ -595,24 +595,17 @@ $-1\ldots+2$). In 2D the same is done for each axis ($\alpha_B$, $\alpha_Q$) wit
 its own $\lambda_{\text{ref}}$.
 
 \medskip
-Three criteria are computed over a logarithmic grid of $\alpha$.
-
-\paragraph{L-curve (maximum curvature).} With
+The L-curve is computed over a logarithmic grid of $\alpha$. With
 $\rho(\alpha)=\log\lVert W^{1/2}(X\hat z-y)\rVert$ and
-$\eta(\alpha)=\log\lVert L\hat{\bm P}\rVert$, the corner maximizes
+$\eta(\alpha)=\log\lVert L\hat{\bm P}\rVert$, its corner is the point of maximum
+curvature
 \begin{equation}
-  \kappa(\alpha)=\frac{\rho'\eta''-\eta'\rho''}{\bigl((\rho')^2+(\eta')^2\bigr)^{3/2}}.
+  \kappa(\alpha)=\frac{\rho'\eta''-\eta'\rho''}{\bigl((\rho')^2+(\eta')^2\bigr)^{3/2}},
 \end{equation}
-
-\paragraph{Trade-off.} Minimum normalized distance to the origin in the
-$(\eta,\rho)$ plane.
-
-\paragraph{Generalized cross-validation (GCV).}
-\begin{equation}
-  \mathrm{GCV}(\alpha)=\frac{\lVert W^{1/2}(\bm y - X\hat z)\rVert^2}{\bigl(N-p_{\text{eff}}(\alpha)\bigr)^2},
-  \qquad \hat\alpha=\argmin_\alpha \mathrm{GCV}(\alpha),
-\end{equation}
-which does not require knowing the noise scale and is optimal in prediction loss.
+evaluated on the discrete grid as the Menger curvature (the inverse radius of the
+circle through three consecutive points). The corner is only a suggestion: any
+other scanned $\alpha$ can be picked in the dialog with a click, and the
+stability of $P$ around it should be checked.
 
 \subsection{Error bars of \texorpdfstring{$P(\BHF)$}{P(BHF)}}\label{sec:perr}
 

@@ -121,7 +121,7 @@ format, which is not proprietary.
 |---|---|---|
 | **2D distributions** | — | P(BHF,ΔEQ), P(IS,ΔEQ), P(BHF,IS), as a histogram or as bivariate Gaussians (VBF) |
 | **Regularizers** | Tikhonov and maximum entropy | plus **total variation** (edge-preserving) |
-| **Choosing α** | by hand | L-curve and GCV criterion, with exportable table |
+| **Choosing α** | by hand | L-curve with automatic elbow and click-to-pick |
 | **P(IS)** | singlet kernel | singlet, doublet or sextet kernel |
 | **Distribution shapes** | histogram, Gaussian, binomial | plus multi-Gaussian VBF (Rancourt–Ping) |
 | **Errors** | covariance matrix | plus Monte Carlo bootstrap and asymmetric profile-likelihood intervals |

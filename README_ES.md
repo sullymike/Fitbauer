@@ -123,7 +123,7 @@ que no es propietario.
 |---|---|---|
 | **Distribuciones 2D** | — | P(BHF,ΔEQ), P(IS,ΔEQ), P(BHF,IS), como histograma o como gaussianas bivariantes (VBF) |
 | **Regularizadores** | Tikhonov y máxima entropía | además **variación total** (preserva bordes) |
-| **Elección de α** | a mano | L-curve y criterio GCV, con tabla exportable |
+| **Elección de α** | a mano | L-curve con codo automático y elección con un clic |
 | **P(IS)** | núcleo de singletes | núcleo de singlete, doblete o sexteto |
 | **Formas de distribución** | histograma, gaussiana, binomial | además VBF multigaussiano (Rancourt–Ping) |
 | **Errores** | matriz de covarianza | además bootstrap Monte Carlo e intervalos asimétricos por verosimilitud perfilada |

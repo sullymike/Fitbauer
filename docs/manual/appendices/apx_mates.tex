@@ -600,24 +600,17 @@ $-1\ldots+2$). En 2D se hace lo mismo por cada eje ($\alpha_B$, $\alpha_Q$) con 
 $\lambda_{\text{ref}}$ propio.
 
 \medskip
-Sobre una malla logarítmica de $\alpha$ se calculan tres criterios.
-
-\paragraph{Curva L (máxima curvatura).} Con
+Sobre una malla logarítmica de $\alpha$ se calcula la curva L. Con
 $\rho(\alpha)=\log\lVert W^{1/2}(X\hat z-y)\rVert$ y
-$\eta(\alpha)=\log\lVert L\hat{\bm P}\rVert$, la esquina maximiza
+$\eta(\alpha)=\log\lVert L\hat{\bm P}\rVert$, su esquina es el punto de máxima
+curvatura
 \begin{equation}
-  \kappa(\alpha)=\frac{\rho'\eta''-\eta'\rho''}{\bigl((\rho')^2+(\eta')^2\bigr)^{3/2}}.
+  \kappa(\alpha)=\frac{\rho'\eta''-\eta'\rho''}{\bigl((\rho')^2+(\eta')^2\bigr)^{3/2}},
 \end{equation}
-
-\paragraph{Compromiso.} Mínima distancia normalizada al origen en el plano
-$(\eta,\rho)$.
-
-\paragraph{Validación cruzada generalizada (GCV).}
-\begin{equation}
-  \mathrm{GCV}(\alpha)=\frac{\lVert W^{1/2}(\bm y - X\hat z)\rVert^2}{\bigl(N-p_{\text{eff}}(\alpha)\bigr)^2},
-  \qquad \hat\alpha=\argmin_\alpha \mathrm{GCV}(\alpha),
-\end{equation}
-que no requiere conocer la escala del ruido y es óptima en pérdida de predicción.
+que sobre la malla discreta se evalúa como la curvatura de Menger (inversa del
+radio de la circunferencia que pasa por tres puntos consecutivos). La esquina es
+solo una sugerencia: en el diálogo se puede elegir cualquier otro $\alpha$ del
+escaneo con un clic, y conviene comprobar que $P$ es estable a su alrededor.
 
 \subsection{Barras de error de \texorpdfstring{$P(\BHF)$}{P(BHF)}}\label{sec:perr}
 

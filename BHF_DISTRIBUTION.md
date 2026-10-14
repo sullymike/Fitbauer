@@ -60,7 +60,7 @@ $$\Phi(\mathbf{p}) = \|W^{1/2}(X\mathbf{z} - \mathbf{y})\|^2 + \alpha \|L\mathbf
 
 donde $L$ es el operador de segunda diferencia. Favorece distribuciones suaves. α es
 adimensional (log α ≈ 0 es el equilibrio natural datos/suavidad); el botón **L-curve α**
-recorre α y propone el codo, un valor de compromiso y el criterio GCV.
+recorre α, marca el codo (máxima curvatura) y permite elegir otro valor con un clic.
 
 ### Variación total (L1, para fases discretas)
 

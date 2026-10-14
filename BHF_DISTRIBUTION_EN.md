@@ -60,7 +60,7 @@ $$\Phi(\mathbf{p}) = \|W^{1/2}(X\mathbf{z} - \mathbf{y})\|^2 + \alpha \|L\mathbf
 
 where $L$ is the second-difference operator. Favours smooth distributions. α is
 dimensionless (log α ≈ 0 is the natural data/smoothness balance); the **L-curve α**
-button scans α and proposes the elbow, a compromise value and the GCV criterion.
+button scans α, marks the elbow (maximum curvature) and lets you pick another value with a click.
 
 ### Total Variation (L1, for discrete phases)
 

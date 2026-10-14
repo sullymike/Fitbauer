@@ -27,7 +27,6 @@ APXFIGS := $(FIGDIR)/apx_lineshapes.pdf \
         $(FIGDIR)/apx_neel.pdf \
         $(FIGDIR)/apx_quadrupole.pdf \
         $(FIGDIR)/apx_powder.pdf \
-        $(FIGDIR)/apx_lsurface.pdf \
         $(FIGDIR)/apx_relax_phenom.pdf \
         $(FIGDIR)/apx_profile.pdf \
         $(FIGDIR)/apx_multistart.pdf \

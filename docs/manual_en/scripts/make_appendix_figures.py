@@ -488,28 +488,6 @@ def fig_powder():
     _save(fig, "apx_powder")
 
 
-# ── C.2 L-surface de regularización 2D ───────────────────────────────────────
-def fig_lsurface():
-    lax = np.linspace(-4, 0, 70)
-    lay = np.linspace(-4, 0, 70)
-    LX, LY = np.meshgrid(lax, lay)
-    rms = 0.0045 * (1 + 0.9 / (1 + np.exp(-(LX + 2.2) * 3.5))) \
-                 * (1 + 0.9 / (1 + np.exp(-(LY + 2.2) * 3.5)))
-    fig, ax = plt.subplots(figsize=(6.6, 5.2))
-    cf = ax.contourf(LX, LY, rms * 1000, levels=14, cmap="viridis")
-    ax.contour(LX, LY, rms * 1000, levels=8, colors="white", linewidths=0.4, alpha=0.5)
-    ax.plot(-2.2, -2.2, "*", ms=20, color="#f97316", mec="k", mew=0.8)
-    ax.annotate("chosen corner", (-2.2, -2.2), textcoords="offset points",
-                xytext=(12, -2), color="white", fontsize=9, va="center")
-    cb = fig.colorbar(cf, ax=ax)
-    cb.set_label(r"RMS ($\times10^{-3}$)")
-    ax.set_xlabel(r"$\log_{10}\alpha_{B}$ (field)")
-    ax.set_ylabel(r"$\log_{10}\alpha_{Q}$ (quadrupole)")
-    ax.set_title("L-surface: RMS versus the two regularizations")
-    ax.grid(False)
-    _save(fig, "apx_lsurface")
-
-
 # ── D.3 Modelo fenomenológico Relajacion: fracción bloqueada ─────────────────
 def fig_relax_phenom():
     v = np.linspace(-9, 9, 1800)
@@ -631,7 +609,6 @@ def main() -> int:
     fig_neel()
     fig_quadrupole()
     fig_powder()
-    fig_lsurface()
     fig_relax_phenom()
     fig_profile()
     fig_multistart()
