@@ -2,6 +2,10 @@
 
 ## Sin publicar
 
+- **El estilo de gráfico «clásico» heredaba el anterior.** No define
+  parámetros de matplotlib, así que tras «publicación» se quedaban la letra
+  serif, los ticks hacia dentro y el marco de la leyenda. Al cambiar de
+  estilo, todo lo que algún estilo modifica vuelve antes a su valor por defecto.
 - **Errores de los globales en 2D por el mismo método que en 1D.** La
   jacobiana del bucle externo se recalcula al final por diferencias centradas
   también en los modos 2D. En el histograma 2D el ajuste interno es lineal y

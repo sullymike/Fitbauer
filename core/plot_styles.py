@@ -227,6 +227,12 @@ def apply_rc(name: str) -> None:
     style = STYLES.get(name)
     if style is None:
         return
+    # Primero, las claves que toca CUALQUIER estilo vuelven a su valor por
+    # defecto: «clásico» no define ninguna y heredaba la tipografía, los ticks
+    # hacia dentro o el marco de leyenda del estilo anterior.
+    tocadas = {k for st in STYLES.values() for k in (st.get("rc") or {})}
+    for k in tocadas:
+        matplotlib.rcParams[k] = matplotlib.rcParamsDefault[k]
     rc = style.get("rc") or {}
     for k, v in rc.items():
         matplotlib.rcParams[k] = v

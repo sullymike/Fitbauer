@@ -735,6 +735,21 @@ def test_plot_styles_apply(win):
             assert familia[0] in rc[f"font.{rc['font.family']}"]
 
 
+def test_el_estilo_clasico_no_hereda_del_anterior():
+    """«Clásico» no define rc: antes heredaba la tipografía serif, los ticks
+    hacia dentro y el marco de leyenda del estilo «publicación»."""
+    import matplotlib
+
+    from core.plot_styles import apply_rc
+    apply_rc("publication")
+    assert matplotlib.rcParams["xtick.direction"] == "in"
+    apply_rc("classic")
+    assert matplotlib.rcParams["xtick.direction"] == matplotlib.rcParamsDefault["xtick.direction"]
+    assert matplotlib.rcParams["legend.frameon"] == matplotlib.rcParamsDefault["legend.frameon"]
+    assert list(matplotlib.rcParams["font.family"])[0] != "DejaVu Serif"
+    apply_rc("modern")
+
+
 def test_respaldo_cjk_en_graficos_e_informes():
     """Con una fuente CJK instalada, la familia activa la lleva como respaldo.
 
