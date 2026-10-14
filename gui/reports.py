@@ -612,18 +612,16 @@ class ReportMixin:
                 lines.append(f"| {_r('n_starts')} | {int(fit_view.n_starts())} |")
             lines.append("")
             # Diagnóstico residual
-            if any(k in stats for k in ("resid_lag1", "resid_runs_z", "resid_antisym_corr")):
+            if any(k in stats for k in ("resid_lag1", "resid_runs_z")):
                 lines.append(f"**{_r('resid_diag')}**")
                 lines.append("")
                 lines.append(f"| {_r('col_statistic')} | {_r('col_value')} | {_r('col_threshold')} |")
                 lines.append("|---|---|---|")
-                lines.append(f"| {_r('lag1')} | {stats.get('resid_lag1', float('nan')):.3f} | \\|·\\| > 0.35 |")
-                lines.append(f"| {_r('runs')} | {stats.get('resid_runs_z', float('nan')):.3f} | \\|·\\| > 2.0 |")
-                lines.append(f"| {_r('antisym')} | {stats.get('resid_antisym_corr', float('nan')):.3f} | > 0.45 |")
+                lines.append(f"| {_r('lag1')} | {stats.get('resid_lag1', float('nan')):.3f} | ∉ [−0.35, 0.35] |")
+                lines.append(f"| {_r('runs')} | {stats.get('resid_runs_z', float('nan')):.3f} | ∉ [−2, 2] |")
                 lines.append("")
                 if (abs(stats.get("resid_lag1", 0.0)) > 0.35
-                        or abs(stats.get("resid_runs_z", 0.0)) > 2.0
-                        or stats.get("resid_antisym_corr", 0.0) > 0.45):
+                        or abs(stats.get("resid_runs_z", 0.0)) > 2.0):
                     lines.append(f"> ⚠️ {_r('resid_warning')}")
                     lines.append("")
             # Correlaciones

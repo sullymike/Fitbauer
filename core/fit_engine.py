@@ -41,6 +41,7 @@ from core.folding import (
     symmetry_center_to_c0,
 )
 from core.profile_likelihood import asymmetric_intervals
+from core.residual_diagnostics import residual_diagnostics
 
 
 # ── Tipos públicos ────────────────────────────────────────────────────────
@@ -830,6 +831,13 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
         "bic": float(bic),
         "rss": rss,
     }
+    # Diagnóstico del residuo (lag-1, rachas) sobre los canales de datos en
+    # orden de velocidad: en modo seno el orden de canal no es el de v.
+    data_resid = np.asarray(final_residual[:n_obs], dtype=float)
+    v_axis = np.asarray(state.velocity, dtype=float)
+    if v_axis.size == data_resid.size:
+        data_resid = data_resid[np.argsort(v_axis, kind="stable")]
+    stats.update(residual_diagnostics(data_resid))
 
     return FitResult(values=values_final, errors=errors, free_keys=free_keys,
                      cov=cov, stats=stats, correlations=correlations,

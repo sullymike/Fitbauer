@@ -101,6 +101,9 @@ def test_fit_discrete_recovers_alpha_fe():
     # Errores 1σ disponibles para los parámetros libres
     for k in ("s1_delta", "s1_bhf", "s1_gamma1", "s1_depth"):
         assert k in result.errors and result.errors[k] >= 0.0
+    # Diagnóstico del residuo: lo lee el informe y no se calculaba desde el Tk.
+    assert np.isfinite(result.stats["resid_lag1"])
+    assert np.isfinite(result.stats["resid_runs_z"])
 
 
 def _alpha_fe_counts_state(cstart: float):

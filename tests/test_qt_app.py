@@ -1010,7 +1010,7 @@ def test_informe_se_genera_en_todos_los_idiomas(win):
     sin traducir (``rep.*``) y que el inglés no arrastra palabras españolas.
     """
     import re
-    from mossbauer_i18n import get_language, set_language
+    from mossbauer_i18n import get_language, set_language, tr
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
     win.on_fit()
     original = get_language()
@@ -1019,6 +1019,9 @@ def test_informe_se_genera_en_todos_los_idiomas(win):
             set_language(lang)
             texto = "\n".join(win._build_report_lines() + win._build_short_report_lines())
             assert not re.search(r"\brep\.[a-z_]+", texto), lang
+            # La sección de diagnóstico del residuo sale (estaba muerta).
+            assert tr("rep.resid_diag") in texto and tr("rep.lag1") in texto, lang
+            assert "\\|" not in texto, lang     # el PDF no entiende «\|» en tablas
             if lang == "en":
                 for palabra in ("Parámetro", "Componente", "Calibración", "Línea base",
                                 "fijo", "libre", "Glosario", "Fichero"):

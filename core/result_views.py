@@ -44,7 +44,6 @@ _DISCRETE_METRIC_LABELS = {
     "rms": "RMS",
     "resid_lag1": "Autocorrelación lag-1",
     "resid_runs_z": "Runs test (z)",
-    "resid_antisym_corr": "Correlación antisimétrica",
 }
 
 _DISTRIBUTION_METRIC_LABELS = {

@@ -2,6 +2,17 @@
 
 ## Sin publicar
 
+- **Diagnóstico del residuo en el ajuste discreto.** El panel de información
+  y el informe leían la autocorrelación lag-1, el test de rachas y una
+  «correlación antisimétrica» que nada calculaba desde que se retiró la
+  interfaz Tk: el panel mostraba `nan` y la sección del informe no salía
+  nunca. El motor discreto los calcula ahora (sobre los residuos normalizados,
+  en orden de velocidad) con las mismas funciones que la distribución, que
+  pasan a `core/residual_diagnostics.py`. La correlación antisimétrica se
+  retira: reflejaba el residuo respecto al centro del eje, y con δ ≠ 0 las
+  líneas no son simétricas respecto a ese punto. Los umbrales de la tabla se
+  escriben «∉ [−0.35, 0.35]» en lugar de «\|·\| > 0.35», que rompía la
+  tabla del PDF.
 - **Aviso de P(ΔEQ) con Γ libre.** El panel avisaba de P(IS) con Γ libre pero
   no de P(ΔEQ) con dobletes, donde la compensación es igual de fuerte (en
   espectros sintéticos con P gaussiana, correlación σ–Γ de −0.90 a −0.95 y

@@ -547,14 +547,12 @@ class ModelWorkflowMixin:
                 tr("info.aic_bic_line", aic=f"{stats.get('aic', float('nan')):.6g}",
                    bic=f"{stats.get('bic', float('nan')):.6g}", n_params=f"{stats.get('n_params', len(result.free_keys)):.0f}"),
                 tr("info.residual_diag", lag1=f"{stats.get('resid_lag1', float('nan')):.3f}",
-                   z=f"{stats.get('resid_runs_z', float('nan')):.3f}",
-                   antisym=f"{stats.get('resid_antisym_corr', float('nan')):.3f}"),
+                   z=f"{stats.get('resid_runs_z', float('nan')):.3f}"),
                 tr("info.model_comparison"),
                 tr("info.multistart_count", n=f"{result.n_starts:.0f}"),
             ])
             if (abs(stats.get("resid_lag1", 0.0)) > 0.35
-                    or abs(stats.get("resid_runs_z", 0.0)) > 2.0
-                    or stats.get("resid_antisym_corr", 0.0) > 0.45):
+                    or abs(stats.get("resid_runs_z", 0.0)) > 2.0):
                 lines.extend([tr("info.residual_warning_1"), tr("info.residual_warning_2")])
         cal_unc = self.calibration_uncertainty_text()
         if cal_unc:
