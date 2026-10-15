@@ -184,8 +184,9 @@
 \contentsline {subsection}{\numberline {E.4.2}Exchange profile for one transition}{72}{subsection.E.4.2}%
 \contentsline {subsection}{\numberline {E.4.3}Limits}{73}{subsection.E.4.3}%
 \contentsline {subsection}{\numberline {E.4.4}Population polarization}{73}{subsection.E.4.4}%
+\contentsline {subsection}{\numberline {E.4.5}External field}{74}{subsection.E.4.5}%
 \contentsline {section}{\numberline {E.5}Néel--Arrhenius and size distribution}{74}{section.E.5}%
-\contentsline {section}{\numberline {E.6}Global multi-temperature fit}{74}{section.E.6}%
+\contentsline {section}{\numberline {E.6}Global multi-temperature fit}{75}{section.E.6}%
 \contentsline {section}{\numberline {E.7}Relation to fitting and reports}{75}{section.E.7}%
 \contentsline {chapter}{\numberline {F}Thickness correction}{76}{appendix.F}%
 \contentsline {section}{\numberline {F.1}The problem: thin vs. thick absorber}{76}{section.F.1}%

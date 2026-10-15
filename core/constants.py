@@ -177,6 +177,7 @@ MODEL_PARAM_LABELS = {
     "relax_fraction": "Fracción bloqueada (relajación)",
     "relax_log_nu": "log10 tasa de relajación ν (s⁻¹)",
     "relax_polarization": "Polarización de poblaciones P (±BHF)",
+    "relax_bext": "Campo externo BEXT (T)",
     "neel_temp_k": "Temperatura T (K)",
     "neel_log10_keff": "log10 anisotropía Keff (J/m³)",
     "neel_mean_d_nm": "Diámetro mediano d50 (nm)",

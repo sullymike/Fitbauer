@@ -585,6 +585,7 @@ def two_state_sextet_absorption(
     weights: np.ndarray, gammas: np.ndarray,
     log10_nu: float,
     polarization: float = 0.0,
+    bext: float = 0.0,
 ) -> np.ndarray:
     """Sextete de dos estados +BHF ↔ −BHF con pesos/anchuras explícitos por línea.
 
@@ -592,11 +593,19 @@ def two_state_sextet_absorption(
     frecuencia calculada con +BHF y la calculada con −BHF a tasa ν. Las dos
     convenciones de intensidad del proyecto construyen ``weights``/``gammas``
     y delegan aquí.
+
+    ``bext`` (T) es un campo externo aplicado: el hiperfino se invierte con el
+    espín y el externo no, así que los dos estados ven BEXT ± BHF y cada línea
+    se desplaza igual en ambos (el ``VL0 = AL·BEXT`` de ``ISIRLX`` en
+    NORMOS-SITE, ``siterelx.for``). En el límite rápido el sextete colapsa a
+    uno de campo BEXT (más P·BHF si las poblaciones están polarizadas) en lugar
+    de a un doblete. 0 = sin campo externo (comportamiento histórico).
     """
     mag = active_sextet_pattern() * (float(bhf) / BHF_DEFAULT_T)
+    ext = active_sextet_pattern() * (float(bext) / BHF_DEFAULT_T)
     q = float(quad) * LINE_QUAD_PATTERN
-    c_plus = float(delta) + q + mag
-    c_minus = float(delta) + q - mag
+    c_plus = float(delta) + q + ext + mag
+    c_minus = float(delta) + q + ext - mag
     out = np.zeros_like(np.asarray(v, dtype=float), dtype=float)
     for ca, cb, g, w in zip(c_plus, c_minus, gammas, weights):
         out += float(w) * two_state_exchange_profile(
@@ -612,6 +621,7 @@ def relaxation_blume_tjon_two_state_absorption(
     depth: float, int1: float, int2: float, int3: float,
     log10_nu: float,
     polarization: float = 0.0,
+    bext: float = 0.0,
 ) -> np.ndarray:
     """Modelo dinámico simplificado de dos estados +BHF ↔ -BHF.
 
@@ -624,7 +634,7 @@ def relaxation_blume_tjon_two_state_absorption(
     weights = np.array([int3 * int1, int3 * int2, int3, int3, int3 * int2, int3 * int1], dtype=float)
     gammas = float(gamma1) * np.array([1.0, gamma2, gamma3, gamma3, gamma2, 1.0], dtype=float)
     return float(depth) * two_state_sextet_absorption(
-        v, delta, quad, bhf, weights, gammas, log10_nu, polarization)
+        v, delta, quad, bhf, weights, gammas, log10_nu, polarization, bext)
 
 
 def component_absorption(
@@ -655,9 +665,10 @@ def component_absorption(
             log10_nu = float(extras.get("log10_nu", extras.get("relax_log_nu", log10_nu)))
         pol = float(extras.get("polarization",
                                 extras.get("relax_polarization", 0.0))) if extras else 0.0
+        bext = float(extras.get("bext", extras.get("relax_bext", 0.0))) if extras else 0.0
         return relaxation_blume_tjon_two_state_absorption(
             v, delta, quad, bhf, gamma1, gamma2, gamma3,
-            depth, int1, int2, int3, log10_nu, pol,
+            depth, int1, int2, int3, log10_nu, pol, bext,
         )
     if kind == "NeelSize":
         delta, quad, bhf, gamma1, gamma2, gamma3, depth, int1, int2, int3 = p

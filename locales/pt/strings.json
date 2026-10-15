@@ -880,6 +880,7 @@
   "tooltip.p_relax_fraction": "Fração do subespetro que relaxa, de 0 (tudo bloqueado) a 1 (tudo a relaxar).",
   "tooltip.p_relax_log_nu": "Logaritmo decimal da frequência de salto (Hz). Quanto maior, mais colapsado fica o sexteto.",
   "tooltip.p_relax_polarization": "Desequilíbrio entre as populações dos dois estados, de −1 a +1. Com 0 são igualmente prováveis.",
+  "tooltip.p_relax_bext": "Campo do íman aplicado, em T. Desloca igualmente as linhas dos dois estados (BEXT ± BHF), como o BEXT do NORMOS. 0 = sem íman. É um dado: fica fixo.",
   "tooltip.p_neel_temp_k": "Temperatura da medida (K). Entra na lei de Néel-Arrhenius.",
   "tooltip.p_neel_log10_keff": "Logaritmo decimal da anisotropia efetiva (J/m³). Com o volume fixa a barreira de energia.",
   "tooltip.p_neel_mean_d_nm": "Diâmetro médio de partícula (nm) da distribuição lognormal.",
@@ -1246,6 +1247,7 @@
   "plimit.curv3": "Base cúbica v³",
   "plimit.curv4": "Base quártica v⁴",
   "plimit.relax_polarization": "Polarização P (±BHF)",
+  "plimit.relax_bext": "Campo externo BEXT (T)",
   "plimit.src_frac": "Fração livre de recuo da fonte (FSO)",
   "plimit.line_asym": "Assimetria de linha (AKS)",
   "normos.w_bhf_scale": "O BHF vem na escala do NORMOS (posições derivadas dos momentos nucleares). Para a reproduzir, ajuste com core.constants.sextet_pattern(\"normos\").",
@@ -1332,5 +1334,6 @@
   "plot.show_prob_band": "Banda 1σ de P",
   "plot.prob_band_label": "P ± 1σ",
   "tooltip.show_prob_band": "Incerteza 1σ de cada bin de P por Monte Carlo paramétrico: a distribuição é reajustada sobre o modelo com ruído da σ dos dados (escalada pelo χ² reduzido) e mede-se a dispersão. Respeita P ≥ 0. Não inclui a incerteza de δ, Γ nem dos restantes valores globais. Só forma Histograma com Tikhonov ou TV.",
-  "slider.s_relax_polarization": "Polarização P"
+  "slider.s_relax_polarization": "Polarização P",
+  "slider.s_relax_bext": "Campo externo BEXT (T)"
 }

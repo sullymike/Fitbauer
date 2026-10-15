@@ -1,6 +1,6 @@
 # Pendiente frente a NORMOS — hoja de ruta
 
-**Estado a 2026-08-02; ítem 1 revisado el 2026-10-14.** Complemento de `COBERTURA_NORMOS.md`, que dice QUÉ
+**Estado a 2026-08-02; ítems 1 y 2 cerrados el 2026-10-15.** Complemento de `COBERTURA_NORMOS.md`, que dice QUÉ
 falta; este documento dice CÓMO hacerlo. Cada ficha lleva la referencia exacta
 del fuente, qué tocar en Fitbauer, cómo validarlo y una estimación honesta de
 si merece la pena.
@@ -48,32 +48,15 @@ validar (sonda del binario: falta el fichero spline) en `COBERTURA_NORMOS.md` §
 
 ---
 
-## 2. `BEXT` — campo externo en la relajación de Ising
+## 2. `BEXT` — campo externo en la relajación de Ising — CERRADO 2026-10-15
 
-**Qué es.** Un campo externo aplicado desplaza las líneas además de polarizar
-las poblaciones. En `ISIRLX`, `VL0 = AL(j)·BEXT` entra en la parte imaginaria
-de los autovalores.
-
-**En NORMOS.** `siterelx.for:68` (`VL0 = AL(J)*BEXT`) y su uso en `XP/YP/XN/YN`
-y en `BB`/`CC`.
-
-**Hoy en Fitbauer.** La polarización de poblaciones ya está
-(`relax_polarization`, modelo de Blume de dos estados propio); el
-desplazamiento no.
-
-**Qué habría que hacer.**
-- Añadir el desplazamiento de las frecuencias por el campo externo a
-  `two_state_exchange_profile` en `core/physics.py` (en el modelo de Blume
-  basta con sumarlo a las frecuencias v_a, v_b de cada estado).
-- Parámetro de componente `relax_bext` en `core/params.py` (registro, bounds,
-  `USED_BY["BlumeTjon"]`) y en los `extras` de `core/fit_engine.py:258`.
-
-**Validación.** **No** con el binario del demo: `BSAT` no está en su namelist y
-sus espectros `IRELAX` salen casi colapsados incluso con `OME=0` (§19 del
-informe). Se valida contra la ecuación matricial de Blume resuelta
-numéricamente, como la polarización (`tests/test_relajacion_normos.py`).
-
-**Coste / valor.** Bajo / bajo. Media hora, pero solo sirve si mides con imán.
+Parámetro `relax_bext` (T) del componente Blume–Tjon: los dos estados ven
+BEXT ± BHF y cada línea se desplaza igual en ambos (`two_state_sextet_absorption`,
+`core/physics.py`), como el `VL0 = AL(J)*BEXT` de `siterelx.for`. Fijo por defecto
+(es un dato) y «Liberar todos» no lo suelta. Validado contra la ecuación matricial
+de Blume con los estados en BEXT ± BHF y en los límites lento (dos sextetes) y
+rápido (sextete de campo BEXT): `tests/test_relajacion_normos.py`. No se ha
+podido comparar con el binario: el demo no admite `BSAT`/`BEXT`.
 
 ---
 

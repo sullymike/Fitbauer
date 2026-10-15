@@ -45,7 +45,7 @@ Veredicto por símbolo:
 | `PHS`/`MIX` mezcla multipolar M1+E2 | — | **✗** irrelevante para ⁵⁷Fe (`MIX=0` cableado en el propio SITE) |
 | `ISTYPE`/`SEX SG GFR QMR` otros isótopos | solo ⁵⁷Fe | **✗** |
 | `EMSPEC` espectro de emisión | — | **✗** |
-| `BEXT` campo externo en relajación de Ising | — | **✗** |
+| `BEXT` campo externo en relajación de Ising | `relax_bext` (Blume–Tjon) | **=** los dos estados en BEXT ± BHF; validado contra la ecuación matricial de Blume (el demo no lo admite) |
 
 ## 2. Adquisición y plegado
 
@@ -115,9 +115,8 @@ Fitbauer, cómo validarlo y si merece la pena. Resumen:
 
 1. ~~**`DISTRI=4` con `METHOD=7`** (Le Caër con campo)~~ — **cerrado el
    2026-10-15**: forma «Le Caër» (§9).
-2. **`BEXT`**, campo externo en la relajación de Ising: desplaza las líneas
-   además de polarizar las poblaciones. La polarización ya está; el
-   desplazamiento no.
+2. ~~**`BEXT`**, campo externo en la relajación de Ising~~ — **cerrado el
+   2026-10-15**: `relax_bext` en el componente Blume–Tjon.
 3. **Espectros de emisión** (`EMSPEC`). Un cambio de signo en el modelo, pero
    sin exponer.
 4. **Otros isótopos** (¹¹⁹Sn, ¹⁹⁷Au, ¹⁵¹Eu, ¹²¹Sb). Fitbauer es ⁵⁷Fe.

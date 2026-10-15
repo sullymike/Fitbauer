@@ -39,7 +39,7 @@ PARAM_HELP_CHAPTER = {
         "int1", "int2", "texture", "beta", "eta", "phi", "bex", "gax")},
     # Relajación magnética (fitting.2)
     **{k: "fitting.2" for k in (
-        "relax_fraction", "relax_log_nu", "relax_polarization")},
+        "relax_fraction", "relax_log_nu", "relax_polarization", "relax_bext")},
     # Ajuste global Néel-Arrhenius (fitting.3)
     **{k: "fitting.3" for k in (
         "neel_temp_k", "neel_log10_keff", "neel_mean_d_nm", "neel_sigma",
@@ -462,6 +462,8 @@ class ComponentPanel(QtWidgets.QWidget):
             self.params[name] = ctl
             ctl.valueChanged.connect(lambda *_: self.paramChanged.emit())
             ctl.fixedChanged.connect(lambda *_: self.paramChanged.emit())
+        # El campo del imán es un dato del experimento, no algo que ajustar.
+        self.params["relax_bext"].set_fixed(True)
         v.addLayout(self.params_grid)
         self.enabled.toggled.connect(lambda *_: self.paramChanged.emit())
         self.type_combo.currentTextChanged.connect(self._on_type_changed)

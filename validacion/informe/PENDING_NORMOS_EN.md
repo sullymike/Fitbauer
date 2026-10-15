@@ -3,7 +3,7 @@
 *English version of `PENDIENTE_NORMOS.md`. The Spanish file is the original;
 this one is kept in step with it.*
 
-**Status as of 2026-08-02; item 1 revised on 2026-10-14.** Companion to `COVERAGE_NORMOS_EN.md`, which says
+**Status as of 2026-08-02; items 1 and 2 closed on 2026-10-15.** Companion to `COVERAGE_NORMOS_EN.md`, which says
 WHAT is missing; this document says HOW to do it. Each entry carries the exact
 source reference, what to touch in Fitbauer, how to validate it and an honest
 estimate of whether it is worth it.
@@ -53,33 +53,15 @@ validated (probe of the binary: the spline file is missing), in
 
 ---
 
-## 2. `BEXT` — external field in Ising relaxation
+## 2. `BEXT` — external field in Ising relaxation — CLOSED 2026-10-15
 
-**What it is.** An applied external field shifts the lines as well as
-polarizing the populations. In `ISIRLX`, `VL0 = AL(j)·BEXT` enters the
-imaginary part of the eigenvalues.
-
-**In NORMOS.** `siterelx.for:68` (`VL0 = AL(J)*BEXT`) and its use in
-`XP/YP/XN/YN` and in `BB`/`CC`.
-
-**In Fitbauer today.** Population polarization is in place
-(`relax_polarization`, Fitbauer's own two-state Blume model); the shift is
-not.
-
-**What would need doing.**
-- Add the shift of the frequencies by the external field to
-  `two_state_exchange_profile` in `core/physics.py` (in the Blume model it is
-  enough to add it to the frequencies v_a, v_b of each state).
-- A `relax_bext` component parameter in `core/params.py` (registry, bounds,
-  `USED_BY["BlumeTjon"]`) and in the `extras` of `core/fit_engine.py:258`.
-
-**Validation.** **Not** with the demo binary: `BSAT` is not in its namelist and
-its `IRELAX` spectra come out almost collapsed even with `OME=0` (§19 of
-`REPORT_EN.md`). It is validated against Blume's matrix equation solved
-numerically, like the polarization (`tests/test_relajacion_normos.py`).
-
-**Cost / value.** Low / low. Half an hour, but only useful if you measure with
-a magnet.
+Parameter `relax_bext` (T) of the Blume–Tjon component: the two states see
+BEXT ± BHF and each line shifts equally in both (`two_state_sextet_absorption`,
+`core/physics.py`), like the `VL0 = AL(J)*BEXT` of `siterelx.for`. Fixed by
+default (it is a datum) and «Free all» does not release it. Validated against
+Blume's matrix equation with the states at BEXT ± BHF and in the slow (two
+sextets) and fast (sextet of field BEXT) limits: `tests/test_relajacion_normos.py`.
+It could not be compared with the binary: the demo does not accept `BSAT`/`BEXT`.
 
 ---
 

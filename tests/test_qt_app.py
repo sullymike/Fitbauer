@@ -3236,6 +3236,19 @@ def test_parametros_de_componente_tienen_etiqueta_en_todos_los_idiomas(win):
     for ctl in win.components_panels[0].params.values():
         assert not ctl.label.text().startswith("slider."), ctl.label.text()
 
+def test_bext_de_blume_tjon_en_el_panel(win):
+    """El campo del imán (BEXT) sale solo en Blume–Tjon y va fijo por defecto,
+    también tras «Liberar todos»: es un dato del experimento."""
+    cp = win.components_panels[0]
+    cp.type_combo.setCurrentText("BlumeTjon")
+    ctl = cp.params["relax_bext"]
+    assert ctl.isVisibleTo(cp) and ctl.is_fixed()
+    win._set_all_fixed(False)
+    assert ctl.is_fixed() and not cp.params["relax_log_nu"].is_fixed()
+    cp.type_combo.setCurrentText("Sextete")
+    assert not ctl.isVisibleTo(cp)
+
+
 def test_botones_estandar_de_qt_en_el_idioma_activo(app):
     """Los botones estándar de Qt salen en el idioma de la interfaz.
 

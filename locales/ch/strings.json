@@ -880,6 +880,7 @@
   "tooltip.p_relax_fraction": "发生弛豫的子谱比例，从 0（全部阻塞）到 1（全部弛豫）。",
   "tooltip.p_relax_log_nu": "跳跃频率的常用对数 (Hz)。数值越大，六重峰塌缩越明显。",
   "tooltip.p_relax_polarization": "两个态布居数的不平衡，范围 −1 到 +1。为 0 时两者等概率。",
+  "tooltip.p_relax_bext": "外加磁体的磁场（T）。使两个态的谱线等量移动（BEXT ± BHF），与 NORMOS 的 BEXT 相同。0 = 无磁体。这是实验条件，保持固定。",
   "tooltip.p_neel_temp_k": "测量温度 (K)。用于 Néel-Arrhenius 定律。",
   "tooltip.p_neel_log10_keff": "有效各向异性的常用对数 (J/m³)。与体积共同决定能垒。",
   "tooltip.p_neel_mean_d_nm": "对数正态分布的平均粒径 (nm)。",
@@ -1246,6 +1247,7 @@
   "plimit.curv3": "三次基线 v³",
   "plimit.curv4": "四次基线 v⁴",
   "plimit.relax_polarization": "极化 P（±BHF）",
+  "plimit.relax_bext": "外加磁场 BEXT (T)",
   "plimit.src_frac": "源的无反冲分数（FSO）",
   "plimit.line_asym": "谱线不对称性（AKS）",
   "normos.w_bhf_scale": "BHF 采用 NORMOS 标度（由核磁矩推导的位置）。若要复现，请使用 core.constants.sextet_pattern(\"normos\") 拟合。",
@@ -1332,5 +1334,6 @@
   "plot.show_prob_band": "P 的 1σ 带",
   "plot.prob_band_label": "P ± 1σ",
   "tooltip.show_prob_band": "通过参数化蒙特卡罗得到 P 各区间的 1σ 不确定度：在模型上加入数据 σ（按约化 χ² 缩放）的噪声后重新拟合分布，并测量其离散度。满足 P ≥ 0。不包含 δ、Γ 及其他全局参数的不确定度。仅适用于采用 Tikhonov 或 TV 的直方图形状。",
-  "slider.s_relax_polarization": "极化 P"
+  "slider.s_relax_polarization": "极化 P",
+  "slider.s_relax_bext": "外加磁场 BEXT (T)"
 }

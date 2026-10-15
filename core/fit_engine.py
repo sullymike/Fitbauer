@@ -272,6 +272,7 @@ def _build_components_list(values: dict[str, float], components: list[Component]
                 "log10_nu": float(values.get(f"s{comp.idx}_relax_log_nu", 5.0)),
                 "polarization": float(
                     values.get(f"s{comp.idx}_relax_polarization", 0.0)),
+                "bext": float(values.get(f"s{comp.idx}_relax_bext", 0.0)),
             }
             out.append((comp.kind, params, extras))
         elif comp.kind == "NeelSize":

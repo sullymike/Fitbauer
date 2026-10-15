@@ -249,7 +249,8 @@ class ModelWorkflowMixin:
             for name, ctl in cp.params.items():
                 # int3 (intensidad de referencia = 1) permanece siempre fija,
                 # igual que en Tk; no se libera con "Liberar todos".
-                if name == "int3":
+                # Tampoco el campo del imán (BEXT): es un dato del experimento.
+                if name in ("int3", "relax_bext"):
                     ctl.set_fixed(True)
                     continue
                 ctl.set_fixed(value)

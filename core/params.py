@@ -23,7 +23,7 @@ PARAM_ORDER = (
     "delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
     "depth", "int1", "int2", "int3", "texture", "beta",
     "eta", "phi", "bex", "gax",
-    "relax_fraction", "relax_log_nu", "relax_polarization",
+    "relax_fraction", "relax_log_nu", "relax_polarization", "relax_bext",
     "neel_temp_k", "neel_log10_keff", "neel_mean_d_nm",
     "neel_sigma", "neel_log10_tau0", "neel_bins",
 )
@@ -48,7 +48,7 @@ USED_BY = {
                    "depth", "int1", "int2", "relax_fraction", "relax_log_nu"},
     "BlumeTjon": {"delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
                   "depth", "int1", "int2", "relax_log_nu",
-                  "relax_polarization"},
+                  "relax_polarization", "relax_bext"},
     "NeelSize": {"delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
                  "depth", "int1", "int2", "neel_temp_k",
                  "neel_log10_keff", "neel_mean_d_nm", "neel_sigma",
@@ -137,6 +137,10 @@ COMPONENT_PARAM_SPECS = {
     # Polarización de las poblaciones de los dos estados (SPN de NORMOS):
     # p± = (1 ± P)/2. 0 = 50/50 (comportamiento histórico).
     "relax_polarization": ParamSpec(0.0, -1.0, 1.0, 0.01, 3),
+    # Campo externo aplicado (T), el BEXT de NORMOS: desplaza igual las líneas
+    # de los dos estados (BEXT ± BHF). Es un dato del experimento: fijo por
+    # defecto; 0 = sin imán (comportamiento histórico).
+    "relax_bext": ParamSpec(0.0, -15.0, 15.0, 0.01, 3),
     "neel_temp_k": ParamSpec(300.0, 1.0, 800.0, 1.0, 1),
     "neel_log10_keff": ParamSpec(4.0, 2.0, 7.0, 0.05, 3),
     "neel_mean_d_nm": ParamSpec(8.0, 0.5, 100.0, 0.1, 3),
@@ -154,7 +158,7 @@ COMPONENT_PARAM_LAYOUT = {
     "left": ("delta", "quad", "bhf", "gamma1", "gamma2", "gamma3"),
     "right": ("depth", "int1", "int2", "texture", "beta", "eta", "phi",
               "bex", "gax",
-              "relax_fraction", "relax_log_nu", "relax_polarization",
+              "relax_fraction", "relax_log_nu", "relax_polarization", "relax_bext",
               "neel_mean_d_nm", "neel_sigma", "neel_bins",
               "neel_temp_k", "neel_log10_keff", "neel_log10_tau0"),
     "hidden": ("int3",),
@@ -193,7 +197,7 @@ COMPONENT_FIT_BOUNDS = {
     "eta": (0.0, 1.0), "phi": (0.0, 90.0),
     "bex": (0.0, 90.0), "gax": (0.0, 180.0),
     "relax_fraction": (0.0, 1.0), "relax_log_nu": (3.0, 12.0),
-    "relax_polarization": (-1.0, 1.0),
+    "relax_polarization": (-1.0, 1.0), "relax_bext": (-15.0, 15.0),
     "neel_temp_k": (1.0, 800.0), "neel_log10_keff": (2.0, 7.0),
     "neel_mean_d_nm": (0.5, 100.0), "neel_sigma": (0.01, 1.5),
     "neel_log10_tau0": (-12.0, -6.0), "neel_bins": (3.0, 80.0),

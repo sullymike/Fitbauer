@@ -2,6 +2,15 @@
 
 ## Sin publicar
 
+- **Campo externo BEXT en la relajación Blume–Tjon.** Nuevo parámetro
+  «Campo externo BEXT (T)» del componente Blume–Tjon, el `BEXT` de la
+  relajación de Ising de NORMOS: el campo hiperfino se invierte con el espín y
+  el aplicado no, así que los dos estados ven BEXT ± BHF. En el límite rápido
+  el espectro colapsa a un sextete de campo BEXT (o BEXT + P·BHF) en vez de a
+  una línea. Es un dato del experimento: fijo por defecto, y «Liberar todos» no
+  lo suelta; con 0 no cambia nada. Validado contra la ecuación matricial de
+  Blume. Ayuda (8 idiomas), manuales (anexo de relajación) e informes de
+  cobertura.
 - **Forma Le Caër (con campo).** El EFG aleatorio de Czjzek en sextetes con
   campo fijo, para fases magnéticas desordenadas (vidrios metálicos,
   nanocristalinos): malla en el acoplamiento con signo e²qQ/2, kernel de polvo

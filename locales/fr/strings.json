@@ -880,6 +880,7 @@
   "tooltip.p_relax_fraction": "Fraction du sous-spectre qui relaxe, de 0 (tout bloqué) à 1 (tout en relaxation).",
   "tooltip.p_relax_log_nu": "Logarithme décimal de la fréquence de saut (Hz). Plus il est grand, plus le sextuplet est effondré.",
   "tooltip.p_relax_polarization": "Déséquilibre entre les populations des deux états, de −1 à +1. À 0, elles sont équiprobables.",
+  "tooltip.p_relax_bext": "Champ de l'aimant appliqué, en T. Il déplace également les raies des deux états (BEXT ± BHF), comme le BEXT de NORMOS. 0 = sans aimant. C'est une donnée : il reste fixe.",
   "tooltip.p_neel_temp_k": "Température de la mesure (K). Intervient dans la loi de Néel-Arrhenius.",
   "tooltip.p_neel_log10_keff": "Logarithme décimal de l'anisotropie effective (J/m³). Avec le volume, fixe la barrière d'énergie.",
   "tooltip.p_neel_mean_d_nm": "Diamètre moyen des particules (nm) de la distribution lognormale.",
@@ -1246,6 +1247,7 @@
   "plimit.curv3": "Base cubique v³",
   "plimit.curv4": "Base quartique v⁴",
   "plimit.relax_polarization": "Polarisation P (±BHF)",
+  "plimit.relax_bext": "Champ externe BEXT (T)",
   "plimit.src_frac": "Fraction sans recul de la source (FSO)",
   "plimit.line_asym": "Asymétrie de raie (AKS)",
   "normos.w_bhf_scale": "BHF est à l'échelle de NORMOS (positions dérivées des moments nucléaires). Pour la reproduire, ajustez avec core.constants.sextet_pattern(\"normos\").",
@@ -1332,5 +1334,6 @@
   "plot.show_prob_band": "Bande 1σ de P",
   "plot.prob_band_label": "P ± 1σ",
   "tooltip.show_prob_band": "Incertitude 1σ de chaque bin de P par Monte Carlo paramétrique : la distribution est réajustée sur le modèle plus un bruit de σ des données (mis à l’échelle par le χ² réduit) et la dispersion est mesurée. Respecte P ≥ 0. N’inclut pas l’incertitude de δ, Γ ni des autres valeurs globales. Forme Histogramme avec Tikhonov ou TV uniquement.",
-  "slider.s_relax_polarization": "Polarisation P"
+  "slider.s_relax_polarization": "Polarisation P",
+  "slider.s_relax_bext": "Champ externe BEXT (T)"
 }

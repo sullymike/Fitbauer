@@ -226,6 +226,29 @@ avanzadas de ajuste > Convenios (compatibilidad NORMOS)} o con
 modelo físico. El mismo submenú contiene los otros dos convenios de NORMOS: el
 patrón de líneas del sextete y las razones de intensidad por área.
 
+%======================================================================
+\subsection{Campo externo}
+\label{sec:relax-bext}
+
+Con un imán, el campo hiperfino se invierte con el espín pero el aplicado no: los
+dos estados ven $B_\mathrm{ext}+\BHF$ y $B_\mathrm{ext}-\BHF$, y cada línea $j$
+salta entre
+\begin{equation}
+  v_j^\pm = \delta + q_j\,\dEQ + a_j\,(B_\mathrm{ext} \pm \BHF),
+\end{equation}
+donde $a_j$ es el patrón del sextete por tesla. El parámetro \param{campo externo
+BEXT} (T) es ese $B_\mathrm{ext}$; es el \code{BEXT} de la relajación de Ising de
+NORMOS. En el límite lento quedan dos sextetes; en el rápido, con $P=0$, el
+espectro colapsa a un sextete de campo $B_\mathrm{ext}$ (sin imán colapsaría a una
+sola línea), y con poblaciones polarizadas a $B_\mathrm{ext}+P\,\BHF$.
+
+Es un dato del experimento: va fijo por defecto y \menu{Liberar todos} no lo
+suelta. Con $B_\mathrm{ext}=0$ no cambia nada. La orientación del campo respecto al
+haz se describe aparte con las intensidades (\param{I23}: las líneas 2 y 5
+desaparecen con el campo paralelo al haz). Coincide con la ecuación matricial de
+Blume con los dos estados en $B_\mathrm{ext}\pm\BHF$ (diferencia por debajo de
+$10^{-10}$).
+
 \section{Néel--Arrhenius y distribución de tamaños}
 
 La componente \code{NeelSize} usa el modelo de Néel--Arrhenius para convertir el

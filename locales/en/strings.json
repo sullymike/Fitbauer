@@ -880,6 +880,7 @@
   "tooltip.p_relax_fraction": "Fraction of the subspectrum that relaxes, from 0 (all blocked) to 1 (all relaxing).",
   "tooltip.p_relax_log_nu": "Base-10 logarithm of the jump frequency (Hz). The higher it is, the more collapsed the sextet.",
   "tooltip.p_relax_polarization": "Imbalance between the populations of the two states, from −1 to +1. At 0 both are equally likely.",
+  "tooltip.p_relax_bext": "Applied magnet field, in T. It shifts the lines of both states equally (BEXT ± BHF), as NORMOS's BEXT. 0 = no magnet. It is a datum: it stays fixed.",
   "tooltip.p_neel_temp_k": "Measurement temperature (K). It enters the Néel-Arrhenius law.",
   "tooltip.p_neel_log10_keff": "Base-10 logarithm of the effective anisotropy (J/m³). With the volume it sets the energy barrier.",
   "tooltip.p_neel_mean_d_nm": "Mean particle diameter (nm) of the lognormal distribution.",
@@ -1246,6 +1247,7 @@
   "plimit.curv3": "Cubic baseline v³",
   "plimit.curv4": "Quartic baseline v⁴",
   "plimit.relax_polarization": "Polarisation P (±BHF)",
+  "plimit.relax_bext": "External field BEXT (T)",
   "plimit.src_frac": "Source recoil-free fraction (FSO)",
   "plimit.line_asym": "Line asymmetry (AKS)",
   "normos.w_bhf_scale": "BHF is on the NORMOS scale (positions derived from the nuclear moments). To reproduce it, fit with core.constants.sextet_pattern(\"normos\").",
@@ -1332,5 +1334,6 @@
   "plot.show_prob_band": "1σ band of P",
   "plot.prob_band_label": "P ± 1σ",
   "tooltip.show_prob_band": "1σ uncertainty of each bin of P from a parametric Monte Carlo: the distribution is refitted on the model plus noise of the data σ (scaled by the reduced χ²) and the spread is measured. It respects P ≥ 0. It does not include the uncertainty of δ, Γ or the other global values. Histogram shape with Tikhonov or TV only.",
-  "slider.s_relax_polarization": "Polarisation P"
+  "slider.s_relax_polarization": "Polarisation P",
+  "slider.s_relax_bext": "External field BEXT (T)"
 }

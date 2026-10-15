@@ -225,6 +225,30 @@ Advanced fit options > Conventions (NORMOS compatibility)} or with
 physical model. The same submenu holds NORMOS's other two conventions: the
 sextet line pattern and area intensity ratios.
 
+%======================================================================
+\subsection{External field}
+\label{sec:relax-bext}
+
+With a magnet, the hyperfine field reverses with the spin but the applied one does
+not: the two states see $B_\mathrm{ext}+\BHF$ and $B_\mathrm{ext}-\BHF$, and each
+line $j$ jumps between
+\begin{equation}
+  v_j^\pm = \delta + q_j\,\dEQ + a_j\,(B_\mathrm{ext} \pm \BHF),
+\end{equation}
+where $a_j$ is the sextet pattern per tesla. The \param{external field BEXT}
+parameter (T) is that $B_\mathrm{ext}$; it is the \code{BEXT} of NORMOS's Ising
+relaxation. In the slow limit two sextets remain; in the fast limit, with $P=0$,
+the spectrum collapses to a sextet of field $B_\mathrm{ext}$ (without a magnet it
+would collapse to a single line), and with polarized populations to
+$B_\mathrm{ext}+P\,\BHF$.
+
+It is a datum of the experiment: it is fixed by default and \menu{Free all} does
+not release it. With $B_\mathrm{ext}=0$ nothing changes. The orientation of the
+field with respect to the beam is described separately with the intensities
+(\param{I23}: lines 2 and 5 vanish with the field parallel to the beam). It
+matches Blume's matrix equation with the two states at $B_\mathrm{ext}\pm\BHF$
+(difference below $10^{-10}$).
+
 \section{Néel--Arrhenius and size distribution}
 
 The \code{NeelSize} component uses the Néel--Arrhenius model to convert the

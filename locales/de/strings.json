@@ -880,6 +880,7 @@
   "tooltip.p_relax_fraction": "Anteil des Teilspektrums, der relaxiert, von 0 (alles blockiert) bis 1 (alles relaxierend).",
   "tooltip.p_relax_log_nu": "Dekadischer Logarithmus der Sprungfrequenz (Hz). Je größer, desto stärker kollabiert das Sextett.",
   "tooltip.p_relax_polarization": "Ungleichgewicht zwischen den Besetzungen der beiden Zustände, von −1 bis +1. Bei 0 sind beide gleich wahrscheinlich.",
+  "tooltip.p_relax_bext": "Angelegtes Magnetfeld in T. Verschiebt die Linien beider Zustände gleich (BEXT ± BHF), wie BEXT in NORMOS. 0 = kein Magnet. Es ist eine Messgröße: bleibt fest.",
   "tooltip.p_neel_temp_k": "Messtemperatur (K). Geht in das Néel-Arrhenius-Gesetz ein.",
   "tooltip.p_neel_log10_keff": "Dekadischer Logarithmus der effektiven Anisotropie (J/m³). Zusammen mit dem Volumen bestimmt sie die Energiebarriere.",
   "tooltip.p_neel_mean_d_nm": "Mittlerer Teilchendurchmesser (nm) der Lognormalverteilung.",
@@ -1246,6 +1247,7 @@
   "plimit.curv3": "Kubische Grundlinie v³",
   "plimit.curv4": "Quartische Grundlinie v⁴",
   "plimit.relax_polarization": "Polarisation P (±BHF)",
+  "plimit.relax_bext": "Externes Feld BEXT (T)",
   "plimit.src_frac": "Rückstoßfreier Anteil der Quelle (FSO)",
   "plimit.line_asym": "Linienasymmetrie (AKS)",
   "normos.w_bhf_scale": "BHF liegt auf der NORMOS-Skala (aus den Kernmomenten abgeleitete Positionen). Zum Reproduzieren mit core.constants.sextet_pattern(\"normos\") fitten.",
@@ -1332,5 +1334,6 @@
   "plot.show_prob_band": "1σ-Band von P",
   "plot.prob_band_label": "P ± 1σ",
   "tooltip.show_prob_band": "1σ-Unsicherheit jedes Bins von P aus einem parametrischen Monte Carlo: Die Verteilung wird am Modell plus Rauschen mit der σ der Daten (skaliert mit dem reduzierten χ²) neu gefittet und die Streuung gemessen. Berücksichtigt P ≥ 0. Enthält nicht die Unsicherheit von δ, Γ und den übrigen globalen Werten. Nur Form Histogramm mit Tikhonov oder TV.",
-  "slider.s_relax_polarization": "Polarisation P"
+  "slider.s_relax_polarization": "Polarisation P",
+  "slider.s_relax_bext": "Externes Feld BEXT (T)"
 }

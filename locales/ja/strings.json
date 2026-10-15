@@ -880,6 +880,7 @@
   "tooltip.p_relax_fraction": "緩和する部分スペクトルの割合、0（すべてブロック）〜1（すべて緩和）。",
   "tooltip.p_relax_log_nu": "ジャンプ周波数の常用対数 (Hz)。大きいほどセクステットは収縮します。",
   "tooltip.p_relax_polarization": "2 状態の占有数の偏り、−1〜+1。0 なら等確率です。",
+  "tooltip.p_relax_bext": "印加した磁石の磁場（T）。2 つの状態の線を等しくずらします（BEXT ± BHF）。NORMOS の BEXT と同じ。0 = 磁石なし。実験条件なので固定です。",
   "tooltip.p_neel_temp_k": "測定温度 (K)。ネール-アレニウス則に入ります。",
   "tooltip.p_neel_log10_keff": "実効異方性の常用対数 (J/m³)。体積とともにエネルギー障壁を決めます。",
   "tooltip.p_neel_mean_d_nm": "対数正規分布の平均粒径 (nm)。",
@@ -1246,6 +1247,7 @@
   "plimit.curv3": "3 次ベースライン v³",
   "plimit.curv4": "4 次ベースライン v⁴",
   "plimit.relax_polarization": "偏り P（±BHF）",
+  "plimit.relax_bext": "外部磁場 BEXT (T)",
   "plimit.src_frac": "線源の無反跳分率（FSO）",
   "plimit.line_asym": "線の非対称性（AKS）",
   "normos.w_bhf_scale": "BHF は NORMOS のスケール（核モーメントから導いた位置）です。再現するには core.constants.sextet_pattern(\"normos\") でフィットしてください。",
@@ -1332,5 +1334,6 @@
   "plot.show_prob_band": "P の 1σ 帯",
   "plot.prob_band_label": "P ± 1σ",
   "tooltip.show_prob_band": "パラメトリック・モンテカルロによる P の各ビンの 1σ 不確かさ。モデルにデータの σ（換算 χ² でスケーリング）の雑音を加えて分布を再フィットし、そのばらつきを求めます。P ≥ 0 を守ります。δ、Γ などの全体パラメータの不確かさは含みません。ヒストグラム形（Tikhonov または TV）のみ。",
-  "slider.s_relax_polarization": "偏り P"
+  "slider.s_relax_polarization": "偏り P",
+  "slider.s_relax_bext": "外部磁場 BEXT (T)"
 }

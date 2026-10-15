@@ -244,3 +244,69 @@ def test_las_replicas_heredan_los_convenios():
     r = _replica_state(st, dict(st.values), st.y_data, None)
     assert (r.intensity_convention, r.relax_convention, r.sextet_pattern) == \
         ("area", "normos", "normos")
+
+
+# ── Campo externo BEXT (NORMOS-SITE: ``VL0 = AL·BEXT`` en ISIRLX) ───────────
+def _sextete_bext(v, bhf, bext, k, pol, delta=0.1):
+    from core.constants import active_sextet_pattern, BHF_DEFAULT_T
+    from core.physics import two_state_sextet_absorption
+    pesos = np.array([3.0, 2.0, 1.0, 1.0, 2.0, 3.0])
+    gammas = np.full(6, GAMMA)
+    return two_state_sextet_absorption(v, delta, 0.0, bhf, pesos, gammas,
+                                       _log10_nu(k), pol, bext)
+
+
+@pytest.mark.parametrize("k", [1e-3, 0.8, 30.0])
+@pytest.mark.parametrize("pol", [-0.5, 0.0, 0.6])
+def test_bext_es_blume_con_los_estados_en_bext_mas_menos_bhf(k, pol):
+    """Cada línea intercambia entre su posición con B = BEXT + BHF y con
+    B = BEXT − BHF: la ecuación de Blume con esos dos centros."""
+    from core.constants import active_sextet_pattern, BHF_DEFAULT_T
+    v = np.linspace(-14.0, 14.0, 1201)
+    bhf, bext, delta = 30.0, 6.0, 0.1
+    patron = active_sextet_pattern() / BHF_DEFAULT_T
+    pesos = np.array([3.0, 2.0, 1.0, 1.0, 2.0, 3.0])
+    ref = sum(w * _blume_matricial(v, delta + a * (bext + bhf), delta + a * (bext - bhf),
+                                   GAMMA, k, pol)
+              for w, a in zip(pesos, patron))
+    assert np.allclose(_sextete_bext(v, bhf, bext, k, pol), ref, atol=1e-10)
+
+
+def test_bext_limites_lento_y_rapido():
+    """Lento: dos sextetes (BEXT ± BHF). Rápido con P = 0: un sextete de campo
+    BEXT (sin imán colapsaría a una sola línea)."""
+    from core.physics import sextet_line_positions
+    v = np.linspace(-14.0, 14.0, 5601)
+    rapido = _sextete_bext(v, 30.0, 8.0, 1e5, 0.0)
+    pos8 = sextet_line_positions(0.1, 0.0, 8.0)
+    picos = v[1:-1][(rapido[1:-1] > rapido[:-2]) & (rapido[1:-1] > rapido[2:])
+                    & (rapido[1:-1] > 0.05 * rapido.max())]
+    assert np.allclose(np.sort(picos), np.sort(pos8), atol=0.02)
+    lento = _sextete_bext(v, 30.0, 8.0, 1e-4, 0.0)
+    for b in (38.0, -22.0):
+        for p in sextet_line_positions(0.1, 0.0, b):
+            assert lento[np.argmin(np.abs(v - p))] > 0.5 * lento.max() / 3
+
+
+def test_bext_cero_es_el_comportamiento_historico():
+    v = np.linspace(-12.0, 12.0, 801)
+    from core.physics import relaxation_blume_tjon_two_state_absorption as bt
+    a = bt(v, 0.2, 0.05, 30.0, 0.3, 1.0, 1.0, 0.02, 3.0, 2.0, 1.0, 7.5, 0.3)
+    b = bt(v, 0.2, 0.05, 30.0, 0.3, 1.0, 1.0, 0.02, 3.0, 2.0, 1.0, 7.5, 0.3, 0.0)
+    assert np.array_equal(a, b)
+
+
+def test_bext_llega_desde_el_estado_del_ajuste():
+    """``relax_bext`` del componente BlumeTjon llega al modelo."""
+    from core.fit_engine import Component, _build_components_list
+    from core.physics import component_absorption
+    vals = {"s1_delta": 0.1, "s1_quad": 0.0, "s1_bhf": 30.0, "s1_gamma1": 0.3,
+            "s1_gamma2": 1.0, "s1_gamma3": 1.0, "s1_depth": 0.02, "s1_int1": 3.0,
+            "s1_int2": 2.0, "s1_int3": 1.0, "s1_relax_log_nu": 7.0,
+            "s1_relax_polarization": 0.0, "s1_relax_bext": 5.0}
+    (kind, params, extras), = _build_components_list(vals, [Component(idx=1, enabled=True, kind="BlumeTjon")])
+    assert extras["bext"] == 5.0
+    v = np.linspace(-12.0, 12.0, 401)
+    con = component_absorption(v, kind, params, extras=extras)
+    sin = component_absorption(v, kind, params, extras={**extras, "bext": 0.0})
+    assert not np.allclose(con, sin)
