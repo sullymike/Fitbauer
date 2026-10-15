@@ -1,5 +1,16 @@
 # Changelog
 
+## Sin publicar
+
+- **La gaussiana de NORMOS-DIST no tiene la anchura STG.** El manual de
+  WinNormos (§2.3.2) dice que en toda distribución de forma fija NORMOS
+  ensancha STG con el paso de la malla, σ = √(STG² + DTX²), como vimos con la
+  sonda del Czjzek. Los ajustes del banco J1 (DTB = 1 T) lo confirman: σ
+  1.801/3.163/5.112 frente a √(STG²+1) = 1.803/3.162/5.099. Al importar un
+  `.JOB` con `DISTRI=2` y STG el aviso daba «STI/STG no se traslada; usa el
+  perfil Voigt», que es falso para la gaussiana: ahora da la σ equivalente.
+  Ayuda (8 idiomas) y notas de NORMOS.
+
 ## v5.2.2 — Czjzek de NORMOS, mallas en sus nodos y ponderación con la σ de los datos
 
 - **σ y ΔEQ₀ de Czjzek se pueden fijar.** Nuevos controles «σ Czjzek» y

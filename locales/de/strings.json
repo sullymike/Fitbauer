@@ -1256,6 +1256,7 @@
   "normos.w_sti": "STI/STG (gaußsche Breite der Isomerieverschiebung) wird nicht übernommen; in Fitbauer ist das Voigt-Profil der gleichwertige Weg.",
   "normos.w_distri4": "DISTRI=4 hat in Fitbauer nur mit METHOD=6 (Quadrupol-Czjzek) eine Entsprechung; mit METHOD={method} wird es als Histogramm importiert.",
   "normos.w_czjzek": "DISTRI=4 (Czjzek) wird mit der Fitbauer-Form „Czjzek“ importiert, die dieselbe P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) hat. Skala: NORMOS verwendet σ² = STG² + DTQ², also entspricht STG={stg} mit DTQ={dtq} σ = {sigma} mm/s. Das Panel übernimmt dieses σ in „Czjzek-σ“; als fest markieren, um ein festes STG nachzubilden.",
+  "normos.w_gauss_sigma": "DISTRI=2 (Gauß): NORMOS verbreitert STG um die Gitterschrittweite, damit P nie schmaler als ein Bin ist; die tatsächliche Breite ist also σ = √(STG² + {step}²). Mit STG={stg} und {step}={dt} ist σ = {sigma}; dieses σ passt Fitbauer an, nicht STG.",
   "normos.w_czjzek_field": "DISTRI=4 (Czjzek) mit festem Feld BHF={bhf} T: die Czjzek-Form von Fitbauer gilt nur für Dubletts; wird als Histogramm importiert.",
   "normos.w_lamda": "LAMDA={lamda} wird nicht unverändert übernommen: das α von Fitbauer ist dimensionslos (normiert mit λ_ref), das von NORMOS absolut. Setzen Sie es mit der L-Kurve.",
   "normos.w_beta12": "BETA1={b1} und BETA2={b2} verankern die beiden Gitterenden mit unterschiedlichen Gewichten; Fitbauer verwendet einen einzigen edge_anchor und nimmt den größeren ({anchor} relativ zu λ).",

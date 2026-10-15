@@ -1256,6 +1256,7 @@
   "normos.w_sti": "STI/STG (Gaussian width of the isomer shift) is not carried over; in Fitbauer the equivalent route is the Voigt profile.",
   "normos.w_distri4": "DISTRI=4 only has a Fitbauer equivalent with METHOD=6 (quadrupole Czjzek); with METHOD={method} it is imported as a histogram.",
   "normos.w_czjzek": "DISTRI=4 (Czjzek) is imported with Fitbauer's «Czjzek» shape, which has the same P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²). Scale: NORMOS uses σ² = STG² + DTQ², so STG={stg} with DTQ={dtq} corresponds to σ = {sigma} mm/s. The panel takes that σ in «Czjzek σ»; tick it as fixed to reproduce a fixed STG.",
+  "normos.w_gauss_sigma": "DISTRI=2 (Gaussian): NORMOS broadens STG with the grid step so that P is never narrower than a bin, so its real width is σ = √(STG² + {step}²). With STG={stg} and {step}={dt}, σ = {sigma}; that is the σ Fitbauer fits, not STG.",
   "normos.w_czjzek_field": "DISTRI=4 (Czjzek) with a fixed field BHF={bhf} T: Fitbauer's Czjzek shape only applies to doublets; it is imported as a histogram.",
   "normos.w_lamda": "LAMDA={lamda} is not carried over as is: Fitbauer's α is dimensionless (normalised by λ_ref) and NORMOS's is absolute. Use the L-curve to set it.",
   "normos.w_beta12": "BETA1={b1} and BETA2={b2} anchor the two grid ends with different weights; Fitbauer uses a single edge_anchor and takes the larger one ({anchor} relative to λ).",

@@ -523,6 +523,19 @@ def test_distri4_fuera_de_cuadrupolo_se_importa_como_histograma():
     assert r["model_state"]["dist_shape"] == "Histograma"
 
 
+def test_gaussiana_de_normos_avisa_de_la_sigma_real():
+    """DISTRI=2: NORMOS ensancha STG con el paso (manual de WinNormos §2.3.2);
+    la σ que ajusta Fitbauer es √(STG² + DTB²), y STG no es la de IS."""
+    from core.normos_job import job_to_distribution_state
+
+    r = job_to_distribution_state(
+        JOB_DIST_XL.replace("DISTRI=1,", "DISTRI=2, STG=3.0, AVG=30.,"))
+    assert r["model_state"]["dist_shape"] == "Gaussiana"
+    aviso = next(a for a in r["warnings"] if "DISTRI=2" in a)
+    assert "DTB" in aviso and "5.831" in aviso               # √(3² + 5²)
+    assert not any("Voigt" in a for a in r["warnings"])
+
+
 JOB_DIST_CZJZEK = JOB_DIST_XL.replace("METHOD=1, DISTRI=1, NSUB=10,",
                                       "METHOD=6, DISTRI=4, NSUB=25, STG=0.6,") \
     .replace("QUA=-0.015, QUAFIT=.false.,", "QUA=0.0, DTQ=0.18,") \

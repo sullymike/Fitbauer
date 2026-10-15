@@ -129,6 +129,12 @@ traducido importa tanto como lo que sí:
   al 1e-5 con DTQ de 0.06 a 0.36; no depende de QUA ni de WID). En Fitbauer σ
   se importa como valor del control «σ Czjzek», fijo si el `.JOB` trae
   `STGFIT=.FALSE.`; el aviso de importación da el σ equivalente.
+- La anchura de la gaussiana (`DISTRI=2`) no es STG. Según el manual de
+  WinNormos (§2.3.2), en toda distribución de forma fija NORMOS ensancha STG con
+  el paso para que P no sea más estrecha que un bin: la σ real, la que ajusta
+  Fitbauer, es **√(STG² + DTB²)** (o DTQ, DTI). Comprobado en el banco J1 (DTB =
+  1 T): σ ajustada 1.801/3.163/5.112 T frente a √(STG²+1) = 1.803/3.162/5.099 T.
+  El aviso de importación da el valor equivalente.
 - El modelo de vecinos de Billard–Chamberod (`METHOD=3`).
 - Varios bloques de distribución solapados: Fitbauer maneja uno.
 - El parámetro de suavizado `LAMDA`. El de NORMOS es absoluto y el `alpha` de

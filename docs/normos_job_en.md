@@ -127,6 +127,12 @@ as much as what was:
   and σ to 1e-5 with DTQ from 0.06 to 0.36; independent of QUA and WID). In
   Fitbauer σ is imported as the value of the «Czjzek σ» control, fixed if the
   `.JOB` has `STGFIT=.FALSE.`; the import warning gives the equivalent σ.
+- The width of the Gaussian (`DISTRI=2`) is not STG. According to the
+  WinNormos manual (§2.3.2), in every fixed-form distribution NORMOS broadens STG
+  with the step so that P is never narrower than a bin: the real σ, the one
+  Fitbauer fits, is **√(STG² + DTB²)** (or DTQ, DTI). Checked on bank J1 (DTB =
+  1 T): fitted σ 1.801/3.163/5.112 T against √(STG²+1) = 1.803/3.162/5.099 T.
+  The import warning gives the equivalent value.
 - The Billard–Chamberod neighbour model (`METHOD=3`).
 - Several overlapping distribution blocks: Fitbauer handles one.
 - The `LAMDA` smoothing parameter. NORMOS's is absolute and Fitbauer's `alpha` is

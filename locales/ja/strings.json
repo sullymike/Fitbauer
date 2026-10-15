@@ -1256,6 +1256,7 @@
   "normos.w_sti": "STI/STG（異性体シフトのガウス幅）は移しません。Fitbauer で同等なのはフォークト線形です。",
   "normos.w_distri4": "DISTRI=4 が Fitbauer に対応するのは METHOD=6（四極子の Czjzek）の場合だけです。METHOD={method} ではヒストグラムとして読み込みます。",
   "normos.w_czjzek": "DISTRI=4（Czjzek）は、同じ P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) を持つ Fitbauer の「Czjzek」形として読み込みます。スケール：NORMOS は σ² = STG² + DTQ² を使うので、STG={stg}・DTQ={dtq} は σ = {sigma} mm/s に相当します。パネルはこの σ を「Czjzek σ」に入れます。固定した STG を再現するには「固定」にしてください。",
+  "normos.w_gauss_sigma": "DISTRI=2（ガウス）：NORMOS は P が 1 ビンより狭くならないよう STG をメッシュ間隔で広げるため、実際の幅は σ = √(STG² + {step}²) です。STG={stg}、{step}={dt} では σ = {sigma}。Fitbauer がフィットするのは STG ではなくこの σ です。",
   "normos.w_czjzek_field": "固定磁場 BHF={bhf} T の DISTRI=4（Czjzek）：Fitbauer の Czjzek 形は二重線にのみ適用されるため、ヒストグラムとして読み込みます。",
   "normos.w_lamda": "LAMDA={lamda} はそのままでは移しません。Fitbauer の α は無次元（λ_ref で規格化）で、NORMOS のものは絶対値です。L 曲線で設定してください。",
   "normos.w_beta12": "BETA1={b1} と BETA2={b2} は格子の両端を異なる重みで固定します。Fitbauer は edge_anchor を 1 つだけ使い、大きい方を採ります（λ に対して {anchor}）。",

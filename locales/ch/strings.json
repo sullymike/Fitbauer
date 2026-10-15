@@ -1256,6 +1256,7 @@
   "normos.w_sti": "STI/STG（同质异能位移的高斯宽度）不予转移；在 Fitbauer 中对应的做法是 Voigt 线型。",
   "normos.w_distri4": "DISTRI=4 仅在 METHOD=6（四极 Czjzek）时在 Fitbauer 中有对应形式；METHOD={method} 时以直方图导入。",
   "normos.w_czjzek": "DISTRI=4（Czjzek）以 Fitbauer 的“Czjzek”形状导入，其 P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) 相同。尺度：NORMOS 使用 σ² = STG² + DTQ²，因此 STG={stg}、DTQ={dtq} 对应 σ = {sigma} mm/s。面板将该 σ 填入“Czjzek σ”；勾选“固定”即可重现固定的 STG。",
+  "normos.w_gauss_sigma": "DISTRI=2（高斯）：NORMOS 会用网格步长展宽 STG，使 P 不窄于一个区间，因此其实际宽度为 σ = √(STG² + {step}²)。STG={stg}、{step}={dt} 时 σ = {sigma}；Fitbauer 拟合的是这个 σ，而不是 STG。",
   "normos.w_czjzek_field": "固定场 BHF={bhf} T 的 DISTRI=4（Czjzek）：Fitbauer 的 Czjzek 形状仅适用于双线谱；以直方图导入。",
   "normos.w_lamda": "LAMDA={lamda} 不会原样转移：Fitbauer 的 α 是无量纲的（以 λ_ref 归一化），而 NORMOS 的是绝对值。请用 L 曲线设定。",
   "normos.w_beta12": "BETA1={b1} 和 BETA2={b2} 以不同权重锚定网格两端；Fitbauer 只使用一个 edge_anchor，取较大者（相对于 λ 为 {anchor}）。",

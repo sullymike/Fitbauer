@@ -599,6 +599,18 @@ def job_to_distribution_state(text: str) -> dict:
         sigma = float(np.hypot(stg, paso))
         avisos.append(tr("normos.w_czjzek", stg=f"{stg:g}", dtq=f"{paso:g}",
                          sigma=f"{sigma:.4g}"))
+    elif forma == "Gaussiana" and _f(_idx(param, "STG", 1), 0.0):
+        # En toda forma fija NORMOS ensancha STG con el paso para que P no sea
+        # más estrecha que un bin (manual de WinNormos §2.3.2): la σ real, la
+        # que ajusta Fitbauer, es √(STG² + DTX²). Comprobado en el banco J1
+        # (DTB = 1 T): σ ajustada 1.801/3.163/5.112 frente a √(STG²+1) =
+        # 1.803/3.162/5.099. STG no es la anchura del desplazamiento isomérico.
+        stg = _f(_idx(param, "STG", 1), 0.0)
+        avisos.append(tr("normos.w_gauss_sigma", stg=f"{stg:g}",
+                         step=paso_clave, dt=f"{paso:g}",
+                         sigma=f"{float(np.hypot(stg, paso)):.4g}"))
+        if _f(_idx(param, "STI", 1), 0.0):
+            avisos.append(tr("normos.w_sti"))
     elif _f(_idx(param, "STI", 1), 0.0) or _f(_idx(param, "STG", 1), 0.0):
         avisos.append(
             tr("normos.w_sti"))

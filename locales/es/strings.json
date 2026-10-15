@@ -1256,6 +1256,7 @@
   "normos.w_sti": "STI/STG (anchura gaussiana del desplazamiento isomérico) no se traslada; en Fitbauer la vía equivalente es el perfil Voigt.",
   "normos.w_distri4": "DISTRI=4 solo tiene equivalente en Fitbauer con METHOD=6 (Czjzek de cuadrupolo); con METHOD={method} se importa como histograma.",
   "normos.w_czjzek": "DISTRI=4 (Czjzek) se importa con la forma «Czjzek» de Fitbauer, que tiene la misma P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²). Escala: NORMOS usa σ² = STG² + DTQ², así que STG={stg} con DTQ={dtq} equivale a σ = {sigma} mm/s. El panel toma ese σ en «σ Czjzek»; márcalo como fijo para reproducir un STG fijo.",
+  "normos.w_gauss_sigma": "DISTRI=2 (gaussiana): NORMOS ensancha STG con el paso de la malla para que P no sea más estrecha que un bin, así que su anchura real es σ = √(STG² + {step}²). Con STG={stg} y {step}={dt}, σ = {sigma}; esa es la σ que ajusta Fitbauer, no STG.",
   "normos.w_czjzek_field": "DISTRI=4 (Czjzek) con campo fijo BHF={bhf} T: la forma Czjzek de Fitbauer solo se aplica con dobletes; se importa como histograma.",
   "normos.w_lamda": "LAMDA={lamda} no se traslada tal cual: el α de Fitbauer es adimensional (normalizado por λ_ref) y el de NORMOS absoluto. Usa la L-curve para fijarlo.",
   "normos.w_beta12": "BETA1={b1} y BETA2={b2} anclan los dos extremos de la malla con pesos distintos; Fitbauer usa un solo edge_anchor y se toma el mayor ({anchor} relativo a λ).",

@@ -1256,6 +1256,7 @@
   "normos.w_sti": "STI/STG (largeur gaussienne du déplacement isomérique) n'est pas transféré ; dans Fitbauer, l'équivalent est le profil de Voigt.",
   "normos.w_distri4": "DISTRI=4 n'a d'équivalent dans Fitbauer qu'avec METHOD=6 (Czjzek quadripolaire) ; avec METHOD={method} il est importé comme histogramme.",
   "normos.w_czjzek": "DISTRI=4 (Czjzek) est importé avec la forme « Czjzek » de Fitbauer, qui a la même P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²). Échelle : NORMOS utilise σ² = STG² + DTQ², donc STG={stg} avec DTQ={dtq} correspond à σ = {sigma} mm/s. Le panneau reprend ce σ dans « σ de Czjzek » ; cochez-le comme fixe pour reproduire un STG fixe.",
+  "normos.w_gauss_sigma": "DISTRI=2 (gaussienne) : NORMOS élargit STG avec le pas de la grille pour que P ne soit jamais plus étroite qu'un intervalle ; sa largeur réelle est donc σ = √(STG² + {step}²). Avec STG={stg} et {step}={dt}, σ = {sigma} ; c'est ce σ qu'ajuste Fitbauer, pas STG.",
   "normos.w_czjzek_field": "DISTRI=4 (Czjzek) avec un champ fixe BHF={bhf} T : la forme Czjzek de Fitbauer ne s'applique qu'aux doublets ; importé comme histogramme.",
   "normos.w_lamda": "LAMDA={lamda} n'est pas transféré tel quel : l'α de Fitbauer est adimensionnel (normalisé par λ_ref) et celui de NORMOS absolu. Utilisez la L-curve pour le fixer.",
   "normos.w_beta12": "BETA1={b1} et BETA2={b2} ancrent les deux extrémités de la grille avec des poids différents ; Fitbauer utilise un seul edge_anchor et prend le plus grand ({anchor} relatif à λ).",
