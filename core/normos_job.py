@@ -173,16 +173,12 @@ def punto_de_doblado_normos(pfp: float) -> float:
     parábola de mínimos cuadrados sobre 9 puntos del barrido de simetría,
     ``normospr.for:1268``— pero el doblado **no** usa ese valor. La rutina
     final (601-604, «gefaltetes Spektrum ohne Interpolation», Hoersten 1989)
-    lo TRUNCA a entero y suma canales enteros, sin interpolar::
+    lo TRUNCA a un canal entero y suma los canales a pares, a la misma
+    distancia a cada lado de ese entero, sin interpolar.
 
-        IPFA = PFA + 1.0E-4          ! asignación real→entero: trunca
-        IPFP = PFP + 1.0E-4
-        DO 602 L=1,NP
-          TEMP(L) = Y(IPFA-L+1) + Y(IPFA+L)
-
-    Los pares suman ``2·IPFA+1``, así que el eje de simetría cae en el
-    semientero ``⌊PFP⌋ + 0.5``. Por eso un ``Final folding point =
-    257.23656`` dobla en 257.5, y comparar con sus resultados exige doblar
+    Los índices de cada par suman ``2·⌊PFP⌋+1``, así que el eje de
+    simetría cae en el semientero ``⌊PFP⌋ + 0.5``. Por eso un ``Final
+    folding point = 257.23656`` dobla en 257.5, y comparar con sus resultados exige doblar
     donde dobla de verdad y no donde dice que dobla.
 
     (La cuantización con umbral 0.25 de las líneas 1136-1170 es otra cosa:

@@ -101,17 +101,10 @@ de un canal de lo que pedía el fichero. Fitbauer hace su propia búsqueda —qu
 análogo correcto— e informa del `PFP` solo como dato.
 
 Hay una segunda sutileza. El punto refinado que NORMOS **imprime** en su `.RES`
-tampoco es donde dobla: su rutina final (`normospr.for:601-604`) lo trunca y suma
-canales enteros,
-
-```fortran
-IPFA = PFA + 1.0E-4          ! asignación real→entero: trunca
-IPFP = PFP + 1.0E-4
-DO 602 L=1,NP
-  TEMP(L) = Y(IPFA-L+1) + Y(IPFA+L)
-```
-
-Los pares suman `2·IPFA+1`, así que el eje de simetría cae en `⌊PFP⌋ + 0,5`. Está
+tampoco es donde dobla. Al doblar, NORMOS pasa ese punto a un número entero de
+canal truncándolo, y suma después los canales a pares, a la misma distancia a un
+lado y otro de ese entero. Los índices de cada par suman `2·⌊PFP⌋ + 1`, de modo que el eje de
+simetría efectivo cae en `⌊PFP⌋ + 0,5`, y no en el valor impreso. Está
 en `core.normos_job.punto_de_doblado_normos()`, y tenerlo en cuenta es lo que
 permite reproducir sus ajustes.
 

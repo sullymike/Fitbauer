@@ -99,17 +99,10 @@ channel away from what the file asked for. Fitbauer runs its own search —the
 correct counterpart— and reports the `PFP` as information only.
 
 There is a second subtlety. The refined point NORMOS **prints** in its `.RES` is not
-where it folds either: its final routine (`normospr.for:601-604`) truncates it and
-adds whole channels,
-
-```fortran
-IPFA = PFA + 1.0E-4          ! real→integer assignment: truncates
-IPFP = PFP + 1.0E-4
-DO 602 L=1,NP
-  TEMP(L) = Y(IPFA-L+1) + Y(IPFA+L)
-```
-
-The pairs sum to `2·IPFA+1`, so the symmetry axis falls at `⌊PFP⌋ + 0.5`. It lives
+where it folds either. When folding, NORMOS turns that point into a whole channel
+number by truncating it, and then adds the channels in pairs, at the same distance
+on either side of that integer. The indices of each pair sum to `2·⌊PFP⌋ + 1`, so the
+effective symmetry axis falls at `⌊PFP⌋ + 0.5`, not at the printed value. It lives
 in `core.normos_job.punto_de_doblado_normos()`, and taking it into account is what
 makes its fits reproducible.
 
