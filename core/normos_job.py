@@ -366,7 +366,8 @@ def job_to_model_state(text: str) -> dict:
                 tr("normos.w_bkg", name=clave, value=param[clave], target=destino))
 
     # ── Subespectros ────────────────────────────────────────────────────────
-    denoms: dict[int, float] = {}
+    # valor_NORMOS = escala · valor_Fitbauer, para traducir las ligaduras.
+    escalas: dict[str, float] = {}
     for i in range(1, nsub + 1):
         nline = int(_f(_idx(param, "NLINE", i), 6))
         kind = _TIPO_POR_NLINE.get(nline)
@@ -424,7 +425,9 @@ def job_to_model_state(text: str) -> dict:
         # de la línea de referencia.
         denom = (np.pi / 2.0) * suma
         variables[pref + "depth"] = float(area / denom) if denom > 0 else 0.02
-        denoms[i] = denom
+        escalas[pref + "depth"] = denom
+        if kind == "Sextete" and w13:
+            escalas[pref + "gamma1"] = 1.0 / w13     # WID = gamma1 / W13
 
         if kind == "Sextete" and _b(_idx(param, "IRELAX", i)):
             # Relajación de Ising de SITE = componente Blume–Tjon de dos
@@ -475,19 +478,16 @@ def job_to_model_state(text: str) -> dict:
             continue
         factor = _f(param.get(f"FACTOR({destino_i})"), 1.0)
         offset = _f(param.get(f"CONST({destino_i})"), 0.0)
-        # Las ligaduras de ARE/DEP son entre ÁREAS; en Fitbauer el parámetro
-        # es la PROFUNDIDAD (área = depth·(π/2)·ΣΓ_efectiva). Se reescala con
-        # los denominadores del propio JOB: ARE_d = f·ARE_s + c ⇒
-        # depth_d = f·(den_s/den_d)·depth_s + c/den_d. Exacto en los valores
-        # del JOB; si el ajuste mueve las anchuras, la razón deriva.
-        if destino.endswith("_depth") and fuente.endswith("_depth"):
-            sub_d = int(destino.split("_")[0][1:])
-            sub_s = int(fuente.split("_")[0][1:])
-            den_d = denoms.get(sub_d, 0.0)
-            den_s = denoms.get(sub_s, 0.0)
-            if den_d > 0 and den_s > 0:
-                factor *= den_s / den_d
-                offset /= den_d
+        # Con N = a·F (ARE/DEP = denominador·depth, WID = gamma1/W13), la
+        # ligadura N_d = f·N_s + c pasa a F_d = f·(a_s/a_d)·F_s + c/a_d.
+        # Exacto en los valores del JOB; si el ajuste mueve las anchuras, la
+        # razón de áreas deriva (se avisa).
+        a_d = escalas.get(destino, 1.0)
+        a_s = escalas.get(fuente, 1.0)
+        if a_d > 0 and a_s > 0 and (a_d != 1.0 or a_s != 1.0):
+            factor *= a_s / a_d
+            offset /= a_d
+            if destino.endswith("_depth") or fuente.endswith("_depth"):
                 avisos.append(
                     tr("normos.w_area_link", target=destino_i, source=fuente_i))
         constraints.append({
@@ -904,9 +904,11 @@ def _clave_desde_indice(indice: int, tipos: dict[int, str]) -> str | None:
     if kind == "BlumeTjon" and resto + 1 == 9:
         # OME: Fitbauer guarda log10 ν, que no es lineal en OME.
         return None
+    # W13 (9) es 1/gamma3 y W23 (10) es gamma2/gamma3 en un sextete; solo
+    # una ligadura de factor 1 entre W13 se traduce exacta. W21 es gamma2.
     por_offset = {1: "gamma1", 2: "depth", 3: "delta", 4: "quad", 5: "bhf",
-                  9: "gamma2" if kind == "Doblete" else "gamma2",
-                  10: "gamma3", 12: "int2" if kind == "Doblete" else "int1",
+                  9: "gamma2" if kind == "Doblete" else "gamma3",
+                  10: "gamma2", 12: "int2" if kind == "Doblete" else "int1",
                   13: "int2"}
     nombre = por_offset.get(resto + 1)
     return f"s{sub}_{nombre}" if nombre else None
@@ -953,6 +955,11 @@ def model_state_to_job(state: dict, stem: str = "FITBAUER",
     # profundidad hay que multiplicar por la anchura relativa.
     por_area = str(state.get("intensity_convention", "depth")) == "area"
     par: list[str] = [f"NSUB={len(indices)},"]
+    # Clave de Fitbauer → (índice global de NORMOS, escala): valor_NORMOS =
+    # escala · valor_Fitbauer, para traducir las ligaduras (NDEX).
+    indices_normos: dict[str, tuple[int, float]] = {
+        "slope": (2, 1.0), "line_asym": (10, 1.0),
+        "src_frac": (11, 1.0), "src_fwhm": (13, 1.0)}
     for pos, i in enumerate(indices, start=1):
         kind = tipos[i]
         pref = f"s{i}_"
@@ -997,6 +1004,36 @@ def model_state_to_job(state: dict, stem: str = "FITBAUER",
         # depth (profundidad) → DEP (área del subespectro en mm/s).
         _añade(par, pos, "DEP", (np.pi / 2.0) * suma * depth,
                fijos.get(pref + "depth"))
+        base = _BLOQUE_GLOBAL + _ANCHO_BLOQUE * (pos - 1)
+        lineales = {"delta": ("ISO", 1.0), "quad": ("QUA", 1.0),
+                    "bhf": ("BHF", 1.0), "depth": ("DEP", (np.pi / 2.0) * suma)}
+        if kind == "Sextete":
+            # WID = gamma1·gamma3: lineal con gamma3 fijo en su valor actual.
+            # gamma2/gamma3 (W23/W13, 1/W13) no son lineales: no se traducen.
+            lineales["gamma1"] = ("WID", g3)
+            lineales["int1"] = ("D13", 1.0 if por_area else w13)
+            lineales["int2"] = ("D23", 1.0 if por_area else w23)
+        elif kind == "Doblete":
+            lineales["gamma1"] = ("WID", 1.0)
+            lineales["gamma2"] = ("W21", 1.0)
+            lineales["int2"] = ("D21", 1.0 if por_area else w21)
+        else:
+            lineales["gamma1"] = ("WID", 1.0)
+        for clave, (nombre, escala) in lineales.items():
+            indices_normos[pref + clave] = (base + _OFFSET_SITE[nombre], escala)
+
+    # Ligaduras: destino = f·fuente + c en Fitbauer; con N = a·F en NORMOS,
+    # N_d = (f·a_d/a_s)·N_s + c·a_d. Las que no tienen traducción lineal
+    # (anchuras relativas de sextete, relajación…) se omiten.
+    for lig in state.get("constraints", []) or []:
+        destino = indices_normos.get(str(lig.get("target")))
+        fuente = indices_normos.get(str(lig.get("source")))
+        if destino is None or fuente is None or not fuente[1]:
+            continue
+        f = float(lig.get("factor", 1.0)) * destino[1] / fuente[1]
+        c = float(lig.get("offset", 0.0)) * destino[1]
+        par.append(f"NDEX({destino[0]})={fuente[0]}, FACTOR({destino[0]})={f:.7g}, "
+                   f"CONST({destino[0]})={c:.7g},")
 
     if float(v.get("line_asym", 0.0)):
         par.append(f"AKS={float(v['line_asym']):g}, AKSFIT=.FALSE.,")

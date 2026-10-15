@@ -88,6 +88,47 @@ def test_las_banderas_fit_sobreviven_a_la_ida_y_vuelta():
     assert f["s1_int1"] is True and f["s1_gamma2"] is True
 
 
+JOB_LIGADO = """L.MOS
+L.JOB
+L.RES
+L.PLT
+ &DATA
+ NLTEXT=4, TRIANG=.TRUE., VMAX=10.0, PFP=256.5,
+ &END
+dos sextetes
+con ligaduras
+ &PARAM
+ NSUB=2,
+ NLINE(1)=6, ISO(1)=0.3, ISOFIT(1)=.TRUE., BHF(1)=49., BHFFIT(1)=.TRUE.,
+ WID(1)=0.3, WIDFIT(1)=.TRUE., W13(1)=1.2, DEP(1)=0.04, DEPFIT(1)=.TRUE.,
+ NLINE(2)=6, ISO(2)=0.6, ISOFIT(2)=.TRUE., BHF(2)=46., BHFFIT(2)=.TRUE.,
+ WID(2)=0.3, WIDFIT(2)=.TRUE., W13(2)=0.8, DEP(2)=0.08, DEPFIT(2)=.TRUE.,
+ NDEX(14)=29, FACTOR(14)=1, CONST(14)=0,
+ NDEX(15)=30, FACTOR(15)=0.5, CONST(15)=0,
+ &END
+"""
+
+
+def test_las_ligaduras_se_exportan_y_vuelven_iguales():
+    """NDEX/FACTOR/CONST de ida y vuelta, con la escala de cada parámetro
+    (WID = gamma1/W13 y DEP = área por unidad de profundidad)."""
+    ida = job_to_model_state(JOB_LIGADO)["model_state"]
+    texto = model_state_to_job(ida)
+    assert "NDEX(14)=29" in texto and "NDEX(15)=30" in texto
+    vuelta = job_to_model_state(texto)["model_state"]
+    clave = lambda c: (c["target"], c["source"])
+    a = {clave(c): c for c in ida["constraints"]}
+    b = {clave(c): c for c in vuelta["constraints"]}
+    assert a.keys() == b.keys() == {("s1_gamma1", "s2_gamma1"), ("s1_depth", "s2_depth")}
+    for k in a:
+        assert b[k]["factor"] == pytest.approx(a[k]["factor"], rel=1e-6)
+        assert b[k]["offset"] == pytest.approx(a[k]["offset"], abs=1e-9)
+    # WID(1) = WID(2) con W13 distintos: gamma1 lleva la razón de los W13.
+    assert a[("s1_gamma1", "s2_gamma1")]["factor"] == pytest.approx(1.2 / 0.8)
+    # Y las razones de anchura de sextete, no lineales, no se exportan.
+    assert "NDEX(22)" not in texto
+
+
 def test_texto_sin_param_lanza():
     with pytest.raises(NormosJobError):
         parse_job("no soy un job")

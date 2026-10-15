@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **Exportar a `.JOB` escribe las ligaduras (`NDEX`/`FACTOR`/`CONST`).**
+  Antes se perdían. Se traducen las lineales —δ, ΔEQ, BHF, área, anchura de
+  las líneas 3-4, razones de intensidad y W21— con la escala de cada
+  parámetro (área por unidad de profundidad, WID = gamma1/W13); las razones
+  de anchura de un sextete (gamma2/gamma3) no son lineales en W13/W23 y se
+  omiten. Al importar, la misma escala se aplica a las ligaduras de WID, y
+  W13/W23 de un sextete van a gamma3/gamma2 (estaban cruzados).
 - **Importar un `.JOB` activa los convenios de NORMOS.** Patrón de líneas de
   los momentos nucleares, intensidades por área y su regla de relajación, en
   SITE y en DIST: el trabajo importado da los valores de NORMOS, con el BHF en
