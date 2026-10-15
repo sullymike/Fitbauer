@@ -93,10 +93,13 @@ def parse_res_full(text: str) -> dict:
     # finales: puede haber varias pasadas; la última gana
     for bloque in re.findall(
             r"Values of the fit-variables(.*?)\.{10,}", text, re.S):
+        # El error puede ir pegado al «+-» (≥ 8 cifras) o salir como «***»
+        # (desbordamiento): el valor final vale igual, el error no.
         for mm in re.finditer(r"^\s*(\d+)\s+\S+\s+(" + _NUM + r")\s+(" + _NUM
-                              + r")\s+\+-\s+(" + _NUM + ")", bloque, re.M):
-            out["finales"][int(mm.group(1))] = (float(mm.group(3)),
-                                                float(mm.group(4)))
+                              + r")\s+\+-\s*(" + _NUM + r"|\*+)", bloque, re.M):
+            err = mm.group(4)
+            out["finales"][int(mm.group(1))] = (
+                float(mm.group(3)), float("inf") if err.startswith("*") else float(err))
     return out
 
 
