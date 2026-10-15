@@ -1250,7 +1250,7 @@
   "plimit.relax_bext": "Externes Feld BEXT (T)",
   "plimit.src_frac": "Rückstoßfreier Anteil der Quelle (FSO)",
   "plimit.line_asym": "Linienasymmetrie (AKS)",
-  "normos.w_bhf_scale": "BHF liegt auf der NORMOS-Skala (aus den Kernmomenten abgeleitete Positionen). Zum Reproduzieren mit core.constants.sextet_pattern(\"normos\") fitten.",
+  "normos.w_conventions": "Die NORMOS-Konventionen werden aktiviert (Linienlagen aus den Kernmomenten, Intensitäten nach Fläche und seine Relaxationsregel), damit der Job dieselben Werte wie in NORMOS liefert; sein BHF liegt auf dieser Skala. Änderbar unter Anpassung › Erweiterte Fit-Optionen › Konventionen (NORMOS-Kompatibilität).",
   "normos.w_pfp_seed": "PFP={pfp} ist der STARTWERT der Faltungspunktsuche, nicht der Endwert: NORMOS verfeinert ihn in zwei Zyklen und quantisiert ihn auf Vielfache eines halben Kanals. Er wird nicht vorgegeben — Fitbauer sucht selbst. Um ihn zu erzwingen, tragen Sie ihn von Hand in „Zentrum“ ein.",
   "normos.w_irelax": "Teilspektrum {i} hat Ising-Relaxation (IRELAX): es wird als Blume–Tjon-Komponente importiert mit OME={ome} MHz → log10 ν = {lognu} (ν = OME·10⁶/2), Polarisation P = BHF/BSAT = {pol} und externem Feld BEXT = {bext} T (fest). Bei P > 0 nutzt NORMOS eine eigene Ratenkonvention: um seine Anpassungen nachzubilden, die NORMOS-Konvention unter Anpassung ▸ Erweiterte Optionen ▸ Konventionen wählen.",
   "normos.w_vmax_negative": "VMAX={vmax} ist negativ: NORMOS kehrt das Spektrum um, Fitbauer ebenso (umgekehrte Geschwindigkeitsachse). Früher wurde der Betrag genommen und das Spektrum gespiegelt geöffnet.",

@@ -1250,7 +1250,7 @@
   "plimit.relax_bext": "外部磁場 BEXT (T)",
   "plimit.src_frac": "線源の無反跳分率（FSO）",
   "plimit.line_asym": "線の非対称性（AKS）",
-  "normos.w_bhf_scale": "BHF は NORMOS のスケール（核モーメントから導いた位置）です。再現するには core.constants.sextet_pattern(\"normos\") でフィットしてください。",
+  "normos.w_conventions": "NORMOS の規約（核モーメントから導いた線位置、面積による強度、その緩和規則）を有効にし、ジョブが NORMOS と同じ値になるようにします。BHF はそのスケールです。フィット › 高度なフィットオプション › 規約（NORMOS 互換）で変更できます。",
   "normos.w_pfp_seed": "PFP={pfp} は折り返し点探索の初期値であり、最終値ではありません。NORMOS は 2 サイクルで精密化し、半チャンネル単位に量子化します。押し付けはせず、Fitbauer は独自に探索します。強制したい場合は「中心」に手で入力してください。",
   "normos.w_irelax": "サブスペクトル {i} はイジング緩和（IRELAX）を持つため、Blume–Tjon 成分として読み込みます：OME={ome} MHz → log10 ν = {lognu}（ν = OME·10⁶/2）、偏り P = BHF/BSAT = {pol}、外部磁場 BEXT = {bext} T（固定）。P > 0 では NORMOS は独自のレート規約を使います。そのフィットを再現するには、フィット ▸ 詳細オプション ▸ 規約 で NORMOS 規約を選んでください。",
   "normos.w_vmax_negative": "VMAX={vmax} は負です：NORMOS はスペクトルを反転し、Fitbauer も同様に反転します（速度軸を反転）。以前は絶対値を取っていたため、スペクトルが鏡像で開かれていました。",

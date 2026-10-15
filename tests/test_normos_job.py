@@ -203,9 +203,15 @@ def test_el_area_del_subespectro_se_conserva():
     assert a16 / a34 == pytest.approx(3.0, rel=0.01)
 
 
-def test_avisa_de_la_escala_de_bhf():
-    avisos = " ".join(job_to_model_state(JOB_C2)["warnings"])
-    assert "sextet_pattern" in avisos
+def test_activa_los_convenios_de_normos():
+    """El trabajo importado da los valores de NORMOS: BHF en su escala."""
+    from core.normos_job import job_to_distribution_state
+    for r in (job_to_model_state(JOB_C2), job_to_distribution_state(JOB_DIST_XL)):
+        st = r["model_state"]
+        assert st["sextet_pattern"] == "normos"
+        assert st["intensity_convention"] == "area"
+        assert st["relax_convention"] == "normos"
+        assert any("NORMOS" in a and "BHF" in a for a in r["warnings"])
 
 
 def test_avisa_de_lo_que_no_traslada():
@@ -403,6 +409,10 @@ def test_la_gui_registra_las_acciones_y_hace_el_ciclo(tmp_path, monkeypatch):
         estado = win._session_payload()["model_state"]
         assert estado["vars"]["s1_gamma1"] == pytest.approx(0.21, rel=1e-3)
         assert estado["vars"]["s1_bhf"] == pytest.approx(33.0, rel=1e-4)
+        # La ventana queda con los convenios de NORMOS.
+        assert win.sextet_pattern == "normos"
+        assert win.intensity_convention == "area"
+        assert win.relax_convention == "normos"
         # Todo .FALSE. en el .JOB → nada del subespectro queda libre.
         assert estado["fixed"]["s1_int1"] and estado["fixed"]["s1_gamma2"]
         assert estado["fixed"]["s1_delta"] and estado["fixed"]["slope"]

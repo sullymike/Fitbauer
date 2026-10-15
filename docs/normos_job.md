@@ -72,24 +72,29 @@ Es la parte delicada, y equivocarse aquí no da ningún error:
 | NORMOS | Significado en Fitbauer |
 |---|---|
 | `WID`, `W13`, `W23` | `WID` es la anchura de las líneas 3,4 y `W13`/`W23` son relativas a ella; `gamma1` es la de las líneas 1,6. La conversión es `gamma1 = WID·W13` |
-| `D13`, `D23` | Razones de **área**. `int1`/`int2` son razones de **profundidad**. Coinciden solo si las anchuras son iguales |
+| `D13`, `D23` | Razones de **área**. Pasan tal cual a `int1`/`int2` con el convenio de intensidades por área, que la importación activa |
 | `DEP` (o `ARE`) | El **área** del subespectro en mm/s, no una profundidad |
 | `NDEX`/`FACTOR`/`CONST` | Ligaduras en la numeración **global** de NORMOS, `13 + 15·(n−1)` |
 
 ### La escala de BHF
 
 NORMOS deriva las posiciones del sexteto de los momentos nucleares; Fitbauer usa el
-patrón publicado de α-Fe. No difieren en un simple factor de escala. Para
-reproducir un BHF suyo exactamente, ajusta con el convenio de NORMOS activo:
+patrón publicado de α-Fe. No difieren en un simple factor de escala: en un ajuste
+real, el BHF sale un 0,035 % distinto (unos 0,01 T a 33 T), más que el error de
+un buen ajuste.
+
+Por eso la importación activa los tres convenios de NORMOS —patrón de líneas,
+intensidades por área y su regla de relajación— y el trabajo da los valores de
+NORMOS. Se cambian en *Ajuste › Opciones avanzadas de ajuste › Convenios
+(compatibilidad NORMOS)*. En un script, los convenios van en el modelo:
 
 ```python
-from core.constants import sextet_pattern
-
-with sextet_pattern("normos"):
-    ...   # el ajuste usa las posiciones de NORMOS
+ms.sextet_pattern = "normos"          # ModelState
+ms.intensity_convention = "area"
 ```
 
-La diferencia es de unos 0,1 T.
+Un `with sextet_pattern("normos"):` alrededor del ajuste **no basta**: el ajuste
+impone el patrón del modelo. Solo sirve para evaluar el modelo fuera del ajuste.
 
 ---
 

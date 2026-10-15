@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **Importar un `.JOB` activa los convenios de NORMOS.** Patrón de líneas de
+  los momentos nucleares, intensidades por área y su regla de relajación, en
+  SITE y en DIST: el trabajo importado da los valores de NORMOS, con el BHF en
+  su escala. Antes solo se avisaba, y el ajuste en la GUI usaba el patrón de
+  α-Fe (BHF un 0.035 % más bajo, ~0.01 T a 33 T). El aviso dice ahora dónde se
+  cambian. La documentación ya no recomienda `with sextet_pattern("normos")`
+  alrededor del ajuste: `fit_discrete` impone el convenio del modelo.
 - **Los `.JOB` de NORMOS se importan con intensidades por área.** D13/D23/D21
   son razones de ÁREA y pasan tal cual a int1/int2 con el convenio «área»
   (el de NORMOS), que la importación deja puesto. Con el de profundidad

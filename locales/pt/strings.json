@@ -1250,7 +1250,7 @@
   "plimit.relax_bext": "Campo externo BEXT (T)",
   "plimit.src_frac": "Fração livre de recuo da fonte (FSO)",
   "plimit.line_asym": "Assimetria de linha (AKS)",
-  "normos.w_bhf_scale": "O BHF vem na escala do NORMOS (posições derivadas dos momentos nucleares). Para a reproduzir, ajuste com core.constants.sextet_pattern(\"normos\").",
+  "normos.w_conventions": "São ativadas as convenções do NORMOS (posições das linhas derivadas dos momentos nucleares, intensidades por área e a sua regra de relaxação) para que o trabalho dê os mesmos valores que no NORMOS; o seu BHF está nessa escala. Mudam-se em Ajuste › Opções avançadas de ajuste › Convenções (compatibilidade NORMOS).",
   "normos.w_pfp_seed": "PFP={pfp} é a SEMENTE da procura do ponto de dobragem, não o ponto final: o NORMOS refina-o em dois ciclos e quantifica-o em múltiplos de meio canal. Não é imposto — o Fitbauer faz a sua própria procura. Para o forçar, escreva-o à mão em «Centro».",
   "normos.w_irelax": "O subespectro {i} tem relaxação de Ising (IRELAX): importa-se como componente Blume–Tjon com OME={ome} MHz → log10 ν = {lognu} (ν = OME·10⁶/2), polarização P = BHF/BSAT = {pol} e campo externo BEXT = {bext} T (fixos). Com P > 0 o NORMOS usa a sua própria convenção de taxas: para reproduzir os seus ajustes, escolha a convenção NORMOS em Ajuste ▸ Opções avançadas ▸ Convenções.",
   "normos.w_vmax_negative": "VMAX={vmax} é negativo: o NORMOS inverte o espectro e o Fitbauer também (eixo de velocidade invertido). Antes tomava-se o valor absoluto e o espectro abria-se espelhado.",

@@ -26,13 +26,14 @@ Las conversiones de convenio salen de la revisión del código fuente de NORMOS
 * ``WID`` es la anchura de las líneas **3,4**; ``gamma1`` la de las **1,6**.
   Por eso ``gamma1 = WID·W13``, ``gamma2 = W23/W13``, ``gamma3 = 1/W13``.
 * ``D13``/``D23`` (o ``A13``/``A23`` en el fuente de 1990) son razones de
-  **ÁREA**; ``int1``/``int2`` de **PROFUNDIDAD**: ``int1 = D13/W13``,
-  ``int2 = D23/W23``.
+  **ÁREA** y pasan tal cual a ``int1``/``int2`` con el convenio de
+  intensidades por área, que la importación deja puesto.
 * ``DEP``/``ARE`` es el **área** del subespectro en mm/s; ``depth`` es la
   profundidad de la línea de referencia.
 * ``BHF`` va en la escala de NORMOS, que deriva las posiciones de los momentos
-  nucleares. Para reproducirlo exactamente hay que ajustar con
-  ``core.constants.sextet_pattern("normos")``; se avisa de ello.
+  nucleares. La importación pone en el modelo los tres convenios de NORMOS
+  (``sextet_pattern``, ``intensity_convention``, ``relax_convention``), que
+  ``fit_discrete`` aplica durante el ajuste; se avisa de ello.
 * Los índices de las ligaduras ``NDEX`` son GLOBALES: 5 de fondo + 8 de isótopo
   y luego 15 por subespectro, así que el subespectro *n* empieza en
   ``13 + 15(n−1)``.
@@ -500,14 +501,18 @@ def job_to_model_state(text: str) -> dict:
             avisos.append(tr("normos.w_key_not_carried", name=clave))
 
     avisos.append(
-        tr("normos.w_bhf_scale"))
+        tr("normos.w_conventions"))
 
     estado = {
         "vars": variables, "fixed": fijos,
         "sextet_enabled": {str(k): v for k, v in activos.items()},
         "component_kind": {str(k): v for k, v in tipos.items()},
         "intensity_mode": {str(k): "free" for k in tipos},
+        # Convenios de NORMOS: el trabajo importado da los valores de NORMOS
+        # (BHF en su escala, D13/D23 por área, su regla de relajación).
+        "sextet_pattern": "normos",
         "intensity_convention": "area",
+        "relax_convention": "normos",
         "quad_treatment": {str(k): tratos.get(k, "1st_order") for k in tipos},
         "constraints": constraints,
         "n_components": len(tipos),
@@ -750,6 +755,10 @@ def job_to_distribution_state(text: str) -> dict:
         "constraints": [], "n_components": 0,
         "absorber_model": "thin",
         "drive_form": "triangular" if _b(data.get("TRIANG"), True) else "sine",
+        # Convenios de NORMOS (ver el importador de SITE).
+        "sextet_pattern": "normos",
+        "intensity_convention": "area",
+        "relax_convention": "normos",
         # Panel de distribución
         "mode_combo_idx": _MODO_GUI[variable],
         "dist_variable": _ETIQUETA_VARIABLE[variable],
@@ -868,7 +877,7 @@ def job_to_distribution_state(text: str) -> dict:
             tr("normos.w_dist_ignored", keys=", ".join(ignoradas)))
 
     avisos.append(
-        tr("normos.w_bhf_scale"))
+        tr("normos.w_conventions"))
 
     vmax = _vmax_con_signo(data, avisos)
     if vmax:

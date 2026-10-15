@@ -1250,7 +1250,7 @@
   "plimit.relax_bext": "外加磁场 BEXT (T)",
   "plimit.src_frac": "源的无反冲分数（FSO）",
   "plimit.line_asym": "谱线不对称性（AKS）",
-  "normos.w_bhf_scale": "BHF 采用 NORMOS 标度（由核磁矩推导的位置）。若要复现，请使用 core.constants.sextet_pattern(\"normos\") 拟合。",
+  "normos.w_conventions": "已启用 NORMOS 约定（由核磁矩推导的谱线位置、按面积的强度及其弛豫规则），使该作业得到与 NORMOS 相同的值；其 BHF 采用该标度。可在 拟合 › 高级拟合选项 › 约定（NORMOS 兼容）中更改。",
   "normos.w_pfp_seed": "PFP={pfp} 是折叠点搜索的初始值，而不是最终值：NORMOS 会在两轮中精修它，并量化为半通道的整数倍。它不会被强制采用——Fitbauer 进行自己的搜索。若要强制使用，请手动输入“中心”。",
   "normos.w_irelax": "子谱 {i} 含伊辛弛豫（IRELAX）：作为 Blume–Tjon 组分导入，OME={ome} MHz → log10 ν = {lognu}（ν = OME·10⁶/2），极化 P = BHF/BSAT = {pol}，外加磁场 BEXT = {bext} T（固定）。P > 0 时 NORMOS 使用自己的速率约定：要复现其拟合，请在 拟合 ▸ 高级选项 ▸ 约定 中选择 NORMOS 约定。",
   "normos.w_vmax_negative": "VMAX={vmax} 为负：NORMOS 会反转谱，Fitbauer 也一样（速度轴反转）。以前取其绝对值，谱会以镜像打开。",

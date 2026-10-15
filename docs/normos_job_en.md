@@ -70,24 +70,30 @@ This is the delicate part, and getting it wrong raises no error:
 | NORMOS | Meaning in Fitbauer |
 |---|---|
 | `WID`, `W13`, `W23` | `WID` is the width of lines 3,4 and `W13`/`W23` are relative to it; `gamma1` is that of lines 1,6. The conversion is `gamma1 = WID·W13` |
-| `D13`, `D23` | **Area** ratios. `int1`/`int2` are **depth** ratios. They agree only when the widths are equal |
+| `D13`, `D23` | **Area** ratios. They go straight into `int1`/`int2` with the by-area intensity convention, which the import switches on |
 | `DEP` (or `ARE`) | The subspectrum **area** in mm/s, not a depth |
 | `NDEX`/`FACTOR`/`CONST` | Constraints in NORMOS's **global** numbering, `13 + 15·(n−1)` |
 
 ### The BHF scale
 
 NORMOS derives the sextet line positions from the nuclear moments; Fitbauer uses
-the published α-Fe pattern. They do not differ by a simple scale factor. To
-reproduce one of its BHF values exactly, fit with the NORMOS convention active:
+the published α-Fe pattern. They do not differ by a simple scale factor: in a real
+fit the BHF comes out 0.035 % apart (about 0.01 T at 33 T), more than the error
+of a good fit.
+
+That is why the import switches on the three NORMOS conventions —line pattern,
+intensities by area and its relaxation rule— and the job gives NORMOS's values.
+They can be changed in *Fit › Advanced fit options › Conventions (NORMOS
+compatibility)*. In a script the conventions go in the model:
 
 ```python
-from core.constants import sextet_pattern
-
-with sextet_pattern("normos"):
-    ...   # the fit uses NORMOS line positions
+ms.sextet_pattern = "normos"          # ModelState
+ms.intensity_convention = "area"
 ```
 
-The difference is about 0.1 T.
+A `with sextet_pattern("normos"):` around the fit is **not enough**: the fit
+imposes the model's pattern. It only applies when evaluating the model outside
+the fit.
 
 ---
 

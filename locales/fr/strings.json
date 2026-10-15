@@ -1250,7 +1250,7 @@
   "plimit.relax_bext": "Champ externe BEXT (T)",
   "plimit.src_frac": "Fraction sans recul de la source (FSO)",
   "plimit.line_asym": "Asymétrie de raie (AKS)",
-  "normos.w_bhf_scale": "BHF est à l'échelle de NORMOS (positions dérivées des moments nucléaires). Pour la reproduire, ajustez avec core.constants.sextet_pattern(\"normos\").",
+  "normos.w_conventions": "Les conventions de NORMOS sont activées (positions des raies dérivées des moments nucléaires, intensités par aire et sa règle de relaxation) pour que le travail donne les mêmes valeurs que dans NORMOS ; son BHF est à cette échelle. Elles se changent dans Ajustement › Options d'ajustement avancées › Conventions (compatibilité NORMOS).",
   "normos.w_pfp_seed": "PFP={pfp} est la GRAINE de la recherche du point de pliage, pas la valeur finale : NORMOS l'affine en deux cycles et le quantifie par multiples d'un demi-canal. Il n'est pas imposé — Fitbauer fait sa propre recherche. Pour le forcer, saisissez-le à la main dans « Centre ».",
   "normos.w_irelax": "Le sous-spectre {i} a une relaxation d'Ising (IRELAX) : il est importé comme composante Blume–Tjon avec OME={ome} MHz → log10 ν = {lognu} (ν = OME·10⁶/2), polarisation P = BHF/BSAT = {pol} et champ externe BEXT = {bext} T (fixes). Avec P > 0, NORMOS utilise sa propre convention de taux : pour reproduire ses ajustements, choisissez la convention NORMOS dans Ajustement ▸ Options avancées ▸ Conventions.",
   "normos.w_vmax_negative": "VMAX={vmax} est négatif : NORMOS inverse le spectre et Fitbauer aussi (axe des vitesses inversé). Auparavant on prenait sa valeur absolue et le spectre s'ouvrait en miroir.",
