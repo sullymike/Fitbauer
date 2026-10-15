@@ -72,21 +72,22 @@
 \contentsline {subsection}{\numberline {5.5.4}Binomial}{36}{subsection.5.5.4}%
 \contentsline {subsection}{\numberline {5.5.5}Fija}{37}{subsection.5.5.5}%
 \contentsline {subsection}{\numberline {5.5.6}Czjzek y Czjzek extendido}{37}{subsection.5.5.6}%
-\contentsline {subsection}{\numberline {5.5.7}2D: dos variables a la vez}{38}{subsection.5.5.7}%
-\contentsline {subsection}{\numberline {5.5.8}Áreas de cada gaussiana (VBF)}{38}{subsection.5.5.8}%
+\contentsline {subsection}{\numberline {5.5.7}Le Caër (con campo)}{38}{subsection.5.5.7}%
+\contentsline {subsection}{\numberline {5.5.8}2D: dos variables a la vez}{38}{subsection.5.5.8}%
+\contentsline {subsection}{\numberline {5.5.9}Áreas de cada gaussiana (VBF)}{38}{subsection.5.5.9}%
 \contentsline {section}{\numberline {5.6}Regularización del histograma}{38}{section.5.6}%
-\contentsline {subsection}{\numberline {5.6.1}Regularizadores}{38}{subsection.5.6.1}%
-\contentsline {subsection}{\numberline {5.6.2}El parámetro $\alpha $}{38}{subsection.5.6.2}%
-\contentsline {subsection}{\numberline {5.6.3}Anclaje de los bordes de la malla}{38}{subsection.5.6.3}%
+\contentsline {subsection}{\numberline {5.6.1}Regularizadores}{39}{subsection.5.6.1}%
+\contentsline {subsection}{\numberline {5.6.2}El parámetro $\alpha $}{39}{subsection.5.6.2}%
+\contentsline {subsection}{\numberline {5.6.3}Anclaje de los bordes de la malla}{39}{subsection.5.6.3}%
 \contentsline {section}{\numberline {5.7}La L-curve: elegir $\alpha $ con criterio}{39}{section.5.7}%
 \contentsline {subsection}{\numberline {5.7.1}Qué es y por qué tiene forma de L}{39}{subsection.5.7.1}%
-\contentsline {subsection}{\numberline {5.7.2}El diálogo, panel a panel}{39}{subsection.5.7.2}%
-\contentsline {subsection}{\numberline {5.7.3}Elegir $\alpha $: automático o a mano}{39}{subsection.5.7.3}%
-\contentsline {subsection}{\numberline {5.7.4}Cómo interpretarla en la práctica}{40}{subsection.5.7.4}%
-\contentsline {section}{\numberline {5.8}Correlación $\delta (H)$ y $\Delta E_{Q}(H)$}{40}{section.5.8}%
-\contentsline {section}{\numberline {5.9}Distribuciones 2D: $P(B_{\mathrm {hf}}, \Delta E_{Q})$}{41}{section.5.9}%
+\contentsline {subsection}{\numberline {5.7.2}El diálogo, panel a panel}{40}{subsection.5.7.2}%
+\contentsline {subsection}{\numberline {5.7.3}Elegir $\alpha $: automático o a mano}{40}{subsection.5.7.3}%
+\contentsline {subsection}{\numberline {5.7.4}Cómo interpretarla en la práctica}{41}{subsection.5.7.4}%
+\contentsline {section}{\numberline {5.8}Correlación $\delta (H)$ y $\Delta E_{Q}(H)$}{41}{section.5.8}%
+\contentsline {section}{\numberline {5.9}Distribuciones 2D: $P(B_{\mathrm {hf}}, \Delta E_{Q})$}{42}{section.5.9}%
 \contentsline {section}{\numberline {5.10}Componentes nítidos junto a la distribución}{42}{section.5.10}%
-\contentsline {section}{\numberline {5.11}Paso a paso: ajustar una $P(B_{\mathrm {hf}})$ desde cero}{42}{section.5.11}%
+\contentsline {section}{\numberline {5.11}Paso a paso: ajustar una $P(B_{\mathrm {hf}})$ desde cero}{43}{section.5.11}%
 \contentsline {part}{Anexos matemáticos}{43}{Item.35}%
 \contentsline {chapter}{\numberline {A}Manual matemático del motor de ajuste}{44}{appendix.Alph1}%
 \contentsline {section}{\numberline {A.1}Modelo directo}{44}{section.Alph1.1}%

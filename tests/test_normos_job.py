@@ -565,6 +565,24 @@ def test_czjzek_de_normos_se_importa_como_forma_czjzek():
     assert r["model_state"]["dist_shape"] == "Histograma"
 
 
+def test_lecaer_de_normos_se_importa_como_forma_le_caer():
+    """DISTRI=4 + METHOD=7: sextetes en campo con EFG de Czjzek (Le Caër)."""
+    from core.normos_job import job_to_distribution_state
+
+    job = JOB_DIST_CZJZEK.replace("METHOD=6,", "METHOD=7,").replace("BHF=0.,", "BHF=30.,")
+    r = job_to_distribution_state(job)
+    st = r["model_state"]
+    assert st["dist_shape"] == "Le Caër"
+    assert st["dist_field_enabled"] and st["dist_fixed_bhf"] == 30.0
+    assert st["dist_czjzek_sigma"] == pytest.approx(np.hypot(0.6, 0.18))
+    assert any("Le Caër" in a and "0.6264" in a for a in r["warnings"])
+    assert not any("METHOD=7" in a and "Fija" in a for a in r["warnings"])
+    # Sin BHF en el .JOB (en NORMOS va en el fichero spline): 33 T y aviso.
+    r = job_to_distribution_state(JOB_DIST_CZJZEK.replace("METHOD=6,", "METHOD=7,"))
+    assert r["model_state"]["dist_fixed_bhf"] == 33.0
+    assert any("33 T" in a for a in r["warnings"])
+
+
 def test_pesos_czjzek_iguales_a_los_de_normos_dist():
     """Tabla de áreas relativas de NORMOS-DIST 09.09.1993 (DISTRI=4, METHOD=6,
     STG=0.6, QUA=0, DTQ=0.18): la forma Czjzek de Fitbauer con

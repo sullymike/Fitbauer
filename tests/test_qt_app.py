@@ -3301,6 +3301,29 @@ def test_forma_czjzek_en_la_gui(win, tmp_path):
     assert d.czjzek_sigma.value() == pytest.approx(0.35) and d.czjzek_sigma.is_fixed()
 
 
+def test_forma_le_caer_en_la_gui(win):
+    """Le Caër es lo contrario del Czjzek: solo en P(ΔEQ) CON campo fijo."""
+    d = win.dist_panel
+    item = lambda code: d.shape_combo.model().item(d.shape_combo.findData(code))
+    win._load_file(DATA / "sintetico_dist_deq.adt")
+    win._show_distribution_dialog = lambda r: None
+    win.mode_combo.setCurrentIndex(2)                     # P(ΔEQ), dobletes
+    assert not item("Le Caër").isEnabled() and item("Czjzek").isEnabled()
+    d.fixed_bhf.set_value(30.0)
+    d.field_enabled.setChecked(True)
+    assert item("Le Caër").isEnabled() and not item("Czjzek").isEnabled()
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("Le Caër"))
+    assert d.shape == "Le Caër" and d._czjzek_box.isVisibleTo(d)
+    assert not d.czjzek_delta0.isVisibleTo(d)
+    d.bmin.set_value(-2.0); d.bmax.set_value(2.0); d.nbins.set_value(21)
+    win.on_fit()
+    res = win.runtime_results.distribution_result
+    assert res.shape == "Le Caër" and res.czjzek_sigma > 0
+    # Sin campo deja de tener sentido: vuelve a Histograma.
+    d.field_enabled.setChecked(False)
+    assert d.shape == "Histograma"
+
+
 def test_correlaciones_en_estado_y_parametros(win):
     """El panel de estado muestra la matriz de correlación como tabla de
     colores: en P(ΔEQ) con Γ libre, la compensación Γ ↔ σ(ΔEQ); en el

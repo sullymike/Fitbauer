@@ -86,7 +86,7 @@ Veredicto por símbolo:
 | `DISTRI=2` gaussiana | VBF con N=1 | **=** |
 | `DISTRI=3` binomial / fija | Binomial / Fija | **=** |
 | `DISTRI=4` Czjzek analítica (`METHOD=6`) | formas «Czjzek» y «Czjzek ext.» | **=** misma P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) con σ² = STG² + DTQ²; el `.JOB` se importa con esa forma (§9) |
-| `DISTRI=4` con `METHOD=7` (Le Caër con campo) | histograma | **~** sin forma paramétrica: es la P del desplazamiento cuadrupolar de un sexteto con EFG aleatorio, no el «Czjzek ext.» |
+| `DISTRI=4` con `METHOD=7` (Le Caër con campo) | forma «Le Caër» | **=** misma P (marginal de Vzz con signo de un EFG de Czjzek) y σ² = STG² + DTQ²; kernel de polvo exacto calculado, no leído de spline (§9) |
 | `DTB DTI DTQ` correlaciones con la malla | `delta_slope quad_slope` | **=** ojo: en METHOD 1-5 NORMOS **solo** aplica `DTI`; `DTQ` es un parámetro muerto ahí (ver §7) |
 | `.JOB` de DIST → panel de distribución | `job_to_distribution_state` | **=** malla, forma, correlaciones, anclajes y sitios cristalinos como nítidos |
 | 2 bloques de distribución solapados | componentes nítidos + P(BHF,ΔEQ) 2D | **~** |
@@ -113,10 +113,8 @@ CERRADOS el 2026-08-02; ver §8. El Czjzek analítico de `METHOD=6` se cerró el
 **`PENDIENTE_NORMOS.md`**, con la referencia exacta del fuente, qué tocar en
 Fitbauer, cómo validarlo y si merece la pena. Resumen:
 
-1. **`DISTRI=4` con `METHOD=7`** (Le Caër con campo). Se importa como
-   histograma, que reproduce la forma. Su P (fórmula en `PENDIENTE_NORMOS.md`)
-   es la del desplazamiento cuadrupolar de un sexteto con EFG aleatorio; no
-   equivale al «Czjzek ext.» de Fitbauer.
+1. ~~**`DISTRI=4` con `METHOD=7`** (Le Caër con campo)~~ — **cerrado el
+   2026-10-15**: forma «Le Caër» (§9).
 2. **`BEXT`**, campo externo en la relajación de Ising: desplaza las líneas
    además de polarizar las poblaciones. La polarización ya está; el
    desplazamiento no.
@@ -235,4 +233,17 @@ los centros caen exactamente en los nodos. Afecta a todos los `.JOB` de DIST
 importados; el banco J/L ajusta con el CLI y su malla propia, así que sus
 cifras no cambian.
 
-Queda fuera `DISTRI=4` con otro `METHOD`, que sigue como histograma (§6).
+**Le Caër con campo (2026-10-15).** `DISTRI=4` con `METHOD=7` también tiene su
+forma. En el fuente (`distcalf.for`) cada subespectro es un espectro de polvo de
+Blaes (EFG aleatorio respecto al campo, solución exacta) leído de un fichero
+spline e indexado por QUA = e²qQ/2 con signo, y los pesos son
+
+    P(q) = ½√(2/π)·[(3q²−2)e^(−q²/2) + (2 − 8q²/3)e^(−2q²/3)],  q = QUA/σ
+
+con la misma σ = √(STG² + DTQ²). Por Monte Carlo sobre tensores de Czjzek es la
+marginal de Vzz con signo (σ = √(2/3) veces la desviación de las componentes; la
+diferencia con el histograma, 0.006 en el pico de 0.31, es ruido). Fitbauer calcula
+los subespectros con el «Hamiltoniano (polvo)» (su `deq` es e²qQ/2) en lugar de leer
+el spline. **No se ha sondado contra el binario**: el demo necesita el fichero spline
+de subespectros, que no tenemos. Si el `.JOB` no trae `BHF` (el campo va en el
+spline), se pone 33 T y se avisa.

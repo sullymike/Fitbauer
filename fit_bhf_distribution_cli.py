@@ -6,7 +6,7 @@ Cubre los mismos modos que la GUI (mismo motor, ``mossbauer_distribution``):
 - Variable: ``--variable bhf`` (P(BHF), por defecto), ``--variable quad``
   (P(ΔEQ) con BHF fijo en ``--fixed-bhf``, 0 por defecto → doblete) o
   ``--variable delta`` (P(IS)).
-- Forma: ``--shape histograma|gaussiana|vbf|binomial|czjzek|czjzek-ext``
+- Forma: ``--shape histograma|gaussiana|vbf|binomial|czjzek|czjzek-ext|lecaer``
   (czjzek: P(ΔEQ) de un gradiente de campo aleatorio, χ de 5 grados de
   libertad; czjzek-ext: más un entorno ordenado ΔEQ₀; solo ``--variable quad``
   con dobletes). Gaussiana = VBF con
@@ -107,11 +107,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fixed-bhf", type=float, default=0.0,
                         help="BHF fijo (T) del kernel con --variable quad/delta o --pair delta-quad (0 = doblete).")
     parser.add_argument("--shape", choices=["histograma", "gaussiana", "vbf", "binomial",
-                                            "czjzek", "czjzek-ext"],
+                                            "czjzek", "czjzek-ext", "lecaer"],
                         default="histograma",
                         help="Forma de la distribución (gaussiana = VBF con N=1 y línea "
                              "Lorentziana; czjzek/czjzek-ext = |ΔEQ| de un gradiente de "
-                             "campo aleatorio, solo con --variable quad y dobletes).")
+                             "campo aleatorio, solo con --variable quad y dobletes; "
+                             "lecaer = el mismo EFG en sextetes con campo, DISTRI=4 + "
+                             "METHOD=7 de NORMOS: --variable quad con --fixed-bhf > 0, "
+                             "malla en e²qQ/2 con signo).")
     parser.add_argument("--czjzek-sigma", type=float, default=None,
                         help="Czjzek: σ inicial (mm/s). Equivale a √(STG² + DTQ²) "
                              "de NORMOS-DIST.")
@@ -276,6 +279,10 @@ def parse_args() -> argparse.Namespace:
             args.dist_2d or args.variable != "quad" or args.fixed_bhf > 0):
         parser.error("--shape czjzek/czjzek-ext solo aplica a --variable quad con "
                      "dobletes (--fixed-bhf 0), en 1D.")
+    if args.shape == "lecaer" and (
+            args.dist_2d or args.variable != "quad" or args.fixed_bhf <= 0):
+        parser.error("--shape lecaer solo aplica a --variable quad con campo "
+                     "(--fixed-bhf > 0), en 1D.")
     if args.fix_czjzek_sigma and args.czjzek_sigma is None:
         parser.error("--fix-czjzek-sigma requiere --czjzek-sigma.")
     if args.fix_czjzek_delta0 and args.czjzek_delta0 is None:
@@ -493,9 +500,10 @@ def run_fit_1d(args, v, y, *, delta, quad, gamma, bmin, bmax, sharp_components):
             shape="Gaussiana" if gaussian else "VBF",
             sigma_min=args.vbf_sigma_min, sigma_max=args.vbf_sigma_max,
             **common)
-    if args.shape in ("czjzek", "czjzek-ext"):
+    if args.shape in ("czjzek", "czjzek-ext", "lecaer"):
         return fit_czjzek_hyperfine_distribution(
             v, y, extended=args.shape == "czjzek-ext",
+            lecaer=args.shape == "lecaer", kernel_eta=args.kernel_eta,
             czjzek_sigma=args.czjzek_sigma, fit_czjzek_sigma=not args.fix_czjzek_sigma,
             czjzek_delta0=args.czjzek_delta0, fit_czjzek_delta0=not args.fix_czjzek_delta0,
             profile=args.profile, voigt_sigma=args.voigt_sigma,

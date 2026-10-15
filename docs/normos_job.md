@@ -51,7 +51,7 @@ Se reconocen solas dos familias:
 | **NORMOS-DIST** | los puntos de una **malla** | panel P(BHF)/P(ΔEQ) |
 
 En los de DIST se traduce la malla (origen y paso), la forma (histograma,
-gaussiana, binomial, fija o Czjzek), la correlación δ(x) y los anclajes de borde;
+gaussiana, binomial, fija, Czjzek o Le Caër), la correlación δ(x) y los anclajes de borde;
 los subespectros «cristalinos» (`NXLS`) pasan a ser componentes nítidos. NORMOS
 calcula cada subespectro en un nodo (origen + k·paso) y Fitbauer en el centro de
 cada bin, así que los bordes de la malla importada quedan medio paso por fuera
@@ -122,9 +122,11 @@ permite reproducir sus ajustes.
 El importador avisa de cada uno de estos puntos, porque lo que **no** se ha
 traducido importa tanto como lo que sí:
 
-- El Le Caër de NORMOS (`DISTRI=4` con `METHOD=7`: la P del desplazamiento
-  cuadrupolar de sextetes con campo para un EFG aleatorio), que se importa como
-  histograma; no equivale a la forma «Czjzek ext.». Con `METHOD=6` sí se traslada, a la forma
+- `DISTRI=4` (Czjzek y Le Caër) **sí** se traslada. Con `METHOD=7` va a la forma
+  «Le Caër»: el mismo EFG aleatorio en sextetes con campo, malla en e²qQ/2 con signo
+  y la misma σ; NORMOS lee esos subespectros (espectros de polvo de Blaes) de un
+  fichero spline y Fitbauer los calcula con el Hamiltoniano exacto. Como el campo va
+  en ese fichero y no en el `.JOB`, sin `BHF` se pone 33 T y se avisa. Con `METHOD=6` va a la forma
   «Czjzek»: una sonda del binario de NORMOS-DIST (09.09.1993) da exactamente la
   misma P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²), con **σ² = STG² + DTQ²** (exponente 4.000 y σ
   al 1e-5 con DTQ de 0.06 a 0.36; no depende de QUA ni de WID). En Fitbauer σ

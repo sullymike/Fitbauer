@@ -19,7 +19,7 @@ from core.plot_styles import get_style
 from core.reconstruction import reconstruct_distribution_curves
 from core.validation import format_validation_issues, validate_distribution_parameters
 from core.param_overrides import effective_fit_init_specs as _eff_fi, effective_distribution_specs as _eff_ds
-from core.params import CZJZEK_SHAPES, is_2d_shape
+from core.params import EFG_SIGMA_SHAPES, LECAER_SHAPE, is_2d_shape
 from gui.fit_workflow import GuiFitRenderState, GuiFitResult
 from mossbauer_distribution import (
     fit_hyperfine_distribution,
@@ -581,12 +581,16 @@ class DistributionFitMixin:
                     sigma_min=dist_state.vbf_sigma_min,
                     sigma_max=dist_state.vbf_sigma_max,
                     **common)
-            if shape in CZJZEK_SHAPES:
+            if shape in EFG_SIGMA_SHAPES:
                 # |ΔEQ| de un gradiente de campo aleatorio (Czjzek) o aleatorio
                 # sobre uno ordenado (extendido): paramétrica, con σ de datos.
+                # Le Caër: el mismo EFG aleatorio en sextetes con campo fijo
+                # (kernel de polvo exacto, malla en e²qQ/2 con signo).
                 return fit_czjzek_hyperfine_distribution(
                     v_arr, y_arr, pmin=bmin, pmax=bmax, nbins=nbins,
                     extended=(shape == "Czjzek ext."),
+                    lecaer=(shape == LECAER_SHAPE),
+                    kernel_eta=dist_state.kernel_eta,
                     czjzek_sigma=dist_state.czjzek_sigma,
                     fit_czjzek_sigma=not dist_state.is_fixed("czjzek_sigma"),
                     czjzek_delta0=dist_state.czjzek_delta0,
@@ -637,7 +641,7 @@ class DistributionFitMixin:
         # externa (son no lineales). Solo con Histograma/VBF y si no están fijas.
         # Solo las pendientes que tienen sentido con la variable (las visibles):
         # P(BHF) ambas, P(ΔEQ) solo δ(ΔEQ), P(IS) solo ΔEQ(δ); en 2D ninguna.
-        if shape in ("Histograma", "VBF", "Binomial", *CZJZEK_SHAPES):
+        if shape in ("Histograma", "VBF", "Binomial", *EFG_SIGMA_SHAPES):
             if not dist_state.is_fixed("delta_slope") and var in ("bhf", "quad"):
                 outer_specs.append(("dist_delta_slope", "lin", d.delta_slope._lo, d.delta_slope._hi))
             if not dist_state.is_fixed("quad_slope") and var in ("bhf", "delta"):

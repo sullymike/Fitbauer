@@ -387,6 +387,8 @@ alloys). \\[3pt]
 \textbf{Fixed} & Distribution imposed by the user (read from a file). \\[3pt]
 \textbf{Czjzek} & $P(\dEQ)$ of a disordered solid (glasses, amorphous materials),
 pure or extended with an ordered environment (\S\ref{sec:forma-czjzek}). \\[3pt]
+\textbf{Le Caër} & The same random EFG in sextets in a fixed field
+(\S\ref{sec:forma-lecaer}). \\[3pt]
 \textbf{2D} & Joint distribution of two variables, as a histogram or as bivariate
 Gaussians (\S\ref{sec:dist-2d}). \\
 \bottomrule
@@ -432,6 +434,14 @@ $\{P_j\}$ give almost the same spectrum), hence the need to \textbf{regularize}
         \menu{1$\sigma$ band of P} check hides it. It is a bin-by-bin
         uncertainty: the area of a peak or $\langle x\rangle$ are much more
         precise than its width suggests.
+  \item \textbf{Hesse--Rübartsch parameter}: the report and the panel give
+        NORMOS-DIST's smoothing criterion,
+        $\sum(y-y_\mathrm{theo})^2/\sum y \approx \chi^2/N$: well above 1 means
+        too much smoothing; well below, $P$ follows the noise. Useful to
+        compare with a $\lambda$ chosen in NORMOS.
+  \item \textbf{Shape of $P$} (every shape): alongside the mean, width and mode,
+        the \textbf{skewness} (negative = tail towards low values) and the
+        \textbf{excess kurtosis} (0 for a Gaussian) are given, as in NORMOS-DIST.
 \end{itemize}
 
 \subsection{Gaussian}
@@ -574,6 +584,35 @@ Gaussian centred at $\Delta E_{Q,0}$ with width $\sigma$.
         AIC/BIC with those of the Gaussian, VBF or Histogram: a distribution with
         weight near $\dEQ=0$, or narrow and nearly symmetric, is not of Czjzek
         type.
+\end{itemize}
+
+\subsection{Le Caër (in field)}
+\label{sec:forma-lecaer}
+
+The same random Czjzek field gradient, but seen by \textbf{sextets} in a fixed
+field: the shape for disordered magnetic phases (metallic glasses,
+nanocrystalline materials) with a random EFG. The grid is the \emph{signed}
+coupling $e^2qQ/2$, and each subspectrum is the \textbf{exact} powder average of
+a sextet whose EFG is randomly oriented with respect to the field (the
+\menu{Hamiltonian (powder)} kernel). The weights are the marginal of the signed
+$V_{zz}$ of a Czjzek tensor (Le Caër), with $q = x/\sigma$:
+\[
+  P(q) \;=\; \tfrac12\sqrt{2/\pi}\,\Bigl[(3q^{2}-2)\,e^{-q^{2}/2}
+        + \bigl(2-\tfrac83 q^{2}\bigr)\,e^{-2q^{2}/3}\Bigr],
+\]
+symmetric and zero at $q=0$ (checked by Monte Carlo on Czjzek tensors).
+
+\begin{itemize}[nosep]
+  \item \textbf{Fits}: amplitude and $\sigma$ (\menu{Czjzek $\sigma$} control,
+        with its lock). The kernel $\eta$ is 0.
+  \item \textbf{Accepts}: the $\kappa_\delta$ correlation and sharp components.
+        Only offered in $P(\dEQ)$ \emph{with} the fixed-field sextet option; the
+        grid must cover negative and positive values.
+  \item \textbf{NORMOS}: it is NORMOS-DIST's \code{DISTRI=4} with
+        \code{METHOD=7}, with the same $\sigma^2=\mathrm{STG}^2+\mathrm{DTQ}^2$.
+        NORMOS reads the subspectra from a spline file; Fitbauer computes them.
+        As the field is in that file and not in the \code{.JOB}, importing
+        without \code{BHF} sets 33~T and warns.
 \end{itemize}
 
 \subsection{2D: two variables at once}

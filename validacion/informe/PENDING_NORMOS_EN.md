@@ -44,36 +44,12 @@ anything.
 
 ---
 
-## 1. `DISTRI=4` with `METHOD=7`: the in-field Le Caër
+## 1. `DISTRI=4` with `METHOD=7`: the in-field Le Caër — CLOSED 2026-10-15
 
-**Partly closed on 2026-10-14 (v5.2.1–5.2.2).** The quadrupole Czjzek
-(`METHOD=6`) now has a parametric shape (“Czjzek”) and the importer uses it:
-a probe of the binary gave the same P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) with
-σ² = STG² + DTQ². Details in `COVERAGE_NORMOS_EN.md` §9. Fitbauer also has
-the “Czjzek ext.” shape (Le Caër–Brand 1998, non-central χ with ΔEQ₀).
-
-**What remains.** `METHOD=7` is the quadrupole distribution **in a field**
-(first-order sextets, the grid on the quadrupole shift QUA = e²qQ/2). With
-`DISTRI=4` NORMOS uses the Le Caër distribution there (`distcalf.for`, the
-comment and the `AREREL` loop):
-
-    P(q) = ½√(2/π)·[(3q²−2)·e^(−q²/2) + (2 − 8q²/3)·e^(−2q²/3)],  q = QUA/σ
-
-with the same σ = √(STG² + DTQ²) as the Czjzek. It is **not** Fitbauer's
-“Czjzek ext.” (Le Caër–Brand 1998, with ΔEQ₀): it is a different thing, the P
-of the quadrupole shift of a sextet when the EFG is random. Such `.JOB` files
-are still imported as a histogram, with the `normos.w_distri4` warning.
-
-**What would need doing.**
-- A new shape for P(ΔEQ) with a fixed field (the sextet kernel with a
-  distributed quadrupole shift already exists) with those weights and σ as the
-  only parameter; extend the `czjzek` branch of `job_to_distribution_state`
-  (`core/normos_job.py`) to `METHOD=7`.
-- Validate against the binary as in `validacion/_staging/czjzek`: sweep STG and
-  the step and compare the relative-area table of the `.RES`.
-
-**Cost / value.** Low / low. The histogram already gives the shape, and the
-field-free variant, which is the one in common use, is covered.
+“Le Caër” shape (`lecaer_weights`, `fit_czjzek_hyperfine_distribution(lecaer=True)`),
+importer, panel, CLI (`--shape lecaer`) and tests. Details, and what could not be
+validated (probe of the binary: the spline file is missing), in
+`COVERAGE_NORMOS_EN.md` §9.
 
 ---
 

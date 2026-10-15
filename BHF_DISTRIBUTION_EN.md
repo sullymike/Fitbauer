@@ -41,6 +41,7 @@ non-negative amplitude, fitted together with the distribution.
 | **Fixed** | a distribution loaded from a file; only its amplitude | none |
 | **Czjzek** (`P(ΔEQ)` with doublets only) | \|ΔEQ\| of a random electric field gradient: $P \propto \Delta^4 e^{-\Delta^2/2\sigma^2}$; σ only | none |
 | **Extended Czjzek** (Le Caër–Brand) | random on top of an ordered environment ΔEQ₀: non-central χ with 5 degrees of freedom; σ and ΔEQ₀ | none |
+| **Le Caër** (`P(ΔEQ)` with a fixed field only) | the same random EFG in sextets: marginal of the signed Vzz, grid on e²qQ/2; σ only | none |
 
 - **Czjzek.** In glasses and amorphous materials the ΔEQ distribution is usually not
   Gaussian. If the charges around the Fe are random, the 5 independent components of the
@@ -55,6 +56,18 @@ non-negative amplitude, fitted together with the distribution.
   imported with this shape. σ and ΔEQ₀ have their controls in the panel (starting
   point of the fit, with a «Fixed» box); in the CLI, `--czjzek-sigma`/`--czjzek-delta0`
   and `--fix-czjzek-sigma`/`--fix-czjzek-delta0`.
+
+- **Le Caër (in field).** The same random Czjzek EFG seen by sextets in a fixed field
+  (disordered magnetic phases: metallic glasses, nanocrystalline materials). The grid is
+  the signed coupling e²qQ/2 —it must cover negative and positive values— and each
+  kernel column is the **exact** powder average of a sextet with the EFG randomly
+  oriented with respect to the field (not the first-order kernel). The weights are the
+  marginal of the signed Vzz of a Czjzek tensor,
+  P(q) = ½√(2/π)·[(3q²−2)e^(−q²/2) + (2 − 8q²/3)e^(−2q²/3)] with q = x/σ (checked by
+  Monte Carlo). σ only, with the same control. It is NORMOS-DIST's `DISTRI=4` with
+  `METHOD=7` (`distcalf.for`), with the same σ² = STG² + DTQ²; NORMOS reads the
+  subspectra from a spline file and Fitbauer computes them. CLI: `--shape lecaer` with
+  `--variable quad --fixed-bhf B`.
 
 - **Width bounds of the Gaussians.** In the Gaussian and VBF shapes the width σ, common
   to all the Gaussians, can be bounded with **σ min / σ max** (units of the variable;
@@ -205,6 +218,9 @@ python3 fit_bhf_distribution_cli.py sample.adt --shape binomial \
   --binomial-conc 5 --binomial-start 33 --binomial-step -2.5
 # Czjzek P(ΔEQ) (pure or extended) for a glass:
 python3 fit_bhf_distribution_cli.py sample.adt --variable quad --bmax 3 --shape czjzek-ext
+# Le Caër: the same random EFG in sextets at 30 T (signed grid):
+python3 fit_bhf_distribution_cli.py sample.adt --variable quad --fixed-bhf 30 \
+  --bmin -2 --bmax 2 --shape lecaer
 
 # Histogram regularizer: tikhonov (default), tv, maxent:
 python3 fit_bhf_distribution_cli.py sample.adt --reg-mode maxent

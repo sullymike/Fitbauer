@@ -89,7 +89,7 @@ Verdict symbols:
 | `DISTRI=2` Gaussian | VBF with N=1 | **=** |
 | `DISTRI=3` binomial / fixed | Binomial / Fixed | **=** |
 | `DISTRI=4` analytical Czjzek (`METHOD=6`) | “Czjzek” and “Czjzek ext.” shapes | **=** same P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) with σ² = STG² + DTQ²; the `.JOB` is imported with that shape (§9) |
-| `DISTRI=4` with `METHOD=7` (in-field Le Caër) | histogram | **~** no parametric form: it is the P of the quadrupole shift of a sextet with a random EFG, not “Czjzek ext.” |
+| `DISTRI=4` with `METHOD=7` (in-field Le Caër) | “Le Caër” shape | **=** same P (marginal of the signed Vzz of a Czjzek EFG) and σ² = STG² + DTQ²; exact powder kernel computed, not read from a spline (§9) |
 | `DTB DTI DTQ` correlations with the grid | `delta_slope quad_slope` | **=** careful: in METHOD 1-5 NORMOS applies **only** `DTI`; `DTQ` is a dead parameter there (see §7) |
 | DIST `.JOB` → distribution panel | `job_to_distribution_state` | **=** grid, shape, correlations, anchors and crystalline sites as sharp components |
 | 2 overlapping distribution blocks | sharp components + 2D P(BHF,ΔEQ) | **~** |
@@ -116,10 +116,8 @@ on 2026-08-02; see §8. The analytical Czjzek of `METHOD=6` was closed on
 **`PENDING_NORMOS_EN.md`**, with the exact source reference, what to touch in
 Fitbauer, how to validate it and whether it is worth it. Summary:
 
-1. **`DISTRI=4` with `METHOD=7`** (in-field Le Caër). Imported as a histogram,
-   which reproduces the shape. Its P (formula in `PENDING_NORMOS_EN.md`) is that
-   of the quadrupole shift of a sextet with a random EFG; it is not equivalent
-   to Fitbauer's “Czjzek ext.”.
+1. ~~**`DISTRI=4` with `METHOD=7`** (in-field Le Caër)~~ — **closed on
+   2026-10-15**: “Le Caër” shape (§9).
 2. **`BEXT`**, external field in Ising relaxation: it shifts the lines as well
    as polarizing the populations. The polarization is in place; the shift is
    not.
@@ -239,5 +237,17 @@ the edges, so the nodes were shifted by half a step and the step was
 fall exactly on the nodes. This affects every imported DIST `.JOB`; the J/L
 bank fits through the CLI with its own grid, so its figures do not change.
 
-Still outside: `DISTRI=4` with another `METHOD`, which remains a histogram
-(§6).
+**In-field Le Caër (2026-10-15).** `DISTRI=4` with `METHOD=7` has its shape too.
+In the source (`distcalf.for`) each subspectrum is a Blaes powder spectrum (EFG
+random with respect to the field, exact solution) read from a spline file and
+indexed by the signed QUA = e²qQ/2, and the weights are
+
+    P(q) = ½√(2/π)·[(3q²−2)e^(−q²/2) + (2 − 8q²/3)e^(−2q²/3)],  q = QUA/σ
+
+with the same σ = √(STG² + DTQ²). By Monte Carlo on Czjzek tensors it is the
+marginal of the signed Vzz (σ = √(2/3) times the deviation of the components; the
+difference with the histogram, 0.006 at a peak of 0.31, is noise). Fitbauer computes
+the subspectra with the “Hamiltonian (powder)” kernel (its `deq` is e²qQ/2) instead of
+reading the spline. **Not probed against the binary**: the demo needs the spline file
+of subspectra, which we do not have. If the `.JOB` has no `BHF` (the field is in the
+spline), 33 T is set and a warning given.

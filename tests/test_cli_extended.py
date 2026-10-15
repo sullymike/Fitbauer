@@ -121,6 +121,11 @@ def test_dist_cli_czjzek_solo_con_cuadrupolo(tmp_path):
     assert proc.returncode == 2 and "czjzek" in proc.stderr
 
 
+def test_dist_cli_lecaer_solo_con_campo(tmp_path):
+    proc = _run_dist_cli(tmp_path, "--variable", "quad", "--shape", "lecaer")
+    assert proc.returncode == 2 and "lecaer" in proc.stderr
+
+
 def test_dist_cli_vbf_sigma_limits(tmp_path):
     """--vbf-sigma-min/--vbf-sigma-max llegan al motor y al resumen."""
     proc = _run_dist_cli(tmp_path, "--variable", "quad", "--shape", "vbf",

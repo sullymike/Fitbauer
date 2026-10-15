@@ -545,3 +545,43 @@ def test_parametro_hesse_ruebartsch_como_normos():
     assert g["hesse_ruebartsch"] == pytest.approx(1.0, abs=0.15)
     gn = md.distribution_goodness(r / 1.0e6, np.sqrt(y) / 1.0e6, n_params=5)
     assert gn["hesse_ruebartsch"] == pytest.approx(g["hesse_ruebartsch"])
+
+
+# ── Le Caër con campo (DISTRI=4 + METHOD=7 de NORMOS-DIST) ──────────────────
+def test_lecaer_es_la_marginal_de_vzz_con_signo_de_un_tensor_de_czjzek():
+    """La P de NORMOS es la de Vzz (componente principal de mayor módulo, con
+    signo) de un EFG de Czjzek; su σ es √(2/3) veces la de las componentes."""
+    rng = np.random.default_rng(11)
+    u = rng.normal(size=(200_000, 5))
+    V = np.zeros((u.shape[0], 3, 3))
+    V[:, 0, 0] = -u[:, 0] / np.sqrt(6) + u[:, 1] / np.sqrt(2)
+    V[:, 1, 1] = -u[:, 0] / np.sqrt(6) - u[:, 1] / np.sqrt(2)
+    V[:, 2, 2] = 2 * u[:, 0] / np.sqrt(6)
+    for k, (i, j) in zip((2, 3, 4), ((0, 1), (0, 2), (1, 2))):
+        V[:, i, j] = V[:, j, i] = u[:, k] / np.sqrt(2)
+    ev = np.linalg.eigvalsh(V)
+    vzz = ev[np.arange(ev.shape[0]), np.argmax(np.abs(ev), axis=1)]
+    bordes = np.linspace(-5.0, 5.0, 81)
+    hist, _ = np.histogram(vzz / np.sqrt(2.0 / 3.0), bins=bordes, density=True)
+    centros = 0.5 * (bordes[1:] + bordes[:-1])
+    p = md.lecaer_weights(centros, 1.0)
+    assert np.max(np.abs(p - hist)) < 0.03 * np.max(hist)
+    assert p[centros.size // 2] == pytest.approx(p[centros.size // 2 - 1])   # simétrica
+
+
+def test_ajuste_lecaer_recupera_sigma_con_kernel_de_polvo():
+    v = np.linspace(-10, 10, 400)
+    centers = md.parameter_grid(-2.5, 2.5, 41)
+    K = np.column_stack([md.sextet_absorption(v, delta=0.3, quad=float(q), bhf=30.0,
+                                              gamma=0.3, treatment="hamiltonian")
+                         for q in centers])
+    rng = np.random.default_rng(5)
+    ruido = 2e-3
+    y = 1.0 - K @ (md.lecaer_weights(centers, 0.6) * 0.05) + rng.normal(0.0, ruido, v.size)
+    r = md.fit_czjzek_hyperfine_distribution(
+        v, y, lecaer=True, variable="quad", bhf=30.0, delta=0.3, gamma=0.3,
+        pmin=-2.5, pmax=2.5, nbins=41, sigma=np.full(v.size, ruido))
+    assert r.success and r.shape == "Le Caër"
+    assert r.czjzek_sigma == pytest.approx(0.6, abs=4 * r.czjzek_sigma_err + 1e-3)
+    with pytest.raises(ValueError):
+        md.fit_czjzek_hyperfine_distribution(v, y, lecaer=True, variable="quad", bhf=0.0)

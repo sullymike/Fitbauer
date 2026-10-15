@@ -49,7 +49,7 @@ Two families are recognised automatically:
 | **NORMOS-DIST** | the points of a **grid** | P(BHF)/P(ΔEQ) panel |
 
 For DIST jobs Fitbauer translates the grid (origin and step), the shape (histogram,
-Gaussian, binomial, fixed or Czjzek), the δ(x) correlation and the edge anchors; the
+Gaussian, binomial, fixed, Czjzek or Le Caër), the δ(x) correlation and the edge anchors; the
 "crystalline" subspectra (`NXLS`) become sharp components. NORMOS computes each
 subspectrum at a node (origin + k·step) and Fitbauer at the centre of each bin, so
 the edges of the imported grid lie half a step outside the first and last nodes:
@@ -120,9 +120,11 @@ makes its fits reproducible.
 The importer warns about each of these, because what was **not** translated matters
 as much as what was:
 
-- NORMOS's Le Caër (`DISTRI=4` with `METHOD=7`: the P of the quadrupole shift
-  of in-field sextets for a random EFG), which is imported as a histogram; it is
-  not equivalent to the «Czjzek ext.» shape. With `METHOD=6` it is carried over, to the
+- `DISTRI=4` (Czjzek and Le Caër) **is** carried over. With `METHOD=7` it goes to
+  the «Le Caër» shape: the same random EFG in sextets in a field, grid on the signed
+  e²qQ/2 and the same σ; NORMOS reads those subspectra (Blaes powder spectra) from a
+  spline file and Fitbauer computes them with the exact Hamiltonian. As the field is
+  in that file and not in the `.JOB`, without `BHF` 33 T is set and a warning given. With `METHOD=6` it is carried over, to the
   «Czjzek» shape: a probe of the NORMOS-DIST binary (09.09.1993) gives exactly
   the same P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²), with **σ² = STG² + DTQ²** (exponent 4.000
   and σ to 1e-5 with DTQ from 0.06 to 0.36; independent of QUA and WID). In

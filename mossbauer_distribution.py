@@ -2786,6 +2786,36 @@ def czjzek_weights(centers: np.ndarray, sigma: float, delta0: float = 0.0) -> np
     return w / max(float(area), 1e-12)
 
 
+def lecaer_weights(centers: np.ndarray, sigma: float) -> np.ndarray:
+    """Densidad del acoplamiento con signo e²qQ/2 de un EFG de Czjzek (Le Caër).
+
+    Para un gradiente de campo aleatorio (las 5 componentes del tensor,
+    gaussianas de igual varianza) la marginal de Vzz CON SIGNO —la componente
+    principal de mayor módulo— es, con q = x/σ::
+
+        P(q) = ½·√(2/π)·[(3q² − 2)·e^(−q²/2) + (2 − 8q²/3)·e^(−2q²/3)]
+
+    simétrica, nula en q = 0 y de área 1 en toda la recta. Es la que usa
+    NORMOS-DIST con ``DISTRI=4`` y ``METHOD=7`` (sextetes en campo, malla en
+    QUA = e²qQ/2 con signo, ``distcalf.for``), con la misma σ = √(STG² + DTQ²)
+    que su Czjzek. Comprobado por Monte Carlo sobre tensores de Czjzek (σ es
+    √(2/3) veces la desviación de las componentes). De área 1 en la malla.
+    """
+    c = np.asarray(centers, dtype=float)
+    q = c / max(float(sigma), 1e-9)
+    q2 = q * q
+    with np.errstate(under="ignore"):
+        w = 0.5 * np.sqrt(2.0 / np.pi) * ((3.0 * q2 - 2.0) * np.exp(-0.5 * q2)
+                                         + (2.0 - 8.0 / 3.0 * q2) * np.exp(-2.0 / 3.0 * q2))
+    w = np.clip(w, 0.0, None)      # ≥ 0 salvo redondeo cerca de q = 0
+    if not np.any(w > 0.0):
+        # σ ≪ paso de malla: el peso, en el nodo más cercano a |q| ≈ 1.6.
+        w = np.zeros_like(c)
+        w[int(np.argmin(np.abs(np.abs(c) - 1.6 * float(sigma))))] = 1.0
+    area = np.trapezoid(w, c) if w.size > 1 else float(w[0])
+    return w / max(float(area), 1e-12)
+
+
 def fit_czjzek_hyperfine_distribution(
     v: np.ndarray,
     y: np.ndarray,
@@ -2814,8 +2844,19 @@ def fit_czjzek_hyperfine_distribution(
     fit_czjzek_sigma: bool = True,
     czjzek_delta0: float | None = None,
     fit_czjzek_delta0: bool = True,
+    lecaer: bool = False,
+    kernel_eta: float = 0.0,
 ) -> BhfDistributionFit:
     """P(ΔEQ) con la forma de Czjzek (``extended=False``) o Czjzek extendida.
+
+    Con ``lecaer=True`` es la forma de Le Caër con campo (``DISTRI=4`` +
+    ``METHOD=7`` de NORMOS-DIST): la malla es el acoplamiento con signo
+    e²qQ/2, los pesos los de :func:`lecaer_weights` y cada columna del kernel
+    es el promedio de polvo EXACTO de un sextete con EFG de orientación
+    aleatoria respecto al campo ``bhf`` (el método de Blaes de NORMOS; el
+    «Hamiltoniano (polvo)» de Fitbauer), con asimetría ``kernel_eta``. Solo
+    tiene sentido con ``variable="quad"`` y campo fijo > 0; σ es el único
+    parámetro de forma.
 
     ``czjzek_sigma``/``czjzek_delta0`` son los valores iniciales (o los fijos,
     con ``fit_czjzek_sigma``/``fit_czjzek_delta0`` a False: así se reproduce
@@ -2831,10 +2872,25 @@ def fit_czjzek_hyperfine_distribution(
     from scipy.optimize import least_squares
     v = _finite_1d("v", v); y = _finite_1d("y", y)
     centers = parameter_grid(pmin, pmax, nbins)
+    if lecaer:
+        extended = False
+        if variable != "quad" or float(bhf) <= 0.0:
+            raise ValueError("La forma de Le Caër requiere P(ΔEQ) con campo fijo > 0.")
+    href_k = float(np.mean(centers)) if h_ref is None else float(h_ref)
     with line_profile(profile, voigt_sigma):
-        K = build_hyperfine_distribution_kernel(
-            v, centers, variable=variable, delta=delta, quad=quad, bhf=bhf, gamma=gamma,
-            delta_slope=delta_slope, quad_slope=quad_slope, h_ref=h_ref)
+        if lecaer:
+            # Kernel propio (el genérico de ΔEQ es de 1er orden): cada columna
+            # es el espectro de polvo exacto en campo con QUA = e²qQ/2.
+            K = np.column_stack([
+                sextet_absorption(
+                    v, delta=float(delta) + float(delta_slope) * (float(q) - href_k),
+                    quad=float(q), bhf=float(bhf), gamma=gamma,
+                    treatment="hamiltonian", eta=float(kernel_eta))
+                for q in centers])
+        else:
+            K = build_hyperfine_distribution_kernel(
+                v, centers, variable=variable, delta=delta, quad=quad, bhf=bhf, gamma=gamma,
+                delta_slope=delta_slope, quad_slope=quad_slope, h_ref=h_ref)
         K_sharp, sharp_bhf_centers, fixed_sharp_abs, sharp_fixed_mask, fixed_sharp_weights = build_sharp_kernel_for_fit(
             v, sharp_components, default_delta=delta, default_quad=quad, default_gamma=gamma)
     n_sharp = K_sharp.shape[1] if K_sharp is not None else 0
@@ -2873,7 +2929,7 @@ def fit_czjzek_hyperfine_distribution(
     def model(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         b0, sl = lin_part(x)
         A, sg, d0 = shape_part(x)
-        w = A * czjzek_weights(centers, sg, d0)
+        w = A * (lecaer_weights(centers, sg) if lecaer else czjzek_weights(centers, sg, d0))
         m = b0 + sl * v - K @ w - fixed_sharp_abs
         if K_sharp is not None and n_sharp:
             m = m - K_sharp @ np.maximum(x[n_lin + n_shape:n_lin + n_shape + n_sharp], 0.0)
@@ -2906,7 +2962,10 @@ def fit_czjzek_hyperfine_distribution(
                            czjzek_delta0 if czjzek_delta0 is not None else 0.0))
     for frac in (0.25, 0.45, 0.65):
         moda = float(pmin) + frac * rng
-        if extended:
+        if lecaer:
+            # Malla con signo: σ como fracción del mayor |e²qQ/2| de la malla.
+            candidatos.append((frac * max(abs(float(pmin)), abs(float(pmax))) / 1.6, 0.0))
+        elif extended:
             candidatos.append((rng / 8.0, moda))
             candidatos.append((moda / 2.0, 0.0))
         else:
@@ -2953,7 +3012,7 @@ def fit_czjzek_hyperfine_distribution(
         # En ΔEQ₀ = 0 la densidad solo depende de ΔEQ₀² (jacobiana nula): no
         # hay error lineal que dar; el ajuste equivale al Czjzek puro.
         d0_fit, d0_err = 0.0, None
-    label = "Czjzek ext." if extended else "Czjzek"
+    label = "Le Caër" if lecaer else ("Czjzek ext." if extended else "Czjzek")
     resumen = (f"σ={sig_fit:.4g}" + (f", ΔEQ₀={d0_fit:.4g}" if extended else "")
                + f", A={A_fit:.3g}")
     return BhfDistributionFit(

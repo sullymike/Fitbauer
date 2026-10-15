@@ -2,6 +2,17 @@
 
 ## Sin publicar
 
+- **Forma Le Caër (con campo).** El EFG aleatorio de Czjzek en sextetes con
+  campo fijo, para fases magnéticas desordenadas (vidrios metálicos,
+  nanocristalinos): malla en el acoplamiento con signo e²qQ/2, kernel de polvo
+  exacto (EFG orientado al azar respecto al campo) y pesos de Le Caër, la
+  marginal de Vzz con signo de un tensor de Czjzek (comprobada por Monte
+  Carlo). Es el `DISTRI=4` + `METHOD=7` de NORMOS-DIST (`distcalf.for`), que
+  ahora se importa con esta forma y σ = √(STG² + DTQ²); antes, como histograma.
+  Solo en P(ΔEQ) con campo fijo; σ con el control «σ Czjzek». CLI
+  `--shape lecaer`. Ayuda (8 idiomas), manuales, `BHF_DISTRIBUTION`, notas de
+  NORMOS e informes de cobertura. Los manuales recogen además la asimetría, la
+  curtosis y el parámetro de Hesse–Rübartsch.
 - **Parámetro de Hesse–Rübartsch.** El criterio de suavizado que imprime
   NORMOS-DIST, Σ(y − y_teo)²/Σy (`distlstf.for`), sale en el informe, en el
   panel y en la cabecera del `.dat` exportado como `hesse_ruebartsch`

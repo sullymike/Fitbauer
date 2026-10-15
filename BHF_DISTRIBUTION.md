@@ -41,6 +41,7 @@ amplitud libre no negativa, ajustada junto a la distribución.
 | **Fija** | una distribución cargada de fichero; solo su amplitud | ninguna |
 | **Czjzek** (solo `P(ΔEQ)` con dobletes) | \|ΔEQ\| de un gradiente de campo aleatorio: $P \propto \Delta^4 e^{-\Delta^2/2\sigma^2}$; solo σ | ninguna |
 | **Czjzek extendido** (Le Caër–Brand) | aleatorio sobre un entorno ordenado ΔEQ₀: χ no central de 5 grados de libertad; σ y ΔEQ₀ | ninguna |
+| **Le Caër** (solo `P(ΔEQ)` con campo fijo) | el mismo EFG aleatorio en sextetes: marginal de Vzz con signo, malla en e²qQ/2; solo σ | ninguna |
 
 - **Czjzek.** En vidrios y amorfos la distribución de ΔEQ no suele ser gaussiana. Si las
   cargas en torno al Fe están al azar, las 5 componentes independientes del gradiente de
@@ -54,6 +55,18 @@ amplitud libre no negativa, ajustada junto a la distribución.
   `.JOB` así se importan con esta forma. σ y ΔEQ₀ tienen sus controles en el panel
   (arranque del ajuste, con su «Fijo»); en el CLI, `--czjzek-sigma`/`--czjzek-delta0`
   y `--fix-czjzek-sigma`/`--fix-czjzek-delta0`.
+
+- **Le Caër (con campo).** El mismo EFG aleatorio de Czjzek visto por sextetes en un
+  campo fijo (fases magnéticas desordenadas: vidrios metálicos, nanocristalinos). La
+  malla es el acoplamiento con signo e²qQ/2 —debe cubrir valores negativos y
+  positivos— y cada columna del kernel es el promedio de polvo **exacto** de un
+  sextete con el EFG orientado al azar respecto al campo (no el kernel de 1er orden).
+  Los pesos son la marginal de Vzz con signo de un tensor de Czjzek,
+  P(q) = ½√(2/π)·[(3q²−2)e^(−q²/2) + (2 − 8q²/3)e^(−2q²/3)] con q = x/σ (comprobada
+  por Monte Carlo). Solo σ, con el mismo control. Es el `DISTRI=4` con `METHOD=7` de
+  NORMOS-DIST (`distcalf.for`), con la misma σ² = STG² + DTQ²; NORMOS lee los
+  subespectros de un fichero spline y Fitbauer los calcula. CLI: `--shape lecaer`
+  con `--variable quad --fixed-bhf B`.
 
 - **Cotas de la anchura de las gaussianas.** En Gaussiana y VBF la anchura σ, común a
   todas las gaussianas, se puede acotar con **σ mín / σ máx** (unidades de la variable;
@@ -204,6 +217,9 @@ python3 fit_bhf_distribution_cli.py muestra.adt --shape binomial \
   --binomial-conc 5 --binomial-start 33 --binomial-step -2.5
 # P(ΔEQ) de Czjzek (puro o extendido) para un vidrio:
 python3 fit_bhf_distribution_cli.py muestra.adt --variable quad --bmax 3 --shape czjzek-ext
+# Le Caër: el mismo EFG aleatorio en sextetes con 30 T (malla con signo):
+python3 fit_bhf_distribution_cli.py muestra.adt --variable quad --fixed-bhf 30 \
+  --bmin -2 --bmax 2 --shape lecaer
 
 # Regularizador del histograma: tikhonov (defecto), tv, maxent:
 python3 fit_bhf_distribution_cli.py muestra.adt --reg-mode maxent

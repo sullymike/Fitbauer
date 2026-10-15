@@ -386,6 +386,8 @@ aleaciones). \\[3pt]
 \textbf{Fija} & Distribución impuesta por el usuario (leída de fichero). \\[3pt]
 \textbf{Czjzek} & $P(\dEQ)$ de un sólido desordenado (vidrios, amorfos), pura o
 extendida con un entorno ordenado (§\ref{sec:forma-czjzek}). \\[3pt]
+\textbf{Le Caër} & El mismo EFG aleatorio en sextetes con campo fijo
+(§\ref{sec:forma-lecaer}). \\[3pt]
 \textbf{2D} & Distribución conjunta de dos variables, como histograma o como
 gaussianas bivariantes (§\ref{sec:dist-2d}). \\
 \bottomrule
@@ -431,6 +433,15 @@ Rübartsch (1974).
         §\ref{sec:perr}). La casilla \menu{Banda 1$\sigma$ de P} la oculta.
         Es incertidumbre bin a bin: el área de un pico o $\langle x\rangle$
         son mucho más precisos de lo que sugiere su anchura.
+  \item \textbf{Parámetro de Hesse--Rübartsch}: el informe y el panel dan el
+        criterio de suavizado de NORMOS-DIST,
+        $\sum(y-y_\mathrm{teo})^2/\sum y \approx \chi^2/N$: si pasa mucho de 1
+        el suavizado es excesivo; si queda muy por debajo, $P$ sigue el ruido.
+        Sirve para comparar con un $\lambda$ elegido en NORMOS.
+  \item \textbf{Forma de $P$} (todas las formas): junto a la media, la anchura
+        y la moda se dan la \textbf{asimetría} (negativa = cola hacia valores
+        bajos) y la \textbf{curtosis en exceso} (0 para una gaussiana), como
+        en NORMOS-DIST.
 \end{itemize}
 
 \subsection{Gaussiana}
@@ -570,6 +581,36 @@ anchura $\sigma$.
   \item \textbf{Cuándo}: Fe$^{3+}$ en vidrios y amorfos. Compare su AIC/BIC con
         los de la Gaussiana, el VBF o el Histograma: una distribución con peso
         cerca de $\dEQ=0$, o estrecha y casi simétrica, no es de tipo Czjzek.
+\end{itemize}
+
+\subsection{Le Caër (con campo)}
+\label{sec:forma-lecaer}
+
+El mismo gradiente de campo aleatorio de Czjzek, pero visto por
+\textbf{sextetes} en un campo fijo: es la forma para fases magnéticas
+desordenadas (vidrios metálicos, nanocristalinos) con EFG aleatorio. La malla
+es el acoplamiento \emph{con signo} $e^2qQ/2$, y cada subespectro es el
+promedio de polvo \textbf{exacto} de un sextete cuyo EFG tiene orientación
+aleatoria respecto al campo (el kernel \menu{Hamiltoniano (polvo)}). Los pesos
+son la marginal de $V_{zz}$ con signo de un tensor de Czjzek (Le Caër), con
+$q = x/\sigma$:
+\[
+  P(q) \;=\; \tfrac12\sqrt{2/\pi}\,\Bigl[(3q^{2}-2)\,e^{-q^{2}/2}
+        + \bigl(2-\tfrac83 q^{2}\bigr)\,e^{-2q^{2}/3}\Bigr],
+\]
+simétrica y nula en $q=0$ (comprobado por Monte Carlo sobre tensores de Czjzek).
+
+\begin{itemize}[nosep]
+  \item \textbf{Ajusta}: amplitud y $\sigma$ (control \menu{$\sigma$ Czjzek},
+        con su candado). La $\eta$ del kernel es 0.
+  \item \textbf{Admite}: la correlación $\kappa_\delta$ y componentes nítidos.
+        Solo se ofrece en $P(\dEQ)$ \emph{con} la opción de sextetes de campo
+        fijo; la malla debe cubrir valores negativos y positivos.
+  \item \textbf{NORMOS}: es el \code{DISTRI=4} con \code{METHOD=7} de
+        NORMOS-DIST, con la misma $\sigma^2=\mathrm{STG}^2+\mathrm{DTQ}^2$.
+        NORMOS lee los subespectros de un fichero spline; Fitbauer los calcula.
+        Como el campo va en ese fichero y no en el \code{.JOB}, al importar
+        sin \code{BHF} se pone 33~T y se avisa.
 \end{itemize}
 
 \subsection{2D: dos variables a la vez}

@@ -10,7 +10,8 @@ from dataclasses import astuple
 
 from mossbauer_i18n import tr
 from core.params import (DIST_VAR_DEFAULT_SPAN, DIST_VAR_RANGE, DIST_RANGE_RESOLUTION,
-                         CZJZEK_SHAPES, GAUSSIAN_DISTRIBUTION_SHAPES, is_2d_shape)
+                         CZJZEK_SHAPES, EFG_SIGMA_SHAPES, GAUSSIAN_DISTRIBUTION_SHAPES,
+                         LECAER_SHAPE, is_2d_shape)
 from core.param_overrides import effective_distribution_specs
 from gui.controls import ParamControl
 from gui.panels import attach_help_menu
@@ -331,7 +332,8 @@ class DistributionPanel(QtWidgets.QGroupBox):
                   ("Binomial", "shape.Binomial"),
                   ("Fija", "shape.Fija"),
                   ("Czjzek", "shape.Czjzek"),
-                  ("Czjzek ext.", "shape.Czjzek_ext"))
+                  ("Czjzek ext.", "shape.Czjzek_ext"),
+                  ("Le Caër", "shape.LeCaer"))
     # En 2D se reutilizan los rótulos 1D: el modo ya dice que es bidimensional.
     _SHAPES_2D = (("2D", "shape.Histograma"),
                   ("Gaussiana 2D", "shape.Gaussiana"),
@@ -426,12 +428,12 @@ class DistributionPanel(QtWidgets.QGroupBox):
         # Binomial: sus propios controles en lugar de la malla.
         is_binomial = self.shape == "Binomial"
         self._binom_box.setVisible(is_binomial)
-        self._czjzek_box.setVisible(self.shape in CZJZEK_SHAPES)
+        self._czjzek_box.setVisible(self.shape in EFG_SIGMA_SHAPES)
         self.czjzek_delta0.setVisible(self.shape == "Czjzek ext.")
         for ctl in (self.bmin, self.bmax, self.nbins):
             ctl.setVisible(not is_binomial)
         # Correlación δ(H)/ΔEQ(H): Histograma, VBF, Binomial y Czjzek.
-        corr_ok = self.shape in ("Histograma", "VBF", "Binomial", *CZJZEK_SHAPES)
+        corr_ok = self.shape in ("Histograma", "VBF", "Binomial", *EFG_SIGMA_SHAPES)
         for ctl in (self.delta_slope, self.quad_slope):
             ctl.setEnabled(corr_ok)
         self.btn_load_fixed.setEnabled(self.shape == "Fija")
@@ -654,6 +656,17 @@ class DistributionPanel(QtWidgets.QGroupBox):
                     "bhf.czjzek_only_quad",
                     default="La forma de Czjzek solo se aplica a P(ΔEQ) con dobletes."))
         if not ok and self.shape in CZJZEK_SHAPES:
+            self.shape_combo.setCurrentIndex(self.shape_combo.findData("Histograma"))
+        # Le Caër es lo contrario: sextetes, así que P(ΔEQ) CON campo fijo.
+        ok_lc = var == "quad" and self.effective_fixed_bhf() > 0.0
+        idx = self.shape_combo.findData(LECAER_SHAPE)
+        item = model.item(idx) if idx >= 0 and hasattr(model, "item") else None
+        if item is not None:
+            item.setEnabled(ok_lc)
+            item.setToolTip("" if ok_lc else tr(
+                "bhf.lecaer_only_field",
+                default="La forma de Le Caër solo se aplica a P(ΔEQ) con campo fijo."))
+        if not ok_lc and self.shape == LECAER_SHAPE:
             self.shape_combo.setCurrentIndex(self.shape_combo.findData("Histograma"))
 
     #: Valor sin vecinos y cambio por vecino al estrenar cada variable

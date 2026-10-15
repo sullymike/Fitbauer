@@ -523,7 +523,11 @@ def job_to_distribution_state(text: str) -> dict:
     if method == 3:
         avisos.append(
             tr("normos.w_method3"))
-    if method in (5, 7):
+    # DISTRI=4 con METHOD=7 es el Le Caër de NORMOS: sextetes en campo cuyos
+    # subespectros (espectros de polvo de Blaes, leídos de un fichero spline)
+    # Fitbauer calcula él mismo con el Hamiltoniano exacto; ver más abajo.
+    lecaer = distri == 4 and method == 7
+    if method in (5, 7) and not lecaer:
         avisos.append(
             tr("normos.w_method_file", method=method))
 
@@ -536,6 +540,8 @@ def job_to_distribution_state(text: str) -> dict:
     czjzek = distri == 4 and method == 6
     if forma is None and czjzek:
         forma = "Czjzek"
+    elif forma is None and lecaer:
+        forma = "Le Caër"
     elif forma is None:
         avisos.append(
             tr("normos.w_distri4", method=method))
@@ -543,7 +549,7 @@ def job_to_distribution_state(text: str) -> dict:
     conc = _f(param.get("CONC"), 0.0)
     if distri == 3:
         forma = "Binomial" if conc > 0.0 else "Fija"
-    if method in (5, 7):
+    if method in (5, 7) and not lecaer:
         forma = "Fija"
 
     # ── Malla ───────────────────────────────────────────────────────────────
@@ -593,12 +599,18 @@ def job_to_distribution_state(text: str) -> dict:
         avisos.append(tr("normos.w_czjzek_field", bhf=f"{campo_fijo:g}"))
         forma = "Histograma"
         czjzek = False
-    if czjzek:
-        # En el Czjzek, STG es su anchura (no la de IS); Fitbauer ajusta σ.
+    if lecaer and campo_fijo <= 0.0:
+        # En NORMOS el campo va en el fichero spline de los subespectros, no
+        # en el .JOB: sin BHF hay que ponerlo a mano en el panel.
+        campo_fijo = 33.0
+        avisos.append(tr("normos.w_lecaer_field"))
+    if czjzek or lecaer:
+        # En el Czjzek y el Le Caër, STG es su anchura (no la de IS); Fitbauer
+        # ajusta σ = √(STG² + DTQ²) (``distcalf.for``: misma compensación).
         stg = _f(_idx(param, "STG", 1), 0.0)
         sigma = float(np.hypot(stg, paso))
-        avisos.append(tr("normos.w_czjzek", stg=f"{stg:g}", dtq=f"{paso:g}",
-                         sigma=f"{sigma:.4g}"))
+        avisos.append(tr("normos.w_lecaer" if lecaer else "normos.w_czjzek",
+                         stg=f"{stg:g}", dtq=f"{paso:g}", sigma=f"{sigma:.4g}"))
     elif forma == "Gaussiana" and _f(_idx(param, "STG", 1), 0.0):
         # En toda forma fija NORMOS ensancha STG con el paso para que P no sea
         # más estrecha que un bin (manual de WinNormos §2.3.2): la σ real, la
@@ -661,7 +673,7 @@ def job_to_distribution_state(text: str) -> dict:
         "dist_kernel_treatment": "hamiltonian" if exacto else "1st_order",
         "dist_kernel_eta": _f(param.get("ETA"), 0.0),
     }
-    if forma == "Czjzek":
+    if forma in ("Czjzek", "Le Caër"):
         # σ equivalente al STG de NORMOS; fijo si el .JOB no lo refina.
         estado["dist_czjzek_sigma"] = sigma
         bandera = _idx(param, "STGFIT", 1)
