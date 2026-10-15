@@ -3287,9 +3287,10 @@ def test_forma_czjzek_en_la_gui(win, tmp_path):
     # Con sextetes de campo fijo deja de tener sentido: vuelve a Histograma.
     d.fixed_bhf.set_value(30.0)
     d.field_enabled.setChecked(True)
-    assert d.shape == "Histograma" and not item("Czjzek").isEnabled()
-    d.field_enabled.setChecked(False)
+    assert d.shape == "Histograma"
+    # Elegirla de nuevo quita el campo (Czjzek va con dobletes).
     d.shape_combo.setCurrentIndex(d.shape_combo.findData("Czjzek"))
+    assert d.shape == "Czjzek" and not d.field_enabled.isChecked()
     d.bmin.set_value(0.0); d.bmax.set_value(2.5); d.nbins.set_value(40)
     win.on_fit()
     res = win.runtime_results.distribution_result
@@ -3321,12 +3322,13 @@ def test_forma_le_caer_en_la_gui(win):
     win._load_file(DATA / "sintetico_dist_deq.adt")
     win._show_distribution_dialog = lambda r: None
     win.mode_combo.setCurrentIndex(2)                     # P(ΔEQ), dobletes
-    assert not item("Le Caër").isEnabled() and item("Czjzek").isEnabled()
-    d.fixed_bhf.set_value(30.0)
-    d.field_enabled.setChecked(True)
-    assert item("Le Caër").isEnabled() and not item("Czjzek").isEnabled()
+    # Se puede elegir siempre en P(ΔEQ): al elegirla se activa el sextete con
+    # campo (33 T, porque el BHF fijo arranca en 0). Antes salía en gris.
+    assert item("Le Caër").isEnabled() and item("Czjzek").isEnabled()
+    assert not d.field_enabled.isChecked() and d.fixed_bhf.value() == 0.0
     d.shape_combo.setCurrentIndex(d.shape_combo.findData("Le Caër"))
     assert d.shape == "Le Caër" and d._czjzek_box.isVisibleTo(d)
+    assert d.field_enabled.isChecked() and d.effective_fixed_bhf() == 33.0
     assert not d.czjzek_delta0.isVisibleTo(d)
     d.bmin.set_value(-2.0); d.bmax.set_value(2.0); d.nbins.set_value(21)
     win.on_fit()

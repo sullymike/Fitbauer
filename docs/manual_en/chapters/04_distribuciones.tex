@@ -576,7 +576,8 @@ Gaussian centred at $\Delta E_{Q,0}$ with width $\sigma$.
   \item \textbf{What the spectrum sees}: doublets see neither $\eta$ nor the
         sign of $\dEQ$; the marginal of $|\dEQ|$ is fitted.
   \item \textbf{Accepts}: the $\kappa_\delta$ correlation and sharp components.
-        Only offered in $P(\dEQ)$ without the fixed-field sextet option.
+        Only in $P(\dEQ)$; choosing it switches the fixed-field sextet option
+        off.
   \item \textbf{NORMOS}: it is NORMOS-DIST's \code{DISTRI=4} with
         \code{METHOD=6}, with $\sigma^2=\mathrm{STG}^2+\mathrm{DTQ}^2$; such
         \code{.JOB} files are imported with this shape.
@@ -606,8 +607,9 @@ symmetric and zero at $q=0$ (checked by Monte Carlo on Czjzek tensors).
   \item \textbf{Fits}: amplitude and $\sigma$ (\menu{Czjzek $\sigma$} control,
         with its lock). The kernel $\eta$ is 0.
   \item \textbf{Accepts}: the $\kappa_\delta$ correlation and sharp components.
-        Only offered in $P(\dEQ)$ \emph{with} the fixed-field sextet option; the
-        grid must cover negative and positive values.
+        Only in $P(\dEQ)$; choosing it switches the fixed-field sextet option
+        on (33~T if the fixed BHF was 0). The grid must cover negative and
+        positive values.
   \item \textbf{NORMOS}: it is NORMOS-DIST's \code{DISTRI=4} with
         \code{METHOD=7}, with the same $\sigma^2=\mathrm{STG}^2+\mathrm{DTQ}^2$.
         NORMOS reads the subspectra from a spline file; Fitbauer computes them.

@@ -70,7 +70,8 @@ class DistributionPanel(QtWidgets.QGroupBox):
         self._shape_choices_2d = False
         self._fill_shape_combo(self._SHAPES_1D)
         self.shape_combo.currentIndexChanged.connect(
-            lambda *_: (self._sync_2d_controls(), self.paramChanged.emit()))
+            lambda *_: (self._field_for_shape(), self._sync_2d_controls(),
+                        self.paramChanged.emit()))
         shape_row.addWidget(self.shape_combo, stretch=1)
         left_v.addLayout(shape_row)
 
@@ -643,30 +644,49 @@ class DistributionPanel(QtWidgets.QGroupBox):
         if not is_2d:
             self._sync_binomial_controls(var)
 
+    def _field_for_shape(self) -> None:
+        """Elegir una forma de EFG aleatorio ajusta la opción de campo fijo.
+
+        Czjzek usa dobletes y Le Caër sextetes con campo: en P(ΔEQ) las dos
+        se pueden elegir siempre, y al elegirlas se pone el campo que piden
+        (Le Caër: 33 T si el BHF fijo estaba en 0). Antes Le Caër salía en
+        gris hasta marcar el campo Y subir el BHF, que arranca en 0.
+        """
+        if self._shape_choices_2d or self._distribution_variable != "quad":
+            return
+        quiere = {LECAER_SHAPE: True}.get(self.shape,
+                                          False if self.shape in CZJZEK_SHAPES else None)
+        if quiere is None:
+            return
+        for w in (self.field_enabled, self.fixed_bhf):
+            w.blockSignals(True)
+        try:
+            self.field_enabled.setChecked(quiere)
+            if quiere and self.fixed_bhf.value() <= 0.0:
+                self.fixed_bhf.set_value(33.0)
+        finally:
+            for w in (self.field_enabled, self.fixed_bhf):
+                w.blockSignals(False)
+
     def _sync_czjzek_choices(self, var: str) -> None:
-        """Czjzek solo describe |ΔEQ| (dobletes): se ofrece únicamente en P(ΔEQ)."""
-        ok = var == "quad" and self.effective_fixed_bhf() <= 0.0
+        """Formas de EFG aleatorio: solo en P(ΔEQ). Czjzek va con dobletes y
+        Le Caër con sextetes en campo; elegir una pone el campo que pide
+        (:meth:`_field_for_shape`). Si después se cambia el campo a mano y la
+        forma deja de tener sentido, se vuelve al Histograma."""
+        ok = var == "quad"
         model = self.shape_combo.model()
-        for code in CZJZEK_SHAPES:
+        for code in (*CZJZEK_SHAPES, LECAER_SHAPE):
             idx = self.shape_combo.findData(code)
             item = model.item(idx) if idx >= 0 and hasattr(model, "item") else None
             if item is not None:
                 item.setEnabled(ok)
-                item.setToolTip("" if ok else tr(
-                    "bhf.czjzek_only_quad",
-                    default="La forma de Czjzek solo se aplica a P(ΔEQ) con dobletes."))
-        if not ok and self.shape in CZJZEK_SHAPES:
+                clave = ("bhf.lecaer_only_field" if code == LECAER_SHAPE
+                         else "bhf.czjzek_only_quad")
+                item.setToolTip("" if ok else tr(clave))
+        campo = self.effective_fixed_bhf() > 0.0
+        if self.shape in CZJZEK_SHAPES and (not ok or campo):
             self.shape_combo.setCurrentIndex(self.shape_combo.findData("Histograma"))
-        # Le Caër es lo contrario: sextetes, así que P(ΔEQ) CON campo fijo.
-        ok_lc = var == "quad" and self.effective_fixed_bhf() > 0.0
-        idx = self.shape_combo.findData(LECAER_SHAPE)
-        item = model.item(idx) if idx >= 0 and hasattr(model, "item") else None
-        if item is not None:
-            item.setEnabled(ok_lc)
-            item.setToolTip("" if ok_lc else tr(
-                "bhf.lecaer_only_field",
-                default="La forma de Le Caër solo se aplica a P(ΔEQ) con campo fijo."))
-        if not ok_lc and self.shape == LECAER_SHAPE:
+        if self.shape == LECAER_SHAPE and (not ok or not campo):
             self.shape_combo.setCurrentIndex(self.shape_combo.findData("Histograma"))
 
     #: Valor sin vecinos y cambio por vecino al estrenar cada variable

@@ -574,7 +574,8 @@ anchura $\sigma$.
   \item \textbf{Qué ve el espectro}: los dobletes no ven $\eta$ ni el signo de
         $\dEQ$; se ajusta la marginal de $|\dEQ|$.
   \item \textbf{Admite}: la correlación $\kappa_\delta$ y componentes nítidos.
-        Solo se ofrece en $P(\dEQ)$ sin la opción de sextetes de campo fijo.
+        Solo en $P(\dEQ)$; al elegirla se desactiva la opción de sextetes
+        de campo fijo.
   \item \textbf{NORMOS}: es el \code{DISTRI=4} con \code{METHOD=6} de
         NORMOS-DIST, con $\sigma^2=\mathrm{STG}^2+\mathrm{DTQ}^2$; los
         \code{.JOB} así se importan con esta forma.
@@ -604,8 +605,9 @@ simétrica y nula en $q=0$ (comprobado por Monte Carlo sobre tensores de Czjzek)
   \item \textbf{Ajusta}: amplitud y $\sigma$ (control \menu{$\sigma$ Czjzek},
         con su candado). La $\eta$ del kernel es 0.
   \item \textbf{Admite}: la correlación $\kappa_\delta$ y componentes nítidos.
-        Solo se ofrece en $P(\dEQ)$ \emph{con} la opción de sextetes de campo
-        fijo; la malla debe cubrir valores negativos y positivos.
+        Solo en $P(\dEQ)$; al elegirla se activa la opción de sextetes de campo
+        fijo (33~T si el BHF fijo estaba a 0). La malla debe cubrir valores
+        negativos y positivos.
   \item \textbf{NORMOS}: es el \code{DISTRI=4} con \code{METHOD=7} de
         NORMOS-DIST, con la misma $\sigma^2=\mathrm{STG}^2+\mathrm{DTQ}^2$.
         NORMOS lee los subespectros de un fichero spline; Fitbauer los calcula.
