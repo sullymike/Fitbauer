@@ -620,6 +620,9 @@ class SessionIOMixin:
             payload["file_name"] = datos.name
         try:
             self._apply_session_payload(payload)
+            # Los convenios de NORMOS los puso el .JOB: se deshacen al cargar
+            # otro espectro (ver _restore_conventions_after_job).
+            self._conventions_from_job = True
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, titulo, f"{type(exc).__name__}: {exc}")
             return
@@ -695,6 +698,7 @@ class SessionIOMixin:
             return False
         try:
             self._apply_session_payload(data)
+            self._conventions_from_job = False   # la sesión trae los suyos
             self.statusBar().showMessage(tr("status.session_loaded", path=path), 5000)
             return True
         except Exception as exc:

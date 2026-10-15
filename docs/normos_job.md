@@ -86,7 +86,8 @@ un buen ajuste.
 Por eso la importación activa los tres convenios de NORMOS —patrón de líneas,
 intensidades por área y su regla de relajación— y el trabajo da los valores de
 NORMOS. Se cambian en *Ajuste › Opciones avanzadas de ajuste › Convenios
-(compatibilidad NORMOS)*. En un script, los convenios van en el modelo:
+(compatibilidad NORMOS)*, y al cargar después otro espectro se vuelve a los de
+Fitbauer (los elegidos a mano en ese menú se respetan). En un script, los convenios van en el modelo:
 
 ```python
 ms.sextet_pattern = "normos"          # ModelState

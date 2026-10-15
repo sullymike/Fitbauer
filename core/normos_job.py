@@ -461,6 +461,11 @@ def job_to_model_state(text: str) -> dict:
 
         _fija_como_normos(fijos, pref, i, param,
                           {**_BANDERAS_COMUNES_SITE, **_BANDERAS_SITE[kind]})
+        if kind == "Sextete" and _b(_idx(param, "W13FIT", i)) and not (
+                _b(_idx(param, "WIDFIT", i)) and _b(_idx(param, "W23FIT", i))):
+            # Γ1 = WID·W13, Γ2/Γ1 = W23/W13, Γ3/Γ1 = 1/W13: con W13 libre se
+            # liberan las tres, una o dos variables más que en NORMOS.
+            avisos.append(tr("normos.w_w13_free", i=i))
 
     # ── Ligaduras NDEX/FACTOR/CONST ─────────────────────────────────────────
     constraints: list[dict] = []

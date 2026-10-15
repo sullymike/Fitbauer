@@ -665,6 +665,8 @@ class ModelWorkflowMixin:
         opciones = self._CONVENTIONS[kind]
         if value not in opciones:
             raise ValueError(f"{kind}: {value!r} no es una de {opciones}")
+        # Elegido a mano: ya no es «lo que trajo el .JOB» y se respeta.
+        self._conventions_from_job = False
         if getattr(self, kind, opciones[0]) == value:
             return
         setattr(self, kind, value)
@@ -685,6 +687,31 @@ class ModelWorkflowMixin:
                 accion.blockSignals(True)
                 accion.setChecked(valor == actual)
                 accion.blockSignals(False)
+
+    def _restore_conventions_after_job(self) -> None:
+        """Vuelve a los convenios de Fitbauer si los puso un .JOB importado.
+
+        Importar un .JOB activa los de NORMOS para reproducir ese trabajo;
+        al cargar después otro espectro se vuelve a los de Fitbauer. Los que
+        el usuario eligió en el menú, o los que trae una sesión, se respetan.
+        """
+        if not getattr(self, "_conventions_from_job", False):
+            return
+        self._conventions_from_job = False
+        cambiados = False
+        for kind, opciones in self._CONVENTIONS.items():
+            if getattr(self, kind, opciones[0]) != opciones[0]:
+                setattr(self, kind, opciones[0])
+                cambiados = True
+        if not cambiados:
+            return
+        self._apply_conventions()
+        self._sync_convention_actions()
+        self._save_settings()
+        self.statusBar().showMessage(
+            tr("conventions.restored",
+               default="Convenios de Fitbauer restaurados (los de NORMOS eran del .JOB importado)"),
+            6000)
 
     def _non_default_conventions(self) -> list[str]:
         """Etiquetas de los convenios que no son los de Fitbauer."""
@@ -802,6 +829,7 @@ class ModelWorkflowMixin:
             elif sufijo == ".job":
                 self.import_normos_job_file(ruta)
             elif sufijo in self._CSV_EXTENSIONS:
+                self._restore_conventions_after_job()
                 # Misma bifurcación que on_open: un .dat de una sola columna
                 # son cuentas crudas, no velocidad+cuentas.
                 try:
@@ -809,6 +837,7 @@ class ModelWorkflowMixin:
                 except ValueError:
                     self._load_file(ruta)
             else:
+                self._restore_conventions_after_job()
                 self._load_file(ruta)
         except Exception as exc:                       # noqa: BLE001
             QtWidgets.QMessageBox.critical(
@@ -839,6 +868,7 @@ class ModelWorkflowMixin:
         if not path:
             return
         p = Path(path)
+        self._restore_conventions_after_job()
         try:
             if p.suffix.lower() in self._CSV_EXTENSIONS:
                 try:

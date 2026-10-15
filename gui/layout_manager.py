@@ -412,6 +412,7 @@ class LayoutSettingsMixin:
 
     def _open_recent(self, path: str) -> None:
         try:
+            self._restore_conventions_after_job()
             self._load_file(Path(path))
         except Exception as exc:
             QtWidgets.QMessageBox.warning(self, tr("file.open"), str(exc))
@@ -532,9 +533,14 @@ class LayoutSettingsMixin:
             wide_delta=getattr(self, "wide_delta", False),
             auto_global=getattr(self, "auto_global", True),
             compact_params=getattr(self, "compact_params", False),
-            sextet_pattern=getattr(self, "sextet_pattern", "alpha_fe"),
-            intensity_convention=getattr(self, "intensity_convention", "depth"),
-            relax_convention=getattr(self, "relax_convention", "blume"),
+            # Los convenios que trajo un .JOB importado no son preferencia
+            # del usuario: no se guardan como tales.
+            sextet_pattern=("alpha_fe" if getattr(self, "_conventions_from_job", False)
+                            else getattr(self, "sextet_pattern", "alpha_fe")),
+            intensity_convention=("depth" if getattr(self, "_conventions_from_job", False)
+                                  else getattr(self, "intensity_convention", "depth")),
+            relax_convention=("blume" if getattr(self, "_conventions_from_job", False)
+                              else getattr(self, "relax_convention", "blume")),
         )
 
     def _apply_ui_preferences_state(self, prefs: UiPreferencesState) -> None:

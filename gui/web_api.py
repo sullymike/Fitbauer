@@ -383,6 +383,7 @@ class WebApiMixin:
                 table.clearSelection()
                 return
             try:
+                self._restore_conventions_after_job()
                 self._load_file(Path(p))
                 if is_calib:
                     self._apply_web_calibration_metadata(

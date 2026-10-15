@@ -315,8 +315,9 @@ This is the delicate part, and getting it wrong is silent:
 \code{WID}, \code{W13}, \code{W23} & \code{WID} is the width of lines 3,4 and
 \code{W13}/\code{W23} are relative to it; Fitbauer's $\Gamma_1$ is the width of
 lines 1,6. The conversion is $\Gamma_1 = \code{WID}\cdot\code{W13}$. \\[4pt]
-\code{D13}, \code{D23} & \textbf{Area} ratios. Fitbauer's \param{int1}/\param{int2}
-are \textbf{depth} ratios. They agree only when the widths are equal. \\[4pt]
+\code{D13}, \code{D23} & \textbf{Area} ratios. They go straight into
+\param{int1}/\param{int2}, because the import switches on intensities by
+area. \\[4pt]
 \code{DEP} (or \code{ARE}) & The subspectrum \textbf{area} in mm/s, not a
 depth. \\[4pt]
 \code{NDEX}/\code{FACTOR}/\code{CONST} & Constraints in NORMOS's \textbf{global}
@@ -325,11 +326,15 @@ numbering, $13 + 15\,(n-1)$. \\
 \end{tabular}
 \end{center}
 
-\paragraph{The $\BHF$ scale.} NORMOS derives the sextet line positions from the
-nuclear moments; Fitbauer uses the published $\alpha$-Fe pattern. They do not
-differ by a simple scale factor. To reproduce a NORMOS $\BHF$ exactly, fit with
-the NORMOS convention active (\code{core.constants.sextet\_pattern("normos")});
-the difference is about $0.1$\,T.
+\paragraph{The NORMOS conventions.} NORMOS derives the sextet line positions
+from the nuclear moments; Fitbauer uses the published $\alpha$-Fe pattern. They
+do not differ by a simple scale factor: in a real fit the $\BHF$ comes out
+0.035\,\% apart, about $0.01$\,T at 33\,T. That is why importing a \ruta{.JOB}
+switches on the three NORMOS conventions ---line pattern, intensities by area
+and its relaxation rule--- and the job gives NORMOS's values. They can be
+changed in \menu{Fit > Advanced fit options > Conventions (NORMOS
+compatibility)}; loading another spectrum afterwards switches back to
+Fitbauer's, unless they were chosen by hand in that menu.
 
 \subsection*{The folding point is not imposed}
 

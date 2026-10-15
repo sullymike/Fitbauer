@@ -75,6 +75,11 @@ def test_solo_se_libera_lo_que_el_job_marca_con_fit():
     assert not f["s1_gamma1"] and not f["s1_gamma2"] and not f["s1_gamma3"]
     # Con intensidades por área, D13/D23 fijos siguen fijos.
     assert f["s1_int1"] and f["s1_int2"]
+    # Y se avisa de que las anchuras quedan con más libertad que en NORMOS.
+    avisos = job_to_model_state(
+        JOB_C2.replace("W13FIT(1)=.FALSE.", "W13FIT(1)=.TRUE."))["warnings"]
+    assert any("W13" in x for x in avisos)
+    assert not any("W13" in x for x in job_to_model_state(JOB_C2)["warnings"])
     f = job_to_model_state(JOB_C2.replace(
         "NSUB=1,", "NSUB=1, BKGFIT(2)=.TRUE.,"))["model_state"]["fixed"]
     assert f["slope"] is False
@@ -785,6 +790,51 @@ def test_una_malla_de_un_solo_punto_se_rechaza():
 
     with pytest.raises(NormosJobError, match="menos de 2 puntos"):
         job_to_distribution_state(JOB_DIST_XL.replace("NSUB=10,", "NSUB=1,"))
+
+
+def test_cargar_otro_espectro_vuelve_a_los_convenios_de_fitbauer(tmp_path, monkeypatch):
+    """Los convenios de NORMOS que pone un .JOB son de ese trabajo: al cargar
+    otro espectro se vuelve a los de Fitbauer. Los elegidos a mano, no."""
+    pytest.importorskip("PySide6")
+    from pathlib import Path
+    from PySide6 import QtWidgets
+
+    import mossbauer_qt
+
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    win = mossbauer_qt.MossbauerQtWindow()
+    espectro = Path(__file__).resolve().parents[1] / "data_sample" / "hematita_Fe2O3.adt"
+    try:
+        monkeypatch.setattr(QtWidgets.QMessageBox, "information",
+                            staticmethod(lambda *a, **k: None))
+        entrada = tmp_path / "TRABAJO.JOB"
+        entrada.write_text(JOB_C2, encoding="ascii")
+        win.import_normos_job_file(entrada)
+        assert win.sextet_pattern == "normos"
+        # Lo que trajo el .JOB no se guarda como preferencia.
+        assert win._ui_preferences_state().sextet_pattern == "alpha_fe"
+
+        monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName",
+                            staticmethod(lambda *a, **k: (str(espectro), "")))
+        win.on_open()
+        assert (win.sextet_pattern, win.intensity_convention, win.relax_convention) == (
+            "alpha_fe", "depth", "blume")
+        from core.constants import active_sextet_pattern_name
+        assert active_sextet_pattern_name() == "alpha_fe"
+
+        # Elegidos a mano en el menú: se respetan al cargar otro espectro.
+        win.import_normos_job_file(entrada)
+        win.set_convention("sextet_pattern", "normos")
+        win.on_open()
+        assert win.sextet_pattern == "normos"
+        assert win.intensity_convention == "area"
+    finally:
+        win.set_convention("sextet_pattern", "alpha_fe", persist=False)
+        win.set_convention("intensity_convention", "depth", persist=False)
+        win.set_convention("relax_convention", "blume", persist=False)
+        win.close()
+        win.deleteLater()
+        app.processEvents()
 
 
 def test_la_gui_importa_un_job_de_dist_en_el_panel(tmp_path, monkeypatch):

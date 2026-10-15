@@ -27,7 +27,7 @@
 \contentsline {section}{\numberline {3.6}Comparar espectros}{16}{section.3.6}%
 \contentsline {section}{\numberline {3.7}Guardar, exportar y reutilizar}{18}{section.3.7}%
 \contentsline {section}{\numberline {3.8}Interoperabilidad con NORMOS: ficheros \texttt {.JOB}}{18}{section.3.8}%
-\contentsline {paragraph}{La escala de $B_{\mathrm {hf}}$.}{19}{section*.14}%
+\contentsline {paragraph}{Los convenios de NORMOS.}{19}{section*.14}%
 \contentsline {chapter}{\numberline {4}Simular y ajustar}{21}{chapter.4}%
 \contentsline {section}{\numberline {4.1}El modelo directo}{21}{section.4.1}%
 \contentsline {subsection}{\numberline {4.1.1}Las matemáticas del modelo}{22}{subsection.4.1.1}%

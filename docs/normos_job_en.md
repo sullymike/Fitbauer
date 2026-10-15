@@ -84,7 +84,8 @@ of a good fit.
 That is why the import switches on the three NORMOS conventions —line pattern,
 intensities by area and its relaxation rule— and the job gives NORMOS's values.
 They can be changed in *Fit › Advanced fit options › Conventions (NORMOS
-compatibility)*. In a script the conventions go in the model:
+compatibility)*, and loading another spectrum afterwards switches back to
+Fitbauer's (those chosen by hand in that menu are kept). In a script the conventions go in the model:
 
 ```python
 ms.sextet_pattern = "normos"          # ModelState

@@ -314,9 +314,9 @@ Es la parte delicada, y equivocarse aquí no da ningún error:
 \code{WID}, \code{W13}, \code{W23} & \code{WID} es la anchura de las líneas 3,4 y
 \code{W13}/\code{W23} son relativas a ella; el $\Gamma_1$ de Fitbauer es la de
 las líneas 1,6. La conversión es $\Gamma_1 = \code{WID}\cdot\code{W13}$. \\[4pt]
-\code{D13}, \code{D23} & Razones de \textbf{área}. Los \param{int1}/\param{int2}
-de Fitbauer son razones de \textbf{profundidad}. Coinciden solo si las anchuras
-son iguales. \\[4pt]
+\code{D13}, \code{D23} & Razones de \textbf{área}. Pasan tal cual a
+\param{int1}/\param{int2}, porque la importación activa las intensidades por
+área. \\[4pt]
 \code{DEP} (o \code{ARE}) & El \textbf{área} del subespectro en mm/s, no una
 profundidad. \\[4pt]
 \code{NDEX}/\code{FACTOR}/\code{CONST} & Ligaduras en la numeración
@@ -325,12 +325,15 @@ profundidad. \\[4pt]
 \end{tabular}
 \end{center}
 
-\paragraph{La escala de $\BHF$.} NORMOS deriva las posiciones de las líneas del
-sexteto de los momentos nucleares; Fitbauer usa el patrón publicado de
-$\alpha$-Fe. No difieren en un simple factor de escala. Para reproducir un
-$\BHF$ de NORMOS exactamente, ajuste con el convenio de NORMOS activo
-(\code{core.constants.sextet\_pattern("normos")}); la diferencia es de unos
-$0{,}1$\,T.
+\paragraph{Los convenios de NORMOS.} NORMOS deriva las posiciones de las líneas
+del sexteto de los momentos nucleares; Fitbauer usa el patrón publicado de
+$\alpha$-Fe. No difieren en un simple factor de escala: en un ajuste real el
+$\BHF$ sale un 0{,}035\,\% distinto, unos $0{,}01$\,T a 33\,T. Por eso importar
+un \ruta{.JOB} activa los tres convenios de NORMOS ---patrón de líneas,
+intensidades por área y su regla de relajación--- y el trabajo da los valores
+de NORMOS. Se cambian en \menu{Ajuste > Opciones avanzadas de ajuste >
+Convenios (compatibilidad NORMOS)}; al cargar después otro espectro se vuelve a
+los de Fitbauer, salvo que se hayan elegido a mano en ese menú.
 
 \subsection*{El punto de doblado no se impone}
 
