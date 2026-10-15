@@ -173,5 +173,7 @@ independent benchmarks, 411 synthetic spectra and 407 real jobs made with the
 original program. Of the real ones only the 209 where NORMOS fitted well (reduced
 χ² ≤ 2) and both programs see the same spectrum count: starting from NORMOS's
 solution, Fitbauer reaches the same or a lower χ² in 204 of them, and the
-parameters agree to a median of 0.0014 mm/s in δ and 0.016 T in BHF. The
-validation material (laboratory data) is not distributed.
+parameters agree to a median of 0.0014 mm/s in δ and 0.016 T in BHF. The real
+jobs are not distributed (they are laboratory data); the synthetic bank and the
+full reports are in
+[`validacion/informe/`](https://github.com/sullymike/Fitbauer/tree/main/validacion/informe).

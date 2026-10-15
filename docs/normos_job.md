@@ -175,5 +175,7 @@ dos bancos independientes, 411 espectros sintéticos y 407 trabajos reales hecho
 con el programa original. De los reales solo cuentan los 209 en que NORMOS ajustó
 bien (χ² reducido ≤ 2) y los dos programas ven el mismo espectro: partiendo de la
 solución de NORMOS, Fitbauer llega al mismo χ² o a uno menor en 204 de ellos, y los
-parámetros coinciden en mediana a 0.0014 mm/s en δ y 0.016 T en BHF. El material de
-validación (datos de laboratorio) no se distribuye.
+parámetros coinciden en mediana a 0.0014 mm/s en δ y 0.016 T en BHF. Los trabajos
+reales no se distribuyen (son datos de laboratorio); el banco sintético y los
+informes completos están en
+[`validacion/informe/`](https://github.com/sullymike/Fitbauer/tree/main/validacion/informe).

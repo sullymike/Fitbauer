@@ -99,7 +99,8 @@ On the remaining **209 jobs**:
   | 0.0014 mm/s | 0.0022 mm/s | 0.016 T | 0.013 mm/s | 0.0022 |
 
 The figures hardly change with a χ² cut of 1.5 or 3. The jobs are laboratory
-data and are not distributed.
+data and are not distributed; the synthetic bank and the reports are in
+[`validacion/informe/`](validacion/informe/).
 
 ### Opens and writes `.JOB` files
 
@@ -167,8 +168,11 @@ knowing:
   carried over**: NORMOS's is absolute and Fitbauer's is dimensionless, so it has
   to be set with the L-curve.
 
-The complete inventory, capability by capability, is kept with the validation
-material, which is not distributed with the program.
+The complete inventory, capability by capability and with the exact NORMOS source
+reference, is in
+[`validacion/informe/COVERAGE_NORMOS_EN.md`](validacion/informe/COVERAGE_NORMOS_EN.md);
+what remains, with what to touch and how to validate it, is in
+[`PENDING_NORMOS_EN.md`](validacion/informe/PENDING_NORMOS_EN.md).
 
 ---
 

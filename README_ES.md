@@ -101,7 +101,8 @@ En los **209 trabajos** restantes:
   | 0,0014 mm/s | 0,0022 mm/s | 0,016 T | 0,013 mm/s | 0,0022 |
 
 Las cifras apenas cambian con un corte de χ² de 1,5 o 3. Los trabajos son
-datos de laboratorio y no se distribuyen.
+datos de laboratorio y no se distribuyen; el banco sintético y los informes
+están en [`validacion/informe/`](validacion/informe/).
 
 ### Abre y escribe ficheros `.JOB`
 
@@ -169,8 +170,11 @@ conviene saberlo:
   se traslada**: el de NORMOS es absoluto y el de Fitbauer adimensional, así que
   hay que fijarlo con la L-curve.
 
-El inventario completo, capacidad por capacidad, se conserva con el material de
-validación, que no se distribuye con el programa.
+El inventario completo, capacidad por capacidad y con la referencia exacta del
+código de NORMOS, está en
+[`validacion/informe/COBERTURA_NORMOS.md`](validacion/informe/COBERTURA_NORMOS.md);
+lo pendiente, con qué habría que tocar y cómo validarlo, en
+[`PENDIENTE_NORMOS.md`](validacion/informe/PENDIENTE_NORMOS.md).
 
 ---
 

@@ -32,11 +32,16 @@ probe had used `BH0 = BHF` (total polarization, no exchange possible). With
 unequal populations NORMOS follows its own rule, available as
 `relax_convention="normos"`.
 
-**Real jobs** — 564 fits performed in NORMOS, reloaded and reproduced. In 355
-of 503 comparable jobs (71 %) Fitbauer matches or improves on its reduced χ²
-(median 2.433 → 2.089). Parameter agreement: δ 0.0011 mm/s, ΔEQ 0.0019,
-BHF 0.017 T, Γ 0.030, area 0.0036.
+**Real jobs** — 407 distinct fits performed in NORMOS (564 `.JOB` files,
+duplicates removed by their `.RES`), reloaded and refitted from NORMOS's
+solution. Only jobs that are a valid reference count: NORMOS's reduced χ²
+(Poisson, recomputed in its convention) ≤ 2 —145 discarded— and both programs
+seeing the same spectrum —25 discarded—; 28 cannot be analysed. On the 209
+left, Fitbauer matches or improves on the χ² in 204 (median 1.08 → 0.81).
+Median parameter agreement: δ 0.0014 mm/s, ΔEQ 0.0022, BHF 0.016 T, Γ 0.013,
+depth 0.0022. The figures hardly change with a cut at 1.5 or 3.
 
-> The real-job analysis lives in `jobs/_analisis/`, which is not part of the
+> The real-job analysis lives in `jobs/_analisis/` (with the job-by-job
+> classification, `clasificacion_comparativa.csv`), which is not part of the
 > repository: it contains laboratory measurements. Its conclusions are
 > summarised here and on the front page.
