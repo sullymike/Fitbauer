@@ -50,12 +50,12 @@ Distribuciones (momentos de P; |Δ⟨x⟩| / |Δσ| medianos, v0+v1):
 
 | Grupo | ⟨x⟩ | σ | comentario |
 |---|---|---|---|
-| J1 gaussianas (rejilla interior) | 0.02 T | 0.15 T | histograma Hesse-Rübartsch + L-curve |
+| J1 gaussianas (rejilla interior) | 0.015 T | 0.12 T | histograma Hesse-Rübartsch + L-curve; verdad σ = √(STG² + DTB²), corregida el 2026-10-15 (ver INFORME §8) |
 | J2 bimodales | 0.03 T | 0.03 T | picos a ±0.5 T (resolución de malla) con VBF N=2 |
 | J3 P(ΔEQ) (SITE y DIST METHOD=6) | 0.002 | 0.007 | |
-| J4 correlación δ(B), DTI −0.01…+0.02 | 0.04 T | 0.20 T | signo y magnitud correctos; ignorarla duplica el error |
+| J4 correlación δ(B), DTI −0.01…+0.02 | 0.04 T | 0.11 T | signo y magnitud correctos; ignorarla duplica el error |
 | L1 binomial (forma paramétrica) | — | — | **p recuperado a ±0.026 en CONC=10…90 %** |
-| L2 Czjzek | 0.004 | 0.015 | el histograma reproduce la forma sin necesitarla analítica; desde v5.2.1 hay además forma «Czjzek», equivalente a la de NORMOS con σ² = STG² + DTQ² |
+| L2 Czjzek | 0.002 | 0.006 | el histograma reproduce la forma sin necesitarla analítica; desde v5.2.1 hay además forma «Czjzek», equivalente a la de NORMOS con σ² = STG² + DTQ² |
 | L3 PNEG | 0.01 | 0.02 | verdad analítica plegada (la parte negativa es inobservable) |
 | L6 textura D23 (con `--d23`) | 0.004 | 0.21 | corregido en esta fase |
 | L4 EXACT (kernel HC, v4.19) | 0.04–0.20 | 0.34–1.0 | kernel por diagonalización exacta; el residuo (crece con QUP) es la truncación perturbativa del propio EXACT del demo |
@@ -118,7 +118,7 @@ abierta solo la fuente polarizada (2).
   son idénticos); signo del EFG en η=1 (permuta de ejes).
 - **Regularización de histogramas**: con distribuciones casi-delta
   (σ ≈ paso de malla) o pegadas al borde, el histograma sobre-suaviza
-  (J1_b30_s0.8: σ 1.7 vs 1.25 en v0; L1 CONC=10/90 %). Es el compromiso
+  (J1_b30_s0.8: σ 1.7 vs 1.28 en v0; L1 CONC=10/90 %). Es el compromiso
   sesgo-varianza de Hesse-Rübartsch — el DIST original hace lo mismo con
   LAMDA — y las formas paramétricas (gaussiana/VBF/binomial) lo resuelven.
 - **Límite de detección**: un doblete del 0.5 % del área con 10⁶ cuentas es

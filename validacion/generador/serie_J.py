@@ -100,8 +100,12 @@ def parse_dist_tables(res_text: str) -> list[dict]:
     """Tablas 'Table of relative areas' por bloque: (var, P, IS)."""
     tables = []
     for chunk in res_text.split("Table of relative areas")[1:]:
+        # La columna del gráfico empieza por «I» solo si P supera la escala
+        # mínima; las colas (P < ~0.5) llevan «*» directamente. Exigir la «I»
+        # las descartaba y truncaba la σ de referencia (3.07 en vez de la
+        # 3.162 que el propio .RES da para STG = 3, DTB = 1).
         rows = re.findall(
-            r"^\s+\d+\s+([-\d.]+)\s+([-\d.]+)\s+[-\d.]+\s+([-\d.]+)\s+I",
+            r"^\s+\d+\s+([-\d.]+)\s+([-\d.]+)\s+[-\d.]+\s+([-\d.]+)\s+[I*]",
             chunk, re.M)
         if rows:
             tables.append({

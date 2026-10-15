@@ -5217,55 +5217,55 @@ D4,D4_suelo,v0_p30,-,,,,,,,no,,sin espectro generado
 D4,D4_suelo,v0_p50,-,,,,,,,no,,sin espectro generado
 D4,D4_suelo,v0_p80,-,,,,,,,no,,sin espectro generado
 J,J1_b25_s1.5,v0,dist_avg,25.0000,25.0541,,,0.0541,,si,,gaussiana <B>=25.0 sigma=1.5
-J,J1_b25_s1.5,v0,dist_std,1.7239,2.1361,,,0.4122,,si,,gaussiana <B>=25.0 sigma=1.5
+J,J1_b25_s1.5,v0,dist_std,1.8028,2.1361,,,0.3333,,si,,gaussiana <B>=25.0 sigma=1.5
 J,J1_b25_s1.5,v1,dist_avg,25.0000,25.2523,,,0.2523,,si,,gaussiana <B>=25.0 sigma=1.5
-J,J1_b25_s1.5,v1,dist_std,1.7239,3.3099,,,1.5860,,si,,gaussiana <B>=25.0 sigma=1.5
+J,J1_b25_s1.5,v1,dist_std,1.8028,3.3099,,,1.5071,,si,,gaussiana <B>=25.0 sigma=1.5
 J,J1_b25_s3,v0,dist_avg,25.0000,25.0452,,,0.0452,,si,,gaussiana <B>=25.0 sigma=3.0
-J,J1_b25_s3,v0,dist_std,3.0704,3.3195,,,0.2491,,si,,gaussiana <B>=25.0 sigma=3.0
+J,J1_b25_s3,v0,dist_std,3.1624,3.3195,,,0.1571,,si,,gaussiana <B>=25.0 sigma=3.0
 J,J1_b25_s3,v1,dist_avg,25.0000,25.0271,,,0.0271,,si,,gaussiana <B>=25.0 sigma=3.0
-J,J1_b25_s3,v1,dist_std,3.0704,3.2777,,,0.2073,,si,,gaussiana <B>=25.0 sigma=3.0
-J,J1_b25_s5,v0,dist_avg,25.0000,25.0270,,,0.0270,,si,,gaussiana <B>=25.0 sigma=5.0
-J,J1_b25_s5,v0,dist_std,4.9342,5.1657,,,0.2314,,si,,gaussiana <B>=25.0 sigma=5.0
-J,J1_b25_s5,v1,dist_avg,25.0000,25.0187,,,0.0187,,si,,gaussiana <B>=25.0 sigma=5.0
-J,J1_b25_s5,v1,dist_std,4.9342,5.2056,,,0.2713,,si,,gaussiana <B>=25.0 sigma=5.0
+J,J1_b25_s3,v1,dist_std,3.1624,3.2777,,,0.1153,,si,,gaussiana <B>=25.0 sigma=3.0
+J,J1_b25_s5,v0,dist_avg,25.0057,25.0270,,,0.0213,,si,,gaussiana <B>=25.0 sigma=5.0
+J,J1_b25_s5,v0,dist_std,5.0896,5.1657,,,0.0761,,si,,gaussiana <B>=25.0 sigma=5.0
+J,J1_b25_s5,v1,dist_avg,25.0057,25.0187,,,0.0130,,si,,gaussiana <B>=25.0 sigma=5.0
+J,J1_b25_s5,v1,dist_std,5.0896,5.2056,,,0.1160,,si,,gaussiana <B>=25.0 sigma=5.0
 J,J1_b30_s1.5,v0,dist_avg,30.0000,30.0215,,,0.0215,,si,,gaussiana <B>=30.0 sigma=1.5
-J,J1_b30_s1.5,v0,dist_std,1.7239,1.9399,,,0.2160,,si,,gaussiana <B>=30.0 sigma=1.5
+J,J1_b30_s1.5,v0,dist_std,1.8028,1.9399,,,0.1371,,si,,gaussiana <B>=30.0 sigma=1.5
 J,J1_b30_s1.5,v1,dist_avg,30.0000,30.2171,,,0.2171,,si,,gaussiana <B>=30.0 sigma=1.5
-J,J1_b30_s1.5,v1,dist_std,1.7239,2.9714,,,1.2475,,si,,gaussiana <B>=30.0 sigma=1.5
+J,J1_b30_s1.5,v1,dist_std,1.8028,2.9714,,,1.1686,,si,,gaussiana <B>=30.0 sigma=1.5
 J,J1_b30_s3,v0,dist_avg,30.0000,30.0031,,,0.0031,,si,,gaussiana <B>=30.0 sigma=3.0
-J,J1_b30_s3,v0,dist_std,3.0704,3.2308,,,0.1604,,si,,gaussiana <B>=30.0 sigma=3.0
+J,J1_b30_s3,v0,dist_std,3.1624,3.2308,,,0.0684,,si,,gaussiana <B>=30.0 sigma=3.0
 J,J1_b30_s3,v1,dist_avg,30.0000,30.0764,,,0.0764,,si,,gaussiana <B>=30.0 sigma=3.0
-J,J1_b30_s3,v1,dist_std,3.0704,3.4867,,,0.4163,,si,,gaussiana <B>=30.0 sigma=3.0
-J,J1_b30_s5,v0,dist_avg,30.0000,30.0053,,,0.0053,,si,,gaussiana <B>=30.0 sigma=5.0
-J,J1_b30_s5,v0,dist_std,4.9343,5.1257,,,0.1914,,si,,gaussiana <B>=30.0 sigma=5.0
-J,J1_b30_s5,v1,dist_avg,30.0000,29.9841,,,0.0159,,si,,gaussiana <B>=30.0 sigma=5.0
-J,J1_b30_s5,v1,dist_std,4.9343,5.1176,,,0.1833,,si,,gaussiana <B>=30.0 sigma=5.0
+J,J1_b30_s3,v1,dist_std,3.1624,3.4867,,,0.3243,,si,,gaussiana <B>=30.0 sigma=3.0
+J,J1_b30_s5,v0,dist_avg,29.9970,30.0053,,,0.0083,,si,,gaussiana <B>=30.0 sigma=5.0
+J,J1_b30_s5,v0,dist_std,5.0941,5.1257,,,0.0316,,si,,gaussiana <B>=30.0 sigma=5.0
+J,J1_b30_s5,v1,dist_avg,29.9970,29.9841,,,0.0129,,si,,gaussiana <B>=30.0 sigma=5.0
+J,J1_b30_s5,v1,dist_std,5.0941,5.1176,,,0.0235,,si,,gaussiana <B>=30.0 sigma=5.0
 J,J1_b35_s1.5,v0,dist_avg,35.0000,35.0088,,,0.0088,,si,,gaussiana <B>=35.0 sigma=1.5
-J,J1_b35_s1.5,v0,dist_std,1.7239,2.0784,,,0.3545,,si,,gaussiana <B>=35.0 sigma=1.5
+J,J1_b35_s1.5,v0,dist_std,1.8028,2.0784,,,0.2756,,si,,gaussiana <B>=35.0 sigma=1.5
 J,J1_b35_s1.5,v1,dist_avg,35.0000,34.9454,,,0.0546,,si,,gaussiana <B>=35.0 sigma=1.5
-J,J1_b35_s1.5,v1,dist_std,1.7239,2.6895,,,0.9656,,si,,gaussiana <B>=35.0 sigma=1.5
-J,J1_b35_s3,v0,dist_avg,35.0000,35.0049,,,0.0049,,si,,gaussiana <B>=35.0 sigma=3.0
-J,J1_b35_s3,v0,dist_std,3.0704,3.4073,,,0.3369,,si,,gaussiana <B>=35.0 sigma=3.0
-J,J1_b35_s3,v1,dist_avg,35.0000,35.0170,,,0.0170,,si,,gaussiana <B>=35.0 sigma=3.0
-J,J1_b35_s3,v1,dist_std,3.0704,3.5851,,,0.5147,,si,,gaussiana <B>=35.0 sigma=3.0
-J,J1_b35_s5,v0,dist_avg,35.0000,34.9402,,,0.0598,,si,,gaussiana <B>=35.0 sigma=5.0
-J,J1_b35_s5,v0,dist_std,4.9345,5.1222,,,0.1877,,si,,gaussiana <B>=35.0 sigma=5.0
-J,J1_b35_s5,v1,dist_avg,35.0000,34.8956,,,0.1044,,si,,gaussiana <B>=35.0 sigma=5.0
-J,J1_b35_s5,v1,dist_std,4.9345,5.1011,,,0.1666,,si,,gaussiana <B>=35.0 sigma=5.0
+J,J1_b35_s1.5,v1,dist_std,1.8028,2.6895,,,0.8867,,si,,gaussiana <B>=35.0 sigma=1.5
+J,J1_b35_s3,v0,dist_avg,34.9999,35.0049,,,0.0050,,si,,gaussiana <B>=35.0 sigma=3.0
+J,J1_b35_s3,v0,dist_std,3.1621,3.4073,,,0.2452,,si,,gaussiana <B>=35.0 sigma=3.0
+J,J1_b35_s3,v1,dist_avg,34.9999,35.0170,,,0.0171,,si,,gaussiana <B>=35.0 sigma=3.0
+J,J1_b35_s3,v1,dist_std,3.1621,3.5851,,,0.4230,,si,,gaussiana <B>=35.0 sigma=3.0
+J,J1_b35_s5,v0,dist_avg,34.9392,34.9402,,,0.0010,,si,,gaussiana <B>=35.0 sigma=5.0
+J,J1_b35_s5,v0,dist_std,5.0176,5.1222,,,0.1046,,si,,gaussiana <B>=35.0 sigma=5.0
+J,J1_b35_s5,v1,dist_avg,34.9392,34.8956,,,0.0436,,si,,gaussiana <B>=35.0 sigma=5.0
+J,J1_b35_s5,v1,dist_std,5.0176,5.1011,,,0.0835,,si,,gaussiana <B>=35.0 sigma=5.0
 J,J2_bimodal_sim,v0,dist_avg,36.5000,36.4664,,,0.0336,,si,,bimodal simetrica 28/45 sigma 2/2
-J,J2_bimodal_sim,v0,dist_std,8.7624,8.8256,,,0.0632,,si,,bimodal simetrica 28/45 sigma 2/2
+J,J2_bimodal_sim,v0,dist_std,8.7892,8.8256,,,0.0364,,si,,bimodal simetrica 28/45 sigma 2/2
 J,J2_bimodal_sim,v0,pico1_B,28.00,27.50,,,0.500,,si,,bimodal simetrica 28/45 sigma 2/2 (2 picos)
 J,J2_bimodal_sim,v0,pico2_B,45.00,44.50,,,0.500,,si,,bimodal simetrica 28/45 sigma 2/2 (2 picos)
 J,J2_bimodal_sim,v1,dist_avg,36.5000,36.5342,,,0.0342,,si,,bimodal simetrica 28/45 sigma 2/2
-J,J2_bimodal_sim,v1,dist_std,8.7624,8.8148,,,0.0524,,si,,bimodal simetrica 28/45 sigma 2/2
+J,J2_bimodal_sim,v1,dist_std,8.7892,8.8148,,,0.0256,,si,,bimodal simetrica 28/45 sigma 2/2
 J,J2_bimodal_sim,v1,pico1_B,28.00,28.50,,,0.500,,si,,bimodal simetrica 28/45 sigma 2/2 (2 picos)
 J,J2_bimodal_sim,v1,pico2_B,45.00,44.50,,,0.500,,si,,bimodal simetrica 28/45 sigma 2/2 (2 picos)
-J,J2_bimodal_asim,v0,dist_avg,35.0291,34.9402,,,0.0889,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5
-J,J2_bimodal_asim,v0,dist_std,9.4164,9.4063,,,0.0102,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5
+J,J2_bimodal_asim,v0,dist_avg,35.0000,34.9402,,,0.0598,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5
+J,J2_bimodal_asim,v0,dist_std,9.4348,9.4063,,,0.0285,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5
 J,J2_bimodal_asim,v0,pico1_B,26.00,25.50,,,0.500,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5 (2 picos)
 J,J2_bimodal_asim,v0,pico2_B,44.00,44.50,,,0.500,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5 (2 picos)
-J,J2_bimodal_asim,v1,dist_avg,35.0291,35.0164,,,0.0127,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5
-J,J2_bimodal_asim,v1,dist_std,9.4164,9.3960,,,0.0205,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5
+J,J2_bimodal_asim,v1,dist_avg,35.0000,35.0164,,,0.0164,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5
+J,J2_bimodal_asim,v1,dist_std,9.4348,9.3960,,,0.0388,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5
 J,J2_bimodal_asim,v1,pico1_B,26.00,25.50,,,0.500,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5 (4 picos)
 J,J2_bimodal_asim,v1,pico2_B,44.00,43.50,,,0.500,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5 (4 picos)
 J,J3_quad_a1,v0,dist_avg,1.0307,1.0307,,,0.0000,,si,,P(DeltaEQ) discreta 10 puntos <Q>=1.0 sigma=0.4 (via SITE)
@@ -5277,18 +5277,18 @@ J,J3_quad_a1.5,v0,dist_std,0.4780,0.4783,,,0.0003,,si,,P(DeltaEQ) discreta 10 pu
 J,J3_quad_a1.5,v1,dist_avg,1.5021,1.5005,,,0.0016,,si,,P(DeltaEQ) discreta 10 puntos <Q>=1.5 sigma=0.5 (via SITE)
 J,J3_quad_a1.5,v1,dist_std,0.4780,0.4789,,,0.0009,,si,,P(DeltaEQ) discreta 10 puntos <Q>=1.5 sigma=0.5 (via SITE)
 J,J4_dti0.005,v0,dist_avg,30.0000,30.0185,,,0.0185,,si,,correlacion delta(B) DTI=0.005 mm/s/T
-J,J4_dti0.005,v0,dist_std,3.0704,3.2338,,,0.1635,,si,,correlacion delta(B) DTI=0.005 mm/s/T
+J,J4_dti0.005,v0,dist_std,3.1624,3.2338,,,0.0714,,si,,correlacion delta(B) DTI=0.005 mm/s/T
 J,J4_dti0.005,v1,dist_avg,30.0000,30.0623,,,0.0623,,si,,correlacion delta(B) DTI=0.005 mm/s/T
-J,J4_dti0.005,v1,dist_std,3.0704,3.6802,,,0.6099,,si,,correlacion delta(B) DTI=0.005 mm/s/T
-J,J4_dti0.005,v0_sin_slope,dist_std,3.0704,3.2396,,,0.1692,,si,,correlacion delta(B) ignorada
+J,J4_dti0.005,v1,dist_std,3.1624,3.6802,,,0.5178,,si,,correlacion delta(B) DTI=0.005 mm/s/T
+J,J4_dti0.005,v0_sin_slope,dist_std,3.1624,3.2396,,,0.0772,,si,,correlacion delta(B) ignorada
 J,J4_dti0.01,v0,dist_avg,30.0000,30.0095,,,0.0095,,si,,correlacion delta(B) DTI=0.01 mm/s/T
-J,J4_dti0.01,v0,dist_std,3.0704,3.2333,,,0.1629,,si,,correlacion delta(B) DTI=0.01 mm/s/T
+J,J4_dti0.01,v0,dist_std,3.1624,3.2333,,,0.0709,,si,,correlacion delta(B) DTI=0.01 mm/s/T
 J,J4_dti0.01,v1,dist_avg,30.0000,30.1169,,,0.1169,,si,,correlacion delta(B) DTI=0.01 mm/s/T
-J,J4_dti0.01,v1,dist_std,3.0704,3.6752,,,0.6048,,si,,correlacion delta(B) DTI=0.01 mm/s/T
-J,J4_dti0.01,v0_sin_slope,dist_std,3.0704,3.2741,,,0.2037,,si,,correlacion delta(B) ignorada
-J,J1_b30_s3,v1_a0.01,dist_std,3.0704,3.4867,,,0.4163,,si,,J5 alpha=0.01 (regularizacion)
-J,J1_b30_s3,v1_a1,dist_std,3.0704,3.4867,,,0.4163,,si,,J5 alpha=1.0 (regularizacion)
-J,J1_b30_s3,v1_a100,dist_std,3.0704,3.4859,,,0.4155,,si,,J5 alpha=100.0 (regularizacion)
+J,J4_dti0.01,v1,dist_std,3.1624,3.6752,,,0.5128,,si,,correlacion delta(B) DTI=0.01 mm/s/T
+J,J4_dti0.01,v0_sin_slope,dist_std,3.1624,3.2741,,,0.1117,,si,,correlacion delta(B) ignorada
+J,J1_b30_s3,v1_a0.01,dist_std,3.1624,3.4867,,,0.3243,,si,,J5 alpha=0.01 (regularizacion)
+J,J1_b30_s3,v1_a1,dist_std,3.1624,3.4867,,,0.3243,,si,,J5 alpha=1.0 (regularizacion)
+J,J1_b30_s3,v1_a100,dist_std,3.1624,3.4859,,,0.3235,,si,,J5 alpha=100.0 (regularizacion)
 K1,K1_d73_009,v0,s1_delta,0,1.29221e-07,0.00123,0.00,1.29e-07,0.003,si,0.3,octete D73=0.087: sexteto + 2 singletes ΔmI=±2
 K1,K1_d73_009,v0,s1_quad,0,2.41488e-07,0.00246,0.00,2.41e-07,0.003,si,0.3,octete D73=0.087: sexteto + 2 singletes ΔmI=±2
 K1,K1_d73_009,v0,s1_bhf,32.9874,32.9874,0.00838,-0.01,6.05e-05,0.003,si,0.3,octete D73=0.087: sexteto + 2 singletes ΔmI=±2
@@ -5498,53 +5498,53 @@ K5,K5_sx_gnat,v0,s1_quad,0,9.17803e-07,0.00148,0.00,9.18e-07,0.008,si,0.6,Gamma=
 K5,K5_sx_gnat,v0,s1_bhf,32.9874,32.987,0.00469,-0.10,0.000472,0.008,si,0.6,Gamma=0.16 subnatural (WIDNAT=0.194)
 K5,K5_sx_gnat,v0,s1_gamma1,0.16,0.15976,0.00233,-0.10,0.00024,0.008,si,0.6,Gamma=0.16 subnatural (WIDNAT=0.194)
 K5,K5_sx_gnat,v0,s1_depth,0.0165786,0.0165959,0.000159,0.11,1.73e-05,0.008,si,0.6,Gamma=0.16 subnatural (WIDNAT=0.194)
-L,L1_conc10,v0,dist_avg,10.9571,12.0839,,,1.1268,,si,,binomial CONC=10%
-L,L1_conc10,v0,dist_std,2.5203,4.2983,,,1.7780,,si,,binomial CONC=10%
-L,L1_conc10,v1,dist_avg,10.9571,12.2235,,,1.2664,,si,,binomial CONC=10%
-L,L1_conc10,v1,dist_std,2.5203,4.7142,,,2.1939,,si,,binomial CONC=10%
-L,L1_conc10,v0_binom,dist_avg,10.9571,11.3559,,,0.3988,,si,,binomial CONC=10% (forma binomial)
-L,L1_conc10,v0_binom,dist_std,2.5203,2.1628,,,0.3575,,si,,binomial CONC=10% (forma binomial)
+L,L1_conc10,v0,dist_avg,11.0001,12.0839,,,1.0838,,si,,binomial CONC=10%
+L,L1_conc10,v0,dist_std,2.5984,4.2983,,,1.6999,,si,,binomial CONC=10%
+L,L1_conc10,v1,dist_avg,11.0001,12.2235,,,1.2234,,si,,binomial CONC=10%
+L,L1_conc10,v1,dist_std,2.5984,4.7142,,,2.1158,,si,,binomial CONC=10%
+L,L1_conc10,v0_binom,dist_avg,11.0001,11.3559,,,0.3558,,si,,binomial CONC=10% (forma binomial)
+L,L1_conc10,v0_binom,dist_std,2.5984,2.1628,,,0.4356,,si,,binomial CONC=10% (forma binomial)
 L,L1_conc10,v0_binom,binom_p,0.1000,0.0795,,,0.0205,,si,,binomial CONC=10%
-L,L1_conc30,v0,dist_avg,16.8897,17.1098,,,0.2202,,si,,binomial CONC=30%
-L,L1_conc30,v0,dist_std,3.8220,4.0649,,,0.2429,,si,,binomial CONC=30%
-L,L1_conc30,v1,dist_avg,16.8897,17.1206,,,0.2309,,si,,binomial CONC=30%
-L,L1_conc30,v1,dist_std,3.8220,4.0906,,,0.2686,,si,,binomial CONC=30%
-L,L1_conc30,v0_binom,dist_avg,16.8897,17.0602,,,0.1706,,si,,binomial CONC=30% (forma binomial)
-L,L1_conc30,v0_binom,dist_std,3.8220,3.6106,,,0.2114,,si,,binomial CONC=30% (forma binomial)
+L,L1_conc30,v0,dist_avg,17.0001,17.1098,,,0.1097,,si,,binomial CONC=30%
+L,L1_conc30,v0,dist_std,3.9690,4.0649,,,0.0959,,si,,binomial CONC=30%
+L,L1_conc30,v1,dist_avg,17.0001,17.1206,,,0.1205,,si,,binomial CONC=30%
+L,L1_conc30,v1,dist_std,3.9690,4.0906,,,0.1216,,si,,binomial CONC=30%
+L,L1_conc30,v0_binom,dist_avg,17.0001,17.0602,,,0.0601,,si,,binomial CONC=30% (forma binomial)
+L,L1_conc30,v0_binom,dist_std,3.9690,3.6106,,,0.3584,,si,,binomial CONC=30% (forma binomial)
 L,L1_conc30,v0_binom,binom_p,0.3000,0.2855,,,0.0145,,si,,binomial CONC=30%
 L,L1_conc50,v0,dist_avg,23.0000,23.0051,,,0.0051,,si,,binomial CONC=50%
-L,L1_conc50,v0,dist_std,4.2237,4.3560,,,0.1323,,si,,binomial CONC=50%
+L,L1_conc50,v0,dist_std,4.3304,4.3560,,,0.0256,,si,,binomial CONC=50%
 L,L1_conc50,v1,dist_avg,23.0000,22.9859,,,0.0141,,si,,binomial CONC=50%
-L,L1_conc50,v1,dist_std,4.2237,4.3508,,,0.1272,,si,,binomial CONC=50%
+L,L1_conc50,v1,dist_std,4.3304,4.3508,,,0.0204,,si,,binomial CONC=50%
 L,L1_conc50,v0_binom,dist_avg,23.0000,22.9811,,,0.0189,,si,,binomial CONC=50% (forma binomial)
-L,L1_conc50,v0_binom,dist_std,4.2237,3.9970,,,0.2266,,si,,binomial CONC=50% (forma binomial)
+L,L1_conc50,v0_binom,dist_std,4.3304,3.9970,,,0.3334,,si,,binomial CONC=50% (forma binomial)
 L,L1_conc50,v0_binom,binom_p,0.5000,0.4993,,,0.0007,,si,,binomial CONC=50%
-L,L1_conc70,v0,dist_avg,29.1103,28.8935,,,0.2168,,si,,binomial CONC=70%
-L,L1_conc70,v0,dist_std,3.8220,3.9689,,,0.1469,,si,,binomial CONC=70%
-L,L1_conc70,v1,dist_avg,29.1103,28.8623,,,0.2480,,si,,binomial CONC=70%
-L,L1_conc70,v1,dist_std,3.8220,3.9598,,,0.1378,,si,,binomial CONC=70%
-L,L1_conc70,v0_binom,dist_avg,29.1103,28.8947,,,0.2156,,si,,binomial CONC=70% (forma binomial)
-L,L1_conc70,v0_binom,dist_std,3.8220,3.6167,,,0.2053,,si,,binomial CONC=70% (forma binomial)
+L,L1_conc70,v0,dist_avg,28.9999,28.8935,,,0.1064,,si,,binomial CONC=70%
+L,L1_conc70,v0,dist_std,3.9690,3.9689,,,0.0001,,si,,binomial CONC=70%
+L,L1_conc70,v1,dist_avg,28.9999,28.8623,,,0.1376,,si,,binomial CONC=70%
+L,L1_conc70,v1,dist_std,3.9690,3.9598,,,0.0092,,si,,binomial CONC=70%
+L,L1_conc70,v0_binom,dist_avg,28.9999,28.8947,,,0.1052,,si,,binomial CONC=70% (forma binomial)
+L,L1_conc70,v0_binom,dist_std,3.9690,3.6167,,,0.3523,,si,,binomial CONC=70% (forma binomial)
 L,L1_conc70,v0_binom,binom_p,0.7000,0.7129,,,0.0129,,si,,binomial CONC=70%
-L,L1_conc90,v0,dist_avg,35.0429,34.3055,,,0.7374,,si,,binomial CONC=90%
-L,L1_conc90,v0,dist_std,2.5203,3.0449,,,0.5247,,si,,binomial CONC=90%
-L,L1_conc90,v1,dist_avg,35.0429,34.3174,,,0.7254,,si,,binomial CONC=90%
-L,L1_conc90,v1,dist_std,2.5203,3.0369,,,0.5167,,si,,binomial CONC=90%
-L,L1_conc90,v0_binom,dist_avg,35.0429,34.7813,,,0.2616,,si,,binomial CONC=90% (forma binomial)
-L,L1_conc90,v0_binom,dist_std,2.5203,2.1000,,,0.4203,,si,,binomial CONC=90% (forma binomial)
+L,L1_conc90,v0,dist_avg,34.9999,34.3055,,,0.6944,,si,,binomial CONC=90%
+L,L1_conc90,v0,dist_std,2.5984,3.0449,,,0.4465,,si,,binomial CONC=90%
+L,L1_conc90,v1,dist_avg,34.9999,34.3174,,,0.6825,,si,,binomial CONC=90%
+L,L1_conc90,v1,dist_std,2.5984,3.0369,,,0.4385,,si,,binomial CONC=90%
+L,L1_conc90,v0_binom,dist_avg,34.9999,34.7813,,,0.2186,,si,,binomial CONC=90% (forma binomial)
+L,L1_conc90,v0_binom,dist_std,2.5984,2.1000,,,0.4984,,si,,binomial CONC=90% (forma binomial)
 L,L1_conc90,v0_binom,binom_p,0.9000,0.9254,,,0.0254,,si,,binomial CONC=90%
-L,L2_czjzek_s0.3,v0,dist_avg,0.7419,0.7452,,,0.0033,,si,,Czjzek STG=0.3
-L,L2_czjzek_s0.3,v0,dist_std,0.2256,0.2455,,,0.0199,,si,,Czjzek STG=0.3
-L,L2_czjzek_s0.3,v1,dist_avg,0.7419,0.7486,,,0.0066,,si,,Czjzek STG=0.3
-L,L2_czjzek_s0.3,v1,dist_std,0.2256,0.2599,,,0.0343,,si,,Czjzek STG=0.3
-L,L2_czjzek_s0.6,v0,dist_avg,1.3280,1.3327,,,0.0047,,si,,Czjzek STG=0.6
-L,L2_czjzek_s0.6,v0,dist_std,0.4215,0.4307,,,0.0092,,si,,Czjzek STG=0.6
-L,L2_czjzek_s0.6,v1,dist_avg,1.3280,1.3386,,,0.0107,,si,,Czjzek STG=0.6
-L,L2_czjzek_s0.6,v1,dist_std,0.4215,0.4370,,,0.0155,,si,,Czjzek STG=0.6
-L,L2_czjzek_s1.2,v0,dist_avg,2.5372,2.5342,,,0.0030,,si,,Czjzek STG=1.2
-L,L2_czjzek_s1.2,v0,dist_std,0.7708,0.7749,,,0.0042,,si,,Czjzek STG=1.2
-L,L2_czjzek_s1.2,v1,dist_avg,2.5372,2.5371,,,0.0000,,si,,Czjzek STG=1.2
-L,L2_czjzek_s1.2,v1,dist_std,0.7708,0.7842,,,0.0134,,si,,Czjzek STG=1.2
+L,L2_czjzek_s0.3,v0,dist_avg,0.7444,0.7452,,,0.0008,,si,,Czjzek STG=0.3
+L,L2_czjzek_s0.3,v0,dist_std,0.2406,0.2455,,,0.0049,,si,,Czjzek STG=0.3
+L,L2_czjzek_s0.3,v1,dist_avg,0.7444,0.7486,,,0.0042,,si,,Czjzek STG=0.3
+L,L2_czjzek_s0.3,v1,dist_std,0.2406,0.2599,,,0.0193,,si,,Czjzek STG=0.3
+L,L2_czjzek_s0.6,v0,dist_avg,1.3328,1.3327,,,0.0001,,si,,Czjzek STG=0.6
+L,L2_czjzek_s0.6,v0,dist_std,0.4308,0.4307,,,0.0001,,si,,Czjzek STG=0.6
+L,L2_czjzek_s0.6,v1,dist_avg,1.3328,1.3386,,,0.0058,,si,,Czjzek STG=0.6
+L,L2_czjzek_s0.6,v1,dist_std,0.4308,0.4370,,,0.0062,,si,,Czjzek STG=0.6
+L,L2_czjzek_s1.2,v0,dist_avg,2.5336,2.5342,,,0.0006,,si,,Czjzek STG=1.2
+L,L2_czjzek_s1.2,v0,dist_std,0.7748,0.7749,,,0.0001,,si,,Czjzek STG=1.2
+L,L2_czjzek_s1.2,v1,dist_avg,2.5336,2.5371,,,0.0035,,si,,Czjzek STG=1.2
+L,L2_czjzek_s1.2,v1,dist_std,0.7748,0.7842,,,0.0094,,si,,Czjzek STG=1.2
 L,L3_pneg0.2,v0,dist_avg,0.5241,0.5340,,,0.0099,,si,,gauss AVG=0.5 + espejo PNEG=0.2
 L,L3_pneg0.2,v0,dist_std,0.3128,0.3304,,,0.0176,,si,,gauss AVG=0.5 + espejo PNEG=0.2
 L,L3_pneg0.2,v1,dist_avg,0.5241,0.5471,,,0.0230,,si,,gauss AVG=0.5 + espejo PNEG=0.2
@@ -5574,35 +5574,35 @@ L,L4_exact_q1,v0,dist_std,3.0000,5.0485,,,2.0485,,si,,EXACT orden mixto QUP=1.0
 L,L4_exact_q1,v1,dist_avg,25.0000,23.4806,,,1.5194,,si,,EXACT orden mixto QUP=1.0
 L,L4_exact_q1,v1,dist_std,3.0000,5.1251,,,2.1251,,si,,EXACT orden mixto QUP=1.0
 J,J1_b25_s1.5,v0_gauss,dist_avg,25.0000,24.9921,,,0.0079,,si,,gaussiana <B>=25.0 sigma=1.5 (forma gaussiana)
-J,J1_b25_s1.5,v0_gauss,dist_std,1.7239,1.8008,,,0.0768,,si,,gaussiana <B>=25.0 sigma=1.5 (forma gaussiana)
+J,J1_b25_s1.5,v0_gauss,dist_std,1.8028,1.8008,,,0.0020,,si,,gaussiana <B>=25.0 sigma=1.5 (forma gaussiana)
 J,J1_b25_s3,v0_gauss,dist_avg,25.0000,24.9985,,,0.0015,,si,,gaussiana <B>=25.0 sigma=3.0 (forma gaussiana)
-J,J1_b25_s3,v0_gauss,dist_std,3.0704,3.1630,,,0.0926,,si,,gaussiana <B>=25.0 sigma=3.0 (forma gaussiana)
-J,J1_b25_s5,v0_gauss,dist_avg,25.0000,24.9983,,,0.0017,,si,,gaussiana <B>=25.0 sigma=5.0 (forma gaussiana)
-J,J1_b25_s5,v0_gauss,dist_std,4.9342,5.1106,,,0.1764,,si,,gaussiana <B>=25.0 sigma=5.0 (forma gaussiana)
+J,J1_b25_s3,v0_gauss,dist_std,3.1624,3.1630,,,0.0006,,si,,gaussiana <B>=25.0 sigma=3.0 (forma gaussiana)
+J,J1_b25_s5,v0_gauss,dist_avg,25.0057,24.9983,,,0.0074,,si,,gaussiana <B>=25.0 sigma=5.0 (forma gaussiana)
+J,J1_b25_s5,v0_gauss,dist_std,5.0896,5.1106,,,0.0210,,si,,gaussiana <B>=25.0 sigma=5.0 (forma gaussiana)
 J,J1_b30_s1.5,v0_gauss,dist_avg,30.0000,29.9938,,,0.0062,,si,,gaussiana <B>=30.0 sigma=1.5 (forma gaussiana)
-J,J1_b30_s1.5,v0_gauss,dist_std,1.7239,1.8023,,,0.0783,,si,,gaussiana <B>=30.0 sigma=1.5 (forma gaussiana)
+J,J1_b30_s1.5,v0_gauss,dist_std,1.8028,1.8023,,,0.0005,,si,,gaussiana <B>=30.0 sigma=1.5 (forma gaussiana)
 J,J1_b30_s3,v0_gauss,dist_avg,30.0000,29.9965,,,0.0035,,si,,gaussiana <B>=30.0 sigma=3.0 (forma gaussiana)
-J,J1_b30_s3,v0_gauss,dist_std,3.0704,3.1633,,,0.0929,,si,,gaussiana <B>=30.0 sigma=3.0 (forma gaussiana)
-J,J1_b30_s5,v0_gauss,dist_avg,30.0000,29.9821,,,0.0179,,si,,gaussiana <B>=30.0 sigma=5.0 (forma gaussiana)
-J,J1_b30_s5,v0_gauss,dist_std,4.9343,5.0914,,,0.1571,,si,,gaussiana <B>=30.0 sigma=5.0 (forma gaussiana)
+J,J1_b30_s3,v0_gauss,dist_std,3.1624,3.1633,,,0.0009,,si,,gaussiana <B>=30.0 sigma=3.0 (forma gaussiana)
+J,J1_b30_s5,v0_gauss,dist_avg,29.9970,29.9821,,,0.0149,,si,,gaussiana <B>=30.0 sigma=5.0 (forma gaussiana)
+J,J1_b30_s5,v0_gauss,dist_std,5.0941,5.0914,,,0.0027,,si,,gaussiana <B>=30.0 sigma=5.0 (forma gaussiana)
 J,J1_b35_s1.5,v0_gauss,dist_avg,35.0000,34.9890,,,0.0110,,si,,gaussiana <B>=35.0 sigma=1.5 (forma gaussiana)
-J,J1_b35_s1.5,v0_gauss,dist_std,1.7239,1.8024,,,0.0785,,si,,gaussiana <B>=35.0 sigma=1.5 (forma gaussiana)
-J,J1_b35_s3,v0_gauss,dist_avg,35.0000,34.9927,,,0.0073,,si,,gaussiana <B>=35.0 sigma=3.0 (forma gaussiana)
-J,J1_b35_s3,v0_gauss,dist_std,3.0704,3.1596,,,0.0892,,si,,gaussiana <B>=35.0 sigma=3.0 (forma gaussiana)
-J,J1_b35_s5,v0_gauss,dist_avg,35.0000,34.9903,,,0.0097,,si,,gaussiana <B>=35.0 sigma=5.0 (forma gaussiana)
-J,J1_b35_s5,v0_gauss,dist_std,4.9345,5.0787,,,0.1442,,si,,gaussiana <B>=35.0 sigma=5.0 (forma gaussiana)
+J,J1_b35_s1.5,v0_gauss,dist_std,1.8028,1.8024,,,0.0004,,si,,gaussiana <B>=35.0 sigma=1.5 (forma gaussiana)
+J,J1_b35_s3,v0_gauss,dist_avg,34.9999,34.9927,,,0.0072,,si,,gaussiana <B>=35.0 sigma=3.0 (forma gaussiana)
+J,J1_b35_s3,v0_gauss,dist_std,3.1621,3.1596,,,0.0025,,si,,gaussiana <B>=35.0 sigma=3.0 (forma gaussiana)
+J,J1_b35_s5,v0_gauss,dist_avg,34.9392,34.9903,,,0.0511,,si,,gaussiana <B>=35.0 sigma=5.0 (forma gaussiana)
+J,J1_b35_s5,v0_gauss,dist_std,5.0176,5.0787,,,0.0611,,si,,gaussiana <B>=35.0 sigma=5.0 (forma gaussiana)
 J,J2_bimodal_sim,v0_vbf2,dist_avg,36.5000,36.4832,,,0.0168,,si,,bimodal simetrica 28/45 sigma 2/2 (VBF N=2)
-J,J2_bimodal_sim,v0_vbf2,dist_std,8.7624,8.7784,,,0.0159,,si,,bimodal simetrica 28/45 sigma 2/2 (VBF N=2)
+J,J2_bimodal_sim,v0_vbf2,dist_std,8.7892,8.7784,,,0.0108,,si,,bimodal simetrica 28/45 sigma 2/2 (VBF N=2)
 J,J2_bimodal_sim,v0_vbf2,pico1_B,28.00,27.50,,,0.500,,si,,bimodal simetrica 28/45 sigma 2/2 (VBF N=2)
 J,J2_bimodal_sim,v0_vbf2,pico2_B,45.00,44.50,,,0.500,,si,,bimodal simetrica 28/45 sigma 2/2 (VBF N=2)
-J,J2_bimodal_asim,v0_vbf2,dist_avg,35.0291,34.9096,,,0.1195,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5 (VBF N=2)
-J,J2_bimodal_asim,v0_vbf2,dist_std,9.4164,9.3668,,,0.0497,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5 (VBF N=2)
+J,J2_bimodal_asim,v0_vbf2,dist_avg,35.0000,34.9096,,,0.0904,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5 (VBF N=2)
+J,J2_bimodal_asim,v0_vbf2,dist_std,9.4348,9.3668,,,0.0680,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5 (VBF N=2)
 J,J2_bimodal_asim,v0_vbf2,pico1_B,26.00,25.50,,,0.500,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5 (VBF N=2)
 J,J2_bimodal_asim,v0_vbf2,pico2_B,44.00,44.50,,,0.500,,si,,bimodal asimetrica 26/44 sigma 1.5/3.5 (VBF N=2)
 J,J1_b30_s3,v1_tv,dist_avg,30.0000,30.0765,,,0.0765,,si,,regularizador tv
-J,J1_b30_s3,v1_tv,dist_std,3.0704,3.4866,,,0.4162,,si,,regularizador tv
+J,J1_b30_s3,v1_tv,dist_std,3.1624,3.4866,,,0.3242,,si,,regularizador tv
 J,J1_b30_s3,v1_maxent,dist_avg,30.0000,30.0772,,,0.0772,,si,,regularizador maxent
-J,J1_b30_s3,v1_maxent,dist_std,3.0704,3.4876,,,0.4172,,si,,regularizador maxent
+J,J1_b30_s3,v1_maxent,dist_std,3.1624,3.4876,,,0.3252,,si,,regularizador maxent
 M1,M1_aks-0.40,v0,s1_delta,0.3,0.3,0.000569,0.00,3.94e-07,0.000,si,0.0,asimetria AKS=-0.40 sobre singlete
 M1,M1_aks-0.40,v0,s1_gamma1,0.25,0.25,0.00111,-0.00,3.13e-08,0.000,si,0.0,asimetria AKS=-0.40 sobre singlete
 M1,M1_aks-0.40,v0,line_asym,-0.4,-0.399996,0.00739,0.00,4.41e-06,0.000,si,0.0,asimetria AKS=-0.40 sobre singlete
@@ -5940,32 +5940,32 @@ A5,A5_eta0.1_th54.7_ph0,v0m,s1_quad,2,1.99925,0.00325,-0.23,0.000751,0.304,si,0.
 A5,A5_eta0.1_th54.7_ph0,v0m,s1_bhf,6.18764,6.19386,0.0139,0.45,0.00621,0.304,si,0.3,HC eta=0.1 (mezcla debil)
 A5,A5_eta0.1_th54.7_ph0,v0m,s1_gamma1,0.25,0.248092,0.00368,-0.52,0.00191,0.304,si,0.3,HC eta=0.1 (mezcla debil)
 A5,A5_eta0.1_th54.7_ph0,v0m,s1_depth,0.0106103,0.0107705,0.000128,1.25,0.00016,0.304,si,0.3,HC eta=0.1 (mezcla debil)
-J,J1_b15_s3,v0,dist_avg,15.0000,15.3187,,,0.3187,,si,,gaussiana en el borde bajo de la malla
-J,J1_b15_s3,v0,dist_std,3.0703,4.3765,,,1.3062,,si,,gaussiana en el borde bajo de la malla
-J,J1_b15_s3,v1,dist_avg,15.0000,15.3827,,,0.3827,,si,,gaussiana en el borde bajo de la malla
-J,J1_b15_s3,v1,dist_std,3.0703,4.5933,,,1.5230,,si,,gaussiana en el borde bajo de la malla
-J,J1_b45_s3,v0,dist_avg,44.7464,44.6554,,,0.0910,,si,,gaussiana en el borde alto de la malla
-J,J1_b45_s3,v0,dist_std,2.8354,3.1848,,,0.3494,,si,,gaussiana en el borde alto de la malla
-J,J1_b45_s3,v1,dist_avg,44.7464,44.5491,,,0.1974,,si,,gaussiana en el borde alto de la malla
-J,J1_b45_s3,v1,dist_std,2.8354,3.5199,,,0.6845,,si,,gaussiana en el borde alto de la malla
+J,J1_b15_s3,v0,dist_avg,15.0049,15.3187,,,0.3138,,si,,gaussiana en el borde bajo de la malla
+J,J1_b15_s3,v0,dist_std,3.1540,4.3765,,,1.2225,,si,,gaussiana en el borde bajo de la malla
+J,J1_b15_s3,v1,dist_avg,15.0049,15.3827,,,0.3778,,si,,gaussiana en el borde bajo de la malla
+J,J1_b15_s3,v1,dist_std,3.1540,4.5933,,,1.4393,,si,,gaussiana en el borde bajo de la malla
+J,J1_b45_s3,v0,dist_avg,44.7127,44.6554,,,0.0573,,si,,gaussiana en el borde alto de la malla
+J,J1_b45_s3,v0,dist_std,2.8853,3.1848,,,0.2995,,si,,gaussiana en el borde alto de la malla
+J,J1_b45_s3,v1,dist_avg,44.7127,44.5491,,,0.1636,,si,,gaussiana en el borde alto de la malla
+J,J1_b45_s3,v1,dist_std,2.8853,3.5199,,,0.6346,,si,,gaussiana en el borde alto de la malla
 J,J1_b30_s0.8,v0,dist_avg,30.0000,30.0540,,,0.0540,,si,,casi-delta: sigma ~ paso de malla
-J,J1_b30_s0.8,v0,dist_std,1.2506,1.7090,,,0.4583,,si,,casi-delta: sigma ~ paso de malla
+J,J1_b30_s0.8,v0,dist_std,1.2807,1.7090,,,0.4283,,si,,casi-delta: sigma ~ paso de malla
 J,J1_b30_s0.8,v1,dist_avg,30.0000,30.2923,,,0.2923,,si,,casi-delta: sigma ~ paso de malla
-J,J1_b30_s0.8,v1,dist_std,1.2506,3.0100,,,1.7594,,si,,casi-delta: sigma ~ paso de malla
-J,J1_b30_s8,v0,dist_avg,29.9648,29.8883,,,0.0766,,si,,gaussiana muy ancha sigma=8
-J,J1_b30_s8,v0,dist_std,7.7713,7.8763,,,0.1049,,si,,gaussiana muy ancha sigma=8
-J,J1_b30_s8,v1,dist_avg,29.9648,29.9444,,,0.0204,,si,,gaussiana muy ancha sigma=8
-J,J1_b30_s8,v1,dist_std,7.7713,7.9001,,,0.1287,,si,,gaussiana muy ancha sigma=8
+J,J1_b30_s0.8,v1,dist_std,1.2807,3.0100,,,1.7293,,si,,casi-delta: sigma ~ paso de malla
+J,J1_b30_s8,v0,dist_avg,29.8946,29.8883,,,0.0063,,si,,gaussiana muy ancha sigma=8
+J,J1_b30_s8,v0,dist_std,7.8630,7.8763,,,0.0133,,si,,gaussiana muy ancha sigma=8
+J,J1_b30_s8,v1,dist_avg,29.8946,29.9444,,,0.0498,,si,,gaussiana muy ancha sigma=8
+J,J1_b30_s8,v1,dist_std,7.8630,7.9001,,,0.0371,,si,,gaussiana muy ancha sigma=8
 J,J4_dti-0.01,v0,dist_avg,30.0000,30.0095,,,0.0095,,si,,correlacion delta(B) DTI=-0.01 mm/s/T
-J,J4_dti-0.01,v0,dist_std,3.0704,3.2333,,,0.1629,,si,,correlacion delta(B) DTI=-0.01 mm/s/T
+J,J4_dti-0.01,v0,dist_std,3.1624,3.2333,,,0.0709,,si,,correlacion delta(B) DTI=-0.01 mm/s/T
 J,J4_dti-0.01,v1,dist_avg,30.0000,30.0505,,,0.0505,,si,,correlacion delta(B) DTI=-0.01 mm/s/T
-J,J4_dti-0.01,v1,dist_std,3.0704,3.5543,,,0.4839,,si,,correlacion delta(B) DTI=-0.01 mm/s/T
-J,J4_dti-0.01,v0_sin_slope,dist_std,3.0704,3.2741,,,0.2037,,si,,correlacion delta(B) ignorada
+J,J4_dti-0.01,v1,dist_std,3.1624,3.5543,,,0.3919,,si,,correlacion delta(B) DTI=-0.01 mm/s/T
+J,J4_dti-0.01,v0_sin_slope,dist_std,3.1624,3.2741,,,0.1117,,si,,correlacion delta(B) ignorada
 J,J4_dti0.02,v0,dist_avg,30.0000,30.0045,,,0.0045,,si,,correlacion delta(B) DTI=0.02 mm/s/T
-J,J4_dti0.02,v0,dist_std,3.0704,3.2472,,,0.1768,,si,,correlacion delta(B) DTI=0.02 mm/s/T
+J,J4_dti0.02,v0,dist_std,3.1624,3.2472,,,0.0848,,si,,correlacion delta(B) DTI=0.02 mm/s/T
 J,J4_dti0.02,v1,dist_avg,30.0000,30.0963,,,0.0963,,si,,correlacion delta(B) DTI=0.02 mm/s/T
-J,J4_dti0.02,v1,dist_std,3.0704,3.7017,,,0.6313,,si,,correlacion delta(B) DTI=0.02 mm/s/T
-J,J4_dti0.02,v0_sin_slope,dist_std,3.0704,3.4590,,,0.3886,,si,,correlacion delta(B) ignorada
+J,J4_dti0.02,v1,dist_std,3.1624,3.7017,,,0.5393,,si,,correlacion delta(B) DTI=0.02 mm/s/T
+J,J4_dti0.02,v0_sin_slope,dist_std,3.1624,3.4590,,,0.2966,,si,,correlacion delta(B) ignorada
 A4,A4_R0.1_th0,v0m,s1_delta,0,-1.32585e-05,0.00147,-0.01,1.33e-05,0.002,si,2.8,HC axial R=0.1 theta=0.0
 A4,A4_R0.1_th0,v0m,s1_quad,1,1,0.00292,0.00,1.88e-06,0.002,si,2.8,HC axial R=0.1 theta=0.0
 A4,A4_R0.1_th0,v0m,s1_bhf,30.9482,30.9481,0.01,-0.01,0.000133,0.002,si,2.8,HC axial R=0.1 theta=0.0

@@ -346,11 +346,22 @@ un buen arranque.
 Hesse-Rübartsch + Tikhonov, α elegido por L-curve `--scan-alpha`, malla de
 ajuste distinta de la de generación: 5–52 T / 47 bins).
 
+> **Corrección 2026-10-15 — la σ de referencia del bloque J/L.** Dos errores
+> se sumaban y hacían parecer mayor el sesgo del histograma. (1) En las formas
+> fijas NORMOS ensancha STG con el paso: la σ real es √(STG² + DTB²) (manual de
+> WinNormos §2.3.2), 3.162 T y no 3 T con DTB = 1 T; el propio `.RES` lo dice
+> («Standard deviation = 3.162»). (2) El parser de la tabla de áreas de
+> `serie_J.py` exigía una «I» en la columna del gráfico y descartaba las colas
+> (P < 0.5), así que la verdad quedaba truncada (3.07). Corregido el parser, la
+> verdad coincide con la σ que imprime NORMOS en los 32 casos de un bloque, y
+> `resumen.csv` se ha recalculado (solo la columna de referencia; los ajustes
+> no cambian). Las cifras de abajo son ya las corregidas.
+
 - **J1 (9 gaussianas ⟨B⟩∈{25,30,35} × σ∈{1.5,3,5})**: ⟨B⟩ recuperada a
-  ≤0.06 T (v0) y ≤0.23 T (v1). σ con el sesgo clásico de regularización:
-  **+0.17…+0.40 T en v0** y hasta +1.5 T para la más estrecha (σ=1.5) con
-  ruido — la L-curve sobre-suaviza distribuciones estrechas; para σ≥3 el
-  sesgo relativo es <10 %.
+  ≤0.06 T (v0) y ≤0.26 T (v1). σ con el sesgo de regularización:
+  **+0.03…+0.33 T en v0** (mediana +0.14) y hasta +1.5 T para la más estrecha
+  (σ=1.5) con ruido — la L-curve sobre-suaviza distribuciones estrechas; para
+  σ≥3 el sesgo relativo es <8 %.
 - **J2 (bimodales 28/45 y 26/44 asimétrica)**: ambos picos localizados a
   ±0.5 T (media anchura de bin: mallas desplazadas medio paso); momentos
   globales a <0.1 T; la réplica con ruido resuelve las dos modas sin
@@ -360,9 +371,9 @@ ajuste distinta de la de generación: 5–52 T / 47 bins).
   distribuidos de Fitbauer queda validado.
 - **J4 (correlación δ(B), DTI 0.005/0.01)**: con `--delta-slope` verdadero y
   el δ de referencia correcto, la recuperación es idéntica al caso sin
-  correlación (σ +0.16 T) → **el kernel correlacionado δ(H) de Fitbauer es
+  correlación (σ +0.07 T) → **el kernel correlacionado δ(H) de Fitbauer es
   correcto**. Ignorar la correlación con estas pendientes apenas sesga
-  (σ +0.20 vs +0.16): con Γ=0.30 y pendientes ≤0.01 mm/s/T el efecto es
+  (σ +0.08/+0.11 vs +0.07): con Γ=0.30 y pendientes ≤0.01 mm/s/T el efecto es
   menor que la anchura de línea. Ojo metodológico: el δ del kernel va FIJO y
   debe valer el δ verdadero en H_ref (media de la malla) — omitirlo produce
   σ sobreestimadas en un factor ~2 (error cometido y corregido durante la
@@ -599,14 +610,15 @@ nuevas en `resumen.csv`.
   W13=2.5/W23=0.6, Γ=0.16 subnatural, profundidad 40 % y dobletes con
   δ=−2.5/+3.4 vía `wide_delta`: todo dentro de tolerancias v0.
 - **L1–L3**: binomial (forma paramétrica: p recuperado a ±0.026 incluso en
-  CONC=10/90 %), Czjzek (σ a ±0.04) y PNEG (la verdad analítica plegada
+  CONC=10/90 %), Czjzek (σ a ±0.02) y PNEG (la verdad analítica plegada
   confirma que el espejo negativo es espectralmente inobservable: espectros
   de PNEG=0.2 y 0.5 idénticos).
-- **L5 formas paramétricas**: `--shape gaussiana` recupera ⟨B⟩ a <0.02 T y σ
-  a <0.18 T en la rejilla J1; `--shape vbf` N=2 clava momentos y picos
+- **L5 formas paramétricas**: `--shape gaussiana` recupera ⟨B⟩ a ≤0.015 T y σ
+  a ≤0.02 T en la rejilla J1, salvo J1_b35_s5 (+0.06/+0.07 T: la P de NORMOS
+  está cortada en el borde de su malla, 48 T = 2.6σ, y la gaussiana no); `--shape vbf` N=2 clava momentos y picos
   (±0.5 T = resolución de la malla) en los bimodales J2. Los
-  regularizadores `tv` y `maxent` sobre J1_b30_s3 v1 dan σ +0.42 (comparable
-  al Tikhonov de referencia).
+  regularizadores `tv` y `maxent` sobre J1_b30_s3 v1 dan σ +0.33 (igual que
+  el Tikhonov de referencia).
 
 ### 16.3 Fallos documentados
 

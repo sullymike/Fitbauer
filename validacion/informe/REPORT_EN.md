@@ -355,11 +355,22 @@ each), fitted with `fit_bhf_distribution_cli.py` (Hesse-Rübartsch histogram +
 Tikhonov, α chosen by L-curve `--scan-alpha`, fitting grid different from the
 generating one: 5–52 T / 47 bins).
 
+> **Correction 2026-10-15 — the reference σ of blocks J/L.** Two errors added
+> up and made the histogram bias look larger. (1) In fixed-form shapes NORMOS
+> broadens STG with the step: the real σ is √(STG² + DTB²) (WinNormos manual
+> §2.3.2), 3.162 T rather than 3 T with DTB = 1 T; the `.RES` itself says so
+> (“Standard deviation = 3.162”). (2) The relative-area table parser in
+> `serie_J.py` required an “I” in the plot column and dropped the tails
+> (P < 0.5), so the truth was truncated (3.07). With the parser fixed, the
+> truth matches the σ NORMOS prints in all 32 single-block cases, and
+> `resumen.csv` has been recomputed (reference column only; the fits do not
+> change). The figures below are the corrected ones.
+
 - **J1 (9 Gaussians ⟨B⟩∈{25,30,35} × σ∈{1.5,3,5})**: ⟨B⟩ recovered to ≤0.06 T
-  (v0) and ≤0.23 T (v1). σ with the classic regularization bias:
-  **+0.17…+0.40 T in v0** and up to +1.5 T for the narrowest (σ=1.5) with
-  noise — the L-curve over-smooths narrow distributions; for σ≥3 the relative
-  bias is <10 %.
+  (v0) and ≤0.26 T (v1). σ with the regularization bias:
+  **+0.03…+0.33 T in v0** (median +0.14) and up to +1.5 T for the narrowest
+  (σ=1.5) with noise — the L-curve over-smooths narrow distributions; for σ≥3
+  the relative bias is <8 %.
 - **J2 (bimodal 28/45 and asymmetric 26/44)**: both peaks located to ±0.5 T
   (half a bin width: grids offset by half a step); global moments to <0.1 T;
   the noisy replica resolves both modes without artefacts.
@@ -368,8 +379,8 @@ generating one: 5–52 T / 47 bins).
   distributed-doublet kernel is validated.
 - **J4 (δ(B) correlation, DTI 0.005/0.01)**: with the true `--delta-slope` and
   the correct reference δ, the recovery is identical to the uncorrelated case
-  (σ +0.16 T) → **Fitbauer's correlated δ(H) kernel is correct**. Ignoring the
-  correlation at these slopes barely biases anything (σ +0.20 vs +0.16): with
+  (σ +0.07 T) → **Fitbauer's correlated δ(H) kernel is correct**. Ignoring the
+  correlation at these slopes barely biases anything (σ +0.08/+0.11 vs +0.07): with
   Γ=0.30 and slopes ≤0.01 mm/s/T the effect is smaller than the linewidth. A
   methodological caveat: the kernel's δ is held FIXED and must equal the true δ
   at H_ref (the grid mean) — omitting it produces σ overestimated by a factor
@@ -604,13 +615,14 @@ new rows in `resumen.csv`.
   W13=2.5/W23=0.6, sub-natural Γ=0.16, 40 % depth and doublets with
   δ=−2.5/+3.4 via `wide_delta`: all within the v0 tolerances.
 - **L1–L3**: binomial (parametric shape: p recovered to ±0.026 even at
-  CONC=10/90 %), Czjzek (σ to ±0.04) and PNEG (the folded analytical truth
+  CONC=10/90 %), Czjzek (σ to ±0.02) and PNEG (the folded analytical truth
   confirms the negative mirror is spectrally unobservable: the PNEG=0.2 and 0.5
   spectra are identical).
-- **L5 parametric shapes**: `--shape gaussiana` recovers ⟨B⟩ to <0.02 T and σ to
-  <0.18 T on the J1 grid; `--shape vbf` N=2 nails moments and peaks (±0.5 T =
+- **L5 parametric shapes**: `--shape gaussiana` recovers ⟨B⟩ to ≤0.015 T and σ
+  to ≤0.02 T on the J1 grid, except J1_b35_s5 (+0.06/+0.07 T: NORMOS's P is cut
+  at the edge of its grid, 48 T = 2.6σ, and the Gaussian is not); `--shape vbf` N=2 nails moments and peaks (±0.5 T =
   grid resolution) on the J2 bimodals. The `tv` and `maxent` regularizers on
-  J1_b30_s3 v1 give σ +0.42 (comparable to the reference Tikhonov).
+  J1_b30_s3 v1 give σ +0.33 (the same as the reference Tikhonov).
 
 ### 16.3 Documented failures
 

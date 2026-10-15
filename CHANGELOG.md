@@ -10,6 +10,13 @@
   `.JOB` con `DISTRI=2` y STG el aviso daba «STI/STG no se traslada; usa el
   perfil Voigt», que es falso para la gaussiana: ahora da la σ equivalente.
   Ayuda (8 idiomas) y notas de NORMOS.
+- **Validación: la σ de referencia del banco J/L era demasiado pequeña.** Además
+  de usar STG en vez de √(STG² + DTB²), el parser de la tabla de áreas de
+  `serie_J.py` descartaba las filas sin «I» en la columna del gráfico (las colas
+  con P < 0.5) y truncaba la verdad (3.07 en vez de 3.162). Corregido, coincide
+  con la σ que imprime NORMOS en los 32 casos de un bloque. Recalculados
+  `resumen.csv` y los informes: el sesgo de σ del histograma en J1 baja de
+  +0.17…+0.40 a +0.03…+0.33 T, y la forma gaussiana recupera σ a ≤0.02 T.
 
 ## v5.2.2 — Czjzek de NORMOS, mallas en sus nodos y ponderación con la σ de los datos
 

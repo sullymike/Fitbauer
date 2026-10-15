@@ -51,12 +51,12 @@ Distributions (moments of P; median |Δ⟨x⟩| / |Δσ|, v0+v1):
 
 | Group | ⟨x⟩ | σ | comment |
 |---|---|---|---|
-| J1 Gaussians (interior grid) | 0.02 T | 0.15 T | Hesse-Rübartsch histogram + L-curve |
+| J1 Gaussians (interior grid) | 0.015 T | 0.12 T | Hesse-Rübartsch histogram + L-curve; truth σ = √(STG² + DTB²), corrected on 2026-10-15 (see REPORT §8) |
 | J2 bimodal | 0.03 T | 0.03 T | peaks at ±0.5 T (grid resolution) with VBF N=2 |
 | J3 P(ΔEQ) (SITE and DIST METHOD=6) | 0.002 | 0.007 | |
-| J4 δ(B) correlation, DTI −0.01…+0.02 | 0.04 T | 0.20 T | sign and magnitude correct; ignoring it doubles the error |
+| J4 δ(B) correlation, DTI −0.01…+0.02 | 0.04 T | 0.11 T | sign and magnitude correct; ignoring it doubles the error |
 | L1 binomial (parametric shape) | — | — | **p recovered to ±0.026 over CONC=10…90 %** |
-| L2 Czjzek | 0.004 | 0.015 | the histogram reproduces the shape without needing it analytically; since v5.2.1 there is also a “Czjzek” shape, equivalent to NORMOS's with σ² = STG² + DTQ² |
+| L2 Czjzek | 0.002 | 0.006 | the histogram reproduces the shape without needing it analytically; since v5.2.1 there is also a “Czjzek” shape, equivalent to NORMOS's with σ² = STG² + DTQ² |
 | L3 PNEG | 0.01 | 0.02 | analytically folded truth (the negative part is unobservable) |
 | L6 D23 texture (with `--d23`) | 0.004 | 0.21 | fixed in this phase |
 | L4 EXACT (HC kernel, v4.19) | 0.04–0.20 | 0.34–1.0 | kernel by exact diagonalisation; the residual (growing with QUP) is the perturbative truncation of the demo's own EXACT |
@@ -117,7 +117,7 @@ in distributions (`kernel_treatment="hamiltonian"`). Only the polarized source
   sign of the EFG at η=1 (axis permutation).
 - **Histogram regularization**: with near-delta distributions (σ ≈ grid step)
   or ones pressed against the edge, the histogram over-smooths (J1_b30_s0.8:
-  σ 1.7 vs 1.25 in v0; L1 CONC=10/90 %). This is the Hesse-Rübartsch
+  σ 1.7 vs 1.28 in v0; L1 CONC=10/90 %). This is the Hesse-Rübartsch
   bias-variance trade-off — the original DIST does the same with LAMDA — and
   the parametric shapes (Gaussian/VBF/binomial) resolve it.
 - **Detection limit**: a doublet at 0.5 % of the area with 10⁶ counts is
