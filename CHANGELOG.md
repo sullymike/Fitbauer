@@ -1,5 +1,21 @@
 # Changelog
 
+## Sin publicar
+
+- **Los `.JOB` de NORMOS se importaban con parámetros de más libres.** Solo
+  se trasladaban las banderas `FIT` de ISO, QUA, BHF, WID y DEP; las de
+  D13/D23/W13/W23 (y D21/W21, ETA, THE, PHI, BEX, GAX, `BKGFIT`) se
+  ignoraban, y lo que el `.JOB` no menciona quedaba como estuviera en la
+  sesión, libre por defecto. En NORMOS todo lo que no lleva `…FIT=.TRUE.`
+  está fijo. Resultado: Fitbauer ajustaba un modelo con más variables
+  (intensidades relativas, anchuras por par, pendiente del fondo). Ahora cada
+  parámetro queda fijo salvo que su bandera lo libere; las razones de
+  Fitbauer que mezclan dos parámetros de NORMOS (int1 = D13/W13…) se liberan
+  si cualquiera de los dos lo está. Lo mismo para los nítidos de NORMOS-DIST.
+  La exportación escribe ahora esas banderas en lugar de fijarlas siempre.
+- `docs/normos_job*.md` y `core/normos_job.py` explican el doblado de NORMOS
+  en prosa, sin citar su Fortran.
+
 ## v5.2.3 — Le Caër con campo, campo externo BEXT y más compatibilidad con NORMOS
 
 - **Czjzek y Le Caër se eligen directamente en P(ΔEQ).** Le Caër salía en gris

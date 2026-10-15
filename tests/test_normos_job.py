@@ -55,6 +55,38 @@ def test_parse_job_separa_los_bloques():
     assert j["param"]["W13(1)"] == "0.7"
 
 
+def test_solo_se_libera_lo_que_el_job_marca_con_fit():
+    """En NORMOS lo que no lleva ``…FIT=.TRUE.`` está fijo.
+
+    Antes solo se trasladaban las banderas de ISO/QUA/BHF/WID/DEP, y las
+    anchuras e intensidades relativas quedaban como estuvieran en la sesión
+    (libres por defecto): Fitbauer ajustaba con más variables que NORMOS.
+    """
+    job = JOB_C2.replace("ISOFIT(1)=.FALSE.", "ISOFIT(1)=.TRUE.")
+    f = job_to_model_state(job)["model_state"]["fixed"]
+    assert f["s1_delta"] is False
+    for k in ("quad", "bhf", "gamma1", "gamma2", "gamma3", "depth",
+              "int1", "int2", "eta", "texture"):
+        assert f[f"s1_{k}"] is True, k
+    assert f["baseline"] is False and f["slope"] is True
+    # W13 libre mueve las tres razones que dependen de él.
+    f = job_to_model_state(
+        JOB_C2.replace("W13FIT(1)=.FALSE.", "W13FIT(1)=.TRUE."))["model_state"]["fixed"]
+    assert not f["s1_gamma1"] and not f["s1_gamma2"] and not f["s1_gamma3"]
+    assert not f["s1_int1"] and f["s1_int2"]
+    f = job_to_model_state(JOB_C2.replace(
+        "NSUB=1,", "NSUB=1, BKGFIT(2)=.TRUE.,"))["model_state"]["fixed"]
+    assert f["slope"] is False
+
+
+def test_las_banderas_fit_sobreviven_a_la_ida_y_vuelta():
+    job = JOB_C2.replace("D23FIT(1)=.FALSE.", "D23FIT(1)=.TRUE.")
+    estado = job_to_model_state(job)["model_state"]
+    f = job_to_model_state(model_state_to_job(estado))["model_state"]["fixed"]
+    assert f["s1_int2"] is False
+    assert f["s1_int1"] is True and f["s1_gamma2"] is True
+
+
 def test_texto_sin_param_lanza():
     with pytest.raises(NormosJobError):
         parse_job("no soy un job")
@@ -354,6 +386,9 @@ def test_la_gui_registra_las_acciones_y_hace_el_ciclo(tmp_path, monkeypatch):
         estado = win._session_payload()["model_state"]
         assert estado["vars"]["s1_gamma1"] == pytest.approx(0.21, rel=1e-3)
         assert estado["vars"]["s1_bhf"] == pytest.approx(33.0, rel=1e-4)
+        # Todo .FALSE. en el .JOB → nada del subespectro queda libre.
+        assert estado["fixed"]["s1_int1"] and estado["fixed"]["s1_gamma2"]
+        assert estado["fixed"]["s1_delta"] and estado["fixed"]["slope"]
 
         salida = tmp_path / "SALIDA.JOB"
         monkeypatch.setattr(
@@ -507,9 +542,11 @@ def test_los_sitios_cristalinos_son_componentes_nitidos():
     assert s["vars"]["s1_bhf"] == pytest.approx(44.0)
     assert s["vars"]["s1_gamma1"] == pytest.approx(0.4)
     assert s["vars"]["s2_quad"] == pytest.approx(0.7)
-    # ISXFIT/BHXFIT=.true. → libres; QUX sin bandera → queda como esté.
+    # ISXFIT/BHXFIT=.true. → libres; QUX sin bandera → fijo, como en NORMOS.
     assert s["fixed"]["s1_delta"] is False
     assert s["fixed"]["s1_bhf"] is False
+    assert s["fixed"]["s1_quad"] is True
+    assert s["fixed"]["s1_int1"] is True and s["fixed"]["s2_gamma1"] is True
     # Y lo que el .JOB no define se apaga, para que no sume sobre la malla.
     assert s["sextet_enabled"]["3"] is False
 

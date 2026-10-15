@@ -269,6 +269,56 @@ def _idx(param: dict, nombre: str, i: int) -> str | None:
     return param.get(f"{nombre}({i})", param.get(nombre))
 
 
+#: Banderas FIT de NORMOS que liberan cada parámetro de Fitbauer, por tipo de
+#: subespectro. Basta una: ``gamma2``/``gamma3``/``int1``/``int2`` son razones
+#: que mezclan dos parámetros de NORMOS (p. ej. int1 = D13/W13), y si
+#: cualquiera de los dos se mueve, la razón también.
+_BANDERAS_SITE: dict[str, dict[str, tuple[str, ...]]] = {
+    "Sextete": {"gamma1": ("WID", "W13"), "gamma2": ("W23", "W13"),
+                "gamma3": ("W13",), "int1": ("D13", "A13", "W13"),
+                "int2": ("D23", "A23", "W23")},
+    "Doblete": {"gamma1": ("WID",), "gamma2": ("W21",),
+                "int2": ("D21", "A21", "W21")},
+    "Singlete": {"gamma1": ("WID",)},
+}
+_BANDERAS_COMUNES_SITE: dict[str, tuple[str, ...]] = {
+    "delta": ("ISO",), "quad": ("QUA",), "bhf": ("BHF",),
+    "depth": ("DEP", "ARE"), "eta": ("ETA",), "beta": ("THE",),
+    "phi": ("PHI",), "bex": ("BEX",), "gax": ("GAX",),
+    "relax_log_nu": ("OME",),
+}
+_BANDERAS_DIST_NITIDO: dict[str, tuple[str, ...]] = {
+    "delta": ("ISX",), "quad": ("QUX",), "bhf": ("BHX",),
+    "gamma1": ("WIX",), "depth": ("DEX", "ARX"),
+    "int1": ("D1X", "A1X"), "int2": ("D2X", "A2X"),
+}
+
+
+def _fija_como_normos(fijos: dict, pref: str, i: int, param: dict,
+                      banderas: dict[str, tuple[str, ...]]) -> None:
+    """Libera solo lo que el ``.JOB`` marca con ``…FIT=.TRUE.``.
+
+    En NORMOS un parámetro sin su bandera FIT a verdadero queda FIJO. Dejar
+    el resto como estuviera en la sesión hacía que Fitbauer ajustara con más
+    variables que NORMOS (anchuras e intensidades relativas sueltas), y el
+    ajuste importado no era el mismo modelo.
+    """
+    for nombre in component_defaults(i):
+        clave = pref + nombre
+        normos = banderas.get(nombre)
+        if normos is None:
+            fijos.setdefault(clave, True)
+            continue
+        fijos[clave] = not any(_b(_idx(param, n + "FIT", i)) for n in normos)
+
+
+def _fija_fondo_como_normos(fijos: dict, param: dict) -> None:
+    """BKG(1) se ajusta salvo ``BKGFIT(1)=.FALSE.``; el resto, solo si se pide."""
+    fijos["baseline"] = not _b(param.get("BKGFIT(1)", param.get("BKGFIT")), True)
+    for n, clave in ((2, "slope"), (3, "curv"), (4, "curv3"), (5, "curv4")):
+        fijos[clave] = not _b(param.get(f"BKGFIT({n})"))
+
+
 def job_to_model_state(text: str) -> dict:
     """Convierte un ``.JOB`` en un ``model_state`` de Fitbauer.
 
@@ -293,6 +343,7 @@ def job_to_model_state(text: str) -> dict:
     tratos: dict[int, str] = {}
 
     # ── Globales ────────────────────────────────────────────────────────────
+    _fija_fondo_como_normos(fijos, param)
     aks = _f(param.get("AKS"), 0.0)
     if aks:
         variables["line_asym"] = aks
@@ -382,9 +433,6 @@ def job_to_model_state(text: str) -> dict:
             nu = ome * 1.0e6 / 2.0 if ome > 0 else 0.0
             if nu > 0:
                 variables[pref + "relax_log_nu"] = float(np.log10(nu))
-            bandera = _idx(param, "OMEFIT", i)
-            if bandera is not None:
-                fijos[pref + "relax_log_nu"] = not _b(bandera)
             bsat = _f(param.get("BSAT"), 0.0) or _f(_idx(param, "BH0", i), 0.0)
             pol = 0.0
             if bsat > 0:
@@ -404,13 +452,8 @@ def job_to_model_state(text: str) -> dict:
             variables[pref + "beta"] = np.radians(_f(_idx(param, "THE", i), 0.0))
             variables[pref + "phi"] = np.radians(_f(_idx(param, "PHI", i), 0.0))
 
-        for norm, mio in (("ISO", "delta"), ("QUA", "quad"), ("BHF", "bhf"),
-                          ("WID", "gamma1"), ("DEP", "depth")):
-            bandera = _idx(param, norm + "FIT", i)
-            if bandera is not None:
-                fijos[pref + mio] = not _b(bandera)
-        if _idx(param, "AREFIT", i) is not None:
-            fijos[pref + "depth"] = not _b(_idx(param, "AREFIT", i))
+        _fija_como_normos(fijos, pref, i, param,
+                          {**_BANDERAS_COMUNES_SITE, **_BANDERAS_SITE[kind]})
 
     # ── Ligaduras NDEX/FACTOR/CONST ─────────────────────────────────────────
     constraints: list[dict] = []
@@ -791,12 +834,14 @@ def job_to_distribution_state(text: str) -> dict:
         denom = (np.pi / 2.0) * suma
         estado["vars"][pref + "depth"] = float(area / denom) if denom > 0 else 0.02
 
-        for norm, mio in (("ISX", "delta"), ("QUX", "quad"), ("BHX", "bhf"),
-                          ("WIX", "gamma1"), ("DEX", "depth"), ("ARX", "depth")):
-            bandera = _idx(param, norm + "FIT", i)
-            if bandera is not None:
-                estado["fixed"][pref + mio] = not _b(bandera)
+        # Banderas con el índice del .JOB (i), claves con el del nítido (idx).
+        fijos_i: dict = {}
+        _fija_como_normos(fijos_i, "", i, param, _BANDERAS_DIST_NITIDO)
+        for nombre, fijo in fijos_i.items():
+            if nombre in component_defaults(idx):
+                estado["fixed"][pref + nombre] = fijo
 
+    _fija_fondo_como_normos(estado["fixed"], param)
     estado["n_components"] = max(1, n_sharp)
     estado["dist_use_sharp"] = n_sharp > 0
     # Desactivar explícitamente lo que el .JOB no define: si no, los
@@ -915,17 +960,17 @@ def model_state_to_job(state: dict, stem: str = "FITBAUER",
             suma = 2.0 * wid * (d13 + d23 + 1.0)
             _añade(par, pos, "BHF", v.get(pref + "bhf", 33.0), fijos.get(pref + "bhf"))
             _añade(par, pos, "WID", wid, fijos.get(pref + "gamma1"))
-            _añade(par, pos, "W13", w13, None)
-            _añade(par, pos, "W23", w23, None)
-            _añade(par, pos, "D13", d13, None)
-            _añade(par, pos, "D23", d23, None)
+            _añade(par, pos, "W13", w13, fijos.get(pref + "gamma3", True))
+            _añade(par, pos, "W23", w23, fijos.get(pref + "gamma2", True))
+            _añade(par, pos, "D13", d13, fijos.get(pref + "int1", True))
+            _añade(par, pos, "D23", d23, fijos.get(pref + "int2", True))
         elif kind == "Doblete":
             wid, w21 = g1, g2
             d21 = float(v.get(pref + "int2", 1.0)) * w21
             suma = wid * (1.0 + d21)
             _añade(par, pos, "WID", wid, fijos.get(pref + "gamma1"))
-            _añade(par, pos, "W21", w21, None)
-            _añade(par, pos, "D21", d21, None)
+            _añade(par, pos, "W21", w21, fijos.get(pref + "gamma2", True))
+            _añade(par, pos, "D21", d21, fijos.get(pref + "int2", True))
         else:
             wid, suma = g1, g1
             _añade(par, pos, "WID", wid, fijos.get(pref + "gamma1"))
