@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- **Los `.JOB` de NORMOS se importan con intensidades por área.** D13/D23/D21
+  son razones de ÁREA y pasan tal cual a int1/int2 con el convenio «área»
+  (el de NORMOS), que la importación deja puesto. Con el de profundidad
+  (int = D/W), liberar W13/W23 liberaba también int1/int2: dos variables de
+  más por subespectro (MI221120: 19 frente a 15). La exportación respeta el
+  convenio del modelo.
 - **Los `.JOB` de NORMOS se importaban con parámetros de más libres.** Solo
   se trasladaban las banderas `FIT` de ISO, QUA, BHF, WID y DEP; las de
   D13/D23/W13/W23 (y D21/W21, ETA, THE, PHI, BEX, GAX, `BKGFIT`) se

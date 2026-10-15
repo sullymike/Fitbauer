@@ -73,7 +73,8 @@ def test_solo_se_libera_lo_que_el_job_marca_con_fit():
     f = job_to_model_state(
         JOB_C2.replace("W13FIT(1)=.FALSE.", "W13FIT(1)=.TRUE."))["model_state"]["fixed"]
     assert not f["s1_gamma1"] and not f["s1_gamma2"] and not f["s1_gamma3"]
-    assert not f["s1_int1"] and f["s1_int2"]
+    # Con intensidades por área, D13/D23 fijos siguen fijos.
+    assert f["s1_int1"] and f["s1_int2"]
     f = job_to_model_state(JOB_C2.replace(
         "NSUB=1,", "NSUB=1, BKGFIT(2)=.TRUE.,"))["model_state"]["fixed"]
     assert f["slope"] is False
@@ -97,16 +98,19 @@ def test_conversion_de_convenios():
 
     - ``WID`` es de las líneas 3,4 → ``gamma1 = WID·W13 = 0.3·0.7``
     - ``gamma2 = W23/W13``, ``gamma3 = 1/W13``
-    - ``D13``/``D23`` son ÁREAS → ``int1 = D13/W13``, ``int2 = D23/W23``
-    - ``DEP`` es el área del subespectro → ``depth = DEP / ((π/2)·2·WID·(D13+D23+1))``
+    - ``D13``/``D23`` son razones de ÁREA y se importan tal cual, con el
+      convenio de intensidades por área (``int1 = D13``, ``int2 = D23``)
+    - ``DEP`` es el área del subespectro → ``depth = DEP / ((π/2)·Γ1·2·(D13+D23+1))``
     """
-    v = job_to_model_state(JOB_C2)["model_state"]["vars"]
+    st = job_to_model_state(JOB_C2)["model_state"]
+    assert st["intensity_convention"] == "area"
+    v = st["vars"]
     assert v["s1_gamma1"] == pytest.approx(0.21)
     assert v["s1_gamma2"] == pytest.approx(1.857143, rel=1e-5)
     assert v["s1_gamma3"] == pytest.approx(1.428571, rel=1e-5)
-    assert v["s1_int1"] == pytest.approx(4.285714, rel=1e-5)
-    assert v["s1_int2"] == pytest.approx(1.538462, rel=1e-5)
-    assert v["s1_depth"] == pytest.approx(0.00884194, rel=1e-5)
+    assert v["s1_int1"] == pytest.approx(3.0)
+    assert v["s1_int2"] == pytest.approx(2.0)
+    assert v["s1_depth"] == pytest.approx(0.0126313, rel=1e-5)
     assert v["s1_bhf"] == pytest.approx(33.0)
 
 
@@ -176,14 +180,27 @@ def test_metadatos_de_adquisicion():
 
 def test_el_area_del_subespectro_se_conserva():
     """El criterio de fondo: el ÁREA que declara el .JOB es la que sale."""
-    from core.physics import component_absorption
+    from core.physics import component_absorption, intensity_convention
     from core.constants import SEXTET_PARAM_NAMES
 
     v_grid = np.linspace(-40.0, 40.0, 32001)
-    vals = job_to_model_state(JOB_C2)["model_state"]["vars"]
+    st = job_to_model_state(JOB_C2)["model_state"]
+    vals = st["vars"]
     p = np.array([vals[f"s1_{n}"] for n in SEXTET_PARAM_NAMES], dtype=float)
-    area = float(np.trapezoid(component_absorption(v_grid, "Sextete", p), v_grid))
+    with intensity_convention(st["intensity_convention"]):
+        area = float(np.trapezoid(component_absorption(v_grid, "Sextete", p), v_grid))
+        # Y las líneas 1,6 llevan D13 veces el área de las 3,4 aunque sus
+        # anchuras difieran (W13 = 0.7): se aíslan anulando intensidades.
+        i1 = SEXTET_PARAM_NAMES.index("int1")
+        i2 = SEXTET_PARAM_NAMES.index("int2")
+        def area_con(int1, int2):
+            q = p.copy()
+            q[i1], q[i2] = int1, int2
+            return float(np.trapezoid(component_absorption(v_grid, "Sextete", q), v_grid))
+        a34 = area_con(0.0, 0.0)
+        a16 = area_con(p[i1], 0.0) - a34
     assert area == pytest.approx(0.05, rel=0.02)      # DEP(1) = 0.05
+    assert a16 / a34 == pytest.approx(3.0, rel=0.01)
 
 
 def test_avisa_de_la_escala_de_bhf():

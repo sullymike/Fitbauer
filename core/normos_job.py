@@ -270,15 +270,16 @@ def _idx(param: dict, nombre: str, i: int) -> str | None:
 
 
 #: Banderas FIT de NORMOS que liberan cada parámetro de Fitbauer, por tipo de
-#: subespectro. Basta una: ``gamma2``/``gamma3``/``int1``/``int2`` son razones
-#: que mezclan dos parámetros de NORMOS (p. ej. int1 = D13/W13), y si
-#: cualquiera de los dos se mueve, la razón también.
+#: subespectro. Basta una: ``gamma1``/``gamma2`` son productos o razones de
+#: dos anchuras de NORMOS (gamma1 = WID·W13, gamma2 = W23/W13), y si
+#: cualquiera se mueve, el parámetro también. Con intensidades por área,
+#: int1/int2 son D13/D23 sin más.
 _BANDERAS_SITE: dict[str, dict[str, tuple[str, ...]]] = {
     "Sextete": {"gamma1": ("WID", "W13"), "gamma2": ("W23", "W13"),
-                "gamma3": ("W13",), "int1": ("D13", "A13", "W13"),
-                "int2": ("D23", "A23", "W23")},
+                "gamma3": ("W13",), "int1": ("D13", "A13"),
+                "int2": ("D23", "A23")},
     "Doblete": {"gamma1": ("WID",), "gamma2": ("W21",),
-                "int2": ("D21", "A21", "W21")},
+                "int2": ("D21", "A21")},
     "Singlete": {"gamma1": ("WID",)},
 }
 _BANDERAS_COMUNES_SITE: dict[str, tuple[str, ...]] = {
@@ -396,20 +397,22 @@ def job_to_model_state(text: str) -> dict:
             variables[pref + "gamma1"] = wid * w13
             variables[pref + "gamma2"] = w23 / w13 if w13 else 1.0
             variables[pref + "gamma3"] = 1.0 / w13 if w13 else 1.0
-            # D13/D23 son razones de ÁREA; int1/int2 de PROFUNDIDAD.
-            variables[pref + "int1"] = d13 / w13 if w13 else d13
-            variables[pref + "int2"] = d23 / w23 if w23 else d23
+            # D13/D23 son razones de ÁREA y se importan tal cual, con el
+            # convenio de intensidades por área (como NORMOS): así D13/D23
+            # fijos siguen fijos aunque se liberen las anchuras. En el de
+            # profundidad (int = D/W) liberar W13/W23 movía también int1/int2.
+            variables[pref + "int1"] = d13
+            variables[pref + "int2"] = d23
             variables[pref + "bhf"] = _f(_idx(param, "BHF", i), 33.0)
-            # Área con depth=1: (π/2)·Σ_j peso_j·Γ_j. NO factoriza como
-            # Σpeso · Γ cuando las anchuras difieren, y en unidades de NORMOS
-            # se reduce a 2·WID·(D13+D23+1).
-            suma = 2.0 * wid * (d13 + d23 + 1.0)
+            # Área con depth=1 y pesos por área: (π/2)·Γ1·Σ_j a_j, con
+            # Γ1 = WID·W13 y Σ a_j = 2·(D13+D23+1).
+            suma = 2.0 * wid * w13 * (d13 + d23 + 1.0)
         elif kind == "Doblete":
             d21 = _f(_idx(param, "D21", i) or _idx(param, "A21", i), 1.0)
             variables[pref + "gamma1"] = wid
             variables[pref + "gamma2"] = w21
             variables[pref + "int1"] = 1.0      # la línea 1 es la referencia
-            variables[pref + "int2"] = d21 / w21 if w21 else d21
+            variables[pref + "int2"] = d21      # razón de ÁREA (convenio área)
             suma = wid * (1.0 + d21)
         else:
             variables[pref + "gamma1"] = wid
@@ -504,6 +507,7 @@ def job_to_model_state(text: str) -> dict:
         "sextet_enabled": {str(k): v for k, v in activos.items()},
         "component_kind": {str(k): v for k, v in tipos.items()},
         "intensity_mode": {str(k): "free" for k in tipos},
+        "intensity_convention": "area",
         "quad_treatment": {str(k): tratos.get(k, "1st_order") for k in tipos},
         "constraints": constraints,
         "n_components": len(tipos),
@@ -936,6 +940,9 @@ def model_state_to_job(state: dict, stem: str = "FITBAUER",
     if center:
         data["PFP"] = f"{float(center):g}"
 
+    # Razones de intensidad: por ÁREA ya son las D13/D23/D21 de NORMOS; por
+    # profundidad hay que multiplicar por la anchura relativa.
+    por_area = str(state.get("intensity_convention", "depth")) == "area"
     par: list[str] = [f"NSUB={len(indices)},"]
     for pos, i in enumerate(indices, start=1):
         kind = tipos[i]
@@ -956,8 +963,12 @@ def model_state_to_job(state: dict, stem: str = "FITBAUER",
             wid = g1 * g3
             w13 = 1.0 / g3 if g3 else 1.0
             w23 = g2 / g3 if g3 else 1.0
-            d13, d23 = i1 * w13, i2 * w23
-            suma = 2.0 * wid * (d13 + d23 + 1.0)
+            if por_area:
+                d13, d23 = i1, i2
+                suma = 2.0 * g1 * (d13 + d23 + 1.0)
+            else:
+                d13, d23 = i1 * w13, i2 * w23
+                suma = 2.0 * wid * (d13 + d23 + 1.0)
             _añade(par, pos, "BHF", v.get(pref + "bhf", 33.0), fijos.get(pref + "bhf"))
             _añade(par, pos, "WID", wid, fijos.get(pref + "gamma1"))
             _añade(par, pos, "W13", w13, fijos.get(pref + "gamma3", True))
@@ -966,7 +977,7 @@ def model_state_to_job(state: dict, stem: str = "FITBAUER",
             _añade(par, pos, "D23", d23, fijos.get(pref + "int2", True))
         elif kind == "Doblete":
             wid, w21 = g1, g2
-            d21 = float(v.get(pref + "int2", 1.0)) * w21
+            d21 = float(v.get(pref + "int2", 1.0)) * (1.0 if por_area else w21)
             suma = wid * (1.0 + d21)
             _añade(par, pos, "WID", wid, fijos.get(pref + "gamma1"))
             _añade(par, pos, "W21", w21, fijos.get(pref + "gamma2", True))
