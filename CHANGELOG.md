@@ -20,7 +20,7 @@
   son razones de ÁREA y pasan tal cual a int1/int2 con el convenio «área»
   (el de NORMOS), que la importación deja puesto. Con el de profundidad
   (int = D/W), liberar W13/W23 liberaba también int1/int2: dos variables de
-  más por subespectro (MI221120: 19 frente a 15). La exportación respeta el
+  más por subespectro (en un trabajo real, 19 frente a 15). La exportación respeta el
   convenio del modelo.
 - **Los `.JOB` de NORMOS se importaban con parámetros de más libres.** Solo
   se trasladaban las banderas `FIT` de ISO, QUA, BHF, WID y DEP; las de
