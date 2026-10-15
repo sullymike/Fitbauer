@@ -1644,6 +1644,11 @@ def distribution_goodness(
     (N·ln(χ²/N) + 2k y N·ln(χ²/N) + k·ln N), así que se pueden comparar
     modelos discretos y de distribución sobre el mismo espectro.
     Sin ``sigma`` solo se devuelven RMS y los diagnósticos de residuos.
+
+    ``hesse_ruebartsch`` es el parámetro que imprime NORMOS-DIST
+    (``distlstf.for``): Σ(y − y_teo)² / Σy en cuentas, es decir Σr²/Σσ² con
+    σ² = y de Poisson (así no depende de normalizar el espectro). Vale ≈ χ²/N:
+    ≫ 1 indica sobre-suavizado y ≪ 1 que P sigue el ruido.
     """
     r = np.asarray(residuals, dtype=float).ravel()
     n = int(r.size)
@@ -1660,6 +1665,7 @@ def distribution_goodness(
         return out
     chi2 = float(np.sum((r / s) ** 2))
     out["chi2"] = chi2
+    out["hesse_ruebartsch"] = float(np.sum(r ** 2) / np.sum(s ** 2))
     if n_params is None:
         return out
     k = float(n_params) + float(n_outer)

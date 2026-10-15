@@ -994,6 +994,10 @@ class DistributionFitMixin:
         if alpha_val is None:
             alpha_val = getattr(result, "alpha_bhf", 0.0)
         r.values = {"baseline": result.baseline, "slope": result.slope, "alpha": alpha_val}
+        # Criterio de suavizado de NORMOS-DIST (≈ χ²/N), para quien viene de él.
+        hr = resumen["goodness"].get("hesse_ruebartsch")
+        if hr is not None:
+            r.values[tr("rep.hesse_ruebartsch")] = hr
         # Pendientes de correlación δ(H)/ΔEQ(H): solo si la forma las usó (≠ 0).
         dsl = float(getattr(result, "delta_slope", 0.0) or 0.0)
         qsl = float(getattr(result, "quad_slope", 0.0) or 0.0)
@@ -1325,7 +1329,8 @@ class DistributionFitMixin:
                   if getattr(result, k, None) is not None]
         if alphas:
             header.append("  ".join(alphas))
-        stats = [f"{k}={g[k]:.6g}" for k in ("chi2", "dof", "red_chi2", "aic", "bic", "rms")
+        stats = [f"{k}={g[k]:.6g}" for k in ("chi2", "dof", "red_chi2", "hesse_ruebartsch",
+                                              "aic", "bic", "rms")
                  if k in g]
         if stats:
             header.append("  ".join(stats))

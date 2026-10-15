@@ -163,6 +163,10 @@ Cada superposición tiene una casilla que la oculta; la elección se recuerda.
   **asimetría** (negativa = cola hacia valores bajos) y la **curtosis en exceso** (0 para
   una gaussiana, negativa si P es más plana, positiva si es más picuda), las mismas que
   da NORMOS-DIST para comparar P con una gaussiana. Van sin error.
+- **Parámetro de Hesse–Rübartsch.** El informe y el panel dan también el criterio de
+  suavizado de NORMOS-DIST, Σ(y − y_teo)²/Σy (Σr²/Σσ² con σ de Poisson), ≈ χ²/N: si
+  pasa mucho de 1 el suavizado es excesivo; si queda muy por debajo, P sigue el ruido.
+  Sirve para comparar con un λ elegido en NORMOS; en Fitbauer α se elige con la L-curve.
 
 ## Avisos del panel de distribución
 

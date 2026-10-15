@@ -164,6 +164,10 @@ Each overlay has a check that hides it; the choice is remembered.
   **skewness** (negative = tail towards low values) and the **excess kurtosis** (0 for a
   Gaussian, negative if P is flatter, positive if it is more peaked), the same ones
   NORMOS-DIST gives to compare P with a Gaussian. They carry no error.
+- **Hesse–Rübartsch parameter.** The report and the panel also give NORMOS-DIST's
+  smoothing criterion, Σ(y − y_theo)²/Σy (Σr²/Σσ² with Poisson σ), ≈ χ²/N: well above 1
+  means too much smoothing; well below, P follows the noise. Useful to compare with a λ
+  chosen in NORMOS; in Fitbauer α is chosen with the L-curve.
 
 ## Warnings of the distribution panel
 

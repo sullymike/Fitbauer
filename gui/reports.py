@@ -275,6 +275,8 @@ class ReportMixin:
             lines.append(f"| ν = N − k | {g['dof']:.6g} |")
         if "red_chi2" in g:
             lines.append(f"| {_r('red_chi2')} | {g['red_chi2']:.6g} |")
+        if "hesse_ruebartsch" in g:
+            lines.append(f"| {_r('hesse_ruebartsch')} | {g['hesse_ruebartsch']:.4f} |")
         for k, lbl in (("aic", "AIC"), ("bic", "BIC")):
             if k in g:
                 lines.append(f"| {lbl} | {g[k]:.6g} |")

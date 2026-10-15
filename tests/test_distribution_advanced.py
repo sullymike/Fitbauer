@@ -532,3 +532,16 @@ def test_momentos_de_p_incluyen_asimetria_y_curtosis_como_normos():
     m = distribution_moments(x, x ** 4 * np.exp(-0.5 * (x / 3.0) ** 2))   # Czjzek
     assert m["skew"] > 0.0
     assert "skew" not in distribution_moments(x, (x == 30.0).astype(float))
+
+
+def test_parametro_hesse_ruebartsch_como_normos():
+    """NORMOS-DIST (distlstf.for): Σ(y − y_teo)²/Σy en cuentas; con σ² = y es
+    Σr²/Σσ², independiente de normalizar el espectro."""
+    rng = np.random.default_rng(3)
+    y = np.full(500, 1.0e6)
+    r = rng.normal(0.0, np.sqrt(y))
+    g = md.distribution_goodness(r, np.sqrt(y), n_params=5)
+    assert g["hesse_ruebartsch"] == pytest.approx(np.sum(r ** 2) / np.sum(y))
+    assert g["hesse_ruebartsch"] == pytest.approx(1.0, abs=0.15)
+    gn = md.distribution_goodness(r / 1.0e6, np.sqrt(y) / 1.0e6, n_params=5)
+    assert gn["hesse_ruebartsch"] == pytest.approx(g["hesse_ruebartsch"])

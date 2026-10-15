@@ -1029,6 +1029,7 @@
   "rep.dist_aic_note": "AIC と BIC は離散フィットと同じ定義です。同じスペクトルの離散フィットと比較できます（小さいほど良い）。",
   "rep.dist_stats_header": "分布",
   "rep.mode_peak": "最頻値（P の最大）",
+  "rep.hesse_ruebartsch": "Hesse–Rübartsch パラメータ（NORMOS、≈ χ²/N）",
   "rep.dist_band_note": "モンテカルロ 1σ バンド（100 回）：グラフとエクスポートデータ",
   "rep.warnings_header": "警告",
   "rep.dist_edge_pileup": "P がグリッドの端に重みを溜めています（最大の {pct} %）：分布がグリッドからはみ出しています。グリッドを広げてください。",

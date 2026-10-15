@@ -1029,6 +1029,7 @@
   "rep.dist_aic_note": "AIC and BIC use the same definition as the discrete fit: they can be compared with a discrete fit of the same spectrum (lower is better).",
   "rep.dist_stats_header": "The distribution",
   "rep.mode_peak": "Mode (maximum of P)",
+  "rep.hesse_ruebartsch": "Hesse–Rübartsch parameter (NORMOS, ≈ χ²/N)",
   "rep.dist_band_note": "Monte Carlo 1σ band (100 refits): plot and exported data",
   "rep.warnings_header": "Warnings",
   "rep.dist_edge_pileup": "P piles up weight at the edge of the grid ({pct} % of the maximum): the distribution extends beyond the grid; widen it.",

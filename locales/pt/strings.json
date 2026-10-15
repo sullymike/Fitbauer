@@ -1029,6 +1029,7 @@
   "rep.dist_aic_note": "AIC e BIC usam a mesma definição que o ajuste discreto: podem comparar-se com um ajuste discreto do mesmo espetro (menor é melhor).",
   "rep.dist_stats_header": "A distribuição",
   "rep.mode_peak": "Moda (máximo de P)",
+  "rep.hesse_ruebartsch": "Parâmetro de Hesse–Rübartsch (NORMOS, ≈ χ²/N)",
   "rep.dist_band_note": "banda 1σ Monte Carlo (100 reajustes): gráfico e dados exportados",
   "rep.warnings_header": "Avisos",
   "rep.dist_edge_pileup": "P acumula peso no bordo da malha ({pct} % do máximo): a distribuição sai da malha; alargue-a.",

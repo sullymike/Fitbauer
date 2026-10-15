@@ -1029,6 +1029,7 @@
   "rep.dist_aic_note": "AIC 和 BIC 的定义与离散拟合相同：可与同一谱的离散拟合比较（越小越好）。",
   "rep.dist_stats_header": "分布",
   "rep.mode_peak": "众数（P 的最大值）",
+  "rep.hesse_ruebartsch": "Hesse–Rübartsch 参数（NORMOS，≈ χ²/N）",
   "rep.dist_band_note": "蒙特卡罗 1σ 带（100 次）：见图与导出数据",
   "rep.warnings_header": "警告",
   "rep.dist_edge_pileup": "P 在网格边缘堆积权重（最大值的 {pct} %）：分布超出网格；请扩大网格。",

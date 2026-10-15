@@ -1029,6 +1029,7 @@
   "rep.dist_aic_note": "AIC und BIC verwenden dieselbe Definition wie der diskrete Fit: sie sind mit einem diskreten Fit desselben Spektrums vergleichbar (kleiner ist besser).",
   "rep.dist_stats_header": "Die Verteilung",
   "rep.mode_peak": "Modus (Maximum von P)",
+  "rep.hesse_ruebartsch": "Hesse–Rübartsch-Parameter (NORMOS, ≈ χ²/N)",
   "rep.dist_band_note": "Monte-Carlo-1σ-Band (100 Neufits): Diagramm und exportierte Daten",
   "rep.warnings_header": "Warnungen",
   "rep.dist_edge_pileup": "P häuft Gewicht am Gitterrand an ({pct} % des Maximums): die Verteilung reicht über das Gitter hinaus; Gitter erweitern.",

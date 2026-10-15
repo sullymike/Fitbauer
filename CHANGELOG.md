@@ -2,6 +2,10 @@
 
 ## Sin publicar
 
+- **Parámetro de Hesse–Rübartsch.** El criterio de suavizado que imprime
+  NORMOS-DIST, Σ(y − y_teo)²/Σy (`distlstf.for`), sale en el informe, en el
+  panel y en la cabecera del `.dat` exportado como `hesse_ruebartsch`
+  (Σr²/Σσ², independiente de normalizar el espectro; ≈ χ²/N).
 - **Asimetría y curtosis de P.** Como hace NORMOS-DIST, el panel «Estado y
   parámetros» y el informe dan, junto a la media, la anchura y la moda, la
   asimetría y la curtosis en exceso de la distribución (0 para una gaussiana).
