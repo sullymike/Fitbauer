@@ -2,6 +2,11 @@
 
 ## Sin publicar
 
+- **La relajación de Ising de NORMOS (`IRELAX`) se importa.** Antes solo daba
+  el aviso «no se traslada». Ahora el subespectro pasa a componente Blume–Tjon
+  con ν = OME·10⁶/2, P = BHF/BSAT (o `BH0`) y el `BEXT` global, equivalencias
+  ya validadas contra el binario de SITE. La ligadura sobre `OME` no se
+  traslada (Fitbauer guarda log10 ν). Notas de NORMOS.
 - **Los `.JOB` con VMAX negativo se abrían reflejados.** En NORMOS el signo de
   VMAX invierte el espectro; el importador tomaba su valor absoluto, así que
   esos trabajos se abrían como imagen especular y δ salía con el signo

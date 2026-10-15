@@ -375,6 +375,33 @@ def job_to_model_state(text: str) -> dict:
         variables[pref + "depth"] = float(area / denom) if denom > 0 else 0.02
         denoms[i] = denom
 
+        if kind == "Sextete" and _b(_idx(param, "IRELAX", i)):
+            # Relajación de Ising de SITE = componente Blume–Tjon de dos
+            # estados ±BHF. Equivalencias validadas contra el binario demo
+            # (validacion/generador/sonda_relajacion*.py): OME (MHz) = 2ν, y
+            # momento relativo P = BHF/BSAT (el demo lo llama BH0). BEXT es
+            # global en NORMOS y desplaza las líneas de los dos estados.
+            tipos[i] = "BlumeTjon"
+            ome = _f(_idx(param, "OME", i), 0.0)
+            nu = ome * 1.0e6 / 2.0 if ome > 0 else 0.0
+            if nu > 0:
+                variables[pref + "relax_log_nu"] = float(np.log10(nu))
+            bandera = _idx(param, "OMEFIT", i)
+            if bandera is not None:
+                fijos[pref + "relax_log_nu"] = not _b(bandera)
+            bsat = _f(param.get("BSAT"), 0.0) or _f(_idx(param, "BH0", i), 0.0)
+            pol = 0.0
+            if bsat > 0:
+                pol = float(np.clip(variables[pref + "bhf"] / bsat, -1.0, 1.0))
+            variables[pref + "relax_polarization"] = pol
+            fijos[pref + "relax_polarization"] = True
+            bext = _f(param.get("BEXT"), 0.0)
+            variables[pref + "relax_bext"] = bext
+            fijos[pref + "relax_bext"] = True
+            avisos.append(tr("normos.w_irelax", i=i, ome=f"{ome:g}",
+                             lognu=f"{np.log10(nu):.3f}" if nu > 0 else "—",
+                             pol=f"{pol:.3g}", bext=f"{bext:g}"))
+
         if _b(_idx(param, "HAMILT", i)) or _b(param.get("HAMILT")):
             tratos[i] = "hamiltonian"
             variables[pref + "eta"] = _f(_idx(param, "ETA", i), 0.0)
@@ -425,7 +452,7 @@ def job_to_model_state(text: str) -> dict:
             "factor": factor, "offset": offset,
         })
 
-    for clave in ("POLAR", "IFSC", "IFGK", "EFGB", "SRELAX", "IRELAX",
+    for clave in ("POLAR", "IFSC", "IFGK", "EFGB", "SRELAX",
                   "VOIGT", "EMSPEC", "ISTYPE", "NADD", "NDECKS"):
         if clave in param or clave in data:
             avisos.append(tr("normos.w_key_not_carried", name=clave))
@@ -815,6 +842,9 @@ def _clave_desde_indice(indice: int, tipos: dict[int, str]) -> str | None:
     if sub not in tipos:
         return None
     kind = tipos[sub]
+    if kind == "BlumeTjon" and resto + 1 == 9:
+        # OME: Fitbauer guarda log10 ν, que no es lineal en OME.
+        return None
     por_offset = {1: "gamma1", 2: "depth", 3: "delta", 4: "quad", 5: "bhf",
                   9: "gamma2" if kind == "Doblete" else "gamma2",
                   10: "gamma3", 12: "int2" if kind == "Doblete" else "int1",

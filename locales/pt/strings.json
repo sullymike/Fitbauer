@@ -1252,6 +1252,7 @@
   "plimit.line_asym": "Assimetria de linha (AKS)",
   "normos.w_bhf_scale": "O BHF vem na escala do NORMOS (posições derivadas dos momentos nucleares). Para a reproduzir, ajuste com core.constants.sextet_pattern(\"normos\").",
   "normos.w_pfp_seed": "PFP={pfp} é a SEMENTE da procura do ponto de dobragem, não o ponto final: o NORMOS refina-o em dois ciclos e quantifica-o em múltiplos de meio canal. Não é imposto — o Fitbauer faz a sua própria procura. Para o forçar, escreva-o à mão em «Centro».",
+  "normos.w_irelax": "O subespectro {i} tem relaxação de Ising (IRELAX): importa-se como componente Blume–Tjon com OME={ome} MHz → log10 ν = {lognu} (ν = OME·10⁶/2), polarização P = BHF/BSAT = {pol} e campo externo BEXT = {bext} T (fixos). Com P > 0 o NORMOS usa a sua própria convenção de taxas: para reproduzir os seus ajustes, escolha a convenção NORMOS em Ajuste ▸ Opções avançadas ▸ Convenções.",
   "normos.w_vmax_negative": "VMAX={vmax} é negativo: o NORMOS inverte o espectro e o Fitbauer também (eixo de velocidade invertido). Antes tomava-se o valor absoluto e o espectro abria-se espelhado.",
   "normos.w_vmax_negative_upper": "Com PFP perto de ND (ponto de dobragem superior) o manual do NORMOS diz que o sinal correto pode ser o contrário: verifique que as linhas e δ saem onde espera.",
   "normos.w_n_blocks": "o trabalho tem {n} blocos de distribuição (NSB(2..)>0); o Fitbauer só trata um: importa-se o bloco 1.",

@@ -115,6 +115,21 @@ Los pares suman `2·IPFA+1`, así que el eje de simetría cae en `⌊PFP⌋ + 0,
 en `core.normos_job.punto_de_doblado_normos()`, y tenerlo en cuenta es lo que
 permite reproducir sus ajustes.
 
+### Signo de VMAX
+
+En NORMOS un `VMAX` negativo invierte el espectro, y Fitbauer hace lo mismo (eje de
+velocidad invertido); el importador conserva el signo y avisa. Hasta ahora tomaba
+su valor absoluto y esos trabajos se abrían reflejados, con δ de signo cambiado.
+
+### Relajación de Ising (`IRELAX`)
+
+Un subespectro con `IRELAX(i)=.TRUE.` se importa como componente **Blume–Tjon**:
+`OME` (MHz) = 2ν, la polarización es `P = BHF/BSAT` (el demo de 1994 la llama
+`BH0`) y el campo externo `BEXT` pasa a «Campo externo BEXT». Las equivalencias
+están validadas contra el binario de SITE. Con `P > 0` NORMOS usa su propio
+convenio de tasas, disponible en Ajuste ▸ Opciones avanzadas de ajuste ▸
+Convenios.
+
 ---
 
 ## Lo que no se traslada

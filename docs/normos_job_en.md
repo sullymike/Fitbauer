@@ -113,6 +113,20 @@ The pairs sum to `2·IPFA+1`, so the symmetry axis falls at `⌊PFP⌋ + 0.5`. I
 in `core.normos_job.punto_de_doblado_normos()`, and taking it into account is what
 makes its fits reproducible.
 
+### Sign of VMAX
+
+In NORMOS a negative `VMAX` reverses the spectrum, and Fitbauer does the same
+(reversed velocity axis); the importer keeps the sign and warns. It used to take
+the absolute value, so those jobs opened mirrored, with δ of the wrong sign.
+
+### Ising relaxation (`IRELAX`)
+
+A subspectrum with `IRELAX(i)=.TRUE.` is imported as a **Blume–Tjon** component:
+`OME` (MHz) = 2ν, the polarization is `P = BHF/BSAT` (the 1994 demo calls it
+`BH0`) and the external field `BEXT` goes to «External field BEXT». The
+equivalences are validated against the SITE binary. With `P > 0` NORMOS uses its
+own rate convention, available in Fit ▸ Advanced fit options ▸ Conventions.
+
 ---
 
 ## What is not carried over

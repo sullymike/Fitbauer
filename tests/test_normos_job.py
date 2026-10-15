@@ -95,6 +95,45 @@ def test_vmax_negativo_invierte_el_espectro_como_en_normos():
     assert r["vmax"] < 0
 
 
+JOB_ISING = """R012.MOS
+R012.JOB
+R012.RES
+R012.PLT
+ &DATA
+ NLTEXT=4, TRIANG=.TRUE., VMAX=10.0, PFP=256.5,
+ &END
+Sonda relajacion
+B66_O10
+ &PARAM
+ NSUB=1, BEXT=4.0,
+ NLINE(1)=6,
+ ISO(1)=0.1, ISOFIT(1)=.TRUE.,
+ QUA(1)=0.0, QUAFIT(1)=.FALSE.,
+ BHF(1)=33.0, BHFFIT(1)=.FALSE.,
+ WID(1)=0.25, WIDFIT(1)=.FALSE.,
+ DEP(1)=0.05, DEPFIT(1)=.FALSE.,
+ IRELAX(1)=.TRUE.,
+ OME(1)=10.0, OMEFIT(1)=.TRUE.,
+ BH0(1)=66.0,
+ &END
+"""
+
+
+def test_relajacion_de_ising_se_importa_como_blume_tjon():
+    """IRELAX → Blume–Tjon: OME (MHz) = 2ν, P = BHF/BSAT (BH0 en el demo) y
+    BEXT global; equivalencias validadas contra el binario de SITE."""
+    r = job_to_model_state(JOB_ISING)
+    st = r["model_state"]
+    assert st["component_kind"]["1"] == "BlumeTjon"
+    v, f = st["vars"], st["fixed"]
+    assert v["s1_relax_log_nu"] == pytest.approx(np.log10(10.0e6 / 2.0))
+    assert f["s1_relax_log_nu"] is False                    # OMEFIT=.TRUE.
+    assert v["s1_relax_polarization"] == pytest.approx(0.5)  # 33/66
+    assert v["s1_relax_bext"] == pytest.approx(4.0) and f["s1_relax_bext"]
+    assert any("IRELAX" in a and "Blume" in a for a in r["warnings"])
+    assert not any("IRELAX" in a and "no se traslada" in a for a in r["warnings"])
+
+
 def test_metadatos_de_adquisicion():
     r = job_to_model_state(JOB_C2)
     assert r["vmax"] == pytest.approx(10.0)
