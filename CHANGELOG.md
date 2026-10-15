@@ -1,7 +1,15 @@
 # Changelog
 
-## Sin publicar
+## v5.2.4 — Correcciones en la importación y exportación de `.JOB` de NORMOS
 
+- **Al cargar otro espectro se vuelve a los convenios de Fitbauer** si los de
+  NORMOS los puso un `.JOB` importado (aviso en la barra de estado). Los
+  elegidos a mano en el menú Convenios y los que trae una sesión se respetan,
+  y los del `.JOB` no se guardan como preferencia.
+- **Aviso si W13 queda libre sin WID y W23 a la vez**: las anchuras de
+  Fitbauer mezclan las de NORMOS y quedan una o dos variables más libres. El
+  aviso de la relajación de Ising ya no pide elegir a mano el convenio de
+  NORMOS, que se activa solo. Ayuda (8 idiomas) y manuales ES/EN al día.
 - **Exportar a `.JOB` escribe las ligaduras (`NDEX`/`FACTOR`/`CONST`).**
   Antes se perdían. Se traducen las lineales —δ, ΔEQ, BHF, área, anchura de
   las líneas 3-4, razones de intensidad y W21— con la escala de cada
