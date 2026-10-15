@@ -27,10 +27,13 @@
   PFP continuo interpolando (Γ y área algo menores) y el χ² se calculaba con
   el promedio de cada par, la mitad del de NORMOS (el corte χ²ᵣ ≤ 2 era en
   realidad ≤ ~3.6). Ahora se dobla como NORMOS y su χ² coincide con el del
-  `.RES` al ~1 %. Quedan 149 comparables (228 descartados por mal ajuste de
-  NORMOS); Fitbauer iguala o mejora el χ² en los 149, mediana 1.41 → 1.36.
-  Acuerdo mediano: δ 0.0007 mm/s, ΔEQ 0.0016, BHF 0.0035 T, Γ 0.0015,
-  profundidad 0.0001 (el 1.08 → 0.81 de la v5.2.3 venía de parámetros
+  `.RES` al ~1 %; se exige además que los datos doblados coincidan a 0.3 del
+  ruido y que el NVAR del `.RES` sea el del `.JOB` (no editado después).
+  Quedan 146 comparables (214 descartados por mal ajuste de NORMOS, 19 por
+  no ver los mismos datos); Fitbauer iguala o mejora el χ² en los 146,
+  mediana 1.40 → 1.38. Acuerdo mediano: δ 0.0006 mm/s, ΔEQ 0.0015, BHF
+  0.0034 T, Γ 0.0014, profundidad 0.0001; 0.15–0.2σ de NORMOS sin sesgo, y
+  lo que pasa de 3σ son ajustes en que NORMOS se paró antes del mínimo (el 1.08 → 0.81 de la v5.2.3 venía de parámetros
   sueltos de más). Entre los descartados, dos son mínimos locales de NORMOS
   que Fitbauer evita desde los mismos valores iniciales, confirmados con
   NORMOS arrancado en la solución de Fitbauer. El lector de `.RES` ya no

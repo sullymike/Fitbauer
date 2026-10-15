@@ -85,24 +85,28 @@ in its `.RES` to about 1 %. A comparison
 only means something where NORMOS fitted well and both programs see the same
 spectrum, so only those jobs are kept:
 
-- NORMOS's reduced χ² ≤ 2: **228 jobs where NORMOS did not fit well are
+- NORMOS's reduced χ² ≤ 2: **214 jobs where NORMOS did not fit well are
   discarded**;
-- Fitbauer reproduces NORMOS's curve at its solution (to 1 % of the peak) and
-  both see the same folded data (2 jobs discarded: a calibration with fitted
-  velocity and a directory whose files do not belong together);
+- Fitbauer reproduces NORMOS's curve at its solution (to 1 % of the peak), both
+  see the same folded data (to 0.3 of the noise) and the `.JOB` still matches
+  its `.RES` (19 jobs discarded, mostly with the folding point far from the
+  centre, where NORMOS's folding cannot be reproduced);
 - 28 jobs cannot be analysed (distribution jobs, missing spectrum or results).
 
-On the remaining **149 jobs**:
+On the remaining **146 jobs**:
 
-- Fitbauer reaches the same or a lower χ² in **149 of 149**; median reduced
-  χ²: NORMOS **1.41** · Fitbauer **1.36**.
+- Fitbauer reaches the same or a lower χ² in **146 of 146**; median reduced
+  χ²: NORMOS **1.40** · Fitbauer **1.38**.
 - Median parameter agreement:
 
   | δ | ΔEQ | BHF | Γ | depth |
   |---|---|---|---|---|
-  | 0.0007 mm/s | 0.0016 mm/s | 0.0035 T | 0.0015 mm/s | 0.0001 |
+  | 0.0006 mm/s | 0.0015 mm/s | 0.0034 T | 0.0014 mm/s | 0.0001 |
 
-The figures hardly change with a χ² cut of 1.5 or 3. Among the discarded
+In units of NORMOS's own errors the differences have a median of 0.15–0.2σ
+and no bias; the few above 3σ are jobs where NORMOS had stopped short of the
+minimum (Fitbauer's χ² is lower, and NORMOS reaches it when started from
+Fitbauer's solution). The figures hardly change with a χ² cut of 1.5 or 3. Among the discarded
 jobs, two had NORMOS stopped in a local minimum: from the same starting values
 Fitbauer reaches a reduced χ² of about 1.5 instead of 20–30, and NORMOS
 confirms it when started there. The jobs are laboratory

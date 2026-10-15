@@ -177,11 +177,11 @@ python mossbauer_fit_cli.py --template model.json --spectrum measurement.ws5 \
 
 The equivalence with NORMOS is not a statement of intent: it is measured on two
 independent benchmarks, 411 synthetic spectra and 407 real jobs made with the
-original program. Of the real ones only the 149 where NORMOS fitted well (reduced
+original program. Of the real ones only the 146 where NORMOS fitted well (reduced
 χ² ≤ 2) and both programs see the same spectrum count: starting from NORMOS's
 solution, with the same free parameters and the data folded as NORMOS folds
-them, Fitbauer reaches the same or a lower χ² in all 149, and the parameters
-agree to a median of 0.0007 mm/s in δ and 0.0035 T in BHF. The real
+them, Fitbauer reaches the same or a lower χ² in all 146, and the parameters
+agree to a median of 0.0006 mm/s in δ and 0.0034 T in BHF. The real
 jobs are not distributed (they are laboratory data); the synthetic bank and the
 full reports are in
 [`validacion/informe/`](https://github.com/sullymike/Fitbauer/tree/main/validacion/informe).

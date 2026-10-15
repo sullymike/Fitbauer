@@ -38,15 +38,22 @@ solution with the same free parameters, on the data folded as NORMOS folds
 them (whole channel pairs at ⌊PFP⌋ + 0.5). Recomputed this way, NORMOS's
 reduced χ² matches the one printed in its `.RES` (median ratio 0.998, 90 %
 within 0.96–1.02). Only jobs that are a valid reference count: NORMOS's
-reduced χ² ≤ 2 —228 discarded— and both programs seeing the same spectrum
-—2 discarded—; 28 cannot be analysed. On the 149 left, Fitbauer matches or
-improves on the χ² in all 149 (median 1.41 → 1.36). Median parameter
-agreement: δ 0.0007 mm/s, ΔEQ 0.0016, BHF 0.0035 T, Γ 0.0015, depth 0.0001.
-The figures hardly change with a cut at 1.5 or 3 (89 and 213 jobs).
+reduced χ² ≤ 2 —214 discarded— and both programs seeing the same spectrum
+(curve to 1 % of the peak, folded data to 0.3 of the noise, `.JOB` still
+matching its `.RES`: NVAR) —19 discarded, mostly with the folding point far
+from the centre, where NORMOS's folding cannot be reproduced—; 28 cannot be
+analysed. On the 146 left, Fitbauer matches or improves on the χ² in all 146
+(median 1.40 → 1.38). Median parameter agreement: δ 0.0006 mm/s, ΔEQ 0.0015,
+BHF 0.0034 T, Γ 0.0014, depth 0.0001; in units of NORMOS's errors, 0.15–0.2σ
+with no bias. The few differences above 3σ are jobs where NORMOS stopped short
+of the minimum: started from Fitbauer's solution, NORMOS reaches the same χ²
+(checked with NORMOS on three of them). The figures hardly change with a
+cut at 1.5 or 3 (88 and 210 jobs).
 
 Earlier passes of this analysis had four biases of its own, now removed: the
-importer dropped the sign of VMAX (23 jobs folded differently) and freed
-relative widths and intensities that the `.JOB` kept fixed; the NORMOS line
+importer dropped the sign of VMAX (23 jobs folded differently), freed
+relative widths and intensities that the `.JOB` kept fixed and imported the
+intensity ratios by depth instead of by area; the NORMOS line
 pattern was overridden by the model's α-Fe one during the refit (BHF 0.035 %
 low); and Fitbauer folded at the continuous PFP, by interpolation, while the
 χ² was computed on pair averages, half of NORMOS's value.

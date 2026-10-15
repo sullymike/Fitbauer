@@ -85,25 +85,31 @@ canales enteros en ⌊PFP⌋ + 0,5) y con los mismos parámetros libres; así
 recalculado, el χ² de NORMOS coincide con el de su `.RES` al ~1 %. Una comparación solo tiene sentido donde NORMOS ajustó bien y los dos
 programas ven el mismo espectro, así que solo se conservan esos trabajos:
 
-- χ² reducido de NORMOS ≤ 2: **se descartan 228 trabajos en los que NORMOS
+- χ² reducido de NORMOS ≤ 2: **se descartan 214 trabajos en los que NORMOS
   no ajustó bien**;
-- Fitbauer reproduce la curva de NORMOS en su solución (al 1 % del pico) y los
-  dos ven los mismos datos doblados (2 trabajos descartados: una calibración con la
-  velocidad ajustada y un directorio con ficheros que no se corresponden);
+- Fitbauer reproduce la curva de NORMOS en su solución (al 1 % del pico), los
+  dos ven los mismos datos doblados (a 0,3 del ruido) y el `.JOB` sigue
+  correspondiendo a su `.RES` (19 trabajos descartados, casi todos con el
+  punto de doblado lejos del centro, donde el doblado de NORMOS no se puede
+  reproducir);
 - 28 trabajos no se pueden analizar (de distribución, sin espectro o sin
   resultados).
 
-En los **149 trabajos** restantes:
+En los **146 trabajos** restantes:
 
-- Fitbauer llega al mismo χ² o a uno menor en **149 de 149**; χ² reducido
-  mediano: NORMOS **1,41** · Fitbauer **1,36**.
+- Fitbauer llega al mismo χ² o a uno menor en **146 de 146**; χ² reducido
+  mediano: NORMOS **1,40** · Fitbauer **1,38**.
 - Acuerdo mediano en los parámetros:
 
   | δ | ΔEQ | BHF | Γ | profundidad |
   |---|---|---|---|---|
-  | 0,0007 mm/s | 0,0016 mm/s | 0,0035 T | 0,0015 mm/s | 0,0001 |
+  | 0,0006 mm/s | 0,0015 mm/s | 0,0034 T | 0,0014 mm/s | 0,0001 |
 
-Las cifras apenas cambian con un corte de χ² de 1,5 o 3. Entre los
+En unidades de los errores del propio NORMOS, las diferencias tienen una
+mediana de 0,15–0,2σ y ningún sesgo; las pocas por encima de 3σ son trabajos
+en que NORMOS se paró antes del mínimo (el χ² de Fitbauer es menor, y NORMOS
+llega a él si se le arranca en la solución de Fitbauer). Las cifras apenas
+cambian con un corte de χ² de 1,5 o 3. Entre los
 descartados, en dos NORMOS se había quedado en un mínimo local: desde los
 mismos valores iniciales Fitbauer llega a un χ² reducido de ~1,5 en vez de
 20–30, y NORMOS lo confirma si se le arranca ahí. Los trabajos son
