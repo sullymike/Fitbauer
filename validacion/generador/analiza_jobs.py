@@ -245,7 +245,12 @@ def analiza_uno(d: Path) -> dict:
     ms.n_components = row["nsub"]
     ms.multistart_n = 0
     ms.auto_global = False
-    vmax = res.get("vmax") or conv.get("vmax") or row["vmax_job"] or 12.0
+    # Módulo del RES (el que NORMOS usó de verdad) y SIGNO del JOB: el RES
+    # lo imprime sin signo, y el signo invierte el espectro. Tomarlo del RES
+    # dejaba los 40 trabajos con VMAX < 0 reflejados respecto a NORMOS.
+    vmax = abs(res.get("vmax") or conv.get("vmax") or row["vmax_job"] or 12.0)
+    if row["vmax_job"] < 0:
+        vmax = -vmax
     ms.vars["vmax"] = float(vmax)
 
     sess = HeadlessSession(ms)

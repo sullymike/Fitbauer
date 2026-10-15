@@ -84,21 +84,22 @@ NORMOS. Una comparación solo tiene sentido donde NORMOS ajustó bien y los dos
 programas ven el mismo espectro, así que solo se conservan esos trabajos:
 
 - χ² reducido de NORMOS (Poisson, recalculado en su propio convenio) ≤ 2:
-  **se descartan 145 trabajos en los que NORMOS no ajustó bien**;
+  **se descartan 161 trabajos en los que NORMOS no ajustó bien**;
 - Fitbauer reproduce la curva de NORMOS en su solución (al 1 % del pico) y los
-  dos doblan igual los datos (25 trabajos descartados);
+  dos doblan igual los datos (2 trabajos descartados: una calibración con la
+  velocidad ajustada y un directorio con ficheros que no se corresponden);
 - 28 trabajos no se pueden analizar (de distribución, sin espectro o sin
   resultados).
 
-En los **209 trabajos** restantes:
+En los **216 trabajos** restantes:
 
 - Partiendo de la solución de NORMOS, Fitbauer llega al mismo χ² o a uno menor
-  en **204 de 209**; χ² reducido mediano: NORMOS **1,08** · Fitbauer **0,81**.
+  en **211 de 216**; χ² reducido mediano: NORMOS **1,08** · Fitbauer **0,81**.
 - Acuerdo mediano en los parámetros:
 
   | δ | ΔEQ | BHF | Γ | profundidad |
   |---|---|---|---|---|
-  | 0,0014 mm/s | 0,0022 mm/s | 0,016 T | 0,013 mm/s | 0,0022 |
+  | 0,0014 mm/s | 0,0021 mm/s | 0,016 T | 0,012 mm/s | 0,0023 |
 
 Las cifras apenas cambian con un corte de χ² de 1,5 o 3. Los trabajos son
 datos de laboratorio y no se distribuyen; el banco sintético y los informes

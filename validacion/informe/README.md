@@ -35,11 +35,12 @@ unequal populations NORMOS follows its own rule, available as
 **Real jobs** — 407 distinct fits performed in NORMOS (564 `.JOB` files,
 duplicates removed by their `.RES`), reloaded and refitted from NORMOS's
 solution. Only jobs that are a valid reference count: NORMOS's reduced χ²
-(Poisson, recomputed in its convention) ≤ 2 —145 discarded— and both programs
-seeing the same spectrum —25 discarded—; 28 cannot be analysed. On the 209
-left, Fitbauer matches or improves on the χ² in 204 (median 1.08 → 0.81).
-Median parameter agreement: δ 0.0014 mm/s, ΔEQ 0.0022, BHF 0.016 T, Γ 0.013,
-depth 0.0022. The figures hardly change with a cut at 1.5 or 3.
+(Poisson, recomputed in its convention) ≤ 2 —161 discarded— and both programs
+seeing the same spectrum —2 discarded—; 28 cannot be analysed. On the 216
+left, Fitbauer matches or improves on the χ² in 211 (median 1.08 → 0.81).
+Median parameter agreement: δ 0.0014 mm/s, ΔEQ 0.0021, BHF 0.016 T, Γ 0.012,
+depth 0.0023. (The first pass of this analysis found 23 jobs folded
+differently: all had a negative VMAX, which the importer was dropping.) The figures hardly change with a cut at 1.5 or 3.
 
 > The real-job analysis lives in `jobs/_analisis/` (with the job-by-job
 > classification, `clasificacion_comparativa.csv`), which is not part of the

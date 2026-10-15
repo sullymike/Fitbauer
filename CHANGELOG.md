@@ -25,12 +25,11 @@
 - **Banco de trabajos reales: solo los ajustes de NORMOS que valen como
   referencia.** Rehecho el análisis (`analiza_jobs.py`) sobre los trabajos de
   `jobs/` y `jobs/pruebas_job/`: 564 `.JOB`, 407 ajustes distintos (mismo `.RES`
-  = duplicado). Se descartan los 145 en que NORMOS no ajustó bien (χ² reducido,
-  recalculado en su convenio, > 2), 25 en que los dos programas no ven el mismo
-  espectro (curva o doblado no reproducidos) y 28 no analizables. En los 209
-  restantes Fitbauer, partiendo de la solución de NORMOS, llega al mismo χ² o a
-  uno menor en 204; acuerdo mediano δ 0.0014 mm/s, ΔEQ 0.0022 mm/s,
-  BHF 0.016 T, Γ 0.013 mm/s. Sustituye a las cifras anteriores (564 ajustes,
+  = duplicado). Se descartan los 161 en que NORMOS no ajustó bien (χ² reducido,
+  recalculado en su convenio, > 2), 2 en que los dos programas no ven el mismo
+  espectro y 28 no analizables. En los 216 restantes Fitbauer, partiendo de la
+  solución de NORMOS, llega al mismo χ² o a uno menor en 211; acuerdo mediano
+  δ 0.0014 mm/s, ΔEQ 0.0021 mm/s, BHF 0.016 T, Γ 0.012 mm/s. Sustituye a las cifras anteriores (564 ajustes,
   355 de 503), que contaban también los malos ajustes de NORMOS. README, notas
   de NORMOS y wiki.
 - **Campo externo BEXT en la relajación Blume–Tjon.** Nuevo parámetro
