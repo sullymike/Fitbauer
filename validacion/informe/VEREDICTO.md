@@ -34,17 +34,17 @@ anchuras), T (BHF).
 
 | Bloque (casos) | posición | BHF | anchura | comentario |
 |---|---|---|---|---|
-| **Núcleo 1er orden** (101) | 2·10⁻⁷ / 1.5·10⁻⁵ | 4·10⁻⁵ / 1.1·10⁻⁴ | 8·10⁻⁷ / 1.2·10⁻⁴ | **exacto**, incluidos todos los extremos nuevos |
-| **Hamiltoniano completo** (96) | 6·10⁻⁵ / 4·10⁻³ | 8·10⁻⁴ / 0.056 | 5·10⁻⁴ / 0.02 | tras v4.18; la cola restante es la aproximación del propio SITE-1994 (§16.3-1) y la degeneración de signo en η=1 |
-| **Textura e intensidades** (19) | 2·10⁻⁷ / 2·10⁻³ | 2·10⁻³ / 0.034 | 2·10⁻⁵ / 0.014 | D23 de 0 a 4, D21 de 0.3 a 3, D13 de 1.5 a 4.5 |
+| **Núcleo 1er orden** (101) | 2·10⁻⁷ / 1.2·10⁻⁶ | 6·10⁻⁶ / 2.6·10⁻⁵ | 8·10⁻⁷ / 3.8·10⁻⁵ | **exacto**, incluidos todos los extremos nuevos |
+| **Hamiltoniano completo** (96) | 5.5·10⁻⁵ / 4·10⁻³ | 1.4·10⁻³ / 0.058 | 5·10⁻⁴ / 0.02 | tras v4.18; la cola restante es la aproximación del propio SITE-1994 (§16.3-1) y la degeneración de signo en η=1 |
+| **Textura e intensidades** (19) | 2·10⁻⁷ / 2·10⁻³ | 6·10⁻⁶ / 0.033 | 2·10⁻⁵ / 0.014 | D23 de 0 a 4, D21 de 0.3 a 3, D13 de 1.5 a 4.5 |
 | **Líneas libres / anchuras** (20) | exacto | — | exacto | W13/W23 de 0.6 a 2.5 e invertidos; C3_fuera_de_rango resuelto por `wide_delta` (se conserva como evidencia histórica) |
-| **Multisitio y ligaduras** (39) | 2·10⁻⁴ | 2·10⁻⁴ | 2·10⁻⁴ | hasta 10 sitios; la cola son degeneraciones físicas (D6, §2b) |
-| **Adquisición** (21) | 2·10⁻⁷ | 6·10⁻⁵ | 3·10⁻⁵ | 128–1024 canales, vmax 2–15, bases no planas |
-| **Espesor / transmisión** (14) | 2·10⁻⁵ | 3·10⁻⁴ | 4·10⁻³ | τ de 0.1 a 50; Γ con sesgo p95 7·10⁻³ por la degeneración Γ↔fuente (fuente fijada) |
-| **Octetes y fondos** (14) | 2·10⁻⁷ | 6·10⁻⁵ | 3·10⁻⁵ | NLINE=8 como sexteto+2 singletes; fondos BKG(2)…BKG(5) exactos con slope/curv/curv3/curv4 (v4.19) |
-| **Cristal único** (7, v4.19) | 0.04 / 0.22 | 0.38 / 0.71 | 0.014 / 0.024 | `hamiltonian_sc` con BEX/GAX verdaderos e intensidades FIJAS: χ²red 2.3–3.4; la desviación restante es la aproximación de SITE-1994 (idéntica al caso polvo) |
+| **Multisitio y ligaduras** (39) | 7·10⁻⁶ | 1·10⁻⁵ | 7·10⁻⁵ | hasta 10 sitios; la cola son degeneraciones físicas (D6, §2b) |
+| **Adquisición** (21) | 3·10⁻⁷ | 1·10⁻⁵ | 3·10⁻⁵ | 128–1024 canales, vmax 2–15, bases no planas |
+| **Espesor / transmisión** (14) | 2·10⁻⁵ | 2·10⁻⁴ | 4·10⁻³ | τ de 0.1 a 50; Γ con sesgo p95 7·10⁻³ por la degeneración Γ↔fuente (fuente fijada) |
+| **Octetes y fondos** (14) | 2·10⁻⁷ | 1.5·10⁻⁶ | 3·10⁻⁵ | NLINE=8 como sexteto+2 singletes; fondos BKG(2)…BKG(5) exactos con slope/curv/curv3/curv4 (v4.19) |
+| **Cristal único** (7, v4.19) | 0.04 / 0.22 | 0.40 / 0.70 | 0.014 / 0.023 | `hamiltonian_sc` con BEX/GAX verdaderos e intensidades FIJAS: χ²red 2.3–3.4; la desviación restante es la aproximación de SITE-1994 (idéntica al caso polvo) |
 | **Ligaduras nativas de SITE** (2) | ≤1.4·10⁻³ | 0.02–0.03 | ≤5·10⁻³ | ambos motores (NDEX y constraints) recuperan la misma verdad sobre el mismo espectro con ruido |
-| **Extremos K5** (12) | exacto | ≤9·10⁻³ | ≤7·10⁻⁴ | ΔEQ=5, B=1 y 60 T, δ fuera de rango, Γ subnatural, 40 % |
+| **Extremos K5** (12) | exacto | ≤6·10⁻⁶ | ≤7·10⁻⁴ | ΔEQ=5, B=1 y 60 T, δ fuera de rango, Γ subnatural, 40 % |
 
 Distribuciones (momentos de P; |Δ⟨x⟩| / |Δσ| medianos, v0+v1):
 

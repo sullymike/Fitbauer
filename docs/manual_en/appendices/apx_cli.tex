@@ -96,11 +96,12 @@ Conventions (NORMOS compatibility)}.
 \toprule
 Option & Values & Meaning \\
 \midrule
-\code{-{}-sextet-pattern} & \code{alpha\_fe} $|$ \code{normos} & Sextet line
-  positions: the published $\alpha$-Fe pattern, or derived from the nuclear
-  moments as NORMOS-SITE does (the field differs by about $0.01$~T at
-  $33$~T). It applies to the first-order sextet, the full Hamiltonian and the
-  distribution kernel. \\
+\code{-{}-sextet-pattern} & \code{normos} $|$ \code{legacy} & Sextet line
+  positions: derived from the nuclear moments as in NORMOS-SITE (default), or
+  Fitbauer's legacy pattern up to v5.2.4 (\code{alpha\_fe} is its alias). It
+  applies to the first-order sextet, the full Hamiltonian and the distribution
+  kernel. A Vmax calibrated before v5.3.0 is used with \code{legacy} or
+  multiplied by $0.999623$. \\
 \code{-{}-intensity-convention} & \code{depth} $|$ \code{area} & Whether the
   line ratios \code{int1}/\code{int2} are depths or areas (the D13/D23 of
   NORMOS). They only differ when the relative widths are not $1$. \\

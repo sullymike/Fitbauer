@@ -1,103 +1,116 @@
-# Hyperfine field calibration: α-Fe standard at 33.0 T
+# Hyperfine-field calibration: α-Fe at 33.0 T
 
-Source: `core/constants.py` (`LINE_POS_33T`, `_BASE_POSITIONS`, `fe57_sextet_positions`)
-
----
-
-## The problem of calibrating the BHF
-
-In a magnetic Fe-57 sextet, the six lines separate proportionally to the hyperfine
-field $B_{hf}$. To convert the **measured line positions** (in mm/s) to a **field in
-teslas** a conversion factor is needed. There are two ways to obtain it:
-
-1. **From the nuclear moments** ("textbook" calculation): using $\mu_N$, the
-   ground- and excited-state $g$ factors, and the $\gamma$ energy. It gives
-   theoretical positions.
-2. **From a published velocity standard**: using the measured positions of a
-   well-characterized reference material (metallic α-Fe at room temperature).
-
-**Fitbauer uses the second way**, just like Normos.
+Source: `core/constants.py` (`SEXTET_PATTERNS`, `LINE_POS_33T`, `convert_vmax`)
 
 ---
 
-## Why nuclear moments are NOT used
+## How calibration works
 
-The theoretical calculation from the nuclear moments gives a magnetic splitting
-**~0.4 % smaller** than the experimental α-Fe standard:
+The six lines of a Fe-57 sextet split in proportion to the hyperfine field $B_{hf}$.
+Fitbauer needs two things to go from channels to tesla:
 
-| Origin | Outer-line separation (1–6) |
-|---|---|
-| Theoretical (nuclear moments) | ~5.309 mm/s |
-| Experimental (published α-Fe) | 5.328 mm/s |
+1. **A pattern of line positions at 33.0 T**, which sets the *shape* of the sextet: the
+   ratio of the excited-state to the ground-state splitting ($g_1/g_0$).
+2. **A velocity calibration** (Vmax), which sets the *scale*. It is obtained by fitting
+   an α-Fe spectrum with the field fixed at **33.0 T**, as in NORMOS.
 
-If calibrated from theory, a real α-Fe spectrum would fit to a BHF **~0.1 T too high**
-(systematic bias). That is why `core/constants.py` explicitly warns against replacing
-the published positions with theoretical values (see CHANGELOG v4.0.2 / v4.0.3).
-
-The nuclear data (`MU_N`, `E_GAMMA`, `G_GROUND`, `G_EXCITED`) **remain in the module
-as reference/documentation**, but are NOT used for calibration.
+Since Vmax is calibrated with α-Fe at 33.0 T, the absolute scale of the pattern cancels
+when fields are measured: a sample's BHF depends only on the shape of the pattern.
+Shifts (δ, ΔEQ) do depend on the absolute scale, which the calibration sets.
 
 ---
 
-## α-Fe velocity standard at 33.0 T
+## The default pattern: nuclear moments (since v5.3.0)
 
-The hyperfine field of metallic α-Fe at room temperature is, by convention,
-**33.0 T**. The published positions of its six lines (in mm/s, with respect to the
-center) are:
+Fitbauer derives the line positions from the **nuclear moments**, with the same
+constants as NORMOS-SITE (the `"normos"` pattern, checked against the NORMOS binary to
+6·10⁻⁶ mm/s):
 
-$$\pm 5.329 \quad \pm 3.084 \quad \pm 0.839 \;\; \text{mm/s}$$
+$$\pm 5.3261 \quad \pm 3.0836 \quad \pm 0.8410 \;\; \text{mm/s at 33.0 T}$$
 
-In the code, the base positions are already stored symmetrized:
-
-```python
-_BASE_POSITIONS = np.array([-10.657, -6.167, -1.677, 1.677, 6.167, 10.657]) * 0.5
-#                = [-5.3285, -3.0835, -0.8385, 0.8385, 3.0835, 5.3285] mm/s
-LINE_POS_33T = fe57_sextet_positions(33.0)
-```
+Its ratio $g_1/g_0 = 0.5714$ is the one Violet and Pipkorn measured for α-Fe at 298 K
+(J. Appl. Phys. **42**, 4339, 1971: $g_0 = 3.9098$, $g_1 = 2.2342$ mm/s). With this
+pattern Fitbauer and NORMOS give the same field.
 
 ---
 
-## Linear scaling with the field
+## The legacy pattern (up to v5.2.4)
 
-For an arbitrary field $B_{hf}$, the positions scale **linearly** with respect to the
-33.0 T standard:
+Up to v5.2.4 Fitbauer used
 
-$$v_j(B_{hf}) = v_j^{(33\mathrm{T})} \cdot \frac{B_{hf}}{33.0}$$
+$$\pm 5.3285 \quad \pm 3.0835 \quad \pm 0.8385 \;\; \text{mm/s at 33.0 T}$$
 
-implemented in `fe57_sextet_positions(bhf_t)`. To this are then added the isomer
-shift $\delta$ and the first-order quadrupole pattern $q_j \cdot \Delta E_Q$ (see
-user manual, appendix “Mathematical manual of the fitting engine”, `docs/manual_en/appendices/apx_mates.tex`, sextet section):
+described in the code as the "published α-Fe pattern". **It has no published source**:
+these are the constants of the laboratory's earlier software, where they were the
+32.95 T pattern. In v4.0.2 the 32.95 T was dropped and the same
+numbers became the 33.0 T pattern. Its $g_1/g_0$ ratio (0.5724) does not match any
+measured pair of moments.
 
-$$v_{0,j} = \delta + q_j \Delta E_Q + v_j^{(33\mathrm{T})}\frac{B_{hf}}{33.0}$$
+The argument given then against the nuclear moments ("α-Fe read 33.12 T") was circular:
+it came from reusing a calibration made with the previous pattern. With Vmax calibrated
+with the same pattern, any pattern gives 33.0 T for α-Fe.
 
-with the first-order quadrupole pattern:
-
-```python
-LINE_QUAD_PATTERN = [0.5, -0.5, -0.5, -0.5, -0.5, 0.5]
-```
-
----
-
-## Related constants
-
-| Constant | Value | Use |
-|---|---|---|
-| `BHF_DEFAULT_T` | 33.0 | Reference field and default initial value |
-| `_BASE_POSITIONS` | ±5.329 / ±3.084 / ±0.839 (×internal scale) | Published α-Fe standard |
-| `LINE_POS_33T` | `fe57_sextet_positions(33.0)` | Positions at 33 T used by the fit engine |
-| `LINE_QUAD_PATTERN` | [+½,−½,−½,−½,−½,+½] | First-order quadrupole pattern |
-| `DIST_BHF_RANGE` | (0.0, 60.0) | Default range of the `P(BHF)` grid |
+The legacy pattern remains available as `"legacy"` (alias `"alpha_fe"`), in
+*Fit › Advanced fit options › Conventions*, to reproduce old sessions.
 
 ---
 
-## Practical verification
+## Calibrations made with the legacy pattern
 
-To check the calibration: load `data_sample/hierro_metalico_alphaFe.adt` (or the ESRF
-calibration) and fit. The resulting BHF should come out very close to **33.0 T** and
-the line positions should match the published standard. Any systematic deviation
-indicates a problem with $V_{\max}$ (velocity calibration) or with the folding point,
-not with the physical model.
+A Vmax calibrated with the legacy pattern is not the one that gives 33.0 T with the new
+one. Fitbauer converts it automatically:
 
-> **Repository rule.** The reference field is **33.0 T** with the published α-Fe
-> velocity standard (±0.839 / ±3.084 / ±5.329 mm/s). `LINE_POS_33T` lives in
-> `core.constants`. Do not derive positions from the nuclear moments.
+$$V_{\max}^{\text{normos}} = 0.999623 \cdot V_{\max}^{\text{legacy}}$$
+
+The factor comes from fitting, with the new pattern (BHF fixed at 33 T, a single width,
+3:2:1, free scale), an α-Fe spectrum generated with the legacy one, as the calibration
+does. It holds to ±4·10⁻⁶ for widths from 0.18 to 0.40 mm/s.
+
+- Each calibration stores the pattern it was made with (`sextet_pattern`). Local ones
+  that do not, from Fitbauer before v5.3.0, are taken as legacy and applied converted.
+  The panel and the report say so.
+- Those from the web API are the VMAX values calibrated in NORMOS, already in its
+  pattern: they are applied as they are. The API marks `sextet_pattern = "legacy"` on
+  those the web stored with its old fit ("Store velocity" button, until the web adopted
+  this pattern), and those are converted.
+- Changing the pattern in the menu re-applies the fixed calibration, converted.
+- A file that carries its own velocity axis is left alone: its scale is absolute.
+- Saved sessions keep their pattern (those without one were made with the legacy one)
+  and are reproduced exactly.
+
+With the calibration converted, a sample's BHF changes by less than 0.01 % (about
+0.002 T); δ and ΔEQ by −0.038 %.
+
+---
+
+## The absolute velocity scale
+
+Calling α-Fe 33.0 T is a convention. Violet and Pipkorn measure, for α-Fe at 298 K, an
+outer-line separation of 10.612 mm/s; the NORMOS pattern at 33.0 T gives 10.652.
+Calibrating with "α-Fe = 33.0 T" leaves the velocity scale **0.38 %** above theirs, as in
+NORMOS. It affects δ and ΔEQ (≈0.004 mm/s for a δ of 1 mm/s), not the BHF. For the
+highest accuracy in δ and ΔEQ, compare with the measured α-Fe line positions.
+
+---
+
+## Scaling with the field
+
+Positions scale **linearly** from the 33.0 T pattern:
+
+$$v_{0,j} = \delta + q_j \Delta E_Q + v_j^{(33\mathrm{T})}\frac{B_{hf}}{33.0},
+\qquad q = [\tfrac12,-\tfrac12,-\tfrac12,-\tfrac12,-\tfrac12,\tfrac12]$$
+
+implemented in `fe57_sextet_positions(bhf_t)` and in `core.physics`. The full
+Hamiltonian, relaxation and the distribution kernels read the same active pattern.
+
+---
+
+## Practical check
+
+Load an α-Fe spectrum and fit it with the calibrated Vmax: the BHF must come out very
+close to **33.0 T**. A systematic deviation points to a Vmax or folding-point problem,
+not to the model.
+
+> **Repository rule.** Reference field **33.0 T**, default pattern the one from the
+> nuclear moments (`"normos"`). `core.constants` is the single source; calibrations
+> store their pattern and are converted with `convert_vmax`.

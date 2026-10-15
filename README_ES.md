@@ -68,10 +68,10 @@ Desviación mediana respecto al valor verdadero:
 
 | Bloque | posición | BHF | anchura |
 |---|---|---|---|
-| Sexteto/doblete de primer orden | 2·10⁻⁷ mm/s | 4·10⁻⁵ T | 8·10⁻⁷ mm/s |
-| Hamiltoniano completo | 6·10⁻⁵ mm/s | 8·10⁻⁴ T | 5·10⁻⁴ mm/s |
-| Textura e intensidades | 2·10⁻⁷ mm/s | 2·10⁻³ T | 2·10⁻⁵ mm/s |
-| Multisitio y ligaduras (hasta 10 sitios) | 2·10⁻⁴ mm/s | 2·10⁻⁴ T | 2·10⁻⁴ mm/s |
+| Sexteto/doblete de primer orden | 2·10⁻⁷ mm/s | 6·10⁻⁶ T | 8·10⁻⁷ mm/s |
+| Hamiltoniano completo | 6·10⁻⁵ mm/s | 1.4·10⁻³ T | 5·10⁻⁴ mm/s |
+| Textura e intensidades | 2·10⁻⁷ mm/s | 6·10⁻⁶ T | 2·10⁻⁵ mm/s |
+| Multisitio y ligaduras (hasta 10 sitios) | 7·10⁻⁶ mm/s | 1·10⁻⁵ T | 7·10⁻⁵ mm/s |
 
 En el núcleo de primer orden la coincidencia es **exacta** dentro de la
 precisión numérica. La cola que queda en el Hamiltoniano es la aproximación del

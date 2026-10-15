@@ -438,11 +438,12 @@ class MenuBuilderMixin:
         conv_menu.setToolTipsVisible(True)
         grupos = (
             ("sextet_pattern", "conventions.sextet_title", "Patrón de líneas del sextete",
-             (("alpha_fe", "conventions.sextet_alpha_fe", "α-Fe publicado (Fitbauer)"),
-              ("normos", "conventions.sextet_normos_opt", "Momentos nucleares (NORMOS)")),
+             (("normos", "conventions.sextet_normos_opt",
+               "Momentos nucleares (Fitbauer y NORMOS)"),
+              ("legacy", "conventions.sextet_legacy", "Histórico de Fitbauer (hasta v5.2.4)")),
              "conventions.sextet_tip",
-             "NORMOS deriva las posiciones de los momentos nucleares; con el mismo "
-             "espectro el campo difiere ~0,01 T a 33 T."),
+             "Por defecto, posiciones derivadas de los momentos nucleares, como NORMOS. "
+             "El histórico reproduce sesiones y calibraciones anteriores a la v5.3.0."),
             ("intensity_convention", "conventions.intensity_title", "Razones de intensidad",
              (("depth", "conventions.intensity_depth", "Por profundidad (Fitbauer)"),
               ("area", "conventions.intensity_area_opt", "Por área (NORMOS: D13/D23)")),

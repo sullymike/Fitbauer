@@ -457,6 +457,13 @@ class WebApiMixin:
             "isomer_shift": iso,
             "calibration_file_name": Path(calibration_path).name if calibration_path else None,
             "calibration_file_path": str(calibration_path) if calibration_path else None,
+            # Patrón con que se obtuvo la Vmax. Las calibraciones de la web
+            # son las VMAX de NORMOS (su patrón, el de Fitbauer): «normos» si la
+            # API no dice nada; «legacy» solo las que la web guardó con su
+            # ajuste antiguo, y entonces se convierte al usarla.
+            "sextet_pattern": (first_value(calibration, "sextet_pattern")
+                               or (measurement or {}).get("sextet_pattern")
+                               or "normos"),
         }
         for key in ("velocity_uncertainty", "vmax_uncertainty", "velocity_error",
                     "vmax_error", "sigma_vmax"):
@@ -476,12 +483,14 @@ class WebApiMixin:
                 debug(tr("web.calib_no_velocity"))
             return
         try:
-            vmax = float(velocity)
+            float(velocity)
         except (TypeError, ValueError):
             if debug is not None:
                 debug(tr("web.velocity_not_numeric", value=repr(velocity)))
             return
 
+        # Convertida al patrón activo (la web calibra con el histórico).
+        vmax = self._fixed_calibration_vmax()
         self.calib.vmax.set_value(vmax)
         if self.file.counts is not None:
             calib_state = self.calib.to_view_state()

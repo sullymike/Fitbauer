@@ -1,6 +1,7 @@
 {
   "_comment": "Plantilla para goetita α-FeOOH: sextete Fe3+, δ=0.37-0.109=0.261 mm/s, BHF=38.0 T, ε=-0.26 mm/s, Γ=0.27 mm/s. Ref: Murad & Cashion 2004.",
   "model_state": {
+    "sextet_pattern": "normos",
     "vars": {
       "vmax": 12.007,
       "voigt_sigma": 0.05,

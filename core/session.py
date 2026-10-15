@@ -77,8 +77,9 @@ class ModelState:
     intensity_convention: str = "depth"
     # Relajación polarizada: "blume" (físico) o "normos". Ver core.physics.
     relax_convention: str = "blume"
-    # Patrón de posiciones del sexteto: "alpha_fe" (defecto) o "normos".
-    sextet_pattern: str = "alpha_fe"
+    # Patrón de posiciones del sexteto: "normos" (defecto desde v5.3.0) o
+    # "legacy" (el histórico de Fitbauer; "alpha_fe" es su alias).
+    sextet_pattern: str = "normos"
     drive_form: str = "triangular"      # "triangular" (aceleración cte) / "sine"
     propagate_calib: bool = False
     global_opt: bool = False

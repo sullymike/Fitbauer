@@ -1,6 +1,7 @@
 {
   "_comment": "Plantilla de ajuste para α-Fe metálico. Compatible con la calibración existente (iso_ref = -0.1092 mm/s). El δ inicial = δ_lit (0) + iso_ref = -0.1092. Libres: δ, BHF, γ1, depth.",
   "model_state": {
+    "sextet_pattern": "normos",
     "vars": {
       "vmax": 12.007,
       "voigt_sigma": 0.05,

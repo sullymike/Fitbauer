@@ -1,6 +1,7 @@
 {
   "_comment": "Plantilla para ilmenita FeTiO3: doblete Fe2+, δ=1.07-0.109=0.961 mm/s, ΔEQ=0.70 mm/s, Γ=0.28 mm/s. Ref: Amthauer et al. 1976.",
   "model_state": {
+    "sextet_pattern": "normos",
     "vars": {
       "vmax": 12.007,
       "voigt_sigma": 0.05,

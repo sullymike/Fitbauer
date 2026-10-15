@@ -1,5 +1,47 @@
 # Changelog
 
+## Sin publicar
+
+- **Patrón del sextete por defecto: el de los momentos nucleares, como NORMOS.**
+  El patrón que Fitbauer usaba desde la v4.0.3 (±0.8385/±3.0835/±5.3285 mm/s a
+  33 T), descrito como «posiciones publicadas de α-Fe», **no tiene fuente
+  publicada**: son las constantes del simulador web del laboratorio, donde eran
+  el patrón a 32.95 T, reetiquetadas en la v4.0.2 como el de 33.0 T. Su razón
+  g1/g0 (0.5724) no es la de ningún par de momentos medido; la de NORMOS (0.5714)
+  es la de Violet y Pipkorn (J. Appl. Phys. 42, 4339, 1971). Y el argumento de la
+  v4.0.3 contra los momentos nucleares («un α-Fe lee 33.12 T») era circular: venía
+  de reutilizar una calibración hecha con el patrón anterior. Ahora:
+  - el defecto es `"normos"`; el anterior queda como `"legacy"` (alias
+    `"alpha_fe"`) en el menú Convenios y en `--sextet-pattern`;
+  - las calibraciones guardan su patrón; las locales que no lo dicen (anteriores
+    a esta versión) se aplican convertidas (Vmax × 0.999623,
+    `core.constants.convert_vmax`), también al cambiar de patrón, y la etiqueta y
+    el informe lo indican. Las de la API web son las VMAX de NORMOS, ya con su
+    patrón, y se aplican tal cual; solo se convierten las que la API marca
+    `"legacy"` (guardadas con el ajuste antiguo de la propia web);
+  - las sesiones sin patrón o con `"alpha_fe"` se cargan con el histórico y se
+    reproducen exactamente; las preferencias antiguas pasan al nuevo defecto;
+  - con la calibración convertida, el BHF de una muestra cambia < 0.01 % y δ, ΔEQ
+    un −0.038 %; Fitbauer y NORMOS dan el mismo campo sin tocar nada.
+  Documentación rehecha (`docs/calibracion_33T.md`, especificación del sextete,
+  manuales ES/EN, ayuda en 8 idiomas, `CLAUDE.md`); `LINE_POS_33T`, la detección
+  de mínimos y las figuras usan el patrón nuevo; el banco de validación ya no
+  necesita el factor `BHF_SCALE_SITE`. Banco regenerado (432 casos, 6520
+  comparaciones): la mediana del BHF baja uno o dos órdenes en casi todos los
+  bloques (1er orden 4·10⁻⁵ → 6·10⁻⁶ T, textura 2·10⁻³ → 6·10⁻⁶ T, multisitio
+  2·10⁻⁴ → 1·10⁻⁵ T) y los fallos de criterio de 745 a 711; solo el
+  Hamiltoniano completo sube (8·10⁻⁴ → 1.4·10⁻³ T), dentro de la aproximación
+  de SITE-1994. Valores *golden* recalculados: sus espectros
+  son sintéticos generados con el histórico.
+- **Los convenios que trae una sesión o un `.JOB` ya no se guardan como
+  preferencia.** Solo lo elegido en el menú Convenios pasa a ser el defecto de los
+  análisis nuevos. Antes, abrir una sesión antigua y cerrar el programa dejaba
+  sus convenios como preferencia (con el patrón histórico, todos los análisis
+  siguientes lo habrían usado sin elegirlo).
+- Los cuatro espectros «de referencia» de `data_sample/` (α-Fe, hematita,
+  siderita, magnetita) son sintéticos; la documentación ya no los presenta como
+  medidas.
+
 ## v5.2.4 — Correcciones en la importación y exportación de `.JOB` de NORMOS
 
 - **Al cargar otro espectro se vuelve a los convenios de Fitbauer** si los de

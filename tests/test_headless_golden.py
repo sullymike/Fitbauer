@@ -38,31 +38,40 @@ DATA_PUBLIC = ROOT / "data_sample" / "public"
 # Y una tercera vez, al dejar de recortar 2 canales por sistema: el espectro
 # doblado pasa de N/2−2 a N/2 puntos (el recorte es ahora adaptativo y solo
 # actúa sobre canales muertos). Todos los parámetros se mueven ≤2·10⁻⁴.
+#
+# Y una cuarta (v5.3.0), al pasar el patrón del sextete por defecto al de
+# NORMOS (momentos nucleares). Estos espectros son SINTÉTICOS, generados con el
+# patrón histórico sobre un eje de Vmax = 12.007, que las plantillas conservan:
+# con el patrón nuevo el BHF sale un 0.038 % más alto (α-Fe 33.0455 → 33.0580,
+# hematita 51.5814 → 51.6010, jarosita 30.5965 → 30.6081) y δ, ΔEQ, Γ se
+# mueven ≤ 4·10⁻⁵. La siderita es un doblete: no cambia. (Con datos reales y
+# la calibración convertida, en cambio, el BHF apenas se mueve: ver
+# core.constants.convert_vmax.)
 GOLDEN = {
     "alphaFe": {
         "template": "template_alphaFe.json",
         "spectrum": "hierro_metalico_alphaFe.adt",
         "values": {
             "baseline": 0.999670,
-            "s1_delta": -0.110082,
-            "s1_bhf": 33.045508,
-            "s1_gamma1": 0.278451,
+            "s1_delta": -0.110063,
+            "s1_bhf": 33.058027,
+            "s1_gamma1": 0.278459,
             "s1_depth": 0.0148980,
         },
-        "red_chi2": 1.16547,
+        "red_chi2": 1.17556,
     },
     "hematita": {
         "template": "template_hematita.json",
         "spectrum": "hematita_Fe2O3.adt",
         "values": {
             "baseline": 1.000005,
-            "s1_delta": 0.261297,
-            "s1_quad": -0.199285,
-            "s1_bhf": 51.581385,
-            "s1_gamma1": 0.318473,
+            "s1_delta": 0.261311,
+            "s1_quad": -0.199298,
+            "s1_bhf": 51.600990,
+            "s1_gamma1": 0.318437,
             "s1_depth": 0.0139540,
         },
-        "red_chi2": 1.05441,
+        "red_chi2": 1.04027,
     },
     "siderita": {
         "template": "template_siderita.json",
@@ -83,14 +92,14 @@ GOLDEN = {
         "spectrum_dir": "public",
         "spectrum": "jarosita_KFe3SO4.adt",
         "values": {
-            "baseline": 0.999846,
-            "s1_delta": 0.260189,
-            "s1_bhf": 30.596476,
-            "s1_quad": -0.341139,
-            "s1_gamma1": 0.318113,
+            "baseline": 0.999845,
+            "s1_delta": 0.260173,
+            "s1_bhf": 30.608078,
+            "s1_quad": -0.341105,
+            "s1_gamma1": 0.318074,
             "s1_depth": 0.012996,
         },
-        "red_chi2": 0.90319,
+        "red_chi2": 0.91185,
     },
 }
 

@@ -142,7 +142,7 @@ figura~\ref{fig:apx_zeeman} resume el origen físico de las seis líneas.
   nivel fundamental ($I_g=\tfrac12$, dos subniveles) y el excitado
   ($I_e=\tfrac32$, cuatro subniveles). Las seis transiciones permitidas
   ($\Delta m=0,\pm1$) producen las seis líneas, con intensidades $3:2:1:1:2:3$ en
-  polvo y posiciones a $33$~T de $\pm0{,}839/\pm3{,}084/\pm5{,}329$~mm/s. El
+  polvo y posiciones a $33$~T de $\pm0{,}841/\pm3{,}084/\pm5{,}326$~mm/s. El
   cuadrupolo (no mostrado) desplaza rígidamente este patrón según \eqref{eq:sext_pos1}.}
   \label{fig:apx_zeeman}
 \end{figure}
@@ -718,24 +718,31 @@ con la del ajuste conjunto de todos los parámetros ($-0{,}94$).
 \section{Apéndices}
 
 \subsection{Calibración del sextete}\label{ap:calib}
-Las posiciones de referencia a $B_0=33{,}0\,$T son las \textbf{publicadas} de
-$\alpha$-Fe (patrón de velocidad estándar), sin factor de reescala adicional:
+Desde la v5.3.0 las posiciones de referencia a $B_0=33{,}0\,$T se derivan de los
+\textbf{momentos nucleares}, con las constantes de NORMOS-SITE (patrón
+\code{"normos"}, verificado contra su ejecutable a $6\cdot10^{-6}$~mm/s):
 \begin{equation}
-  r^{(0)}=\tfrac12[-10.657,-6.167,-1.677,1.677,6.167,10.657]
-        = [\mp5{,}3285,\ \mp3{,}0835,\ \mp0{,}8385]\ \text{mm/s}.
+  r^{(0)} = [\mp5{,}3261,\ \mp3{,}0836,\ \mp0{,}8410]\ \text{mm/s}.
 \end{equation}
-Las posiciones para un campo $\BHF$ escalan linealmente, $r^{(0)}\cdot(\BHF/33{,}0)$.
-De ellas se derivan los desdoblamientos Zeeman usados en \eqref{eq:Hkundig}:
+Su razón $g_1/g_0=0{,}5714$ es la que midieron Violet y Pipkorn para $\alpha$-Fe a
+298~K. Las posiciones para un campo $\BHF$ escalan linealmente,
+$r^{(0)}\cdot(\BHF/33{,}0)$, y de ellas se derivan los desdoblamientos Zeeman usados
+en \eqref{eq:Hkundig}:
 \begin{equation}
-  \omega_e^{(0)} = r^{(0)}_2-r^{(0)}_1 \approx 2{,}245\ \text{mm/s},\qquad
-  \omega_g^{(0)} = -\bigl[(r^{(0)}_4-r^{(0)}_3)+\omega_e^{(0)}\bigr] \approx -3{,}922\ \text{mm/s}.
+  \omega_e^{(0)} = r^{(0)}_2-r^{(0)}_1 \approx 2{,}2425\ \text{mm/s},\qquad
+  \omega_g^{(0)} = -\bigl[(r^{(0)}_4-r^{(0)}_3)+\omega_e^{(0)}\bigr] \approx -3{,}9246\ \text{mm/s}.
 \end{equation}
-\begin{nota}[Sin factor 32.95]
-Versiones previas de este documento incluían un factor $(B_0/32{,}95)$ que
-sobreescalaba las posiciones $\sim0{,}15\%$. El código usa las posiciones
-publicadas \emph{tal cual} (\code{LINE\_POS\_33T} en \code{core/constants.py}),
-por lo que ese factor se ha eliminado (y con él $\omega_e^{(0)}$, $\omega_g^{(0)}$
-pasan de $2{,}248/-3{,}928$ a $2{,}245/-3{,}922$).
+La escala absoluta del patrón se cancela al medir campos, porque la Vmax se calibra
+con $\alpha$-Fe a 33{,}0~T; $\delta$ y $\dEQ$ sí dependen de ella.
+\begin{nota}[Patrón histórico]
+Hasta la v5.2.4 se usaba $r^{(0)}=\tfrac12[-10.657,-6.167,-1.677,1.677,6.167,10.657]$
+($\omega_e^{(0)}\approx2{,}245$, $\omega_g^{(0)}\approx-3{,}922$), presentado como
+«publicado» pero tomado del simulador web del laboratorio, donde era el patrón a
+32{,}95~T; su razón $g_1/g_0$ (0{,}5724) no es la de ningún par de momentos medido.
+Sigue disponible como \code{"legacy"} para reproducir sesiones antiguas. Una Vmax
+calibrada con él se convierte al patrón actual multiplicándola por $0{,}999623$
+(\code{core.constants.convert\_vmax}); la GUI lo hace sola con las calibraciones
+locales sin patrón y con las que la API web marca como \code{"legacy"}.
 \end{nota}
 
 \subsection{Cotas de los parámetros}\label{ap:bounds}

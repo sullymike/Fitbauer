@@ -166,7 +166,8 @@ def sextet_line_positions(delta: float, quad: float, bhf: float) -> np.ndarray:
     """Posiciones de las 6 líneas del sextete a 1er orden (patrón activo escalado).
 
     El patrón es el del convenio activo (``core.constants.sextet_pattern``):
-    α-Fe publicado por defecto, o el de NORMOS-SITE si se ha seleccionado.
+    el de los momentos nucleares (NORMOS-SITE) por defecto, o el histórico de
+    Fitbauer si se ha seleccionado.
     """
     return (active_sextet_pattern() * (float(bhf) / BHF_DEFAULT_T)
             + float(delta) + float(quad) * LINE_QUAD_PATTERN)

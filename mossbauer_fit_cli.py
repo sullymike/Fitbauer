@@ -45,7 +45,8 @@ import sys
 from pathlib import Path
 
 import core.blas_threads  # noqa: F401  (antes de numpy: BLAS con un hilo)
-from core.constants import SEXTET_PATTERNS, sextet_pattern
+from core.constants import (DEFAULT_SEXTET_PATTERN, SEXTET_PATTERN_ALIASES,
+                            SEXTET_PATTERNS, sextet_pattern)
 
 
 def _apply_model_overrides(session_engine, overrides: dict | None) -> None:
@@ -232,12 +233,16 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--profile-likelihood", action="store_true",
                    help="Intervalos asimétricos 1σ/2σ por verosimilitud "
                         "perfilada (solo con un espectro).")
-    p.add_argument("--sextet-pattern", choices=sorted(SEXTET_PATTERNS), default=None,
-                   help="Convenio de posiciones del sexteto: 'alpha_fe' (patrón "
-                        "publicado de α-Fe, por defecto) o 'normos' (derivado de "
-                        "los momentos nucleares, como NORMOS-SITE). Afecta al "
-                        "sexteto discreto, al Hamiltoniano completo y al kernel "
-                        "de distribución.")
+    p.add_argument("--sextet-pattern",
+                   choices=sorted(set(SEXTET_PATTERNS) | set(SEXTET_PATTERN_ALIASES)),
+                   default=None,
+                   help="Patrón de posiciones del sexteto: 'normos' (derivado de "
+                        "los momentos nucleares, como NORMOS-SITE; por defecto) o "
+                        "'legacy' (el histórico de Fitbauer hasta la v5.2.4; "
+                        "'alpha_fe' es su alias). Afecta al sexteto discreto, al "
+                        "Hamiltoniano completo y al kernel de distribución. Una "
+                        "Vmax calibrada antes de la v5.3.0 se usa con 'legacy' o, "
+                        "con el patrón por defecto, multiplicada por 0.999623.")
     p.add_argument("--relax-convention", choices=("blume", "normos"), default=None,
                    help="Relajación de dos estados con poblaciones desiguales "
                         "(relax_polarization ≠ 0): 'blume' (modelo físico, con "
@@ -307,7 +312,7 @@ def main(argv: list[str] | None = None) -> int:
     # El patrón viaja en la plantilla/sesión (ModelState.sextet_pattern) y lo
     # aplica el ajuste; --sextet-pattern lo sobrescribe. El contexto exterior
     # cubre además lo que se evalúa fuera del ajuste (curvas de salida).
-    with sextet_pattern(args.sextet_pattern or "alpha_fe"):
+    with sextet_pattern(args.sextet_pattern or DEFAULT_SEXTET_PATTERN):
         return _run(args)
 
 

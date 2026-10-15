@@ -1,6 +1,7 @@
 {
   "_comment": "Plantilla para ferridrita (2 líneas): doblete Fe3+, δ=0.35-0.109=0.241 mm/s, ΔEQ=0.72 mm/s, Γ=0.50 mm/s. Ref: Janney et al. 2000.",
   "model_state": {
+    "sextet_pattern": "normos",
     "vars": {
       "vmax": 12.007,
       "voigt_sigma": 0.05,

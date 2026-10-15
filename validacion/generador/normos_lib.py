@@ -44,12 +44,20 @@ DEFAULT_VMAX = 10.0          # mm/s
 DEFAULT_WID = 0.25           # FWHM mm/s (paso 0.6: WID de NORMOS = Γ FWHM)
 DEFAULT_DEP = 0.05           # área integrada del subespectro en mm/s (paso 0.6)
 
-# Escala de conversión BHF→velocidad de SITE respecto a Fitbauer, medida en el
-# paso 0.6 ajustando la teoría de SITE (33 T: k=0.999619; 51.7 T: k=0.999620).
-# SITE deriva las posiciones de momentos nucleares; Fitbauer usa el patrón
-# publicado de α-Fe (33 T ↔ ±5.329 mm/s). Diferencia de convención, no un bug
-# (ver CHANGELOG Fitbauer v4.0.2/v4.0.3).
-BHF_SCALE_SITE = 0.9996195
+# Escala del BHF de SITE respecto al que ajusta Fitbauer. Desde la v5.3.0 el
+# patrón por defecto de Fitbauer ES el de SITE (momentos nucleares) y la escala
+# es 1. Con el patrón histórico (hasta la v5.2.4: 33 T ↔ ±5.3285 mm/s, sin
+# fuente publicada) era 0.9996195, medida en el paso 0.6 ajustando la teoría de
+# SITE (33 T: k=0.999619; 51.7 T: k=0.999620).
+BHF_SCALE_SITE_LEGACY = 0.9996195
+
+
+def _escala_bhf_site() -> float:
+    from core.constants import DEFAULT_SEXTET_PATTERN
+    return 1.0 if DEFAULT_SEXTET_PATTERN == "normos" else BHF_SCALE_SITE_LEGACY
+
+
+BHF_SCALE_SITE = _escala_bhf_site()
 
 
 # ── Generación de ficheros de entrada de SITE ────────────────────────────────

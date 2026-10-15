@@ -142,7 +142,7 @@ physical origin of the six lines.
   ($I_g=\tfrac12$, two sublevels) and the excited level ($I_e=\tfrac32$, four
   sublevels). The six allowed transitions ($\Delta m=0,\pm1$) produce the six lines,
   with intensities $3:2:1:1:2:3$ in a powder and positions at $33$~T of
-  $\pm0{,}839/\pm3{,}084/\pm5{,}329$~mm/s. The quadrupole (not shown) rigidly shifts
+  $\pm0{,}841/\pm3{,}084/\pm5{,}326$~mm/s. The quadrupole (not shown) rigidly shifts
   this pattern according to \eqref{eq:sext_pos1}.}
   \label{fig:apx_zeeman}
 \end{figure}
@@ -713,24 +713,30 @@ that of the joint fit of all parameters ($-0{,}94$).
 \section{Appendices}
 
 \subsection{Sextet calibration}\label{ap:calib}
-The reference positions at $B_0=33{,}0\,$T are the \textbf{published} ones of
-$\alpha$-Fe (standard velocity reference), with no additional rescaling factor:
+Since v5.3.0 the reference positions at $B_0=33{,}0\,$T are derived from the
+\textbf{nuclear moments}, with the NORMOS-SITE constants (the \code{"normos"} pattern,
+checked against its executable to $6\cdot10^{-6}$~mm/s):
 \begin{equation}
-  r^{(0)}=\tfrac12[-10.657,-6.167,-1.677,1.677,6.167,10.657]
-        = [\mp5{,}3285,\ \mp3{,}0835,\ \mp0{,}8385]\ \text{mm/s}.
+  r^{(0)} = [\mp5{,}3261,\ \mp3{,}0836,\ \mp0{,}8410]\ \text{mm/s}.
 \end{equation}
-The positions for a field $\BHF$ scale linearly, $r^{(0)}\cdot(\BHF/33{,}0)$. From
-them the Zeeman splittings used in \eqref{eq:Hkundig} are derived:
+Its ratio $g_1/g_0=0{,}5714$ is the one Violet and Pipkorn measured for $\alpha$-Fe
+at 298~K. The positions for a field $\BHF$ scale linearly, $r^{(0)}\cdot(\BHF/33{,}0)$,
+and from them the Zeeman splittings used in \eqref{eq:Hkundig} are derived:
 \begin{equation}
-  \omega_e^{(0)} = r^{(0)}_2-r^{(0)}_1 \approx 2{,}245\ \text{mm/s},\qquad
-  \omega_g^{(0)} = -\bigl[(r^{(0)}_4-r^{(0)}_3)+\omega_e^{(0)}\bigr] \approx -3{,}922\ \text{mm/s}.
+  \omega_e^{(0)} = r^{(0)}_2-r^{(0)}_1 \approx 2{,}2425\ \text{mm/s},\qquad
+  \omega_g^{(0)} = -\bigl[(r^{(0)}_4-r^{(0)}_3)+\omega_e^{(0)}\bigr] \approx -3{,}9246\ \text{mm/s}.
 \end{equation}
-\begin{nota}[No factor 32.95]
-Previous versions of this document included a factor $(B_0/32{,}95)$ that
-over-scaled the positions by $\sim0{,}15\%$. The code uses the published positions
-\emph{as is} (\code{LINE\_POS\_33T} in \code{core/constants.py}), so that factor has
-been removed (and with it $\omega_e^{(0)}$, $\omega_g^{(0)}$ go from
-$2{,}248/-3{,}928$ to $2{,}245/-3{,}922$).
+The absolute scale of the pattern cancels when fields are measured, because Vmax is
+calibrated with $\alpha$-Fe at 33{,}0~T; $\delta$ and $\dEQ$ do depend on it.
+\begin{nota}[Legacy pattern]
+Up to v5.2.4 the pattern was $r^{(0)}=\tfrac12[-10.657,-6.167,-1.677,1.677,6.167,10.657]$
+($\omega_e^{(0)}\approx2{,}245$, $\omega_g^{(0)}\approx-3{,}922$), presented as
+``published'' but taken from the laboratory's web simulator, where it was the
+32{,}95~T pattern; its $g_1/g_0$ ratio (0{,}5724) does not match any measured pair of
+moments. It remains available as \code{"legacy"} to reproduce old sessions. A Vmax
+calibrated with it converts to the current pattern by multiplying it by $0{,}999623$
+(\code{core.constants.convert\_vmax}); the GUI does it automatically for local
+calibrations without a pattern and for those the web API marks \code{"legacy"}.
 \end{nota}
 
 \subsection{Parameter bounds}\label{ap:bounds}

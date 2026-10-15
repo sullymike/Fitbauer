@@ -127,22 +127,38 @@ pytest -q                                           # local con display
 
 ## Datos de ejemplo
 
-`data_sample/` trae espectros reales y sintéticos (`magnetita_Fe3O4.adt`,
-`hierro_metalico_alphaFe.adt`, `hematita_Fe2O3.adt`, sintéticos…), calibración
-(`calibration.adt` + `calibration_session.json`) y plantillas JSON. Para probar la GUI:
+`data_sample/` trae espectros sintéticos y medidos, calibración
+(`calibration.adt` + `calibration_session.json`) y plantillas JSON. **Ojo:** los
+cuatro «de referencia» (`hierro_metalico_alphaFe.adt`, `hematita_Fe2O3.adt`,
+`siderita_FeCO3.adt`, `magnetita_Fe3O4.adt`) son SINTÉTICOS (Fitbauer, mayo de 2026,
+patrón histórico, Vmax = 12.007), igual que `sintetico_*` y `public/*.adt`; son
+medidas `Fe3O4.adt`, `calibration.adt` (calibración web FC210422) y
+`public/alphaFe_calibracion_ESRF.dat`. No ejecutes `_generate_synthetic.py`: está
+desfasado y sobrescribe los de referencia. Para probar la GUI:
 **Archivo → Cargar…** un `.adt` y luego **Archivo → Cargar sesión…** el JSON asociado.
 
 ## Convenciones del repo
 
-- Calibración de campo de referencia: **33.0 T** con patrón de velocidad publicado de α-Fe
-  (`±0.839 / ±3.084 / ±5.329 mm/s`). No cambies el DEFECTO a posiciones derivadas de
-  momentos nucleares (sesga el BHF ~0.1 T; ver CHANGELOG v4.0.2/v4.0.3).
+- Calibración de campo de referencia: **33.0 T** (Vmax ajustada con α-Fe a 33.0 T).
+  Patrón por defecto desde la v5.3.0: el derivado de los **momentos nucleares**, con
+  las constantes de NORMOS-SITE (`"normos"`, ±0.8410 / ±3.0836 / ±5.3261 mm/s; razón
+  g1/g0 de Violet–Pipkorn). El anterior, `"legacy"` (alias `"alpha_fe"`, ±5.3285…),
+  NO es una tabla publicada: venía del simulador web del laboratorio; se conserva
+  para sesiones antiguas. El viejo argumento «los momentos sesgan el BHF 0.1 T» era
+  circular (calibración reutilizada); ver `docs/calibracion_33T.md`.
+- **Las calibraciones guardan su patrón** (`calibration_info["sextet_pattern"]`) y la
+  GUI aplica la Vmax convertida (`core.constants.convert_vmax`, factor 0.999623). Sin
+  patrón: las locales son históricas; las de la API web son VMAX de NORMOS
+  («normos»; la API marca «legacy» las que la web ajustó con su patrón antiguo). Las
+  sesiones sin patrón se cargan con el histórico.
 - **Fuente única del patrón**: `core.constants`. `active_sextet_pattern()` devuelve el
   patrón del convenio activo y de ahí derivan el sexteto de 1er orden, ω_e/ω_g del
   Hamiltoniano, Blume–Tjon y el kernel de distribución — no dupliques posiciones.
-  `sextet_pattern("normos")` (gestor de contexto) cambia al convenio de NORMOS-SITE
-  para comparaciones; `LINE_POS_33T` es la constante α-Fe y la usan solo los
-  consumidores que NO son física (rótulos, detección de mínimos, figuras).
+  **`fit_discrete` impone el patrón del modelo** (`ModelState.sextet_pattern`): un
+  `with sextet_pattern(...)` alrededor del ajuste no basta; sirve para evaluar el
+  modelo fuera del ajuste. `LINE_POS_33T` es el patrón por defecto como constante y
+  la usan solo los consumidores que NO son física (rótulos, detección de mínimos,
+  figuras).
 - El historial de cambios se documenta en `CHANGELOG.md` (por versión).
 - `APP_VERSION` en `core/constants.py` es la fuente única de versión.
 - Idioma del proyecto: español (commits, comentarios, docs internas). Mantén ese registro.

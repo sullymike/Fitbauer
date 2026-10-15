@@ -16,16 +16,19 @@ all spectra measured with the same configuration: this is why it is measured
 once with a standard and reused.
 
 The usual standard is \textbf{metallic $\alpha$-Fe}, whose sextet has very
-well-known line positions. Fitbauer adopts the convention that an $\alpha$-Fe
-spectrum corresponds to $\BHF = 33{,}0$~T, using the published velocity standard
-($\pm0{,}839 / \pm3{,}084 / \pm5{,}329$~mm/s), just like NORMOS.
+well-known line positions. Fitbauer adopts, like NORMOS, the convention that an
+$\alpha$-Fe spectrum corresponds to $\BHF = 33{,}0$~T. The line positions at
+33{,}0~T are derived from the nuclear moments, with the NORMOS constants
+($\pm0{,}8410 / \pm3{,}0836 / \pm5{,}3261$~mm/s); their ratio of excited- to
+ground-state splitting is the one Violet and Pipkorn measured for $\alpha$-Fe.
 
-\begin{aviso}
-The reference sextet positions are \textbf{not} derived from the nuclear
-moments: the textbook calculation gives a splitting $\sim0{,}4\%$ smaller and
-would make the $\BHF$ come out $\sim0{,}1$~T too high. The published $\alpha$-Fe
-positions at 33.0~T are used instead.
-\end{aviso}
+\begin{nota}
+The absolute scale of that pattern does not affect fields: \param{Vmax} is
+calibrated precisely so that $\alpha$-Fe gives 33{,}0~T, and a sample's $\BHF$ only
+depends on the shape of the sextet. It does affect $\delta$ and $\dEQ$: with
+``$\alpha$-Fe $=$ 33{,}0~T'' the velocity scale ends up 0{,}38\,\% above the line
+positions measured by Violet and Pipkorn, as in NORMOS.
+\end{nota}
 
 \section{Defining a calibration from an $\alpha$-Fe}
 \label{sec:definir-calib}
@@ -122,6 +125,31 @@ active calibration.
 
 \guicap{gui_calib_label_fixed}{Calibration label showing the "fixed" state, with
 the sample, the Vmax and the reference IS.}
+
+\subsection{Line pattern and calibrations made before v5.3.0}
+\label{sec:calib-patron}
+
+A calibration's \param{Vmax} depends on the line pattern the $\alpha$-Fe was fitted
+with. Up to v5.2.4 Fitbauer used another pattern ($\pm0{,}8385 / \pm3{,}0835 /
+\pm5{,}3285$~mm/s), taken from the laboratory's web simulator and with no published
+source; it remains available as ``Fitbauer legacy'' in \menu{Fit > Advanced fit
+options > Conventions} to reproduce old sessions. Fitbauer takes this into account
+automatically:
+\begin{itemize}[nosep]
+  \item Every new calibration stores the pattern it was made with.
+  \item Local ones that do not, made before v5.3.0, are applied
+        \textbf{converted}: $V_\text{max} \times 0{,}999623$. The calibration label
+        and the report say so and show the original \param{Vmax}.
+  \item Those from the web API are the VMAX values calibrated in NORMOS, already in
+        its pattern, and are applied as they are; only those the API marks
+        \code{"legacy"}, stored with the web's own old fit, are converted.
+  \item Changing the pattern in the menu re-applies the fixed calibration,
+        converted.
+  \item Saved sessions keep their pattern and are reproduced exactly.
+\end{itemize}
+With the calibration converted, a sample's $\BHF$ changes by less than 0{,}01\,\%
+and $\delta$, $\dEQ$ by $-0{,}038\,\%$.
+
 
 \subsection{Replacing the calibration}
 

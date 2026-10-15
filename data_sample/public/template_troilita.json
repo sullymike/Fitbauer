@@ -1,6 +1,7 @@
 {
   "_comment": "Plantilla para troilita FeS: sextete Fe2+, δ=0.76-0.109=0.651 mm/s, BHF=30.4 T, ε=+0.31 mm/s, Γ=0.28 mm/s. Ref: Greenwood & Gibb 1971.",
   "model_state": {
+    "sextet_pattern": "normos",
     "vars": {
       "vmax": 12.007,
       "voigt_sigma": 0.05,

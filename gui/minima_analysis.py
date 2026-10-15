@@ -395,23 +395,22 @@ class MinimaAnalysisMixin:
     ) -> tuple[list[dict[str, float]], float, float, float, float] | None:
         if len(peaks) != 2:
             return None
-        from core.constants import _BASE_POSITIONS
         p = sorted(peaks, key=lambda x: x["pos"])
         obs_spacing = p[1]["pos"] - p[0]["pos"]
         if obs_spacing < 0.5:
             return None
-        spacing_ref = float(_BASE_POSITIONS[1] - _BASE_POSITIONS[0])
+        spacing_ref = float(LINE_POS_33T[1] - LINE_POS_33T[0])
         scale = obs_spacing / spacing_ref
         bhf = scale * BHF_DEFAULT_T
         if not (_FI["sextet_2pk_bhf_min"].default <= bhf <= _FI["sextet_bhf_max"].default):
             return None
         best: tuple | None = None
         if p[0]["pos"] < 0 and p[1]["pos"] < 0:
-            delta_01 = p[0]["pos"] - scale * float(_BASE_POSITIONS[0])
+            delta_01 = p[0]["pos"] - scale * float(LINE_POS_33T[0])
             if abs(delta_01) <= 1.5:
                 best = (delta_01, bhf, (3.0, 2.0))
         if p[0]["pos"] > 0 and p[1]["pos"] > 0:
-            delta_45 = p[0]["pos"] - scale * float(_BASE_POSITIONS[4])
+            delta_45 = p[0]["pos"] - scale * float(LINE_POS_33T[4])
             if abs(delta_45) <= 1.5:
                 best = (delta_45, bhf, (2.0, 3.0))
         if best is None:

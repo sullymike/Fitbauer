@@ -533,14 +533,10 @@ class LayoutSettingsMixin:
             wide_delta=getattr(self, "wide_delta", False),
             auto_global=getattr(self, "auto_global", True),
             compact_params=getattr(self, "compact_params", False),
-            # Los convenios que trajo un .JOB importado no son preferencia
-            # del usuario: no se guardan como tales.
-            sextet_pattern=("alpha_fe" if getattr(self, "_conventions_from_job", False)
-                            else getattr(self, "sextet_pattern", "alpha_fe")),
-            intensity_convention=("depth" if getattr(self, "_conventions_from_job", False)
-                                  else getattr(self, "intensity_convention", "depth")),
-            relax_convention=("blume" if getattr(self, "_conventions_from_job", False)
-                              else getattr(self, "relax_convention", "blume")),
+            # Solo lo elegido en el menú es preferencia: los convenios que trae
+            # una sesión o un .JOB son de ese análisis (una sesión antigua con
+            # el patrón histórico no debe volverlo el defecto de los nuevos).
+            **{k: v for k, v in self._preference_conventions().items()},
         )
 
     def _apply_ui_preferences_state(self, prefs: UiPreferencesState) -> None:
@@ -592,6 +588,9 @@ class LayoutSettingsMixin:
         self.sextet_pattern = prefs.sextet_pattern
         self.intensity_convention = prefs.intensity_convention
         self.relax_convention = prefs.relax_convention
+        self._pref_conventions = {"sextet_pattern": prefs.sextet_pattern,
+                                  "intensity_convention": prefs.intensity_convention,
+                                  "relax_convention": prefs.relax_convention}
         self._apply_conventions()
         self._sync_convention_actions()
         for attr, act_name in (("wide_delta", "act_wide_delta"),

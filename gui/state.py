@@ -25,7 +25,7 @@ def _value_or(value, default):
 
 # Convenios de compatibilidad con NORMOS; el primero de cada tupla es el
 # defecto (el de Fitbauer).
-SEXTET_PATTERN_CHOICES = ("alpha_fe", "normos")
+SEXTET_PATTERN_CHOICES = ("normos", "legacy")
 INTENSITY_CONVENTION_CHOICES = ("depth", "area")
 RELAX_CONVENTION_CHOICES = ("blume", "normos")
 
@@ -33,6 +33,24 @@ RELAX_CONVENTION_CHOICES = ("blume", "normos")
 def _choice(value, choices: tuple[str, ...]) -> str:
     """El valor si es una de las opciones; si no (ausente o corrupto), el defecto."""
     return str(value) if value in choices else choices[0]
+
+
+def _session_sextet_pattern(value) -> str:
+    """Patrón de una SESIÓN guardada.
+
+    Las sesiones sin patrón son anteriores a que existiera la opción (v5.1.2)
+    y las que dicen ``"alpha_fe"`` son hasta la v5.2.4: las dos se hicieron con
+    el patrón histórico, y con él se reproducen exactamente.
+    """
+    if value in (None, "", "alpha_fe"):
+        return "legacy"
+    return _choice(value, SEXTET_PATTERN_CHOICES)
+
+
+#: Versión de los convenios en las preferencias. Hasta la v5.2.4 se guardaba
+#: siempre el patrón por defecto de entonces («alpha_fe»); al subir se toma
+#: el defecto nuevo en vez de arrastrarlo.
+CONVENTIONS_VERSION = 2
 
 
 @dataclass
@@ -262,7 +280,7 @@ class FitOptionsState:
     auto_global: bool = True
     # Convenios de compatibilidad con NORMOS (ver core.constants.sextet_pattern
     # y core.physics.intensity_convention / relaxation_convention).
-    sextet_pattern: str = "alpha_fe"
+    sextet_pattern: str = "normos"
     intensity_convention: str = "depth"
     relax_convention: str = "blume"
 
@@ -284,7 +302,7 @@ class FitOptionsState:
             channel_sub=max(1, min(8, int(_value_or(state.get("channel_sub"), 1)))),
             wide_delta=bool(state.get("wide_delta", False)),
             auto_global=bool(state.get("auto_global", True)),
-            sextet_pattern=_choice(state.get("sextet_pattern"), SEXTET_PATTERN_CHOICES),
+            sextet_pattern=_session_sextet_pattern(state.get("sextet_pattern")),
             intensity_convention=_choice(state.get("intensity_convention"),
                                          INTENSITY_CONVENTION_CHOICES),
             relax_convention=_choice(state.get("relax_convention"), RELAX_CONVENTION_CHOICES),
@@ -592,7 +610,7 @@ class UiPreferencesState:
     compact_params: bool = False
     # Convenios NORMOS: preferencia por defecto para análisis nuevos (la
     # sesión guarda los suyos).
-    sextet_pattern: str = "alpha_fe"
+    sextet_pattern: str = "normos"
     intensity_convention: str = "depth"
     relax_convention: str = "blume"
 
@@ -621,7 +639,10 @@ class UiPreferencesState:
             wide_delta=bool(data.get("wide_delta", False)),
             auto_global=bool(data.get("auto_global", True)),
             compact_params=bool(data.get("compact_params", False)),
-            sextet_pattern=_choice(data.get("sextet_pattern"), SEXTET_PATTERN_CHOICES),
+            sextet_pattern=(
+                _choice(data.get("sextet_pattern"), SEXTET_PATTERN_CHOICES)
+                if int(_value_or(data.get("conventions_version"), 1)) >= CONVENTIONS_VERSION
+                else SEXTET_PATTERN_CHOICES[0]),
             intensity_convention=_choice(data.get("intensity_convention"),
                                          INTENSITY_CONVENTION_CHOICES),
             relax_convention=_choice(data.get("relax_convention"), RELAX_CONVENTION_CHOICES),
@@ -644,6 +665,7 @@ class UiPreferencesState:
             "sextet_pattern": self.sextet_pattern,
             "intensity_convention": self.intensity_convention,
             "relax_convention": self.relax_convention,
+            "conventions_version": CONVENTIONS_VERSION,
         })
         if self.ui_language:
             out["ui_language"] = self.ui_language

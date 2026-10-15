@@ -425,14 +425,17 @@ class ModelWorkflowMixin:
         return {idx: float(err) for idx, err in zip(active, errs)}
 
     def calibration_iso_ref(self) -> float | None:
+        """δ del α-Fe de la calibración, en la escala de velocidad del patrón
+        activo (se convierte igual que su Vmax)."""
         info = self.calibration_info
         if not info:
             return None
         value = info.get("isomer_shift")
         try:
-            return float(value) if value not in (None, "") else None
+            iso = float(value) if value not in (None, "") else None
         except (TypeError, ValueError):
             return None
+        return None if iso is None else iso * self._calibration_scale()
 
     def calibration_uncertainty_text(self) -> str | None:
         if not self.calibration_info:
@@ -633,7 +636,7 @@ class ModelWorkflowMixin:
             channel_sub=getattr(self, "channel_sub", 1),
             wide_delta=getattr(self, "wide_delta", False),
             auto_global=getattr(self, "auto_global", True),
-            sextet_pattern=getattr(self, "sextet_pattern", "alpha_fe"),
+            sextet_pattern=getattr(self, "sextet_pattern", "normos"),
             intensity_convention=getattr(self, "intensity_convention", "depth"),
             relax_convention=getattr(self, "relax_convention", "blume"),
         )
@@ -641,7 +644,7 @@ class ModelWorkflowMixin:
     # ── Convenios de compatibilidad con NORMOS ────────────────────────────
     # (atributo de la ventana, opciones; la primera es la de Fitbauer)
     _CONVENTIONS = {
-        "sextet_pattern": ("alpha_fe", "normos"),
+        "sextet_pattern": ("normos", "legacy"),
         "intensity_convention": ("depth", "area"),
         "relax_convention": ("blume", "normos"),
     }
@@ -656,7 +659,7 @@ class ModelWorkflowMixin:
         """
         from core import physics
         from core.constants import set_sextet_pattern
-        set_sextet_pattern(getattr(self, "sextet_pattern", "alpha_fe"))
+        set_sextet_pattern(getattr(self, "sextet_pattern", "normos"))
         physics.INTENSITY_CONVENTION = getattr(self, "intensity_convention", "depth")
         physics.RELAX_CONVENTION = getattr(self, "relax_convention", "blume")
 
@@ -667,11 +670,20 @@ class ModelWorkflowMixin:
             raise ValueError(f"{kind}: {value!r} no es una de {opciones}")
         # Elegido a mano: ya no es «lo que trajo el .JOB» y se respeta.
         self._conventions_from_job = False
+        cambia_pref = persist and self._preference_conventions().get(kind) != value
+        if persist:
+            # Elegido en el menú: pasa a ser la preferencia de los análisis nuevos.
+            self._preference_conventions()[kind] = value
         if getattr(self, kind, opciones[0]) == value:
+            if cambia_pref:
+                self._save_settings()
             return
         setattr(self, kind, value)
         self._apply_conventions()
         self._sync_convention_actions()
+        if kind == "sextet_pattern":
+            # La Vmax de una calibración fijada depende del patrón.
+            self._reapply_fixed_calibration()
         if persist:
             self._save_settings()
             self.mark_dirty()
@@ -687,6 +699,14 @@ class ModelWorkflowMixin:
                 accion.blockSignals(True)
                 accion.setChecked(valor == actual)
                 accion.blockSignals(False)
+
+    def _preference_conventions(self) -> dict:
+        """Convenios preferidos (los elegidos en el menú), sin los de una
+        sesión o un .JOB cargados."""
+        if not hasattr(self, "_pref_conventions"):
+            self._pref_conventions = {k: getattr(self, k, opciones[0])
+                                      for k, opciones in self._CONVENTIONS.items()}
+        return self._pref_conventions
 
     def _restore_conventions_after_job(self) -> None:
         """Vuelve a los convenios de Fitbauer si los puso un .JOB importado.
@@ -716,7 +736,8 @@ class ModelWorkflowMixin:
     def _non_default_conventions(self) -> list[str]:
         """Etiquetas de los convenios que no son los de Fitbauer."""
         etiquetas = {
-            "sextet_pattern": tr("conventions.sextet_normos", default="patrón del sextete NORMOS"),
+            "sextet_pattern": tr("conventions.sextet_legacy_short",
+                                 default="patrón histórico del sextete"),
             "intensity_convention": tr("conventions.intensity_area", default="intensidades por área"),
             "relax_convention": tr("conventions.relax_normos", default="relajación NORMOS"),
         }

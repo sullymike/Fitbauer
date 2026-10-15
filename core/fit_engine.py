@@ -99,7 +99,7 @@ class FitState:
     # Relajación polarizada: "blume" (físico) o "normos" (como NORMOS-SITE).
     # Ver core.physics.RELAX_CONVENTION.
     relax_convention: str = "blume"
-    # Patrón de posiciones del sexteto ("alpha_fe" / "normos"). None = no
+    # Patrón de posiciones del sexteto ("normos" / "legacy"). None = no
     # tocar el convenio global (rutas que construyen el estado a mano).
     sextet_pattern: str | None = None
     drive_form: str = "triangular"      # "triangular" / "sine" (eje v = vmax·sin)

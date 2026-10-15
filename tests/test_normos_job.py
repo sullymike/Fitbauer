@@ -257,7 +257,8 @@ def test_activa_los_convenios_de_normos():
         assert st["sextet_pattern"] == "normos"
         assert st["intensity_convention"] == "area"
         assert st["relax_convention"] == "normos"
-        assert any("NORMOS" in a and "BHF" in a for a in r["warnings"])
+        assert any("NORMOS" in a and ("Convenios" in a or "Conventions" in a)
+                   for a in r["warnings"])
 
 
 def test_avisa_de_lo_que_no_traslada():
@@ -810,26 +811,31 @@ def test_cargar_otro_espectro_vuelve_a_los_convenios_de_fitbauer(tmp_path, monke
         entrada = tmp_path / "TRABAJO.JOB"
         entrada.write_text(JOB_C2, encoding="ascii")
         win.import_normos_job_file(entrada)
-        assert win.sextet_pattern == "normos"
+        assert (win.intensity_convention, win.relax_convention) == ("area", "normos")
         # Lo que trajo el .JOB no se guarda como preferencia.
-        assert win._ui_preferences_state().sextet_pattern == "alpha_fe"
+        prefs = win._ui_preferences_state()
+        assert (prefs.intensity_convention, prefs.relax_convention) == ("depth", "blume")
 
         monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName",
                             staticmethod(lambda *a, **k: (str(espectro), "")))
         win.on_open()
         assert (win.sextet_pattern, win.intensity_convention, win.relax_convention) == (
-            "alpha_fe", "depth", "blume")
-        from core.constants import active_sextet_pattern_name
-        assert active_sextet_pattern_name() == "alpha_fe"
+            "normos", "depth", "blume")
+        from core import physics
+        assert physics.INTENSITY_CONVENTION == "depth"
 
         # Elegidos a mano en el menú: se respetan al cargar otro espectro.
         win.import_normos_job_file(entrada)
-        win.set_convention("sextet_pattern", "normos")
+        win.set_convention("relax_convention", "normos", persist=False)
         win.on_open()
-        assert win.sextet_pattern == "normos"
+        assert win.relax_convention == "normos"
         assert win.intensity_convention == "area"
+        # Un .JOB importado con el patrón histórico activo pasa al de NORMOS.
+        win.set_convention("sextet_pattern", "legacy", persist=False)
+        win.import_normos_job_file(entrada)
+        assert win.sextet_pattern == "normos"
     finally:
-        win.set_convention("sextet_pattern", "alpha_fe", persist=False)
+        win.set_convention("sextet_pattern", "normos", persist=False)
         win.set_convention("intensity_convention", "depth", persist=False)
         win.set_convention("relax_convention", "blume", persist=False)
         win.close()

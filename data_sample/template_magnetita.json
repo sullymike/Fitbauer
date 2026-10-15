@@ -1,6 +1,7 @@
 {
   "_comment": "Plantilla de ajuste para magnetita Fe3O4 (RT): dos sextetes (sitio A tetraédrico Fe3+ y sitio B octaédrico Fe2.5+). δ inicial = δ_lit + (-0.1092). Libres: δ, BHF, γ1, depth de cada sextete.",
   "model_state": {
+    "sextet_pattern": "normos",
     "vars": {
       "vmax": 12.007,
       "voigt_sigma": 0.05,

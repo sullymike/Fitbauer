@@ -38,13 +38,15 @@ G_GROUND = 0.09044 / 0.5         # mu/I, estado fundamental I=1/2
 G_EXCITED = -0.1549 / 1.5        # mu/I, estado excitado I=3/2
 
 # ── Posiciones del sextete magnético de Fe-57 ─────────────────────────────────
-# Posiciones PUBLICADAS de α-Fe (patrón de velocidad estándar), en mm/s. Definen
-# la calibración: un espectro de α-Fe ajusta a BHF = 33.0 T, igual que NORMOS.
-# NO sustituir por valores teóricos desde los momentos nucleares: el cálculo de
-# libro da un desdoblamiento ~0,4 % menor (5.309 vs 5.328 mm/s) y haría que el
-# BHF saliera ~0,1 T demasiado alto.
-_BASE_POSITIONS = np.array([-10.657, -6.167, -1.677, 1.677, 6.167, 10.657]) * 0.5
-
+# Patrón HISTÓRICO de Fitbauer (v4.0.3 – v5.2.4), en mm/s a 33 T. NO es una tabla
+# publicada: viene de las constantes del software previo del laboratorio, donde
+# eran el patrón a 32.95 T; en la v4.0.2 se
+# reetiquetaron, sin más, como el de 33.0 T. Su razón g1/g0 (0.5724) no es la de
+# ningún par de momentos medido: Violet y Pipkorn (J. Appl. Phys. 42, 4339,
+# 1971) dan para α-Fe a 298 K g0 = 3.9098 y g1 = 2.2342 mm/s (0.5714, la misma
+# razón que NORMOS). Se conserva para reproducir sesiones y calibraciones
+# antiguas; el patrón por defecto es el de NORMOS (abajo).
+_LEGACY_POSITIONS = np.array([-10.657, -6.167, -1.677, 1.677, 6.167, 10.657]) * 0.5
 
 def _normos_site_positions() -> np.ndarray:
     """Patrón de NORMOS-SITE a 33 T, derivado de los momentos nucleares.
@@ -80,25 +82,66 @@ def _normos_site_positions() -> np.ndarray:
 #: Patrones de posiciones del sexteto a 33 T (mm/s), líneas 1..6 ordenadas por
 #: velocidad creciente.
 #:
-#: * ``"alpha_fe"`` — patrón PUBLICADO de α-Fe. Es el de Fitbauer y define la
-#:   calibración: un espectro de α-Fe ajusta a BHF = 33.0 T.
-#: * ``"normos"``  — el que NORMOS-SITE deriva de los momentos nucleares.
+#: * ``"normos"`` — derivado de los momentos nucleares, con las constantes de
+#:   NORMOS-SITE. Es el patrón por DEFECTO de Fitbauer desde la v5.3.0: tiene
+#:   respaldo físico (razón de momentos de Violet y Pipkorn) y hace que Fitbauer
+#:   y NORMOS den el mismo BHF.
+#: * ``"legacy"`` — el patrón histórico de Fitbauer (ver ``_LEGACY_POSITIONS``).
+#:   ``"alpha_fe"``, su nombre anterior, se acepta como alias: así lo guardan
+#:   las sesiones y calibraciones hechas hasta la v5.2.4.
 #:
-#: Los dos no difieren en una simple escala: la razón g₃₂/g₁₂ de SITE (−1.7142)
-#: no es la que implica el patrón de α-Fe (−1.71723), así que las líneas 3 y 4
-#: quedan un 0.30 % fuera mientras las 1 y 6 quedan un 0.045 % dentro. Tras el
-#: mejor factor de escala queda un residuo IRREDUCIBLE de ±2.8·10⁻³ mm/s a
-#: 33 T en las líneas internas: es antisimétrico, así que ni δ ni ΔE_Q lo
-#: absorben. Por eso el "factor k" único que se venía usando para comparar con
-#: NORMOS depende de las anchuras relativas de las líneas (0.99957…0.99984).
+#: Los dos no difieren en una simple escala: las líneas 3 y 4 del histórico
+#: quedan un 0.30 % dentro y las 1 y 6 un 0.045 % fuera. Sobre el mismo eje de
+#: velocidad, el BHF ajustado difiere un ~0.035 %. Calibrar con α-Fe a 33.0 T
+#: absorbe casi todo: ver :func:`convert_vmax`.
 SEXTET_PATTERNS: dict[str, np.ndarray] = {
-    "alpha_fe": _BASE_POSITIONS,
     "normos": _normos_site_positions(),
+    "legacy": _LEGACY_POSITIONS,
 }
 
-#: Convenio activo. NO se cambia por defecto: derivar las posiciones de los
-#: momentos nucleares sesga el BHF ~0.1 T (CHANGELOG v4.0.2/v4.0.3).
-_ACTIVE_SEXTET_PATTERN = "alpha_fe"
+#: Nombres anteriores de los patrones (sesiones, preferencias y CLI antiguos).
+SEXTET_PATTERN_ALIASES = {"alpha_fe": "legacy"}
+
+#: Patrón por defecto.
+DEFAULT_SEXTET_PATTERN = "normos"
+
+
+def canonical_sextet_pattern(name: str | None) -> str:
+    """Nombre canónico de un patrón (resuelve alias). ``None`` → por defecto."""
+    if name in (None, ""):
+        return DEFAULT_SEXTET_PATTERN
+    key = SEXTET_PATTERN_ALIASES.get(str(name), str(name))
+    if key not in SEXTET_PATTERNS:
+        raise ValueError(
+            f"patrón de sexteto desconocido: {name!r} "
+            f"(opciones: {sorted(SEXTET_PATTERNS)})")
+    return key
+
+
+#: Escala de velocidad entre patrones. Una calibración con α-Fe a 33.0 T hecha
+#: con el patrón histórico da una Vmax que hay que multiplicar por este factor
+#: para que el mismo α-Fe dé 33.0 T con el de NORMOS. Calculado ajustando con
+#: el patrón de NORMOS (BHF fijo a 33 T, anchura única, 3:2:1, escala libre)
+#: un α-Fe generado con el histórico, como hace la calibración: 0.999623, igual
+#: a ±4·10⁻⁶ para anchuras de 0.18 a 0.40 mm/s (test en test_patron_sexteto).
+#: Con la Vmax convertida, el BHF de una muestra cambia < 0.01 % y δ, ΔEQ un
+#: −0.038 %.
+_VMAX_LEGACY_TO_NORMOS = 0.999623
+
+
+def convert_vmax(vmax: float, from_pattern: str | None, to_pattern: str | None) -> float:
+    """Vmax de una calibración hecha con ``from_pattern`` para usarla con ``to_pattern``."""
+    origen = canonical_sextet_pattern(from_pattern)
+    destino = canonical_sextet_pattern(to_pattern)
+    if origen == destino:
+        return float(vmax)
+    if (origen, destino) == ("legacy", "normos"):
+        return float(vmax) * _VMAX_LEGACY_TO_NORMOS
+    return float(vmax) / _VMAX_LEGACY_TO_NORMOS
+
+
+#: Convenio activo.
+_ACTIVE_SEXTET_PATTERN = DEFAULT_SEXTET_PATTERN
 
 
 def active_sextet_pattern() -> np.ndarray:
@@ -118,12 +161,7 @@ def set_sextet_pattern(name: str) -> str:
     esta única fuente. Para un cambio acotado usa :func:`sextet_pattern`.
     """
     global _ACTIVE_SEXTET_PATTERN
-    key = str(name)
-    if key not in SEXTET_PATTERNS:
-        raise ValueError(
-            f"patrón de sexteto desconocido: {name!r} "
-            f"(opciones: {sorted(SEXTET_PATTERNS)})"
-        )
+    key = canonical_sextet_pattern(name)
     previous, _ACTIVE_SEXTET_PATTERN = _ACTIVE_SEXTET_PATTERN, key
     return previous
 
@@ -148,11 +186,11 @@ def fe57_sextet_positions(bhf_t: float = BHF_DEFAULT_T) -> np.ndarray:
     return active_sextet_pattern() * (bhf_t / BHF_DEFAULT_T)
 
 
-#: Patrón por DEFECTO (α-Fe) como constante. Lo usan los consumidores que no
-#: son física —rótulos de la GUI, heurísticas de detección de mínimos, figuras
-#: de los manuales—, que no deben seguir al convenio activo. Todo lo que sea
+#: Patrón por DEFECTO como constante. Lo usan los consumidores que no son
+#: física —rótulos de la GUI, heurísticas de detección de mínimos, figuras de
+#: los manuales—, que no deben seguir al convenio activo. Todo lo que sea
 #: cálculo llama a :func:`active_sextet_pattern`.
-LINE_POS_33T = _BASE_POSITIONS.copy()
+LINE_POS_33T = SEXTET_PATTERNS[DEFAULT_SEXTET_PATTERN].copy()
 LINE_QUAD_PATTERN = np.array([0.5, -0.5, -0.5, -0.5, -0.5, 0.5], dtype=float)
 
 # ── Nombres y etiquetas de parámetros ─────────────────────────────────────────

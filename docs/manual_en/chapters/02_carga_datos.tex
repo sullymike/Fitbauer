@@ -326,15 +326,14 @@ numbering, $13 + 15\,(n-1)$. \\
 \end{tabular}
 \end{center}
 
-\paragraph{The NORMOS conventions.} NORMOS derives the sextet line positions
-from the nuclear moments; Fitbauer uses the published $\alpha$-Fe pattern. They
-do not differ by a simple scale factor: in a real fit the $\BHF$ comes out
-0.035\,\% apart, about $0.01$\,T at 33\,T. That is why importing a \ruta{.JOB}
-switches on the three NORMOS conventions ---line pattern, intensities by area
-and its relaxation rule--- and the job gives NORMOS's values. They can be
-changed in \menu{Fit > Advanced fit options > Conventions (NORMOS
-compatibility)}; loading another spectrum afterwards switches back to
-Fitbauer's, unless they were chosen by hand in that menu.
+\paragraph{The NORMOS conventions.} Since v5.3.0 Fitbauer uses by default the same
+sextet line pattern as NORMOS, derived from the nuclear moments, so both give the
+same $\BHF$ (Fitbauer's legacy pattern gave, on the same velocity axis, a value
+0.035\,\% apart; see the calibration appendix). Importing a \ruta{.JOB} also switches
+on NORMOS's intensities by area and its relaxation rule, and the job gives its
+values; the job's \code{VMAX} is NORMOS's own. They can be changed in \menu{Fit >
+Advanced fit options > Conventions (NORMOS compatibility)}; loading another spectrum
+afterwards switches back to Fitbauer's, unless they were chosen by hand in that menu.
 
 \subsection*{The folding point is not imposed}
 

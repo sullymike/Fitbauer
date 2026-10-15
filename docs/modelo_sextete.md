@@ -54,23 +54,29 @@ Las seis líneas se indexan **1..6** de izquierda a derecha en velocidad.
 
 Este es el tratamiento por defecto (`treatment="1st_order"`), el que debe replicar la web.
 
-### 3.1 Patrón de calibración a 33.0 T
+### 3.1 Patrón a 33.0 T
 
-Las posiciones provienen del **patrón de velocidad publicado de α-Fe**, NO de los
-momentos nucleares (ver §8). En `core/constants.py`:
+Desde la v5.3.0 las posiciones se **derivan de los momentos nucleares**, con las
+constantes de NORMOS-SITE (es el patrón `"normos"` de `core/constants.py`, verificado
+contra el binario de NORMOS a 6·10⁻⁶ mm/s):
 
 ```
-_BASE_POSITIONS = [-10.657, -6.167, -1.677, 1.677, 6.167, 10.657] · 0.5
-                = [ -5.3285, -3.0835, -0.8385, 0.8385, 3.0835, 5.3285]   (mm/s)
-
+LINE_POS_33T = [ -5.326107, -3.083577, -0.841047, 0.841047, 3.083577, 5.326107 ]   (mm/s)
 BHF_DEFAULT_T = 33.0
-LINE_POS_33T  = _BASE_POSITIONS              # posiciones a 33.0 T exactos
 ```
 
-> ⚠️ **No derivar estas posiciones de los momentos nucleares.** El cálculo "de libro"
-> da un desdoblamiento ~0,4 % menor (línea externa 5.309 vs 5.328 mm/s) y sesga el
-> BHF ~0,1 T hacia arriba. La constante 33.0 T es la calibración; un α-Fe debe ajustar
-> a 33.0 T exacto, igual que NORMOS.
+Su razón g₁/g₀ (0.5714) es la que miden Violet y Pipkorn para α-Fe a 298 K (J. Appl.
+Phys. 42, 4339, 1971). La escala absoluta da igual: la calibración con α-Fe a 33.0 T
+la absorbe en la Vmax.
+
+> ⚠️ **Patrón histórico.** Hasta la v5.2.4 Fitbauer usaba
+> `[-10.657, -6.167, -1.677, 1.677, 6.167, 10.657] · 0.5` mm/s a 33 T, tomado de las
+> constantes de la web (donde era el patrón a 32.95 T), sin fuente publicada; su
+> razón g₁/g₀ es 0.5724. Sigue disponible como `"legacy"` (alias `"alpha_fe"`) para
+> reproducir sesiones y calibraciones antiguas. Una Vmax calibrada con él se pasa al
+> patrón actual multiplicándola por 0.999623; con ella el BHF de una muestra cambia
+> < 0.01 % y δ, ΔEQ un −0.038 %. **La web debe usar el mismo patrón que Fitbauer**
+> (o declarar el suyo en `sextet_pattern`), o sus calibraciones no casan.
 
 ### 3.2 Posiciones efectivas
 
@@ -386,20 +392,20 @@ Valores generados ejecutando `core/physics.py` (perfil Lorentziano, modo 1er ord
 **Posiciones de las 6 líneas (mm/s):**
 
 ```
-[ −5.3285, −3.0835, −0.8385, +0.8385, +3.0835, +5.3285 ]
+[ −5.326107, −3.083577, −0.841047, +0.841047, +3.083577, +5.326107 ]
 ```
 
 **Absorción y transmisión muestreadas:**
 
 | v (mm/s)  | A(v)      | T(v) = 1 − A(v) |
 |-----------|-----------|-----------------|
-| −5.3285   | 0.060236  | 0.939764        |
-| −3.0835   | 0.040427  | 0.959573        |
-| −0.8385   | 0.020497  | 0.979503        |
-|  0.0      | 0.001524  | 0.998476        |
-| +0.8385   | 0.020497  | 0.979503        |
-| +3.0835   | 0.040427  | 0.959573        |
-| +5.3285   | 0.060236  | 0.939764        |
+| −5.326107 | 0.060237  | 0.939763        |
+| −3.083577 | 0.040428  | 0.959572        |
+| −0.841047 | 0.020497  | 0.979503        |
+|  0.0      | 0.001517  | 0.998483        |
+| +0.841047 | 0.020497  | 0.979503        |
+| +3.083577 | 0.040428  | 0.959572        |
+| +5.326107 | 0.060237  | 0.939763        |
 
 > Si la implementación de la web reproduce esta tabla (a tolerancia ~1e-6), el modelo
 > directo del sextete es **idéntico**. Conviene mantener este vector como test de
@@ -423,7 +429,7 @@ Solo replicarlos si la web va a ofrecer esos modos.
 
 ## 11. Checklist para alinear la web
 
-1. [ ] Posiciones base de α-Fe a 33.0 T = `±0.8385 / ±3.0835 / ±5.3285` mm/s (§3.1).
+1. [ ] Posiciones a 33.0 T = `±0.841047 / ±3.083577 / ±5.326107` mm/s (§3.1), o declarar `sextet_pattern` en la calibración.
 2. [ ] Escalado lineal `· (BHF/33.0)`, desplazamiento `+δ`, patrón cuadrupolar
        `[+0.5,−0.5,−0.5,−0.5,−0.5,+0.5]·ΔE_Q` (§3.2).
 3. [ ] Intensidades `[i1,i2,i3,i3,i2,i1]` con `i1=int3·int1`, `i2=int3·int2`, `i3=int3`

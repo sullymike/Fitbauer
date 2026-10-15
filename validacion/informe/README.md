@@ -21,10 +21,16 @@ catalogue of every spectrum in the bank with its fit.
 ## The numbers, in brief
 
 **Synthetic bank** — 411 spectra, ~1,150 fits, 6,497 comparisons. Median
-deviation from the true value: 2·10⁻⁷ mm/s in position and 4·10⁻⁵ T in BHF for
-the first-order core; 6·10⁻⁵ mm/s and 8·10⁻⁴ T with the full Hamiltonian.
-Regenerated on 2026-10-09 with Fitbauer 5.1.1+ (432 cases, 6,520
-comparisons; `generador/banco_completo.sh`): the same medians are reproduced.
+deviation from the true value: 2·10⁻⁷ mm/s in position and 6·10⁻⁶ T in BHF for
+the first-order core; 6·10⁻⁵ mm/s and 1.4·10⁻³ T with the full Hamiltonian.
+Regenerated on 2026-10-16 (432 cases, 6,520 comparisons;
+`generador/banco_completo.sh`) with Fitbauer's new default line pattern, the
+one derived from the nuclear moments as in NORMOS: no BHF scale factor is
+needed any more, and the BHF medians drop by one to two orders of magnitude in
+almost every block (first order 4·10⁻⁵ → 6·10⁻⁶ T; texture 2·10⁻³ → 6·10⁻⁶ T;
+multi-site 2·10⁻⁴ → 1·10⁻⁵ T). Only the full-Hamiltonian BHF median grows
+(8·10⁻⁴ → 1.4·10⁻³ T), within the approximation of SITE-1994's own
+single-precision diagonalisation; criterion failures fall from 745 to 711.
 
 **Ising relaxation** — validated against the SITE binary to ~10⁻⁵ of the
 peak (`generador/sonda_relajacion*.py`), with `OME` (MHz) = 2k. The August

@@ -35,17 +35,17 @@ T (BHF).
 
 | Block (cases) | position | BHF | width | comment |
 |---|---|---|---|---|
-| **First-order core** (101) | 2·10⁻⁷ / 1.5·10⁻⁵ | 4·10⁻⁵ / 1.1·10⁻⁴ | 8·10⁻⁷ / 1.2·10⁻⁴ | **exact**, including all the new extremes |
-| **Full Hamiltonian** (96) | 6·10⁻⁵ / 4·10⁻³ | 8·10⁻⁴ / 0.056 | 5·10⁻⁴ / 0.02 | after v4.18; the remaining tail is SITE-1994's own approximation (§16.3-1) and the sign degeneracy at η=1 |
-| **Texture and intensities** (19) | 2·10⁻⁷ / 2·10⁻³ | 2·10⁻³ / 0.034 | 2·10⁻⁵ / 0.014 | D23 from 0 to 4, D21 from 0.3 to 3, D13 from 1.5 to 4.5 |
+| **First-order core** (101) | 2·10⁻⁷ / 1.2·10⁻⁶ | 6·10⁻⁶ / 2.6·10⁻⁵ | 8·10⁻⁷ / 3.8·10⁻⁵ | **exact**, including all the new extremes |
+| **Full Hamiltonian** (96) | 5.5·10⁻⁵ / 4·10⁻³ | 1.4·10⁻³ / 0.058 | 5·10⁻⁴ / 0.02 | after v4.18; the remaining tail is SITE-1994's own approximation (§16.3-1) and the sign degeneracy at η=1 |
+| **Texture and intensities** (19) | 2·10⁻⁷ / 2·10⁻³ | 6·10⁻⁶ / 0.033 | 2·10⁻⁵ / 0.014 | D23 from 0 to 4, D21 from 0.3 to 3, D13 from 1.5 to 4.5 |
 | **Free lines / widths** (20) | exact | — | exact | W13/W23 from 0.6 to 2.5 and inverted; C3_out_of_range solved by `wide_delta` |
-| **Multi-site and constraints** (39) | 2·10⁻⁴ | 2·10⁻⁴ | 2·10⁻⁴ | up to 10 sites; the tail is physical degeneracies (D6, §2b) |
-| **Acquisition** (21) | 2·10⁻⁷ | 6·10⁻⁵ | 3·10⁻⁵ | 128–1024 channels, vmax 2–15, non-flat baselines |
-| **Thickness / transmission** (14) | 2·10⁻⁵ | 3·10⁻⁴ | 4·10⁻³ | τ from 0.1 to 50; Γ with a p95 bias of 7·10⁻³ from the Γ↔source degeneracy (source fixed) |
-| **Octets and backgrounds** (14) | 2·10⁻⁷ | 6·10⁻⁵ | 3·10⁻⁵ | NLINE=8 as sextet+2 singlets; backgrounds BKG(2)…BKG(5) exact with slope/curv/curv3/curv4 (v4.19) |
-| **Single crystal** (7, v4.19) | 0.04 / 0.22 | 0.38 / 0.71 | 0.014 / 0.024 | `hamiltonian_sc` with true BEX/GAX and FIXED intensities: χ²red 2.3–3.4; the remaining deviation is SITE-1994's approximation (identical to the powder case) |
+| **Multi-site and constraints** (39) | 7·10⁻⁶ | 1·10⁻⁵ | 7·10⁻⁵ | up to 10 sites; the tail is physical degeneracies (D6, §2b) |
+| **Acquisition** (21) | 3·10⁻⁷ | 1·10⁻⁵ | 3·10⁻⁵ | 128–1024 channels, vmax 2–15, non-flat baselines |
+| **Thickness / transmission** (14) | 2·10⁻⁵ | 2·10⁻⁴ | 4·10⁻³ | τ from 0.1 to 50; Γ with a p95 bias of 7·10⁻³ from the Γ↔source degeneracy (source fixed) |
+| **Octets and backgrounds** (14) | 2·10⁻⁷ | 1.5·10⁻⁶ | 3·10⁻⁵ | NLINE=8 as sextet+2 singlets; backgrounds BKG(2)…BKG(5) exact with slope/curv/curv3/curv4 (v4.19) |
+| **Single crystal** (7, v4.19) | 0.04 / 0.22 | 0.40 / 0.70 | 0.014 / 0.023 | `hamiltonian_sc` with true BEX/GAX and FIXED intensities: χ²red 2.3–3.4; the remaining deviation is SITE-1994's approximation (identical to the powder case) |
 | **Native SITE constraints** (2) | ≤1.4·10⁻³ | 0.02–0.03 | ≤5·10⁻³ | both engines (NDEX and constraints) recover the same truth over the same noisy spectrum |
-| **K5 extremes** (12) | exact | ≤9·10⁻³ | ≤7·10⁻⁴ | ΔEQ=5, B=1 and 60 T, δ out of range, sub-natural Γ, 40 % |
+| **K5 extremes** (12) | exact | ≤6·10⁻⁶ | ≤7·10⁻⁴ | ΔEQ=5, B=1 and 60 T, δ out of range, sub-natural Γ, 40 % |
 
 Distributions (moments of P; median |Δ⟨x⟩| / |Δσ|, v0+v1):
 

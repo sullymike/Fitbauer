@@ -67,10 +67,10 @@ Median deviation from the true value:
 
 | Block | position | BHF | linewidth |
 |---|---|---|---|
-| First-order sextet/doublet | 2·10⁻⁷ mm/s | 4·10⁻⁵ T | 8·10⁻⁷ mm/s |
-| Full Hamiltonian | 6·10⁻⁵ mm/s | 8·10⁻⁴ T | 5·10⁻⁴ mm/s |
-| Texture and intensities | 2·10⁻⁷ mm/s | 2·10⁻³ T | 2·10⁻⁵ mm/s |
-| Multi-site and constraints (up to 10 sites) | 2·10⁻⁴ mm/s | 2·10⁻⁴ T | 2·10⁻⁴ mm/s |
+| First-order sextet/doublet | 2·10⁻⁷ mm/s | 6·10⁻⁶ T | 8·10⁻⁷ mm/s |
+| Full Hamiltonian | 6·10⁻⁵ mm/s | 1.4·10⁻³ T | 5·10⁻⁴ mm/s |
+| Texture and intensities | 2·10⁻⁷ mm/s | 6·10⁻⁶ T | 2·10⁻⁵ mm/s |
+| Multi-site and constraints (up to 10 sites) | 7·10⁻⁶ mm/s | 1·10⁻⁵ T | 7·10⁻⁵ mm/s |
 
 In the first-order core the agreement is **exact** to numerical precision. The
 residual tail in the Hamiltonian case is the approximation made by NORMOS 1994

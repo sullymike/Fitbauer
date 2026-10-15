@@ -1,6 +1,7 @@
 {
   "_comment": "Plantilla de ajuste para siderita FeCO3: doblete paramagnético Fe2+ con δ≈1.23 y ΔEQ≈1.80. δ inicial = 1.23 + (-0.1092) = 1.1208. Libres: δ, ΔEQ, γ1, depth.",
   "model_state": {
+    "sextet_pattern": "normos",
     "vars": {
       "vmax": 12.007,
       "voigt_sigma": 0.05,

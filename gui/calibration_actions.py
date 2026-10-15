@@ -40,6 +40,8 @@ class CalibrationActionsMixin:
             "velocity_calibrated": vmax, "isomer_shift": iso,
             "calibration_file_name": self.file.path.name,
             "calibration_file_path": str(self.file.path),
+            # Vmax e IS dependen del patrón con que se ajustó el α-Fe.
+            "sextet_pattern": getattr(self, "sextet_pattern", "normos"),
         }
         self._refresh_calib_label()
         QtWidgets.QMessageBox.information(
@@ -83,20 +85,63 @@ class CalibrationActionsMixin:
             "isomer_shift": float(e_iso.value()),
             "calibration_file_name": self.file.path.name,
             "calibration_file_path": str(self.file.path),
+            "sextet_pattern": getattr(self, "sextet_pattern", "normos"),
         }
         self._refresh_calib_label()
 
     # ── Calibración fija: aplicación al cargar datos ──────────────────────
+    @staticmethod
+    def _calibration_pattern(info: dict | None) -> str | None:
+        """Patrón del sextete con que se obtuvo una calibración.
+
+        ``None`` si no depende de él (eje de velocidad propio del fichero).
+        Sin la marca, las calibraciones locales de Fitbauer anteriores a la
+        v5.3.0 se hicieron con el patrón histórico; las de la API web son las
+        VMAX calibradas en NORMOS, con su patrón (la API dice «legacy» en las
+        que la web guardó con su ajuste antiguo).
+        """
+        if not info or info.get("source") == "embedded":
+            return None
+        from core.constants import canonical_sextet_pattern
+        defecto = "normos" if info.get("source") == "web_api" else "legacy"
+        try:
+            return canonical_sextet_pattern(info.get("sextet_pattern") or defecto)
+        except ValueError:
+            return defecto
+
+    def _calibration_scale(self) -> float:
+        """Factor que lleva la Vmax (y el IS) de la calibración al patrón activo."""
+        origen = self._calibration_pattern(self.calibration_info)
+        if origen is None:
+            return 1.0
+        from core.constants import convert_vmax
+        return convert_vmax(1.0, origen, getattr(self, "sextet_pattern", "normos"))
+
     def _fixed_calibration_vmax(self) -> float | None:
-        """Vmax de la calibración fijada (o ``None`` si no hay ninguna)."""
+        """Vmax de la calibración fijada en el patrón activo (o ``None``).
+
+        Si la calibración se hizo con otro patrón, se convierte: es la Vmax
+        que da 33.0 T al mismo α-Fe con el patrón activo.
+        """
         info = self.calibration_info
         if not info:
             return None
         value = info.get("velocity_calibrated")
         try:
-            return float(value) if value not in (None, "") else None
+            vmax = float(value) if value not in (None, "") else None
         except (TypeError, ValueError):
             return None
+        return None if vmax is None else vmax * self._calibration_scale()
+
+    def _reapply_fixed_calibration(self) -> None:
+        """Vuelve a imponer la Vmax de la calibración fijada (p. ej. al cambiar
+        de patrón del sextete, que cambia la Vmax equivalente)."""
+        vmax = self._fixed_calibration_vmax()
+        if vmax is None or getattr(self.file, "path", None) is None:
+            return
+        if hasattr(self, "calib") and hasattr(self.calib, "vmax"):
+            self.calib.vmax.set_value(float(vmax))
+        self._refresh_calib_label()
 
     def _set_vmax_quiet(self, vmax: float) -> None:
         """Fija el control de Vmax sin disparar refolds intermedios."""
@@ -172,17 +217,18 @@ class CalibrationActionsMixin:
         fija = tr("label.calib_fixed", default="fija") if vmax not in (None, "") else ""
         tag = f" · <b>{fija}</b>" if fija else ""
         txt = tr("calib.label", src=src, sample=sample) + f"{tag}<br>"
+        escala = self._calibration_scale()
         if vmax is not None:
             try:
-                vmax_txt = f"{float(vmax):.4f}"
+                vmax_txt = f"{float(vmax) * escala:.4f}"
             except (TypeError, ValueError):
                 vmax_txt = str(vmax)
-            if iso not in (None, ""):
-                try:
-                    iso_txt = f"{float(iso):.4f}"
-                except (TypeError, ValueError):
-                    iso_txt = str(iso)
-            else:
-                iso_txt = "—"
+            iso_ref = self.calibration_iso_ref()
+            iso_txt = f"{iso_ref:.4f}" if iso_ref is not None else "—"
             txt += f"Vmax = {vmax_txt} mm/s · IS = {iso_txt} mm/s"
+            if abs(escala - 1.0) > 1e-12:
+                txt += "<br>" + tr(
+                    "calib.converted", vmax=f"{float(vmax):.4f}",
+                    default=("convertida desde el patrón histórico "
+                             "(Vmax original {vmax} mm/s)").format(vmax=f"{float(vmax):.4f}"))
         self.calib_label.setText(txt)

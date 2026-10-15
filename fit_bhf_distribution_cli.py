@@ -55,7 +55,8 @@ from pathlib import Path
 import core.blas_threads  # noqa: F401  (antes de numpy: BLAS con un hilo)
 import numpy as np
 
-from core.constants import BHF_DEFAULT_T, SEXTET_PATTERNS, sextet_pattern
+from core.constants import (BHF_DEFAULT_T, DEFAULT_SEXTET_PATTERN, SEXTET_PATTERN_ALIASES,
+                            SEXTET_PATTERNS, sextet_pattern)
 from core.physics import intensity_convention, line_asymmetry
 from core.param_overrides import effective_distribution_specs
 from core.params import DIST_VAR_DEFAULT_SPAN
@@ -259,12 +260,15 @@ def parse_args() -> argparse.Namespace:
                         help="Asimetría de línea por interferencia (AKS de "
                              "NORMOS-SITE): el perfil se multiplica por "
                              "1 - A*(v-v0)/Γ. 0 = línea simétrica.")
-    parser.add_argument("--sextet-pattern", choices=sorted(SEXTET_PATTERNS),
-                        default="alpha_fe",
-                        help="Convenio de posiciones del sexteto del kernel: "
-                             "'alpha_fe' (patrón publicado de α-Fe, por "
-                             "defecto) o 'normos' (derivado de los momentos "
-                             "nucleares, como NORMOS-SITE).")
+    parser.add_argument("--sextet-pattern",
+                        choices=sorted(set(SEXTET_PATTERNS) | set(SEXTET_PATTERN_ALIASES)),
+                        default=DEFAULT_SEXTET_PATTERN,
+                        help="Patrón de posiciones del sexteto del kernel: "
+                             "'normos' (derivado de los momentos nucleares, como "
+                             "NORMOS-SITE; por defecto) o 'legacy' (el histórico "
+                             "de Fitbauer hasta la v5.2.4; 'alpha_fe' es su "
+                             "alias). Una Vmax calibrada antes de la v5.3.0 se "
+                             "usa con 'legacy' o multiplicada por 0.999623.")
     args = parser.parse_args()
     # Validación temprana: antes se detectaba tras completar el ajuste y
     # escribir 2 de los 3 ficheros de salida (cómputo perdido, salida parcial).

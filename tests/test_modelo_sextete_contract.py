@@ -33,9 +33,9 @@ COUNTS = np.array([100, 90, 70, 95, 98, 60, 88, 105], dtype=float)
 
 # §9 — Vector de referencia del sextete (δ=0, ΔEQ=0, BHF=33, Γ₁=0.300 HWHM,
 # Γ₂rel=Γ₃rel=1, depth=0.02, pesos 3:2:1:1:2:3).
-REF_V = np.array([-5.3285, -3.0835, -0.8385, 0.0, 0.8385, 3.0835, 5.3285])
-REF_A = np.array([0.060236, 0.040427, 0.020497, 0.001524,
-                  0.020497, 0.040427, 0.060236])
+REF_V = np.array([-5.326107, -3.083577, -0.841047, 0.0, 0.841047, 3.083577, 5.326107])
+REF_A = np.array([0.060237, 0.040428, 0.020497, 0.001517,
+                  0.020497, 0.040428, 0.060237])
 
 
 @pytest.mark.parametrize("doc", AMBOS, ids=["es", "en"])
@@ -44,8 +44,8 @@ def test_documento_presente(doc):
 
 
 def test_posiciones_de_las_seis_lineas():
-    """§9: patrón de α-Fe a 33 T, sin desplazamiento ni cuadrupolo."""
-    esperado = np.array([-5.3285, -3.0835, -0.8385, 0.8385, 3.0835, 5.3285])
+    """§9: patrón por defecto (NORMOS) a 33 T, sin desplazamiento ni cuadrupolo."""
+    esperado = np.array([-5.326107, -3.083577, -0.841047, 0.841047, 3.083577, 5.326107])
     np.testing.assert_allclose(LINE_POS_33T, esperado, atol=1e-6)
     np.testing.assert_allclose(
         p.sextet_line_positions(0.0, 0.0, 33.0), esperado, atol=1e-6)

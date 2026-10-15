@@ -325,15 +325,15 @@ profundidad. \\[4pt]
 \end{tabular}
 \end{center}
 
-\paragraph{Los convenios de NORMOS.} NORMOS deriva las posiciones de las líneas
-del sexteto de los momentos nucleares; Fitbauer usa el patrón publicado de
-$\alpha$-Fe. No difieren en un simple factor de escala: en un ajuste real el
-$\BHF$ sale un 0{,}035\,\% distinto, unos $0{,}01$\,T a 33\,T. Por eso importar
-un \ruta{.JOB} activa los tres convenios de NORMOS ---patrón de líneas,
-intensidades por área y su regla de relajación--- y el trabajo da los valores
-de NORMOS. Se cambian en \menu{Ajuste > Opciones avanzadas de ajuste >
-Convenios (compatibilidad NORMOS)}; al cargar después otro espectro se vuelve a
-los de Fitbauer, salvo que se hayan elegido a mano en ese menú.
+\paragraph{Los convenios de NORMOS.} Desde la v5.3.0 Fitbauer usa por defecto el
+mismo patrón de líneas del sexteto que NORMOS, derivado de los momentos nucleares,
+así que los dos dan el mismo $\BHF$ (el patrón histórico de Fitbauer daba, sobre el
+mismo eje de velocidad, un 0{,}035\% distinto; véase el anexo de calibración). Al
+importar un \ruta{.JOB} se activan además las intensidades por área y la regla de
+relajación de NORMOS, y el trabajo da sus valores; la \code{VMAX} del trabajo es la
+de NORMOS. Se cambian en \menu{Ajuste > Opciones avanzadas de ajuste > Convenios
+(compatibilidad NORMOS)}; al cargar después otro espectro se vuelve a los de
+Fitbauer, salvo que se hayan elegido a mano en ese menú.
 
 \subsection*{El punto de doblado no se impone}
 

@@ -1217,10 +1217,44 @@ def test_fixed_calibration_applied_on_counts_load(win):
                             "velocity_calibrated": 9.876, "isomer_shift": -0.1}
     # Cargar otro espectro de cuentas (sin eje de velocidad propio).
     win._load_file(DATA / "magnetita_Fe3O4.adt")
-    # La Vmax fijada se impone y la calibración no varía.
-    assert abs(float(win.calib.vmax.value()) - 9.876) < 1e-6
+    # La Vmax fijada se impone y la calibración no varía. Sin marca de patrón
+    # es una calibración anterior a la v5.3.0, hecha con el patrón histórico:
+    # se aplica convertida al patrón activo.
+    # (el control de Vmax tiene 4 decimales)
+    assert abs(float(win.calib.vmax.value()) - 9.876 * 0.999623) < 5.1e-5
     assert win.calibration_info["source"] == "local"
     assert abs(win.calibration_info["velocity_calibrated"] - 9.876) < 1e-6
+
+
+def test_calibracion_y_patron_del_sextete(win):
+    """La Vmax de una calibración depende del patrón con que se ajustó el α-Fe:
+    se aplica tal cual con el mismo patrón y convertida con el otro, también
+    al cambiar de patrón en el menú (y el IS de referencia igual)."""
+    from core.constants import convert_vmax
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.calibration_info = {"source": "local", "calibration_sample": "alphaFe",
+                            "velocity_calibrated": 12.0, "isomer_shift": -0.11,
+                            "sextet_pattern": "normos"}
+    win._load_file(DATA / "magnetita_Fe3O4.adt")
+    assert abs(float(win.calib.vmax.value()) - 12.0) < 1e-9
+    try:
+        win.set_convention("sextet_pattern", "legacy", persist=False)
+        esperado = convert_vmax(12.0, "normos", "legacy")
+        assert abs(float(win.calib.vmax.value()) - esperado) < 5.1e-5   # 4 decimales
+        assert abs(win.calibration_iso_ref() - (-0.11) * esperado / 12.0) < 1e-12
+    finally:
+        win.set_convention("sextet_pattern", "normos", persist=False)
+    assert abs(float(win.calib.vmax.value()) - 12.0) < 1e-9
+    # Una calibración nueva guarda el patrón activo.
+    win._use_as_calibration_quick = getattr(win, "_use_as_calibration_quick")
+    import PySide6.QtWidgets as _QtW
+    _orig = _QtW.QMessageBox.information
+    _QtW.QMessageBox.information = staticmethod(lambda *a, **k: None)
+    try:
+        win._use_as_calibration_quick()
+    finally:
+        _QtW.QMessageBox.information = _orig
+    assert win.calibration_info["sextet_pattern"] == "normos"
 
 
 def test_velocity_file_substitutes_fixed_calibration(win):
@@ -1250,6 +1284,19 @@ def test_session_save_load_roundtrip_keeps_calibration(win, make_window, tmp_pat
     assert win2.calibration_info["calibration_sample"] == "X"
 
 
+def test_calibracion_web_legacy_se_convierte(win, tmp_path):
+    """Una calibración que la web guardó con su ajuste antiguo llega marcada
+    «legacy» y se aplica convertida al patrón activo."""
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win._apply_web_calibration_metadata(
+        measurement={"id": 1, "calibration_id": 2},
+        calibration={"id": 2, "velocity_calibrated": "12.012",
+                     "isomer_shift": "-0.11", "sextet_pattern": "legacy"},
+        calibration_path=None, debug=None)
+    assert win.calibration_info["sextet_pattern"] == "legacy"
+    assert abs(win.calib.vmax.value() - 12.012 * 0.999623) < 5.1e-5
+
+
 def test_apply_web_calibration_metadata_sets_info_and_vmax(win, tmp_path):
     """La calibración web asociada actualiza la GUI y reescala el eje."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
@@ -1277,6 +1324,9 @@ def test_apply_web_calibration_metadata_sets_info_and_vmax(win, tmp_path):
     assert abs(float(win.calibration_info["velocity_calibrated"]) - 11.966) < 1e-6
     assert abs(float(win.calibration_info["isomer_shift"]) - (-0.1084)) < 1e-6
     assert win.calibration_info["calibration_file_name"] == "calibration.adt"
+    # Las calibraciones de la web son VMAX de NORMOS: sin patrón en la API,
+    # «normos», y se aplica tal cual.
+    assert win.calibration_info["sextet_pattern"] == "normos"
     assert abs(win.calib.vmax.value() - 11.966) < 1e-6
     assert win.file.velocity is not None
     # El eje de velocidad recorta el primer y último canal (igual que la GUI Tk
@@ -3007,9 +3057,12 @@ def test_sesion_de_distribucion_sigue_abriendo_en_distribucion(win):
 
 # ── Convenios de compatibilidad con NORMOS en la GUI ─────────────────────────
 
-_CONV_NORMOS = {"sextet_pattern": "normos", "intensity_convention": "area",
+# La alternativa a cada convenio por defecto (la segunda opción del menú). El
+# patrón del sextete por defecto ya es el de NORMOS (v5.3.0); su alternativa es
+# el histórico de Fitbauer.
+_CONV_NORMOS = {"sextet_pattern": "legacy", "intensity_convention": "area",
                 "relax_convention": "normos"}
-_CONV_DEFECTO = {"sextet_pattern": "alpha_fe", "intensity_convention": "depth",
+_CONV_DEFECTO = {"sextet_pattern": "normos", "intensity_convention": "depth",
                  "relax_convention": "blume"}
 
 
@@ -3053,7 +3106,7 @@ def test_convenios_se_aplican_al_nucleo_al_ajuste_y_al_panel(conv_win):
     assert _globales_convenios() == _CONV_NORMOS
     ms = conv_win._model_state()
     assert (ms.sextet_pattern, ms.intensity_convention, ms.relax_convention) == \
-        ("normos", "area", "normos")
+        ("legacy", "area", "normos")
     conv_win._update_info_panel()
     assert "NORMOS" in conv_win.info_panel.text.toPlainText()
     assert conv_win.has_unsaved_work()
@@ -3072,11 +3125,19 @@ def test_convenios_viajan_en_la_sesion(conv_win, make_window):
     assert _globales_convenios() == _CONV_NORMOS
     grupo = otra._sextet_pattern_action_group
     assert grupo.actions()[1].isChecked()
-    # Una sesión sin convenios (anterior a que existieran) vuelve al defecto.
+    # Una sesión sin convenios (anterior a que existieran) se hizo con los de
+    # entonces: el patrón histórico y los demás por defecto.
     viejo = dict(payload, model_state={k: v for k, v in payload["model_state"].items()
                                        if k not in _CONV_NORMOS})
     otra._apply_session_payload(viejo)
-    assert _globales_convenios() == _CONV_DEFECTO
+    assert _globales_convenios() == dict(_CONV_DEFECTO, sextet_pattern="legacy")
+    # «alpha_fe», el nombre anterior del histórico, también.
+    otra._apply_session_payload(dict(payload, model_state=dict(
+        payload["model_state"], sextet_pattern="alpha_fe")))
+    assert otra.sextet_pattern == "legacy"
+    # Y lo que trae una sesión no se vuelve preferencia: una sesión antigua
+    # no puede dejar el patrón histórico como defecto de los análisis nuevos.
+    assert otra._ui_preferences_state().sextet_pattern == "normos"
 
 
 def test_convenios_se_recuerdan_en_los_settings(conv_win, make_window):

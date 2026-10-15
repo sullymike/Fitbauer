@@ -86,8 +86,8 @@ def _convenios_del_nucleo_por_defecto():
     """
     yield
     from core import physics
-    from core.constants import set_sextet_pattern
-    set_sextet_pattern("alpha_fe")
+    from core.constants import DEFAULT_SEXTET_PATTERN, set_sextet_pattern
+    set_sextet_pattern(DEFAULT_SEXTET_PATTERN)
     physics.INTENSITY_CONVENTION = "depth"
     physics.RELAX_CONVENTION = "blume"
 

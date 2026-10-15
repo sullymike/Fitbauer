@@ -74,27 +74,27 @@ This is the delicate part, and getting it wrong raises no error:
 | `DEP` (or `ARE`) | The subspectrum **area** in mm/s, not a depth |
 | `NDEX`/`FACTOR`/`CONST` | Constraints in NORMOS's **global** numbering, `13 + 15·(n−1)` |
 
-### The BHF scale
+### The NORMOS conventions
 
-NORMOS derives the sextet line positions from the nuclear moments; Fitbauer uses
-the published α-Fe pattern. They do not differ by a simple scale factor: in a real
-fit the BHF comes out 0.035 % apart (about 0.01 T at 33 T), more than the error
-of a good fit.
+Since v5.3.0 Fitbauer uses by default the same line pattern as NORMOS (derived from
+the nuclear moments), so both give the same BHF. Fitbauer's legacy pattern (up to
+v5.2.4) gave, on the same velocity axis, a BHF 0.035 % apart; see
+`docs/calibration_33T.md`.
 
-That is why the import switches on the three NORMOS conventions —line pattern,
-intensities by area and its relaxation rule— and the job gives NORMOS's values.
+On import, the NORMOS intensities by area and relaxation rule are also switched on
+(and its pattern, if the legacy one was selected), and the job gives NORMOS's values.
 They can be changed in *Fit › Advanced fit options › Conventions (NORMOS
-compatibility)*, and loading another spectrum afterwards switches back to
-Fitbauer's (those chosen by hand in that menu are kept). In a script the conventions go in the model:
+compatibility)*, and loading another spectrum afterwards switches back to Fitbauer's
+(those chosen by hand in that menu are kept). The `.JOB`'s `VMAX` is NORMOS's,
+consistent with its pattern. In a script the conventions go in the model:
 
 ```python
-ms.sextet_pattern = "normos"          # ModelState
+ms.sextet_pattern = "normos"          # ModelState (the default)
 ms.intensity_convention = "area"
 ```
 
-A `with sextet_pattern("normos"):` around the fit is **not enough**: the fit
-imposes the model's pattern. It only applies when evaluating the model outside
-the fit.
+A `with sextet_pattern(...)` around the fit is **not enough**: the fit imposes the
+model's pattern. It only applies when evaluating the model outside the fit.
 
 ---
 

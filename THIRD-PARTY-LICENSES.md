@@ -94,9 +94,11 @@ Development and test-only dependencies (`requirements-dev.txt`) are not distribu
 
 ## Data and physical constants
 
-The α-Fe reference velocity pattern (±0.839 / ±3.084 / ±5.329 mm/s at 33.0 T) and the
-nuclear constants used by Fitbauer come from the published Mössbauer literature and are
-factual data, not copyrightable material. Sample spectra in `data_sample/` were measured
+The sextet line pattern (derived from the ⁵⁷Fe nuclear moments, with the constants
+used by NORMOS-SITE) and the other nuclear constants used by Fitbauer are factual
+physical data, not copyrightable material. The legacy pattern kept for old sessions
+(±0.8385 / ±3.0835 / ±5.3285 mm/s at 33.0 T) comes from the authors' laboratory
+software. Sample spectra in `data_sample/` were measured
 or synthesised by the authors and are covered by the Apache-2.0 licence of the project.
 
 Fitbauer can read files produced by **NORMOS** (R. A. Brand) and reproduces its file

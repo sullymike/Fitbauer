@@ -1,6 +1,7 @@
 {
   "_comment": "Plantilla para pirita FeS2: doblete Fe2+, δ=0.31-0.109=0.201 mm/s, ΔEQ=0.61 mm/s, Γ=0.22 mm/s. Ref: Vaughan & Craig 1978.",
   "model_state": {
+    "sextet_pattern": "normos",
     "vars": {
       "vmax": 12.007,
       "voigt_sigma": 0.05,

@@ -76,26 +76,27 @@ Es la parte delicada, y equivocarse aquí no da ningún error:
 | `DEP` (o `ARE`) | El **área** del subespectro en mm/s, no una profundidad |
 | `NDEX`/`FACTOR`/`CONST` | Ligaduras en la numeración **global** de NORMOS, `13 + 15·(n−1)` |
 
-### La escala de BHF
+### Los convenios de NORMOS
 
-NORMOS deriva las posiciones del sexteto de los momentos nucleares; Fitbauer usa el
-patrón publicado de α-Fe. No difieren en un simple factor de escala: en un ajuste
-real, el BHF sale un 0,035 % distinto (unos 0,01 T a 33 T), más que el error de
-un buen ajuste.
+Desde la v5.3.0 Fitbauer usa por defecto el mismo patrón de líneas que NORMOS
+(derivado de los momentos nucleares), así que los dos dan el mismo BHF. El patrón
+histórico de Fitbauer (hasta la v5.2.4) daba, sobre el mismo eje de velocidad, un BHF
+un 0,035 % distinto; ver `docs/calibracion_33T.md`.
 
-Por eso la importación activa los tres convenios de NORMOS —patrón de líneas,
-intensidades por área y su regla de relajación— y el trabajo da los valores de
+Al importar, además, se activan las intensidades por área y la regla de relajación de
+NORMOS (y su patrón, si estaba elegido el histórico), y el trabajo da los valores de
 NORMOS. Se cambian en *Ajuste › Opciones avanzadas de ajuste › Convenios
 (compatibilidad NORMOS)*, y al cargar después otro espectro se vuelve a los de
-Fitbauer (los elegidos a mano en ese menú se respetan). En un script, los convenios van en el modelo:
+Fitbauer (los elegidos a mano en ese menú se respetan). La `VMAX` del `.JOB` es la de
+NORMOS, coherente con su patrón. En un script, los convenios van en el modelo:
 
 ```python
-ms.sextet_pattern = "normos"          # ModelState
+ms.sextet_pattern = "normos"          # ModelState (es el defecto)
 ms.intensity_convention = "area"
 ```
 
-Un `with sextet_pattern("normos"):` alrededor del ajuste **no basta**: el ajuste
-impone el patrón del modelo. Solo sirve para evaluar el modelo fuera del ajuste.
+Un `with sextet_pattern(...)` alrededor del ajuste **no basta**: el ajuste impone el
+patrón del modelo. Solo sirve para evaluar el modelo fuera del ajuste.
 
 ---
 

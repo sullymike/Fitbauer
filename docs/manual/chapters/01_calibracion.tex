@@ -16,17 +16,20 @@ y es común a todos los espectros medidos con la misma configuración: por eso s
 mide una vez con un patrón y se reutiliza.
 
 El patrón habitual es el \textbf{$\alpha$-Fe metálico}, cuyo sexteto tiene
-posiciones de línea muy bien conocidas. Fitbauer adopta la convención de que un
-espectro de $\alpha$-Fe corresponde a $\BHF = 33{,}0$~T, usando el patrón de
-velocidad publicado ($\pm0{,}839 / \pm3{,}084 / \pm5{,}329$~mm/s), igual que
-NORMOS.
+posiciones de línea muy bien conocidas. Fitbauer adopta, como NORMOS, la
+convención de que un espectro de $\alpha$-Fe corresponde a $\BHF = 33{,}0$~T. Las
+posiciones de las líneas a 33{,}0~T se derivan de los momentos nucleares, con las
+constantes de NORMOS ($\pm0{,}8410 / \pm3{,}0836 / \pm5{,}3261$~mm/s); su razón
+entre el desdoblamiento excitado y el fundamental es la medida por Violet y
+Pipkorn para $\alpha$-Fe.
 
-\begin{aviso}
-Las posiciones del sexteto de referencia \textbf{no} se derivan de los momentos
-nucleares: el cálculo de libro da un desdoblamiento $\sim0{,}4\%$ menor y haría
-que el $\BHF$ saliera $\sim0{,}1$~T demasiado alto. Se usan las posiciones
-publicadas de $\alpha$-Fe a 33,0~T.
-\end{aviso}
+\begin{nota}
+La escala absoluta de ese patrón no afecta a los campos: la \param{Vmax} se
+calibra precisamente para que el $\alpha$-Fe dé 33{,}0~T, y el $\BHF$ de una
+muestra solo depende de la forma del sexteto. Sí afecta a $\delta$ y $\dEQ$:
+con «$\alpha$-Fe $=$ 33{,}0~T» la escala de velocidad queda un 0{,}38\% por
+encima de las posiciones medidas por Violet y Pipkorn, igual que en NORMOS.
+\end{nota}
 
 \section{Definir una calibración a partir de un $\alpha$-Fe}
 \label{sec:definir-calib}
@@ -122,6 +125,31 @@ eso \emph{sustituyen} la calibración activa.
 
 \guicap{gui_calib_label_fixed}{Etiqueta de calibración mostrando el estado
 «fija», con la muestra, la Vmax y el IS de referencia.}
+
+\subsection{Patrón de líneas y calibraciones anteriores a la v5.3.0}
+\label{sec:calib-patron}
+
+La \param{Vmax} de una calibración depende del patrón de líneas con que se ajustó el
+$\alpha$-Fe. Hasta la v5.2.4 Fitbauer usaba otro patrón ($\pm0{,}8385 / \pm3{,}0835 /
+\pm5{,}3285$~mm/s), tomado del simulador web del laboratorio y sin fuente publicada,
+que sigue disponible como «Histórico de Fitbauer» en \menu{Ajuste > Opciones
+avanzadas de ajuste > Convenios} para reproducir sesiones antiguas. Fitbauer lo
+tiene en cuenta solo:
+\begin{itemize}[nosep]
+  \item Cada calibración nueva guarda el patrón con que se hizo.
+  \item Las locales que no lo dicen, anteriores a la v5.3.0, se aplican
+        \textbf{convertidas}: $V_\text{max} \times 0{,}999623$. La etiqueta de
+        calibración y el informe lo indican y muestran la \param{Vmax} original.
+  \item Las de la API web son las VMAX calibradas en NORMOS, ya con su patrón, y
+        se aplican tal cual; solo se convierten las que la API marca como
+        \code{"legacy"}, guardadas con el ajuste antiguo de la propia web.
+  \item Al cambiar de patrón en el menú, la calibración fijada se vuelve a aplicar
+        convertida.
+  \item Las sesiones guardadas conservan su patrón y se reproducen exactamente.
+\end{itemize}
+Con la calibración convertida, el $\BHF$ de una muestra cambia menos de un
+0{,}01\% y $\delta$, $\dEQ$ un $-0{,}038\%$.
+
 
 \subsection{Sustitución de la calibración}
 

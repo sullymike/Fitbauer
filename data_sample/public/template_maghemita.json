@@ -1,6 +1,7 @@
 {
   "_comment": "Plantilla para maghemita γ-Fe2O3: sextete Fe3+, δ=0.33-0.109=0.221 mm/s, BHF=50.0 T, ε=0.0 mm/s, Γ=0.38 mm/s. Ref: Murad & Schwertmann 1983.",
   "model_state": {
+    "sextet_pattern": "normos",
     "vars": {
       "vmax": 12.007,
       "voigt_sigma": 0.05,

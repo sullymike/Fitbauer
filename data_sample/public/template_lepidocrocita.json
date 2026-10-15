@@ -1,6 +1,7 @@
 {
   "_comment": "Plantilla para lepidocrocita γ-FeOOH: doblete Fe3+, δ=0.37-0.109=0.261 mm/s, ΔEQ=0.53 mm/s, Γ=0.27 mm/s. Ref: Murad 1979.",
   "model_state": {
+    "sextet_pattern": "normos",
     "vars": {
       "vmax": 12.007,
       "voigt_sigma": 0.05,

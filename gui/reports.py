@@ -702,6 +702,9 @@ class ReportMixin:
                 lines.append(
                     f"| {_r('vmax_calibrated')} | {float(ci['velocity_calibrated']):.6g} mm/s |"
                 )
+                if abs(self._calibration_scale() - 1.0) > 1e-12:
+                    vmax_orig = f"{float(ci['velocity_calibrated']):.6g}"
+                    lines.append(f"| | {tr('calib.converted', vmax=vmax_orig)} |")
             if iso_ref is not None:
                 lines.append(f"| {_r('iso_ref_row')} | {iso_ref:.6g} mm/s |")
             if ci.get("calibration_date"):
