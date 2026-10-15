@@ -577,7 +577,7 @@ new rows in `resumen.csv`.
 | Single crystal `IFSC`+`BEX/GAX` | ✔ | K3 | ✘ documented (Fitbauer averages the beam) |
 | Constraints `NDEX/FACTOR/CONST` | ✔ | K4 | ✔ equivalent to the constraints |
 | Binomial `DISTRI=3`+`CONC` | ✔ | L1 | ✔ (binomial shape); the histogram over-smooths the extremes |
-| Czjzek `METHOD=6`+`DISTRI=4` | ✔ | L2 | ✔ the histogram recovers shape and moments |
+| Czjzek `METHOD=6`+`DISTRI=4` | ✔ | L2 | ✔ the histogram recovers shape and moments; equivalent “Czjzek” shape (σ² = STG² + DTQ², v5.2.2) |
 | Negative mirror `PNEG` | ✔ | L3 | ✔ (degenerate: unobservable in powder, analytical truth) |
 | `EXACT` (mixed order, `QUP`) | ✔ | L4 | partial: effective texture correctable, residual grows with QUP |
 | Texture in the distribution `D13/D23` | ✔ | L6 | ✔ after exposing `--d13/--d23` in the CLI |

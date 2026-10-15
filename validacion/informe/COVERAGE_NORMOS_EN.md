@@ -88,7 +88,8 @@ Verdict symbols:
 | `BETA1`/`BETA2` edge anchors | `edge_anchor` + `edge_pileup` diagnostic | **=** |
 | `DISTRI=2` Gaussian | VBF with N=1 | **=** |
 | `DISTRI=3` binomial / fixed | Binomial / Fixed | **=** |
-| `DISTRI=4` analytical Czjzek / Le Caër | the histogram reproduces the shape | **~** no parametric form |
+| `DISTRI=4` analytical Czjzek (`METHOD=6`) | “Czjzek” and “Czjzek ext.” shapes | **=** same P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) with σ² = STG² + DTQ²; the `.JOB` is imported with that shape (§9) |
+| `DISTRI=4` with another `METHOD` (Le Caër, with field) | histogram | **~** no verified parametric form |
 | `DTB DTI DTQ` correlations with the grid | `delta_slope quad_slope` | **=** careful: in METHOD 1-5 NORMOS applies **only** `DTI`; `DTQ` is a dead parameter there (see §7) |
 | DIST `.JOB` → distribution panel | `job_to_distribution_state` | **=** grid, shape, correlations, anchors and crystalline sites as sharp components |
 | 2 overlapping distribution blocks | sharp components + 2D P(BHF,ΔEQ) | **~** |
@@ -110,13 +111,14 @@ Verdict symbols:
 ## 6. What is missing, by practical relevance in ⁵⁷Fe
 
 The two gaps with experimental meaning —P(δ) and the Brand model— were CLOSED
-on 2026-08-02; see §8. What remains is developed in
+on 2026-08-02; see §8. The analytical Czjzek of `METHOD=6` was closed on
+2026-10-14 (v5.2.1–5.2.2); see §9. What remains is developed in
 **`PENDING_NORMOS_EN.md`**, with the exact source reference, what to touch in
 Fitbauer, how to validate it and whether it is worth it. Summary:
 
-1. **Analytical Czjzek / Le Caër** (`DISTRI=4`). The histogram reproduces the
-   shape (validated in series L2), but there is no 2-3 parameter closed form to
-   fit directly.
+1. **`DISTRI=4` outside `METHOD=6`** (Le Caër, Czjzek with a field). Imported
+   as a histogram, which reproduces the shape (series L2); whether Fitbauer's
+   “Czjzek ext.” shape matches NORMOS's has not been checked.
 2. **`BEXT`**, external field in Ising relaxation: it shifts the lines as well
    as polarizing the populations. The polarization is in place; the shift is
    not.
@@ -206,3 +208,35 @@ Brand's line **asymmetry** is not replicated. Their own code warns that the
 expression "is only valid if the asymmetric terms are much smaller than the
 width, and otherwise the full expression (`METHOD=3`) should be used"; for that
 regime Fitbauer has the full histogram, which approximates nothing.
+
+## 9. Analytical Czjzek (`DISTRI=4`, `METHOD=6`) — 2026-10-14
+
+**New shapes (v5.2.1).** “Czjzek” (Czjzek et al. 1981): ΔEQ/σ follows a χ
+distribution with 5 degrees of freedom, P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²). “Czjzek
+ext.” (Le Caër and Brand 1998): random disorder on top of an ordered
+environment of norm ΔEQ₀, a non-central χ with 5 degrees of freedom. Only for
+P(ΔEQ) with doublets; σ (and ΔEQ₀) are fitted, with errors from the Jacobian,
+and since v5.2.2 they can be fixed.
+
+**Equivalence with NORMOS (v5.2.2).** A probe of the `DIST.EXE` binary
+(09.09.1993) with `DISTRI=4` and `METHOD=6` (`validacion/_staging/czjzek`):
+the weights on its grid follow the same P with exponent 4.000 and residuals at
+the rounding level of its table, with
+
+    σ² = STG² + DTQ²
+
+i.e. NORMOS broadens its STG with the grid step. Checked to 1e-5 for DTQ from
+0.06 to 0.36 mm/s; independent of QUA and WID. The importer maps such `.JOB`
+files to the “Czjzek” shape with that σ (fixed if `STGFIT=.FALSE.`) and a
+warning giving the equivalent σ. Test: `tests/test_normos_job.py`, with
+NORMOS's weight table (STG 0.6, DTQ 0.18) embedded.
+
+**Grid on NORMOS's nodes (v5.2.2).** NORMOS computes its subspectra at
+QUA + k·DTQ; Fitbauer, at the bin centres. The importer passed that range as
+the edges, so the nodes were shifted by half a step and the step was
+(NSB−1)/NSB of NORMOS's. The edges now lie half a step outside and the centres
+fall exactly on the nodes. This affects every imported DIST `.JOB`; the J/L
+bank fits through the CLI with its own grid, so its figures do not change.
+
+Still outside: `DISTRI=4` with another `METHOD`, which remains a histogram
+(§6).

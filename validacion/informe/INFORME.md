@@ -571,7 +571,7 @@ nuevas en `resumen.csv`.
 | Cristal único `IFSC`+`BEX/GAX` | ✔ | K3 | ✘ documentado (Fitbauer promedia el haz) |
 | Ligaduras `NDEX/FACTOR/CONST` | ✔ | K4 | ✔ equivalentes a las constraints |
 | Binomial `DISTRI=3`+`CONC` | ✔ | L1 | ✔ (forma binomial); histograma sobre-suaviza extremos |
-| Czjzek `METHOD=6`+`DISTRI=4` | ✔ | L2 | ✔ histograma recupera forma y momentos |
+| Czjzek `METHOD=6`+`DISTRI=4` | ✔ | L2 | ✔ histograma recupera forma y momentos; forma «Czjzek» equivalente (σ² = STG² + DTQ², v5.2.2) |
 | Espejo negativo `PNEG` | ✔ | L3 | ✔ (degenerado: inobservable en polvo, verdad analítica) |
 | `EXACT` (orden mixto, `QUP`) | ✔ | L4 | parcial: textura efectiva corregible, residuo crece con QUP |
 | Textura en distribución `D13/D23` | ✔ | L6 | ✔ tras exponer `--d13/--d23` en el CLI |

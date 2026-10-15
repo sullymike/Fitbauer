@@ -55,7 +55,7 @@ Distribuciones (momentos de P; |Δ⟨x⟩| / |Δσ| medianos, v0+v1):
 | J3 P(ΔEQ) (SITE y DIST METHOD=6) | 0.002 | 0.007 | |
 | J4 correlación δ(B), DTI −0.01…+0.02 | 0.04 T | 0.20 T | signo y magnitud correctos; ignorarla duplica el error |
 | L1 binomial (forma paramétrica) | — | — | **p recuperado a ±0.026 en CONC=10…90 %** |
-| L2 Czjzek | 0.004 | 0.015 | el histograma reproduce la forma sin necesitarla analítica |
+| L2 Czjzek | 0.004 | 0.015 | el histograma reproduce la forma sin necesitarla analítica; desde v5.2.1 hay además forma «Czjzek», equivalente a la de NORMOS con σ² = STG² + DTQ² |
 | L3 PNEG | 0.01 | 0.02 | verdad analítica plegada (la parte negativa es inobservable) |
 | L6 textura D23 (con `--d23`) | 0.004 | 0.21 | corregido en esta fase |
 | L4 EXACT (kernel HC, v4.19) | 0.04–0.20 | 0.34–1.0 | kernel por diagonalización exacta; el residuo (crece con QUP) es la truncación perturbativa del propio EXACT del demo |

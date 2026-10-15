@@ -1,13 +1,14 @@
 # Pendiente frente a NORMOS — hoja de ruta
 
-**Estado a 2026-08-02.** Complemento de `COBERTURA_NORMOS.md`, que dice QUÉ
+**Estado a 2026-08-02; ítem 1 revisado el 2026-10-14.** Complemento de `COBERTURA_NORMOS.md`, que dice QUÉ
 falta; este documento dice CÓMO hacerlo. Cada ficha lleva la referencia exacta
 del fuente, qué tocar en Fitbauer, cómo validarlo y una estimación honesta de
 si merece la pena.
 
 Nada de lo que queda tiene demanda experimental clara para ⁵⁷Fe. Están
-ordenados por valor descendente según mi criterio; el ítem 1 es el único que
-recomendaría de entrada.
+ordenados por valor descendente según mi criterio. El ítem 1, el único que
+recomendaba de entrada, está cubierto en su parte útil (el Czjzek de
+cuadrupolo); lo que queda de él es menor.
 
 ---
 
@@ -39,35 +40,30 @@ Trampas ya pagadas en esta revisión. Merece la pena leerlas antes de tocar nada
 
 ---
 
-## 1. Czjzek / Le Caër analíticas (`DISTRI=4`)
+## 1. `DISTRI=4` fuera de `METHOD=6` (Le Caër, Czjzek con campo)
 
-**Qué es.** Formas paramétricas para la distribución de gradiente de campo
-eléctrico en sólidos desordenados. Czjzek con `METHOD=6` (cuadrupolo sin
-campo), Le Caër con `METHOD=7`. Se ajustan con 2-3 parámetros en vez de un
-histograma de 40-60 bins.
+**Cerrado en parte el 2026-10-14 (v5.2.1–5.2.2).** El Czjzek de cuadrupolo
+(`METHOD=6`) ya tiene forma paramétrica («Czjzek») y el importador la usa:
+una sonda del binario dio la misma P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) con
+σ² = STG² + DTQ². Detalle en `COBERTURA_NORMOS.md` §9. Fitbauer tiene además
+la forma «Czjzek ext.» (Le Caër–Brand 1998, χ no central con ΔEQ₀).
 
-**En NORMOS.** `distinif.for` (construcción de la malla de probabilidades) y
-`distcalf.for:104` y `:167`. La rutina `CZJZEK` de `sitegmfp.for:1153` es otra
-cosa: son las correcciones de orden 3-5 sobre las líneas del Hamiltoniano.
-
-**Hoy en Fitbauer.** El histograma reproduce la forma sin necesitarla
-analítica — validado en la serie L2 del banco, con ⟨x⟩ a 0.004 y σ a 0.015.
-Lo que no hay es la forma paramétrica.
+**Qué queda.** Los `.JOB` con `DISTRI=4` y otro `METHOD` (Le Caër con
+`METHOD=7` según el manual, o la distribución sobre un sexteto con campo) se
+siguen importando como histograma, con el aviso `normos.w_distri4`.
 
 **Qué habría que hacer.**
-- Una función `czjzek_distribution(grid, sigma, mu)` en `mossbauer_distribution`
-  al lado de las otras formas paramétricas.
-- Registrarla en `DISTRIBUTION_SHAPES` (`core/params.py`) y en el selector del
-  panel (`gui/distribution_panel.py`), más el CLI (`--shape czjzek`).
-- El ajuste va por el mismo camino que Binomial/Gaussiana (formas paramétricas,
-  sin `alpha`).
+- Sondar el binario como en `validacion/_staging/czjzek`: barrer STG y el paso
+  con el resto fijo y ajustar los pesos de su malla a «Czjzek ext.» (σ, ΔEQ₀).
+  Ojo: con `METHOD=6` NORMOS suma el paso al STG en cuadratura; comprobar si
+  aquí hace lo mismo.
+- Si coincide, extender la rama `czjzek` de `job_to_distribution_state`
+  (`core/normos_job.py`) y añadir la tabla de pesos a `tests/test_normos_job.py`.
+- Con campo, la forma necesitaría un kernel de sextetes con ΔEQ distribuido,
+  que hoy las formas de Czjzek no admiten (solo P(ΔEQ) con dobletes).
 
-**Validación.** Sí es posible: el demo soporta `DISTRI=4` con `METHOD=6`
-(confirmado en el inventario). Serie de banco nueva al estilo de `serie_L.py`.
-
-**Coste / valor.** Medio / medio. Solo lo haría si trabajas con vidrios
-metálicos o materiales amorfos y quieres publicar 2-3 parámetros en vez de una
-curva. Si no, el histograma ya te da la forma.
+**Coste / valor.** Bajo / bajo. El histograma ya da la forma, y la variante
+de cuadrupolo, que es la de uso habitual, está cubierta.
 
 ---
 

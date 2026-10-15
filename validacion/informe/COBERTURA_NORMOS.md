@@ -85,7 +85,8 @@ Veredicto por símbolo:
 | `BETA1`/`BETA2` anclajes de borde | `edge_anchor` + diagnóstico `edge_pileup` | **=** |
 | `DISTRI=2` gaussiana | VBF con N=1 | **=** |
 | `DISTRI=3` binomial / fija | Binomial / Fija | **=** |
-| `DISTRI=4` Czjzek / Le Caër analíticas | el histograma reproduce la forma | **~** sin forma paramétrica |
+| `DISTRI=4` Czjzek analítica (`METHOD=6`) | formas «Czjzek» y «Czjzek ext.» | **=** misma P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) con σ² = STG² + DTQ²; el `.JOB` se importa con esa forma (§9) |
+| `DISTRI=4` con otro `METHOD` (Le Caër, campo) | histograma | **~** sin forma paramétrica comprobada |
 | `DTB DTI DTQ` correlaciones con la malla | `delta_slope quad_slope` | **=** ojo: en METHOD 1-5 NORMOS **solo** aplica `DTI`; `DTQ` es un parámetro muerto ahí (ver §7) |
 | `.JOB` de DIST → panel de distribución | `job_to_distribution_state` | **=** malla, forma, correlaciones, anclajes y sitios cristalinos como nítidos |
 | 2 bloques de distribución solapados | componentes nítidos + P(BHF,ΔEQ) 2D | **~** |
@@ -107,13 +108,14 @@ Veredicto por símbolo:
 ## 6. Lo que falta, por relevancia práctica en ⁵⁷Fe
 
 Los dos huecos con sentido experimental —P(δ) y el modelo de Brand— quedaron
-CERRADOS el 2026-08-02; ver §8. Lo que queda está desarrollado en
+CERRADOS el 2026-08-02; ver §8. El Czjzek analítico de `METHOD=6` se cerró el
+2026-10-14 (v5.2.1–5.2.2); ver §9. Lo que queda está desarrollado en
 **`PENDIENTE_NORMOS.md`**, con la referencia exacta del fuente, qué tocar en
 Fitbauer, cómo validarlo y si merece la pena. Resumen:
 
-1. **Czjzek / Le Caër analíticas** (`DISTRI=4`). El histograma reproduce la
-   forma (validado en la serie L2), pero no hay una forma paramétrica de 2-3
-   parámetros que ajustar directamente.
+1. **`DISTRI=4` fuera de `METHOD=6`** (Le Caër, Czjzek con campo). Se importa
+   como histograma, que reproduce la forma (serie L2); no se ha comprobado que
+   la forma «Czjzek ext.» de Fitbauer coincida con la de NORMOS.
 2. **`BEXT`**, campo externo en la relajación de Ising: desplaza las líneas
    además de polarizar las poblaciones. La polarización ya está; el
    desplazamiento no.
@@ -202,3 +204,34 @@ No se replica la **asimetría** de línea de Brand. Su propio código advierte d
 que la expresión «solo vale si los términos asimétricos son mucho menores que
 la anchura, y si no, usar la expresión completa (`METHOD=3`)»; para ese régimen
 Fitbauer tiene el histograma completo, que no aproxima nada.
+
+## 9. Czjzek analítico (`DISTRI=4`, `METHOD=6`) — 2026-10-14
+
+**Formas nuevas (v5.2.1).** «Czjzek» (Czjzek et al. 1981): ΔEQ/σ sigue una χ
+de 5 grados de libertad, P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²). «Czjzek ext.» (Le Caër y
+Brand 1998): desorden aleatorio sobre un entorno ordenado de norma ΔEQ₀, χ no
+central de 5 grados de libertad. Solo en P(ΔEQ) con dobletes; se ajustan σ (y
+ΔEQ₀), con error por la jacobiana, y desde v5.2.2 se pueden fijar.
+
+**Equivalencia con NORMOS (v5.2.2).** Sonda del binario `DIST.EXE`
+(09.09.1993) con `DISTRI=4` y `METHOD=6` (`validacion/_staging/czjzek`): los
+pesos de su malla siguen la misma P con exponente 4.000 y residuos al nivel del
+redondeo de su tabla, con
+
+    σ² = STG² + DTQ²
+
+es decir, NORMOS ensancha su STG con el paso de la malla. Comprobado al 1e-5
+con DTQ de 0.06 a 0.36 mm/s; no depende de QUA ni de WID. El importador
+traduce esos `.JOB` a la forma «Czjzek» con ese σ (fijo si `STGFIT=.FALSE.`)
+y un aviso con el σ equivalente. Test: `tests/test_normos_job.py`, con la tabla
+de pesos de NORMOS (STG 0.6, DTQ 0.18) incrustada.
+
+**Malla en los nodos de NORMOS (v5.2.2).** NORMOS calcula los subespectros en
+QUA + k·DTQ; Fitbauer, en los centros de los bins. El importador pasaba ese
+rango como bordes, con lo que los nodos quedaban desplazados medio paso y con
+un paso (NSB−1)/NSB del de NORMOS. Ahora los bordes van medio paso por fuera y
+los centros caen exactamente en los nodos. Afecta a todos los `.JOB` de DIST
+importados; el banco J/L ajusta con el CLI y su malla propia, así que sus
+cifras no cambian.
+
+Queda fuera `DISTRI=4` con otro `METHOD`, que sigue como histograma (§6).
