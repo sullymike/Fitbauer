@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **`METHOD=5`/`7` de NORMOS-DIST se importaban como forma «Fija».** El aviso
+  decía que leían la distribución de un fichero, pero el fuente
+  (`distcalf.for`) muestra que el fichero spline guarda los subespectros
+  (espectros de polvo de Blaes), no P. Ahora se conserva la forma del
+  `DISTRI`; `METHOD=7` va con sextetes de campo fijo (33 T y aviso si el
+  `.JOB` no trae BHF), y el aviso explica que el kernel de Fitbauer es de 1er
+  orden salvo con «Le Caër».
 - **La relajación de Ising de NORMOS (`IRELAX`) se importa.** Antes solo daba
   el aviso «no se traslada». Ahora el subespectro pasa a componente Blume–Tjon
   con ν = OME·10⁶/2, P = BHF/BSAT (o `BH0`) y el `BEXT` global, equivalencias

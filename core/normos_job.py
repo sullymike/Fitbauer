@@ -576,6 +576,9 @@ def job_to_distribution_state(text: str) -> dict:
     # Fitbauer calcula él mismo con el Hamiltoniano exacto; ver más abajo.
     lecaer = distri == 4 and method == 7
     if method in (5, 7) and not lecaer:
+        # En METHOD=5/7 el fichero spline guarda los SUBESPECTROS (espectros
+        # de polvo de Blaes, ``distcalf.for``), no la distribución: P sigue
+        # siendo la del DISTRI. Antes se importaba como forma «Fija».
         avisos.append(
             tr("normos.w_method_file", method=method))
 
@@ -597,8 +600,6 @@ def job_to_distribution_state(text: str) -> dict:
     conc = _f(param.get("CONC"), 0.0)
     if distri == 3:
         forma = "Binomial" if conc > 0.0 else "Fija"
-    if method in (5, 7) and not lecaer:
-        forma = "Fija"
 
     # ── Malla ───────────────────────────────────────────────────────────────
     # El paso por defecto de DTB es 1.0 (``distinif.for``: IF(DTB.LE.0)DTB=1).
@@ -647,6 +648,10 @@ def job_to_distribution_state(text: str) -> dict:
         avisos.append(tr("normos.w_czjzek_field", bhf=f"{campo_fijo:g}"))
         forma = "Histograma"
         czjzek = False
+    if method == 7 and not lecaer and campo_fijo <= 0.0:
+        # METHOD=7 es cuadrupolo CON campo, pero el campo va en el spline.
+        campo_fijo = 33.0
+        avisos.append(tr("normos.w_method7_field"))
     if lecaer and campo_fijo <= 0.0:
         # En NORMOS el campo va en el fichero spline de los subespectros, no
         # en el .JOB: sin BHF hay que ponerlo a mano en el panel.

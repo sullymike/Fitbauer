@@ -77,7 +77,7 @@ Veredicto por símbolo:
 | `METHOD=4` fuente polarizada | `kernel_treatment="polarized"` | **=** |
 | `METHOD=5` P leída de fichero (spline) | forma "Fija" | **=** |
 | `METHOD=6` distribución de cuadrupolo | `--variable quad` | **=** |
-| `METHOD=7` P(ΔEQ) de fichero **con campo** | "Fija" (sin campo) | **~** |
+| `METHOD=7` P(ΔEQ) **con campo** (subespectros de Blaes leídos de un spline) | forma del `DISTRI` con sextetes de campo fijo | **~** kernel de 1er orden salvo con «Le Caër» (polvo exacto); 2026-10-15: antes se importaba como «Fija» |
 | `METHOD=2` Brand: dispersiones `H1P`/`ISP`/`QUP` | `width_model="dispersion"` (σ_B, σ_δ, σ_Q) | **=** sin replicar su asimetría de línea, que su propio código marca como aproximación |
 | `METHOD=8` distribución de desplazamiento isomérico P(δ) | `--variable delta` | **+** su kernel son singletes; aquí admite además sexteto o doblete |
 | `DISTRI=1` histograma + suavizado | igual | **=** |

@@ -139,7 +139,7 @@ No son huecos, pero constan como **~** en `COBERTURA_NORMOS.md`.
 | **Octete** (`NLINE=8`) | se modela como sexteto + 2 singletes, validado en la serie K1 | una componente de 8 líneas propia, con las ΔmI=±2 ligadas al mismo BHF |
 | **`STB`** (Czjzek sobre el Hamiltoniano) | se cubre con Voigt σ_B / forma Gaussiana | las correcciones de orden 3-5 de `CZJZEK` (`sitegmfp.for:1153`), que corrigen posición e intensidad además de la anchura |
 | **`EFGB`** (Blaes) | el promedio de orientaciones existe en `kundig_powder` y en el kernel hamiltoniano | en el componente DISCRETO, combinar el promedio de orientaciones con η ≠ 0 |
-| **`METHOD=7`** | la forma "Fija" carga P de fichero | que además admita campo magnético |
+| **`METHOD=7`** | la forma del `DISTRI` con sextetes de campo fijo (el spline de NORMOS son los subespectros, no P) | kernel de polvo exacto también para el histograma y la gaussiana (hoy solo en «Le Caër») |
 | **2 bloques de distribución** | componentes nítidos + P(BHF,ΔEQ) 2D | dos distribuciones independientes solapadas, cada una con su malla |
 
 De estos, el más defendible es el **octete propio**: hoy funciona pero obliga a

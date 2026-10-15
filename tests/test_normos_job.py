@@ -639,6 +639,20 @@ def test_lecaer_de_normos_se_importa_como_forma_le_caer():
     assert any("33 T" in a for a in r["warnings"])
 
 
+def test_method_5_y_7_conservan_la_forma_del_distri():
+    """En METHOD=5/7 el spline de NORMOS guarda los SUBESPECTROS, no P: la
+    forma es la del DISTRI (antes iba a «Fija»). METHOD=7 es cuadrupolo con
+    campo; sin BHF en el .JOB se pone 33 T y se avisa."""
+    from core.normos_job import job_to_distribution_state
+    r = job_to_distribution_state(JOB_DIST_XL.replace("METHOD=1,", "METHOD=7,"))
+    st = r["model_state"]
+    assert st["dist_shape"] == "Histograma" and st["dist_variable"] == "ΔEQ"
+    assert st["dist_field_enabled"] and st["dist_fixed_bhf"] == 33.0
+    assert any("spline" in a for a in r["warnings"])
+    r = job_to_distribution_state(JOB_DIST_XL.replace("METHOD=1,", "METHOD=5,"))
+    assert r["model_state"]["dist_shape"] == "Histograma"
+
+
 def test_pesos_czjzek_iguales_a_los_de_normos_dist():
     """Tabla de áreas relativas de NORMOS-DIST 09.09.1993 (DISTRI=4, METHOD=6,
     STG=0.6, QUA=0, DTQ=0.18): la forma Czjzek de Fitbauer con

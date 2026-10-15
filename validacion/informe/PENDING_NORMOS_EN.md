@@ -146,7 +146,7 @@ These are not gaps, but they appear as **~** in `COVERAGE_NORMOS_EN.md`.
 | **Octet** (`NLINE=8`) | modelled as sextet + 2 singlets, validated in series K1 | an 8-line component of its own, with the ΔmI=±2 lines tied to the same BHF |
 | **`STB`** (Czjzek over the Hamiltonian) | covered with Voigt σ_B / Gaussian shape | the order 3-5 corrections of `CZJZEK` (`sitegmfp.for:1153`), which correct position and intensity as well as the width |
 | **`EFGB`** (Blaes) | the orientation average exists in `kundig_powder` and in the Hamiltonian kernel | in the DISCRETE component, combining the orientation average with η ≠ 0 |
-| **`METHOD=7`** | the "Fixed" shape loads P from file | making it accept a magnetic field as well |
+| **`METHOD=7`** | the `DISTRI` shape with fixed-field sextets (NORMOS's spline holds the subspectra, not P) | exact powder kernel for the histogram and Gaussian too (today only in “Le Caër”) |
 | **2 distribution blocks** | sharp components + 2D P(BHF,ΔEQ) | two independent overlapping distributions, each with its own grid |
 
 Of these, the most defensible is the **octet of its own**: it works today but

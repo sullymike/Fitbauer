@@ -80,7 +80,7 @@ Verdict symbols:
 | `METHOD=4` polarized source | `kernel_treatment="polarized"` | **=** |
 | `METHOD=5` P read from file (spline) | "Fixed" shape | **=** |
 | `METHOD=6` quadrupole distribution | `--variable quad` | **=** |
-| `METHOD=7` P(ΔEQ) from file **with field** | "Fixed" (no field) | **~** |
+| `METHOD=7` P(ΔEQ) **with field** (Blaes subspectra read from a spline) | the `DISTRI` shape with fixed-field sextets | **~** first-order kernel except with “Le Caër” (exact powder); 2026-10-15: it used to be imported as “Fixed” |
 | `METHOD=2` Brand: `H1P`/`ISP`/`QUP` dispersions | `width_model="dispersion"` (σ_B, σ_δ, σ_Q) | **=** without replicating their line asymmetry, which their own code flags as an approximation |
 | `METHOD=8` isomer shift distribution P(δ) | `--variable delta` | **+** their kernel is singlets only; here it can also be a sextet or a doublet |
 | `DISTRI=1` histogram + smoothing | same | **=** |
