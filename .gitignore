@@ -39,6 +39,8 @@ WinNormos-Manual*.pdf
 # scripts y resumen). Contiene datos de laboratorio y referencias al fuente de
 # NORMOS; vive solo en local.
 validacion/
+# Trabajos reales de NORMOS (.JOB/.RES/espectros del laboratorio): nunca al repo.
+jobs/
 
 # Cachés/temporales habituales si aparecen en la raíz
 __pycache__/
