@@ -394,6 +394,8 @@
   "info.corr_matrix_title": "Corrélations entre paramètres ajustés",
   "info.p_width": "σ({var}) largeur de P",
   "info.p_mean": "⟨{var}⟩ moyenne de P",
+  "info.p_skew": "Asymétrie de P({var})",
+  "info.p_kurtosis": "Kurtosis de P({var}) (excès)",
   "info.corr_legend": "  ⚠ |r| ≥ 0.95 : l'ajustement ne les sépare pas · ! |r| ≥ 0.8 : ils se compensent en partie",
   "info.corr_none": "Corrélations : toutes |r| < {thr} (max r = {r}, {p1} ↔ {p2}).",
   "info.area_percent_header": "Pourcentage d'aire par composant :",

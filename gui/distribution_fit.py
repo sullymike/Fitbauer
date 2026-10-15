@@ -1054,6 +1054,10 @@ class DistributionFitMixin:
                 r.values[lbl] = m[mk]
                 if m.get(f"{mk}_sigma"):
                     czjzek_errors[lbl] = m[f"{mk}_sigma"]
+            # Forma de P frente a una gaussiana, como en NORMOS (sin error).
+            for mk, clave in (("skew", "info.p_skew"), ("kurtosis", "info.p_kurtosis")):
+                if mk in m:
+                    r.values[tr(clave, var=short)] = m[mk]
         # free_keys guía qué parámetros muestra el panel; sin esto no salía ninguno.
         r.free_keys = list(r.values.keys())
         r.errors = czjzek_errors

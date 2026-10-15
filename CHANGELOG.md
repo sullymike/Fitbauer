@@ -2,6 +2,11 @@
 
 ## Sin publicar
 
+- **Asimetría y curtosis de P.** Como hace NORMOS-DIST, el panel «Estado y
+  parámetros» y el informe dan, junto a la media, la anchura y la moda, la
+  asimetría y la curtosis en exceso de la distribución (0 para una gaussiana).
+  Sirven para ver de un vistazo si P se aparta de una gaussiana (p. ej. la cola
+  de un Czjzek). `distribution_moments` las devuelve como `skew` y `kurtosis`.
 - **La gaussiana de NORMOS-DIST no tiene la anchura STG.** El manual de
   WinNormos (§2.3.2) dice que en toda distribución de forma fija NORMOS
   ensancha STG con el paso de la malla, σ = √(STG² + DTX²), como vimos con la

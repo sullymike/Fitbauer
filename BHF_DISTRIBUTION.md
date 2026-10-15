@@ -159,6 +159,10 @@ Cada superposición tiene una casilla que la oculta; la elección se recuerda.
   más la interna (réplicas Monte Carlo del histograma o covarianza de los parámetros de
   la forma). La media y la anchura de P llevan así un error que incluye el de los
   globales.
+- **Forma de P.** Junto a la media, la anchura y la moda, el panel y el informe dan la
+  **asimetría** (negativa = cola hacia valores bajos) y la **curtosis en exceso** (0 para
+  una gaussiana, negativa si P es más plana, positiva si es más picuda), las mismas que
+  da NORMOS-DIST para comparar P con una gaussiana. Van sin error.
 
 ## Avisos del panel de distribución
 

@@ -394,6 +394,8 @@
   "info.corr_matrix_title": "フィットしたパラメータ間の相関",
   "info.p_width": "σ({var}) P の幅",
   "info.p_mean": "⟨{var}⟩ P の平均",
+  "info.p_skew": "P({var}) の歪度",
+  "info.p_kurtosis": "P({var}) の尖度（過剰）",
   "info.corr_legend": "  ⚠ |r| ≥ 0.95：フィットでは分離できない · ! |r| ≥ 0.8：部分的に補い合う",
   "info.corr_none": "相関：すべて |r| < {thr}（最大 r = {r}、{p1} ↔ {p2}）。",
   "info.area_percent_header": "成分ごとの面積百分率：",

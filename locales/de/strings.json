@@ -394,6 +394,8 @@
   "info.corr_matrix_title": "Korrelationen zwischen angepassten Parametern",
   "info.p_width": "σ({var}) Breite von P",
   "info.p_mean": "⟨{var}⟩ Mittelwert von P",
+  "info.p_skew": "Schiefe von P({var})",
+  "info.p_kurtosis": "Kurtosis von P({var}) (Exzess)",
   "info.corr_legend": "  ⚠ |r| ≥ 0.95: der Fit trennt sie nicht · ! |r| ≥ 0.8: sie kompensieren sich teilweise",
   "info.corr_none": "Korrelationen: alle |r| < {thr} (größte r = {r}, {p1} ↔ {p2}).",
   "info.area_percent_header": "Flächenanteil pro Komponente:",

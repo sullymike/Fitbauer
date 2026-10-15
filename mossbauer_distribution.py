@@ -1675,10 +1675,14 @@ def distribution_goodness(
 
 
 def distribution_moments(centers: np.ndarray, probability: np.ndarray) -> dict[str, float]:
-    """Media, desviación típica y moda de una P(x) 1D sobre su malla.
+    """Media, desviación típica, moda, asimetría y curtosis de una P(x) 1D.
 
     Sirve igual para densidades (histograma, gaussianas) que para la binomial
     (P_k que suman 1): solo usa los pesos relativos. Vacío si P es nula.
+    Asimetría y curtosis como las da NORMOS-DIST (manual de WinNormos §1.4.2):
+    asimetría negativa = cola hacia valores bajos; curtosis EN EXCESO sobre la
+    gaussiana (0 para una gaussiana, < 0 más plana, > 0 más picuda). Con σ = 0
+    no están definidas y se omiten.
     """
     x = np.asarray(centers, dtype=float).ravel()
     p = np.clip(np.asarray(probability, dtype=float).ravel(), 0.0, None)
@@ -1688,7 +1692,12 @@ def distribution_moments(centers: np.ndarray, probability: np.ndarray) -> dict[s
     w = p / tot
     mean = float(np.sum(w * x))
     std = float(np.sqrt(max(float(np.sum(w * (x - mean) ** 2)), 0.0)))
-    return {"mean": mean, "std": std, "mode": float(x[int(np.argmax(p))])}
+    out = {"mean": mean, "std": std, "mode": float(x[int(np.argmax(p))])}
+    if std > 0.0:
+        z = (x - mean) / std
+        out["skew"] = float(np.sum(w * z ** 3))
+        out["kurtosis"] = float(np.sum(w * z ** 4) - 3.0)
+    return out
 
 
 def data_weights(sigma: np.ndarray | None, n: int) -> np.ndarray | None:

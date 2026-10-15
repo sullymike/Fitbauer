@@ -323,6 +323,9 @@ class ReportMixin:
             lines.append(f"| {tr('info.p_mean', var=var_lbl)} | {m['mean']:.6g}{pm('mean')} {unit} |")
             lines.append(f"| {tr('info.p_width', var=var_lbl)} | {m['std']:.6g}{pm('std')} {unit} |")
             lines.append(f"| {_r('mode_peak')} | {m['mode']:.6g} {unit} |")
+            if "skew" in m:
+                lines.append(f"| {tr('info.p_skew', var=var_lbl)} | {m['skew']:.3f} |")
+                lines.append(f"| {tr('info.p_kurtosis', var=var_lbl)} | {m['kurtosis']:.3f} |")
         for key, lbl in (("fitted_dist_p", _r("binom_c")),
                          ("binomial_n", _r("binom_n")),
                          ("binomial_start", _r("binom_start")),

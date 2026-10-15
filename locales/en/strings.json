@@ -394,6 +394,8 @@
   "info.corr_matrix_title": "Correlations between fitted parameters",
   "info.p_width": "σ({var}) width of P",
   "info.p_mean": "⟨{var}⟩ mean of P",
+  "info.p_skew": "Skewness of P({var})",
+  "info.p_kurtosis": "Kurtosis of P({var}) (excess)",
   "info.corr_legend": "  ⚠ |r| ≥ 0.95: the fit cannot separate them · ! |r| ≥ 0.8: they partly trade off",
   "info.corr_none": "Correlations: all |r| < {thr} (largest r = {r}, {p1} ↔ {p2}).",
   "info.area_percent_header": "Area percentage per component:",

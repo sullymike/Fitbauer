@@ -160,6 +160,10 @@ Each overlay has a check that hides it; the choice is remembered.
   plus the internal one (Monte Carlo replicas of the histogram or covariance of the shape
   parameters). The mean and width of P thus carry an error that includes that of the
   globals.
+- **Shape of P.** Alongside the mean, width and mode, the panel and the report give the
+  **skewness** (negative = tail towards low values) and the **excess kurtosis** (0 for a
+  Gaussian, negative if P is flatter, positive if it is more peaked), the same ones
+  NORMOS-DIST gives to compare P with a Gaussian. They carry no error.
 
 ## Warnings of the distribution panel
 

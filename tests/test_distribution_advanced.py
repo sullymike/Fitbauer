@@ -516,3 +516,19 @@ def test_czjzek_con_sigma_o_delta0_fijos():
     ext = md.fit_czjzek_hyperfine_distribution(v, y, extended=True, czjzek_delta0=0.5,
                                                fit_czjzek_delta0=False, **kw)
     assert ext.czjzek_delta0 == 0.5 and ext.czjzek_delta0_err is None
+
+
+def test_momentos_de_p_incluyen_asimetria_y_curtosis_como_normos():
+    """Asimetría y curtosis en exceso, como las da NORMOS-DIST: 0 para una
+    gaussiana, −1.2 para una uniforme y asimetría > 0 con cola a la derecha."""
+    from mossbauer_distribution import distribution_moments
+
+    x = np.linspace(0.0, 60.0, 6001)
+    m = distribution_moments(x, np.exp(-0.5 * ((x - 30.0) / 3.0) ** 2))
+    assert m["skew"] == pytest.approx(0.0, abs=1e-6)
+    assert m["kurtosis"] == pytest.approx(0.0, abs=1e-4)
+    m = distribution_moments(x, np.ones_like(x))
+    assert m["kurtosis"] == pytest.approx(-1.2, abs=1e-3)
+    m = distribution_moments(x, x ** 4 * np.exp(-0.5 * (x / 3.0) ** 2))   # Czjzek
+    assert m["skew"] > 0.0
+    assert "skew" not in distribution_moments(x, (x == 30.0).astype(float))

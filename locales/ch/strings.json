@@ -394,6 +394,8 @@
   "info.corr_matrix_title": "拟合参数之间的相关",
   "info.p_width": "σ({var}) P 的宽度",
   "info.p_mean": "⟨{var}⟩ P 的平均值",
+  "info.p_skew": "P({var}) 的偏度",
+  "info.p_kurtosis": "P({var}) 的峰度（超额）",
   "info.corr_legend": "  ⚠ |r| ≥ 0.95：拟合无法将其分开 · ! |r| ≥ 0.8：部分相互补偿",
   "info.corr_none": "相关：全部 |r| < {thr}（最大 r = {r}，{p1} ↔ {p2}）。",
   "info.area_percent_header": "各分量面积百分比：",

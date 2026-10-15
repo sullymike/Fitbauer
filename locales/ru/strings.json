@@ -394,6 +394,8 @@
   "info.corr_matrix_title": "Корреляции между подогнанными параметрами",
   "info.p_width": "σ({var}) ширина P",
   "info.p_mean": "⟨{var}⟩ среднее P",
+  "info.p_skew": "Асимметрия P({var})",
+  "info.p_kurtosis": "Эксцесс P({var})",
   "info.corr_legend": "  ⚠ |r| ≥ 0.95: подгонка их не разделяет · ! |r| ≥ 0.8: частично компенсируют друг друга",
   "info.corr_none": "Корреляции: все |r| < {thr} (наибольшая r = {r}, {p1} ↔ {p2}).",
   "info.area_percent_header": "Процент площади по компонентам:",
