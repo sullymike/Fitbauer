@@ -89,7 +89,7 @@ Verdict symbols:
 | `DISTRI=2` Gaussian | VBF with N=1 | **=** |
 | `DISTRI=3` binomial / fixed | Binomial / Fixed | **=** |
 | `DISTRI=4` analytical Czjzek (`METHOD=6`) | “Czjzek” and “Czjzek ext.” shapes | **=** same P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) with σ² = STG² + DTQ²; the `.JOB` is imported with that shape (§9) |
-| `DISTRI=4` with another `METHOD` (Le Caër, with field) | histogram | **~** no verified parametric form |
+| `DISTRI=4` with `METHOD=7` (in-field Le Caër) | histogram | **~** no parametric form: it is the P of the quadrupole shift of a sextet with a random EFG, not “Czjzek ext.” |
 | `DTB DTI DTQ` correlations with the grid | `delta_slope quad_slope` | **=** careful: in METHOD 1-5 NORMOS applies **only** `DTI`; `DTQ` is a dead parameter there (see §7) |
 | DIST `.JOB` → distribution panel | `job_to_distribution_state` | **=** grid, shape, correlations, anchors and crystalline sites as sharp components |
 | 2 overlapping distribution blocks | sharp components + 2D P(BHF,ΔEQ) | **~** |
@@ -116,9 +116,10 @@ on 2026-08-02; see §8. The analytical Czjzek of `METHOD=6` was closed on
 **`PENDING_NORMOS_EN.md`**, with the exact source reference, what to touch in
 Fitbauer, how to validate it and whether it is worth it. Summary:
 
-1. **`DISTRI=4` outside `METHOD=6`** (Le Caër, Czjzek with a field). Imported
-   as a histogram, which reproduces the shape (series L2); whether Fitbauer's
-   “Czjzek ext.” shape matches NORMOS's has not been checked.
+1. **`DISTRI=4` with `METHOD=7`** (in-field Le Caër). Imported as a histogram,
+   which reproduces the shape. Its P (formula in `PENDING_NORMOS_EN.md`) is that
+   of the quadrupole shift of a sextet with a random EFG; it is not equivalent
+   to Fitbauer's “Czjzek ext.”.
 2. **`BEXT`**, external field in Ising relaxation: it shifts the lines as well
    as polarizing the populations. The polarization is in place; the shift is
    not.

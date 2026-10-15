@@ -44,7 +44,7 @@ anything.
 
 ---
 
-## 1. `DISTRI=4` outside `METHOD=6` (Le Caër, Czjzek with a field)
+## 1. `DISTRI=4` with `METHOD=7`: the in-field Le Caër
 
 **Partly closed on 2026-10-14 (v5.2.1–5.2.2).** The quadrupole Czjzek
 (`METHOD=6`) now has a parametric shape (“Czjzek”) and the importer uses it:
@@ -52,23 +52,28 @@ a probe of the binary gave the same P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) with
 σ² = STG² + DTQ². Details in `COVERAGE_NORMOS_EN.md` §9. Fitbauer also has
 the “Czjzek ext.” shape (Le Caër–Brand 1998, non-central χ with ΔEQ₀).
 
-**What remains.** `.JOB` files with `DISTRI=4` and another `METHOD` (Le Caër
-with `METHOD=7` according to the manual, or the distribution over a sextet
-with a field) are still imported as a histogram, with the `normos.w_distri4`
-warning.
+**What remains.** `METHOD=7` is the quadrupole distribution **in a field**
+(first-order sextets, the grid on the quadrupole shift QUA = e²qQ/2). With
+`DISTRI=4` NORMOS uses the Le Caër distribution there (`distcalf.for`, the
+comment and the `AREREL` loop):
+
+    P(q) = ½√(2/π)·[(3q²−2)·e^(−q²/2) + (2 − 8q²/3)·e^(−2q²/3)],  q = QUA/σ
+
+with the same σ = √(STG² + DTQ²) as the Czjzek. It is **not** Fitbauer's
+“Czjzek ext.” (Le Caër–Brand 1998, with ΔEQ₀): it is a different thing, the P
+of the quadrupole shift of a sextet when the EFG is random. Such `.JOB` files
+are still imported as a histogram, with the `normos.w_distri4` warning.
 
 **What would need doing.**
-- Probe the binary as in `validacion/_staging/czjzek`: sweep STG and the step
-  with everything else fixed and fit the weights on its grid with “Czjzek
-  ext.” (σ, ΔEQ₀). Careful: with `METHOD=6` NORMOS adds the step to STG in
-  quadrature; check whether it does the same here.
-- If it matches, extend the `czjzek` branch of `job_to_distribution_state`
-  (`core/normos_job.py`) and add the weight table to `tests/test_normos_job.py`.
-- With a field, the shape would need a sextet kernel with distributed ΔEQ,
-  which the Czjzek shapes do not accept today (only P(ΔEQ) with doublets).
+- A new shape for P(ΔEQ) with a fixed field (the sextet kernel with a
+  distributed quadrupole shift already exists) with those weights and σ as the
+  only parameter; extend the `czjzek` branch of `job_to_distribution_state`
+  (`core/normos_job.py`) to `METHOD=7`.
+- Validate against the binary as in `validacion/_staging/czjzek`: sweep STG and
+  the step and compare the relative-area table of the `.RES`.
 
 **Cost / value.** Low / low. The histogram already gives the shape, and the
-quadrupole variant, which is the one in common use, is covered.
+field-free variant, which is the one in common use, is covered.
 
 ---
 

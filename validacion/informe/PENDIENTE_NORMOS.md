@@ -40,7 +40,7 @@ Trampas ya pagadas en esta revisión. Merece la pena leerlas antes de tocar nada
 
 ---
 
-## 1. `DISTRI=4` fuera de `METHOD=6` (Le Caër, Czjzek con campo)
+## 1. `DISTRI=4` con `METHOD=7`: el Le Caër con campo
 
 **Cerrado en parte el 2026-10-14 (v5.2.1–5.2.2).** El Czjzek de cuadrupolo
 (`METHOD=6`) ya tiene forma paramétrica («Czjzek») y el importador la usa:
@@ -48,22 +48,28 @@ una sonda del binario dio la misma P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) con
 σ² = STG² + DTQ². Detalle en `COBERTURA_NORMOS.md` §9. Fitbauer tiene además
 la forma «Czjzek ext.» (Le Caër–Brand 1998, χ no central con ΔEQ₀).
 
-**Qué queda.** Los `.JOB` con `DISTRI=4` y otro `METHOD` (Le Caër con
-`METHOD=7` según el manual, o la distribución sobre un sexteto con campo) se
-siguen importando como histograma, con el aviso `normos.w_distri4`.
+**Qué queda.** `METHOD=7` es la distribución de cuadrupolo **con campo**
+(sextetes de primer orden, la malla en el desplazamiento cuadrupolar
+QUA = e²qQ/2). Con `DISTRI=4` NORMOS usa ahí la distribución de Le Caër
+(`distcalf.for`, comentario y bucle de `AREREL`):
+
+    P(q) = ½√(2/π)·[(3q²−2)·e^(−q²/2) + (2 − 8q²/3)·e^(−2q²/3)],  q = QUA/σ
+
+con la misma σ = √(STG² + DTQ²) que el Czjzek. **No es** el «Czjzek ext.» de
+Fitbauer (Le Caër–Brand 1998, con ΔEQ₀): es otra cosa, la P del
+desplazamiento cuadrupolar de un sexteto cuando el EFG es aleatorio. Esos
+`.JOB` se siguen importando como histograma, con el aviso `normos.w_distri4`.
 
 **Qué habría que hacer.**
-- Sondar el binario como en `validacion/_staging/czjzek`: barrer STG y el paso
-  con el resto fijo y ajustar los pesos de su malla a «Czjzek ext.» (σ, ΔEQ₀).
-  Ojo: con `METHOD=6` NORMOS suma el paso al STG en cuadratura; comprobar si
-  aquí hace lo mismo.
-- Si coincide, extender la rama `czjzek` de `job_to_distribution_state`
-  (`core/normos_job.py`) y añadir la tabla de pesos a `tests/test_normos_job.py`.
-- Con campo, la forma necesitaría un kernel de sextetes con ΔEQ distribuido,
-  que hoy las formas de Czjzek no admiten (solo P(ΔEQ) con dobletes).
+- Una forma nueva para P(ΔEQ) con campo fijo (el kernel de sextetes con
+  desplazamiento cuadrupolar distribuido ya existe) con esos pesos y σ como
+  único parámetro; extender la rama `czjzek` de `job_to_distribution_state`
+  (`core/normos_job.py`) a `METHOD=7`.
+- Validar contra el binario como en `validacion/_staging/czjzek`: barrer STG y
+  el paso y comparar la tabla de áreas relativas del `.RES`.
 
 **Coste / valor.** Bajo / bajo. El histograma ya da la forma, y la variante
-de cuadrupolo, que es la de uso habitual, está cubierta.
+sin campo, que es la de uso habitual, está cubierta.
 
 ---
 

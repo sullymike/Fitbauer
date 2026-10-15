@@ -86,7 +86,7 @@ Veredicto por símbolo:
 | `DISTRI=2` gaussiana | VBF con N=1 | **=** |
 | `DISTRI=3` binomial / fija | Binomial / Fija | **=** |
 | `DISTRI=4` Czjzek analítica (`METHOD=6`) | formas «Czjzek» y «Czjzek ext.» | **=** misma P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²) con σ² = STG² + DTQ²; el `.JOB` se importa con esa forma (§9) |
-| `DISTRI=4` con otro `METHOD` (Le Caër, campo) | histograma | **~** sin forma paramétrica comprobada |
+| `DISTRI=4` con `METHOD=7` (Le Caër con campo) | histograma | **~** sin forma paramétrica: es la P del desplazamiento cuadrupolar de un sexteto con EFG aleatorio, no el «Czjzek ext.» |
 | `DTB DTI DTQ` correlaciones con la malla | `delta_slope quad_slope` | **=** ojo: en METHOD 1-5 NORMOS **solo** aplica `DTI`; `DTQ` es un parámetro muerto ahí (ver §7) |
 | `.JOB` de DIST → panel de distribución | `job_to_distribution_state` | **=** malla, forma, correlaciones, anclajes y sitios cristalinos como nítidos |
 | 2 bloques de distribución solapados | componentes nítidos + P(BHF,ΔEQ) 2D | **~** |
@@ -113,9 +113,10 @@ CERRADOS el 2026-08-02; ver §8. El Czjzek analítico de `METHOD=6` se cerró el
 **`PENDIENTE_NORMOS.md`**, con la referencia exacta del fuente, qué tocar en
 Fitbauer, cómo validarlo y si merece la pena. Resumen:
 
-1. **`DISTRI=4` fuera de `METHOD=6`** (Le Caër, Czjzek con campo). Se importa
-   como histograma, que reproduce la forma (serie L2); no se ha comprobado que
-   la forma «Czjzek ext.» de Fitbauer coincida con la de NORMOS.
+1. **`DISTRI=4` con `METHOD=7`** (Le Caër con campo). Se importa como
+   histograma, que reproduce la forma. Su P (fórmula en `PENDIENTE_NORMOS.md`)
+   es la del desplazamiento cuadrupolar de un sexteto con EFG aleatorio; no
+   equivale al «Czjzek ext.» de Fitbauer.
 2. **`BEXT`**, campo externo en la relajación de Ising: desplaza las líneas
    además de polarizar las poblaciones. La polarización ya está; el
    desplazamiento no.

@@ -120,15 +120,17 @@ makes its fits reproducible.
 The importer warns about each of these, because what was **not** translated matters
 as much as what was:
 
-- NORMOS's Czjzek outside the quadrupole (`DISTRI=4` with `METHOD` ≠ 6), which
-  is imported as a histogram. With `METHOD=6` it is carried over, to the
+- NORMOS's Le Caër (`DISTRI=4` with `METHOD=7`: the P of the quadrupole shift
+  of in-field sextets for a random EFG), which is imported as a histogram; it is
+  not equivalent to the «Czjzek ext.» shape. With `METHOD=6` it is carried over, to the
   «Czjzek» shape: a probe of the NORMOS-DIST binary (09.09.1993) gives exactly
   the same P ∝ ΔEQ⁴·exp(−ΔEQ²/2σ²), with **σ² = STG² + DTQ²** (exponent 4.000
   and σ to 1e-5 with DTQ from 0.06 to 0.36; independent of QUA and WID). In
   Fitbauer σ is imported as the value of the «Czjzek σ» control, fixed if the
   `.JOB` has `STGFIT=.FALSE.`; the import warning gives the equivalent σ.
 - The width of the Gaussian (`DISTRI=2`) is not STG. According to the
-  WinNormos manual (§2.3.2), in every fixed-form distribution NORMOS broadens STG
+  WinNormos manual (§2.3.2) and the source (`distcalf.for`, `distlstf.for`), in
+  the Gaussian and in the Czjzek and Le Caër shapes NORMOS broadens STG
   with the step so that P is never narrower than a bin: the real σ, the one
   Fitbauer fits, is **√(STG² + DTB²)** (or DTQ, DTI). Checked on bank J1 (DTB =
   1 T): fitted σ 1.801/3.163/5.112 T against √(STG²+1) = 1.803/3.162/5.099 T.
