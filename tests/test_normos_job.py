@@ -78,6 +78,23 @@ def test_conversion_de_convenios():
     assert v["s1_bhf"] == pytest.approx(33.0)
 
 
+def test_vmax_negativo_invierte_el_espectro_como_en_normos():
+    """El signo de VMAX invierte el espectro en NORMOS; antes se tomaba
+    abs(VMAX) y los trabajos se abrían reflejados (δ con el signo cambiado:
+    los 40 del banco real con VMAX < 0)."""
+    from core.normos_job import model_state_to_job
+    r = job_to_model_state(JOB_C2.replace("VMAX=10.0", "VMAX=-10.0"))
+    assert r["vmax"] == pytest.approx(-10.0)
+    assert r["model_state"]["vars"]["vmax"] == pytest.approx(-10.0)
+    assert any("-10" in a and "VMAX" in a for a in r["warnings"])
+    # Y vuelve a salir con su signo al exportar.
+    texto = model_state_to_job(r["model_state"], vmax=r["vmax"])
+    assert "VMAX=-10" in texto.replace(" ", "")
+    from core.normos_job import job_to_distribution_state
+    r = job_to_distribution_state(JOB_DIST.replace("VMAX=", "VMAX=-"))
+    assert r["vmax"] < 0
+
+
 def test_metadatos_de_adquisicion():
     r = job_to_model_state(JOB_C2)
     assert r["vmax"] == pytest.approx(10.0)

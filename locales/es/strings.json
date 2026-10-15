@@ -1252,6 +1252,8 @@
   "plimit.line_asym": "Asimetría de línea (AKS)",
   "normos.w_bhf_scale": "BHF viene en la escala de NORMOS (posiciones derivadas de los momentos nucleares). Para reproducirla, ajusta con core.constants.sextet_pattern(\"normos\").",
   "normos.w_pfp_seed": "PFP={pfp} es la SEMILLA de la búsqueda del punto de doblado, no el punto final: NORMOS lo refina en dos ciclos y lo cuantiza a múltiplos de medio canal. No se impone — Fitbauer hace su propia búsqueda. Si quieres forzarlo, ponlo a mano en «Centro».",
+  "normos.w_vmax_negative": "VMAX={vmax} es negativo: NORMOS invierte el espectro y Fitbauer también (eje de velocidad invertido). Antes se tomaba su valor absoluto y el espectro se abría reflejado.",
+  "normos.w_vmax_negative_upper": "Con PFP cerca de ND (punto de doblado superior) el manual de NORMOS dice que el signo correcto puede ser el contrario: comprueba que las líneas y δ salen donde esperas.",
   "normos.w_n_blocks": "el trabajo tiene {n} bloques de distribución (NSB(2..)>0); Fitbauer solo maneja uno: se importa el bloque 1.",
   "normos.w_method_unknown": "METHOD={method} desconocido; se asume distribución de BHF.",
   "normos.w_method2": "METHOD=2 (asimetría de primer orden a la Brand): Fitbauer modela esa asimetría con la correlación δ(H), ya trasladada desde DTI, pero no con el desarrollo de Brand completo.",

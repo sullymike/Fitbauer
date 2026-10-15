@@ -1252,6 +1252,8 @@
   "plimit.line_asym": "Linienasymmetrie (AKS)",
   "normos.w_bhf_scale": "BHF liegt auf der NORMOS-Skala (aus den Kernmomenten abgeleitete Positionen). Zum Reproduzieren mit core.constants.sextet_pattern(\"normos\") fitten.",
   "normos.w_pfp_seed": "PFP={pfp} ist der STARTWERT der Faltungspunktsuche, nicht der Endwert: NORMOS verfeinert ihn in zwei Zyklen und quantisiert ihn auf Vielfache eines halben Kanals. Er wird nicht vorgegeben — Fitbauer sucht selbst. Um ihn zu erzwingen, tragen Sie ihn von Hand in „Zentrum“ ein.",
+  "normos.w_vmax_negative": "VMAX={vmax} ist negativ: NORMOS kehrt das Spektrum um, Fitbauer ebenso (umgekehrte Geschwindigkeitsachse). Früher wurde der Betrag genommen und das Spektrum gespiegelt geöffnet.",
+  "normos.w_vmax_negative_upper": "Bei PFP nahe ND (oberer Faltpunkt) kann laut NORMOS-Handbuch das richtige Vorzeichen umgekehrt sein: prüfen, ob Linien und δ dort liegen, wo erwartet.",
   "normos.w_n_blocks": "der Auftrag hat {n} Verteilungsblöcke (NSB(2..)>0); Fitbauer verarbeitet nur einen: Block 1 wird importiert.",
   "normos.w_method_unknown": "Unbekannte METHOD={method}; es wird eine BHF-Verteilung angenommen.",
   "normos.w_method2": "METHOD=2 (Asymmetrie erster Ordnung nach Brand): Fitbauer modelliert diese Asymmetrie mit der δ(H)-Korrelation, bereits aus DTI übernommen, aber nicht mit Brands vollständiger Entwicklung.",

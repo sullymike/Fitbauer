@@ -2,6 +2,14 @@
 
 ## Sin publicar
 
+- **Los `.JOB` con VMAX negativo se abrían reflejados.** En NORMOS el signo de
+  VMAX invierte el espectro; el importador tomaba su valor absoluto, así que
+  esos trabajos se abrían como imagen especular y δ salía con el signo
+  cambiado. Lo destapó el banco de trabajos reales: los 40 con VMAX < 0 tenían
+  el doblado «distinto» del de NORMOS, y con el signo coinciden al nivel del
+  ruido. Ahora se conserva el signo al importar y al exportar, con un aviso (y
+  otro si el PFP es el superior, donde el manual de NORMOS dice que el
+  convenio cambia).
 - **Banco de trabajos reales: solo los ajustes de NORMOS que valen como
   referencia.** Rehecho el análisis (`analiza_jobs.py`) sobre los trabajos de
   `jobs/` y `jobs/pruebas_job/`: 564 `.JOB`, 407 ajustes distintos (mismo `.RES`

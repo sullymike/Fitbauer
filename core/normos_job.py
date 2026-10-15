@@ -444,12 +444,33 @@ def job_to_model_state(text: str) -> dict:
         "absorber_model": absorber,
         "drive_form": "triangular" if _b(data.get("TRIANG"), True) else "sine",
     }
-    vmax = _f(data.get("VMAX"), 0.0) or None
+    vmax = _vmax_con_signo(data, avisos)
     if vmax:
-        estado["vars"]["vmax"] = abs(vmax)
+        estado["vars"]["vmax"] = vmax
     centro = _centro_desde_pfp(data, avisos)
-    return {"model_state": estado, "vmax": abs(vmax) if vmax else None,
+    return {"model_state": estado, "vmax": vmax,
             "center": centro, "warnings": avisos}
+
+
+def _vmax_con_signo(data: dict, avisos: list[str]) -> float | None:
+    """VMAX del ``&DATA`` CON su signo.
+
+    En NORMOS el signo de VMAX invierte el espectro (manual de WinNormos
+    §2.1.1: «the sign of VMAX will determine whether or not the spectrum will
+    be reversed»), y Fitbauer hace lo mismo con un vmax negativo (eje de
+    velocidad invertido). Antes se tomaba ``abs(VMAX)``: los trabajos con VMAX
+    negativo se abrían reflejados y δ salía con el signo cambiado (los 40 del
+    banco real con VMAX < 0, todos con PFP ≈ ND/2, lo confirman: invertidos
+    coinciden con el doblado de NORMOS a nivel de ruido). Con PFP ≈ ND el
+    manual dice que el signo correcto cambia; no hay casos con que
+    comprobarlo, así que se avisa.
+    """
+    vmax = _f(data.get("VMAX"), 0.0) or None
+    if vmax and vmax < 0.0:
+        pfp = abs(_f(data.get("PFP"), 0.0))
+        avisos.append(tr("normos.w_vmax_negative", vmax=f"{vmax:g}")
+                      + (" " + tr("normos.w_vmax_negative_upper") if pfp >= 400.0 else ""))
+    return vmax
 
 
 def _centro_desde_pfp(data: dict, avisos: list[str]) -> float | None:
@@ -772,11 +793,11 @@ def job_to_distribution_state(text: str) -> dict:
     avisos.append(
         tr("normos.w_bhf_scale"))
 
-    vmax = _f(data.get("VMAX"), 0.0) or None
+    vmax = _vmax_con_signo(data, avisos)
     if vmax:
-        estado["vars"]["vmax"] = abs(vmax)
+        estado["vars"]["vmax"] = vmax
     centro = _centro_desde_pfp(data, avisos)
-    return {"model_state": estado, "vmax": abs(vmax) if vmax else None,
+    return {"model_state": estado, "vmax": vmax,
             "center": centro, "warnings": avisos,
             "edge_anchor": edge_anchor, "n_sharp": n_sharp,
             "variable": variable}
@@ -832,7 +853,8 @@ def model_state_to_job(state: dict, stem: str = "FITBAUER",
     if vmax is None:
         vmax = v.get("vmax")
     if vmax:
-        data["VMAX"] = f"{abs(float(vmax)):g}"
+        # Con su signo: negativo = espectro invertido, igual que en NORMOS.
+        data["VMAX"] = f"{float(vmax):g}"
     if center is None:
         center = v.get("center")
     if center:

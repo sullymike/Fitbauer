@@ -1252,6 +1252,8 @@
   "plimit.line_asym": "Line asymmetry (AKS)",
   "normos.w_bhf_scale": "BHF is on the NORMOS scale (positions derived from the nuclear moments). To reproduce it, fit with core.constants.sextet_pattern(\"normos\").",
   "normos.w_pfp_seed": "PFP={pfp} is the SEED of the folding-point search, not the final value: NORMOS refines it over two cycles and quantises it to multiples of half a channel. It is not imposed — Fitbauer runs its own search. To force it, type it by hand into \"Center\".",
+  "normos.w_vmax_negative": "VMAX={vmax} is negative: NORMOS reverses the spectrum and so does Fitbauer (reversed velocity axis). Its absolute value used to be taken and the spectrum opened mirrored.",
+  "normos.w_vmax_negative_upper": "With PFP near ND (upper folding point) the NORMOS manual says the correct sign may be the opposite: check that the lines and δ come out where you expect.",
   "normos.w_n_blocks": "the job has {n} distribution blocks (NSB(2..)>0); Fitbauer handles only one: block 1 is imported.",
   "normos.w_method_unknown": "Unknown METHOD={method}; a BHF distribution is assumed.",
   "normos.w_method2": "METHOD=2 (Brand-style first-order asymmetry): Fitbauer models that asymmetry with the δ(H) correlation, already carried over from DTI, but not with Brand's full expansion.",

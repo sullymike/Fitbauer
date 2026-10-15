@@ -1252,6 +1252,8 @@
   "plimit.line_asym": "谱线不对称性（AKS）",
   "normos.w_bhf_scale": "BHF 采用 NORMOS 标度（由核磁矩推导的位置）。若要复现，请使用 core.constants.sextet_pattern(\"normos\") 拟合。",
   "normos.w_pfp_seed": "PFP={pfp} 是折叠点搜索的初始值，而不是最终值：NORMOS 会在两轮中精修它，并量化为半通道的整数倍。它不会被强制采用——Fitbauer 进行自己的搜索。若要强制使用，请手动输入“中心”。",
+  "normos.w_vmax_negative": "VMAX={vmax} 为负：NORMOS 会反转谱，Fitbauer 也一样（速度轴反转）。以前取其绝对值，谱会以镜像打开。",
+  "normos.w_vmax_negative_upper": "当 PFP 接近 ND（上折叠点）时，NORMOS 手册指出正确的符号可能相反：请检查谱线和 δ 是否出现在预期位置。",
   "normos.w_n_blocks": "该作业有 {n} 个分布块（NSB(2..)>0）；Fitbauer 只处理一个：导入第 1 块。",
   "normos.w_method_unknown": "未知的 METHOD={method}；按 BHF 分布处理。",
   "normos.w_method2": "METHOD=2（Brand 式一阶不对称）：Fitbauer 用已从 DTI 转移的 δ(H) 相关来描述这种不对称，但不使用 Brand 的完整展开。",

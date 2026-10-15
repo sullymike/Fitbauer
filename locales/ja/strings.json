@@ -1252,6 +1252,8 @@
   "plimit.line_asym": "線の非対称性（AKS）",
   "normos.w_bhf_scale": "BHF は NORMOS のスケール（核モーメントから導いた位置）です。再現するには core.constants.sextet_pattern(\"normos\") でフィットしてください。",
   "normos.w_pfp_seed": "PFP={pfp} は折り返し点探索の初期値であり、最終値ではありません。NORMOS は 2 サイクルで精密化し、半チャンネル単位に量子化します。押し付けはせず、Fitbauer は独自に探索します。強制したい場合は「中心」に手で入力してください。",
+  "normos.w_vmax_negative": "VMAX={vmax} は負です：NORMOS はスペクトルを反転し、Fitbauer も同様に反転します（速度軸を反転）。以前は絶対値を取っていたため、スペクトルが鏡像で開かれていました。",
+  "normos.w_vmax_negative_upper": "PFP が ND 付近（上側の折り返し点）の場合、NORMOS のマニュアルでは正しい符号が逆になることがあります。線と δ が期待どおりの位置に出るか確認してください。",
   "normos.w_n_blocks": "ジョブには分布ブロックが {n} 個あります（NSB(2..)>0）。Fitbauer は 1 つだけ扱うため、ブロック 1 を読み込みます。",
   "normos.w_method_unknown": "不明な METHOD={method}。BHF 分布とみなします。",
   "normos.w_method2": "METHOD=2（Brand 流の一次の非対称性）：Fitbauer はこの非対称性を DTI から移した δ(H) 相関で表しますが、Brand の完全な展開は使いません。",
