@@ -13,16 +13,22 @@
   Fitbauer que mezclan dos parámetros de NORMOS (int1 = D13/W13…) se liberan
   si cualquiera de los dos lo está. Lo mismo para los nítidos de NORMOS-DIST.
   La exportación escribe ahora esas banderas en lugar de fijarlas siempre.
-  Cambia el banco de trabajos reales: con el mismo modelo que NORMOS quedan
-  219 comparables (158 descartados por mal ajuste de NORMOS); Fitbauer llega
-  al mismo χ² (al 1 %) o a uno menor en 213, con χ²ᵣ mediano 1.06 → 1.05 (el
-  1.08 → 0.81 de la v5.2.3 venía de los parámetros sueltos de más). Acuerdo
-  mediano: δ 0.0010 mm/s, ΔEQ 0.0015, BHF 0.014 T, Γ 0.0046, profundidad
-  0.0002. Entre los descartados, dos son mínimos locales de NORMOS que
-  Fitbauer evita desde los mismos valores iniciales, confirmados después con
-  NORMOS arrancado en la solución de Fitbauer.
 - `docs/normos_job*.md` y `core/normos_job.py` explican el doblado de NORMOS
   en prosa, sin citar su Fortran.
+- **Banco de trabajos reales rehecho sobre los datos y el χ² de NORMOS.** El
+  análisis tenía sesgos propios: el patrón de NORMOS lo anulaba durante el
+  reajuste el del modelo (α-Fe; BHF un 0.035 % bajo), Fitbauer doblaba en el
+  PFP continuo interpolando (Γ y área algo menores) y el χ² se calculaba con
+  el promedio de cada par, la mitad del de NORMOS (el corte χ²ᵣ ≤ 2 era en
+  realidad ≤ ~3.6). Ahora se dobla como NORMOS y su χ² coincide con el del
+  `.RES` al ~1 %. Quedan 149 comparables (228 descartados por mal ajuste de
+  NORMOS); Fitbauer iguala o mejora el χ² en los 149, mediana 1.41 → 1.36.
+  Acuerdo mediano: δ 0.0007 mm/s, ΔEQ 0.0016, BHF 0.0035 T, Γ 0.0015,
+  profundidad 0.0001 (el 1.08 → 0.81 de la v5.2.3 venía de parámetros
+  sueltos de más). Entre los descartados, dos son mínimos locales de NORMOS
+  que Fitbauer evita desde los mismos valores iniciales, confirmados con
+  NORMOS arrancado en la solución de Fitbauer. El lector de `.RES` ya no
+  pierde los finales con error pegado a «+-» o «***».
 
 ## v5.2.3 — Le Caër con campo, campo externo BEXT y más compatibilidad con NORMOS
 
