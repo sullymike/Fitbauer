@@ -77,25 +77,31 @@ En el núcleo de primer orden la coincidencia es **exacta** dentro de la
 precisión numérica. La cola que queda en el Hamiltoniano es la aproximación del
 propio NORMOS de 1994, no de Fitbauer.
 
-**2. Banco de trabajos reales.** 564 ajustes hechos en NORMOS a lo largo de años
-—no sintéticos: medidas de laboratorio, con sus modelos y sus resultados—
-recargados en Fitbauer y reproducidos.
+**2. Banco de trabajos reales.** 194 trabajos ajustados en NORMOS a lo largo
+de años —no sintéticos: medidas de laboratorio, con sus modelos y sus
+resultados— recargados en Fitbauer y reajustados desde la propia solución de
+NORMOS. Una comparación solo tiene sentido donde NORMOS ajustó bien y los dos
+programas ven el mismo espectro, así que solo se conservan esos trabajos:
 
-- En **355 de 503** trabajos comparables (**71 %**) Fitbauer iguala o mejora el
-  χ² reducido de NORMOS.
-- χ² reducido mediano: NORMOS **2,433** · Fitbauer **2,089**.
-- Acuerdo en los parámetros, sobre los trabajos que reproducen:
+- χ² reducido de NORMOS (Poisson, recalculado en su propio convenio) ≤ 2:
+  **se descartan 58 trabajos en los que NORMOS no ajustó bien**;
+- Fitbauer reproduce la curva de NORMOS en su solución (al 1 % del pico) y los
+  dos doblan igual los datos (28 trabajos descartados);
+- 14 trabajos no se pueden analizar (de distribución, sin espectro o sin
+  resultados).
 
-  | δ | ΔEQ | BHF | Γ | área |
+En los **94 trabajos** restantes:
+
+- Partiendo de la solución de NORMOS, Fitbauer llega al mismo χ² o a uno menor
+  en **93 de 94**; χ² reducido mediano: NORMOS **1,10** · Fitbauer **0,86**.
+- Acuerdo mediano en los parámetros:
+
+  | δ | ΔEQ | BHF | Γ | profundidad |
   |---|---|---|---|---|
-  | 0,0011 mm/s | 0,0019 mm/s | 0,017 T | 0,030 mm/s | 0,0036 |
+  | 0,0021 mm/s | 0,0036 mm/s | 0,026 T | 0,019 mm/s | 0,0019 |
 
-De los que no reproducen, en **22 casos NORMOS había convergido a algo no
-físico** —anchuras por debajo de la natural, áreas negativas— que Fitbauer no
-puede replicar porque tiene cotas físicas.
-
-Los informes completos, con el detalle trabajo a trabajo, están en
-[`validacion/informe/`](validacion/informe/).
+Las cifras apenas cambian con un corte de χ² de 1,5 o 3. Los trabajos son
+datos de laboratorio y no se distribuyen.
 
 ### Abre y escribe ficheros `.JOB`
 
@@ -163,11 +169,8 @@ conviene saberlo:
   se traslada**: el de NORMOS es absoluto y el de Fitbauer adimensional, así que
   hay que fijarlo con la L-curve.
 
-El inventario completo, capacidad por capacidad y con la referencia exacta del
-código de NORMOS, está en
-[`validacion/informe/COBERTURA_NORMOS.md`](validacion/informe/COBERTURA_NORMOS.md);
-lo pendiente, con qué habría que tocar y cómo validarlo, en
-[`PENDIENTE_NORMOS.md`](validacion/informe/PENDIENTE_NORMOS.md).
+El inventario completo, capacidad por capacidad, se conserva con el material de
+validación, que no se distribuye con el programa.
 
 ---
 

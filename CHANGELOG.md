@@ -2,6 +2,16 @@
 
 ## Sin publicar
 
+- **Banco de trabajos reales: solo los ajustes de NORMOS que valen como
+  referencia.** Rehecho el análisis (`analiza_jobs.py`) sobre los 194 trabajos
+  disponibles: se descartan los 58 en que NORMOS no ajustó bien (χ² reducido,
+  recalculado en su convenio, > 2), 28 en que los dos programas no ven el mismo
+  espectro (curva o doblado no reproducidos) y 14 no analizables. En los 94
+  restantes Fitbauer, partiendo de la solución de NORMOS, llega al mismo χ² o a
+  uno menor en 93; acuerdo mediano δ 0.0021 mm/s, ΔEQ 0.0036 mm/s, BHF 0.026 T,
+  Γ 0.019 mm/s. Sustituye a las cifras anteriores (564 ajustes, 355 de 503),
+  que no se pueden reproducir con los datos actuales. README, notas de NORMOS y
+  wiki.
 - **Campo externo BEXT en la relajación Blume–Tjon.** Nuevo parámetro
   «Campo externo BEXT (T)» del componente Blume–Tjon, el `BEXT` de la
   relajación de Ising de NORMOS: el campo hiperfino se invierte con el espín y

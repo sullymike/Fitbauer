@@ -245,10 +245,9 @@ def page_home(lang: str) -> str:
 <img src="{RAW}/docs/img/captura-pantalla-principal.png" alt="Fitbauer main window" width="820">
 
 Fitbauer reproduces **NORMOS** and reads and writes its `.JOB` files. The physics
-has been contrasted on 411 synthetic spectra and on 564 real fits made with the
-original program: in 355 of 503 comparable jobs (71 %) it matches or improves on
-its reduced χ². See [NORMOS (.JOB)](NORMOS-interoperability) and the
-[validation reports]({BLOB}/validacion/informe).
+has been contrasted on 411 synthetic spectra and on 94 real jobs that NORMOS
+fitted well (reduced χ² ≤ 2): starting from NORMOS's solution, Fitbauer reaches
+the same or a lower χ² in 93 of them. See [NORMOS (.JOB)](NORMOS-interoperability).
 
 ## Where to start
 
@@ -290,10 +289,9 @@ ajustar espectros Mössbauer de ⁵⁷Fe. Versión estable actual: **v{APP_VERSI
 <img src="{RAW}/docs/img/captura-pantalla-principal.png" alt="Ventana principal de Fitbauer" width="820">
 
 Fitbauer reproduce **NORMOS** y lee y escribe sus ficheros `.JOB`. La física se ha
-contrastado sobre 411 espectros sintéticos y sobre 564 ajustes reales hechos con el
-programa original: en 355 de 503 trabajos comparables (71 %) iguala o mejora su χ²
-reducido. Ver [NORMOS (.JOB)](ES-NORMOS-interoperabilidad) y los
-[informes de validación]({BLOB}/validacion/informe).
+contrastado sobre 411 espectros sintéticos y sobre 94 trabajos reales que NORMOS
+ajustó bien (χ² reducido ≤ 2): partiendo de la solución de NORMOS, Fitbauer llega
+al mismo χ² o a uno menor en 93 de ellos. Ver [NORMOS (.JOB)](ES-NORMOS-interoperabilidad).
 
 ## Por dónde empezar
 

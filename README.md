@@ -76,25 +76,30 @@ In the first-order core the agreement is **exact** to numerical precision. The
 residual tail in the Hamiltonian case is the approximation made by NORMOS 1994
 itself, not by Fitbauer.
 
-**2. Real-job benchmark.** 564 fits performed in NORMOS over the years —not
+**2. Real-job benchmark.** 194 jobs fitted in NORMOS over the years —not
 synthetic: laboratory measurements, with their models and their results—
-reloaded into Fitbauer and reproduced.
+reloaded into Fitbauer and refitted from NORMOS's own solution. A comparison
+only means something where NORMOS fitted well and both programs see the same
+spectrum, so only those jobs are kept:
 
-- In **355 of 503** comparable jobs (**71 %**) Fitbauer matches or improves on
-  NORMOS's reduced χ².
-- Median reduced χ²: NORMOS **2.433** · Fitbauer **2.089**.
-- Parameter agreement, over the jobs that reproduce:
+- NORMOS's reduced χ² (Poisson, recomputed in its own convention) ≤ 2:
+  **58 jobs where NORMOS did not fit well are discarded**;
+- Fitbauer reproduces NORMOS's curve at its solution (to 1 % of the peak) and
+  both fold the data alike (28 jobs discarded);
+- 14 jobs cannot be analysed (distribution jobs, missing spectrum or results).
 
-  | δ | ΔEQ | BHF | Γ | area |
+On the remaining **94 jobs**:
+
+- Starting from NORMOS's solution, Fitbauer reaches the same or a lower χ² in
+  **93 of 94**; median reduced χ²: NORMOS **1.10** · Fitbauer **0.86**.
+- Median parameter agreement:
+
+  | δ | ΔEQ | BHF | Γ | depth |
   |---|---|---|---|---|
-  | 0.0011 mm/s | 0.0019 mm/s | 0.017 T | 0.030 mm/s | 0.0036 |
+  | 0.0021 mm/s | 0.0036 mm/s | 0.026 T | 0.019 mm/s | 0.0019 |
 
-Among those that do not reproduce, in **22 cases NORMOS had converged to
-something unphysical** —linewidths below the natural one, negative areas— which
-Fitbauer cannot replicate because it enforces physical bounds.
-
-The full reports, job by job, are in
-[`validacion/informe/`](validacion/informe/).
+The figures hardly change with a χ² cut of 1.5 or 3. The jobs are laboratory
+data and are not distributed.
 
 ### Opens and writes `.JOB` files
 
@@ -162,11 +167,8 @@ knowing:
   carried over**: NORMOS's is absolute and Fitbauer's is dimensionless, so it has
   to be set with the L-curve.
 
-The complete inventory, capability by capability and with the exact NORMOS source
-reference, is in
-[`validacion/informe/COVERAGE_NORMOS_EN.md`](validacion/informe/COVERAGE_NORMOS_EN.md);
-what remains, with what to touch and how to validate it, is in
-[`PENDING_NORMOS_EN.md`](validacion/informe/PENDING_NORMOS_EN.md).
+The complete inventory, capability by capability, is kept with the validation
+material, which is not distributed with the program.
 
 ---
 
