@@ -1,7 +1,11 @@
 # Changelog
 
-## Sin publicar
+## v5.2.3 — Le Caër con campo, campo externo BEXT y más compatibilidad con NORMOS
 
+- **Czjzek y Le Caër se eligen directamente en P(ΔEQ).** Le Caër salía en gris
+  hasta marcar el sextete con campo y subir el BHF fijo, que arranca en 0. Ahora
+  las dos formas se ofrecen siempre en P(ΔEQ) y al elegirlas se pone el campo
+  que piden (Le Caër: sextete con 33 T si estaba en 0; Czjzek: dobletes).
 - **`METHOD=5`/`7` de NORMOS-DIST se importaban como forma «Fija».** El aviso
   decía que leían la distribución de un fichero, pero el fuente
   (`distcalf.for`) muestra que el fichero spline guarda los subespectros
@@ -29,9 +33,9 @@
   recalculado en su convenio, > 2), 2 en que los dos programas no ven el mismo
   espectro y 28 no analizables. En los 216 restantes Fitbauer, partiendo de la
   solución de NORMOS, llega al mismo χ² o a uno menor en 211; acuerdo mediano
-  δ 0.0014 mm/s, ΔEQ 0.0021 mm/s, BHF 0.016 T, Γ 0.012 mm/s. Sustituye a las cifras anteriores (564 ajustes,
-  355 de 503), que contaban también los malos ajustes de NORMOS. README, notas
-  de NORMOS y wiki.
+  δ 0.0014 mm/s, ΔEQ 0.0021 mm/s, BHF 0.016 T, Γ 0.012 mm/s. Sustituye a las
+  cifras anteriores (564 ajustes, 355 de 503), que contaban también los malos
+  ajustes de NORMOS. README, notas de NORMOS y wiki.
 - **Campo externo BEXT en la relajación Blume–Tjon.** Nuevo parámetro
   «Campo externo BEXT (T)» del componente Blume–Tjon, el `BEXT` de la
   relajación de Ising de NORMOS: el campo hiperfino se invierte con el espín y
