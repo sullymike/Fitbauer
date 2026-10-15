@@ -38,6 +38,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(GEN))
 
 from core.constants import sextet_pattern
+from core.physics import intensity_convention
 from core.fit_engine import model_from_values
 from core.normos_job import job_to_model_state, parse_job
 from core.session import HeadlessSession, LoadedSpectrum, ModelState
@@ -59,6 +60,8 @@ def parse_res_full(text: str) -> dict:
     m = re.findall(r"Final folding point\s*=\s*(" + _NUM + ")", text)
     if m:
         out["pfp"] = float(m[-1])
+    m_nvar = re.findall(r"Number of fit variables\s+NVAR\s*=\s*(\d+)", text)
+    out["nvar"] = int(m_nvar[-1]) if m_nvar else None
     m2 = re.search(r"Chi-square \(normalized\)\s*=\s*(" + _NUM + ")", text)
     if m2:
         out["chi2"] = float(m2.group(1))
@@ -292,7 +295,9 @@ def analiza_uno(d: Path) -> dict:
     # El patrón va en el MODELO: fit_discrete impone el de ModelState
     # (α-Fe por defecto) por encima de cualquier ``with sextet_pattern`` de
     # fuera. Sin esto, la curva de NORMOS se evaluaba con su patrón y el
-    # reajuste con el de α-Fe: BHF de Fitbauer un 0.035 % más bajo.
+    # reajuste con el de α-Fe: BHF de Fitbauer un 0.035 % más bajo. Lo mismo
+    # con el convenio de intensidades (el .JOB se importa por ÁREA): las
+    # evaluaciones sueltas del modelo, fuera de fit_discrete, lo fijan a mano.
     ms.sextet_pattern = "normos"
     # Módulo del RES (el que NORMOS usó de verdad) y SIGNO del JOB: el RES
     # lo imprime sin signo, y el signo invierte el espectro. Tomarlo del RES
@@ -315,7 +320,7 @@ def analiza_uno(d: Path) -> dict:
     row["centro_normos"] = dobla_como_normos(sess, res["pfp"])
 
     st = sess.build_fit_state()
-    with sextet_pattern("normos"):
+    with sextet_pattern("normos"), intensity_convention(ms.intensity_convention):
         modelo = model_from_values(st.velocity, st.values, st.components,
                                    constraints=st.constraints,
                                    absorber_model=st.absorber_model)
@@ -361,13 +366,17 @@ def analiza_uno(d: Path) -> dict:
             resultado = sess.run_fit()
         row["chi2red_fitbauer"] = resultado["stats"].get("red_chi2")
         st2 = sess.build_fit_state()
-        with sextet_pattern("normos"):
+        with sextet_pattern("normos"), intensity_convention(ms.intensity_convention):
             modelo2 = model_from_values(st2.velocity, st2.values,
                                         st2.components,
                                         constraints=st2.constraints,
                                         absorber_model=st2.absorber_model)
         # χ² convención NORMOS: suma de pares, σ²=modelo, DF=NP−1−NVAR
         nvar = len(resultado.get("free_keys", []))
+        # NVAR del .RES (incluye BKG(1), como la línea base de Fitbauer). Si
+        # no coincide, el .JOB se editó después de generar el .RES.
+        row["nvar_res"] = res.get("nvar")
+        row["nvar_fitbauer"] = nvar
         row["chi2N_normosfit"] = chi2_normos(sess, modelo, nvar)
         row["chi2N_fitbauer"] = chi2_normos(sess, modelo2, nvar)
         # desplazamiento de parámetros: Fitbauer óptimo vs NORMOS óptimo
