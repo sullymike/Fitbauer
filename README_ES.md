@@ -77,28 +77,28 @@ En el núcleo de primer orden la coincidencia es **exacta** dentro de la
 precisión numérica. La cola que queda en el Hamiltoniano es la aproximación del
 propio NORMOS de 1994, no de Fitbauer.
 
-**2. Banco de trabajos reales.** 194 trabajos ajustados en NORMOS a lo largo
+**2. Banco de trabajos reales.** 407 trabajos distintos ajustados en NORMOS a lo largo
 de años —no sintéticos: medidas de laboratorio, con sus modelos y sus
 resultados— recargados en Fitbauer y reajustados desde la propia solución de
 NORMOS. Una comparación solo tiene sentido donde NORMOS ajustó bien y los dos
 programas ven el mismo espectro, así que solo se conservan esos trabajos:
 
 - χ² reducido de NORMOS (Poisson, recalculado en su propio convenio) ≤ 2:
-  **se descartan 58 trabajos en los que NORMOS no ajustó bien**;
+  **se descartan 145 trabajos en los que NORMOS no ajustó bien**;
 - Fitbauer reproduce la curva de NORMOS en su solución (al 1 % del pico) y los
-  dos doblan igual los datos (28 trabajos descartados);
-- 14 trabajos no se pueden analizar (de distribución, sin espectro o sin
+  dos doblan igual los datos (25 trabajos descartados);
+- 28 trabajos no se pueden analizar (de distribución, sin espectro o sin
   resultados).
 
-En los **94 trabajos** restantes:
+En los **209 trabajos** restantes:
 
 - Partiendo de la solución de NORMOS, Fitbauer llega al mismo χ² o a uno menor
-  en **93 de 94**; χ² reducido mediano: NORMOS **1,10** · Fitbauer **0,86**.
+  en **204 de 209**; χ² reducido mediano: NORMOS **1,08** · Fitbauer **0,81**.
 - Acuerdo mediano en los parámetros:
 
   | δ | ΔEQ | BHF | Γ | profundidad |
   |---|---|---|---|---|
-  | 0,0021 mm/s | 0,0036 mm/s | 0,026 T | 0,019 mm/s | 0,0019 |
+  | 0,0014 mm/s | 0,0022 mm/s | 0,016 T | 0,013 mm/s | 0,0022 |
 
 Las cifras apenas cambian con un corte de χ² de 1,5 o 3. Los trabajos son
 datos de laboratorio y no se distribuyen.

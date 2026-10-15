@@ -76,27 +76,27 @@ In the first-order core the agreement is **exact** to numerical precision. The
 residual tail in the Hamiltonian case is the approximation made by NORMOS 1994
 itself, not by Fitbauer.
 
-**2. Real-job benchmark.** 194 jobs fitted in NORMOS over the years —not
+**2. Real-job benchmark.** 407 distinct jobs fitted in NORMOS over the years —not
 synthetic: laboratory measurements, with their models and their results—
 reloaded into Fitbauer and refitted from NORMOS's own solution. A comparison
 only means something where NORMOS fitted well and both programs see the same
 spectrum, so only those jobs are kept:
 
 - NORMOS's reduced χ² (Poisson, recomputed in its own convention) ≤ 2:
-  **58 jobs where NORMOS did not fit well are discarded**;
+  **145 jobs where NORMOS did not fit well are discarded**;
 - Fitbauer reproduces NORMOS's curve at its solution (to 1 % of the peak) and
-  both fold the data alike (28 jobs discarded);
-- 14 jobs cannot be analysed (distribution jobs, missing spectrum or results).
+  both fold the data alike (25 jobs discarded);
+- 28 jobs cannot be analysed (distribution jobs, missing spectrum or results).
 
-On the remaining **94 jobs**:
+On the remaining **209 jobs**:
 
 - Starting from NORMOS's solution, Fitbauer reaches the same or a lower χ² in
-  **93 of 94**; median reduced χ²: NORMOS **1.10** · Fitbauer **0.86**.
+  **204 of 209**; median reduced χ²: NORMOS **1.08** · Fitbauer **0.81**.
 - Median parameter agreement:
 
   | δ | ΔEQ | BHF | Γ | depth |
   |---|---|---|---|---|
-  | 0.0021 mm/s | 0.0036 mm/s | 0.026 T | 0.019 mm/s | 0.0019 |
+  | 0.0014 mm/s | 0.0022 mm/s | 0.016 T | 0.013 mm/s | 0.0022 |
 
 The figures hardly change with a χ² cut of 1.5 or 3. The jobs are laboratory
 data and are not distributed.
