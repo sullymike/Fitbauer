@@ -40,7 +40,9 @@ sys.path.insert(0, str(GEN))
 from core.constants import sextet_pattern
 from core.fit_engine import model_from_values
 from core.normos_job import job_to_model_state, parse_job
-from core.session import HeadlessSession, ModelState
+from core.session import HeadlessSession, LoadedSpectrum, ModelState
+from core.folding import fold_and_normalize
+from core.normos_job import punto_de_doblado_normos
 
 # Los trabajos son datos de laboratorio: viven fuera del repositorio.
 # FITBAUER_JOBS apunta a su carpeta (por defecto, ``jobs/`` junto al repo).
@@ -217,6 +219,45 @@ def localizar(d: Path) -> dict:
     return files
 
 
+def dobla_como_normos(sess: HeadlessSession, pfp: float | None) -> float | None:
+    """Vuelve a doblar el espectro donde dobla NORMOS: ⌊PFP⌋ + 0.5, sin recorte.
+
+    Así Fitbauer ajusta EXACTAMENTE los datos que vio NORMOS (pares de canales
+    enteros, todos los NP puntos). Su propio doblado interpola en el PFP
+    continuo y da líneas algo más estrechas, que es otra comparación. Algunos
+    RES dan el PFP en el convenio superior (~2× el centro): se toma el que
+    encaje con el centro que detecta Fitbauer.
+    """
+    if pfp is None:
+        return None
+    sp = sess.spectrum
+    c_n = punto_de_doblado_normos(pfp)
+    if abs(c_n - sp.center) > abs(pfp / 2.0 - sp.center):
+        c_n = punto_de_doblado_normos(pfp / 2.0)
+    folded, sigma, y, norm = fold_and_normalize(sp.counts, c_n, 0)
+    sess.spectrum = LoadedSpectrum(path=sp.path, counts=sp.counts, center=float(c_n),
+                                   folded=folded, y_data=y, sigma=sigma,
+                                   norm_factor=norm)
+    sess.model.vars["center"] = float(c_n)
+    return c_n
+
+
+def chi2_normos(sess: HeadlessSession, modelo: np.ndarray, nvar: int) -> float:
+    """χ² reducido como lo da NORMOS en su .RES.
+
+    El doblado de Fitbauer guarda el PROMEDIO de cada par; NORMOS trabaja con
+    la SUMA, y σ² = modelo en esas cuentas. Con el promedio y σ² = modelo el
+    χ² sale la mitad. Requiere un doblado de pares exactos (centro semientero,
+    ver :func:`dobla_como_normos`). BKG(1) libre ⇒ escala óptima del modelo.
+    """
+    cuentas = 2.0 * np.asarray(sess.spectrum.folded, float)
+    yc = np.asarray(modelo, float) * float(sess.spectrum.norm_factor) * 2.0
+    a = float(np.sum(cuentas * yc) / np.maximum(np.sum(yc * yc), 1.0))
+    yc = a * yc
+    df = max(1, cuentas.size - 1 - nvar)
+    return float(np.sum((cuentas - yc) ** 2 / np.maximum(yc, 1)) / df)
+
+
 def analiza_uno(d: Path) -> dict:
     row: dict = {"trabajo": d.name}
     f = localizar(d)
@@ -248,6 +289,11 @@ def analiza_uno(d: Path) -> dict:
     ms.n_components = row["nsub"]
     ms.multistart_n = 0
     ms.auto_global = False
+    # El patrón va en el MODELO: fit_discrete impone el de ModelState
+    # (α-Fe por defecto) por encima de cualquier ``with sextet_pattern`` de
+    # fuera. Sin esto, la curva de NORMOS se evaluaba con su patrón y el
+    # reajuste con el de α-Fe: BHF de Fitbauer un 0.035 % más bajo.
+    ms.sextet_pattern = "normos"
     # Módulo del RES (el que NORMOS usó de verdad) y SIGNO del JOB: el RES
     # lo imprime sin signo, y el signo invierte el espectro. Tomarlo del RES
     # dejaba los 40 trabajos con VMAX < 0 reflejados respecto a NORMOS.
@@ -266,6 +312,7 @@ def analiza_uno(d: Path) -> dict:
         # (~2× el centro interno): se compara en el convenio que encaje.
         c = row["centro_fitbauer"]
         row["d_centro"] = min(abs(c - res["pfp"]), abs(c - res["pfp"] / 2.0))
+    row["centro_normos"] = dobla_como_normos(sess, res["pfp"])
 
     st = sess.build_fit_state()
     with sextet_pattern("normos"):
@@ -319,19 +366,10 @@ def analiza_uno(d: Path) -> dict:
                                         st2.components,
                                         constraints=st2.constraints,
                                         absorber_model=st2.absorber_model)
-        # χ² convención NORMOS: cuentas dobladas, σ²=modelo, DF=NP−1−NVAR
-        cuentas = np.asarray(sess.spectrum.folded, float)
-        norma = float(sess.spectrum.norm_factor)
+        # χ² convención NORMOS: suma de pares, σ²=modelo, DF=NP−1−NVAR
         nvar = len(resultado.get("free_keys", []))
-        for etiqueta, mod in (("chi2N_normosfit", modelo), ("chi2N_fitbauer",
-                                                           modelo2)):
-            yc = mod * norma
-            # escala óptima (equivale al BKG1 libre que NORMOS siempre ajusta)
-            a = float(np.sum(cuentas * yc) / np.maximum(np.sum(yc * yc), 1.0))
-            yc = a * yc
-            df = max(1, cuentas.size - 1 - nvar)
-            row[etiqueta] = float(np.sum((cuentas - yc) ** 2 / np.maximum(yc, 1))
-                                  / df)
+        row["chi2N_normosfit"] = chi2_normos(sess, modelo, nvar)
+        row["chi2N_fitbauer"] = chi2_normos(sess, modelo2, nvar)
         # desplazamiento de parámetros: Fitbauer óptimo vs NORMOS óptimo
         dmax: dict[str, float] = {}
         for k in resultado.get("free_keys", []):
