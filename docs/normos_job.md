@@ -180,10 +180,11 @@ python mossbauer_fit_cli.py --template modelo.json --spectrum medida.ws5 \
 
 La equivalencia con NORMOS no es una afirmación de intenciones: está medida sobre
 dos bancos independientes, 411 espectros sintéticos y 407 trabajos reales hechos
-con el programa original. De los reales solo cuentan los 216 en que NORMOS ajustó
+con el programa original. De los reales solo cuentan los 219 en que NORMOS ajustó
 bien (χ² reducido ≤ 2) y los dos programas ven el mismo espectro: partiendo de la
-solución de NORMOS, Fitbauer llega al mismo χ² o a uno menor en 211 de ellos, y los
-parámetros coinciden en mediana a 0.0014 mm/s en δ y 0.016 T en BHF. Los trabajos
+solución de NORMOS y con los mismos parámetros libres, Fitbauer llega al mismo χ²
+(al 1 %) o a uno menor en 213 de ellos, y los parámetros coinciden en mediana a
+0.0010 mm/s en δ y 0.014 T en BHF. Los trabajos
 reales no se distribuyen (son datos de laboratorio); el banco sintético y los
 informes completos están en
 [`validacion/informe/`](https://github.com/sullymike/Fitbauer/tree/main/validacion/informe).

@@ -83,23 +83,27 @@ only means something where NORMOS fitted well and both programs see the same
 spectrum, so only those jobs are kept:
 
 - NORMOS's reduced χ² (Poisson, recomputed in its own convention) ≤ 2:
-  **161 jobs where NORMOS did not fit well are discarded**;
+  **158 jobs where NORMOS did not fit well are discarded**;
 - Fitbauer reproduces NORMOS's curve at its solution (to 1 % of the peak) and
   both fold the data alike (2 jobs discarded: a calibration with fitted
   velocity and a directory whose files do not belong together);
 - 28 jobs cannot be analysed (distribution jobs, missing spectrum or results).
 
-On the remaining **216 jobs**:
+On the remaining **219 jobs**:
 
-- Starting from NORMOS's solution, Fitbauer reaches the same or a lower χ² in
-  **211 of 216**; median reduced χ²: NORMOS **1.08** · Fitbauer **0.81**.
+- Starting from NORMOS's solution, with the same free parameters, Fitbauer
+  reaches the same χ² (within 1 %) or a lower one in **213 of 219**; median
+  reduced χ²: NORMOS **1.06** · Fitbauer **1.05**.
 - Median parameter agreement:
 
   | δ | ΔEQ | BHF | Γ | depth |
   |---|---|---|---|---|
-  | 0.0014 mm/s | 0.0021 mm/s | 0.016 T | 0.012 mm/s | 0.0023 |
+  | 0.0010 mm/s | 0.0015 mm/s | 0.014 T | 0.0046 mm/s | 0.0002 |
 
-The figures hardly change with a χ² cut of 1.5 or 3. The jobs are laboratory
+The figures hardly change with a χ² cut of 1.5 or 3. Among the discarded
+jobs, two had NORMOS stopped in a local minimum: from the same starting values
+Fitbauer reaches a reduced χ² near 1, and NORMOS confirms it when started
+there. The jobs are laboratory
 data and are not distributed; the synthetic bank and the reports are in
 [`validacion/informe/`](validacion/informe/).
 
