@@ -20,7 +20,7 @@ Shifts (δ, ΔEQ) do depend on the absolute scale, which the calibration sets.
 
 ---
 
-## The default pattern: nuclear moments (since v5.3.0)
+## The default pattern: nuclear moments (since v5.2.5)
 
 Fitbauer derives the line positions from the **nuclear moments**, with the same
 constants as NORMOS-SITE (the `"normos"` pattern, checked against the NORMOS binary to
@@ -67,7 +67,7 @@ The factor comes from fitting, with the new pattern (BHF fixed at 33 T, a single
 does. It holds to ±4·10⁻⁶ for widths from 0.18 to 0.40 mm/s.
 
 - Each calibration stores the pattern it was made with (`sextet_pattern`). Local ones
-  that do not, from Fitbauer before v5.3.0, are taken as legacy and applied converted.
+  that do not, from Fitbauer before v5.2.5, are taken as legacy and applied converted.
   The panel and the report say so.
 - Those from the web API are the VMAX values calibrated in NORMOS, already in its
   pattern: they are applied as they are. The API marks `sextet_pattern = "legacy"` on

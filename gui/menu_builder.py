@@ -443,7 +443,7 @@ class MenuBuilderMixin:
               ("legacy", "conventions.sextet_legacy", "Histórico de Fitbauer (hasta v5.2.4)")),
              "conventions.sextet_tip",
              "Por defecto, posiciones derivadas de los momentos nucleares, como NORMOS. "
-             "El histórico reproduce sesiones y calibraciones anteriores a la v5.3.0."),
+             "El histórico reproduce sesiones y calibraciones anteriores a la v5.2.5."),
             ("intensity_convention", "conventions.intensity_title", "Razones de intensidad",
              (("depth", "conventions.intensity_depth", "Por profundidad (Fitbauer)"),
               ("area", "conventions.intensity_area_opt", "Por área (NORMOS: D13/D23)")),

@@ -1,7 +1,7 @@
 """Convenio de posiciones del sexteto (NORMOS-SITE vs histórico de Fitbauer).
 
 SITE deriva las posiciones de los momentos nucleares (``sitecalf.for``
-INIFUN). Es el patrón por defecto de Fitbauer desde la v5.3.0. El histórico
+INIFUN). Es el patrón por defecto de Fitbauer desde la v5.2.5. El histórico
 (hasta la v5.2.4) venía del simulador web del laboratorio y no tiene fuente
 publicada; se conserva para reproducir sesiones y calibraciones antiguas. Los
 dos NO difieren en una simple escala.

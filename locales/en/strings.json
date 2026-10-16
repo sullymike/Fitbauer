@@ -910,7 +910,7 @@
   "conventions.sextet_title": "Sextet line pattern",
   "conventions.sextet_legacy": "Fitbauer legacy (up to v5.2.4)",
   "conventions.sextet_normos_opt": "Nuclear moments (Fitbauer and NORMOS)",
-  "conventions.sextet_tip": "By default, line positions derived from the nuclear moments, as in NORMOS. The legacy pattern reproduces sessions and calibrations made before v5.3.0.",
+  "conventions.sextet_tip": "By default, line positions derived from the nuclear moments, as in NORMOS. The legacy pattern reproduces sessions and calibrations made before v5.2.5.",
   "conventions.intensity_title": "Intensity ratios",
   "conventions.intensity_depth": "By depth (Fitbauer)",
   "conventions.intensity_area_opt": "By area (NORMOS: D13/D23)",

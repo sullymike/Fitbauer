@@ -83,7 +83,7 @@ def _normos_site_positions() -> np.ndarray:
 #: velocidad creciente.
 #:
 #: * ``"normos"`` — derivado de los momentos nucleares, con las constantes de
-#:   NORMOS-SITE. Es el patrón por DEFECTO de Fitbauer desde la v5.3.0: tiene
+#:   NORMOS-SITE. Es el patrón por DEFECTO de Fitbauer desde la v5.2.5: tiene
 #:   respaldo físico (razón de momentos de Violet y Pipkorn) y hace que Fitbauer
 #:   y NORMOS den el mismo BHF.
 #: * ``"legacy"`` — el patrón histórico de Fitbauer (ver ``_LEGACY_POSITIONS``).

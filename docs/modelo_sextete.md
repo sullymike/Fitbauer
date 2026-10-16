@@ -56,7 +56,7 @@ Este es el tratamiento por defecto (`treatment="1st_order"`), el que debe replic
 
 ### 3.1 Patrón a 33.0 T
 
-Desde la v5.3.0 las posiciones se **derivan de los momentos nucleares**, con las
+Desde la v5.2.5 las posiciones se **derivan de los momentos nucleares**, con las
 constantes de NORMOS-SITE (es el patrón `"normos"` de `core/constants.py`, verificado
 contra el binario de NORMOS a 6·10⁻⁶ mm/s):
 

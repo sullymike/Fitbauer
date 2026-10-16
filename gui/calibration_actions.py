@@ -96,7 +96,7 @@ class CalibrationActionsMixin:
 
         ``None`` si no depende de él (eje de velocidad propio del fichero).
         Sin la marca, las calibraciones locales de Fitbauer anteriores a la
-        v5.3.0 se hicieron con el patrón histórico; las de la API web son las
+        v5.2.5 se hicieron con el patrón histórico; las de la API web son las
         VMAX calibradas en NORMOS, con su patrón (la API dice «legacy» en las
         que la web guardó con su ajuste antiguo).
         """

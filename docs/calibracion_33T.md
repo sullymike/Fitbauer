@@ -20,7 +20,7 @@ desplazamientos (δ, ΔEQ) sí dependen de la escala absoluta, que la calibraci�
 
 ---
 
-## El patrón por defecto: momentos nucleares (desde la v5.3.0)
+## El patrón por defecto: momentos nucleares (desde la v5.2.5)
 
 Fitbauer deriva las posiciones de los **momentos nucleares**, con las mismas constantes
 que NORMOS-SITE (patrón `"normos"`, verificado contra el binario de NORMOS a
@@ -67,7 +67,7 @@ escala libre) un α-Fe generado con el histórico, como hace la calibración. Va
 ±4·10⁻⁶ para anchuras de 0.18 a 0.40 mm/s.
 
 - Cada calibración guarda el patrón con que se hizo (`sextet_pattern`). Las locales
-  que no lo dicen, de Fitbauer anteriores a la v5.3.0, se toman como históricas y se
+  que no lo dicen, de Fitbauer anteriores a la v5.2.5, se toman como históricas y se
   aplican convertidas. El panel y el informe lo indican.
 - Las de la API web son las VMAX calibradas en NORMOS, ya con su patrón: se aplican
   tal cual. La API marca `sextet_pattern = "legacy"` en las que la web guardó con su

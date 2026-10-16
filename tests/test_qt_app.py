@@ -1218,7 +1218,7 @@ def test_fixed_calibration_applied_on_counts_load(win):
     # Cargar otro espectro de cuentas (sin eje de velocidad propio).
     win._load_file(DATA / "magnetita_Fe3O4.adt")
     # La Vmax fijada se impone y la calibración no varía. Sin marca de patrón
-    # es una calibración anterior a la v5.3.0, hecha con el patrón histórico:
+    # es una calibración anterior a la v5.2.5, hecha con el patrón histórico:
     # se aplica convertida al patrón activo.
     # (el control de Vmax tiene 4 decimales)
     assert abs(float(win.calib.vmax.value()) - 9.876 * 0.999623) < 5.1e-5
@@ -3058,7 +3058,7 @@ def test_sesion_de_distribucion_sigue_abriendo_en_distribucion(win):
 # ── Convenios de compatibilidad con NORMOS en la GUI ─────────────────────────
 
 # La alternativa a cada convenio por defecto (la segunda opción del menú). El
-# patrón del sextete por defecto ya es el de NORMOS (v5.3.0); su alternativa es
+# patrón del sextete por defecto ya es el de NORMOS (v5.2.5); su alternativa es
 # el histórico de Fitbauer.
 _CONV_NORMOS = {"sextet_pattern": "legacy", "intensity_convention": "area",
                 "relax_convention": "normos"}

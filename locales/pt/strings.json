@@ -910,7 +910,7 @@
   "conventions.sextet_title": "Padrão de linhas do sexteto",
   "conventions.sextet_legacy": "Histórico do Fitbauer (até v5.2.4)",
   "conventions.sextet_normos_opt": "Momentos nucleares (Fitbauer e NORMOS)",
-  "conventions.sextet_tip": "Por omissão, posições das linhas derivadas dos momentos nucleares, como no NORMOS. O histórico reproduz sessões e calibrações anteriores à v5.3.0.",
+  "conventions.sextet_tip": "Por omissão, posições das linhas derivadas dos momentos nucleares, como no NORMOS. O histórico reproduz sessões e calibrações anteriores à v5.2.5.",
   "conventions.intensity_title": "Razões de intensidade",
   "conventions.intensity_depth": "Por profundidade (Fitbauer)",
   "conventions.intensity_area_opt": "Por área (NORMOS: D13/D23)",

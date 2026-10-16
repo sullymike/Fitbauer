@@ -910,7 +910,7 @@
   "conventions.sextet_title": "Положения линий секстета",
   "conventions.sextet_legacy": "Прежний Fitbauer (до v5.2.4)",
   "conventions.sextet_normos_opt": "Ядерные моменты (Fitbauer и NORMOS)",
-  "conventions.sextet_tip": "По умолчанию положения линий выводятся из ядерных моментов, как в NORMOS. Прежний шаблон воспроизводит сеансы и калибровки до v5.3.0.",
+  "conventions.sextet_tip": "По умолчанию положения линий выводятся из ядерных моментов, как в NORMOS. Прежний шаблон воспроизводит сеансы и калибровки до v5.2.5.",
   "conventions.intensity_title": "Отношения интенсивностей",
   "conventions.intensity_depth": "По глубине (Fitbauer)",
   "conventions.intensity_area_opt": "По площади (NORMOS: D13/D23)",

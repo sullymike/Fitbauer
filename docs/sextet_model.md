@@ -56,7 +56,7 @@ This is the default treatment (`treatment="1st_order"`), the one the web must re
 
 ### 3.1 Pattern at 33.0 T
 
-Since v5.3.0 the positions are **derived from the nuclear moments**, with the
+Since v5.2.5 the positions are **derived from the nuclear moments**, with the
 NORMOS-SITE constants (the `"normos"` pattern in `core/constants.py`, checked against
 the NORMOS binary to 6·10⁻⁶ mm/s):
 

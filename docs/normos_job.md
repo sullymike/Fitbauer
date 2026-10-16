@@ -78,7 +78,7 @@ Es la parte delicada, y equivocarse aquí no da ningún error:
 
 ### Los convenios de NORMOS
 
-Desde la v5.3.0 Fitbauer usa por defecto el mismo patrón de líneas que NORMOS
+Desde la v5.2.5 Fitbauer usa por defecto el mismo patrón de líneas que NORMOS
 (derivado de los momentos nucleares), así que los dos dan el mismo BHF. El patrón
 histórico de Fitbauer (hasta la v5.2.4) daba, sobre el mismo eje de velocidad, un BHF
 un 0,035 % distinto; ver `docs/calibracion_33T.md`.

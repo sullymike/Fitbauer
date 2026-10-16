@@ -910,7 +910,7 @@
   "conventions.sextet_title": "六线谱的谱线位置",
   "conventions.sextet_legacy": "Fitbauer 旧图样（至 v5.2.4）",
   "conventions.sextet_normos_opt": "核磁矩（Fitbauer 与 NORMOS）",
-  "conventions.sextet_tip": "默认使用由核磁矩推导的谱线位置，与 NORMOS 相同。旧图样用于复现 v5.3.0 之前的会话和校准。",
+  "conventions.sextet_tip": "默认使用由核磁矩推导的谱线位置，与 NORMOS 相同。旧图样用于复现 v5.2.5 之前的会话和校准。",
   "conventions.intensity_title": "强度比",
   "conventions.intensity_depth": "按深度（Fitbauer）",
   "conventions.intensity_area_opt": "按面积（NORMOS：D13/D23）",

@@ -267,7 +267,7 @@ def parse_args() -> argparse.Namespace:
                              "'normos' (derivado de los momentos nucleares, como "
                              "NORMOS-SITE; por defecto) o 'legacy' (el histórico "
                              "de Fitbauer hasta la v5.2.4; 'alpha_fe' es su "
-                             "alias). Una Vmax calibrada antes de la v5.3.0 se "
+                             "alias). Una Vmax calibrada antes de la v5.2.5 se "
                              "usa con 'legacy' o multiplicada por 0.999623.")
     args = parser.parse_args()
     # Validación temprana: antes se detectaba tras completar el ajuste y

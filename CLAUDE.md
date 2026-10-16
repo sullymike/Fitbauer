@@ -140,7 +140,7 @@ desfasado y sobrescribe los de referencia. Para probar la GUI:
 ## Convenciones del repo
 
 - Calibración de campo de referencia: **33.0 T** (Vmax ajustada con α-Fe a 33.0 T).
-  Patrón por defecto desde la v5.3.0: el derivado de los **momentos nucleares**, con
+  Patrón por defecto desde la v5.2.5: el derivado de los **momentos nucleares**, con
   las constantes de NORMOS-SITE (`"normos"`, ±0.8410 / ±3.0836 / ±5.3261 mm/s; razón
   g1/g0 de Violet–Pipkorn). El anterior, `"legacy"` (alias `"alpha_fe"`, ±5.3285…),
   NO es una tabla publicada: venía del simulador web del laboratorio; se conserva

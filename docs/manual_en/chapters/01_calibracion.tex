@@ -126,7 +126,7 @@ active calibration.
 \guicap{gui_calib_label_fixed}{Calibration label showing the "fixed" state, with
 the sample, the Vmax and the reference IS.}
 
-\subsection{Line pattern and calibrations made before v5.3.0}
+\subsection{Line pattern and calibrations made before v5.2.5}
 \label{sec:calib-patron}
 
 A calibration's \param{Vmax} depends on the line pattern the $\alpha$-Fe was fitted
@@ -137,7 +137,7 @@ options > Conventions} to reproduce old sessions. Fitbauer takes this into accou
 automatically:
 \begin{itemize}[nosep]
   \item Every new calibration stores the pattern it was made with.
-  \item Local ones that do not, made before v5.3.0, are applied
+  \item Local ones that do not, made before v5.2.5, are applied
         \textbf{converted}: $V_\text{max} \times 0{,}999623$. The calibration label
         and the report say so and show the original \param{Vmax}.
   \item Those from the web API are the VMAX values calibrated in NORMOS, already in

@@ -910,7 +910,7 @@
   "conventions.sextet_title": "Linienmuster des Sextetts",
   "conventions.sextet_legacy": "Fitbauer-Altmuster (bis v5.2.4)",
   "conventions.sextet_normos_opt": "Kernmomente (Fitbauer und NORMOS)",
-  "conventions.sextet_tip": "Standardmäßig aus den Kernmomenten abgeleitete Linienlagen, wie in NORMOS. Das Altmuster reproduziert Sitzungen und Kalibrierungen vor v5.3.0.",
+  "conventions.sextet_tip": "Standardmäßig aus den Kernmomenten abgeleitete Linienlagen, wie in NORMOS. Das Altmuster reproduziert Sitzungen und Kalibrierungen vor v5.2.5.",
   "conventions.intensity_title": "Intensitätsverhältnisse",
   "conventions.intensity_depth": "Nach Tiefe (Fitbauer)",
   "conventions.intensity_area_opt": "Nach Fläche (NORMOS: D13/D23)",

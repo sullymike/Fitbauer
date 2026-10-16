@@ -241,7 +241,7 @@ def _build_parser() -> argparse.ArgumentParser:
                         "'legacy' (el histórico de Fitbauer hasta la v5.2.4; "
                         "'alpha_fe' es su alias). Afecta al sexteto discreto, al "
                         "Hamiltoniano completo y al kernel de distribución. Una "
-                        "Vmax calibrada antes de la v5.3.0 se usa con 'legacy' o, "
+                        "Vmax calibrada antes de la v5.2.5 se usa con 'legacy' o, "
                         "con el patrón por defecto, multiplicada por 0.999623.")
     p.add_argument("--relax-convention", choices=("blume", "normos"), default=None,
                    help="Relajación de dos estados con poblaciones desiguales "

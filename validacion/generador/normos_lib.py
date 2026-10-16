@@ -44,7 +44,7 @@ DEFAULT_VMAX = 10.0          # mm/s
 DEFAULT_WID = 0.25           # FWHM mm/s (paso 0.6: WID de NORMOS = Γ FWHM)
 DEFAULT_DEP = 0.05           # área integrada del subespectro en mm/s (paso 0.6)
 
-# Escala del BHF de SITE respecto al que ajusta Fitbauer. Desde la v5.3.0 el
+# Escala del BHF de SITE respecto al que ajusta Fitbauer. Desde la v5.2.5 el
 # patrón por defecto de Fitbauer ES el de SITE (momentos nucleares) y la escala
 # es 1. Con el patrón histórico (hasta la v5.2.4: 33 T ↔ ±5.3285 mm/s, sin
 # fuente publicada) era 0.9996195, medida en el paso 0.6 ajustando la teoría de

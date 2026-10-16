@@ -76,7 +76,7 @@ This is the delicate part, and getting it wrong raises no error:
 
 ### The NORMOS conventions
 
-Since v5.3.0 Fitbauer uses by default the same line pattern as NORMOS (derived from
+Since v5.2.5 Fitbauer uses by default the same line pattern as NORMOS (derived from
 the nuclear moments), so both give the same BHF. Fitbauer's legacy pattern (up to
 v5.2.4) gave, on the same velocity axis, a BHF 0.035 % apart; see
 `docs/calibration_33T.md`.

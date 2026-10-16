@@ -39,7 +39,7 @@ DATA_PUBLIC = ROOT / "data_sample" / "public"
 # doblado pasa de N/2−2 a N/2 puntos (el recorte es ahora adaptativo y solo
 # actúa sobre canales muertos). Todos los parámetros se mueven ≤2·10⁻⁴.
 #
-# Y una cuarta (v5.3.0), al pasar el patrón del sextete por defecto al de
+# Y una cuarta (v5.2.5), al pasar el patrón del sextete por defecto al de
 # NORMOS (momentos nucleares). Estos espectros son SINTÉTICOS, generados con el
 # patrón histórico sobre un eje de Vmax = 12.007, que las plantillas conservan:
 # con el patrón nuevo el BHF sale un 0.038 % más alto (α-Fe 33.0455 → 33.0580,
