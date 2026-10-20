@@ -1,6 +1,6 @@
 # Changelog
 
-## Sin publicar
+## v5.2.5 — Patrón del sextete de los momentos nucleares, como NORMOS
 
 - **Patrón del sextete por defecto: el de los momentos nucleares, como NORMOS.**
   El patrón que Fitbauer usaba desde la v4.0.3 (±0.8385/±3.0835/±5.3285 mm/s a
