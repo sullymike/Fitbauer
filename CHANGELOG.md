@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **Ajuste global Néel (multi-T) con calibración por fecha.** Si el espectro
+  activo se abrió con un equipo, cada fichero se lee con sus correcciones y
+  se dobla con la calibración vigente en su fecha de medida (antes, una sola
+  Vmax para toda la serie); sin calibración anterior, la Vmax del panel, y se
+  avisa. El texto de resultados dice qué calibración usó cada fichero y el
+  TSV añade `measured`, `calibration` y `vmax_cal`.
+
 - **CLI con equipo** (`mossbauer_fit_cli.py --instrument NOMBRE
   [--instruments-dir DIR]`): usa las correcciones de lectura, la forma de onda
   y el plegado del equipo y, para cada espectro (también en serie), la

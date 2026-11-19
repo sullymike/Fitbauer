@@ -313,3 +313,37 @@ def test_instrument_manager_add_and_remove(qapp, tmp_path, monkeypatch):
     dlg.date_order_combo.setCurrentIndex(dlg.date_order_combo.findData("mdy"))
     assert lib.get("Lab B").date_order == "mdy"
     dlg.deleteLater()
+
+
+def test_global_relaxation_uses_calibration_per_date(make_window, tmp_path, monkeypatch):
+    """Ajuste global Néel: cada fichero con el eje de la calibración de su fecha."""
+    import numpy as np
+    import core.relaxation as relax
+    from gui.dialogs import GlobalNeelFitDialog
+    captured = {}
+
+    def fake_fit(spectra, **kw):
+        captured["spectra"] = spectra
+        return relax.GlobalRelaxationFitResult(
+            shared={"bhf": 33.0}, local=[{"depth": 0.1} for _ in spectra],
+            residuals=np.zeros(1), cost=1.0, success=True, message="ok", free_keys=["bhf"])
+
+    monkeypatch.setattr(relax, "fit_neel_size_global", fake_fit)
+    win = make_window()
+    win._instruments = _lab(tmp_path)
+    win._load_file(_dated_copy(tmp_path, "a.dat", "2025-03-14"), None, "Lab B")
+    dlg = GlobalNeelFitDialog(win)
+    for name, date, t in (("t1.dat", "2025-02-01", 10.0), ("t2.dat", "2025-07-01", 50.0),
+                          ("t0.dat", "2024-01-01", 80.0)):
+        dlg.entries.append({"path": _dated_copy(tmp_path, name, date), "temp_k": t,
+                            "status": "pending"})
+    dlg._refresh_table()
+    win.calib.vmax.set_value(9.0)                  # Vmax del panel, para t0
+    dlg._run()
+    vmaxes = [abs(s.velocity).max() for s in captured["spectra"]]
+    assert vmaxes[0] == pytest.approx(10.5, rel=0.02)
+    assert vmaxes[1] == pytest.approx(10.9959, rel=0.02)
+    assert vmaxes[2] == pytest.approx(9.0, rel=0.02)
+    text = dlg.results_text.toPlainText()
+    assert "2025-01-10" in text and "2024-01-01" in text
+    dlg.deleteLater()

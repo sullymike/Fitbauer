@@ -1420,5 +1420,7 @@
   "instr.remove_confirm": "删除所选校准及其谱的副本？",
   "instr.rule": "使用此仪器导入的每个谱都采用日期不晚于其测量日期的最新校准。",
   "instr.title": "仪器与校准",
-  "instr.valid_from": "生效日期"
+  "instr.valid_from": "生效日期",
+  "global_neel.calibration": "{date} 的校准（测量于 {measured}），Vmax = {vmax} mm/s",
+  "global_neel.no_calibration": "⚠ {measured} 的测量没有仪器校准：使用面板的 Vmax"
 }

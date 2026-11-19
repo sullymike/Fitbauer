@@ -1420,5 +1420,7 @@
   "instr.remove_confirm": "Ausgewählte Kalibrierung und ihre Kopie des Spektrums löschen?",
   "instr.rule": "Jedes mit diesem Gerät importierte Spektrum erhält die letzte Kalibrierung mit Datum am oder vor dem Messtag.",
   "instr.title": "Geräte und Kalibrierungen",
-  "instr.valid_from": "Gültig ab"
+  "instr.valid_from": "Gültig ab",
+  "global_neel.calibration": "Kalibrierung vom {date} (gemessen {measured}), Vmax = {vmax} mm/s",
+  "global_neel.no_calibration": "⚠ keine Gerätekalibrierung für die Messung vom {measured}: Vmax des Feldes"
 }

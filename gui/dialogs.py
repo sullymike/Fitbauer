@@ -565,16 +565,18 @@ class GlobalNeelFitDialog(QtWidgets.QDialog):
         self.btn_csv.setEnabled(False)
         self.btn_trends.setEnabled(False)
 
-        # Calibración del espectrómetro (Vmax)
-        calib_state = self.parent_win.calib.to_view_state()
-        vmax = calib_state.vmax
-
+        # Calibración: la Vmax del panel o, si el espectro activo se abrió
+        # con un equipo, la de su calibración vigente en la fecha de cada
+        # fichero (cada espectro lleva su propio eje de velocidad).
         spectra: list[GlobalRelaxationSpectrum] = []
         load_errors: list[str] = []
         for e in self.entries:
             try:
-                counts = self.parent_win._read_channel_counts(e["path"])
-                _c, sigma, y, _norm, vel = self.parent_win._prepare_counts(counts)
+                imported = self.parent_win._read_series_spectrum(e["path"])
+                vmax_file, e["calibration"] = self.parent_win._series_vmax(
+                    e["path"], imported)
+                _c, sigma, y, _norm, vel = self.parent_win._prepare_counts(
+                    imported.y, vmax=vmax_file)
                 spectra.append(GlobalRelaxationSpectrum(
                     velocity=vel,
                     y_data=y,
@@ -645,6 +647,16 @@ class GlobalNeelFitDialog(QtWidgets.QDialog):
         for i, (e, loc) in enumerate(zip(self.entries, result.local)):
             lines.append(f"  [{e['path'].name}  T={e['temp_k']:g} K]  " +
                          "  ".join(f"{k}={v:.5g}" for k, v in loc.items()))
+            cal = e.get("calibration")
+            if cal:
+                lines.append("      " + (
+                    tr("global_neel.calibration", date=cal["date"], measured=cal["measured"],
+                       vmax=f"{cal['vmax']:.4f}",
+                       default="calibración del {date} (medida {measured}), Vmax = {vmax} mm/s")
+                    if cal.get("date") else
+                    tr("global_neel.no_calibration", measured=cal["measured"],
+                       default="⚠ sin calibración del equipo para la medida del {measured}: "
+                               "Vmax del panel")))
         self.results_text.setPlainText("\n".join(lines))
 
         self.progress.setText(tr("global_neel.done", redchi2=redchi2))
@@ -668,11 +680,16 @@ class GlobalNeelFitDialog(QtWidgets.QDialog):
                 # Cabecera
                 local_keys = list(result.local[0].keys()) if result.local else []
                 shared_keys = list(result.shared.keys())
-                w.writerow(["file", "temp_K"] + local_keys + shared_keys)
+                with_cal = any(e.get("calibration") for e in self.entries)
+                cal_keys = ["measured", "calibration", "vmax_cal"] if with_cal else []
+                w.writerow(["file", "temp_K"] + cal_keys + local_keys + shared_keys)
                 # Una fila por espectro (parámetros locales + compartidos repetidos)
                 for e, loc in zip(self.entries, result.local):
+                    cal = e.get("calibration") or {}
+                    cal_vals = ([cal.get("measured", ""), cal.get("date", ""),
+                                 cal.get("vmax", "")] if with_cal else [])
                     row_vals = (
-                        [e["path"].name, f"{e['temp_k']:g}"] +
+                        [e["path"].name, f"{e['temp_k']:g}"] + cal_vals +
                         [f"{loc.get(k, '')}" for k in local_keys] +
                         [f"{result.shared.get(k, '')}" for k in shared_keys]
                     )

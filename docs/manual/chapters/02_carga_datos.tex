@@ -122,9 +122,10 @@ Si no hay ninguna calibración anterior, se mantiene la vigente y también se
 avisa. Para las fechas numéricas ambiguas, como 03/04/2025, se elige en el equipo
 si sus ficheros escriben día/mes/año o mes/día/año.
 
-En el \textbf{ajuste en serie}, si el espectro activo se abrió con un equipo,
-cada fichero se dobla con la calibración de su propia fecha. La tabla exportada
-añade las columnas \texttt{measured}, \texttt{calibration} y \texttt{vmax\_cal}.
+En el \textbf{ajuste en serie} y en el \textbf{ajuste global Néel (multi-T)}, si
+el espectro activo se abrió con un equipo, cada fichero se dobla con la
+calibración de su propia fecha (sin calibración anterior, con la \param{Vmax}
+del panel, y se indica). La tabla exportada añade las columnas \texttt{measured}, \texttt{calibration} y \texttt{vmax\_cal}.
 Una sesión guardada conserva la calibración con la que se trabajó, aunque la
 biblioteca cambie después.
 

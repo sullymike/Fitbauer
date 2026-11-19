@@ -1420,5 +1420,7 @@
   "instr.remove_confirm": "Delete the selected calibration and its copy of the spectrum?",
   "instr.rule": "Each spectrum imported with this instrument gets the latest calibration dated on or before its measurement.",
   "instr.title": "Instruments and calibrations",
-  "instr.valid_from": "Valid from"
+  "instr.valid_from": "Valid from",
+  "global_neel.calibration": "calibration of {date} (measured {measured}), Vmax = {vmax} mm/s",
+  "global_neel.no_calibration": "⚠ no instrument calibration for the measurement of {measured}: panel Vmax"
 }

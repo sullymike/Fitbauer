@@ -1420,5 +1420,7 @@
   "instr.remove_confirm": "選択した校正とそのスペクトルのコピーを削除しますか？",
   "instr.rule": "この装置でインポートした各スペクトルには、測定日以前の最新の校正が適用されます。",
   "instr.title": "装置と校正",
-  "instr.valid_from": "有効開始日"
+  "instr.valid_from": "有効開始日",
+  "global_neel.calibration": "{date} の校正（測定 {measured}）、Vmax = {vmax} mm/s",
+  "global_neel.no_calibration": "⚠ {measured} の測定に対応する装置の校正がありません：パネルの Vmax を使用"
 }

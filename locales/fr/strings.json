@@ -1420,5 +1420,7 @@
   "instr.remove_confirm": "Supprimer la calibration sélectionnée et sa copie du spectre ?",
   "instr.rule": "Chaque spectre importé avec cet appareil reçoit la dernière calibration datée du jour de sa mesure ou d'avant.",
   "instr.title": "Appareils et calibrations",
-  "instr.valid_from": "Valable depuis"
+  "instr.valid_from": "Valable depuis",
+  "global_neel.calibration": "calibration du {date} (mesuré le {measured}), Vmax = {vmax} mm/s",
+  "global_neel.no_calibration": "⚠ pas de calibration de l'appareil pour la mesure du {measured} : Vmax du panneau"
 }

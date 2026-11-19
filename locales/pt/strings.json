@@ -1420,5 +1420,7 @@
   "instr.remove_confirm": "Eliminar a calibração selecionada e a sua cópia do espetro?",
   "instr.rule": "A cada espetro importado com este equipamento aplica-se a última calibração com data igual ou anterior à da medida.",
   "instr.title": "Equipamentos e calibrações",
-  "instr.valid_from": "Válida desde"
+  "instr.valid_from": "Válida desde",
+  "global_neel.calibration": "calibração de {date} (medido em {measured}), Vmax = {vmax} mm/s",
+  "global_neel.no_calibration": "⚠ sem calibração do equipamento para a medida de {measured}: Vmax do painel"
 }
