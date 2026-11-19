@@ -351,6 +351,11 @@ class HeadlessSession:
         #: Diagnóstico del efecto geométrico del último espectro cargado.
         self.geometry_effect: dict = {"amplitude": 0.0, "relative": 0.0}
         self.calibration_info: dict | None = None
+        # Equipo opcional (core.instruments): correcciones de lectura, forma
+        # de onda/plegado y calibración vigente en la fecha de cada medida.
+        self.instrument = None
+        self.instrument_library = None
+        self.calibration_warning: str | None = None
         self.last_fit_free_keys: list[str] = []
         self.last_fit_cov = None
         self.last_fit_param_errors: dict[str, float] = {}
@@ -366,6 +371,8 @@ class HeadlessSession:
         con eje de velocidad no se cargan aquí.
         """
         path = Path(path)
+        if hints is None and self.instrument is not None:
+            hints = self.instrument.import_hints
         imported = read_spectrum_file(path, hints)
         if imported.x_kind != "channel" or not imported.is_counts:
             raise ValueError(tr(
@@ -396,6 +403,68 @@ class HeadlessSession:
         self.model.vars["center"] = float(center)
         if vmax is not None:
             self.model.vars["vmax"] = float(vmax)
+        elif self.instrument is not None:
+            self._assign_instrument_calibration(path, imported)
+
+    # ── Equipo ────────────────────────────────────────────────────────────
+    def use_instrument(self, name: str, library=None) -> None:
+        """Trabaja con un equipo de la biblioteca (opcional).
+
+        Aplica su forma de onda, plegado y sentido al modelo (lo que se fije
+        después, p. ej. por línea de comandos, manda) y, al cargar cada
+        espectro, sus correcciones de lectura y la calibración vigente en la
+        fecha de medida.
+        """
+        from core.instruments import InstrumentLibrary
+        lib = library if library is not None else InstrumentLibrary()
+        profile = lib.get(name)
+        if profile is None:
+            known = ", ".join(lib.names()) or "—"
+            raise KeyError(f"instrument '{name}' not found in {lib.root} (known: {known})")
+        self.instrument = profile
+        self.instrument_library = lib
+        self.model.drive_form = profile.drive_form
+        self.model.fold_mode = profile.fold_mode
+        self.model.reverse_velocity = bool(profile.reverse_velocity)
+
+    def instrument_calibration(self, path, imported):
+        """``(registro | None, fecha | None, origen)`` del equipo para un fichero."""
+        from core.spectrum_import import measurement_date
+        name = self.instrument.name
+        date, origin = measurement_date(imported, path, self.instrument.date_order)
+        if date is None:
+            return None, None, None
+        return self.instrument_library.calibration_for(name, date), date, origin
+
+    def _assign_instrument_calibration(self, path, imported) -> None:
+        from core.constants import convert_vmax
+        record, date, origin = self.instrument_calibration(path, imported)
+        name = self.instrument.name
+        if record is None:
+            # Se mantiene la Vmax que hubiera (plantilla o fichero anterior).
+            self.calibration_warning = (
+                f"{path.name}: no measurement date; no calibration of '{name}' assigned"
+                if date is None else
+                f"{path.name}: '{name}' has no calibration on or before {date.isoformat()}")
+            return
+        self.calibration_warning = None
+        self.model.vars["vmax"] = convert_vmax(record.vmax, record.sextet_pattern,
+                                               self.model.sextet_pattern)
+        cal_file = self.instrument_library.calibration_file(name, record)
+        self.calibration_info = {
+            "source": "instrument",
+            "instrument": name,
+            "calibration_sample": record.sample or record.date.isoformat(),
+            "velocity_calibrated": float(record.vmax),
+            "isomer_shift": record.isomer_shift,
+            "sextet_pattern": record.sextet_pattern,
+            "calibration_id": record.id,
+            "calibration_date": record.date.isoformat(),
+            "measurement_date": date.isoformat(),
+            "measurement_date_source": origin,
+            "calibration_file_name": record.file_name,
+            "calibration_file_path": str(cal_file) if cal_file else None,
+        }
 
     @staticmethod
     def _geometry_diagnostics(counts: np.ndarray, center: float) -> dict:
@@ -544,7 +613,17 @@ class HeadlessSession:
             row = {"file": file_path.name, "metadata": meta,
                    "status": "failed", "values": {}, "errors": {}, "stats": {}}
             try:
+                self.calibration_info = None if self.instrument else self.calibration_info
                 self.load_ws5(file_path)
+                if self.instrument is not None:
+                    info = self.calibration_info or {}
+                    row["calibration"] = {
+                        "measured": info.get("measurement_date", ""),
+                        "date": info.get("calibration_date", ""),
+                        "vmax": float(self.model.vars.get("vmax", 0.0)),
+                    }
+                    if self.calibration_warning:
+                        row["warning"] = self.calibration_warning
                 for k, v in saved.items():
                     if k in self.model.vars:
                         self.model.vars[k] = v

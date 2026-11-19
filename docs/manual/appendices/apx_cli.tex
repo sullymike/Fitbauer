@@ -82,6 +82,19 @@ Opción & Argumento & Significado \\
 \code{-{}-line-asym} & $A$ & Asimetría de línea por interferencia (AKS de
   NORMOS-SITE): el perfil se multiplica por $1 - A\,(v-v_0)/\Gamma$. Por
   defecto $0$. \\
+\code{-{}-fold} & \textit{modo} &
+  Plegado de las cuentas por canal (§\ref{sec:fold-mode}): \code{fold}
+  (doblar, por defecto), \code{single\_sweep} (un solo barrido ya doblado) o
+  \code{two\_branches} (las dos ramas sin doblar). Sustituye al
+  de la plantilla. \\
+\code{-{}-reverse-velocity} & --- & Invierte el sentido del eje de velocidad
+  (equipos que barren de $+$ a $-$). \\
+\code{-{}-instrument} & \textit{nombre} & Equipo guardado (opcional,
+  §\ref{sec:equipos-calibraciones}): sus correcciones de lectura, forma de
+  onda y plegado, y para cada espectro la calibración vigente en su fecha de
+  medida. Incompatible con \code{-{}-vmax}. \\
+\code{-{}-instruments-dir} & \file{carpeta} & Biblioteca de equipos; por
+  defecto, la de la GUI. \\
 \code{-{}-quiet} & --- & No imprime el resumen por la salida estándar. \\
 \bottomrule
 \end{tabular}
@@ -150,6 +163,17 @@ JSON con una fila por fichero (\code{status}, \code{values}, \code{errors},
 python mossbauer_fit_cli.py --template T.json \
     --spectrum serie_010K.adt serie_050K.adt serie_100K.adt \
     --out serie.batch.json
+\end{lstlisting}
+
+Con \code{-{}-instrument}, cada fichero de la serie se dobla con la calibración
+del equipo vigente en su fecha de medida, y cada fila añade \code{calibration}
+(fecha de medida, fecha de la calibración y $v_{\max}$) y, si no hay fecha o
+calibración anterior, un \code{warning}. Sin equipo todo funciona igual que
+antes:
+
+\begin{lstlisting}[language=bash]
+python mossbauer_fit_cli.py --template T.json --instrument "Lab B" \
+    --spectrum enero.dat julio.dat --out serie.batch.json
 \end{lstlisting}
 
 Para ajustes totalmente independientes (sin arranque en caliente) basta con

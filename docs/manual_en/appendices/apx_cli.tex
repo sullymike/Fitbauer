@@ -79,6 +79,18 @@ Option & Argument & Meaning \\
   transmission saturates at $1-F$ instead of $0$. Default $1$. \\
 \code{-{}-line-asym} & $A$ & Interference line asymmetry (AKS of NORMOS-SITE):
   the profile is multiplied by $1 - A\,(v-v_0)/\Gamma$. Default $0$. \\
+\code{-{}-fold} & \textit{mode} &
+  Folding of channel counts (§\ref{sec:fold-mode}): \code{fold} (default),
+  \code{single\_sweep} (a single already-folded sweep) or \code{two\_branches}
+  (both branches unfolded). Overrides the template. \\
+\code{-{}-reverse-velocity} & --- & Reverses the velocity axis (instruments
+  sweeping from $+$ to $-$). \\
+\code{-{}-instrument} & \textit{name} & Saved instrument (optional,
+  §\ref{sec:equipos-calibraciones}): its reading corrections, waveform and
+  folding, and for each spectrum the calibration in force on its measurement
+  date. Incompatible with \code{-{}-vmax}. \\
+\code{-{}-instruments-dir} & \file{folder} & Instrument library; by default,
+  the GUI one. \\
 \code{-{}-quiet} & --- & Suppress the summary printed to stdout. \\
 \bottomrule
 \end{tabular}
@@ -147,6 +159,17 @@ individual failures do not stop the series:
 python mossbauer_fit_cli.py --template T.json \
     --spectrum serie_010K.adt serie_050K.adt serie_100K.adt \
     --out serie.batch.json
+\end{lstlisting}
+
+With \code{-{}-instrument}, each file of the series is folded with the
+instrument calibration in force on its measurement date, and each row adds
+\code{calibration} (measurement date, calibration date and $v_{\max}$) and, if
+there is no date or no earlier calibration, a \code{warning}. Without an
+instrument everything works as before:
+
+\begin{lstlisting}[language=bash]
+python mossbauer_fit_cli.py --template T.json --instrument "Lab B" \
+    --spectrum january.dat july.dat --out serie.batch.json
 \end{lstlisting}
 
 For fully independent fits (no warm-start) simply call the script once per

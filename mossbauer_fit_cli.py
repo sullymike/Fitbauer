@@ -28,6 +28,15 @@ por fichero::
         --spectrum serie_010K.adt serie_050K.adt serie_100K.adt \
         --out serie.batch.json
 
+Equipo (opcional): con ``--instrument NOMBRE`` se usan las correcciones de
+lectura, la forma de onda y el plegado del equipo guardado desde la GUI
+(Archivo ▸ Importar… / Equipos y calibraciones…) y, para cada espectro, la
+calibración del equipo vigente en su fecha de medida (incompatible con
+``--vmax``). Sin ``--instrument`` todo funciona como siempre::
+
+    python mossbauer_fit_cli.py --template T.json --instrument "Lab B" \
+        --spectrum enero.dat junio.dat --out serie.batch.json
+
 El proceso es completamente headless: no necesita ningún display ni Tk. Se
 apoya en ``core.session.HeadlessSession`` (la misma numérica que usa la GUI
 a través de ``core.fit_engine``).
@@ -83,6 +92,20 @@ def _apply_model_overrides(session_engine, overrides: dict | None) -> None:
         model.fixed["src_frac"] = True
 
 
+def _new_session(state: dict, instrument: str | None, instruments_dir: Path | None,
+                 model_overrides: dict | None):
+    """Sesión con la plantilla, el equipo (si hay) y las banderas, por ese orden."""
+    from core.session import HeadlessSession
+    session_engine = HeadlessSession()
+    session_engine.apply_template_model_state(state)
+    if instrument:
+        from core.instruments import InstrumentLibrary
+        session_engine.use_instrument(
+            instrument, InstrumentLibrary(instruments_dir) if instruments_dir else None)
+    _apply_model_overrides(session_engine, model_overrides)
+    return session_engine
+
+
 def _load_template_state(template_path: Path) -> dict:
     """Plantilla desde una sesión .json de Fitbauer o un .JOB de NORMOS.
 
@@ -114,7 +137,9 @@ def fit_spectrum(template_path: Path, spectrum_path: Path,
                  vmax: float | None = None, *,
                  bootstrap_n: int = 0,
                  profile: bool = False,
-                 model_overrides: dict | None = None) -> dict:
+                 model_overrides: dict | None = None,
+                 instrument: str | None = None,
+                 instruments_dir: Path | None = None) -> dict:
     """Carga plantilla + espectro, ejecuta el ajuste y devuelve la sesión final.
 
     Si ``output_path`` no es None se guarda allí el JSON resultado. Lanza
@@ -131,12 +156,9 @@ def fit_spectrum(template_path: Path, spectrum_path: Path,
         raise FileNotFoundError(f"Espectro no encontrado: {spectrum_path}")
     state = _load_template_state(template_path)
 
-    from core.session import HeadlessSession
-    session_engine = HeadlessSession()
     # La plantilla se aplica ANTES de cargar: load_ws5 decide doblar o no según
-    # drive_form y fold_mode, que vienen de la plantilla (o de --fold).
-    session_engine.apply_template_model_state(state)
-    _apply_model_overrides(session_engine, model_overrides)
+    # drive_form y fold_mode, que vienen de la plantilla, del equipo o de --fold.
+    session_engine = _new_session(state, instrument, instruments_dir, model_overrides)
     session_engine.load_ws5(spectrum_path)
     # --vmax sobrescribe el de la plantilla (útil si la calibración varía).
     if vmax is not None:
@@ -151,6 +173,8 @@ def fit_spectrum(template_path: Path, spectrum_path: Path,
         "stats": fit_result["stats"],
         "free_keys": fit_result["free_keys"],
     }
+    if session_engine.calibration_warning:
+        session["batch_fit_result"]["warning"] = session_engine.calibration_warning
     # Errores avanzados sobre el estado ya convergido (run_fit vuelca los
     # valores ajustados en el modelo, así que el ajuste base interno de
     # bootstrap/perfil arranca en el óptimo).
@@ -185,7 +209,9 @@ def fit_spectrum(template_path: Path, spectrum_path: Path,
 def fit_batch(template_path: Path, spectrum_paths: list[Path],
               output_path: Path | None = None,
               vmax: float | None = None,
-              model_overrides: dict | None = None) -> list[dict]:
+              model_overrides: dict | None = None,
+              instrument: str | None = None,
+              instruments_dir: Path | None = None) -> list[dict]:
     """Ajusta una serie de espectros con warm-start secuencial.
 
     Cada espectro parte de los valores convergidos del anterior (espejo del
@@ -203,10 +229,7 @@ def fit_batch(template_path: Path, spectrum_paths: list[Path],
             "Espectros no encontrados: " + ", ".join(str(p) for p in missing))
     state = _load_template_state(template_path)
 
-    from core.session import HeadlessSession
-    session_engine = HeadlessSession()
-    session_engine.apply_template_model_state(state)
-    _apply_model_overrides(session_engine, model_overrides)
+    session_engine = _new_session(state, instrument, instruments_dir, model_overrides)
     if vmax is not None:
         session_engine.set_vmax(vmax)
     rows = session_engine.batch_fit_sequential(spectrum_paths)
@@ -283,6 +306,14 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--reverse-velocity", action="store_true",
                    help="Invierte el sentido del eje de velocidad (equipos que "
                         "barren de + a −).")
+    p.add_argument("--instrument", default=None, metavar="NOMBRE",
+                   help="Equipo guardado (opcional): sus correcciones de lectura, "
+                        "forma de onda y plegado, y para cada espectro la "
+                        "calibración vigente en su fecha de medida. Incompatible "
+                        "con --vmax.")
+    p.add_argument("--instruments-dir", type=Path, default=None, metavar="DIR",
+                   help="Carpeta de la biblioteca de equipos (por defecto la de "
+                        "la GUI, ~/.config/mossbauer_fe33_gui/instruments).")
     p.add_argument("--quiet", action="store_true",
                    help="No imprimir el resumen por stdout (solo código de salida).")
     return p
@@ -297,6 +328,14 @@ def _print_single_summary(args, session: dict) -> None:
     chi2_txt = f"{chi2:.6g}" if isinstance(chi2, (int, float)) else "?"
     red_txt = f"{red:.6g}" if isinstance(red, (int, float)) else "?"
     print(f"OK  {args.spectrum[0].name}  χ²={chi2_txt}  red_χ²={red_txt}")
+    cal = session.get("calibration") or {}
+    if cal.get("source") == "instrument":
+        nota = " (fecha del fichero)" if cal.get("measurement_date_source") == "file" else ""
+        print(f"  equipo {cal['instrument']}: medida {cal['measurement_date']}{nota} → "
+              f"calibración del {cal['calibration_date']}, "
+              f"vmax = {session['model_state']['vars']['vmax']:.6g}")
+    if result.get("warning"):
+        print(f"  AVISO {result['warning']}")
     rel = geo.get("relative")
     if isinstance(rel, (int, float)) and rel:
         # Diagnóstico portado de NORMOS: modulación de la tasa de cuentas con la
@@ -350,6 +389,11 @@ def _run(args) -> int:
             print(f"FAIL  --out coincide con el fichero de entrada {src}; "
                   "elige otra ruta de salida", file=sys.stderr)
             return 2
+    if args.instrument and args.vmax is not None:
+        print("FAIL  --vmax y --instrument son incompatibles: con equipo, la Vmax "
+              "es la de su calibración vigente en la fecha de cada medida",
+              file=sys.stderr)
+        return 2
     if len(args.spectrum) > 1:
         if args.bootstrap or args.profile_likelihood:
             print("FAIL  --bootstrap/--profile-likelihood solo admiten un espectro",
@@ -357,7 +401,9 @@ def _run(args) -> int:
             return 2
         try:
             rows = fit_batch(args.template, args.spectrum, args.out, args.vmax,
-                             model_overrides=_overrides_from_args(args))
+                             model_overrides=_overrides_from_args(args),
+                             instrument=args.instrument,
+                             instruments_dir=args.instruments_dir)
         except Exception as exc:
             print(f"FAIL  batch  {type(exc).__name__}: {exc}", file=sys.stderr)
             return 1
@@ -367,7 +413,12 @@ def _run(args) -> int:
                 if r.get("status") == "ok":
                     red = r.get("stats", {}).get("red_chi2")
                     red_txt = f"{red:.6g}" if isinstance(red, (int, float)) else "?"
-                    print(f"OK    {r['file']}  red_χ²={red_txt}")
+                    cal = r.get("calibration") or {}
+                    cal_txt = (f"  cal. {cal['date']} (medida {cal['measured']})"
+                               if cal.get("date") else "")
+                    print(f"OK    {r['file']}  red_χ²={red_txt}{cal_txt}")
+                    if r.get("warning"):
+                        print(f"      AVISO {r['warning']}")
                 else:
                     print(f"FAIL  {r['file']}  {r.get('error', '?')}")
             print(f"Serie: {n_ok}/{len(rows)} ajustes correctos → {args.out}")
@@ -376,7 +427,9 @@ def _run(args) -> int:
         session = fit_spectrum(args.template, args.spectrum[0], args.out, args.vmax,
                                bootstrap_n=args.bootstrap,
                                profile=args.profile_likelihood,
-                               model_overrides=_overrides_from_args(args))
+                               model_overrides=_overrides_from_args(args),
+                               instrument=args.instrument,
+                               instruments_dir=args.instruments_dir)
     except Exception as exc:
         print(f"FAIL  {args.spectrum[0].name}  {type(exc).__name__}: {exc}",
               file=sys.stderr)

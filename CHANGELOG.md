@@ -2,6 +2,17 @@
 
 ## Sin publicar
 
+- **CLI con equipo** (`mossbauer_fit_cli.py --instrument NOMBRE
+  [--instruments-dir DIR]`): usa las correcciones de lectura, la forma de onda
+  y el plegado del equipo y, para cada espectro (también en serie), la
+  calibración vigente en su fecha de medida; el JSON lleva `calibration` y,
+  si no hay fecha o calibración anterior, `warning`. Incompatible con
+  `--vmax`. Vive en `HeadlessSession.use_instrument`, así que cualquier
+  script headless puede usarlo. Sin `--instrument` nada cambia.
+  - Apéndice del CLI (ES/EN): `--instrument`, `--instruments-dir` y, que
+    faltaban, `--fold` y `--reverse-velocity`. Manual y ayuda dicen que los
+    equipos son opcionales.
+
 - **Calibraciones por equipo y asignación por fecha.** Cada equipo guarda sus
   calibraciones de velocidad (fecha desde la que valen, Vmax, patrón del
   sextete, IS, notas y copia del espectro α-Fe) en `calibrations.json` de su
