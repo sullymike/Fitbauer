@@ -40,6 +40,8 @@ del código de la GUI.**
 - `hamiltonian.py` — tratamiento Kündig del Hamiltoniano magnético+cuadrupolar.
 - `params.py` — registro único de parámetros del modelo (nombres canónicos, p.ej. `SEXTET_PARAM_NAMES`).
 - `folding.py` / `data_io.py` — carga `.ws5`/`.adt`/Normos y folding (eje de velocidad conservador).
+- `spectrum_import.py` — lector genérico de texto (cualquier equipo): bloque de datos, papeles de
+  columna, tipo de intensidad y σ; `ImportHints` = perfil de importación. No dobla.
 - `fit_engine.py` — motor de ajuste discreto (singlete/doblete/sextete).
 - `profile_likelihood.py` — intervalos de confianza por verosimilitud perfilada.
 - `batch_fit.py` — ajuste en serie por warm-start.

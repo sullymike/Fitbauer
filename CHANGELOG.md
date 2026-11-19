@@ -1,5 +1,20 @@
 # Changelog
 
+## Sin publicar
+
+- **Lector genérico de espectros (`core/spectrum_import.py`).** Primer paso
+  para importar ficheros de cualquier equipo sin convertirlos antes. Sin
+  formatos concretos: localiza el bloque de datos numéricos (lo anterior es
+  cabecera y lo posterior pie, aunque tengan números), detecta separador y coma
+  decimal, deduce el papel de cada columna (canal, velocidad, intensidad, error,
+  o varias cuentas por línea) y el tipo de intensidad (cuentas, transmisión o
+  absorción, en fracción o %). Sin cuentas, la σ sale de la columna de errores
+  o se estima del ruido (segundas diferencias). Lee también el XML de WS5 y
+  recoge los metadatos «clave: valor» y las fechas de cabecera y pie. Todo lo
+  deducido se puede corregir con `ImportHints`, serializable: será el perfil
+  de importación de cada equipo. No dobla ni ordena; aún no está conectado a la
+  carga de la GUI (irá con el plegado explícito).
+
 ## v5.2.5 — Patrón del sextete de los momentos nucleares, como NORMOS
 
 - **Patrón del sextete por defecto: el de los momentos nucleares, como NORMOS.**
