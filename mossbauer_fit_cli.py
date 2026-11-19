@@ -68,6 +68,11 @@ def _apply_model_overrides(session_engine, overrides: dict | None) -> None:
     pattern = overrides.get("sextet_pattern")
     if pattern:
         model.sextet_pattern = str(pattern)
+    fold = overrides.get("fold_mode")
+    if fold:
+        model.fold_mode = str(fold)
+    if overrides.get("reverse_velocity"):
+        model.reverse_velocity = True
     asym = overrides.get("line_asym")
     if asym is not None:
         model.vars["line_asym"] = float(asym)
@@ -128,8 +133,8 @@ def fit_spectrum(template_path: Path, spectrum_path: Path,
 
     from core.session import HeadlessSession
     session_engine = HeadlessSession()
-    # La plantilla se aplica ANTES de cargar: load_ws5 decide doblar (triangular)
-    # o no doblar (seno) según drive_form, que viene de la plantilla.
+    # La plantilla se aplica ANTES de cargar: load_ws5 decide doblar o no según
+    # drive_form y fold_mode, que vienen de la plantilla (o de --fold).
     session_engine.apply_template_model_state(state)
     _apply_model_overrides(session_engine, model_overrides)
     session_engine.load_ws5(spectrum_path)
@@ -268,6 +273,16 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="Asimetría de línea por interferencia (AKS de "
                         "NORMOS-SITE): el perfil se multiplica por "
                         "1 − A·(v−v0)/Γ. Por defecto 0 (línea simétrica).")
+    p.add_argument("--fold", dest="fold_mode",
+                   choices=("fold", "single_sweep", "two_branches"), default=None,
+                   help="Plegado de las cuentas por canal (drive triangular): "
+                        "'fold' (doblar; por defecto), 'single_sweep' (ya "
+                        "doblado o un solo barrido: v lineal de −Vmax a +Vmax) "
+                        "o 'two_branches' (espectro crudo sin doblar, cada canal "
+                        "en su velocidad). Sobrescribe el de la plantilla.")
+    p.add_argument("--reverse-velocity", action="store_true",
+                   help="Invierte el sentido del eje de velocidad (equipos que "
+                        "barren de + a −).")
     p.add_argument("--quiet", action="store_true",
                    help="No imprimir el resumen por stdout (solo código de salida).")
     return p
@@ -320,6 +335,8 @@ def _overrides_from_args(args) -> dict:
     return {"intensity_convention": args.intensity_convention,
             "relax_convention": args.relax_convention,
             "sextet_pattern": args.sextet_pattern,
+            "fold_mode": args.fold_mode,
+            "reverse_velocity": args.reverse_velocity,
             "line_asym": args.line_asym,
             "src_frac": args.src_frac}
 

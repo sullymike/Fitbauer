@@ -231,6 +231,27 @@ class CalibrationPanel(QtWidgets.QGroupBox):
                     "Senoidal: no se dobla; v = vmax·sin(2π(i−c0)/N)."))
         drive_row.addWidget(self.drive_combo, stretch=1)
 
+        # Plegado explícito de las cuentas por canal (FOLD de NORMOS, aparte de
+        # la forma de onda): lo decide el usuario, no el formato del fichero.
+        fold_row = QtWidgets.QHBoxLayout()
+        fold_row.addWidget(QtWidgets.QLabel(tr("fold.label", default="Plegado")))
+        self.fold_combo = QtWidgets.QComboBox()
+        for value, default in (("fold", "Doblar"),
+                               ("single_sweep", "Sin doblar: un solo barrido"),
+                               ("two_branches", "Sin doblar: dos ramas")):
+            self.fold_combo.addItem(tr(f"fold.{value}", default=default), value)
+        self.fold_combo.setToolTip(tr(
+            "fold.tooltip",
+            default="Doblar: se promedian las dos ramas del barrido. Un solo barrido: "
+                    "datos ya doblados por el equipo (v lineal de −Vmax a +Vmax). Dos "
+                    "ramas: espectro crudo sin doblar, cada canal en su velocidad."))
+        fold_row.addWidget(self.fold_combo, stretch=1)
+        self.reverse_velocity = QtWidgets.QCheckBox(
+            tr("fold.reverse", default="Invertir sentido"))
+        self.reverse_velocity.setToolTip(tr(
+            "fold.reverse_tooltip",
+            default="Para equipos que barren de +Vmax a −Vmax."))
+
         for w in (self.vmax, self.fit_velocity, self.center, self.fit_center,
                   self.baseline, self.slope, self.curv, self.curv3,
                   self.curv4):
@@ -240,6 +261,8 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         v.addLayout(profile_row)
         v.addWidget(self.voigt_sigma)
         v.addLayout(drive_row)
+        v.addLayout(fold_row)
+        v.addWidget(self.reverse_velocity)
         v.addLayout(absorber_row)
         v.addWidget(self.sat_scale)
         v.addWidget(self.src_fwhm)
@@ -256,6 +279,11 @@ class CalibrationPanel(QtWidgets.QGroupBox):
                 self.profile_combo.currentData() or "Lorentziana"))
         self.absorber_combo.currentIndexChanged.connect(lambda *_: (self._refresh_absorber_widgets(), self.paramChanged.emit()))
         self.drive_combo.currentIndexChanged.connect(lambda *_: self.driveFormChanged.emit())
+        # Mismo recálculo que la forma de onda (cambia el tamaño de los datos).
+        self.drive_combo.currentIndexChanged.connect(lambda *_: self._refresh_fold_widgets())
+        self.fold_combo.currentIndexChanged.connect(lambda *_: self._refresh_fold_widgets())
+        self.fold_combo.currentIndexChanged.connect(lambda *_: self.driveFormChanged.emit())
+        self.reverse_velocity.toggled.connect(lambda *_: self.driveFormChanged.emit())
         for cb in (self.fit_velocity, self.fit_center):
             cb.toggled.connect(lambda *_: self.paramChanged.emit())
         # La casilla 'Fijo' de σ dirige el refinado (fit_sigma). Estado inicial coherente.
@@ -314,6 +342,26 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         if idx >= 0:
             self.drive_combo.setCurrentIndex(idx)
 
+    @property
+    def fold_mode(self) -> str:
+        return self.fold_combo.currentData() or "fold"
+
+    def set_fold_mode(self, mode: str, reverse: bool | None = None) -> None:
+        idx = self.fold_combo.findData(mode)
+        if idx >= 0:
+            self.fold_combo.setCurrentIndex(idx)
+        if reverse is not None:
+            self.reverse_velocity.setChecked(bool(reverse))
+
+    def _refresh_fold_widgets(self) -> None:
+        """En seno nunca se dobla: el modo de plegado no aplica. En un solo
+        barrido no hay punto de plegado que mover ni ajustar."""
+        sine = self.drive_form == "sine"
+        self.fold_combo.setEnabled(not sine)
+        single = not sine and self.fold_mode == "single_sweep"
+        self.center.setEnabled(not single)
+        self.fit_center.setEnabled(not single)
+
     def _refresh_absorber_widgets(self) -> None:
         """Solo se muestran los parámetros del modelo de absorbente activo.
 
@@ -342,6 +390,8 @@ class CalibrationPanel(QtWidgets.QGroupBox):
             line_profile=self.line_profile,
             absorber_model=self.absorber_model,
             drive_form=self.drive_form,
+            fold_mode=self.fold_mode,
+            reverse_velocity=self.reverse_velocity.isChecked(),
             fit_velocity=self.fit_velocity.isChecked(),
             fit_center=self.fit_center.isChecked(),
             fit_sigma=self.fit_sigma.isChecked(),

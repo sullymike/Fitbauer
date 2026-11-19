@@ -7,7 +7,7 @@ import numpy as np
 from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
-from core.folding import find_best_integer_or_half_center, fold_and_normalize, read_ws5_counts, load_velocity_csv
+from core.folding import read_ws5_counts, load_velocity_csv
 from core.reconstruction import reconstruct_discrete_model
 from gui.state import ComparisonSpectrum
 
@@ -27,7 +27,7 @@ class FileActionsMixin:
     def on_find_center(self) -> None:
         if self.file.counts is None:
             return
-        center = find_best_integer_or_half_center(self.file.counts)
+        center = self._detect_center(self.file.counts)
         # Re-dobla con el nuevo centro y aplica el recorte de bordes de Tk.
         self._refold_current_data(center)
         self._building = True
@@ -197,14 +197,8 @@ class FileActionsMixin:
                 vel = np.asarray(data["velocity"], dtype=float)
                 y_raw = np.asarray(data["y"], dtype=float)
             else:
-                from core.folding import velocity_axis
                 counts = read_ws5_counts(fpath)
-                center = find_best_integer_or_half_center(counts)
-                folded, _sigma, _y, _norm = fold_and_normalize(counts, center)
-                vmax = float(self.calib.vmax.value()) if hasattr(self, "calib") else 12.007
-                edge_trim = getattr(self, "_edge_trim", 1)
-                vel = velocity_axis(counts.size, vmax, folded.size, edge_trim=edge_trim)
-                y_raw = folded.astype(float)
+                _c, _sigma, y_raw, _norm, vel = self._prepare_counts(counts)
             norm = float(np.percentile(y_raw, 90)) or 1.0
             y_data = y_raw / norm
             label = fpath.stem

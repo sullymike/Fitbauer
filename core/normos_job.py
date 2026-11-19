@@ -525,11 +525,37 @@ def job_to_model_state(text: str) -> dict:
         "drive_form": "triangular" if _b(data.get("TRIANG"), True) else "sine",
     }
     vmax = _vmax_con_signo(data, avisos)
+    vmax = _plegado_desde_fold(data, estado, vmax, avisos)
     if vmax:
         estado["vars"]["vmax"] = vmax
     centro = _centro_desde_pfp(data, avisos)
     return {"model_state": estado, "vmax": vmax,
             "center": centro, "warnings": avisos}
+
+
+def _plegado_desde_fold(data: dict, estado: dict, vmax: float | None,
+                        avisos: list[str]) -> float | None:
+    """``FOLD=.FALSE.`` con drive triangular → espectro de un solo barrido.
+
+    NORMOS calcula entonces el eje como ``V1 + (i−1)·DELV``, con
+    ``V1 = −|VMAX|`` y ``DELV = −2·V1/(NP−1)`` si faltan: el eje lineal de
+    −VMAX a +VMAX de ``fold_mode="single_sweep"``. Un ``V1`` positivo (o un
+    ``DELV`` negativo) barre de + a −: sentido invertido. Un ``DELV`` explícito
+    puede dar un eje asimétrico, que Fitbauer no representa: se avisa.
+    """
+    if not _b(data.get("TRIANG"), True) or _b(data.get("FOLD"), True):
+        return vmax
+    estado["fold_mode"] = "single_sweep"
+    v1 = _f(data.get("V1"), 0.0)
+    delv = _f(data.get("DELV"), 0.0)
+    if v1:
+        vmax = abs(v1)
+    elif vmax:
+        vmax = abs(vmax)
+    estado["reverse_velocity"] = bool(delv < 0.0 if delv else v1 > 0.0)
+    if delv:
+        avisos.append(tr("normos.w_fold_delv", v1=f"{v1:g}", delv=f"{delv:g}"))
+    return vmax
 
 
 def _vmax_con_signo(data: dict, avisos: list[str]) -> float | None:
@@ -953,6 +979,14 @@ def model_state_to_job(state: dict, stem: str = "FITBAUER",
         data["VMAX"] = f"{float(vmax):g}"
     if center is None:
         center = v.get("center")
+    if (str(state.get("drive_form", "triangular")) != "sine"
+            and state.get("fold_mode") == "single_sweep"):
+        # Un solo barrido: FOLD=.FALSE.; NORMOS toma V1 = −|VMAX| y el paso
+        # que lleva a +|VMAX|. V1 positivo invierte el sentido.
+        data["FOLD"] = ".FALSE."
+        if state.get("reverse_velocity") and vmax:
+            data["V1"] = f"{abs(float(vmax)):g}"
+        center = None
     if center:
         data["PFP"] = f"{float(center):g}"
 

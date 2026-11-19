@@ -11,10 +11,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 from mossbauer_i18n import tr
-from core.folding import (
-    read_ws5_counts, find_best_integer_or_half_center, fold_and_normalize,
-    velocity_axis,
-)
+from core.folding import read_ws5_counts
 from core.fit_engine import fit_discrete
 from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data
 
@@ -265,15 +262,9 @@ class BatchFitDialog(QtWidgets.QDialog):
             try:
                 # Reusar warm-start: aplicamos el estado actual del Qt y
                 # cargamos el nuevo espectro (que sobrescribe folding center).
-                # Mismo doblado que el flujo principal y core.session: recorte
-                # de borde y eje de velocidad sin estirar la escala.
+                # Mismo plegado, recorte y eje que el espectro de la ventana.
                 counts = read_ws5_counts(e["path"])
-                center = find_best_integer_or_half_center(counts)
-                edge_trim = int(getattr(self.parent_win, "_edge_trim", 1))
-                folded, sigma, y, norm = fold_and_normalize(counts, center, edge_trim)
-                calib_state = self.parent_win.calib.to_view_state()
-                vmax = calib_state.vmax
-                v = velocity_axis(counts.size, vmax, y.size, edge_trim)
+                center, sigma, y, norm, v = self.parent_win._prepare_counts(counts)
                 # Construir state desde la UI parental
                 state = self.parent_win._build_state()
                 if state is None:
@@ -577,10 +568,7 @@ class GlobalNeelFitDialog(QtWidgets.QDialog):
         for e in self.entries:
             try:
                 counts = read_ws5_counts(e["path"])
-                center = find_best_integer_or_half_center(counts)
-                edge_trim = int(getattr(self.parent_win, "_edge_trim", 1))
-                folded, sigma, y, norm = fold_and_normalize(counts, center, edge_trim)
-                vel = velocity_axis(counts.size, vmax, y.size, edge_trim)
+                _c, sigma, y, _norm, vel = self.parent_win._prepare_counts(counts)
                 spectra.append(GlobalRelaxationSpectrum(
                     velocity=vel,
                     y_data=y,

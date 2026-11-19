@@ -177,6 +177,40 @@ not need an ordered axis). The relaxation component is not supported with a
 sinusoidal drive in this version.
 \end{nota}
 
+\subsection{Folding: fold or not}
+\label{sec:fold-mode}
+
+With a triangular drive, folding is a \textbf{choice}, not something the file
+format decides. The \menu{Folding} control of the calibration panel offers three
+modes (NORMOS's \code{FOLD}, separate from \code{TRIANG}):
+
+\begin{itemize}[nosep]
+  \item \textbf{Fold} (default): the two branches of the sweep are averaged, as
+        described above.
+  \item \textbf{Unfolded: single sweep}: the file is already folded (by the
+        instrument or its software) or holds a single sweep. Each channel has its
+        velocity on a linear axis from $-v_{\max}$ to $+v_{\max}$; there is no
+        folding point, so \param{Centre} and \emph{Fit centre} are disabled. It is
+        \code{FOLD=.FALSE.} in NORMOS.
+  \item \textbf{Unfolded: two branches}: the raw spectrum is fitted whole, each
+        channel at its velocity on the triangle, which depends on the folding
+        point (as with a sinusoidal drive). It gives the same parameters as
+        folding, with the same errors, and shows each branch separately.
+\end{itemize}
+
+The \menu{Reverse direction} box is for instruments that sweep from $+v_{\max}$
+to $-v_{\max}$: without it the spectrum comes out mirrored and $\delta$ changes
+sign. The mode and the direction are saved in the session, applied to batch
+fitting, and read from and written to NORMOS \code{.JOB} files
+(\code{FOLD=.FALSE.}; a positive \code{V1} reverses the direction).
+
+\begin{nota}
+Without folding, each point is one channel and not the average of two, so its
+Poisson uncertainty is $\sqrt{N}$ rather than $\sqrt{N/2}$. Fitbauer uses it in
+the fit, the bootstrap and the profiles; with the wrong mode, the reduced
+$\chi^2$ comes out twice or half what it should be.
+\end{nota}
+
 \section{Normalisation and noise}
 
 So that fits are comparable between spectra, the data are \textbf{normalised} by

@@ -21,17 +21,18 @@ import numpy as np
 from core.fit_engine import Component, FitState, fit_discrete
 from core.folding import (
     EDGE_TRIM_DEFAULT,
+    canonical_fold_mode,
+    channel_velocity_axis,
+    is_pair_averaged,
+    prepare_channel_counts,
     find_best_integer_or_half_center,
     geometry_effect_amplitude,
     find_sine_symmetry_center,
     fold_and_normalize,
-    normalize_unfolded,
     read_normos_folding_point,
-    read_ws5_counts,
-    sine_velocity_axis,
-    symmetry_center_to_c0,
-    velocity_axis,
 )
+from core.spectrum_import import ImportHints, read_spectrum_file
+from mossbauer_i18n import tr
 from core.params import (
     ACTIVE_PARAM_ORDER as _ACTIVE_PARAM_ORDER,
     COMPONENT_KINDS as _COMPONENT_KINDS,
@@ -81,6 +82,10 @@ class ModelState:
     # "legacy" (el histórico de Fitbauer; "alpha_fe" es su alias).
     sextet_pattern: str = "normos"
     drive_form: str = "triangular"      # "triangular" (aceleración cte) / "sine"
+    # Plegado de las cuentas por canal (core.folding.FOLD_MODES) y sentido del
+    # eje de velocidad (equipos que barren de + a −).
+    fold_mode: str = "fold"
+    reverse_velocity: bool = False
     propagate_calib: bool = False
     global_opt: bool = False
     fit_velocity: bool = False
@@ -183,6 +188,10 @@ class ModelState:
                      "drive_form"):
             if skey in state:
                 setattr(self, skey, str(state[skey]))
+        if "fold_mode" in state:
+            self.fold_mode = canonical_fold_mode(state["fold_mode"])
+        if "reverse_velocity" in state:
+            self.reverse_velocity = bool(state["reverse_velocity"])
         if "constraints" in state:
             self.constraints = list(state["constraints"])
         if "n_components" in state:
@@ -261,6 +270,8 @@ class ModelState:
             relax_convention=self.relax_convention,
             sextet_pattern=self.sextet_pattern,
             drive_form=self.drive_form,
+            fold_mode=canonical_fold_mode(self.fold_mode),
+            reverse_velocity=bool(self.reverse_velocity),
             multistart_n=self.multistart_n,
             channel_sub=max(1, int(self.channel_sub)),
             auto_global=bool(self.auto_global),
@@ -305,6 +316,8 @@ class ModelState:
             "relax_convention": self.relax_convention,
             "sextet_pattern": self.sextet_pattern,
             "drive_form": self.drive_form,
+            "fold_mode": self.fold_mode,
+            "reverse_velocity": bool(self.reverse_velocity),
             "multistart_n": self.multistart_n,
             "channel_sub": self.channel_sub,
             "wide_delta": self.wide_delta,
@@ -344,23 +357,38 @@ class HeadlessSession:
         self.last_fit_stats: dict[str, float] = {}
         self.last_fit_correlations: dict = {}
 
-    def load_ws5(self, path, *, vmax: float | None = None) -> None:
-        """Carga un espectro, detecta su centro y lo dobla (espejo de load_ws5+refold)."""
+    def load_ws5(self, path, *, vmax: float | None = None,
+                 hints: ImportHints | None = None) -> None:
+        """Carga cuentas por canal y las dobla o no según ``model.fold_mode``.
+
+        Lee cualquier fichero de texto con :mod:`core.spectrum_import`
+        (cabecera y pie incluidos; ``hints`` corrige lo deducido). Los ficheros
+        con eje de velocidad no se cargan aquí.
+        """
         path = Path(path)
-        counts = read_ws5_counts(path)
+        imported = read_spectrum_file(path, hints)
+        if imported.x_kind != "channel" or not imported.is_counts:
+            raise ValueError(tr(
+                "load.not_channel_counts", name=path.name,
+                default="{name} does not contain counts per channel."))
+        counts = imported.y
+        mode = canonical_fold_mode(self.model.fold_mode)
         if self.model.drive_form == "sine":
             # Drive senoidal (NORMOS FOLD=.FALSE.): no se dobla; se usa el
             # espectro sin plegar y su punto de simetría (~N/4) como fase.
             center = find_sine_symmetry_center(counts)
-            sigma, y, norm = normalize_unfolded(counts)
-            folded = counts
+        elif mode == "single_sweep":
+            # Ya doblado o un solo barrido: no hay punto de plegado.
+            center = 0.5 * (counts.size + 1)
         else:
             center = read_normos_folding_point(path)
             if center is None:
                 half = 0.5 * counts.size
                 center = find_best_integer_or_half_center(
                     counts, max(1.5, half - 20.0), min(counts.size - 0.5, half + 20.0))
-            folded, sigma, y, norm = fold_and_normalize(counts, center, _EDGE_TRIM)
+        folded, sigma, y, norm = prepare_channel_counts(
+            counts, center, fold_mode=mode, drive_form=self.model.drive_form,
+            edge_trim=_EDGE_TRIM)
         self.spectrum = LoadedSpectrum(
             path=path, counts=counts, center=float(center),
             folded=folded, y_data=y, sigma=sigma, norm_factor=norm)
@@ -395,12 +423,12 @@ class HeadlessSession:
         """Eje de velocidad con el mismo recorte de borde que el folding (espejo Qt)."""
         sp = self._require_spectrum()
         vmax = float(self.model.vars.get("vmax", 12.0))
-        if self.model.drive_form == "sine":
-            c0 = symmetry_center_to_c0(sp.center, sp.counts.size)
-            return sine_velocity_axis(sp.counts.size, vmax, c0)
-        # edge_trim=None → el recorte se deduce del nº de puntos, que es lo
-        # correcto ahora que es adaptativo.
-        return velocity_axis(sp.counts.size, vmax, sp.y_data.size)
+        # Al doblar, el recorte de bordes se deduce del nº de puntos (es
+        # adaptativo); sin doblar, eje por canal.
+        return channel_velocity_axis(
+            sp.counts.size, vmax, sp.y_data.size, center=sp.center,
+            fold_mode=self.model.fold_mode, drive_form=self.model.drive_form,
+            reverse=self.model.reverse_velocity)
 
     def build_fit_state(self) -> FitState:
         sp = self._require_spectrum()
@@ -422,9 +450,9 @@ class HeadlessSession:
         new_center = float(self.model.vars.get("center", 0.0))
         if (self.model.fit_center and sp is not None
                 and abs(new_center - float(sp.center)) > 1e-9):
-            if self.model.drive_form == "sine":
-                # En seno no se dobla: basta actualizar la fase para que
-                # _velocity() construya el eje con el centro ajustado.
+            if not is_pair_averaged(self.model.fold_mode, self.model.drive_form):
+                # Sin doblar (seno o dos ramas): basta actualizar el centro
+                # para que _velocity() construya el eje con el ajustado.
                 self.spectrum = LoadedSpectrum(
                     path=sp.path, counts=sp.counts, center=new_center,
                     folded=sp.folded, y_data=sp.y_data, sigma=sp.sigma,
@@ -447,8 +475,13 @@ class HeadlessSession:
         values_out = {k: float(self.model.vars[k]) for k in active}
         # Globales de calibración ajustados: antes eran invisibles en la salida
         # (active_param_keys no los incluye) aunque sí iban a la sesión.
+        # En un solo barrido el centro no interviene (el motor no lo ajusta).
+        single = (self.model.drive_form != "sine"
+                  and canonical_fold_mode(self.model.fold_mode) == "single_sweep")
         for flag, key in (("fit_center", "center"), ("fit_velocity", "vmax"),
                           ("fit_sigma", "voigt_sigma")):
+            if key == "center" and single:
+                continue
             if getattr(self.model, flag, False) and key in self.model.vars:
                 values_out[key] = float(self.model.vars[key])
         # Globales opcionales de modelo (saturación/transmisión/curvatura):

@@ -769,3 +769,89 @@ def find_sine_symmetry_center(counts: np.ndarray) -> float:
     lo = max(1.5, 0.15 * n)
     hi = 0.40 * n
     return find_best_integer_or_half_center(counts, lo, hi)
+
+
+# ── Plegado explícito ─────────────────────────────────────────────────────────
+# Con cuentas por canal y drive triangular, doblar es una elección, no algo que
+# dicte el formato del fichero (equivale al FOLD de NORMOS, aparte de TRIANG):
+#
+# - ``"fold"``: se doblan las dos ramas (lo de siempre; N/2 puntos).
+# - ``"single_sweep"``: el fichero ya viene doblado (o es un solo barrido):
+#   N puntos con v lineal de −vmax a +vmax.
+# - ``"two_branches"``: espectro crudo ajustado entero, cada canal en su
+#   velocidad del triángulo (como el seno, pero lineal).
+#
+# Sin doblar, cada punto es un canal y no un promedio de dos: la σ de Poisson
+# es √cuentas, no √(cuentas/2). ``reverse`` invierte el sentido del eje para
+# equipos que barren de + a −. En seno nunca se dobla y el modo no aplica.
+
+FOLD_MODES = ("fold", "single_sweep", "two_branches")
+
+
+def canonical_fold_mode(mode: str | None) -> str:
+    """Modo de plegado válido (``"fold"`` si falta o no se reconoce)."""
+    return mode if mode in FOLD_MODES else "fold"
+
+
+def is_pair_averaged(fold_mode: str | None, drive_form: str = "triangular") -> bool:
+    """¿Cada punto es el promedio de dos canales? Solo al doblar en triangular."""
+    return drive_form != "sine" and canonical_fold_mode(fold_mode) == "fold"
+
+
+def triangular_velocity_axis(counts_size: int, vmax: float, center: float,
+                             reverse: bool = False) -> np.ndarray:
+    """Velocidad de cada canal de un drive triangular, sin doblar.
+
+    Coherente con :func:`fold_integer_or_half` + :func:`velocity_axis`: el
+    canal a distancia ``d`` del punto de plegado cae donde cae al doblar el
+    punto ``k = d − ½`` (−vmax junto al plegado, +vmax en el extremo). La
+    distancia es periódica (el barrido se repite cada N canales).
+    """
+    n = int(counts_size)
+    if n <= 0:
+        return np.array([], dtype=float)
+    n_out = max(n // 2, 2)
+    i = np.arange(1, n + 1, dtype=float)
+    d = np.abs(i - float(center)) % n
+    d = np.minimum(d, n - d)
+    v = -float(vmax) + 2.0 * float(vmax) * (d - 0.5) / (n_out - 1)
+    return -v if reverse else v
+
+
+def single_sweep_velocity_axis(counts_size: int, vmax: float,
+                               reverse: bool = False) -> np.ndarray:
+    """Velocidad lineal de −vmax a +vmax en un único barrido de N canales."""
+    v = np.linspace(-float(vmax), float(vmax), int(counts_size))
+    return v[::-1].copy() if reverse else v
+
+
+def prepare_channel_counts(counts: np.ndarray, center: float, *,
+                           fold_mode: str = "fold",
+                           drive_form: str = "triangular",
+                           edge_trim: int = EDGE_TRIM_DEFAULT,
+                           order: int | None = None,
+                           ) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
+    """Dobla o no las cuentas según el modo; mismo retorno que :func:`fold_and_normalize`."""
+    if is_pair_averaged(fold_mode, drive_form):
+        return fold_and_normalize(counts, center, edge_trim, order)
+    c = np.asarray(counts, dtype=float)
+    sigma, y, norm = normalize_unfolded(c)
+    return c, sigma, y, norm
+
+
+def channel_velocity_axis(counts_size: int, vmax: float, n_points: int, *,
+                          center: float, fold_mode: str = "fold",
+                          drive_form: str = "triangular",
+                          reverse: bool = False) -> np.ndarray:
+    """Eje de velocidad de los datos preparados por :func:`prepare_channel_counts`."""
+    if drive_form == "sine":
+        v = sine_velocity_axis(counts_size, vmax,
+                               symmetry_center_to_c0(center, counts_size))
+        return -v if reverse else v
+    mode = canonical_fold_mode(fold_mode)
+    if mode == "single_sweep":
+        return single_sweep_velocity_axis(counts_size, vmax, reverse)
+    if mode == "two_branches":
+        return triangular_velocity_axis(counts_size, vmax, center, reverse)
+    v = velocity_axis(counts_size, vmax, n_points)
+    return -v if reverse else v

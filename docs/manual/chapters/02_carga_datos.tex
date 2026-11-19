@@ -175,6 +175,40 @@ un eje ordenado). El componente de relajación no está soportado con drive
 senoidal en esta versión.
 \end{nota}
 
+\subsection{Plegado: doblar o no}
+\label{sec:fold-mode}
+
+Con un drive triangular, doblar es una \textbf{elección} y no lo decide el
+formato del fichero. El control \menu{Plegado} del panel de calibración ofrece
+tres modos (es el \code{FOLD} de NORMOS, aparte de \code{TRIANG}):
+
+\begin{itemize}[nosep]
+  \item \textbf{Doblar} (por defecto): se promedian las dos ramas del barrido,
+        como se ha descrito arriba.
+  \item \textbf{Sin doblar: un solo barrido}: el fichero ya viene doblado (lo hizo
+        el equipo o su programa) o contiene un único barrido. Cada canal tiene su
+        velocidad en un eje lineal de $-v_{\max}$ a $+v_{\max}$; no hay punto de
+        plegado, así que \param{Centro} y \emph{Ajustar centro} se desactivan.
+        Equivale a \code{FOLD=.FALSE.} en NORMOS.
+  \item \textbf{Sin doblar: dos ramas}: el espectro crudo se ajusta entero, con
+        cada canal en su velocidad del triángulo, que depende del punto de
+        plegado (igual que en senoidal). Da los mismos parámetros que doblar, con
+        los mismos errores, y permite ver cada rama por separado.
+\end{itemize}
+
+La casilla \menu{Invertir sentido} es para equipos que barren de $+v_{\max}$ a
+$-v_{\max}$: sin ella, el espectro sale reflejado y $\delta$ cambia de signo.
+El modo y el sentido se guardan en la sesión, se aplican al ajuste en serie y se
+leen y escriben en los \code{.JOB} de NORMOS (\code{FOLD=.FALSE.}; un \code{V1}
+positivo invierte el sentido).
+
+\begin{nota}
+Sin doblar, cada punto es un canal y no el promedio de dos, así que su
+incertidumbre de Poisson es $\sqrt{N}$ y no $\sqrt{N/2}$. Fitbauer la usa en el
+ajuste, el \emph{bootstrap} y los perfiles; con el modo equivocado, la
+$\tilde{\chi}^2$ sale el doble o la mitad de lo que debería.
+\end{nota}
+
 \section{Normalización y ruido}
 
 Para que los ajustes sean comparables entre espectros, los datos se

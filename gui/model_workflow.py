@@ -9,9 +9,9 @@ from PySide6 import QtWidgets
 from mossbauer_i18n import tr
 from core.constants import GLOBAL_PARAM_NAMES, SEXTET_PARAM_NAMES
 from core.folding import (
-    find_best_integer_or_half_center, find_sine_symmetry_center,
-    fold_and_normalize, load_velocity_csv, normalize_unfolded,
-    read_ws5_counts, sine_velocity_axis, symmetry_center_to_c0, velocity_axis,
+    channel_velocity_axis, find_best_integer_or_half_center,
+    find_sine_symmetry_center, is_pair_averaged, load_velocity_csv,
+    prepare_channel_counts, read_ws5_counts, velocity_axis,
 )
 from core.fit_engine import FitState, resolve_values
 from core.result_views import discrete_result_view
@@ -260,30 +260,61 @@ class ModelWorkflowMixin:
     def _drive_form(self) -> str:
         return self.calib.to_view_state().drive_form
 
+    def _fold_mode(self) -> str:
+        return self.calib.to_view_state().fold_mode
+
+    def _detect_center(self, counts: np.ndarray) -> float:
+        """Punto de plegado (fase en seno) según la forma de onda y el modo."""
+        if self._drive_form() == "sine":
+            return find_sine_symmetry_center(counts)
+        if self._fold_mode() == "single_sweep":
+            # Ya doblado o un solo barrido: no hay punto de plegado.
+            return 0.5 * (counts.size + 1)
+        return find_best_integer_or_half_center(counts)
+
+    def _prepare_counts(self, counts: np.ndarray
+                        ) -> tuple[float, np.ndarray, np.ndarray, float, np.ndarray]:
+        """Prepara otras cuentas (serie, comparación) como las del espectro activo.
+
+        Misma forma de onda, plegado, recorte, Vmax y sentido que la ventana.
+        Devuelve ``(center, sigma, y, norm, velocity)``.
+        """
+        calib_state = self.calib.to_view_state()
+        center = self._detect_center(counts)
+        _data, sigma, y, norm = prepare_channel_counts(
+            counts, center, fold_mode=calib_state.fold_mode,
+            drive_form=calib_state.drive_form,
+            edge_trim=int(getattr(self, "_edge_trim", 0)))
+        v = channel_velocity_axis(
+            counts.size, calib_state.vmax, y.size, center=center,
+            fold_mode=calib_state.fold_mode, drive_form=calib_state.drive_form,
+            reverse=calib_state.reverse_velocity)
+        return center, sigma, y, norm, v
+
     def _fold_counts_for_center(self, center: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Dobla las cuentas (triangular) o las deja sin doblar (seno)."""
+        """Dobla las cuentas o las deja sin doblar (seno o modo sin doblar)."""
         if self.file.counts is None:
             raise ValueError("No hay cuentas cargadas")
-        if self._drive_form() == "sine":
-            # Seno: no se dobla; se usan las cuentas por canal directamente.
-            sigma, y, _norm = normalize_unfolded(self.file.counts)
-            return self.file.counts, sigma, y
-        folded, sigma, y, _norm = fold_and_normalize(
-            self.file.counts, center, int(getattr(self, "_edge_trim", 0)))
+        folded, sigma, y, _norm = prepare_channel_counts(
+            self.file.counts, center, fold_mode=self._fold_mode(),
+            drive_form=self._drive_form(),
+            edge_trim=int(getattr(self, "_edge_trim", 0)))
         return folded, sigma, y
 
     def _velocity_for_folded(self, n_points: int, trim_edges: bool = True) -> np.ndarray:
-        """Crea el eje de velocidad (lineal en triangular, senoidal en seno)."""
+        """Eje de velocidad de los datos (doblados, por canal o senoidal)."""
         if self.file.counts is None:
             return np.array([], dtype=float)
         calib_state = self.calib.to_view_state()
-        if calib_state.drive_form == "sine":
-            n = int(self.file.counts.size)
-            center = float(self.file.center) if self.file.center is not None else float(calib_state.center)
-            c0 = symmetry_center_to_c0(center, n)
-            return sine_velocity_axis(n, calib_state.vmax, c0)
-        return velocity_axis(self.file.counts.size, calib_state.vmax,
-                             n_points, int(getattr(self, "_edge_trim", 0)), trim_edges)
+        if (is_pair_averaged(calib_state.fold_mode, calib_state.drive_form)
+                and not calib_state.reverse_velocity):
+            return velocity_axis(self.file.counts.size, calib_state.vmax,
+                                 n_points, int(getattr(self, "_edge_trim", 0)), trim_edges)
+        center = float(self.file.center) if self.file.center is not None else float(calib_state.center)
+        return channel_velocity_axis(
+            self.file.counts.size, calib_state.vmax, n_points, center=center,
+            fold_mode=calib_state.fold_mode, drive_form=calib_state.drive_form,
+            reverse=calib_state.reverse_velocity)
 
     def _refold_current_data(self, center: float) -> None:
         """Recalcula datos normalizados/sigma/eje cuando cambia el folding point."""
@@ -320,10 +351,7 @@ class ModelWorkflowMixin:
             self._refresh_plot()
             return
         counts = self.file.counts
-        if self._drive_form() == "sine":
-            center = find_sine_symmetry_center(counts)
-        else:
-            center = find_best_integer_or_half_center(counts)
+        center = self._detect_center(counts)
         self._building = True
         try:
             self.calib.center.set_value(center)
@@ -627,6 +655,8 @@ class ModelWorkflowMixin:
             robust_loss=self.robust_loss,
             absorber_model=calib_state.absorber_model,
             drive_form=calib_state.drive_form,
+            fold_mode=calib_state.fold_mode,
+            reverse_velocity=calib_state.reverse_velocity,
             propagate_calib=self.propagate_calib,
             global_opt=self.global_opt,
             fit_velocity=calib_state.fit_velocity,
@@ -908,10 +938,7 @@ class ModelWorkflowMixin:
 
     def _load_file(self, path: Path) -> None:
         counts = read_ws5_counts(path)
-        if self._drive_form() == "sine":
-            center = find_sine_symmetry_center(counts)
-        else:
-            center = find_best_integer_or_half_center(counts)
+        center = self._detect_center(counts)
         self.file = FileState(path=path, counts=counts, center=center)
         self._simulate_enabled = False
         self.mark_saved()      # espectro recién cargado: nada que perder aún

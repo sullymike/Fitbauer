@@ -13,6 +13,7 @@ from typing import Any
 
 import numpy as np
 
+from core.folding import canonical_fold_mode
 from core.param_overrides import effective_distribution_specs as _eff_dist_specs, effective_fit_init_specs as _eff_fi_specs
 _DSPEC = _eff_dist_specs()
 _FI = _eff_fi_specs()
@@ -160,6 +161,8 @@ class CalibrationViewState:
     line_profile: str = "Lorentziana"
     absorber_model: str = "thin"
     drive_form: str = "triangular"
+    fold_mode: str = "fold"
+    reverse_velocity: bool = False
     fit_velocity: bool = False
     fit_center: bool = False
     fit_sigma: bool = False
@@ -269,6 +272,8 @@ class FitOptionsState:
     robust_loss: str = "linear"
     absorber_model: str = "thin"
     drive_form: str = "triangular"
+    fold_mode: str = "fold"
+    reverse_velocity: bool = False
     propagate_calib: bool = False
     global_opt: bool = False
     fit_velocity: bool = False
@@ -292,6 +297,8 @@ class FitOptionsState:
             robust_loss=str(state.get("robust_loss", "linear")),
             absorber_model=str(state.get("absorber_model", "thin")),
             drive_form=str(state.get("drive_form", "triangular")),
+            fold_mode=canonical_fold_mode(state.get("fold_mode")),
+            reverse_velocity=bool(state.get("reverse_velocity", False)),
             propagate_calib=bool(state.get("propagate_calib", False)),
             global_opt=bool(state.get("global_opt", False)),
             fit_velocity=bool(state.get("fit_velocity", False)),
@@ -315,6 +322,8 @@ class FitOptionsState:
         model_state.robust_loss = self.robust_loss
         model_state.absorber_model = self.absorber_model
         model_state.drive_form = self.drive_form
+        model_state.fold_mode = self.fold_mode
+        model_state.reverse_velocity = bool(self.reverse_velocity)
         model_state.propagate_calib = bool(self.propagate_calib)
         model_state.global_opt = bool(self.global_opt)
         model_state.fit_velocity = bool(self.fit_velocity)
@@ -335,6 +344,8 @@ class FitOptionsState:
             "robust_loss": self.robust_loss,
             "absorber_model": self.absorber_model,
             "drive_form": self.drive_form,
+            "fold_mode": self.fold_mode,
+            "reverse_velocity": bool(self.reverse_velocity),
             "propagate_calib": bool(self.propagate_calib),
             "global_opt": bool(self.global_opt),
             "fit_velocity": bool(self.fit_velocity),

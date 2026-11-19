@@ -14,7 +14,7 @@ este motor lo deja fuera por ahora.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Callable
 import time
 
@@ -36,9 +36,12 @@ from core.physics import (
 )
 from core.constants import SEXTET_PARAM_NAMES, sextet_pattern
 from core.folding import (
+    canonical_fold_mode,
     fold_integer_or_half,
+    is_pair_averaged,
     sine_velocity_axis,
     symmetry_center_to_c0,
+    triangular_velocity_axis,
 )
 from core.profile_likelihood import asymmetric_intervals
 from core.residual_diagnostics import residual_diagnostics
@@ -103,6 +106,10 @@ class FitState:
     # tocar el convenio global (rutas que construyen el estado a mano).
     sextet_pattern: str | None = None
     drive_form: str = "triangular"      # "triangular" / "sine" (eje v = vmax·sin)
+    # Plegado de las cuentas por canal (ver core.folding.FOLD_MODES) y sentido
+    # del eje. Sin doblar, cada punto es un canal (σ = √cuentas, no √(c/2)).
+    fold_mode: str = "fold"
+    reverse_velocity: bool = False
     multistart_n: int = 8               # nº de réplicas perturbadas (+1 base)
     channel_sub: int = 1                # integración del modelo sobre el canal (1 = centro)
     # Escalado global automático (banco NORMOS §6.10): si tras el multistart el
@@ -399,11 +406,15 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
     # (a partir de vmax/center de prueba); los datos y/σ NO cambian con c0/vmax
     # (a diferencia del re-fold triangular). c0 = center − N/4.
     is_sine = state.drive_form == "sine"
+    pair_averaged = is_pair_averaged(state.fold_mode, state.drive_form)
+    # Dos ramas sin doblar: el eje por canal depende del punto de plegado.
+    two_branches = (not is_sine
+                    and canonical_fold_mode(state.fold_mode) == "two_branches")
     n_channels = int(np.asarray(state.velocity).size)
     # Re-folding del centro (portado del Tk): sólo si tenemos las cuentas crudas
     # y en modo triangular (en seno el centro es la fase y no se dobla).
     counts = state.counts
-    can_refold = fit_center and counts is not None and not is_sine
+    can_refold = fit_center and counts is not None and pair_averaged
     fallback_norm = float(state.norm_factor) if state.norm_factor else 1.0
     # Normalización para la σ Poisson correcta (0/None → escala relativa √m).
     norm_factor = float(state.norm_factor) if state.norm_factor else 0.0
@@ -436,6 +447,12 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
             _sign = -1.0 if float(base_values.get("vmax", 0.0)) < 0 else 1.0
             c0 = symmetry_center_to_c0(center, n_channels)
             v = sine_velocity_axis(n_channels, _sign * abs(vmax), c0)
+            if state.reverse_velocity:
+                v = -v
+        elif two_branches and fit_center:
+            _sign = -1.0 if float(base_values.get("vmax", 0.0)) < 0 else 1.0
+            v = triangular_velocity_axis(n_channels, _sign * abs(vmax), center,
+                                         state.reverse_velocity)
         elif velocity_scaler is not None:
             v = velocity_scaler(vmax)
         else:
@@ -461,7 +478,7 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
                 predicted_counts = np.maximum(np.abs(m) * norm_factor, 1.0)
                 # El ÷2 corresponde al promedio de dos canales del doblado
                 # triangular; en seno no se dobla (cada canal es una cuenta única).
-                _pair_avg = 1.0 if is_sine else 2.0
+                _pair_avg = 2.0 if pair_averaged else 1.0
                 sig = np.maximum(np.sqrt(predicted_counts / _pair_avg) / norm_factor, 1e-9)
             else:
                 sig = np.sqrt(np.maximum(np.abs(m), 1e-12))
@@ -516,6 +533,11 @@ def fit_discrete(state: FitState, progress_cb: Callable[[object], None] | None =
     global (p. ej. distribuciones Binomial/Fija).
     """
     from core import physics as _phys
+    # Un solo barrido sin doblar: el punto de plegado no interviene en el
+    # modelo; ajustarlo dejaría un parámetro muerto (covarianza singular).
+    if (state.fit_center and state.drive_form != "sine"
+            and canonical_fold_mode(state.fold_mode) == "single_sweep"):
+        state = replace(state, fit_center=False)
     prev_profile = (_phys.LINE_PROFILE_KIND, _phys.VOIGT_SIGMA)
     try:
         # El convenio de razones de intensidad ("depth"/"area") es del modelo,
@@ -979,6 +1001,7 @@ def _replica_state(
         voigt_sigma=float(values.get("voigt_sigma", state.voigt_sigma)),
         absorber_model=state.absorber_model, multistart_n=multistart_n,
         norm_factor=state.norm_factor, drive_form=state.drive_form,
+        fold_mode=state.fold_mode, reverse_velocity=state.reverse_velocity,
         # Los convenios son del MODELO: sin copiarlos, las réplicas se
         # ajustaban con los de por defecto aunque el ajuste base no.
         intensity_convention=state.intensity_convention,
@@ -1021,7 +1044,7 @@ def bootstrap_errors(
         if poisson:
             # c_sim ~ Poisson(λ = model0·norm·k) / k, con k=2 por el promedio de
             # dos canales del doblado triangular; en seno no se dobla (k=1).
-            _k = 1.0 if state.drive_form == "sine" else 2.0
+            _k = 2.0 if is_pair_averaged(state.fold_mode, state.drive_form) else 1.0
             lam = np.maximum(model0 * norm * _k, 0.0)
             y_sim = (rng.poisson(lam).astype(float) / _k) / norm
         else:
@@ -1071,7 +1094,8 @@ def profile_likelihood(
     # mismo dataset con la calibración fijada (intervalos condicionales a c*).
     y_prof, sig_prof = state.y_data, state.sigma_data
     if (state.fit_center and state.counts is not None
-            and state.drive_form != "sine" and "center" in base.values):
+            and is_pair_averaged(state.fold_mode, state.drive_form)
+            and "center" in base.values):
         _fallback = float(state.norm_factor) if state.norm_factor else 1.0
         y_ref, sig_ref = _refold_at_center(
             np.asarray(state.counts, dtype=float),

@@ -2,6 +2,27 @@
 
 ## Sin publicar
 
+- **Plegado explícito.** Doblar ya no lo decide el formato del fichero: el
+  panel de calibración tiene un desplegable **Plegado** (el `FOLD` de NORMOS,
+  aparte de la forma de onda) con tres modos para las cuentas por canal:
+  *Doblar* (el de siempre), *Sin doblar: un solo barrido* (datos ya doblados
+  por el equipo: eje lineal de −Vmax a +Vmax en N canales) y *Sin doblar: dos
+  ramas* (espectro crudo ajustado entero, cada canal en su velocidad del
+  triángulo, coherente con el doblado). La casilla **Invertir sentido** sirve
+  a los equipos que barren de + a −. Sin doblar, cada punto es un canal y no
+  un promedio de dos: el motor usa σ = √cuentas (no √(cuentas/2)) en el ajuste,
+  el bootstrap y los perfiles, no re-dobla al ajustar el centro y, en un solo
+  barrido, no lo ajusta (no interviene). El modo viaja en sesiones, plantillas,
+  ajuste en serie, relajación global y comparación de espectros, y en el CLI
+  (`--fold`, `--reverse-velocity`). Los `.JOB` con `FOLD=.FALSE.` se importan
+  como un solo barrido (`V1` positivo = sentido invertido) y se exportan igual.
+  - De paso: «Detectar centro», la serie, la relajación global y la
+    comparación usaban siempre el doblado triangular aunque la forma de onda
+    fuese senoidal; ahora respetan la de la ventana.
+  - Al restaurar una sesión, la forma de onda y el plegado se fijan antes de
+    cargar los datos (antes los datos quedaban preparados con el modo previo).
+  - El modo headless lee los ficheros con el lector genérico (cabecera y pie).
+
 - **Lector genérico de espectros (`core/spectrum_import.py`).** Primer paso
   para importar ficheros de cualquier equipo sin convertirlos antes. Sin
   formatos concretos: localiza el bloque de datos numéricos (lo anterior es

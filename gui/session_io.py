@@ -10,7 +10,6 @@ from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
 from core.data_io import CONFIG_DIR
-from core.folding import find_best_integer_or_half_center
 from core.params import COMPONENT_KINDS, DISTRIBUTION_SHAPES, INTENSITY_MODES, QUAD_TREATMENTS
 from gui.state import (
     CalibrationState,
@@ -92,6 +91,19 @@ class SessionIOMixin:
     def _apply_session_payload(self, data: dict) -> None:
         project = ProjectState.from_session_payload(data)
         spectrum = project.spectrum
+        # 0. Forma de onda y plegado ANTES de cargar los datos: deciden cómo se
+        #    preparan. Después solo se re-dobla si cambia el centro, así que
+        #    fijarlos más tarde dejaba los datos con el modo anterior.
+        from gui.state import FitOptionsState
+        _opts0 = FitOptionsState.from_model_state(project.model_state)
+        _prev_building = self._building
+        self._building = True
+        try:
+            if project.model_state.get("drive_form") in ("triangular", "sine"):
+                self.calib.set_drive_form(project.model_state["drive_form"])
+            self.calib.set_fold_mode(_opts0.fold_mode, _opts0.reverse_velocity)
+        finally:
+            self._building = _prev_building
         # 1. Datos: si trae un file_path existente o counts embebidos, los carga.
         if spectrum.path and spectrum.path.exists():
             try:
@@ -110,7 +122,7 @@ class SessionIOMixin:
                 counts=np.array(spectrum.counts, dtype=float),
             )
             counts = self.file.counts
-            center = find_best_integer_or_half_center(counts)
+            center = self._detect_center(counts)
             self.file.center = center
             folded, sigma, y = self._fold_counts_for_center(center)
             norm = float(np.percentile(folded, 90)) if folded.size else 1.0
@@ -303,6 +315,8 @@ class SessionIOMixin:
             df = state.get("drive_form")
             if df in ("triangular", "sine"):
                 self.calib.set_drive_form(df)
+            # Plegado: una sesión anterior a que existiera se dobló siempre.
+            self.calib.set_fold_mode(_opts.fold_mode, _opts.reverse_velocity)
             if "dist_use_sharp" in state:
                 self.dist_use_sharp = bool(state["dist_use_sharp"])
             # dist_refine_global era un campo legacy (v4.5); se ignora silenciosamente
