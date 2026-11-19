@@ -69,3 +69,111 @@ def test_profile_hints_drive_reader(tmp_path):
 def test_unknown_values_fall_back():
     p = InstrumentProfile.from_dict({"name": "x", "drive_form": "square", "fold_mode": "??"})
     assert p.drive_form == "triangular" and p.fold_mode == "fold"
+
+
+# ── Fechas de medida ─────────────────────────────────────────────────────────
+
+import datetime as dt
+import os
+
+from core.batch_fit import write_results_csv
+from core.instruments import CalibrationRecord, calibration_for_date
+from core.spectrum_import import measurement_date, parse_date_text
+
+
+@pytest.mark.parametrize("text, dmy, mdy", [
+    ("2025-03-14", "2025-03-14", "2025-03-14"),
+    ("Date: 14/03/2025", "2025-03-14", "2025-03-14"),       # 14 > 12: manda el día
+    ("03/15/2025 10:00", "2025-03-15", "2025-03-15"),
+    ("05.06.24", "2024-06-05", "2024-05-06"),               # ambigua: decide el orden
+    ("Mar 14, 2025", "2025-03-14", "2025-03-14"),
+    ("14-Mar-2025", "2025-03-14", "2025-03-14"),
+    ("12 dic 2024", "2024-12-12", "2024-12-12"),
+])
+def test_parse_date_text(text, dmy, mdy):
+    assert parse_date_text(text).isoformat() == dmy
+    assert parse_date_text(text, "mdy").isoformat() == mdy
+
+
+def test_parse_date_text_rejects_non_dates():
+    assert parse_date_text("Channels 512 time 300") is None
+    assert parse_date_text("31/02/2025") is None
+
+
+def _counts_text(header: str) -> str:
+    c = np.random.default_rng(0).poisson(1e4, 256)
+    return header + "\n".join(str(x) for x in c)
+
+
+def test_measurement_date_prefers_date_lines(tmp_path):
+    text = _counts_text("Run 01.02.2020 (template)\nAcquisition date: 2025-03-14\n")
+    r = parse_spectrum_text(text)
+    assert measurement_date(r) == (dt.date(2025, 3, 14), "header")
+
+
+def test_measurement_date_falls_back_to_file(tmp_path):
+    p = tmp_path / "s.dat"
+    p.write_text(_counts_text("Sample X\n"))
+    stamp = dt.datetime(2024, 7, 1, 12).timestamp()
+    os.utime(p, (stamp, stamp))
+    from core.spectrum_import import read_spectrum_file
+    assert measurement_date(read_spectrum_file(p), p) == (dt.date(2024, 7, 1), "file")
+    assert measurement_date(read_spectrum_file(p)) == (None, None)
+
+
+# ── Calibraciones por equipo ────────────────────────────────────────────────
+
+def _cal(day: str, vmax: float, **kw) -> CalibrationRecord:
+    return CalibrationRecord(date=dt.date.fromisoformat(day), vmax=vmax, **kw)
+
+
+def test_calibration_for_date_rule():
+    recs = [_cal("2025-01-10", 10.0), _cal("2025-06-01", 10.2), _cal("2025-06-01", 10.3)]
+    assert calibration_for_date(recs, dt.date(2025, 1, 9)) is None
+    assert calibration_for_date(recs, dt.date(2025, 1, 10)).vmax == 10.0
+    assert calibration_for_date(recs, dt.date(2025, 5, 31)).vmax == 10.0
+    assert calibration_for_date(recs, dt.date(2026, 1, 1)).vmax == 10.3   # la añadida después
+
+
+def test_calibrations_stored_with_file_copy(tmp_path):
+    lib = InstrumentLibrary(tmp_path / "lib")
+    with pytest.raises(KeyError):
+        lib.add_calibration("nadie", _cal("2025-01-01", 10.0))
+    lib.save(_profile("A"))
+    src = tmp_path / "afe.adt"
+    src.write_text("1\n2\n")
+    rec = lib.add_calibration("A", _cal("2025-06-01", 10.2, sextet_pattern="legacy",
+                                        isomer_shift=-0.11, sample="α-Fe"), src)
+    lib.add_calibration("A", _cal("2025-01-10", 10.0))
+    recs = lib.calibrations("A")
+    assert [r.date.isoformat() for r in recs] == ["2025-01-10", "2025-06-01"]
+    assert recs[1] == rec and recs[1].sextet_pattern == "legacy"
+    copy = lib.calibration_file("A", recs[1])
+    assert copy.read_text() == "1\n2\n" and copy.parent.parent == tmp_path / "lib" / "a"
+    assert lib.calibration_for("A", dt.date(2025, 7, 1)).isomer_shift == -0.11
+    # Borrar el equipo conserva sus calibraciones.
+    lib.delete("A")
+    assert copy.exists()
+    lib.save(_profile("A"))
+    assert len(lib.calibrations("A")) == 2
+    assert lib.remove_calibration("A", rec.id) and not copy.exists()
+    assert not lib.remove_calibration("A", rec.id)
+
+
+def test_profile_date_order_roundtrip():
+    p = InstrumentProfile.from_dict({**_profile().to_dict(), "date_order": "mdy"})
+    assert p.date_order == "mdy"
+    assert InstrumentProfile.from_dict({"name": "x", "date_order": "ymd"}).date_order == "dmy"
+
+
+def test_batch_tsv_calibration_columns(tmp_path):
+    rows = [{"file": "a", "status": "ok", "values": {"x": 1}, "errors": {"x": 0.1},
+             "stats": {}, "calibration": {"measured": "2025-03-14", "date": "2025-01-10",
+                                          "vmax": 10.0}}]
+    p = tmp_path / "r.tsv"
+    write_results_csv(p, ["x"], rows)
+    head, line = p.read_text().splitlines()
+    assert head.split("\t")[5:8] == ["measured", "calibration", "vmax_cal"]
+    assert line.split("\t")[5:8] == ["2025-03-14", "2025-01-10", "10.0"]
+    write_results_csv(p, ["x"], [{**rows[0], "calibration": None}])
+    assert "calibration" not in p.read_text().splitlines()[0]

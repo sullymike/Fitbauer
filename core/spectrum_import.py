@@ -457,3 +457,85 @@ def _metadata(lines: list[str]) -> tuple[dict[str, str], list[str]]:
             meta.setdefault(m.group(1).strip(), m.group(2))
         dates.extend(_DATE.findall(line))
     return meta, dates
+
+
+# ── Fecha de medida ──────────────────────────────────────────────────────────
+
+DATE_ORDERS = ("dmy", "mdy")
+
+_MONTHS = {m: i for i, names in enumerate((
+    ("jan", "ene"), ("feb",), ("mar",), ("apr", "abr"), ("may",), ("jun",),
+    ("jul",), ("aug", "ago"), ("sep", "set"), ("oct",), ("nov",), ("dec", "dic")), 1)
+    for m in names}
+_ISO_DATE = re.compile(r"\b(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\b")
+_NUM_DATE = re.compile(r"\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{2})\b")
+_TEXT_DATE = re.compile(
+    r"\b(?:(\d{1,2})[\s\-]+([A-Za-z]{3,9})\.?[\s\-,]+(\d{4})"
+    r"|([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4}))\b")
+
+
+def _make_date(y: int, m: int, d: int):
+    import datetime as _dt
+    if y < 100:
+        y += 2000 if y < 70 else 1900
+    try:
+        return _dt.date(y, m, d)
+    except ValueError:
+        return None
+
+
+def parse_date_text(text: str, date_order: str = "dmy"):
+    """Primera fecha válida de un texto (``datetime.date`` o ``None``).
+
+    Reconoce ISO (``2025-03-14``), numéricas (``14/03/2025``, ``03.14.25``) y
+    con el mes en letra (``14 Mar 2025``, ``March 14, 2025``; inglés o
+    español). En las numéricas ambiguas (día y mes ≤ 12) decide
+    ``date_order``: ``"dmy"`` o ``"mdy"``; si un campo pasa de 12, manda él.
+    """
+    found = []
+    for m in _ISO_DATE.finditer(text):
+        found.append((m.start(), _make_date(int(m[1]), int(m[2]), int(m[3]))))
+    for m in _NUM_DATE.finditer(text):
+        a, b, y = int(m[1]), int(m[2]), int(m[3])
+        if a > 12:
+            d, mo = a, b
+        elif b > 12:
+            mo, d = a, b
+        elif date_order == "mdy":
+            mo, d = a, b
+        else:
+            d, mo = a, b
+        found.append((m.start(), _make_date(y, mo, d)))
+    for m in _TEXT_DATE.finditer(text):
+        if m[1]:
+            d, name, y = m[1], m[2], m[3]
+        else:
+            name, d, y = m[4], m[5], m[6]
+        mo = _MONTHS.get(name[:3].lower())
+        if mo:
+            found.append((m.start(), _make_date(int(y), mo, int(d))))
+    found = [f for f in found if f[1] is not None]
+    return min(found, key=lambda f: f[0])[1] if found else None
+
+
+def measurement_date(spectrum: "ImportedSpectrum", path: str | Path | None = None,
+                     date_order: str = "dmy"):
+    """Fecha de medida: ``(fecha, origen)``, con origen ``"header"`` o ``"file"``.
+
+    Se busca en la cabecera y el pie (primero en las líneas que hablan de
+    fecha); si no hay, la fecha de modificación del fichero, que es solo una
+    aproximación (una copia la cambia). ``(None, None)`` si no hay ninguna.
+    """
+    import datetime as _dt
+    lines = list(spectrum.header) + list(spectrum.footer)
+    keyed = [l for l in lines if re.search(r"date|fecha|datum|time|start", l, re.I)]
+    for group in (keyed, lines):
+        found = parse_date_text("\n".join(group), date_order)
+        if found is not None:
+            return found, "header"
+    if path is not None:
+        try:
+            return _dt.date.fromtimestamp(Path(path).stat().st_mtime), "file"
+        except OSError:
+            pass
+    return None, None

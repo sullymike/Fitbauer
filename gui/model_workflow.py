@@ -268,16 +268,30 @@ class ModelWorkflowMixin:
         return detect_fold_center(counts, drive_form=self._drive_form(),
                                   fold_mode=self._fold_mode())
 
-    @staticmethod
-    def _read_channel_counts(path: Path) -> np.ndarray:
-        """Cuentas por canal de cualquier fichero (para series y comparaciones)."""
-        imported = read_spectrum_file(path)
+    def _read_series_spectrum(self, path: Path) -> ImportedSpectrum:
+        """Lee un fichero de una serie como el espectro activo: mismas
+        correcciones de lectura (las del equipo). Exige cuentas por canal."""
+        profile = self._instrument_profile(getattr(self.file, "instrument", None))
+        if profile is not None:
+            hints = profile.import_hints
+        else:
+            # Correcciones del fichero activo, salvo su rango de líneas, que
+            # es de ese fichero.
+            d = dict(getattr(self.file, "import_hints", None) or {})
+            d.pop("data_start", None)
+            d.pop("data_end", None)
+            hints = ImportHints.from_dict(d) if d else None
+        imported = read_spectrum_file(path, hints)
         if imported.x_kind != "channel" or not imported.is_counts:
             raise ValueError(tr("load.not_channel_counts", name=Path(path).name,
                                 default="{name} does not contain counts per channel."))
-        return imported.y
+        return imported
 
-    def _prepare_counts(self, counts: np.ndarray
+    def _read_channel_counts(self, path: Path) -> np.ndarray:
+        """Cuentas por canal de cualquier fichero (para series y comparaciones)."""
+        return self._read_series_spectrum(path).y
+
+    def _prepare_counts(self, counts: np.ndarray, vmax: float | None = None
                         ) -> tuple[float, np.ndarray, np.ndarray, float, np.ndarray]:
         """Prepara otras cuentas (serie, comparación) como las del espectro activo.
 
@@ -291,9 +305,9 @@ class ModelWorkflowMixin:
             drive_form=calib_state.drive_form,
             edge_trim=int(getattr(self, "_edge_trim", 0)))
         v = channel_velocity_axis(
-            counts.size, calib_state.vmax, y.size, center=center,
-            fold_mode=calib_state.fold_mode, drive_form=calib_state.drive_form,
-            reverse=calib_state.reverse_velocity)
+            counts.size, calib_state.vmax if vmax is None else vmax, y.size,
+            center=center, fold_mode=calib_state.fold_mode,
+            drive_form=calib_state.drive_form, reverse=calib_state.reverse_velocity)
         return center, sigma, y, norm, v
 
     def _fold_counts_for_center(self, center: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -936,11 +950,40 @@ class ModelWorkflowMixin:
             QtWidgets.QMessageBox.critical(self, tr("file.open"),
                                            f"{type(exc).__name__}: {exc}")
 
+    def on_instruments(self) -> None:
+        """Archivo → Equipos y calibraciones…"""
+        from gui.instrument_manager import InstrumentManagerDialog
+        InstrumentManagerDialog(self, self._instrument_library(),
+                                getattr(self.file, "instrument", None),
+                                self._current_calibration_entry).exec()
+
+    def _current_calibration_entry(self) -> dict | None:
+        """La calibración que da el espectro activo (α-Fe ajustado): Vmax del
+        panel en el patrón activo, δ del componente 1 y fecha de medida."""
+        path = getattr(self.file, "path", None)
+        if path is None or getattr(self.file, "counts", None) is None:
+            return None
+        date = None
+        try:
+            from core.spectrum_import import measurement_date
+            hints = getattr(self.file, "import_hints", None)
+            imported = read_spectrum_file(path, ImportHints.from_dict(hints) if hints else None)
+            profile = self._instrument_profile(getattr(self.file, "instrument", None))
+            date, _origin = measurement_date(imported, path,
+                                             profile.date_order if profile else "dmy")
+        except (OSError, ValueError):
+            pass
+        return {
+            "vmax": float(self.calib.to_view_state().vmax),
+            "isomer_shift": float(self.components_panels[0].to_view_state().value("delta")),
+            "sample": Path(path).stem, "path": str(path), "date": date,
+            "sextet_pattern": getattr(self, "sextet_pattern", "normos"),
+        }
+
     def on_import(self, path: Path | None = None) -> None:
         """Abre un fichero en la ventana de importación (vista previa,
         correcciones y equipos) y lo carga como allí se haya dejado."""
         from gui.import_dialog import ImportDialog
-        from core.instruments import InstrumentLibrary
 
         if path is None:
             name, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -952,11 +995,13 @@ class ModelWorkflowMixin:
         calib_state = self.calib.to_view_state()
         try:
             dlg = ImportDialog(
-                self, Path(path), library=InstrumentLibrary(),
+                self, Path(path), library=self._instrument_library(),
                 vmax=calib_state.vmax, drive_form=calib_state.drive_form,
                 fold_mode=calib_state.fold_mode,
                 reverse=calib_state.reverse_velocity,
-                instrument=getattr(self.file, "instrument", None))
+                instrument=getattr(self.file, "instrument", None),
+                sextet_pattern=getattr(self, "sextet_pattern", "normos"),
+                current_calibration=self._current_calibration_entry)
         except (OSError, ValueError) as exc:
             QtWidgets.QMessageBox.critical(self, tr("file.import", default="Importar…"),
                                            f"{type(exc).__name__}: {exc}")
@@ -991,6 +1036,9 @@ class ModelWorkflowMixin:
             raise ValueError(tr("load.not_channel_counts", name=path.name,
                                 default="{name} does not contain counts per channel."))
         else:
+            # Con equipo: su calibración vigente en la fecha de medida pasa a
+            # ser la fijada antes de doblar (la impone _load_counts).
+            self._assign_instrument_calibration(path, imported, instrument)
             self._load_counts(path, imported.y)
         self.file.import_hints = (hints.to_dict() or None) if hints else None
         self.file.instrument = instrument

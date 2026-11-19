@@ -262,12 +262,18 @@ class BatchFitDialog(QtWidgets.QDialog):
                 # Reusar warm-start: aplicamos el estado actual del Qt y
                 # cargamos el nuevo espectro (que sobrescribe folding center).
                 # Mismo plegado, recorte y eje que el espectro de la ventana.
-                counts = self.parent_win._read_channel_counts(e["path"])
-                center, sigma, y, norm, v = self.parent_win._prepare_counts(counts)
+                imported = self.parent_win._read_series_spectrum(e["path"])
+                counts = imported.y
+                # Con equipo, cada fichero con la calibración de su fecha.
+                vmax_file, cal = self.parent_win._series_vmax(e["path"], imported)
+                center, sigma, y, norm, v = self.parent_win._prepare_counts(
+                    counts, vmax=vmax_file)
                 # Construir state desde la UI parental
                 state = self.parent_win._build_state()
                 if state is None:
                     raise RuntimeError(tr("batch.no_active_model"))
+                if vmax_file is not None:
+                    state.values["vmax"] = float(vmax_file)
                 state.velocity = v
                 state.y_data = y
                 state.sigma_data = sigma
@@ -287,6 +293,7 @@ class BatchFitDialog(QtWidgets.QDialog):
                     "errors": result.errors,
                     "stats": result.stats,
                     "free_keys": result.free_keys,
+                    "calibration": cal,
                 }
                 ok += 1
                 # warm-start: aplicar valores al UI para la siguiente iteración

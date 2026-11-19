@@ -2,6 +2,26 @@
 
 ## Sin publicar
 
+- **Calibraciones por equipo y asignación por fecha.** Cada equipo guarda sus
+  calibraciones de velocidad (fecha desde la que valen, Vmax, patrón del
+  sextete, IS, notas y copia del espectro α-Fe) en `calibrations.json` de su
+  carpeta. Nuevo *Archivo → Equipos y calibraciones…* (también *Calibraciones…*
+  en la ventana de importación): «Añadir el espectro actual…» tras ajustar un
+  α-Fe, o «Añadir a mano…».
+  - Al importar con un equipo, el espectro recibe la última calibración con
+    fecha ≤ su fecha de medida (`core.spectrum_import.measurement_date`: de
+    cabecera o pie, con fechas ISO, numéricas y con el mes en letra; si no hay,
+    la de modificación del fichero, con aviso). Patrón distinto → Vmax
+    convertida. El rótulo de calibración dice cuál se usó; si no hay ninguna
+    anterior se mantiene la vigente y se avisa.
+  - El equipo dice si sus fechas ambiguas son día/mes/año o mes/día/año.
+  - Ajuste en serie: con equipo, cada fichero se lee con las correcciones del
+    equipo y se dobla con la calibración de su fecha; el TSV añade
+    `measured`, `calibration` y `vmax_cal`.
+  - La ventana de importación muestra la fecha y la calibración que se
+    asignará, y la vista previa usa su Vmax.
+  - Manual (ES/EN) y ayuda (8 idiomas).
+
 - **Ventana de importación (Archivo → Importar…, Ctrl+I).** Enseña el
   fichero antes de cargarlo: texto con los datos en verde y cabecera/pie en
   gris, lo que ha deducido el lector (líneas, separador, decimal, papel de cada

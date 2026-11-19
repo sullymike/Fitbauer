@@ -93,6 +93,38 @@ The session stores the corrections and the instrument, so reloading it reads the
 file in the same way. \menu{File > Load…} and dragging a file still load
 directly, with automatic detection.
 
+\section{Instruments and calibrations by date}
+\label{sec:equipos-calibraciones}
+
+Each instrument stores its velocity calibrations, each with the date from which
+it applies. In \menu{File > Instruments and calibrations…} (or with the
+\emph{Calibrations…} button in the import window) they are added in two ways:
+
+\begin{itemize}[nosep]
+  \item \textbf{Add the current spectrum…}: after fitting an $\alpha$-Fe, it stores the
+    panel \param{Vmax}, the $\delta$ of component~1 as IS, the active sextet pattern,
+    the measurement date of the file and a copy of the spectrum.
+  \item \textbf{Add manually…}: date, \param{Vmax}, pattern, IS and notes; this
+    is useful for older calibrations whose value is already known.
+\end{itemize}
+
+\textbf{Assignment by date.} When a spectrum is imported with an instrument
+selected, Fitbauer takes the measurement date from the header or footer of the
+file and applies the \textbf{latest calibration dated on or before it}, that is,
+the one in force when it was measured. If the calibration was made with another
+sextet pattern, its \param{Vmax} is converted (§\ref{sec:calib-fija}). The
+calibration label states which calibration was used and the measurement date. If
+the file carries no date, its modification date is used with a warning, because a
+copy changes it. If there is no earlier calibration, the current one is kept,
+also with a warning. For ambiguous numeric dates such as 03/04/2025, the
+instrument sets whether its files write day/month/year or month/day/year.
+
+In a \textbf{batch fit}, if the active spectrum was opened with an instrument,
+each file is folded with the calibration of its own date. The exported table
+adds the columns \texttt{measured}, \texttt{calibration} and \texttt{vmax\_cal}.
+A saved session keeps the calibration it was worked with, even if the library
+changes later.
+
 \section{Folding and the centre}
 \label{sec:folding}
 

@@ -7,6 +7,96 @@ from mossbauer_i18n import tr
 
 
 class CalibrationActionsMixin:
+    # ── Equipos: biblioteca y asignación de calibración por fecha ─────────
+    def _instrument_library(self):
+        """Biblioteca de equipos (una por ventana; los tests la sustituyen)."""
+        lib = getattr(self, "_instruments", None)
+        if lib is None:
+            from core.instruments import InstrumentLibrary
+            lib = self._instruments = InstrumentLibrary()
+        return lib
+
+    def _instrument_profile(self, name):
+        if not name:
+            return None
+        try:
+            return self._instrument_library().get(name)
+        except (OSError, ValueError):
+            return None
+
+    def _instrument_calibration(self, path, imported, instrument):
+        """Calibración del equipo vigente cuando se midió el fichero.
+
+        Devuelve ``(registro | None, fecha | None, origen_fecha | None)``.
+        """
+        profile = self._instrument_profile(instrument)
+        if profile is None:
+            return None, None, None
+        from core.spectrum_import import measurement_date
+        date, origin = measurement_date(imported, path, profile.date_order)
+        if date is None:
+            return None, None, None
+        return self._instrument_library().calibration_for(instrument, date), date, origin
+
+    def _instrument_vmax(self, record) -> float:
+        """Vmax de un registro de calibración en el patrón activo."""
+        from core.constants import convert_vmax
+        return convert_vmax(record.vmax, record.sextet_pattern,
+                            getattr(self, "sextet_pattern", "normos"))
+
+    def _series_vmax(self, path, imported):
+        """Vmax de un fichero de una serie según su fecha (o ``None``).
+
+        Solo si el espectro activo se abrió con un equipo y la Vmax no se
+        ajusta. Devuelve también la información para la tabla de resultados.
+        """
+        instrument = getattr(self.file, "instrument", None)
+        if not instrument:
+            return None, None
+        record, date, origin = self._instrument_calibration(path, imported, instrument)
+        if record is None:
+            return None, ({"measured": date.isoformat(), "date": "", "vmax": ""}
+                          if date else None)
+        vmax = self._instrument_vmax(record)
+        return vmax, {"measured": date.isoformat(), "date": record.date.isoformat(),
+                      "vmax": vmax, "date_source": origin}
+
+    def _assign_instrument_calibration(self, path, imported, instrument) -> None:
+        """Fija la calibración del equipo vigente en la fecha de medida.
+
+        Sin fecha o sin calibración anterior se mantiene la fijada y se avisa.
+        """
+        if not instrument:
+            return
+        record, date, origin = self._instrument_calibration(path, imported, instrument)
+        if record is None:
+            if date is None:
+                msg = tr("instr.no_date", name=instrument,
+                         default="Sin fecha de medida: no se asigna calibración de «{name}».")
+            else:
+                msg = tr("instr.no_calibration", name=instrument, date=date.isoformat(),
+                         default="«{name}» no tiene calibraciones del {date} o anteriores; "
+                                 "se mantiene la calibración actual.")
+            self.statusBar().showMessage(msg, 8000)
+            return
+        lib = self._instrument_library()
+        cal_file = lib.calibration_file(instrument, record)
+        self.calibration_info = {
+            "source": "instrument",
+            "instrument": instrument,
+            "calibration_sample": record.sample or record.date.isoformat(),
+            "velocity_calibrated": float(record.vmax),
+            "isomer_shift": record.isomer_shift,
+            "sextet_pattern": record.sextet_pattern,
+            "calibration_id": record.id,
+            "calibration_date": record.date.isoformat(),
+            "measurement_date": date.isoformat(),
+            "measurement_date_source": origin,
+            "calibration_file_name": record.file_name,
+            "calibration_file_path": str(cal_file) if cal_file else None,
+        }
+        self._refresh_calib_label()
+
     # ── Calibración rápida desde el cuadro de fichero ─────────────────────
     def _show_file_box_menu(self, pos: QtCore.QPoint) -> None:
         if self.file.path is None:
@@ -226,6 +316,17 @@ class CalibrationActionsMixin:
             iso_ref = self.calibration_iso_ref()
             iso_txt = f"{iso_ref:.4f}" if iso_ref is not None else "—"
             txt += f"Vmax = {vmax_txt} mm/s · IS = {iso_txt} mm/s"
+            if info.get("source") == "instrument":
+                key = ("instr.label_file_date" if info.get("measurement_date_source") == "file"
+                       else "instr.label")
+                txt += "<br>" + tr(
+                    key, name=info.get("instrument", ""),
+                    cal=info.get("calibration_date", ""),
+                    measured=info.get("measurement_date", ""),
+                    default=("Equipo {name}: calibración del {cal} (medida {measured})"
+                             if key == "instr.label" else
+                             "Equipo {name}: calibración del {cal} (medida {measured}, "
+                             "fecha del fichero)"))
             if abs(escala - 1.0) > 1e-12:
                 txt += "<br>" + tr(
                     "calib.converted", vmax=f"{float(vmax):.4f}",

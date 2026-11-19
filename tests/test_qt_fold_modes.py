@@ -226,3 +226,90 @@ def test_import_loads_and_session_keeps_hints(make_window, tmp_path, monkeypatch
     win2 = make_window()
     win2._apply_session_payload(payload)
     assert win2.file.counts.size == 510 and win2.file.instrument == "Lab B"
+
+
+# ── Calibración del equipo por fecha ────────────────────────────────────────
+
+def _dated_copy(tmp_path: Path, name: str, date: str) -> Path:
+    from core.folding import read_ws5_counts
+    p = tmp_path / name
+    p.write_text(f"Date: {date}\n" + "\n".join(f"{x:.0f}" for x in read_ws5_counts(SPECTRUM)))
+    return p
+
+
+def _lab(tmp_path):
+    import datetime as dt
+    from core.instruments import CalibrationRecord, InstrumentLibrary, InstrumentProfile
+    lib = InstrumentLibrary(tmp_path / "lib")
+    lib.save(InstrumentProfile(name="Lab B"))
+    lib.add_calibration("Lab B", CalibrationRecord(date=dt.date(2025, 1, 10), vmax=10.5,
+                                                   sample="aFe enero"))
+    lib.add_calibration("Lab B", CalibrationRecord(date=dt.date(2025, 6, 1), vmax=11.0,
+                                                   sextet_pattern="legacy"))
+    return lib
+
+
+def test_load_with_instrument_assigns_calibration_by_date(make_window, tmp_path):
+    from core.constants import convert_vmax
+    win = make_window()
+    win._instruments = _lab(tmp_path)
+    win._load_file(_dated_copy(tmp_path, "a.dat", "2025-03-14"), None, "Lab B")
+    info = win.calibration_info
+    assert info["source"] == "instrument" and info["calibration_date"] == "2025-01-10"
+    assert info["measurement_date"] == "2025-03-14"
+    assert win.calib.vmax.value() == pytest.approx(10.5)
+    assert "2025-01-10" in win.calib_label.text()
+    # Otra fecha → otra calibración (hecha con el patrón histórico: se convierte).
+    win._load_file(_dated_copy(tmp_path, "b.dat", "2025-07-02"), None, "Lab B")
+    assert win.calib.vmax.value() == pytest.approx(
+        convert_vmax(11.0, "legacy", win.sextet_pattern), abs=1e-4)   # control a 4 decimales
+    # Anterior a toda calibración: se mantiene la vigente.
+    win._load_file(_dated_copy(tmp_path, "c.dat", "2024-12-31"), None, "Lab B")
+    assert win.calibration_info["calibration_date"] == "2025-06-01"
+
+
+def test_series_vmax_per_file(make_window, tmp_path):
+    win = make_window()
+    win._instruments = _lab(tmp_path)
+    win._load_file(_dated_copy(tmp_path, "a.dat", "2025-03-14"), None, "Lab B")
+    p = _dated_copy(tmp_path, "b.dat", "2025-02-01")
+    vmax, cal = win._series_vmax(p, win._read_series_spectrum(p))
+    assert vmax == pytest.approx(10.5) and cal["date"] == "2025-01-10"
+    _c, _s, _y, _n, v = win._prepare_counts(win._read_channel_counts(p), vmax=vmax)
+    assert abs(v).max() == pytest.approx(10.5, rel=0.02)
+
+
+def test_import_dialog_shows_assigned_calibration(qapp, tmp_path):
+    from gui.import_dialog import ImportDialog
+    dlg = ImportDialog(None, _dated_copy(tmp_path, "a.dat", "2025-03-14"),
+                       library=_lab(tmp_path), vmax=12.0, instrument="Lab B")
+    rec, date, origin = dlg.assigned_calibration()
+    assert rec.vmax == 10.5 and origin == "header"
+    assert dlg.preview_vmax() == pytest.approx(10.5)
+    assert "2025-01-10" in dlg.summary.text()
+    dlg.deleteLater()
+
+
+def test_instrument_manager_add_and_remove(qapp, tmp_path, monkeypatch):
+    import datetime as dt
+    from gui.instrument_manager import CalibrationEntryDialog, InstrumentManagerDialog
+    lib = _lab(tmp_path)
+    src = _dated_copy(tmp_path, "afe.dat", "2025-09-09")
+    cur = {"vmax": 10.8, "isomer_shift": -0.1, "sample": "afe", "path": str(src),
+           "date": dt.date(2025, 9, 9), "sextet_pattern": "normos"}
+    dlg = InstrumentManagerDialog(None, lib, "Lab B", lambda: cur)
+    assert dlg.table.rowCount() == 2 and dlg.btn_add_current.isEnabled()
+    monkeypatch.setattr(CalibrationEntryDialog, "exec",
+                        lambda self: mq.QtWidgets.QDialog.DialogCode.Accepted)
+    dlg._on_add_current()
+    recs = lib.calibrations("Lab B")
+    assert recs[-1].date == dt.date(2025, 9, 9) and recs[-1].vmax == pytest.approx(10.8)
+    assert lib.calibration_file("Lab B", recs[-1]) is not None
+    dlg.table.selectRow(2)
+    monkeypatch.setattr(mq.QtWidgets.QMessageBox, "question",
+                        staticmethod(lambda *a, **k: mq.QtWidgets.QMessageBox.StandardButton.Yes))
+    dlg._on_remove()
+    assert len(lib.calibrations("Lab B")) == 2 and dlg.table.rowCount() == 2
+    dlg.date_order_combo.setCurrentIndex(dlg.date_order_combo.findData("mdy"))
+    assert lib.get("Lab B").date_order == "mdy"
+    dlg.deleteLater()

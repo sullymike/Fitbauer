@@ -47,6 +47,10 @@ del código de la GUI.**
   columna, tipo de intensidad y σ; `ImportHints` = perfil de importación. No dobla.
 - `instruments.py` — equipos como perfiles (`InstrumentProfile`: `ImportHints` + forma de onda,
   plegado y sentido) en `InstrumentLibrary`, una carpeta por equipo bajo `CONFIG_DIR/instruments/`.
+  Cada equipo guarda sus calibraciones (`CalibrationRecord`, `calibrations.json` + copia del
+  espectro); `calibration_for_date`: la última con fecha ≤ fecha de medida
+  (`core.spectrum_import.measurement_date`). La GUI la asigna al importar con equipo y por
+  fichero en el ajuste en serie (`gui/instrument_manager.py` = gestor).
 - `fit_engine.py` — motor de ajuste discreto (singlete/doblete/sextete).
 - `profile_likelihood.py` — intervalos de confianza por verosimilitud perfilada.
 - `batch_fit.py` — ajuste en serie por warm-start.

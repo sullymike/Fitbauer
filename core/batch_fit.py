@@ -43,10 +43,15 @@ def write_results_csv(path: Path, free_keys: Iterable[str],
     """Escribe un CSV con una fila por espectro.
 
     Cabeceras: ``file``, ``metadata``, ``status``, ``chi2``, ``red_chi2``,
-    y para cada parámetro libre ``<key>`` y ``<key>_err``.
+    y para cada parámetro libre ``<key>`` y ``<key>_err``. Si alguna fila
+    trae ``calibration`` (calibración del equipo asignada por fecha), se
+    añaden ``measured``, ``calibration`` y ``vmax_cal``.
     """
     free_keys = list(free_keys)
+    with_cal = any(row.get("calibration") for row in rows)
     headers = ["file", "metadata", "status", "chi2", "red_chi2"]
+    if with_cal:
+        headers += ["measured", "calibration", "vmax_cal"]
     for k in free_keys:
         headers.append(k)
         headers.append(f"{k}_err")
@@ -64,6 +69,9 @@ def write_results_csv(path: Path, free_keys: Iterable[str],
                 stats.get("chi2", ""),
                 stats.get("red_chi2", ""),
             ]
+            if with_cal:
+                cal = row.get("calibration") or {}
+                line += [cal.get("measured", ""), cal.get("date", ""), cal.get("vmax", "")]
             for k in free_keys:
                 line.append(values.get(k, ""))
                 line.append(errors.get(k, ""))

@@ -90,6 +90,38 @@ La sesión guarda las correcciones y el equipo, así que al recargarla el ficher
 vuelve a leer igual. \menu{Archivo > Cargar…} y arrastrar un fichero siguen
 cargando directamente, con la detección automática.
 
+\section{Equipos y calibraciones por fecha}
+\label{sec:equipos-calibraciones}
+
+Cada equipo guarda sus calibraciones de velocidad, cada una con la fecha desde la
+que vale. En \menu{Archivo > Equipos y calibraciones…} (o con el botón
+\emph{Calibraciones…} de la ventana de importación) se añaden de dos maneras:
+
+\begin{itemize}[nosep]
+  \item \textbf{Añadir el espectro actual…}: tras ajustar un $\alpha$-Fe, guarda la
+    \param{Vmax} del panel, el $\delta$ del componente~1 como IS, el patrón del sextete
+    activo, la fecha de medida del fichero y una copia del espectro.
+  \item \textbf{Añadir a mano…}: fecha, \param{Vmax}, patrón, IS y notas; sirve
+    para incorporar calibraciones antiguas cuyo valor ya se conoce.
+\end{itemize}
+
+\textbf{Asignación por fecha.} Al importar un espectro con un equipo elegido,
+Fitbauer toma la fecha de medida de la cabecera o del pie del fichero y le aplica
+la \textbf{última calibración con fecha igual o anterior}, es decir, la vigente
+cuando se midió. Si la calibración se hizo con otro patrón del sextete, su
+\param{Vmax} se convierte (§\ref{sec:calib-fija}). El rótulo de calibración
+indica qué calibración se ha usado y la fecha de medida. Si el fichero no trae
+fecha, se usa su fecha de modificación y se avisa, porque una copia la cambia.
+Si no hay ninguna calibración anterior, se mantiene la vigente y también se
+avisa. Para las fechas numéricas ambiguas, como 03/04/2025, se elige en el equipo
+si sus ficheros escriben día/mes/año o mes/día/año.
+
+En el \textbf{ajuste en serie}, si el espectro activo se abrió con un equipo,
+cada fichero se dobla con la calibración de su propia fecha. La tabla exportada
+añade las columnas \texttt{measured}, \texttt{calibration} y \texttt{vmax\_cal}.
+Una sesión guardada conserva la calibración con la que se trabajó, aunque la
+biblioteca cambie después.
+
 \section{El folding y el centro}
 \label{sec:folding}
 

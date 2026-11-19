@@ -6,26 +6,35 @@ detectado en un fichero concreto) y cómo se preparan sus espectros: forma de
 onda, plegado y sentido del eje. No hay equipos predefinidos ni límite de
 número: cada laboratorio da de alta los suyos.
 
-Cada equipo vive en su carpeta, ``<raíz>/<equipo>/instrument.json``, para que
-la misma carpeta pueda guardar después sus calibraciones y para que la raíz se
-pueda compartir (p. ej. una carpeta de red del grupo).
+Cada equipo vive en su carpeta, ``<raíz>/<equipo>/``, con su perfil
+(``instrument.json``) y sus calibraciones (``calibrations.json`` y la copia de
+cada espectro de calibración en ``calibrations/``). La raíz se puede compartir
+(p. ej. una carpeta de red del grupo).
+
+**Asignación por fecha**: a un espectro medido el día *D* le corresponde la
+última calibración del equipo con fecha ≤ *D* (la vigente cuando se midió).
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import re
 import shutil
 import unicodedata
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from core.data_io import CONFIG_DIR
 from core.folding import canonical_fold_mode
-from core.spectrum_import import ImportHints
+from core.constants import canonical_sextet_pattern
+from core.spectrum_import import DATE_ORDERS, ImportHints
 
 #: Raíz por defecto de la biblioteca de equipos.
 DEFAULT_INSTRUMENTS_DIR = CONFIG_DIR / "instruments"
 PROFILE_FILE = "instrument.json"
+CALIBRATIONS_FILE = "calibrations.json"
+CALIBRATIONS_DIR = "calibrations"
 
 
 @dataclass
@@ -35,6 +44,8 @@ class InstrumentProfile:
     drive_form: str = "triangular"
     fold_mode: str = "fold"
     reverse_velocity: bool = False
+    # Cómo leer fechas numéricas ambiguas (03/04/2025) en sus ficheros.
+    date_order: str = "dmy"
     notes: str = ""
 
     def to_dict(self) -> dict:
@@ -44,6 +55,7 @@ class InstrumentProfile:
             "drive_form": self.drive_form,
             "fold_mode": self.fold_mode,
             "reverse_velocity": bool(self.reverse_velocity),
+            "date_order": self.date_order,
             "notes": self.notes,
         }
 
@@ -56,8 +68,57 @@ class InstrumentProfile:
             drive_form=drive if drive in ("triangular", "sine") else "triangular",
             fold_mode=canonical_fold_mode(data.get("fold_mode")),
             reverse_velocity=bool(data.get("reverse_velocity", False)),
+            date_order=(data.get("date_order") if data.get("date_order") in DATE_ORDERS
+                        else "dmy"),
             notes=str(data.get("notes", "")),
         )
+
+
+@dataclass
+class CalibrationRecord:
+    """Una calibración de velocidad del equipo, vigente desde ``date``.
+
+    ``vmax`` es la Vmax ajustada con el patrón ``sextet_pattern`` (la GUI la
+    convierte al patrón activo). ``file_name`` es la copia del espectro de
+    calibración dentro de la carpeta del equipo, si se guardó.
+    """
+    date: dt.date
+    vmax: float
+    sextet_pattern: str = "normos"
+    isomer_shift: float | None = None
+    sample: str = ""
+    file_name: str | None = None
+    notes: str = ""
+    id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
+
+    def to_dict(self) -> dict:
+        return {"id": self.id, "date": self.date.isoformat(), "vmax": float(self.vmax),
+                "sextet_pattern": self.sextet_pattern, "isomer_shift": self.isomer_shift,
+                "sample": self.sample, "file_name": self.file_name, "notes": self.notes}
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CalibrationRecord":
+        iso = data.get("isomer_shift")
+        return cls(
+            date=dt.date.fromisoformat(str(data["date"])[:10]),
+            vmax=float(data["vmax"]),
+            sextet_pattern=canonical_sextet_pattern(data.get("sextet_pattern") or "normos"),
+            isomer_shift=None if iso in (None, "") else float(iso),
+            sample=str(data.get("sample", "")),
+            file_name=data.get("file_name") or None,
+            notes=str(data.get("notes", "")),
+            id=str(data.get("id") or uuid.uuid4().hex[:12]),
+        )
+
+
+def calibration_for_date(records: list[CalibrationRecord],
+                         date: dt.date) -> CalibrationRecord | None:
+    """La calibración vigente el día ``date``: la última con fecha ≤ ``date``.
+
+    A igual fecha gana la añadida después. ``None`` si todas son posteriores.
+    """
+    valid = [(r.date, i, r) for i, r in enumerate(records) if r.date <= date]
+    return max(valid, key=lambda t: (t[0], t[1]))[2] if valid else None
 
 
 def instrument_slug(name: str) -> str:
@@ -115,8 +176,69 @@ class InstrumentLibrary:
         tmp.replace(path)
         return path
 
+    # ── Calibraciones ─────────────────────────────────────────────────────
+    def calibrations_folder(self, name: str) -> Path:
+        return self._folder(name) / CALIBRATIONS_DIR
+
+    def calibrations(self, name: str) -> list[CalibrationRecord]:
+        """Calibraciones del equipo, de la más antigua a la más reciente."""
+        path = self._folder(name) / CALIBRATIONS_FILE
+        if not path.is_file():
+            return []
+        out = []
+        for item in json.loads(path.read_text(encoding="utf-8")):
+            try:
+                out.append(CalibrationRecord.from_dict(item))
+            except (KeyError, TypeError, ValueError):
+                continue
+        return sorted(out, key=lambda r: r.date)
+
+    def _write_calibrations(self, name: str, records: list[CalibrationRecord]) -> None:
+        path = self._folder(name) / CALIBRATIONS_FILE
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps([r.to_dict() for r in records], ensure_ascii=False,
+                                  indent=2), encoding="utf-8")
+        tmp.replace(path)
+
+    def add_calibration(self, name: str, record: CalibrationRecord,
+                        source_file: str | Path | None = None) -> CalibrationRecord:
+        """Añade una calibración; si se da ``source_file``, guarda una copia."""
+        if self.get(name) is None:
+            raise KeyError(name)
+        if source_file is not None:
+            src = Path(source_file)
+            folder = self.calibrations_folder(name)
+            folder.mkdir(parents=True, exist_ok=True)
+            dest = folder / f"{record.date.isoformat()}_{record.id}_{src.name}"
+            shutil.copy2(src, dest)
+            record.file_name = dest.name
+        records = self.calibrations(name)
+        records.append(record)
+        self._write_calibrations(name, records)
+        return record
+
+    def remove_calibration(self, name: str, record_id: str) -> bool:
+        records = self.calibrations(name)
+        keep = [r for r in records if r.id != record_id]
+        if len(keep) == len(records):
+            return False
+        gone = next(r for r in records if r.id == record_id)
+        if gone.file_name:
+            (self.calibrations_folder(name) / gone.file_name).unlink(missing_ok=True)
+        self._write_calibrations(name, keep)
+        return True
+
+    def calibration_file(self, name: str, record: CalibrationRecord) -> Path | None:
+        if not record.file_name:
+            return None
+        path = self.calibrations_folder(name) / record.file_name
+        return path if path.is_file() else None
+
+    def calibration_for(self, name: str, date: dt.date) -> CalibrationRecord | None:
+        return calibration_for_date(self.calibrations(name), date)
+
     def delete(self, name: str) -> bool:
-        """Borra el perfil. La carpeta solo si queda vacía (calibraciones)."""
+        """Borra el perfil; sus calibraciones y la carpeta se conservan si las hay."""
         folder = self._folder(name)
         path = folder / PROFILE_FILE
         if self.get(name) is None:

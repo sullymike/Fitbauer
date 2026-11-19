@@ -20,9 +20,11 @@ from mossbauer_i18n import tr
 from core.folding import (
     FOLD_MODES, channel_velocity_axis, detect_fold_center, prepare_channel_counts,
 )
+from core.constants import convert_vmax
 from core.instruments import InstrumentLibrary, InstrumentProfile
 from core.spectrum_import import (
-    COLUMN_ROLES, Y_KINDS, ImportedSpectrum, ImportHints, parse_spectrum_text, read_text,
+    COLUMN_ROLES, Y_KINDS, ImportedSpectrum, ImportHints, measurement_date,
+    parse_spectrum_text, read_text,
 )
 
 _ROLE_DEFAULTS = {"channel": "Canal", "velocity": "Velocidad", "y": "Intensidad",
@@ -54,11 +56,14 @@ class ImportDialog(QtWidgets.QDialog):
     def __init__(self, parent, path: Path, *, library: InstrumentLibrary,
                  vmax: float = 12.0, drive_form: str = "triangular",
                  fold_mode: str = "fold", reverse: bool = False,
-                 instrument: str | None = None):
+                 instrument: str | None = None, sextet_pattern: str = "normos",
+                 current_calibration=None):
         super().__init__(parent)
         self.path = Path(path)
         self.library = library
         self.vmax = float(vmax)
+        self.sextet_pattern = sextet_pattern
+        self.current_calibration = current_calibration
         self.text = read_text(self.path)
         self.result: ImportedSpectrum | None = None
         self._updating = False
@@ -85,8 +90,11 @@ class ImportDialog(QtWidgets.QDialog):
             tr("import.save_instrument", default="Guardar como equipo…"))
         self.btn_delete_instrument = QtWidgets.QPushButton(
             tr("import.delete_instrument", default="Eliminar equipo"))
+        self.btn_calibrations = QtWidgets.QPushButton(
+            tr("import.calibrations", default="Calibraciones…"))
         top.addWidget(self.btn_save_instrument)
         top.addWidget(self.btn_delete_instrument)
+        top.addWidget(self.btn_calibrations)
         outer.addLayout(top)
 
         split = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
@@ -192,6 +200,7 @@ class ImportDialog(QtWidgets.QDialog):
         self.instrument_combo.currentIndexChanged.connect(self._on_instrument_selected)
         self.btn_save_instrument.clicked.connect(self._on_save_instrument)
         self.btn_delete_instrument.clicked.connect(self._on_delete_instrument)
+        self.btn_calibrations.clicked.connect(self._on_calibrations)
 
     # ── Estado de los controles ↔ hints / equipo ─────────────────────────
     def hints(self) -> ImportHints:
@@ -306,6 +315,7 @@ class ImportDialog(QtWidgets.QDialog):
         profile = InstrumentProfile(
             name=name, import_hints=self.hints(), drive_form=self.drive_form(),
             fold_mode=self.fold_mode(), reverse_velocity=self.reverse(),
+            date_order=old.date_order if old else "dmy",
             notes=old.notes if old else "")
         try:
             self.library.save(profile)
@@ -314,6 +324,33 @@ class ImportDialog(QtWidgets.QDialog):
                                                     default="Guardar como equipo…"), str(exc))
             return
         self._reload_instruments(name)
+
+    def _on_calibrations(self) -> None:
+        from gui.instrument_manager import InstrumentManagerDialog
+        InstrumentManagerDialog(self, self.library, self.instrument_name(),
+                                self.current_calibration).exec()
+        self._reload_instruments(self.instrument_name())
+        self.refresh()
+
+    def assigned_calibration(self):
+        """``(registro | None, fecha | None, origen)`` según el equipo elegido."""
+        name = self.instrument_name()
+        r = self.result
+        if not name or r is None or r.x_kind != "channel":
+            return None, None, None
+        profile = self.library.get(name)
+        if profile is None:
+            return None, None, None
+        date, origin = measurement_date(r, self.path, profile.date_order)
+        if date is None:
+            return None, None, None
+        return self.library.calibration_for(name, date), date, origin
+
+    def preview_vmax(self) -> float:
+        record, _d, _o = self.assigned_calibration()
+        if record is None:
+            return self.vmax
+        return convert_vmax(record.vmax, record.sextet_pattern, self.sextet_pattern)
 
     def _on_delete_instrument(self) -> None:
         name = self.instrument_name()
@@ -392,6 +429,25 @@ class ImportDialog(QtWidgets.QDialog):
             parts.append(tr("import.summary_dates", default="Fechas") + ": " + ", ".join(r.dates[:3]))
         for w in r.warnings:
             parts.append("⚠ " + tr(f"import.warn.{w}", default=w))
+        if self.instrument_name() and r.x_kind == "channel":
+            record, date, origin = self.assigned_calibration()
+            if date is None:
+                parts.append("⚠ " + tr("import.no_date",
+                                       default="Sin fecha de medida: no se asignará calibración."))
+            else:
+                when = date.isoformat() + (
+                    " " + tr("import.date_from_file", default="(fecha del fichero)")
+                    if origin == "file" else "")
+                if record is None:
+                    parts.append("⚠ " + tr(
+                        "import.no_calibration", date=when,
+                        default="Medida {date}: el equipo no tiene calibraciones "
+                                "de esa fecha o anteriores."))
+                else:
+                    parts.append(tr(
+                        "import.calibration", date=when, cal=record.date.isoformat(),
+                        vmax=f"{self.preview_vmax():.4f}",
+                        default="Medida {date} → calibración del {cal}, Vmax = {vmax} mm/s"))
         return "<br>".join(parts)
 
     def _highlight(self, r: ImportedSpectrum | None) -> None:
@@ -422,7 +478,7 @@ class ImportDialog(QtWidgets.QDialog):
                                     fold_mode=self.fold_mode())
         _d, _s, y, _n = prepare_channel_counts(
             r.y, center, fold_mode=self.fold_mode(), drive_form=self.drive_form())
-        v = channel_velocity_axis(r.y.size, self.vmax, y.size, center=center,
+        v = channel_velocity_axis(r.y.size, self.preview_vmax(), y.size, center=center,
                                   fold_mode=self.fold_mode(), drive_form=self.drive_form(),
                                   reverse=self.reverse())
         return v, y
