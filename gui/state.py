@@ -66,6 +66,9 @@ class FileState:
     center: float | None = None
     velocity: np.ndarray | None = None
     y_data: np.ndarray | None = None
+    # Tipo de intensidad leído (core.spectrum_import.Y_KINDS): sin cuentas no
+    # hay verosimilitud de Poisson.
+    y_kind: str = "counts"
 
 
 @dataclass

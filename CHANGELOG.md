@@ -2,6 +2,21 @@
 
 ## Sin publicar
 
+- **La GUI abre los espectros por su contenido, no por la extensión.** Todo
+  pasa por el lector genérico: las cuentas por canal (una columna, canal y
+  cuentas, varias por línea, con cabecera y pie) van al plegado y los ficheros
+  con eje de velocidad se usan tal cual, sea cual sea la extensión; al
+  arrastrar se intenta abrir cualquier fichero que no sea claramente otra cosa
+  (PDF, imagen, documento…). Antes un CSV «canal, cuentas» se tomaba como
+  velocidad y una absorbancia se trataba como transmisión.
+  - Datos con eje de velocidad: si son cuentas, σ = √cuentas (antes
+    √(cuentas/2), como si fueran pares doblados); si son transmisión o
+    absorción, la σ es la de la columna de errores o la estimada del ruido, y
+    el ajuste usa pesos gaussianos (sin cuentas no hay Poisson). La barra de
+    estado avisa de la σ estimada y de unidades de absorción dudosas.
+  - Serie, relajación global y comparación leen con el mismo lector.
+  - Manual (ES/EN) y ayuda (8 idiomas): formatos y plegado.
+
 - **Plegado explícito.** Doblar ya no lo decide el formato del fichero: el
   panel de calibración tiene un desplegable **Plegado** (el `FOLD` de NORMOS,
   aparte de la forma de onda) con tres modos para las cuentas por canal:

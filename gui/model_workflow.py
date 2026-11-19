@@ -10,9 +10,10 @@ from mossbauer_i18n import tr
 from core.constants import GLOBAL_PARAM_NAMES, SEXTET_PARAM_NAMES
 from core.folding import (
     channel_velocity_axis, find_best_integer_or_half_center,
-    find_sine_symmetry_center, is_pair_averaged, load_velocity_csv,
-    prepare_channel_counts, read_ws5_counts, velocity_axis,
+    find_sine_symmetry_center, is_pair_averaged, prepare_channel_counts,
+    velocity_axis,
 )
+from core.spectrum_import import ImportedSpectrum, ImportHints, read_spectrum_file
 from core.fit_engine import FitState, resolve_values
 from core.result_views import discrete_result_view
 from core.reconstruction import (
@@ -271,6 +272,15 @@ class ModelWorkflowMixin:
             # Ya doblado o un solo barrido: no hay punto de plegado.
             return 0.5 * (counts.size + 1)
         return find_best_integer_or_half_center(counts)
+
+    @staticmethod
+    def _read_channel_counts(path: Path) -> np.ndarray:
+        """Cuentas por canal de cualquier fichero (para series y comparaciones)."""
+        imported = read_spectrum_file(path)
+        if imported.x_kind != "channel" or not imported.is_counts:
+            raise ValueError(tr("load.not_channel_counts", name=Path(path).name,
+                                default="{name} does not contain counts per channel."))
+        return imported.y
 
     def _prepare_counts(self, counts: np.ndarray
                         ) -> tuple[float, np.ndarray, np.ndarray, float, np.ndarray]:
@@ -831,6 +841,15 @@ class ModelWorkflowMixin:
             velocity=self.file.velocity, y_data=self.file.y_data,
             sigma_data=self.file.sigma, counts=self.file.counts,
             norm_factor=self.file.norm_factor)
+        if self.file.counts is None:
+            # Eje de velocidad del fichero: cada punto es una medida, no un
+            # promedio de dos canales, y no hay punto de plegado.
+            state.fold_mode = "single_sweep"
+            state.fit_center = False
+            if self.file.y_kind != "counts":
+                # Sin cuentas no hay Poisson: pesos con la σ del fichero/estimada.
+                state.likelihood = "gauss"
+                state.norm_factor = None
         # «Propagar incertidumbre de calibración» necesita σ(vmax): sin este
         # cableado el flag era un no-op silencioso (sigma_vmax quedaba None).
         state.sigma_vmax = self._calibration_sigma_vmax()
@@ -845,13 +864,14 @@ class ModelWorkflowMixin:
                 return None
         return state
 
-    # ── Acciones ─────────────────────────────────────────────────────────
-    # Extensiones reconocidas como espectros ya doblados en espacio de velocidad.
-    _CSV_EXTENSIONS = frozenset({".csv", ".txt", ".dat", ".exp"})
-
     # ── Arrastrar y soltar ───────────────────────────────────────────────
-    #: Qué se hace con cada extensión al soltarla sobre la ventana.
-    _DROP_SPECTRUM = frozenset({".ws5", ".adt", ".mos"})
+    #: Lo que seguro no es un espectro. No hay lista de admitidas: cada equipo
+    #: usa su extensión y lo que decide es el contenido.
+    _NOT_SPECTRUM = frozenset({
+        ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".svg",
+        ".doc", ".docx", ".odt", ".rtf", ".xls", ".xlsx", ".ods", ".ppt", ".pptx",
+        ".odp", ".zip", ".gz", ".tgz", ".bz2", ".xz", ".7z", ".rar", ".exe", ".dll",
+        ".py", ".md", ".html", ".htm", ".tex", ".mp4", ".mp3", ".wav"})
 
     def dragEnterEvent(self, event) -> None:  # noqa: N802 (API de Qt)
         """Acepta el arrastre solo si trae algún fichero que sepamos abrir."""
@@ -879,14 +899,6 @@ class ModelWorkflowMixin:
                 self.load_session_file(ruta)
             elif sufijo == ".job":
                 self.import_normos_job_file(ruta)
-            elif sufijo in self._CSV_EXTENSIONS:
-                self._restore_conventions_after_job()
-                # Misma bifurcación que on_open: un .dat de una sola columna
-                # son cuentas crudas, no velocidad+cuentas.
-                try:
-                    self._load_velocity_csv_file(ruta)
-                except ValueError:
-                    self._load_file(ruta)
             else:
                 self._restore_conventions_after_job()
                 self._load_file(ruta)
@@ -895,17 +907,20 @@ class ModelWorkflowMixin:
                 self, tr("file.open"), f"{type(exc).__name__}: {exc}")
 
     def _ruta_soltada(self, event) -> Path | None:
-        """Primer fichero del arrastre con una extensión que sepamos abrir."""
+        """Primer fichero local del arrastre.
+
+        Sesiones (``.json``) y trabajos de NORMOS (``.job``) se reconocen por
+        la extensión; cualquier otro fichero que no sea claramente otra cosa
+        (:attr:`_NOT_SPECTRUM`) se intenta abrir como espectro.
+        """
         datos = event.mimeData()
         if not datos.hasUrls():
             return None
-        admitidas = (self._DROP_SPECTRUM | self._CSV_EXTENSIONS
-                     | {".json", ".job"})
         for url in datos.urls():
             if not url.isLocalFile():
                 continue
             ruta = Path(url.toLocalFile())
-            if ruta.suffix.lower() in admitidas and ruta.is_file():
+            if ruta.is_file() and ruta.suffix.lower() not in self._NOT_SPECTRUM:
                 return ruta
         return None
 
@@ -921,23 +936,36 @@ class ModelWorkflowMixin:
         p = Path(path)
         self._restore_conventions_after_job()
         try:
-            if p.suffix.lower() in self._CSV_EXTENSIONS:
-                try:
-                    self._load_velocity_csv_file(p)
-                except ValueError:
-                    # .dat/.txt de UNA sola columna (cuentas crudas sin doblar,
-                    # como los v0/v1.dat del banco de validación NORMOS): el
-                    # cargador CSV espera velocidad+cuentas; caer a la ruta de
-                    # cuentas crudas con doblado automático.
-                    self._load_file(p)
-            else:
-                self._load_file(p)
+            self._load_file(p)
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("file.open"),
                                            f"{type(exc).__name__}: {exc}")
 
-    def _load_file(self, path: Path) -> None:
-        counts = read_ws5_counts(path)
+    def _load_file(self, path: Path, hints: ImportHints | None = None) -> None:
+        """Abre un espectro de cualquier equipo; lo que contiene decide la ruta.
+
+        El lector genérico (:mod:`core.spectrum_import`) localiza los datos
+        entre cabecera y pie y deduce las columnas. Las cuentas por canal se
+        doblan (o no) según el panel; un eje de velocidad se usa tal cual.
+        """
+        imported = read_spectrum_file(path, hints)
+        if imported.x_kind == "velocity":
+            self._load_velocity_data(path, imported)
+        elif not imported.is_counts:
+            raise ValueError(tr("load.not_channel_counts", name=path.name,
+                                default="{name} does not contain counts per channel."))
+        else:
+            self._load_counts(path, imported.y)
+        self._show_import_warnings(imported)
+
+    def _show_import_warnings(self, imported: ImportedSpectrum) -> None:
+        """Lo que conviene saber de la lectura (σ estimada, unidades dudosas)."""
+        if not imported.warnings:
+            return
+        textos = [tr(f"import.warn.{w}", default=w) for w in imported.warnings]
+        self.statusBar().showMessage(" · ".join(textos), 10000)
+
+    def _load_counts(self, path: Path, counts: np.ndarray) -> None:
         center = self._detect_center(counts)
         self.file = FileState(path=path, counts=counts, center=center)
         self._simulate_enabled = False
@@ -991,26 +1019,28 @@ class ModelWorkflowMixin:
         self.runtime_results.clear()
         self._refresh_plot()
 
-    def _load_velocity_csv_file(self, path: Path) -> None:
-        """Carga un espectro ya doblado en espacio de velocidad (CSV/TXT/DAT/EXP).
+    def _load_velocity_data(self, path: Path, imported: ImportedSpectrum) -> None:
+        """Carga un espectro con eje de velocidad propio (no se dobla).
 
-        A diferencia de ``_load_file``, no realiza folding: el eje de velocidad
-        y los valores de cuentas provienen directamente del fichero.  El estado
-        ``FileState`` se rellena con ``counts=None`` para señalar que no hay
-        cuentas en bruto disponibles (operaciones como «Detectar centro» quedan
-        deshabilitadas).
+        ``FileState.counts`` queda en ``None``: no hay cuentas por canal, así
+        que «Detectar centro» y el plegado no aplican. Si son cuentas, cada
+        punto es una medida (σ = √cuentas); si es transmisión o absorción, la σ
+        es la de la columna de errores o la estimada del ruido, y el ajuste usa
+        pesos gaussianos (ver ``_build_state``).
         """
-        data = load_velocity_csv(path)
-        vel: np.ndarray = data["velocity"]
-        y_raw: np.ndarray = data["y"]
-
-        # Normalizar a línea base ~1.
-        norm = float(np.percentile(y_raw, 90)) if y_raw.size else 1.0
-        norm = norm or 1.0
-        y = y_raw / norm
-
-        # Ruido Poisson proporcional (sin cuentas en bruto, usar y_raw como proxy).
-        sigma = np.sqrt(np.maximum(y_raw / 2.0, 1.0)) / norm
+        order = np.argsort(imported.x, kind="stable")
+        vel = imported.x[order]
+        if imported.is_counts:
+            y_raw = imported.y[order]
+            norm = float(np.percentile(y_raw, 90)) if y_raw.size else 1.0
+            norm = norm or 1.0
+            y = y_raw / norm
+            sigma = np.asarray(imported.sigma, dtype=float)[order] / norm
+        else:
+            t, s = imported.transmission()
+            y_raw = y = t[order]
+            sigma = s[order]
+            norm = 1.0
 
         # Vmax aproximado a partir del eje de velocidad.
         vmax = float(np.max(np.abs(vel))) if vel.size else 12.0
@@ -1024,6 +1054,7 @@ class ModelWorkflowMixin:
             center=None,
             velocity=vel,
             y_data=y,
+            y_kind=imported.y_kind,
         )
         self._simulate_enabled = False
         self._dist_map_2d = None

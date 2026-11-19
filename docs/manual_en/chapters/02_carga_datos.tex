@@ -8,27 +8,38 @@ normalisation and the visualisation options.
 
 \section{Supported formats}
 
+Fitbauer does not depend on the extension: it reads the \textbf{content} of the
+file. It finds the block of numeric data (what comes before is the header and
+what comes after the footer, even if they contain numbers), detects the
+separator (spaces, tabs, semicolons or commas) and the decimal comma, and works
+out what each column is. Files from different instruments and programs thus open
+without conversion.
+
 \begin{center}
 \begin{tabular}{@{}lp{0.62\textwidth}@{}}
 \toprule
-\textbf{Extension} & \textbf{Content} \\
+\textbf{Content} & \textbf{What Fitbauer does} \\
 \midrule
-\ruta{.ws5}, \ruta{.adt} & \textbf{Raw counts} per channel (typ.\ 512
-channels). They carry no velocity axis: they are folded and calibrated with the
-fixed \param{Vmax}. \\[4pt]
-\ruta{.csv}, \ruta{.txt}, \ruta{.dat}, \ruta{.exp} & Spectrum \textbf{already
-folded} in velocity space (velocity/counts columns). They carry their own axis:
-they are not folded and \emph{override} the calibration (§\ref{sec:calib-fija}). \\
+\textbf{Counts per channel} & One column, \emph{channel and counts}, or several
+counts per line (with or without a leading channel number); also the XML of
+\ruta{.ws5}. They carry no velocity axis: they are folded or not according to
+\menu{Folding} (§\ref{sec:fold-mode}) and calibrated with the fixed
+\param{Vmax}. \\[4pt]
+\textbf{Velocity axis} & Velocity and an intensity (counts, transmission or
+absorption, as a fraction or in \%), and optionally an error column. They carry
+their own axis: they are not folded and \emph{override} the calibration
+(§\ref{sec:calib-fija}). \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 \begin{nota}
-The \ruta{.ws5}/\ruta{.adt} files are lists of integers (one count per
-channel). The velocity files (\ruta{.csv}/\ruta{.txt}/…) are two columns
-—velocity and counts/transmission— separated by spaces, tabs or commas;
-Fitbauer tolerates headers and comment lines. If a velocity file fails to
-load, check that it has exactly two numeric columns per line.
+Absorption is converted to transmission ($T = 1 - A$). With counts, the
+uncertainty of each point is the Poisson one; with transmission or absorption it
+is taken from the error column or, if there is none, \textbf{estimated} from the
+noise of the spectrum itself, and the fit uses Gaussian weights (the status bar
+says so). An absorption given as a fraction and one in \% below 1\,\% look the
+same: check the depth if the file does not state the units.
 \end{nota}
 
 \section{Loading a spectrum}

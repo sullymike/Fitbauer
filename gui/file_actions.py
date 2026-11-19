@@ -7,7 +7,7 @@ import numpy as np
 from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
-from core.folding import read_ws5_counts, load_velocity_csv
+from core.spectrum_import import read_spectrum_file
 from core.reconstruction import reconstruct_discrete_model
 from gui.state import ComparisonSpectrum
 
@@ -191,13 +191,13 @@ class FileActionsMixin:
             return
         fpath = Path(path)
         try:
-            suffix = fpath.suffix.lower()
-            if suffix in (".csv", ".txt", ".dat", ".exp"):
-                data = load_velocity_csv(fpath)
-                vel = np.asarray(data["velocity"], dtype=float)
-                y_raw = np.asarray(data["y"], dtype=float)
+            imported = read_spectrum_file(fpath)
+            if imported.x_kind == "velocity":
+                order = np.argsort(imported.x, kind="stable")
+                vel = imported.x[order]
+                y_raw = imported.transmission()[0][order]
             else:
-                counts = read_ws5_counts(fpath)
+                counts = self._read_channel_counts(fpath)
                 _c, _sigma, y_raw, _norm, vel = self._prepare_counts(counts)
             norm = float(np.percentile(y_raw, 90)) or 1.0
             y_data = y_raw / norm

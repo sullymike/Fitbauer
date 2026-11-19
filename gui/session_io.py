@@ -107,13 +107,8 @@ class SessionIOMixin:
         # 1. Datos: si trae un file_path existente o counts embebidos, los carga.
         if spectrum.path and spectrum.path.exists():
             try:
-                # Misma bifurcación que on_open: un CSV de velocidad NO pasa por
-                # el lector WS5+folding (leería las dos columnas como cuentas
-                # intercaladas y auto-doblaría ruido sin avisar).
-                if spectrum.path.suffix.lower() in self._CSV_EXTENSIONS:
-                    self._load_velocity_csv_file(spectrum.path)
-                else:
-                    self._load_file(spectrum.path)
+                # El lector decide por el contenido (cuentas o eje de velocidad).
+                self._load_file(spectrum.path)
             except Exception:
                 pass
         elif spectrum.counts is not None:

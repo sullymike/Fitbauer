@@ -8,27 +8,36 @@ normalización y las opciones de visualización.
 
 \section{Formatos admitidos}
 
+Fitbauer no depende de la extensión: lee el \textbf{contenido} del fichero. Busca
+el bloque de datos numéricos (lo anterior es cabecera y lo posterior pie, aunque
+contengan números), detecta el separador (espacios, tabuladores, punto y coma o
+comas) y la coma decimal, y deduce qué es cada columna. Así se abren sin
+convertir los ficheros de equipos y programas distintos.
+
 \begin{center}
 \begin{tabular}{@{}lp{0.62\textwidth}@{}}
 \toprule
-\textbf{Extensión} & \textbf{Contenido} \\
+\textbf{Contenido} & \textbf{Qué hace Fitbauer} \\
 \midrule
-\ruta{.ws5}, \ruta{.adt} & \textbf{Cuentas en bruto} por canal (típ.\ 512
-canales). No traen eje de velocidad: se doblan y se calibran con la \param{Vmax}
-fijada. \\[4pt]
-\ruta{.csv}, \ruta{.txt}, \ruta{.dat}, \ruta{.exp} & Espectro \textbf{ya doblado}
-en espacio de velocidad (columnas velocidad/cuentas). Traen su propio eje: no se
-doblan y \emph{sustituyen} la calibración (§\ref{sec:calib-fija}). \\
+\textbf{Cuentas por canal} & Una columna, \emph{canal y cuentas}, o varias
+cuentas por línea (con o sin nº de canal al principio); también el XML de
+\ruta{.ws5}. No traen eje de velocidad: se doblan o no según el \menu{Plegado}
+(§\ref{sec:fold-mode}) y se calibran con la \param{Vmax} fijada. \\[4pt]
+\textbf{Eje de velocidad} & Velocidad y una intensidad (cuentas, transmisión o
+absorción, en fracción o en \%), y opcionalmente una columna de errores. Traen
+su propio eje: no se doblan y \emph{sustituyen} la calibración
+(§\ref{sec:calib-fija}). \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 \begin{nota}
-Los ficheros \ruta{.ws5}/\ruta{.adt} son listas de enteros (una cuenta por
-canal). Los de velocidad (\ruta{.csv}/\ruta{.txt}/…) son dos columnas
-—velocidad y cuentas/transmisión— separadas por espacios, tabuladores o comas;
-Fitbauer tolera cabeceras y líneas de comentario. Si un fichero de velocidad no
-carga, revise que tenga exactamente dos columnas numéricas por línea.
+La absorción se convierte en transmisión ($T = 1 - A$). Con cuentas, la
+incertidumbre de cada punto es la de Poisson; con transmisión o absorción es la
+de la columna de errores o, si no la hay, se \textbf{estima} del ruido del propio
+espectro, y el ajuste usa pesos gaussianos (la barra de estado lo avisa). Una
+absorción en fracción y una en \% menor del 1\,\% se ven iguales: compruebe la
+profundidad si el fichero no dice las unidades.
 \end{nota}
 
 \section{Cargar un espectro}

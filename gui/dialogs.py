@@ -11,7 +11,6 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 from mossbauer_i18n import tr
-from core.folding import read_ws5_counts
 from core.fit_engine import fit_discrete
 from core.batch_fit import extract_metadata, write_results_csv, collect_trend_data
 
@@ -263,7 +262,7 @@ class BatchFitDialog(QtWidgets.QDialog):
                 # Reusar warm-start: aplicamos el estado actual del Qt y
                 # cargamos el nuevo espectro (que sobrescribe folding center).
                 # Mismo plegado, recorte y eje que el espectro de la ventana.
-                counts = read_ws5_counts(e["path"])
+                counts = self.parent_win._read_channel_counts(e["path"])
                 center, sigma, y, norm, v = self.parent_win._prepare_counts(counts)
                 # Construir state desde la UI parental
                 state = self.parent_win._build_state()
@@ -567,7 +566,7 @@ class GlobalNeelFitDialog(QtWidgets.QDialog):
         load_errors: list[str] = []
         for e in self.entries:
             try:
-                counts = read_ws5_counts(e["path"])
+                counts = self.parent_win._read_channel_counts(e["path"])
                 _c, sigma, y, _norm, vel = self.parent_win._prepare_counts(counts)
                 spectra.append(GlobalRelaxationSpectrum(
                     velocity=vel,
