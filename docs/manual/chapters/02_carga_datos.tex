@@ -68,6 +68,28 @@ centro de folding detectado y el factor de normalización. \menu{Archivo > Abrir
 recientes} reabre los últimos espectros usados.
 \end{nota}
 
+\section{Importar: ver y corregir la lectura}
+\label{sec:importar}
+
+\menu{Archivo > Importar…} (\texttt{Ctrl+I}) abre el fichero en una ventana que
+enseña cómo se va a leer antes de cargarlo. A la izquierda está el texto, con las
+líneas de datos en verde y la cabecera y el pie en gris. A la derecha aparece lo
+que se ha deducido: líneas de datos, separador, separador decimal, papel de cada
+columna (canal, velocidad, intensidad, error o ignorar), si hay varias cuentas por
+línea y el tipo de intensidad. Debajo están la forma de onda, el plegado y el
+sentido, junto con una vista previa del espectro tal como quedará.
+
+Cualquier deducción se puede corregir: al desmarcar \emph{automático} se parte de
+lo detectado. Con \textbf{Guardar como equipo…} se guardan solo las correcciones,
+no lo detectado en ese fichero, junto con la forma de onda, el plegado y el
+sentido. Los ficheros siguientes de ese equipo se importan eligiéndolo en la lista
+\emph{Equipo}. No hay equipos predefinidos ni límite de número. Cada uno vive en su
+carpeta, dentro de \ruta{\textasciitilde/.config/mossbauer\_fe33\_gui/instruments/}.
+
+La sesión guarda las correcciones y el equipo, así que al recargarla el fichero se
+vuelve a leer igual. \menu{Archivo > Cargar…} y arrastrar un fichero siguen
+cargando directamente, con la detección automática.
+
 \section{El folding y el centro}
 \label{sec:folding}
 

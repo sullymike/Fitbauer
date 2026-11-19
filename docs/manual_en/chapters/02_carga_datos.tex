@@ -70,6 +70,29 @@ folding centre and the normalisation factor. \menu{File > Open recent}
 reopens the most recently used spectra.
 \end{nota}
 
+\section{Import: inspect and correct the reading}
+\label{sec:importar}
+
+\menu{File > Import…} (\texttt{Ctrl+I}) opens the file in a window that shows
+how it will be read before loading it. On the left is the text, with the data
+lines in green and the header and footer in grey. On the right is what has been
+inferred: data lines, separator, decimal separator, role of each column (channel,
+velocity, intensity, error or ignore), whether there are several counts per line,
+and the intensity type. Below are the drive waveform, the folding and the
+direction, together with a preview of the spectrum as it will be loaded.
+
+Any inference can be corrected: unticking \emph{automatic} starts from what was
+detected. \textbf{Save as instrument…} stores only the corrections, not what was
+detected in that file, together with the waveform, folding and direction. Later
+files from that instrument are imported by choosing it in the \emph{Instrument}
+list. There are no predefined instruments and no limit on their number. Each one
+lives in its own folder under
+\ruta{\textasciitilde/.config/mossbauer\_fe33\_gui/instruments/}.
+
+The session stores the corrections and the instrument, so reloading it reads the
+file in the same way. \menu{File > Load…} and dragging a file still load
+directly, with automatic detection.
+
 \section{Folding and the centre}
 \label{sec:folding}
 

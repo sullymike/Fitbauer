@@ -2,6 +2,20 @@
 
 ## Sin publicar
 
+- **Ventana de importación (Archivo → Importar…, Ctrl+I).** Enseña el
+  fichero antes de cargarlo: texto con los datos en verde y cabecera/pie en
+  gris, lo que ha deducido el lector (líneas, separador, decimal, papel de cada
+  columna, varias cuentas por línea, tipo de intensidad), forma de onda,
+  plegado y sentido, y una vista previa del espectro. Todo se puede corregir.
+  - **Equipos** (`core/instruments.py`): «Guardar como equipo…» guarda las
+    correcciones (no lo detectado) con forma de onda, plegado y sentido, en
+    una carpeta por equipo bajo `~/.config/mossbauer_fe33_gui/instruments/`;
+    sin equipos predefinidos ni límite. La carpeta acogerá sus calibraciones.
+  - La sesión guarda `import_hints` e `instrument` y relee el fichero igual.
+  - `core.folding.detect_fold_center`: detección del punto de plegado según
+    forma de onda y modo, compartida por la ventana principal y la vista previa.
+  - Manual (ES/EN) y ayuda (8 idiomas).
+
 - **La GUI abre los espectros por su contenido, no por la extensión.** Todo
   pasa por el lector genérico: las cuentas por canal (una columna, canal y
   cuentas, varias por línea, con cabecera y pie) van al plegado y los ficheros

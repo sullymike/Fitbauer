@@ -17,6 +17,7 @@ from gui.themes import COLOR_THEMES
 SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     # ── Archivo ──
     ("file.open",              "menu.file", "file.open",              "Ctrl+O"),
+    ("file.import",            "menu.file", "file.import",            "Ctrl+I"),
     ("file.compare_spectrum",  "menu.file", "file.compare_spectrum",  ""),
     ("file.clear_comparison",  "menu.file", "file.clear_comparison",  ""),
     ("file.use_as_calibration","menu.file", "file.use_as_calibration",""),
@@ -107,6 +108,10 @@ class MenuBuilderMixin:
         act_open.triggered.connect(self.on_open)
         file_menu.addAction(act_open)
         self._reg("file.open", act_open)
+        act_import = QtGui.QAction(tr("file.import", default="Importar…"), self)
+        act_import.triggered.connect(lambda _checked=False: self.on_import())
+        file_menu.addAction(act_import)
+        self._reg("file.import", act_import)
         self.recent_menu = file_menu.addMenu(tr("file.open_recent", default="Abrir recientes"))
         self._rebuild_recent_menu()
         act_compare = QtGui.QAction(tr("file.compare_spectrum"), self)

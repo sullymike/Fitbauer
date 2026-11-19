@@ -10,6 +10,7 @@ from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
 from core.data_io import CONFIG_DIR
+from core.spectrum_import import ImportHints
 from core.params import COMPONENT_KINDS, DISTRIBUTION_SHAPES, INTENSITY_MODES, QUAD_TREATMENTS
 from gui.state import (
     CalibrationState,
@@ -107,8 +108,13 @@ class SessionIOMixin:
         # 1. Datos: si trae un file_path existente o counts embebidos, los carga.
         if spectrum.path and spectrum.path.exists():
             try:
-                # El lector decide por el contenido (cuentas o eje de velocidad).
-                self._load_file(spectrum.path)
+                # El lector decide por el contenido (cuentas o eje de velocidad),
+                # con las mismas correcciones de lectura que al abrirlo.
+                self._load_file(
+                    spectrum.path,
+                    ImportHints.from_dict(spectrum.import_hints)
+                    if spectrum.import_hints else None,
+                    spectrum.instrument)
             except Exception:
                 pass
         elif spectrum.counts is not None:

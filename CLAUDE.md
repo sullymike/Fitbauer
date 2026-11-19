@@ -45,6 +45,8 @@ del código de la GUI.**
   sin doblar la σ es √cuentas (`is_pair_averaged`), también en el motor.
 - `spectrum_import.py` — lector genérico de texto (cualquier equipo): bloque de datos, papeles de
   columna, tipo de intensidad y σ; `ImportHints` = perfil de importación. No dobla.
+- `instruments.py` — equipos como perfiles (`InstrumentProfile`: `ImportHints` + forma de onda,
+  plegado y sentido) en `InstrumentLibrary`, una carpeta por equipo bajo `CONFIG_DIR/instruments/`.
 - `fit_engine.py` — motor de ajuste discreto (singlete/doblete/sextete).
 - `profile_likelihood.py` — intervalos de confianza por verosimilitud perfilada.
 - `batch_fit.py` — ajuste en serie por warm-start.
@@ -71,6 +73,8 @@ del código de la GUI.**
   - `discrete_fit.py`, `distribution_fit.py`, `minima_analysis.py`, `fit_tools.py` — acciones
     de ajuste discreto/distribución, bootstrap, perfil likelihood, detección de mínimos,
     presets físicos y batch.
+  - `import_dialog.py` — ventana *Archivo → Importar…*: texto con cabecera/datos/pie, lo deducido
+    por el lector, correcciones, vista previa y guardar/elegir equipo.
   - `minima_editor.py` — editor semi-manual de mínimos sobre el canvas Matplotlib
     (clic para añadir/alternar; alimenta *Inicializar/Autoajustar desde mínimos*).
   - `state.py` — estados runtime (`FileState`, `RuntimeResultState`) y snapshots

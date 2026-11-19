@@ -9,9 +9,8 @@ from PySide6 import QtWidgets
 from mossbauer_i18n import tr
 from core.constants import GLOBAL_PARAM_NAMES, SEXTET_PARAM_NAMES
 from core.folding import (
-    channel_velocity_axis, find_best_integer_or_half_center,
-    find_sine_symmetry_center, is_pair_averaged, prepare_channel_counts,
-    velocity_axis,
+    channel_velocity_axis, detect_fold_center, is_pair_averaged,
+    prepare_channel_counts, velocity_axis,
 )
 from core.spectrum_import import ImportedSpectrum, ImportHints, read_spectrum_file
 from core.fit_engine import FitState, resolve_values
@@ -266,12 +265,8 @@ class ModelWorkflowMixin:
 
     def _detect_center(self, counts: np.ndarray) -> float:
         """Punto de plegado (fase en seno) según la forma de onda y el modo."""
-        if self._drive_form() == "sine":
-            return find_sine_symmetry_center(counts)
-        if self._fold_mode() == "single_sweep":
-            # Ya doblado o un solo barrido: no hay punto de plegado.
-            return 0.5 * (counts.size + 1)
-        return find_best_integer_or_half_center(counts)
+        return detect_fold_center(counts, drive_form=self._drive_form(),
+                                  fold_mode=self._fold_mode())
 
     @staticmethod
     def _read_channel_counts(path: Path) -> np.ndarray:
@@ -941,7 +936,48 @@ class ModelWorkflowMixin:
             QtWidgets.QMessageBox.critical(self, tr("file.open"),
                                            f"{type(exc).__name__}: {exc}")
 
-    def _load_file(self, path: Path, hints: ImportHints | None = None) -> None:
+    def on_import(self, path: Path | None = None) -> None:
+        """Abre un fichero en la ventana de importación (vista previa,
+        correcciones y equipos) y lo carga como allí se haya dejado."""
+        from gui.import_dialog import ImportDialog
+        from core.instruments import InstrumentLibrary
+
+        if path is None:
+            name, _ = QtWidgets.QFileDialog.getOpenFileName(
+                self, tr("file.import", default="Importar…"), str(ROOT),
+                f"{tr('filter.all')} (*)")
+            if not name:
+                return
+            path = Path(name)
+        calib_state = self.calib.to_view_state()
+        try:
+            dlg = ImportDialog(
+                self, Path(path), library=InstrumentLibrary(),
+                vmax=calib_state.vmax, drive_form=calib_state.drive_form,
+                fold_mode=calib_state.fold_mode,
+                reverse=calib_state.reverse_velocity,
+                instrument=getattr(self.file, "instrument", None))
+        except (OSError, ValueError) as exc:
+            QtWidgets.QMessageBox.critical(self, tr("file.import", default="Importar…"),
+                                           f"{type(exc).__name__}: {exc}")
+            return
+        if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return
+        self._restore_conventions_after_job()
+        prev, self._building = self._building, True
+        try:
+            self.calib.set_drive_form(dlg.drive_form())
+            self.calib.set_fold_mode(dlg.fold_mode(), dlg.reverse())
+        finally:
+            self._building = prev
+        try:
+            self._load_file(Path(path), dlg.hints(), dlg.instrument_name())
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, tr("file.import", default="Importar…"),
+                                           f"{type(exc).__name__}: {exc}")
+
+    def _load_file(self, path: Path, hints: ImportHints | None = None,
+                   instrument: str | None = None) -> None:
         """Abre un espectro de cualquier equipo; lo que contiene decide la ruta.
 
         El lector genérico (:mod:`core.spectrum_import`) localiza los datos
@@ -956,6 +992,8 @@ class ModelWorkflowMixin:
                                 default="{name} does not contain counts per channel."))
         else:
             self._load_counts(path, imported.y)
+        self.file.import_hints = (hints.to_dict() or None) if hints else None
+        self.file.instrument = instrument
         self._show_import_warnings(imported)
 
     def _show_import_warnings(self, imported: ImportedSpectrum) -> None:

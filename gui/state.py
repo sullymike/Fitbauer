@@ -69,6 +69,10 @@ class FileState:
     # Tipo de intensidad leído (core.spectrum_import.Y_KINDS): sin cuentas no
     # hay verosimilitud de Poisson.
     y_kind: str = "counts"
+    # Correcciones de lectura (ImportHints.to_dict) y equipo con que se abrió:
+    # la sesión las guarda para volver a leer el fichero igual.
+    import_hints: dict | None = None
+    instrument: str | None = None
 
 
 @dataclass
@@ -236,6 +240,8 @@ class SpectrumState:
     path: Path | None = None
     file_name: str | None = None
     counts: tuple[float, ...] | None = None
+    import_hints: dict | None = None
+    instrument: str | None = None
 
     @classmethod
     def from_file_state(cls, file: FileState) -> "SpectrumState":
@@ -246,14 +252,21 @@ class SpectrumState:
                 tuple(float(x) for x in np.asarray(file.counts, dtype=float))
                 if file.counts is not None else None
             ),
+            import_hints=dict(file.import_hints) if file.import_hints else None,
+            instrument=file.instrument,
         )
 
     def to_session_fragment(self) -> dict[str, Any]:
-        return {
+        out = {
             "file_path": str(self.path) if self.path else None,
             "file_name": self.file_name,
             "counts": list(self.counts) if self.counts is not None else None,
         }
+        if self.import_hints:
+            out["import_hints"] = dict(self.import_hints)
+        if self.instrument:
+            out["instrument"] = self.instrument
+        return out
 
 
 @dataclass(frozen=True)
@@ -734,6 +747,9 @@ class ProjectState:
                 path=Path(file_path) if file_path else None,
                 file_name=payload.get("file_name"),
                 counts=tuple(float(x) for x in counts) if counts is not None else None,
+                import_hints=(dict(payload["import_hints"])
+                              if isinstance(payload.get("import_hints"), dict) else None),
+                instrument=payload.get("instrument") or None,
             ),
             calibration=CalibrationState(
                 payload.get("calibration") if isinstance(payload.get("calibration"), dict) else None

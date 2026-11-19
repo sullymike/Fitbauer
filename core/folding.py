@@ -855,3 +855,17 @@ def channel_velocity_axis(counts_size: int, vmax: float, n_points: int, *,
         return triangular_velocity_axis(counts_size, vmax, center, reverse)
     v = velocity_axis(counts_size, vmax, n_points)
     return -v if reverse else v
+
+
+def detect_fold_center(counts: np.ndarray, *, drive_form: str = "triangular",
+                       fold_mode: str = "fold") -> float:
+    """Punto de plegado (fase en seno) según la forma de onda y el modo.
+
+    En un solo barrido no hay punto de plegado: se devuelve el centro nominal.
+    """
+    counts = np.asarray(counts, dtype=float)
+    if drive_form == "sine":
+        return find_sine_symmetry_center(counts)
+    if canonical_fold_mode(fold_mode) == "single_sweep":
+        return 0.5 * (counts.size + 1)
+    return find_best_integer_or_half_center(counts)
