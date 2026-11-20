@@ -1365,7 +1365,7 @@
   "import.delete_instrument": "Delete instrument",
   "import.instrument_name": "Instrument name:",
   "import.delete_confirm": "Delete the instrument “{name}”? Its files are not touched.",
-  "import.no_instrument": "(automatic detection)",
+  "import.no_instrument": "(no instrument)",
   "import.auto": "automatic",
   "import.data_lines": "Data lines",
   "import.separator": "Separator",
@@ -1422,5 +1422,15 @@
   "instr.title": "Instruments and calibrations",
   "instr.valid_from": "Valid from",
   "global_neel.calibration": "calibration of {date} (measured {measured}), Vmax = {vmax} mm/s",
-  "global_neel.no_calibration": "⚠ no instrument calibration for the measurement of {measured}: panel Vmax"
+  "global_neel.no_calibration": "⚠ no instrument calibration for the measurement of {measured}: panel Vmax",
+  "instr.recognized": "Instrument recognized: {name}",
+  "instr.ambiguous": "Several instruments recognize this file ({names}); it was opened without an instrument. Choose one in Import…",
+  "import.recognized": "Instrument recognized by file name or header: {name}",
+  "import.ambiguous": "Several instruments recognize it: {names}. Choose one.",
+  "instr.match": "Recognize its files by:",
+  "instr.match_text": "header text",
+  "instr.match_text_ph": "e.g. WissEl; Lab B",
+  "instr.match_name": "file name",
+  "instr.match_name_ph": "e.g. *.ws5; FeB*",
+  "instr.match_tip": "Several values separated by “;”: one is enough. If both fields are filled, both must match. When a file is opened without choosing an instrument, the only instrument that recognizes it is applied automatically."
 }

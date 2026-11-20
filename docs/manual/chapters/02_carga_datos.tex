@@ -129,6 +129,19 @@ del panel, y se indica). La tabla exportada añade las columnas \texttt{measured
 Una sesión guardada conserva la calibración con la que se trabajó, aunque la
 biblioteca cambie después.
 
+\textbf{Reconocimiento automático.} En el gestor de equipos, \emph{Reconocer sus
+ficheros por} admite dos criterios: un \textbf{texto de la cabecera} (o del pie),
+como el nombre del espectrómetro o del laboratorio que escribe su programa de
+adquisición, y un \textbf{nombre de fichero} con comodines (\texttt{*.ws5},
+\texttt{FeB*}). Se pueden dar varios valores separados por punto y coma y basta
+con que coincida uno; si se rellenan los dos campos, se exigen ambos. Sin mayúsculas
+ni minúsculas. Al abrir un fichero con \menu{Cargar…}, arrastrándolo o desde los
+recientes, si \textbf{un único} equipo lo reconoce, se abre con ese equipo
+(correcciones, forma de onda, plegado y calibración por fecha) y la barra de estado
+lo indica. Si lo reconocen varios, se abre sin equipo y se avisa; en
+\menu{Importar…} el reconocido aparece ya elegido y se puede cambiar. Un equipo
+sin criterios nunca se elige solo.
+
 \section{El folding y el centro}
 \label{sec:folding}
 

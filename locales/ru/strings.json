@@ -1365,7 +1365,7 @@
   "import.delete_instrument": "Удалить прибор",
   "import.instrument_name": "Название прибора:",
   "import.delete_confirm": "Удалить прибор «{name}»? Его файлы не затрагиваются.",
-  "import.no_instrument": "(автоматическое определение)",
+  "import.no_instrument": "(без прибора)",
   "import.auto": "автоматически",
   "import.data_lines": "Строки данных",
   "import.separator": "Разделитель",
@@ -1422,5 +1422,15 @@
   "instr.title": "Приборы и калибровки",
   "instr.valid_from": "Действует с",
   "global_neel.calibration": "калибровка от {date} (измерен {measured}), Vmax = {vmax} мм/с",
-  "global_neel.no_calibration": "⚠ нет калибровки прибора для измерения от {measured}: Vmax панели"
+  "global_neel.no_calibration": "⚠ нет калибровки прибора для измерения от {measured}: Vmax панели",
+  "instr.recognized": "Распознан прибор: {name}",
+  "instr.ambiguous": "Этот файл распознают несколько приборов ({names}); он открыт без прибора. Выберите прибор в «Импорт…»",
+  "import.recognized": "Прибор распознан по имени файла или заголовку: {name}",
+  "import.ambiguous": "Его распознают несколько приборов: {names}. Выберите один.",
+  "instr.match": "Распознавать его файлы по:",
+  "instr.match_text": "тексту заголовка",
+  "instr.match_text_ph": "напр. WissEl; Lab B",
+  "instr.match_name": "имени файла",
+  "instr.match_name_ph": "напр. *.ws5; FeB*",
+  "instr.match_tip": "Несколько значений через «;»: достаточно одного. Если заполнены оба поля, должны совпасть оба. При открытии файла без выбора прибора автоматически применяется единственный прибор, который его распознаёт."
 }

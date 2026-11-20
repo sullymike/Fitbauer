@@ -14,7 +14,9 @@ from typing import Callable
 from PySide6 import QtCore, QtWidgets
 
 from mossbauer_i18n import tr
-from core.instruments import CalibrationRecord, InstrumentLibrary, InstrumentProfile
+from core.instruments import (
+    CalibrationRecord, InstrumentLibrary, InstrumentProfile, split_patterns,
+)
 
 _PATTERNS = (("normos", "conventions.sextet_normos_opt", "Momentos nucleares (Fitbauer y NORMOS)"),
              ("legacy", "conventions.sextet_legacy", "Histórico de Fitbauer (hasta v5.2.4)"))
@@ -124,6 +126,26 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
         top.addWidget(self.date_order_combo)
         v.addLayout(top)
 
+        # Reconocimiento automático (Cargar / arrastrar sin elegir equipo).
+        match = QtWidgets.QHBoxLayout()
+        match.addWidget(QtWidgets.QLabel(tr("instr.match", default="Reconocer sus ficheros por:")))
+        match.addWidget(QtWidgets.QLabel(tr("instr.match_text", default="texto de la cabecera")))
+        self.match_text_edit = QtWidgets.QLineEdit()
+        self.match_text_edit.setPlaceholderText(tr("instr.match_text_ph", default="p. ej. WissEl; Lab B"))
+        match.addWidget(self.match_text_edit, stretch=1)
+        match.addWidget(QtWidgets.QLabel(tr("instr.match_name", default="nombre de fichero")))
+        self.match_name_edit = QtWidgets.QLineEdit()
+        self.match_name_edit.setPlaceholderText(tr("instr.match_name_ph", default="p. ej. *.ws5; FeB*"))
+        match.addWidget(self.match_name_edit, stretch=1)
+        tip = tr("instr.match_tip",
+                 default="Varios valores separados por «;»: basta uno. Si rellenas los dos "
+                         "campos, se exigen ambos. Al abrir un fichero sin elegir equipo, "
+                         "el único equipo que lo reconoce se aplica solo.")
+        for w in (self.match_text_edit, self.match_name_edit):
+            w.setToolTip(tip)
+            w.editingFinished.connect(self._on_match_changed)
+        v.addLayout(match)
+
         self.table = QtWidgets.QTableWidget(0, len(self.COLUMNS))
         self.table.setHorizontalHeaderLabels([
             tr("instr.valid_from", default="Válida desde"), "Vmax (mm/s)",
@@ -202,6 +224,17 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
         profile.date_order = self.date_order_combo.currentData()
         self.library.save(profile)
 
+    def _on_match_changed(self) -> None:
+        profile = self.library.get(self.instrument_name() or "")
+        if profile is None:
+            return
+        text = split_patterns(self.match_text_edit.text())
+        name = split_patterns(self.match_name_edit.text())
+        if (text, name) == (profile.match_text, profile.match_name):
+            return
+        profile.match_text, profile.match_name = text, name
+        self.library.save(profile)
+
     # ── Calibraciones ─────────────────────────────────────────────────────
     def _records(self) -> list[CalibrationRecord]:
         name = self.instrument_name()
@@ -215,6 +248,12 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
             max(0, self.date_order_combo.findData(profile.date_order if profile else "dmy")))
         self.date_order_combo.blockSignals(False)
         self.date_order_combo.setEnabled(profile is not None)
+        for edit, values in ((self.match_text_edit, profile.match_text if profile else []),
+                             (self.match_name_edit, profile.match_name if profile else [])):
+            edit.blockSignals(True)
+            edit.setText("; ".join(values))
+            edit.blockSignals(False)
+            edit.setEnabled(profile is not None)
         records = self._records()
         self.table.setRowCount(len(records))
         for i, r in enumerate(records):

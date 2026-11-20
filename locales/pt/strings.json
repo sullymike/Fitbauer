@@ -1365,7 +1365,7 @@
   "import.delete_instrument": "Eliminar equipamento",
   "import.instrument_name": "Nome do equipamento:",
   "import.delete_confirm": "Eliminar o equipamento «{name}»? Os seus ficheiros não são alterados.",
-  "import.no_instrument": "(deteção automática)",
+  "import.no_instrument": "(sem equipamento)",
   "import.auto": "automático",
   "import.data_lines": "Linhas de dados",
   "import.separator": "Separador",
@@ -1422,5 +1422,15 @@
   "instr.title": "Equipamentos e calibrações",
   "instr.valid_from": "Válida desde",
   "global_neel.calibration": "calibração de {date} (medido em {measured}), Vmax = {vmax} mm/s",
-  "global_neel.no_calibration": "⚠ sem calibração do equipamento para a medida de {measured}: Vmax do painel"
+  "global_neel.no_calibration": "⚠ sem calibração do equipamento para a medida de {measured}: Vmax do painel",
+  "instr.recognized": "Equipamento reconhecido: {name}",
+  "instr.ambiguous": "Vários equipamentos reconhecem este ficheiro ({names}); foi aberto sem equipamento. Escolha um em Importar…",
+  "import.recognized": "Equipamento reconhecido pelo nome ou cabeçalho: {name}",
+  "import.ambiguous": "Vários equipamentos o reconhecem: {names}. Escolha um.",
+  "instr.match": "Reconhecer os seus ficheiros por:",
+  "instr.match_text": "texto do cabeçalho",
+  "instr.match_text_ph": "p. ex. WissEl; Lab B",
+  "instr.match_name": "nome do ficheiro",
+  "instr.match_name_ph": "p. ex. *.ws5; FeB*",
+  "instr.match_tip": "Vários valores separados por «;»: basta um. Se preencher os dois campos, exigem-se ambos. Ao abrir um ficheiro sem escolher equipamento, o único equipamento que o reconhece aplica-se automaticamente."
 }

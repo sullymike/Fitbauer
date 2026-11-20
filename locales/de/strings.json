@@ -1365,7 +1365,7 @@
   "import.delete_instrument": "Gerät löschen",
   "import.instrument_name": "Name des Geräts:",
   "import.delete_confirm": "Gerät „{name}“ löschen? Seine Dateien bleiben unberührt.",
-  "import.no_instrument": "(automatische Erkennung)",
+  "import.no_instrument": "(kein Gerät)",
   "import.auto": "automatisch",
   "import.data_lines": "Datenzeilen",
   "import.separator": "Trennzeichen",
@@ -1422,5 +1422,15 @@
   "instr.title": "Geräte und Kalibrierungen",
   "instr.valid_from": "Gültig ab",
   "global_neel.calibration": "Kalibrierung vom {date} (gemessen {measured}), Vmax = {vmax} mm/s",
-  "global_neel.no_calibration": "⚠ keine Gerätekalibrierung für die Messung vom {measured}: Vmax des Feldes"
+  "global_neel.no_calibration": "⚠ keine Gerätekalibrierung für die Messung vom {measured}: Vmax des Feldes",
+  "instr.recognized": "Gerät erkannt: {name}",
+  "instr.ambiguous": "Mehrere Geräte erkennen diese Datei ({names}); sie wurde ohne Gerät geöffnet. Wählen Sie eines unter Importieren…",
+  "import.recognized": "Gerät anhand von Dateiname oder Kopfzeilen erkannt: {name}",
+  "import.ambiguous": "Mehrere Geräte erkennen sie: {names}. Wählen Sie eines.",
+  "instr.match": "Dateien erkennen an:",
+  "instr.match_text": "Kopfzeilentext",
+  "instr.match_text_ph": "z. B. WissEl; Lab B",
+  "instr.match_name": "Dateiname",
+  "instr.match_name_ph": "z. B. *.ws5; FeB*",
+  "instr.match_tip": "Mehrere Werte durch „;“ getrennt: einer genügt. Sind beide Felder ausgefüllt, müssen beide passen. Wird eine Datei ohne Gerätewahl geöffnet, wird das einzige Gerät, das sie erkennt, automatisch angewendet."
 }

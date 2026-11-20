@@ -1365,7 +1365,7 @@
   "import.delete_instrument": "Supprimer l'appareil",
   "import.instrument_name": "Nom de l'appareil :",
   "import.delete_confirm": "Supprimer l'appareil « {name} » ? Ses fichiers ne sont pas touchés.",
-  "import.no_instrument": "(détection automatique)",
+  "import.no_instrument": "(aucun appareil)",
   "import.auto": "automatique",
   "import.data_lines": "Lignes de données",
   "import.separator": "Séparateur",
@@ -1422,5 +1422,15 @@
   "instr.title": "Appareils et calibrations",
   "instr.valid_from": "Valable depuis",
   "global_neel.calibration": "calibration du {date} (mesuré le {measured}), Vmax = {vmax} mm/s",
-  "global_neel.no_calibration": "⚠ pas de calibration de l'appareil pour la mesure du {measured} : Vmax du panneau"
+  "global_neel.no_calibration": "⚠ pas de calibration de l'appareil pour la mesure du {measured} : Vmax du panneau",
+  "instr.recognized": "Appareil reconnu : {name}",
+  "instr.ambiguous": "Plusieurs appareils reconnaissent ce fichier ({names}) ; il a été ouvert sans appareil. Choisissez-en un dans Importer…",
+  "import.recognized": "Appareil reconnu par le nom ou l’en-tête : {name}",
+  "import.ambiguous": "Plusieurs appareils le reconnaissent : {names}. Choisissez-en un.",
+  "instr.match": "Reconnaître ses fichiers par :",
+  "instr.match_text": "texte de l’en-tête",
+  "instr.match_text_ph": "p. ex. WissEl ; Lab B",
+  "instr.match_name": "nom de fichier",
+  "instr.match_name_ph": "p. ex. *.ws5 ; FeB*",
+  "instr.match_tip": "Plusieurs valeurs séparées par « ; » : une suffit. Si les deux champs sont remplis, les deux doivent correspondre. À l’ouverture d’un fichier sans appareil choisi, le seul appareil qui le reconnaît est appliqué automatiquement."
 }

@@ -427,6 +427,19 @@ class HeadlessSession:
         self.model.fold_mode = profile.fold_mode
         self.model.reverse_velocity = bool(profile.reverse_velocity)
 
+    def recognize_instrument(self, path, library=None) -> str:
+        """Usa el único equipo que reconoce ``path`` (sus criterios de nombre y
+        cabecera); devuelve su nombre. ``KeyError`` si ninguno o varios."""
+        from core.instruments import InstrumentLibrary
+        lib = library if library is not None else InstrumentLibrary()
+        found = [p.name for p in lib.recognize(path)]
+        if len(found) != 1:
+            detail = ("no instrument recognizes it" if not found
+                      else "several instruments recognize it: " + ", ".join(found))
+            raise KeyError(f"{Path(path).name}: {detail} (library {lib.root})")
+        self.use_instrument(found[0], lib)
+        return found[0]
+
     def instrument_calibration(self, path, imported):
         """``(registro | None, fecha | None, origen)`` del equipo para un fichero."""
         from core.spectrum_import import measurement_date

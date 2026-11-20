@@ -103,3 +103,26 @@ def test_cli_vmax_and_instrument_conflict(setup, tmp_path):
     rc = cli.main(["--template", str(template), "--spectrum", str(files[0]), "--out",
                    str(tmp_path / "x.json"), "--instrument", "Lab B", "--vmax", "6"])
     assert rc == 2
+
+
+def test_cli_instrument_auto(setup, tmp_path, capsys):
+    lib, files, template = setup
+    out = tmp_path / "auto.json"
+    args = ["--template", str(template), "--spectrum", *map(str, files),
+            "--out", str(out), "--instrument", "auto", "--instruments-dir", str(lib.root)]
+    # Nadie declara cómo reconocer sus ficheros: falla con un mensaje claro.
+    assert cli.main(args) == 1
+    assert "no instrument recognizes" in capsys.readouterr().err
+    profile = lib.get("Lab B")
+    profile.match_text = ["Sample: FeX"]
+    lib.save(profile)
+    assert cli.main(args) == 0
+    payload = json.loads(out.read_text())
+    assert payload["instrument"] == "Lab B"
+    assert [r["calibration"]["date"] for r in payload["results"]] == ["2025-01-01", "2025-06-01"]
+    assert "Equipo: Lab B" in capsys.readouterr().out
+    # Un espectro suelto también.
+    assert cli.main([*args[:2], "--spectrum", str(files[1]), "--out", str(tmp_path / "1.json"),
+                     "--instrument", "auto", "--instruments-dir", str(lib.root), "--quiet"]) == 0
+    single = json.loads((tmp_path / "1.json").read_text())
+    assert single["calibration"]["instrument"] == "Lab B"

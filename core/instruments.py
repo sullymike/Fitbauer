@@ -13,10 +13,17 @@ cada espectro de calibración en ``calibrations/``). La raíz se puede compartir
 
 **Asignación por fecha**: a un espectro medido el día *D* le corresponde la
 última calibración del equipo con fecha ≤ *D* (la vigente cuando se midió).
+
+**Reconocimiento**: un equipo puede declarar cómo reconocer sus ficheros
+(``match_text``: textos de su cabecera o pie; ``match_name``: patrones del
+nombre de fichero, ``*.ws5``, ``FeB*``). Dentro de cada lista basta uno; si
+declara las dos, se exigen ambas. Al abrir un fichero sin elegir equipo, el que
+lo reconozca **en exclusiva** se aplica solo (:meth:`InstrumentLibrary.recognize`).
 """
 from __future__ import annotations
 
 import datetime as dt
+import fnmatch
 import json
 import re
 import shutil
@@ -28,7 +35,9 @@ from pathlib import Path
 from core.data_io import CONFIG_DIR
 from core.folding import canonical_fold_mode
 from core.constants import canonical_sextet_pattern
-from core.spectrum_import import DATE_ORDERS, ImportHints
+from core.spectrum_import import (
+    DATE_ORDERS, ImportedSpectrum, ImportHints, read_spectrum_file, read_text,
+)
 
 #: Raíz por defecto de la biblioteca de equipos.
 DEFAULT_INSTRUMENTS_DIR = CONFIG_DIR / "instruments"
@@ -47,6 +56,13 @@ class InstrumentProfile:
     # Cómo leer fechas numéricas ambiguas (03/04/2025) en sus ficheros.
     date_order: str = "dmy"
     notes: str = ""
+    # Reconocimiento automático de sus ficheros (vacías = no se reconoce).
+    match_text: list[str] = field(default_factory=list)
+    match_name: list[str] = field(default_factory=list)
+
+    @property
+    def recognizable(self) -> bool:
+        return bool(self.match_text or self.match_name)
 
     def to_dict(self) -> dict:
         return {
@@ -57,6 +73,8 @@ class InstrumentProfile:
             "reverse_velocity": bool(self.reverse_velocity),
             "date_order": self.date_order,
             "notes": self.notes,
+            "match_text": list(self.match_text),
+            "match_name": list(self.match_name),
         }
 
     @classmethod
@@ -71,7 +89,55 @@ class InstrumentProfile:
             date_order=(data.get("date_order") if data.get("date_order") in DATE_ORDERS
                         else "dmy"),
             notes=str(data.get("notes", "")),
+            match_text=_str_list(data.get("match_text")),
+            match_name=_str_list(data.get("match_name")),
         )
+
+
+def _str_list(value) -> list[str]:
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, (list, tuple)):
+        return []
+    return [str(v).strip() for v in value if str(v).strip()]
+
+
+def split_patterns(text: str) -> list[str]:
+    """``"FeB-1; *.ws5"`` → ``["FeB-1", "*.ws5"]`` (separador ``;``)."""
+    return [t.strip() for t in str(text).split(";") if t.strip()]
+
+
+def recognition_text(path: str | Path,
+                     spectrum: ImportedSpectrum | None = None) -> list[str]:
+    """Líneas de cabecera y pie de un fichero, donde se busca ``match_text``.
+
+    Si el lector no encuentra datos, las primeras líneas del texto.
+    """
+    if spectrum is None:
+        try:
+            spectrum = read_spectrum_file(path)
+        except (OSError, ValueError):
+            try:
+                return read_text(path).splitlines()[:100]
+            except OSError:
+                return []
+    return list(spectrum.header) + list(spectrum.footer)
+
+
+def profile_matches(profile: InstrumentProfile, file_name: str,
+                    lines: list[str]) -> bool:
+    """¿Reconoce ``profile`` el fichero? Sin criterios, nunca."""
+    if not profile.recognizable:
+        return False
+    if profile.match_name:
+        name = file_name.casefold()
+        if not any(fnmatch.fnmatchcase(name, pat.casefold()) for pat in profile.match_name):
+            return False
+    if profile.match_text:
+        text = "\n".join(lines).casefold()
+        if not any(pat.casefold() in text for pat in profile.match_text):
+            return False
+    return True
 
 
 @dataclass
@@ -157,6 +223,20 @@ class InstrumentLibrary:
             return None
         profile = InstrumentProfile.from_dict(json.loads(path.read_text(encoding="utf-8")))
         return profile if profile.name == name else None
+
+    def recognize(self, path: str | Path,
+                  spectrum: ImportedSpectrum | None = None) -> list[InstrumentProfile]:
+        """Equipos que reconocen el fichero (vacía si ninguno declara criterios).
+
+        Solo debe aplicarse automáticamente si hay **uno**: con varios, el
+        usuario elige (los criterios se solapan).
+        """
+        profiles = [p for p in self.list() if p.recognizable]
+        if not profiles:
+            return []
+        lines = recognition_text(path, spectrum)
+        name = Path(path).name
+        return [p for p in profiles if profile_matches(p, name, lines)]
 
     def save(self, profile: InstrumentProfile) -> Path:
         """Guarda (o sustituye) el equipo; escritura atómica."""

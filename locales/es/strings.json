@@ -1365,7 +1365,7 @@
   "import.delete_instrument": "Eliminar equipo",
   "import.instrument_name": "Nombre del equipo:",
   "import.delete_confirm": "¿Eliminar el equipo «{name}»? Sus ficheros no se tocan.",
-  "import.no_instrument": "(detección automática)",
+  "import.no_instrument": "(sin equipo)",
   "import.auto": "automático",
   "import.data_lines": "Líneas de datos",
   "import.separator": "Separador",
@@ -1422,5 +1422,15 @@
   "instr.title": "Equipos y calibraciones",
   "instr.valid_from": "Válida desde",
   "global_neel.calibration": "calibración del {date} (medida {measured}), Vmax = {vmax} mm/s",
-  "global_neel.no_calibration": "⚠ sin calibración del equipo para la medida del {measured}: Vmax del panel"
+  "global_neel.no_calibration": "⚠ sin calibración del equipo para la medida del {measured}: Vmax del panel",
+  "instr.recognized": "Equipo reconocido: {name}",
+  "instr.ambiguous": "Varios equipos reconocen este fichero ({names}); se ha abierto sin equipo. Elige uno en Importar…",
+  "import.recognized": "Equipo reconocido por su nombre o cabecera: {name}",
+  "import.ambiguous": "Lo reconocen varios equipos: {names}. Elige uno.",
+  "instr.match": "Reconocer sus ficheros por:",
+  "instr.match_text": "texto de la cabecera",
+  "instr.match_text_ph": "p. ej. WissEl; Lab B",
+  "instr.match_name": "nombre de fichero",
+  "instr.match_name_ph": "p. ej. *.ws5; FeB*",
+  "instr.match_tip": "Varios valores separados por «;»: basta uno. Si rellenas los dos campos, se exigen ambos. Al abrir un fichero sin elegir equipo, el único equipo que lo reconoce se aplica solo."
 }

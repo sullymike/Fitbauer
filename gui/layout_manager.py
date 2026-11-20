@@ -413,7 +413,7 @@ class LayoutSettingsMixin:
     def _open_recent(self, path: str) -> None:
         try:
             self._restore_conventions_after_job()
-            self._load_file(Path(path))
+            self._open_spectrum(Path(path))
         except Exception as exc:
             QtWidgets.QMessageBox.warning(self, tr("file.open"), str(exc))
 

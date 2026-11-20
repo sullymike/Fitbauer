@@ -910,7 +910,7 @@ class ModelWorkflowMixin:
                 self.import_normos_job_file(ruta)
             else:
                 self._restore_conventions_after_job()
-                self._load_file(ruta)
+                self._open_spectrum(ruta)
         except Exception as exc:                       # noqa: BLE001
             QtWidgets.QMessageBox.critical(
                 self, tr("file.open"), f"{type(exc).__name__}: {exc}")
@@ -945,7 +945,7 @@ class ModelWorkflowMixin:
         p = Path(path)
         self._restore_conventions_after_job()
         try:
-            self._load_file(p)
+            self._open_spectrum(p)
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("file.open"),
                                            f"{type(exc).__name__}: {exc}")
@@ -1020,6 +1020,38 @@ class ModelWorkflowMixin:
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("file.import", default="Importar…"),
                                            f"{type(exc).__name__}: {exc}")
+
+    def _open_spectrum(self, path: Path) -> None:
+        """Abre un espectro sin ventana de importación (Cargar, arrastrar,
+        recientes). Si un equipo de la biblioteca lo reconoce en exclusiva
+        (por su nombre o su cabecera), se abre con ese equipo: correcciones de
+        lectura, forma de onda, plegado y calibración por fecha."""
+        path = Path(path)
+        try:
+            found = self._instrument_library().recognize(path)
+        except OSError:
+            found = []
+        if len(found) != 1:
+            self._load_file(path)
+            if len(found) > 1:
+                self.statusBar().showMessage(tr(
+                    "instr.ambiguous", names=", ".join(p.name for p in found),
+                    default="Varios equipos reconocen este fichero ({names}); "
+                            "se ha abierto sin equipo. Elige uno en Importar…"), 15000)
+            return
+        profile = found[0]
+        prev, self._building = self._building, True
+        try:
+            self.calib.set_drive_form(profile.drive_form)
+            self.calib.set_fold_mode(profile.fold_mode, profile.reverse_velocity)
+        finally:
+            self._building = prev
+        self._load_file(path, profile.import_hints if profile.import_hints.to_dict() else None,
+                        profile.name)
+        msg = tr("instr.recognized", name=profile.name,
+                 default="Equipo reconocido: {name}")
+        current = self.statusBar().currentMessage()
+        self.statusBar().showMessage(f"{msg} · {current}" if current else msg, 15000)
 
     def _load_file(self, path: Path, hints: ImportHints | None = None,
                    instrument: str | None = None) -> None:

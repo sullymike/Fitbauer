@@ -177,3 +177,52 @@ def test_batch_tsv_calibration_columns(tmp_path):
     assert line.split("\t")[5:8] == ["2025-03-14", "2025-01-10", "10.0"]
     write_results_csv(p, ["x"], [{**rows[0], "calibration": None}])
     assert "calibration" not in p.read_text().splitlines()[0]
+
+
+# ── Reconocimiento automático ────────────────────────────────────────────────
+
+def _spectrum_file(tmp_path, name, header=""):
+    p = tmp_path / name
+    p.write_text(header + "\n".join(str(1000 + i % 7) for i in range(256)))
+    return p
+
+
+def test_match_fields_round_trip(tmp_path):
+    lib = InstrumentLibrary(tmp_path / "lib")
+    lib.save(_profile("A", match_text=["WissEl"], match_name=["*.ws5"]))
+    back = lib.get("A")
+    assert back.match_text == ["WissEl"] and back.match_name == ["*.ws5"]
+    # Perfiles anteriores (sin los campos) no se reconocen nunca.
+    assert InstrumentProfile.from_dict({"name": "viejo"}).recognizable is False
+
+
+def test_recognize_by_header_and_by_name(tmp_path):
+    lib = InstrumentLibrary(tmp_path / "lib")
+    lib.save(InstrumentProfile(name="Lab B", match_text=["lab b; ", "Spectrometer B"]))
+    lib.save(InstrumentProfile(name="FeB", match_name=["FeB*.dat"]))
+    lib.save(InstrumentProfile(name="Sin criterios"))
+    by_text = _spectrum_file(tmp_path, "x.dat", "Instrument: SPECTROMETER B\nDate: 2025-01-02\n")
+    by_name = _spectrum_file(tmp_path, "feb_017.DAT")
+    nothing = _spectrum_file(tmp_path, "otro.dat", "Instrument: C\n")
+    assert [p.name for p in lib.recognize(by_text)] == ["Lab B"]
+    assert [p.name for p in lib.recognize(by_name)] == ["FeB"]     # sin distinguir mayúsculas
+    assert lib.recognize(nothing) == []
+    # Los números de los datos no cuentan como cabecera.
+    lib.save(InstrumentProfile(name="Num", match_text=["1003"]))
+    assert lib.recognize(nothing) == []
+
+
+def test_recognize_requires_both_criteria_and_reports_ambiguity(tmp_path):
+    lib = InstrumentLibrary(tmp_path / "lib")
+    lib.save(InstrumentProfile(name="Ambos", match_text=["Lab B"], match_name=["*.ws5"]))
+    assert lib.recognize(_spectrum_file(tmp_path, "a.dat", "Lab B\n")) == []
+    assert lib.recognize(_spectrum_file(tmp_path, "b.ws5", "Otro\n")) == []
+    ok = _spectrum_file(tmp_path, "c.ws5", "Lab B\n")
+    assert [p.name for p in lib.recognize(ok)] == ["Ambos"]
+    lib.save(InstrumentProfile(name="Otro", match_name=["c.*"]))
+    assert {p.name for p in lib.recognize(ok)} == {"Ambos", "Otro"}
+
+
+def test_split_patterns():
+    from core.instruments import split_patterns
+    assert split_patterns(" FeB-1; *.ws5 ;; ") == ["FeB-1", "*.ws5"]

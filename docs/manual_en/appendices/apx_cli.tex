@@ -88,7 +88,9 @@ Option & Argument & Meaning \\
 \code{-{}-instrument} & \textit{name} & Saved instrument (optional,
   §\ref{sec:equipos-calibraciones}): its reading corrections, waveform and
   folding, and for each spectrum the calibration in force on its measurement
-  date. Incompatible with \code{-{}-vmax}. \\
+  date. With \code{auto}, the instrument that recognizes the (first) spectrum
+  by its name or header; it fails if none or several do. Incompatible with
+  \code{-{}-vmax}. \\
 \code{-{}-instruments-dir} & \file{folder} & Instrument library; by default,
   the GUI one. \\
 \code{-{}-quiet} & --- & Suppress the summary printed to stdout. \\
@@ -171,6 +173,9 @@ instrument everything works as before:
 python mossbauer_fit_cli.py --template T.json --instrument "Lab B" \
     --spectrum january.dat july.dat --out serie.batch.json
 \end{lstlisting}
+
+With \code{-{}-instrument auto} the instrument is chosen from the first
+spectrum and its name is written to the output (\code{instrument}).
 
 For fully independent fits (no warm-start) simply call the script once per
 file from the shell.

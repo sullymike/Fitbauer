@@ -72,6 +72,16 @@ class ImportDialog(QtWidgets.QDialog):
         self.resize(1100, 720)
         self._build()
         self._set_preparation(drive_form, fold_mode, reverse)
+        # Un equipo que reconoce el fichero (nombre/cabecera) manda sobre el
+        # del espectro anterior; con varios candidatos no se elige ninguno.
+        try:
+            found = [p.name for p in self.library.recognize(self.path)]
+        except OSError:
+            found = []
+        self.recognized = found[0] if len(found) == 1 else None
+        self.ambiguous = found if len(found) > 1 else []
+        if self.recognized:
+            instrument = self.recognized
         self._reload_instruments(instrument)
         if instrument and self.library.get(instrument) is not None:
             self._apply_profile(self.library.get(instrument))
@@ -316,7 +326,9 @@ class ImportDialog(QtWidgets.QDialog):
             name=name, import_hints=self.hints(), drive_form=self.drive_form(),
             fold_mode=self.fold_mode(), reverse_velocity=self.reverse(),
             date_order=old.date_order if old else "dmy",
-            notes=old.notes if old else "")
+            notes=old.notes if old else "",
+            match_text=list(old.match_text) if old else [],
+            match_name=list(old.match_name) if old else [])
         try:
             self.library.save(profile)
         except (OSError, ValueError) as exc:
@@ -429,6 +441,12 @@ class ImportDialog(QtWidgets.QDialog):
             parts.append(tr("import.summary_dates", default="Fechas") + ": " + ", ".join(r.dates[:3]))
         for w in r.warnings:
             parts.append("⚠ " + tr(f"import.warn.{w}", default=w))
+        if self.recognized and self.instrument_name() == self.recognized:
+            parts.append(tr("import.recognized", name=self.recognized,
+                            default="Equipo reconocido por su nombre o cabecera: {name}"))
+        elif self.ambiguous:
+            parts.append("⚠ " + tr("import.ambiguous", names=", ".join(self.ambiguous),
+                                   default="Lo reconocen varios equipos: {names}. Elige uno."))
         if self.instrument_name() and r.x_kind == "channel":
             record, date, origin = self.assigned_calibration()
             if date is None:

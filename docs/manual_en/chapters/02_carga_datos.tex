@@ -132,6 +132,19 @@ calibration of its own date (with no earlier calibration, with the panel
 A saved session keeps the calibration it was worked with, even if the library
 changes later.
 
+\textbf{Automatic recognition.} In the instrument manager, \emph{Recognize its
+files by} takes two criteria: a \textbf{header text} (or footer text), such as
+the spectrometer or laboratory name written by its acquisition software, and a
+\textbf{file name} with wildcards (\texttt{*.ws5}, \texttt{FeB*}). Several values
+can be given separated by semicolons, and one match is enough; if both fields are
+filled, both must match. Case is ignored. When a file is opened with
+\menu{Load…}, by dragging it or from the recent files, if \textbf{exactly one}
+instrument recognizes it, it is opened with that instrument (corrections,
+waveform, folding and calibration by date) and the status bar says so. If several
+recognize it, it is opened without an instrument and a warning is shown; in
+\menu{Import…} the recognized instrument is already selected and can be changed.
+An instrument without criteria is never chosen automatically.
+
 \section{Folding and the centre}
 \label{sec:folding}
 

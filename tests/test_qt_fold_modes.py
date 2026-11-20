@@ -347,3 +347,66 @@ def test_global_relaxation_uses_calibration_per_date(make_window, tmp_path, monk
     text = dlg.results_text.toPlainText()
     assert "2025-01-10" in text and "2024-01-01" in text
     dlg.deleteLater()
+
+
+# ── Reconocimiento automático del equipo ──────────────────────────────────────
+
+def _recognizing_lab(tmp_path):
+    lib = _lab(tmp_path)
+    profile = lib.get("Lab B")
+    profile.match_text = ["Lab B"]
+    profile.fold_mode = "two_branches"
+    lib.save(profile)
+    return lib
+
+
+def _lab_b_file(tmp_path: Path, name: str, date: str) -> Path:
+    p = _dated_copy(tmp_path, name, date)
+    p.write_text("Instrument: Lab B\n" + p.read_text())
+    return p
+
+
+def test_open_recognizes_instrument(make_window, tmp_path):
+    win = make_window()
+    win._instruments = _recognizing_lab(tmp_path)
+    win._open_spectrum(_lab_b_file(tmp_path, "a.dat", "2025-03-14"))
+    assert win.file.instrument == "Lab B"
+    assert win.calibration_info["calibration_date"] == "2025-01-10"
+    assert win.calib.to_view_state().fold_mode == "two_branches"
+    assert "Lab B" in win.statusBar().currentMessage()
+    # Un fichero que no lo menciona se abre sin equipo.
+    win._open_spectrum(_dated_copy(tmp_path, "otro.dat", "2025-03-14"))
+    assert win.file.instrument is None
+
+
+def test_open_with_two_candidates_uses_none(make_window, tmp_path):
+    from core.instruments import InstrumentProfile
+    win = make_window()
+    lib = win._instruments = _recognizing_lab(tmp_path)
+    lib.save(InstrumentProfile(name="Lab C", match_name=["*.dat"]))
+    win._open_spectrum(_lab_b_file(tmp_path, "a.dat", "2025-03-14"))
+    assert win.file.instrument is None
+    assert "Lab C" in win.statusBar().currentMessage()
+
+
+def test_import_dialog_preselects_recognized_instrument(qapp, tmp_path):
+    from gui.import_dialog import ImportDialog
+    dlg = ImportDialog(None, _lab_b_file(tmp_path, "a.dat", "2025-03-14"),
+                       library=_recognizing_lab(tmp_path), vmax=12.0, instrument=None)
+    assert dlg.instrument_name() == "Lab B" and dlg.fold_mode() == "two_branches"
+    assert "Lab B" in dlg.summary.text() and "2025-01-10" in dlg.summary.text()
+    dlg.deleteLater()
+
+
+def test_instrument_manager_edits_recognition(qapp, tmp_path):
+    from gui.instrument_manager import InstrumentManagerDialog
+    lib = _lab(tmp_path)
+    dlg = InstrumentManagerDialog(None, lib, "Lab B")
+    assert dlg.match_text_edit.text() == "" and dlg.match_text_edit.isEnabled()
+    dlg.match_text_edit.setText("Lab B; Spectro 2")
+    dlg.match_name_edit.setText("*.ws5")
+    dlg._on_match_changed()
+    back = lib.get("Lab B")
+    assert back.match_text == ["Lab B", "Spectro 2"] and back.match_name == ["*.ws5"]
+    assert lib.calibrations("Lab B")            # el perfil se reescribe, las calibraciones siguen
+    dlg.deleteLater()

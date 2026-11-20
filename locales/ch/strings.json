@@ -1365,7 +1365,7 @@
   "import.delete_instrument": "删除仪器",
   "import.instrument_name": "仪器名称：",
   "import.delete_confirm": "删除仪器“{name}”？其文件不受影响。",
-  "import.no_instrument": "（自动检测）",
+  "import.no_instrument": "（无仪器）",
   "import.auto": "自动",
   "import.data_lines": "数据行",
   "import.separator": "分隔符",
@@ -1422,5 +1422,15 @@
   "instr.title": "仪器与校准",
   "instr.valid_from": "生效日期",
   "global_neel.calibration": "{date} 的校准（测量于 {measured}），Vmax = {vmax} mm/s",
-  "global_neel.no_calibration": "⚠ {measured} 的测量没有仪器校准：使用面板的 Vmax"
+  "global_neel.no_calibration": "⚠ {measured} 的测量没有仪器校准：使用面板的 Vmax",
+  "instr.recognized": "已识别仪器：{name}",
+  "instr.ambiguous": "多个仪器识别此文件（{names}）；已在无仪器状态下打开。请在“导入…”中选择一个",
+  "import.recognized": "按文件名或文件头识别的仪器：{name}",
+  "import.ambiguous": "多个仪器识别它：{names}。请选择一个。",
+  "instr.match": "识别其文件依据：",
+  "instr.match_text": "文件头文本",
+  "instr.match_text_ph": "例如 WissEl; Lab B",
+  "instr.match_name": "文件名",
+  "instr.match_name_ph": "例如 *.ws5; FeB*",
+  "instr.match_tip": "多个值用“;”分隔：满足其一即可。若两个字段都填写，则须同时满足。未选择仪器而打开文件时，唯一能识别它的仪器会被自动应用。"
 }

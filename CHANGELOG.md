@@ -2,6 +2,25 @@
 
 ## Sin publicar
 
+- **Reconocimiento automático del equipo.** Cada equipo puede decir cómo
+  reconocer sus ficheros (gestor de equipos, «Reconocer sus ficheros por»):
+  textos de su cabecera o pie y patrones del nombre de fichero (`*.ws5`,
+  `FeB*`), separados por `;`; dentro de cada campo basta uno y, si se
+  rellenan los dos, se exigen ambos. Al abrir con *Cargar…*, arrastrando o
+  desde los recientes, si un único equipo reconoce el fichero se aplica solo
+  (correcciones, forma de onda, plegado y calibración por fecha) y la barra de
+  estado lo dice; con varios candidatos se abre sin equipo y se avisa. En
+  *Importar…* el reconocido aparece ya elegido. Un equipo sin criterios (los
+  ya guardados) nunca se elige solo.
+  - `core.instruments`: `InstrumentProfile.match_text`/`match_name`,
+    `InstrumentLibrary.recognize`; `HeadlessSession.recognize_instrument`.
+  - CLI: `--instrument auto` (el equipo del primer espectro; falla si no lo
+    reconoce ninguno o varios). La salida de una serie lleva `instrument`.
+  - En la ventana de importación, «(detección automática)» pasa a «(sin
+    equipo)», que es lo que significa.
+  - Tests: el directorio de equipos también se redirige a uno temporal, para
+    que los equipos de quien ejecuta la suite no reconozcan sus ficheros.
+
 - **Ajuste global Néel (multi-T) con calibración por fecha.** Si el espectro
   activo se abrió con un equipo, cada fichero se lee con sus correcciones y
   se dobla con la calibración vigente en su fecha de medida (antes, una sola

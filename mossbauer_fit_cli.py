@@ -32,7 +32,9 @@ Equipo (opcional): con ``--instrument NOMBRE`` se usan las correcciones de
 lectura, la forma de onda y el plegado del equipo guardado desde la GUI
 (Archivo ▸ Importar… / Equipos y calibraciones…) y, para cada espectro, la
 calibración del equipo vigente en su fecha de medida (incompatible con
-``--vmax``). Sin ``--instrument`` todo funciona como siempre::
+``--vmax``). Con ``--instrument auto`` el equipo es el que reconoce el
+(primer) espectro por su nombre o su cabecera. Sin ``--instrument`` todo
+funciona como siempre::
 
     python mossbauer_fit_cli.py --template T.json --instrument "Lab B" \
         --spectrum enero.dat junio.dat --out serie.batch.json
@@ -93,15 +95,21 @@ def _apply_model_overrides(session_engine, overrides: dict | None) -> None:
 
 
 def _new_session(state: dict, instrument: str | None, instruments_dir: Path | None,
-                 model_overrides: dict | None):
-    """Sesión con la plantilla, el equipo (si hay) y las banderas, por ese orden."""
+                 model_overrides: dict | None, first_spectrum: Path | None = None):
+    """Sesión con la plantilla, el equipo (si hay) y las banderas, por ese orden.
+
+    ``instrument="auto"``: el equipo que reconoce ``first_spectrum``.
+    """
     from core.session import HeadlessSession
     session_engine = HeadlessSession()
     session_engine.apply_template_model_state(state)
     if instrument:
         from core.instruments import InstrumentLibrary
-        session_engine.use_instrument(
-            instrument, InstrumentLibrary(instruments_dir) if instruments_dir else None)
+        lib = InstrumentLibrary(instruments_dir) if instruments_dir else None
+        if instrument.casefold() == "auto":
+            session_engine.recognize_instrument(first_spectrum, lib)
+        else:
+            session_engine.use_instrument(instrument, lib)
     _apply_model_overrides(session_engine, model_overrides)
     return session_engine
 
@@ -158,7 +166,8 @@ def fit_spectrum(template_path: Path, spectrum_path: Path,
 
     # La plantilla se aplica ANTES de cargar: load_ws5 decide doblar o no según
     # drive_form y fold_mode, que vienen de la plantilla, del equipo o de --fold.
-    session_engine = _new_session(state, instrument, instruments_dir, model_overrides)
+    session_engine = _new_session(state, instrument, instruments_dir, model_overrides,
+                                  spectrum_path)
     session_engine.load_ws5(spectrum_path)
     # --vmax sobrescribe el de la plantilla (útil si la calibración varía).
     if vmax is not None:
@@ -229,7 +238,8 @@ def fit_batch(template_path: Path, spectrum_paths: list[Path],
             "Espectros no encontrados: " + ", ".join(str(p) for p in missing))
     state = _load_template_state(template_path)
 
-    session_engine = _new_session(state, instrument, instruments_dir, model_overrides)
+    session_engine = _new_session(state, instrument, instruments_dir, model_overrides,
+                                  spectrum_paths[0] if spectrum_paths else None)
     if vmax is not None:
         session_engine.set_vmax(vmax)
     rows = session_engine.batch_fit_sequential(spectrum_paths)
@@ -238,6 +248,10 @@ def fit_batch(template_path: Path, spectrum_paths: list[Path],
         "spectra": [str(p) for p in spectrum_paths],
         "results": rows,
     }
+    if session_engine.instrument is not None:
+        payload["instrument"] = session_engine.instrument.name
+        for row in rows:
+            row["instrument"] = session_engine.instrument.name
     if output_path is not None:
         _write_json(output_path, payload)
     return rows
@@ -309,8 +323,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--instrument", default=None, metavar="NOMBRE",
                    help="Equipo guardado (opcional): sus correcciones de lectura, "
                         "forma de onda y plegado, y para cada espectro la "
-                        "calibración vigente en su fecha de medida. Incompatible "
-                        "con --vmax.")
+                        "calibración vigente en su fecha de medida. 'auto': el "
+                        "equipo que reconoce el (primer) espectro por su nombre o "
+                        "su cabecera. Incompatible con --vmax.")
     p.add_argument("--instruments-dir", type=Path, default=None, metavar="DIR",
                    help="Carpeta de la biblioteca de equipos (por defecto la de "
                         "la GUI, ~/.config/mossbauer_fe33_gui/instruments).")
@@ -421,6 +436,8 @@ def _run(args) -> int:
                         print(f"      AVISO {r['warning']}")
                 else:
                     print(f"FAIL  {r['file']}  {r.get('error', '?')}")
+            if rows and rows[0].get("instrument"):
+                print(f"Equipo: {rows[0]['instrument']}")
             print(f"Serie: {n_ok}/{len(rows)} ajustes correctos → {args.out}")
         return 0 if n_ok == len(rows) else 1
     try:

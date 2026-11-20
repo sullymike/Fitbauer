@@ -41,11 +41,15 @@ def _configuracion_aislada(tmp_path_factory):
     dependiera de que cada test se acuerde de parchearlo, volvería a pasar.
     """
     import core.data_io as data_io
+    import core.instruments as instruments
     import core.param_overrides as param_overrides
 
     cfg = tmp_path_factory.mktemp("config_fitbauer")
     parches = [
         (data_io, "CONFIG_DIR", cfg),
+        # Los equipos reales de quien ejecuta la suite no deben reconocer
+        # (ni calibrar) los ficheros que abren los tests.
+        (instruments, "DEFAULT_INSTRUMENTS_DIR", cfg / "instruments"),
         (data_io, "SETTINGS_PATH", cfg / "settings.json"),
         (data_io, "CREDENTIALS_PATH", cfg / "credentials.json"),
         (param_overrides, "CONFIG_DIR", cfg),

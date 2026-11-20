@@ -51,6 +51,8 @@ del código de la GUI.**
   espectro); `calibration_for_date`: la última con fecha ≤ fecha de medida
   (`core.spectrum_import.measurement_date`). La GUI la asigna al importar con equipo y por
   fichero en el ajuste en serie (`gui/instrument_manager.py` = gestor).
+  Reconocimiento: `match_text`/`match_name` del perfil e `InstrumentLibrary.recognize`; *Cargar*,
+  arrastrar y recientes (`_open_spectrum`) aplican el único equipo que reconoce el fichero.
 - `fit_engine.py` — motor de ajuste discreto (singlete/doblete/sextete).
 - `profile_likelihood.py` — intervalos de confianza por verosimilitud perfilada.
 - `batch_fit.py` — ajuste en serie por warm-start.

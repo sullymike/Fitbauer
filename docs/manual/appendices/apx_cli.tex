@@ -92,7 +92,9 @@ Opción & Argumento & Significado \\
 \code{-{}-instrument} & \textit{nombre} & Equipo guardado (opcional,
   §\ref{sec:equipos-calibraciones}): sus correcciones de lectura, forma de
   onda y plegado, y para cada espectro la calibración vigente en su fecha de
-  medida. Incompatible con \code{-{}-vmax}. \\
+  medida. Con \code{auto}, el equipo que reconoce el (primer) espectro por su
+  nombre o su cabecera; si no lo reconoce ninguno, o varios, falla.
+  Incompatible con \code{-{}-vmax}. \\
 \code{-{}-instruments-dir} & \file{carpeta} & Biblioteca de equipos; por
   defecto, la de la GUI. \\
 \code{-{}-quiet} & --- & No imprime el resumen por la salida estándar. \\
@@ -175,6 +177,9 @@ antes:
 python mossbauer_fit_cli.py --template T.json --instrument "Lab B" \
     --spectrum enero.dat julio.dat --out serie.batch.json
 \end{lstlisting}
+
+Con \code{-{}-instrument auto} el equipo se elige por el primer espectro y su
+nombre queda en la salida (\code{instrument}).
 
 Para ajustes totalmente independientes (sin arranque en caliente) basta con
 llamar al programa una vez por fichero desde la shell.
