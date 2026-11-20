@@ -963,7 +963,8 @@ class ModelWorkflowMixin:
         InstrumentManagerDialog(self, self._instrument_library(),
                                 getattr(self.file, "instrument", None),
                                 self._current_calibration_entry,
-                                apply_calibration=self._apply_instrument_calibration).exec()
+                                apply_calibration=self._apply_instrument_calibration,
+                                open_calibration=self._open_calibration_spectrum).exec()
 
     def _apply_instrument_calibration(self, instrument: str, record_id: str) -> bool:
         """Aplica al espectro activo una calibración concreta de un equipo
@@ -1078,6 +1079,15 @@ class ModelWorkflowMixin:
                             "se ha abierto sin equipo. Elige uno en Importar…"), 15000)
             return
         profile = found[0]
+        self._load_with_profile(path, profile)
+        msg = tr("instr.recognized", name=profile.name,
+                 default="Equipo reconocido: {name}")
+        current = self.statusBar().currentMessage()
+        self.statusBar().showMessage(f"{msg} · {current}" if current else msg, 15000)
+
+    def _load_with_profile(self, path: Path, profile, calibration_id: str | None = None) -> None:
+        """Carga ``path`` como un fichero del equipo ``profile``: sus
+        correcciones de lectura, forma de onda, plegado y calibración."""
         prev, self._building = self._building, True
         try:
             self.calib.set_drive_form(profile.drive_form)
@@ -1085,11 +1095,27 @@ class ModelWorkflowMixin:
         finally:
             self._building = prev
         self._load_file(path, profile.import_hints if profile.import_hints.to_dict() else None,
-                        profile.name)
-        msg = tr("instr.recognized", name=profile.name,
-                 default="Equipo reconocido: {name}")
-        current = self.statusBar().currentMessage()
-        self.statusBar().showMessage(f"{msg} · {current}" if current else msg, 15000)
+                        profile.name, calibration_id=calibration_id)
+
+    def _open_calibration_spectrum(self, instrument: str, record_id: str) -> bool:
+        """Abre la copia del α-Fe guardada con una calibración (gestor →
+        «Abrir espectro de calibración»), con su equipo y esa calibración,
+        para revisarla o reajustar la Vmax."""
+        lib = self._instrument_library()
+        profile = lib.get(instrument)
+        record = next((r for r in lib.calibrations(instrument) if r.id == record_id), None)
+        path = lib.calibration_file(instrument, record) if (profile and record) else None
+        if path is None:
+            self.statusBar().showMessage(tr(
+                "instr.no_file", default="Esta calibración no guarda copia del espectro."), 8000)
+            return False
+        try:
+            self._load_with_profile(path, profile, calibration_id=record_id)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, tr("file.open"),
+                                           f"{type(exc).__name__}: {exc}")
+            return False
+        return True
 
     def _load_file(self, path: Path, hints: ImportHints | None = None,
                    instrument: str | None = None, *,

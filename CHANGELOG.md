@@ -2,6 +2,10 @@
 
 ## Sin publicar
 
+- **Equipos: «Abrir espectro de calibración».** El gestor abre la copia del α-Fe
+  guardada con una calibración, con su equipo y esa calibración, para revisarla
+  o reajustar la Vmax.
+
 - **Equipos: elegir la calibración a mano.** *Importar…* tiene una lista
   «Calibración» junto al equipo (la de la regla o cualquiera de las suyas) y el
   gestor de equipos, el botón «Aplicar al espectro actual». El rótulo indica

@@ -373,6 +373,33 @@ def test_manager_applies_calibration_to_current_spectrum(make_window, tmp_path):
     dlg2.deleteLater()
 
 
+def test_manager_opens_calibration_spectrum(make_window, tmp_path):
+    import datetime as dt
+    from core.instruments import CalibrationRecord
+    from gui.instrument_manager import InstrumentManagerDialog
+    lib = _lab(tmp_path)
+    prof = lib.get("Lab B"); prof.fold_mode = "two_branches"; lib.save(prof)
+    src = _dated_copy(tmp_path, "afe.dat", "2025-09-09")
+    rec = lib.add_calibration("Lab B", CalibrationRecord(date=dt.date(2025, 9, 9), vmax=10.8,
+                                                         sample="afe"), src)
+    win = make_window()
+    win._instruments = lib
+    dlg = InstrumentManagerDialog(win, lib, "Lab B", win._current_calibration_entry,
+                                  open_calibration=win._open_calibration_spectrum)
+    rows = {dlg.table.item(i, 0).text(): i for i in range(dlg.table.rowCount())}
+    dlg.table.selectRow(rows["2025-01-10"])              # sin copia del espectro
+    assert not dlg.btn_open.isEnabled()
+    dlg.table.selectRow(rows["2025-09-09"])
+    assert dlg.btn_open.isEnabled()
+    dlg.btn_open.click()
+    assert win.file.path == lib.calibration_file("Lab B", rec)
+    assert win.file.instrument == "Lab B" and win.calib.fold_mode == "two_branches"
+    assert win.calibration_info["calibration_id"] == rec.id
+    assert win.calib.vmax.value() == pytest.approx(10.8)
+    dlg.deleteLater()
+    assert InstrumentManagerDialog(None, lib, "Lab B").btn_open.isHidden()
+
+
 def test_instrument_manager_add_and_remove(qapp, tmp_path, monkeypatch):
     import datetime as dt
     from gui.instrument_manager import CalibrationEntryDialog, InstrumentManagerDialog

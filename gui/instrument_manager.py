@@ -101,18 +101,21 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
     (``dict`` con ``vmax``, ``isomer_shift``, ``sample``, ``path``, ``date``,
     ``sextet_pattern``) o ``None`` si no hay espectro. ``apply_calibration``
     (``(equipo, id) -> bool``) aplica la calibración seleccionada al espectro
-    activo; sin ella no aparece el botón.
+    activo; sin ella no aparece el botón. ``open_calibration`` (igual firma)
+    abre en la ventana la copia del espectro de la calibración seleccionada.
     """
 
     COLUMNS = ("date", "vmax", "pattern", "is", "sample", "file", "notes")
 
     def __init__(self, parent, library: InstrumentLibrary, instrument: str | None = None,
                  current_calibration: Callable[[], dict | None] | None = None,
-                 apply_calibration: Callable[[str, str], bool] | None = None):
+                 apply_calibration: Callable[[str, str], bool] | None = None,
+                 open_calibration: Callable[[str, str], bool] | None = None):
         super().__init__(parent)
         self.library = library
         self.current_calibration = current_calibration
         self.apply_calibration = apply_calibration
+        self.open_calibration = open_calibration
         self.setWindowTitle(tr("instr.title", default="Equipos y calibraciones"))
         self.resize(900, 460)
         v = QtWidgets.QVBoxLayout(self)
@@ -187,8 +190,15 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
             "instr.apply_tip", default="Usa la calibración seleccionada para el espectro "
             "abierto, sea cual sea su fecha."))
         self.btn_apply.setVisible(apply_calibration is not None)
+        self.btn_open = QtWidgets.QPushButton(
+            tr("instr.open_spectrum", default="Abrir espectro de calibración"))
+        self.btn_open.setToolTip(tr(
+            "instr.open_spectrum_tip", default="Abre la copia guardada del espectro de "
+            "calibración, con su equipo y esta calibración, para revisarla o reajustarla."))
+        self.btn_open.setVisible(open_calibration is not None)
         btn_close = QtWidgets.QPushButton(tr("button.close", default="Cerrar"))
-        for b in (self.btn_add_current, self.btn_add_manual, self.btn_remove, self.btn_apply):
+        for b in (self.btn_add_current, self.btn_add_manual, self.btn_remove, self.btn_apply,
+                  self.btn_open):
             row.addWidget(b)
         row.addStretch(1)
         row.addWidget(btn_close)
@@ -200,6 +210,7 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
         self.btn_add_manual.clicked.connect(self._on_add_manual)
         self.btn_remove.clicked.connect(self._on_remove)
         self.btn_apply.clicked.connect(self._on_apply)
+        self.btn_open.clicked.connect(self._on_open)
         self.instrument_combo.currentIndexChanged.connect(lambda *_: self._refresh())
         self.date_order_combo.currentIndexChanged.connect(self._on_date_order)
         self.rule_combo.currentIndexChanged.connect(self._on_rule)
@@ -322,6 +333,17 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
             selected and self.apply_calibration is not None
             and self.current_calibration is not None
             and self.current_calibration() is not None)
+        record = self._selected_record()
+        self.btn_open.setEnabled(
+            record is not None and self.open_calibration is not None
+            and self.library.calibration_file(self.instrument_name(), record) is not None)
+
+    def _selected_record(self) -> CalibrationRecord | None:
+        items = self.table.selectedItems()
+        if not items:
+            return None
+        rid = items[0].data(QtCore.Qt.UserRole)
+        return next((r for r in self._records() if r.id == rid), None)
 
     def _add(self, dlg: CalibrationEntryDialog, source: Path | None) -> None:
         if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
@@ -353,6 +375,13 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
         if not items or self.apply_calibration is None:
             return
         if self.apply_calibration(self.instrument_name(), items[0].data(QtCore.Qt.UserRole)):
+            self.accept()
+
+    def _on_open(self) -> None:
+        record = self._selected_record()
+        if record is None or self.open_calibration is None:
+            return
+        if self.open_calibration(self.instrument_name(), record.id):
             self.accept()
 
     def _on_remove(self) -> None:
