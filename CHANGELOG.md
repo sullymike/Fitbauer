@@ -2,6 +2,14 @@
 
 ## Sin publicar
 
+- **Comparar espectro: ficheros procesados de WMOSS/WinNormos.** Se puede elegir
+  la columna que se superpone (datos, ajuste total o un sitio de WinNormos) y
+  llevar a la fuente un eje con el α-Fe en 0 sumando el δ(α-Fe) de la calibración
+  activa (propuesto cuando el centro del eje lo delata). Con los ficheros del
+  grupo, el desajuste del eje pasa de ~0.11 mm/s a ≤ 0.003 mm/s. `*.b` y `*.t`
+  entran en el filtro. Ayudantes en `core.spectrum_import`
+  (`intensity_column_choices`, `with_intensity_column`, `axis_referred_to_alpha_fe`).
+
 - **Importación: traza de un subespectro de WMOSS.** Con la línea base desplazada
   por debajo de cero (p. ej. `fit-2.b`, el sitio menor) se leía como «cuentas»
   negativas; ahora es T − 1 en %, como el resto de ficheros de WMOSS.

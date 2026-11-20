@@ -376,6 +376,17 @@ identificar fases o comparar tratamientos térmicos. \menu{Archivo > Limpiar
 comparación} retira todas las superposiciones. La comparación es solo visual: no
 altera los datos ni el ajuste.
 
+\paragraph{Ficheros procesados por otros programas.} Para superponer los datos o
+el ajuste de otro programa (velocidad e intensidad), Fitbauer pregunta dos cosas.
+Si el fichero tiene varias columnas, como el de WinNormos (datos, ajuste total y
+una columna por sitio), cuál superponer; la lista muestra el rango de cada una.
+Y, si la calibración activa guarda el $\delta$ del $\alpha$-Fe, si el eje del
+fichero tiene el $\alpha$-Fe en 0, como en WMOSS y WinNormos. En ese caso se
+suma $\delta(\alpha\text{-Fe})$ al eje para llevarlo a la fuente, que es el eje
+de Fitbauer; sin esa corrección, el fichero aparecería corrido unos 0{,}1~mm/s.
+La casilla viene marcada cuando el centro del eje coincide con
+$-\delta(\alpha\text{-Fe})$, y el rótulo de la superposición lo indica.
+
 \section{Guardar, exportar y reutilizar}
 
 \begin{center}

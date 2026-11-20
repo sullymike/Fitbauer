@@ -7,7 +7,10 @@ import numpy as np
 from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
-from core.spectrum_import import read_spectrum_file
+from core.spectrum_import import (
+    ImportHints, axis_referred_to_alpha_fe, intensity_column_choices, read_spectrum_file,
+    with_intensity_column,
+)
 from core.reconstruction import reconstruct_discrete_model
 from gui.state import ComparisonSpectrum
 
@@ -186,35 +189,66 @@ class FileActionsMixin:
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, tr("file.compare_spectrum"),
             str(ROOT / "data_sample"),
-            f"{tr('filter.spectra')} (*.ws5 *.adt *.csv *.txt *.dat *.exp);;{tr('filter.all')} (*.*)")
+            f"{tr('filter.spectra')} (*.ws5 *.adt *.csv *.txt *.dat *.exp *.b *.t);;"
+            f"{tr('filter.all')} (*.*)")
         if not path:
             return
-        fpath = Path(path)
         try:
-            imported = read_spectrum_file(fpath)
-            if imported.x_kind == "velocity":
-                order = np.argsort(imported.x, kind="stable")
-                vel = imported.x[order]
-                y_raw = imported.transmission()[0][order]
-            else:
-                counts = self._read_channel_counts(fpath)
-                _c, _sigma, y_raw, _norm, vel = self._prepare_counts(counts)
-            norm = float(np.percentile(y_raw, 90)) or 1.0
-            y_data = y_raw / norm
-            label = fpath.stem
-            csp = ComparisonSpectrum(path=fpath, velocity=vel, y_data=y_data, label=label)
-            self.comparison_spectra.append(csp)
-            self.act_clear_comparison.setEnabled(True)
-            n = len(self.comparison_spectra)
-            self.statusBar().showMessage(
-                tr("status.comparison_added", n=n, name=label,
-                   default=f"Comparación [{n}]: {label}"), 5000)
+            self._add_comparison(Path(path))
         except Exception as exc:
             QtWidgets.QMessageBox.critical(
                 self, tr("file.compare_spectrum"),
                 f"{type(exc).__name__}: {exc}")
-            return
+
+    def _add_comparison(self, fpath: Path, *, column: int | None = None,
+                        shift_alpha_fe: bool | None = None, ask: bool = True) -> bool:
+        """Añade ``fpath`` a la comparación.
+
+        En un fichero en velocidad se puede elegir la columna de intensidad
+        (datos, ajuste total o un sitio de WinNormos) y desplazar el eje por
+        el δ del α-Fe de la calibración activa, si el fichero lo tiene en 0
+        (WMOSS, WinNormos). Con ``ask`` se pregunta lo que no venga dado.
+        """
+        imported = read_spectrum_file(fpath)
+        suffix = ""
+        if imported.x_kind == "velocity":
+            choices = intensity_column_choices(imported)
+            iso = self.calibration_iso_ref()
+            if column is None:
+                column = imported.columns.index("y")
+            if shift_alpha_fe is None:
+                shift_alpha_fe = axis_referred_to_alpha_fe(imported.x, iso)
+            if ask and (len(choices) > 1 or iso is not None):
+                dlg = ComparisonOptionsDialog(self, fpath, imported, choices, column,
+                                              iso, shift_alpha_fe)
+                if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+                    return False
+                column, shift_alpha_fe = dlg.column(), dlg.shift_alpha_fe()
+            if column != imported.columns.index("y"):
+                imported = read_spectrum_file(
+                    fpath, ImportHints(columns=with_intensity_column(imported, column)))
+                suffix += f" [{column + 1}]"
+            order = np.argsort(imported.x, kind="stable")
+            vel = imported.x[order]
+            y_raw = imported.transmission()[0][order]
+            if shift_alpha_fe and iso is not None:
+                # Su eje tiene el α-Fe en 0: v(fuente) = v(α-Fe) + δ(α-Fe).
+                vel = vel + iso
+                suffix += " (α-Fe → " + tr("compare.source_axis", default="fuente") + ")"
+        else:
+            counts = self._read_channel_counts(fpath)
+            _c, _sigma, y_raw, _norm, vel = self._prepare_counts(counts)
+        norm = float(np.percentile(y_raw, 90)) or 1.0
+        label = fpath.stem + suffix
+        self.comparison_spectra.append(
+            ComparisonSpectrum(path=fpath, velocity=vel, y_data=y_raw / norm, label=label))
+        self.act_clear_comparison.setEnabled(True)
+        n = len(self.comparison_spectra)
+        self.statusBar().showMessage(
+            tr("status.comparison_added", n=n, name=label,
+               default=f"Comparación [{n}]: {label}"), 5000)
         self._refresh_plot()
+        return True
 
     def on_clear_comparison(self) -> None:
         """Elimina todos los espectros de comparación."""
@@ -243,3 +277,54 @@ class FileActionsMixin:
         bb.rejected.connect(dlg.reject)
         v.addWidget(bb)
         dlg.exec()
+
+
+class ComparisonOptionsDialog(QtWidgets.QDialog):
+    """Columna de intensidad y referencia del eje de un fichero de comparación."""
+
+    def __init__(self, parent, path: Path, imported, choices: list[int], column: int,
+                 iso_ref: float | None, shift: bool):
+        super().__init__(parent)
+        self.setWindowTitle(tr("file.compare_spectrum", default="Comparar espectro…"))
+        form = QtWidgets.QFormLayout(self)
+        form.addRow(QtWidgets.QLabel(f"<b>{path.name}</b>"))
+        self.column_combo = QtWidgets.QComboBox()
+        from core.spectrum_import import read_text, parse_spectrum_text
+        text = read_text(path)
+        for i in choices:
+            label = tr("compare.column", n=i + 1, default="Columna {n}")
+            try:
+                y = parse_spectrum_text(
+                    text, ImportHints(columns=with_intensity_column(imported, i))).y
+                label += f"  ({float(np.min(y)):.4g} … {float(np.max(y)):.4g})"
+            except ValueError:
+                pass
+            if imported.columns[i] == "y":
+                label += " · " + tr("compare.detected", default="detectada como datos")
+            self.column_combo.addItem(label, i)
+        self.column_combo.setCurrentIndex(max(0, self.column_combo.findData(column)))
+        self.column_combo.setEnabled(len(choices) > 1)
+        form.addRow(tr("compare.intensity", default="Intensidad"), self.column_combo)
+        self.shift_check = QtWidgets.QCheckBox()
+        if iso_ref is None:
+            self.shift_check.setText(tr(
+                "compare.no_iso", default="Sin δ(α-Fe) en la calibración: eje tal cual"))
+            self.shift_check.setEnabled(False)
+        else:
+            self.shift_check.setText(tr(
+                "compare.shift", iso=f"{iso_ref:+.4f}",
+                default="Eje con el α-Fe en 0 (WMOSS, WinNormos): llevarlo a la fuente "
+                        "sumando δ(α-Fe) = {iso} mm/s"))
+            self.shift_check.setChecked(bool(shift))
+        form.addRow(self.shift_check)
+        bb = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        form.addRow(bb)
+
+    def column(self) -> int:
+        return int(self.column_combo.currentData())
+
+    def shift_alpha_fe(self) -> bool:
+        return self.shift_check.isEnabled() and self.shift_check.isChecked()

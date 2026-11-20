@@ -533,6 +533,39 @@ def parse_date_text(text: str, date_order: str = "dmy"):
     return min(found, key=lambda f: f[0])[1] if found else None
 
 
+def intensity_column_choices(spectrum: "ImportedSpectrum") -> list[int]:
+    """Columnas que pueden ser la intensidad de un fichero en velocidad.
+
+    Las que no son eje ni σ: la elegida por el lector (``"y"``) y las
+    descartadas (``"ignore"``), p. ej. el ajuste total y los subespectros que
+    WinNormos escribe junto a los datos.
+    """
+    return [i for i, role in enumerate(spectrum.columns) if role in ("y", "ignore")]
+
+
+def with_intensity_column(spectrum: "ImportedSpectrum", index: int) -> tuple[str, ...]:
+    """Papeles de columna con ``index`` como intensidad y el resto de
+    candidatas descartadas (para :class:`ImportHints`)."""
+    return tuple("y" if i == index else ("ignore" if role in ("y", "ignore") else role)
+                 for i, role in enumerate(spectrum.columns))
+
+
+def axis_referred_to_alpha_fe(velocity: np.ndarray, iso_ref: float | None,
+                              tol: float = 0.03) -> bool:
+    """¿Parece un eje con el α-Fe en 0 (WMOSS, WinNormos, NORMOS…)?
+
+    Un eje respecto a la fuente es simétrico; uno referido al α-Fe está
+    desplazado en −δ(α-Fe). Se compara el centro del eje con ``−iso_ref``.
+    """
+    if iso_ref is None or abs(iso_ref) < tol:
+        return False
+    v = np.asarray(velocity, dtype=float)
+    if v.size < 2:
+        return False
+    center = 0.5 * (float(np.min(v)) + float(np.max(v)))
+    return abs(center + iso_ref) < tol
+
+
 def measurement_date(spectrum: "ImportedSpectrum", path: str | Path | None = None,
                      date_order: str = "dmy"):
     """Fecha de medida: ``(fecha, origen)``, con origen ``"header"`` o ``"file"``.

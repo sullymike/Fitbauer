@@ -381,6 +381,17 @@ phases or comparing thermal treatments. \menu{File > Clear comparison} removes
 all overlays. The comparison is purely visual: it does not alter the data or the
 fit.
 
+\paragraph{Files processed by other programs.} To overlay the data or the fit of
+another program (velocity and intensity), Fitbauer asks two things. If the file
+has several columns, like WinNormos output (data, total fit and one column per
+site), which one to overlay; the list shows the range of each. And, if the active
+calibration stores the $\delta$ of $\alpha$-Fe, whether the file's axis has
+$\alpha$-Fe at 0, as in WMOSS and WinNormos. In that case $\delta(\alpha\text{-Fe})$
+is added to the axis to move it to the source, which is Fitbauer's axis; without
+this correction the file would appear shifted by about 0.1~mm/s. The box is
+ticked when the centre of the axis matches $-\delta(\alpha\text{-Fe})$, and the
+overlay label says so.
+
 \section{Saving, exporting and reusing}
 
 \begin{center}

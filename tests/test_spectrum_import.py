@@ -293,3 +293,26 @@ def test_encodings(tmp_path, encoding):
     r = read_spectrum_file(p)
     np.testing.assert_array_equal(r.y, c)
     assert r.metadata["Température"] == "25 °C"
+
+
+def _winnormos_like(shift=0.115):
+    """Velocidad con el α-Fe en 0 + datos + ajuste total + sitio (fracción)."""
+    v = np.linspace(-6, 6, 256) + shift
+    fit = 1 - 0.3 * 0.03 / ((v - 0.5) ** 2 + 0.03)
+    data = fit + np.random.default_rng(1).normal(0, 0.004, v.size)
+    return "\n".join(f"{a:.6f}\t{b:.6f}\t{c:.6f}\t{c:.6f}" for a, b, c in zip(v, data, fit)), fit
+
+
+def test_intensity_column_choices_and_axis_reference():
+    from core.spectrum_import import (axis_referred_to_alpha_fe, intensity_column_choices,
+                                      with_intensity_column)
+    text, fit = _winnormos_like()
+    r = parse_spectrum_text(text)
+    assert intensity_column_choices(r) == [1, 2, 3]
+    roles = with_intensity_column(r, 2)
+    assert roles == ("velocity", "ignore", "y", "ignore")
+    r2 = parse_spectrum_text(text, ImportHints(columns=roles))
+    assert np.allclose(r2.transmission()[0], fit, atol=1e-5)
+    assert axis_referred_to_alpha_fe(r.x, -0.115)
+    assert not axis_referred_to_alpha_fe(r.x - 0.115, -0.115)     # eje de la fuente
+    assert not axis_referred_to_alpha_fe(r.x, None)

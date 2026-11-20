@@ -520,3 +520,30 @@ def test_instrument_manager_edits_recognition(qapp, tmp_path):
     assert back.match_text == ["Lab B", "Spectro 2"] and back.match_name == ["*.ws5"]
     assert lib.calibrations("Lab B")            # el perfil se reescribe, las calibraciones siguen
     dlg.deleteLater()
+
+
+def test_comparison_column_and_alpha_fe_shift(make_window, tmp_path, monkeypatch):
+    from tests.test_spectrum_import import _winnormos_like
+    text, fit = _winnormos_like()
+    path = tmp_path / "winnormos.txt"
+    path.write_text(text)
+    win = make_window()
+    win._load_file(SPECTRUM)
+    win.calibration_info = {"source": "local", "velocity_calibrated": 12.0,
+                            "isomer_shift": -0.115, "sextet_pattern": "normos"}
+    # Sin preguntar: columna de datos y eje desplazado, deducido del centro.
+    assert win._add_comparison(path, ask=False)
+    c = win.comparison_spectra[-1]
+    assert abs(0.5 * (c.velocity.min() + c.velocity.max())) < 1e-6
+    # Ajuste total (3.ª columna) y eje tal cual.
+    win._add_comparison(path, column=2, shift_alpha_fe=False, ask=False)
+    c = win.comparison_spectra[-1]
+    assert c.velocity.min() == pytest.approx(-6 + 0.115) and "[3]" in c.label
+    assert np.allclose(c.y_data * np.percentile(fit, 90), fit, atol=1e-4)
+    # El diálogo propone la detección y deja elegir.
+    from gui.file_actions import ComparisonOptionsDialog
+    from core.spectrum_import import intensity_column_choices, read_spectrum_file
+    imp = read_spectrum_file(path)
+    dlg = ComparisonOptionsDialog(win, path, imp, intensity_column_choices(imp), 1, -0.115, True)
+    assert dlg.column_combo.count() == 3 and dlg.column() == 1 and dlg.shift_alpha_fe()
+    dlg.deleteLater()
