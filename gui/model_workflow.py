@@ -962,7 +962,37 @@ class ModelWorkflowMixin:
         from gui.instrument_manager import InstrumentManagerDialog
         InstrumentManagerDialog(self, self._instrument_library(),
                                 getattr(self.file, "instrument", None),
-                                self._current_calibration_entry).exec()
+                                self._current_calibration_entry,
+                                apply_calibration=self._apply_instrument_calibration).exec()
+
+    def _apply_instrument_calibration(self, instrument: str, record_id: str) -> bool:
+        """Aplica al espectro activo una calibración concreta de un equipo
+        (gestor → «Aplicar al espectro actual»). Solo cuentas por canal."""
+        path = getattr(self.file, "path", None)
+        if path is None or getattr(self.file, "counts", None) is None:
+            return False
+        hints = getattr(self.file, "import_hints", None)
+        try:
+            imported = read_spectrum_file(path, ImportHints.from_dict(hints) if hints else None)
+        except (OSError, ValueError):
+            imported = None
+        if imported is not None and imported.x_kind != "channel":
+            self.statusBar().showMessage(tr(
+                "instr.apply_velocity",
+                default="El espectro activo trae su propio eje de velocidad: "
+                        "no se le aplica una calibración."), 8000)
+            return False
+        before = self.calibration_info
+        self._assign_instrument_calibration(path, imported, instrument, record_id)
+        if self.calibration_info is before:
+            return False
+        self._reapply_fixed_calibration()
+        self.mark_dirty()
+        info = self.calibration_info
+        self.statusBar().showMessage(tr(
+            "instr.applied", name=instrument, cal=info.get("calibration_date", ""),
+            default="Aplicada la calibración del {cal} de «{name}» al espectro actual."), 8000)
+        return True
 
     def _current_calibration_entry(self) -> dict | None:
         """La calibración que da el espectro activo (α-Fe ajustado): Vmax del
@@ -1023,7 +1053,8 @@ class ModelWorkflowMixin:
         finally:
             self._building = prev
         try:
-            self._load_file(Path(path), dlg.hints(), dlg.instrument_name())
+            self._load_file(Path(path), dlg.hints(), dlg.instrument_name(),
+                            calibration_id=dlg.calibration_id())
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, tr("file.import", default="Importar…"),
                                            f"{type(exc).__name__}: {exc}")
@@ -1061,7 +1092,8 @@ class ModelWorkflowMixin:
         self.statusBar().showMessage(f"{msg} · {current}" if current else msg, 15000)
 
     def _load_file(self, path: Path, hints: ImportHints | None = None,
-                   instrument: str | None = None) -> None:
+                   instrument: str | None = None, *,
+                   calibration_id: str | None = None) -> None:
         """Abre un espectro de cualquier equipo; lo que contiene decide la ruta.
 
         El lector genérico (:mod:`core.spectrum_import`) localiza los datos
@@ -1077,7 +1109,7 @@ class ModelWorkflowMixin:
         else:
             # Con equipo: su calibración vigente en la fecha de medida pasa a
             # ser la fijada antes de doblar (la impone _load_counts).
-            self._assign_instrument_calibration(path, imported, instrument)
+            self._assign_instrument_calibration(path, imported, instrument, calibration_id)
             self._load_counts(path, imported.y)
         self.file.import_hints = (hints.to_dict() or None) if hints else None
         self.file.instrument = instrument

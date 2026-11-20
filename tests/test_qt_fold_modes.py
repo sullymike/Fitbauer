@@ -26,6 +26,7 @@ def make_window(qapp):
 
     yield _make
     for w in created:
+        w.mark_saved()          # sin «¿Guardar cambios?» modal al cerrar
         w.close()
         w.deleteLater()
     mq.QtCore.QCoreApplication.sendPostedEvents(None, mq.QtCore.QEvent.Type.DeferredDelete)
@@ -214,6 +215,7 @@ def test_import_loads_and_session_keeps_hints(make_window, tmp_path, monkeypatch
         def fold_mode(self): return "two_branches"
         def reverse(self): return False
         def instrument_name(self): return "Lab B"
+        def calibration_id(self): return None
 
     monkeypatch.setattr(import_dialog, "ImportDialog", FakeDialog)
     win = make_window()
@@ -316,6 +318,59 @@ def test_instrument_manager_rule_combo(qapp, tmp_path):
     dlg.rule_combo.setCurrentIndex(dlg.rule_combo.findData("latest"))
     assert lib.get("Lab B").calibration_rule == "latest"
     dlg.deleteLater()
+
+
+def test_import_dialog_manual_calibration(make_window, tmp_path, monkeypatch):
+    from gui.import_dialog import ImportDialog
+    lib = _lab(tmp_path)
+    path = _dated_copy(tmp_path, "a.dat", "2025-03-14")
+    dlg = ImportDialog(None, path, library=lib, vmax=12.0, instrument="Lab B")
+    combo = dlg.calibration_combo
+    assert combo.isEnabled() and combo.count() == 3 and dlg.calibration_id() is None
+    june = next(r for r in lib.calibrations("Lab B") if r.date.isoformat() == "2025-06-01")
+    combo.setCurrentIndex(combo.findData(june.id))
+    ch = dlg.assigned_calibration()
+    assert ch.rule == "manual" and ch.record.id == june.id
+    assert "2025-06-01" in dlg.summary.text()
+    # Al cambiar a «sin equipo» no queda una calibración elegida.
+    dlg.instrument_combo.setCurrentIndex(0)
+    assert dlg.calibration_id() is None and not combo.isEnabled()
+    dlg.deleteLater()
+    # La ventana carga con la calibración elegida.
+    win = make_window()
+    win._instruments = lib
+    win._load_file(path, None, "Lab B", calibration_id=june.id)
+    assert win.calibration_info["calibration_id"] == june.id
+    assert win.calibration_info["calibration_rule"] == "manual"
+    assert "elegida a mano" in win.calib_label.text() or "manually" in win.calib_label.text()
+
+
+def test_manager_applies_calibration_to_current_spectrum(make_window, tmp_path):
+    from core.constants import convert_vmax
+    from gui.instrument_manager import InstrumentManagerDialog
+    lib = _lab(tmp_path)
+    win = make_window()
+    win._instruments = lib
+    win._load_file(_dated_copy(tmp_path, "a.dat", "2025-03-14"), None, "Lab B")
+    assert win.calib.vmax.value() == pytest.approx(10.5)
+    dlg = InstrumentManagerDialog(win, lib, "Lab B", win._current_calibration_entry,
+                                  apply_calibration=win._apply_instrument_calibration)
+    assert dlg.btn_apply.isVisible() or not dlg.isVisible()
+    assert not dlg.btn_apply.isEnabled()                 # nada seleccionado
+    row = next(i for i in range(dlg.table.rowCount())
+               if dlg.table.item(i, 0).text() == "2025-06-01")
+    dlg.table.selectRow(row)
+    assert dlg.btn_apply.isEnabled()
+    dlg.btn_apply.click()
+    assert win.calibration_info["calibration_date"] == "2025-06-01"
+    assert win.calibration_info["calibration_rule"] == "manual"
+    assert win.calib.vmax.value() == pytest.approx(
+        convert_vmax(11.0, "legacy", win.sextet_pattern), abs=1e-4)
+    dlg.deleteLater()
+    # Sin la función de aplicar (p. ej. desde Importar…) no hay botón.
+    dlg2 = InstrumentManagerDialog(None, lib, "Lab B")
+    assert dlg2.btn_apply.isHidden()
+    dlg2.deleteLater()
 
 
 def test_instrument_manager_add_and_remove(qapp, tmp_path, monkeypatch):

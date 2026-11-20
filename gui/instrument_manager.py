@@ -99,16 +99,20 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
 
     ``current_calibration`` devuelve la calibración que da el espectro activo
     (``dict`` con ``vmax``, ``isomer_shift``, ``sample``, ``path``, ``date``,
-    ``sextet_pattern``) o ``None`` si no hay espectro.
+    ``sextet_pattern``) o ``None`` si no hay espectro. ``apply_calibration``
+    (``(equipo, id) -> bool``) aplica la calibración seleccionada al espectro
+    activo; sin ella no aparece el botón.
     """
 
     COLUMNS = ("date", "vmax", "pattern", "is", "sample", "file", "notes")
 
     def __init__(self, parent, library: InstrumentLibrary, instrument: str | None = None,
-                 current_calibration: Callable[[], dict | None] | None = None):
+                 current_calibration: Callable[[], dict | None] | None = None,
+                 apply_calibration: Callable[[str, str], bool] | None = None):
         super().__init__(parent)
         self.library = library
         self.current_calibration = current_calibration
+        self.apply_calibration = apply_calibration
         self.setWindowTitle(tr("instr.title", default="Equipos y calibraciones"))
         self.resize(900, 460)
         v = QtWidgets.QVBoxLayout(self)
@@ -177,8 +181,14 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
             tr("instr.add_manual", default="Añadir a mano…"))
         self.btn_remove = QtWidgets.QPushButton(
             tr("instr.remove_calibration", default="Eliminar calibración"))
+        self.btn_apply = QtWidgets.QPushButton(
+            tr("instr.apply", default="Aplicar al espectro actual"))
+        self.btn_apply.setToolTip(tr(
+            "instr.apply_tip", default="Usa la calibración seleccionada para el espectro "
+            "abierto, sea cual sea su fecha."))
+        self.btn_apply.setVisible(apply_calibration is not None)
         btn_close = QtWidgets.QPushButton(tr("button.close", default="Cerrar"))
-        for b in (self.btn_add_current, self.btn_add_manual, self.btn_remove):
+        for b in (self.btn_add_current, self.btn_add_manual, self.btn_remove, self.btn_apply):
             row.addWidget(b)
         row.addStretch(1)
         row.addWidget(btn_close)
@@ -189,6 +199,7 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
         self.btn_add_current.clicked.connect(self._on_add_current)
         self.btn_add_manual.clicked.connect(self._on_add_manual)
         self.btn_remove.clicked.connect(self._on_remove)
+        self.btn_apply.clicked.connect(self._on_apply)
         self.instrument_combo.currentIndexChanged.connect(lambda *_: self._refresh())
         self.date_order_combo.currentIndexChanged.connect(self._on_date_order)
         self.rule_combo.currentIndexChanged.connect(self._on_rule)
@@ -305,7 +316,12 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
         self.btn_add_current.setEnabled(
             has and self.current_calibration is not None
             and self.current_calibration() is not None)
-        self.btn_remove.setEnabled(has and bool(self.table.selectedItems()))
+        selected = has and bool(self.table.selectedItems())
+        self.btn_remove.setEnabled(selected)
+        self.btn_apply.setEnabled(
+            selected and self.apply_calibration is not None
+            and self.current_calibration is not None
+            and self.current_calibration() is not None)
 
     def _add(self, dlg: CalibrationEntryDialog, source: Path | None) -> None:
         if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
@@ -331,6 +347,13 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
             isomer_shift=cur.get("isomer_shift"), sample=cur.get("sample", ""),
             file_name=path.name if path else None),
             path if path and path.is_file() else None)
+
+    def _on_apply(self) -> None:
+        items = self.table.selectedItems()
+        if not items or self.apply_calibration is None:
+            return
+        if self.apply_calibration(self.instrument_name(), items[0].data(QtCore.Qt.UserRole)):
+            self.accept()
 
     def _on_remove(self) -> None:
         items = self.table.selectedItems()

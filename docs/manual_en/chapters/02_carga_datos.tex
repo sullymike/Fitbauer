@@ -132,6 +132,15 @@ spectrum: The latest one} in the manager. The last calibration added is then
 always applied, ignoring dates, and the label says so («the latest»). This is the
 usual way of working with programs that keep a single calibration in force.
 
+\textbf{Choosing the calibration manually.} To use a specific calibration,
+whatever the date, there are two routes. In \menu{Import…}, the
+\emph{Calibration} list next to the instrument offers \emph{By the instrument's
+rule} (the usual choice) or any of its calibrations, and the summary shows the
+\param{Vmax} that will be applied. With the spectrum already open, select the
+calibration in the instrument manager and press \emph{Apply to current spectrum}.
+In both cases the label says «chosen manually». A batch fit still applies the
+instrument's rule to each file.
+
 In a \textbf{batch fit} and in the \textbf{global Néel fit (multi-T)}, if the
 active spectrum was opened with an instrument, each file is folded with the
 calibration of its own date (with no earlier calibration, with the panel

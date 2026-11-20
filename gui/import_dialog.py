@@ -97,6 +97,14 @@ class ImportDialog(QtWidgets.QDialog):
         self.instrument_combo = QtWidgets.QComboBox()
         self.instrument_combo.setMinimumWidth(220)
         top.addWidget(self.instrument_combo, stretch=1)
+        top.addWidget(QtWidgets.QLabel(tr("import.calibration_choice", default="Calibración")))
+        self.calibration_combo = QtWidgets.QComboBox()
+        self.calibration_combo.setMinimumWidth(200)
+        self.calibration_combo.setToolTip(tr(
+            "import.calibration_choice_tip",
+            default="La que da la regla del equipo (por fecha o la más reciente) "
+                    "o una calibración concreta elegida a mano."))
+        top.addWidget(self.calibration_combo, stretch=1)
         self.btn_save_instrument = QtWidgets.QPushButton(
             tr("import.save_instrument", default="Guardar como equipo…"))
         self.btn_delete_instrument = QtWidgets.QPushButton(
@@ -209,6 +217,7 @@ class ImportDialog(QtWidgets.QDialog):
                    self.drive_combo, self.fold_combo):
             cb.currentIndexChanged.connect(lambda *_: self.refresh())
         self.instrument_combo.currentIndexChanged.connect(self._on_instrument_selected)
+        self.calibration_combo.currentIndexChanged.connect(lambda *_: self.refresh())
         self.btn_save_instrument.clicked.connect(self._on_save_instrument)
         self.btn_delete_instrument.clicked.connect(self._on_delete_instrument)
         self.btn_calibrations.clicked.connect(self._on_calibrations)
@@ -238,6 +247,29 @@ class ImportDialog(QtWidgets.QDialog):
 
     def instrument_name(self) -> str | None:
         return self.instrument_combo.currentData()
+
+    def calibration_id(self) -> str | None:
+        """Calibración elegida a mano (``None``: la de la regla del equipo)."""
+        return self.calibration_combo.currentData() if self.instrument_name() else None
+
+    def _reload_calibrations(self) -> None:
+        """Lista de calibraciones del equipo elegido; conserva la elección."""
+        keep = self.calibration_combo.currentData()
+        name = self.instrument_name()
+        prev, self._updating = self._updating, True
+        try:
+            self.calibration_combo.clear()
+            self.calibration_combo.addItem(
+                tr("import.calibration_auto", default="Según la regla del equipo"), None)
+            for r in (self.library.calibrations(name) if name else []):
+                label = f"{r.date.isoformat()} · Vmax {r.vmax:.4f}"
+                if r.sample:
+                    label += f" · {r.sample}"
+                self.calibration_combo.addItem(label, r.id)
+            self._select(self.calibration_combo, keep)
+        finally:
+            self._updating = prev
+        self.calibration_combo.setEnabled(name is not None)
 
     @staticmethod
     def _select(combo: QtWidgets.QComboBox, value) -> None:
@@ -305,12 +337,15 @@ class ImportDialog(QtWidgets.QDialog):
         finally:
             self._updating = False
         self.btn_delete_instrument.setEnabled(self.instrument_name() is not None)
+        self._reload_calibrations()
 
     def _on_instrument_selected(self) -> None:
         if self._updating:
             return
         name = self.instrument_name()
         self.btn_delete_instrument.setEnabled(name is not None)
+        self.calibration_combo.setCurrentIndex(0)
+        self._reload_calibrations()
         self._apply_profile(self.library.get(name) if name else None)
         self.refresh()
 
@@ -343,7 +378,7 @@ class ImportDialog(QtWidgets.QDialog):
         from gui.instrument_manager import InstrumentManagerDialog
         InstrumentManagerDialog(self, self.library, self.instrument_name(),
                                 self.current_calibration).exec()
-        self._reload_instruments(self.instrument_name())
+        self._reload_instruments(self.instrument_name())   # recarga también las calibraciones
         self.refresh()
 
     def assigned_calibration(self):
@@ -352,7 +387,8 @@ class ImportDialog(QtWidgets.QDialog):
         r = self.result
         if not name or r is None or r.x_kind != "channel":
             return CalibrationChoice(None)
-        return self.library.choose_calibration(name, r, self.path)
+        return self.library.choose_calibration(name, r, self.path,
+                                               record_id=self.calibration_id())
 
     def preview_vmax(self) -> float:
         record = self.assigned_calibration().record
@@ -450,6 +486,11 @@ class ImportDialog(QtWidgets.QDialog):
                 if record is None:
                     parts.append("⚠ " + tr("import.no_calibrations",
                                            default="El equipo no tiene calibraciones."))
+                elif choice.rule == "manual":
+                    parts.append(tr(
+                        "import.calibration_manual", cal=record.date.isoformat(),
+                        vmax=f"{self.preview_vmax():.4f}",
+                        default="Calibración elegida a mano: {cal}, Vmax = {vmax} mm/s"))
                 else:
                     parts.append(tr(
                         "import.calibration_latest", cal=record.date.isoformat(),

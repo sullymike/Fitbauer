@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **Equipos: elegir la calibración a mano.** *Importar…* tiene una lista
+  «Calibración» junto al equipo (la de la regla o cualquiera de las suyas) y el
+  gestor de equipos, el botón «Aplicar al espectro actual». El rótulo indica
+  «elegida a mano».
+- Tests Qt: el fixture `make_window` marca las ventanas como guardadas antes de
+  cerrarlas (con cambios pendientes, el «¿Guardar?» modal colgaba la suite).
+
 - **Equipos: regla de calibración «la más reciente».** Cada equipo elige cómo
   se asigna la calibración a sus espectros: por fecha de medida (como hasta
   ahora) o la más reciente, sin mirar fechas, para equipos cuyos ficheros no
