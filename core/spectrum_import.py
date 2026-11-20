@@ -27,7 +27,8 @@ COLUMN_ROLES = ("channel", "velocity", "y", "sigma", "ignore")
 
 #: Tipos de intensidad y su conversión a transmisión relativa ``T``.
 Y_KINDS = ("counts", "transmission", "transmission_percent",
-           "absorption", "absorption_percent", "transmission_deviation")
+           "absorption", "absorption_percent", "transmission_deviation",
+           "transmission_deviation_percent")
 
 #: Separadores: espacios/tabuladores/punto y coma, o coma.
 SEPARATORS = {"whitespace": re.compile(r"[\s;]+"),
@@ -345,7 +346,10 @@ def _guess_y_kind(y: np.ndarray) -> str:
     span = max(abs(ymin), abs(ymax)) or 1.0
     if abs(p50) < 0.2 * span:                  # línea base en cero
         if abs(ymin) > abs(ymax):
-            return "transmission_deviation"    # T − 1: picos hacia abajo
+            # T − 1, picos hacia abajo. Más allá de ±1 no puede ser una
+            # fracción: es en % (WMOSS, «% absorbance»: T = 1 + y/100).
+            return ("transmission_deviation_percent" if span > 1.0
+                    else "transmission_deviation")
         return "absorption" if ymax <= 1.0 else "absorption_percent"
     return "counts"
 
@@ -430,6 +434,8 @@ def _to_transmission(y: np.ndarray, kind: str) -> tuple[np.ndarray, float]:
         return 1.0 - y / 100.0, 0.01
     if kind == "transmission_deviation":
         return 1.0 + y, 1.0
+    if kind == "transmission_deviation_percent":
+        return 1.0 + y / 100.0, 0.01
     raise ValueError(f"unknown intensity kind: {kind}")
 
 

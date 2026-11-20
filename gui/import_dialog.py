@@ -32,7 +32,8 @@ _ROLE_DEFAULTS = {"channel": "Canal", "velocity": "Velocidad", "y": "Intensidad"
 _KIND_DEFAULTS = {"counts": "Cuentas", "transmission": "Transmisión",
                   "transmission_percent": "Transmisión (%)",
                   "absorption": "Absorción", "absorption_percent": "Absorción (%)",
-                  "transmission_deviation": "Transmisión − 1"}
+                  "transmission_deviation": "Transmisión − 1",
+                  "transmission_deviation_percent": "(Transmisión − 1) en %"}
 _FOLD_DEFAULTS = {"fold": "Doblar", "single_sweep": "Sin doblar: un solo barrido",
                   "two_branches": "Sin doblar: dos ramas"}
 

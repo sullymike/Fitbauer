@@ -172,6 +172,15 @@ def test_transmission_deviation():
     np.testing.assert_allclose(r.transmission()[0], _doublet(v), atol=1e-6)
 
 
+def test_transmission_deviation_percent_wmoss():
+    """WMOSS exporta «% absorbance» = 100·(T − 1): negativo en los picos."""
+    v = np.linspace(-6, 6, 512)
+    t = _doublet(v)
+    r = parse_spectrum_text(_velocity_file(100 * (t - 1.0), v, "{:.3f}"))
+    assert r.y_kind == "transmission_deviation_percent"
+    np.testing.assert_allclose(r.transmission()[0], t, atol=1e-5)
+
+
 def test_estimated_noise_is_close_to_true():
     v = np.linspace(-6, 6, 512)
     t = _doublet(v) + RNG.normal(0, 2e-3, v.size)

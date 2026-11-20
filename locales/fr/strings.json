@@ -1432,5 +1432,6 @@
   "instr.match_text_ph": "p. ex. WissEl ; Lab B",
   "instr.match_name": "nom de fichier",
   "instr.match_name_ph": "p. ex. *.ws5 ; FeB*",
-  "instr.match_tip": "Plusieurs valeurs séparées par « ; » : une suffit. Si les deux champs sont remplis, les deux doivent correspondre. À l’ouverture d’un fichier sans appareil choisi, le seul appareil qui le reconnaît est appliqué automatiquement."
+  "instr.match_tip": "Plusieurs valeurs séparées par « ; » : une suffit. Si les deux champs sont remplis, les deux doivent correspondre. À l’ouverture d’un fichier sans appareil choisi, le seul appareil qui le reconnaît est appliqué automatiquement.",
+  "import.kind.transmission_deviation_percent": "(Transmission − 1) en %"
 }

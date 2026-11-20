@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- **«% absorbance» de WMOSS: (T − 1) en %.** Nuevo tipo de intensidad
+  `transmission_deviation_percent` (T = 1 + y/100). La detección lo elige
+  cuando la desviación pasa de ±1, porque en fracción no puede; antes se
+  leía como fracción (T entre −14.8 y 1.4 en un procesado de WMOSS) y las
+  profundidades salían ×100. Seleccionable en *Importar…*.
+
 - **Punto de plegado relativo a N/2 (arregla el tope en 263 con 1024
   canales).** El límite del centro era absoluto, 250–263, pensado para 512
   canales: con 1024 el control del panel recortaba el centro detectado

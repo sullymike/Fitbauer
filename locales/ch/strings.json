@@ -1432,5 +1432,6 @@
   "instr.match_text_ph": "例如 WissEl; Lab B",
   "instr.match_name": "文件名",
   "instr.match_name_ph": "例如 *.ws5; FeB*",
-  "instr.match_tip": "多个值用“;”分隔：满足其一即可。若两个字段都填写，则须同时满足。未选择仪器而打开文件时，唯一能识别它的仪器会被自动应用。"
+  "instr.match_tip": "多个值用“;”分隔：满足其一即可。若两个字段都填写，则须同时满足。未选择仪器而打开文件时，唯一能识别它的仪器会被自动应用。",
+  "import.kind.transmission_deviation_percent": "（透射率 − 1）（%）"
 }
