@@ -2,6 +2,19 @@
 
 ## Sin publicar
 
+- **Punto de plegado relativo a N/2 (arregla el tope en 263 con 1024
+  canales).** El límite del centro era absoluto, 250–263, pensado para 512
+  canales: con 1024 el control del panel recortaba el centro detectado
+  (~512) a 263. Ahora el margen es relativo a N/2 (N = canales leídos), por
+  defecto ±20, y se ajusta en *Vista → Límites de parámetros… → Calibración*
+  (`center`, Mín/Máx como desplazamiento). Fuente única
+  `core.folding.fold_center_window`: la usan el control de la GUI (se
+  reajusta al cargar cada fichero y al cambiar la forma de onda), la detección
+  automática y el ajuste del centro (antes ±7 en el ajuste y ±20 en la
+  detección). En seno, el rango de la fase (0.05·N–0.45·N).
+  - Límites del centro guardados antes en `param_limits.json` (absolutos,
+    p. ej. 250–263 o 250–524) se ignoran: no tienen sentido como margen.
+
 - **Reconocimiento automático del equipo.** Cada equipo puede decir cómo
   reconocer sus ficheros (gestor de equipos, «Reconocer sus ficheros por»):
   textos de su cabecera o pie y patrones del nombre de fichero (`*.ws5`,

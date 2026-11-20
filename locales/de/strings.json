@@ -1196,7 +1196,7 @@
   "plimit.neel_log10_tau0": "log₁₀ τ₀  (s)",
   "plimit.neel_bins": "Größen-Bins",
   "plimit.vmax": "V_max  (mm/s)",
-  "plimit.center": "Zentrum  (Kanal)",
+  "plimit.center": "Faltungspunkt: Kanäle relativ zu N/2 (N = gelesene Kanäle)",
   "plimit.baseline": "Grundlinie",
   "plimit.slope": "Steigung",
   "plimit.voigt_sigma": "σ Voigt  (mm/s)",

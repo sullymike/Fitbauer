@@ -242,20 +242,15 @@ class ModelState:
                 # el ajuste).
                 bounds[f"s{idx}_quad"] = (-2.0 * (vmax_abs + 2.0),
                                           2.0 * (vmax_abs + 2.0))
-        # Límites del centro de doblado según el nº de canales real. Sin esto,
-        # fit_center caía al default (250, 263) del motor, válido solo para 512
-        # canales: con otros tamaños el centro quedaba clavado en el límite.
+        # Límites del centro de doblado según el nº de canales real (N/2 ± el
+        # margen ajustable; en seno, la fase ~N/4 con su propio rango). Sin
+        # esto, fit_center caía al default (250, 263) del motor, válido solo
+        # para 512 canales.
         if counts is not None:
             n = int(np.asarray(counts).size)
             if n > 0:
-                if self.drive_form == "sine":
-                    # En seno el "centro" es la fase (~N/4), fuera del rango
-                    # triangular (~N/2): límites propios para el ajuste de fase.
-                    bounds["center"] = (0.05 * n, 0.45 * n)
-                else:
-                    # Triangular: ventana ±7 canales alrededor de N/2 (para 512
-                    # reproduce el rango histórico ≈(250, 263)).
-                    bounds["center"] = (0.5 * n - 7.0, 0.5 * n + 7.0)
+                from core.folding import fold_center_window
+                bounds["center"] = fold_center_window(n, drive_form=self.drive_form)
         return FitState(
             velocity=velocity, y_data=y_data, sigma_data=sigma_data,
             values=values, fixed=fixed, bounds=bounds, components=components,
@@ -390,9 +385,7 @@ class HeadlessSession:
         else:
             center = read_normos_folding_point(path)
             if center is None:
-                half = 0.5 * counts.size
-                center = find_best_integer_or_half_center(
-                    counts, max(1.5, half - 20.0), min(counts.size - 0.5, half + 20.0))
+                center = find_best_integer_or_half_center(counts)
         folded, sigma, y, norm = prepare_channel_counts(
             counts, center, fold_mode=mode, drive_form=self.model.drive_form,
             edge_trim=_EDGE_TRIM)

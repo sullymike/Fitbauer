@@ -70,6 +70,11 @@ def effective_specs(category: Category) -> dict[str, ParamSpec]:
     result: dict[str, ParamSpec] = {}
     for name, spec in defaults.items():
         override = raw.get(name)
+        if (category == "calibration" and name == "center" and isinstance(override, dict)
+                and not float(override.get("lo", -1.0)) <= 0.0 <= float(override.get("hi", 1.0))):
+            # Límites absolutos de antes (250–263, solo válidos para 512
+            # canales): ahora son relativos a N/2; se ignoran.
+            override = None
         if isinstance(override, dict):
             result[name] = ParamSpec(
                 default=float(override.get("default", spec.default)),
@@ -81,6 +86,12 @@ def effective_specs(category: Category) -> dict[str, ParamSpec]:
         else:
             result[name] = spec
     return result
+
+
+def fold_center_offsets() -> tuple[float, float]:
+    """Margen del punto de plegado respecto a N/2: ``(desde, hasta)`` en canales."""
+    spec = effective_specs("calibration")["center"]
+    return float(spec.lo), float(spec.hi)
 
 
 def effective_component_specs() -> dict[str, ParamSpec]:

@@ -1196,7 +1196,7 @@
   "plimit.neel_log10_tau0": "log₁₀ τ₀  (s)",
   "plimit.neel_bins": "Bins de taille",
   "plimit.vmax": "V_max  (mm/s)",
-  "plimit.center": "Centre  (canal)",
+  "plimit.center": "Point de repliement : canaux par rapport à N/2 (N = canaux lus)",
   "plimit.baseline": "Ligne de base",
   "plimit.slope": "Pente",
   "plimit.voigt_sigma": "σ Voigt  (mm/s)",

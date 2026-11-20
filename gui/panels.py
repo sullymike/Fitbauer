@@ -10,6 +10,7 @@ from core.params import (
     COMPONENT_KINDS, COMPONENT_PARAM_LAYOUT, INTENSITY_MODES, QUAD_TREATMENTS, USED_BY,
     component_default_value, relevant_params as _relevant_params,
 )
+from core.folding import fold_center_window
 from core.param_overrides import effective_calibration_specs, effective_component_specs
 from gui.controls import ParamControl
 from core.result_views import discrete_result_view
@@ -150,7 +151,13 @@ class CalibrationPanel(QtWidgets.QGroupBox):
         _cs = effective_calibration_specs()
         self.vmax = ParamControl(tr("slider.vmax"), *astuple(_cs["vmax"]), with_fixed=False)
         self.fit_velocity = QtWidgets.QCheckBox(tr("checkbox.fit_vmax"))
-        self.center = ParamControl(tr("slider.center"), *astuple(_cs["center"]), with_fixed=False)
+        # El centro es relativo a N/2 en los límites (Parámetros): hasta cargar
+        # un fichero se usa la ventana de 512 canales; luego, la del fichero.
+        _c = _cs["center"]
+        _c_lo, _c_hi = fold_center_window(512, offsets=(_c.lo, _c.hi))
+        self.center = ParamControl(tr("slider.center"),
+                                   min(_c_hi, max(_c_lo, 256.0 + _c.default)),
+                                   _c_lo, _c_hi, _c.step, _c.decimals, with_fixed=False)
         self.fit_center = QtWidgets.QCheckBox(tr("checkbox.fit_center"))
         self.baseline = ParamControl(tr("slider.baseline"), *astuple(_cs["baseline"]))
         self.slope = ParamControl(tr("slider.slope"), *astuple(_cs["slope"]))

@@ -9,7 +9,7 @@ from PySide6 import QtWidgets
 from mossbauer_i18n import tr
 from core.constants import GLOBAL_PARAM_NAMES, SEXTET_PARAM_NAMES
 from core.folding import (
-    channel_velocity_axis, detect_fold_center, is_pair_averaged,
+    channel_velocity_axis, detect_fold_center, fold_center_window, is_pair_averaged,
     prepare_channel_counts, velocity_axis,
 )
 from core.spectrum_import import ImportedSpectrum, ImportHints, read_spectrum_file
@@ -263,6 +263,12 @@ class ModelWorkflowMixin:
     def _fold_mode(self) -> str:
         return self.calib.to_view_state().fold_mode
 
+    def _update_center_range(self, n: int) -> None:
+        """Rango del control del centro para ``n`` canales (N/2 ± el margen de
+        Parámetros; en seno, el de la fase). Antes era fijo, 250–263, y con
+        1024 canales recortaba el centro (~512) a 263."""
+        self.calib.center.set_range(*fold_center_window(n, drive_form=self._drive_form()))
+
     def _detect_center(self, counts: np.ndarray) -> float:
         """Punto de plegado (fase en seno) según la forma de onda y el modo."""
         return detect_fold_center(counts, drive_form=self._drive_form(),
@@ -373,6 +379,7 @@ class ModelWorkflowMixin:
         center = self._detect_center(counts)
         self._building = True
         try:
+            self._update_center_range(counts.size)
             self.calib.center.set_value(center)
         finally:
             self._building = False
@@ -1108,6 +1115,7 @@ class ModelWorkflowMixin:
         self.file.velocity = v
         self.file.y_data = y
         # actualiza UI
+        self._update_center_range(counts.size)
         self.calib.center.set_value(center)
         self.file_label.setText(f"<b>{path.name}</b><br>" +
                                 tr("file.label_info", n=counts.size, center=f"{center:.3f}",

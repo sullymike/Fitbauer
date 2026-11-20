@@ -598,8 +598,13 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
         hi.append(state.bounds.get("vmax", (1.0, 15.0))[1])
     if state.fit_center and "center" in state.values:
         x0.append(state.values["center"])
-        lo.append(state.bounds.get("center", (250.0, 263.0))[0])
-        hi.append(state.bounds.get("center", (250.0, 263.0))[1])
+        # Sin límites explícitos (estados hechos a mano): margen por defecto
+        # alrededor del centro de partida, no un rango fijo de 512 canales.
+        from core.folding import FOLD_CENTER_MARGIN
+        c0 = float(state.values["center"])
+        c_lo, c_hi = state.bounds.get("center", (c0 - FOLD_CENTER_MARGIN, c0 + FOLD_CENTER_MARGIN))
+        lo.append(c_lo)
+        hi.append(c_hi)
     if state.fit_sigma and state.line_profile == "Voigt" and "voigt_sigma" in state.values:
         x0.append(state.values["voigt_sigma"])
         lo.append(state.bounds.get("voigt_sigma", (0.0, 1.0))[0])

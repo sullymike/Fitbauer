@@ -516,6 +516,30 @@ CENTER_SEARCH_CYCLES = 2
 CENTER_REFINE_HALF_WINDOW = 6.0
 
 
+#: Margen por defecto del punto de plegado a cada lado de N/2 (canales).
+FOLD_CENTER_MARGIN = 20.0
+
+
+def fold_center_window(n: int, *, drive_form: str = "triangular",
+                       offsets: tuple[float, float] | None = None) -> tuple[float, float]:
+    """Rango admisible del punto de plegado para ``n`` canales leídos.
+
+    Triangular: ``N/2 + offsets`` (por defecto el margen ajustable de
+    *Parámetros → Calibración → center*, ±20 canales). Seno: el centro es la
+    fase (~N/4) y el rango es amplio, 0.05·N–0.45·N. Lo comparten el control
+    de la GUI, la detección automática y el ajuste del centro.
+    """
+    n = int(n)
+    if drive_form == "sine":
+        return max(1.5, 0.05 * n), 0.45 * n
+    if offsets is None:
+        from core.param_overrides import fold_center_offsets
+        offsets = fold_center_offsets()
+    lo_off, hi_off = sorted(float(x) for x in offsets)
+    half = 0.5 * n
+    return max(1.5, half + lo_off), min(n - 0.5, half + hi_off)
+
+
 def find_best_integer_or_half_center(counts: np.ndarray, cmin: float | None = None,
                                      cmax: float | None = None,
                                      order: int | None = None,
@@ -528,15 +552,15 @@ def find_best_integer_or_half_center(counts: np.ndarray, cmin: float | None = No
     ≈511.55 en 512 canales), por eso el número Normos es aproximadamente el
     doble del mostrado aquí.
 
-    Sin ``cmin``/``cmax`` la ventana es ``N/2 ± 20`` canales: depende del número
-    real de canales (el antiguo default 250.5–262.5 solo valía para 512 y daba
-    centros absurdos con 256 o 1024 canales).
+    Sin ``cmin``/``cmax`` la ventana es :func:`fold_center_window` (``N/2`` ±
+    el margen ajustable): depende del número real de canales (el antiguo
+    default 250.5–262.5 solo valía para 512 y daba centros absurdos con 256 o
+    1024 canales).
     """
-    half = 0.5 * counts.size
-    if cmin is None:
-        cmin = max(1.5, half - 20.0)
-    if cmax is None:
-        cmax = min(counts.size - 0.5, half + 20.0)
+    if cmin is None or cmax is None:
+        lo, hi = fold_center_window(counts.size)
+        cmin = lo if cmin is None else cmin
+        cmax = hi if cmax is None else cmax
     work = np.asarray(counts, dtype=float)
     best = 0.5 * counts.size
     for cycle in range(max(1, int(cycles))):

@@ -153,6 +153,11 @@ relación señal/ruido y produce un único espectro simétrico. El punto clave e
 
 \begin{itemize}[nosep]
   \item Fitbauer detecta el centro automáticamente (o lo lee de un \ruta{.RES}).
+        Se busca y se admite en $N/2 \pm 20$ canales, con $N$ los canales
+        leídos, así que vale igual para 512 que para 1024 canales. El margen se
+        cambia en \menu{Vista > Límites de parámetros… > Calibración}
+        (\texttt{center}), como desplazamiento respecto a $N/2$; con barrido
+        senoidal el rango es otro, el de la fase ($\sim N/4$).
   \item El control \param{Centro} del panel de calibración lo ajusta a mano: el
         espectro se \textbf{re-dobla en vivo} al cambiarlo.
   \item \menu{Ajuste > Buscar centro} lo refina por minimización.

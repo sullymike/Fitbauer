@@ -1196,7 +1196,7 @@
   "plimit.neel_log10_tau0": "log₁₀ τ₀  (s)",
   "plimit.neel_bins": "Size bins",
   "plimit.vmax": "V_max  (mm/s)",
-  "plimit.center": "Center  (channel)",
+  "plimit.center": "Folding point: channels relative to N/2 (N = channels read)",
   "plimit.baseline": "Baseline",
   "plimit.slope": "Slope",
   "plimit.voigt_sigma": "σ Voigt  (mm/s)",

@@ -1196,7 +1196,7 @@
   "plimit.neel_log10_tau0": "log₁₀ τ₀  (s)",
   "plimit.neel_bins": "サイズのビン数",
   "plimit.vmax": "V_max  (mm/s)",
-  "plimit.center": "中心（チャンネル）",
+  "plimit.center": "折り返し点: N/2 からのチャンネル数（N = 読み込んだチャンネル数）",
   "plimit.baseline": "ベースライン",
   "plimit.slope": "傾き",
   "plimit.voigt_sigma": "σ Voigt  (mm/s)",

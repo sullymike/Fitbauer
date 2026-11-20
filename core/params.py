@@ -207,7 +207,11 @@ COMPONENT_FIT_BOUNDS = {
 # Especificación de los controles del panel de calibración.
 CALIBRATION_PARAM_SPECS: dict[str, ParamSpec] = {
     "vmax":        ParamSpec(12.007, -15.0,  15.0,  0.0001, 4),
-    "center":      ParamSpec(256.5,  250.0, 263.0,  0.0001, 4),
+    # Punto de plegado: RELATIVO a N/2 (N = canales leídos), no absoluto; así
+    # vale para 256, 512 o 1024 canales. Mín/Máx = margen a cada lado (lo usan
+    # el control del panel, la detección automática y el ajuste del centro;
+    # ver core.folding.fold_center_window). En seno no se aplica.
+    "center":      ParamSpec(0.0,    -20.0,  20.0,  0.0001, 4),
     "baseline":    ParamSpec(1.0,      0.70,  1.30, 0.0005, 4),
     "slope":       ParamSpec(0.0,    -0.02,  0.02,   1e-5,  6),
     "voigt_sigma": ParamSpec(0.05,    0.0,   1.0,    0.001, 4),

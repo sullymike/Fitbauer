@@ -157,6 +157,11 @@ folded.
 
 \begin{itemize}[nosep]
   \item Fitbauer detects the centre automatically (or reads it from a \ruta{.RES}).
+        It is searched for and allowed within $N/2 \pm 20$ channels, with $N$
+        the channels read, so it works the same for 512 and 1024 channels. The
+        margin is changed in \menu{View > Parameter limits… > Calibration}
+        (\texttt{center}), as an offset from $N/2$; with a sine drive the range
+        is different, that of the phase ($\sim N/4$).
   \item The \param{Centre} control of the calibration panel adjusts it by hand:
         the spectrum is \textbf{re-folded live} when it is changed.
   \item \menu{Fit > Find centre} refines it by minimisation.
