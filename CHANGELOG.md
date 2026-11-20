@@ -2,6 +2,9 @@
 
 ## Sin publicar
 
+- **WS5: el bloque `<data>` ya no aparece como metadato.** El lector lo
+  guardaba entero (los 1023 números) y el resumen de *Importar…* salía enorme.
+
 - **«% absorbance» de WMOSS: (T − 1) en %.** Nuevo tipo de intensidad
   `transmission_deviation_percent` (T = 1 + y/100). La detección lo elige
   cuando la desviación pasa de ±1, porque en fracción no puede; antes se

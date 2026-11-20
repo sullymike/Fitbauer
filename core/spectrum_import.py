@@ -266,7 +266,10 @@ def _parse_ws5(text: str, lines: list[str], m: re.Match,
     start = text.count("\n", 0, m.start(2))
     end = text.count("\n", 0, m.end(2)) + 1
     meta = {f"data.{k}": v for k, v in _XML_ATTR.findall(m.group(1))}
-    meta.update({k: v.strip() for k, v in _XML_TAG.findall(text)})
+    # Etiquetas simples de cabecera/pie; el bloque <data> (o cualquier
+    # contenido de varias líneas) no es un metadato.
+    meta.update({k: v.strip() for k, v in _XML_TAG.findall(text)
+                 if k.lower() != "data" and "\n" not in v.strip()})
     y = np.array(values)
     kind = hints.y_kind or "counts"
     return ImportedSpectrum(
