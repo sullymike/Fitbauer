@@ -11,8 +11,15 @@ Cada equipo vive en su carpeta, ``<raíz>/<equipo>/``, con su perfil
 cada espectro de calibración en ``calibrations/``). La raíz se puede compartir
 (p. ej. una carpeta de red del grupo).
 
-**Asignación por fecha**: a un espectro medido el día *D* le corresponde la
-última calibración del equipo con fecha ≤ *D* (la vigente cuando se midió).
+**Elección de la calibración** (``calibration_rule`` del equipo):
+
+- ``"date"``: a un espectro medido el día *D* le corresponde la última
+  calibración del equipo con fecha ≤ *D* (la vigente cuando se midió).
+- ``"latest"``: la calibración más reciente del equipo, sin mirar fechas
+  (equipos cuyos ficheros no traen fecha de medida).
+
+Además, la GUI permite elegir una calibración concreta a mano
+(:meth:`InstrumentLibrary.choose_calibration` con ``record_id``).
 
 **Reconocimiento**: un equipo puede declarar cómo reconocer sus ficheros
 (``match_text``: textos de su cabecera o pie; ``match_name``: patrones del
@@ -39,6 +46,9 @@ from core.spectrum_import import (
     DATE_ORDERS, ImportedSpectrum, ImportHints, read_spectrum_file, read_text,
 )
 
+#: Reglas para elegir la calibración de un espectro (ver el docstring).
+CALIBRATION_RULES = ("date", "latest")
+
 #: Raíz por defecto de la biblioteca de equipos.
 DEFAULT_INSTRUMENTS_DIR = CONFIG_DIR / "instruments"
 PROFILE_FILE = "instrument.json"
@@ -56,6 +66,8 @@ class InstrumentProfile:
     # Cómo leer fechas numéricas ambiguas (03/04/2025) en sus ficheros.
     date_order: str = "dmy"
     notes: str = ""
+    # Cómo se elige la calibración de cada espectro (CALIBRATION_RULES).
+    calibration_rule: str = "date"
     # Reconocimiento automático de sus ficheros (vacías = no se reconoce).
     match_text: list[str] = field(default_factory=list)
     match_name: list[str] = field(default_factory=list)
@@ -73,6 +85,7 @@ class InstrumentProfile:
             "reverse_velocity": bool(self.reverse_velocity),
             "date_order": self.date_order,
             "notes": self.notes,
+            "calibration_rule": self.calibration_rule,
             "match_text": list(self.match_text),
             "match_name": list(self.match_name),
         }
@@ -89,6 +102,8 @@ class InstrumentProfile:
             date_order=(data.get("date_order") if data.get("date_order") in DATE_ORDERS
                         else "dmy"),
             notes=str(data.get("notes", "")),
+            calibration_rule=(data.get("calibration_rule")
+                              if data.get("calibration_rule") in CALIBRATION_RULES else "date"),
             match_text=_str_list(data.get("match_text")),
             match_name=_str_list(data.get("match_name")),
         )
@@ -185,6 +200,27 @@ def calibration_for_date(records: list[CalibrationRecord],
     """
     valid = [(r.date, i, r) for i, r in enumerate(records) if r.date <= date]
     return max(valid, key=lambda t: (t[0], t[1]))[2] if valid else None
+
+
+def latest_calibration(records: list[CalibrationRecord]) -> CalibrationRecord | None:
+    """La calibración más reciente (a igual fecha, la añadida después)."""
+    if not records:
+        return None
+    return max(enumerate(records), key=lambda t: (t[1].date, t[0]))[1]
+
+
+@dataclass
+class CalibrationChoice:
+    """Calibración elegida para un espectro y por qué.
+
+    ``rule``: ``"date"``, ``"latest"`` o ``"manual"``. ``date``/``origin`` son
+    la fecha de medida y de dónde salió (``"header"``/``"file"``); pueden
+    faltar sin que eso impida elegir con ``"latest"`` o ``"manual"``.
+    """
+    record: CalibrationRecord | None
+    date: dt.date | None = None
+    origin: str | None = None
+    rule: str = "date"
 
 
 def instrument_slug(name: str) -> str:
@@ -316,6 +352,31 @@ class InstrumentLibrary:
 
     def calibration_for(self, name: str, date: dt.date) -> CalibrationRecord | None:
         return calibration_for_date(self.calibrations(name), date)
+
+    def choose_calibration(self, name: str, spectrum: ImportedSpectrum | None = None,
+                           path: str | Path | None = None, *,
+                           record_id: str | None = None) -> CalibrationChoice:
+        """Calibración que corresponde a un espectro de ``name``.
+
+        Con ``record_id``, esa calibración (elegida a mano). Si no, la regla
+        del equipo: ``"latest"`` o ``"date"`` (fecha de medida del fichero:
+        cabecera/pie o, si no hay, fecha del fichero).
+        """
+        from core.spectrum_import import measurement_date
+        profile = self.get(name)
+        if profile is None:
+            return CalibrationChoice(None)
+        date = origin = None
+        if spectrum is not None:
+            date, origin = measurement_date(spectrum, path, profile.date_order)
+        records = self.calibrations(name)
+        if record_id:
+            record = next((r for r in records if r.id == record_id), None)
+            return CalibrationChoice(record, date, origin, "manual")
+        if profile.calibration_rule == "latest":
+            return CalibrationChoice(latest_calibration(records), date, origin, "latest")
+        record = calibration_for_date(records, date) if date is not None else None
+        return CalibrationChoice(record, date, origin, "date")
 
     def delete(self, name: str) -> bool:
         """Borra el perfil; sus calibraciones y la carpeta se conservan si las hay."""

@@ -21,9 +21,9 @@ from core.folding import (
     FOLD_MODES, channel_velocity_axis, detect_fold_center, prepare_channel_counts,
 )
 from core.constants import convert_vmax
-from core.instruments import InstrumentLibrary, InstrumentProfile
+from core.instruments import CalibrationChoice, InstrumentLibrary, InstrumentProfile
 from core.spectrum_import import (
-    COLUMN_ROLES, Y_KINDS, ImportedSpectrum, ImportHints, measurement_date,
+    COLUMN_ROLES, Y_KINDS, ImportedSpectrum, ImportHints,
     parse_spectrum_text, read_text,
 )
 
@@ -328,6 +328,7 @@ class ImportDialog(QtWidgets.QDialog):
             fold_mode=self.fold_mode(), reverse_velocity=self.reverse(),
             date_order=old.date_order if old else "dmy",
             notes=old.notes if old else "",
+            calibration_rule=old.calibration_rule if old else "date",
             match_text=list(old.match_text) if old else [],
             match_name=list(old.match_name) if old else [])
         try:
@@ -346,21 +347,15 @@ class ImportDialog(QtWidgets.QDialog):
         self.refresh()
 
     def assigned_calibration(self):
-        """``(registro | None, fecha | None, origen)`` según el equipo elegido."""
+        """:class:`~core.instruments.CalibrationChoice` según el equipo elegido."""
         name = self.instrument_name()
         r = self.result
         if not name or r is None or r.x_kind != "channel":
-            return None, None, None
-        profile = self.library.get(name)
-        if profile is None:
-            return None, None, None
-        date, origin = measurement_date(r, self.path, profile.date_order)
-        if date is None:
-            return None, None, None
-        return self.library.calibration_for(name, date), date, origin
+            return CalibrationChoice(None)
+        return self.library.choose_calibration(name, r, self.path)
 
     def preview_vmax(self) -> float:
-        record, _d, _o = self.assigned_calibration()
+        record = self.assigned_calibration().record
         if record is None:
             return self.vmax
         return convert_vmax(record.vmax, record.sextet_pattern, self.sextet_pattern)
@@ -449,8 +444,18 @@ class ImportDialog(QtWidgets.QDialog):
             parts.append("⚠ " + tr("import.ambiguous", names=", ".join(self.ambiguous),
                                    default="Lo reconocen varios equipos: {names}. Elige uno."))
         if self.instrument_name() and r.x_kind == "channel":
-            record, date, origin = self.assigned_calibration()
-            if date is None:
+            choice = self.assigned_calibration()
+            record, date, origin = choice.record, choice.date, choice.origin
+            if choice.rule in ("latest", "manual"):
+                if record is None:
+                    parts.append("⚠ " + tr("import.no_calibrations",
+                                           default="El equipo no tiene calibraciones."))
+                else:
+                    parts.append(tr(
+                        "import.calibration_latest", cal=record.date.isoformat(),
+                        vmax=f"{self.preview_vmax():.4f}",
+                        default="Calibración más reciente del equipo: {cal}, Vmax = {vmax} mm/s"))
+            elif date is None:
                 parts.append("⚠ " + tr("import.no_date",
                                        default="Sin fecha de medida: no se asignará calibración."))
             else:

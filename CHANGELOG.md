@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **Equipos: regla de calibración «la más reciente».** Cada equipo elige cómo
+  se asigna la calibración a sus espectros: por fecha de medida (como hasta
+  ahora) o la más reciente, sin mirar fechas, para equipos cuyos ficheros no
+  las traen. Selector en el gestor de equipos; lo respetan la carga, *Importar…*,
+  el ajuste en serie y el CLI (`calibration_rule` en el perfil y en la sesión).
+  La elección vive en un único sitio, `InstrumentLibrary.choose_calibration`.
+
 - **WS5: el bloque `<data>` ya no aparece como metadato.** El lector lo
   guardaba entero (los 1023 números) y el resumen de *Importar…* salía enorme.
 

@@ -126,6 +126,12 @@ copy changes it. If there is no earlier calibration, the current one is kept,
 also with a warning. For ambiguous numeric dates such as 03/04/2025, the
 instrument sets whether its files write day/month/year or month/day/year.
 
+\textbf{Instruments without dates.} If an instrument's files carry no measurement
+date (raw counts with no header, for example), choose \emph{Calibration of each
+spectrum: The latest one} in the manager. The last calibration added is then
+always applied, ignoring dates, and the label says so («the latest»). This is the
+usual way of working with programs that keep a single calibration in force.
+
 In a \textbf{batch fit} and in the \textbf{global Néel fit (multi-T)}, if the
 active spectrum was opened with an instrument, each file is folded with the
 calibration of its own date (with no earlier calibration, with the panel

@@ -48,8 +48,10 @@ del código de la GUI.**
 - `instruments.py` — equipos como perfiles (`InstrumentProfile`: `ImportHints` + forma de onda,
   plegado y sentido) en `InstrumentLibrary`, una carpeta por equipo bajo `CONFIG_DIR/instruments/`.
   Cada equipo guarda sus calibraciones (`CalibrationRecord`, `calibrations.json` + copia del
-  espectro); `calibration_for_date`: la última con fecha ≤ fecha de medida
-  (`core.spectrum_import.measurement_date`). La GUI la asigna al importar con equipo y por
+  espectro). `InstrumentLibrary.choose_calibration` es la fuente única de la elección, según
+  `calibration_rule` del perfil: `date` (`calibration_for_date`: la última con fecha ≤ fecha de
+  medida, `core.spectrum_import.measurement_date`) o `latest` (sin fechas); o a mano con
+  `record_id`. La GUI la asigna al importar con equipo y por
   fichero en el ajuste en serie (`gui/instrument_manager.py` = gestor).
   Reconocimiento: `match_text`/`match_name` del perfil e `InstrumentLibrary.recognize`; *Cargar*,
   arrastrar y recientes (`_open_spectrum`) aplican el único equipo que reconoce el fichero.

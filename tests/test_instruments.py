@@ -135,6 +135,30 @@ def test_calibration_for_date_rule():
     assert calibration_for_date(recs, dt.date(2026, 1, 1)).vmax == 10.3   # la añadida después
 
 
+def test_choose_calibration_rules(tmp_path):
+    from core.instruments import latest_calibration
+    assert latest_calibration([]) is None
+    assert latest_calibration([_cal("2025-06-01", 1.0), _cal("2025-01-01", 2.0)]).vmax == 1.0
+    lib = InstrumentLibrary(tmp_path / "lib")
+    lib.save(_profile("Lab"))
+    a = lib.add_calibration("Lab", _cal("2025-01-10", 10.0))
+    lib.add_calibration("Lab", _cal("2025-06-01", 10.2))
+    old = parse_spectrum_text(_counts_text("Date: 2025-03-14\n"))
+    nodate = parse_spectrum_text(_counts_text("Sample\n"))
+    ch = lib.choose_calibration("Lab", old)
+    assert (ch.rule, ch.record.vmax, ch.date) == ("date", 10.0, dt.date(2025, 3, 14))
+    assert lib.choose_calibration("Lab", nodate).record is None
+    ch = lib.choose_calibration("Lab", old, record_id=a.id)
+    assert (ch.rule, ch.record.vmax) == ("manual", 10.0)
+    prof = lib.get("Lab"); prof.calibration_rule = "latest"; lib.save(prof)
+    assert lib.get("Lab").calibration_rule == "latest"
+    for spec in (old, nodate, None):
+        ch = lib.choose_calibration("Lab", spec)
+        assert (ch.rule, ch.record.vmax) == ("latest", 10.2)
+    assert lib.choose_calibration("nadie", old).record is None
+    assert InstrumentProfile.from_dict({"name": "x", "calibration_rule": "raro"}).calibration_rule == "date"
+
+
 def test_calibrations_stored_with_file_copy(tmp_path):
     lib = InstrumentLibrary(tmp_path / "lib")
     with pytest.raises(KeyError):

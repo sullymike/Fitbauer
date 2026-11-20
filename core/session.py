@@ -434,24 +434,26 @@ class HeadlessSession:
         return found[0]
 
     def instrument_calibration(self, path, imported):
-        """``(registro | None, fecha | None, origen)`` del equipo para un fichero."""
-        from core.spectrum_import import measurement_date
-        name = self.instrument.name
-        date, origin = measurement_date(imported, path, self.instrument.date_order)
-        if date is None:
-            return None, None, None
-        return self.instrument_library.calibration_for(name, date), date, origin
+        """:class:`~core.instruments.CalibrationChoice` del equipo para un fichero
+        (según la regla del equipo: por fecha de medida o la más reciente)."""
+        return self.instrument_library.choose_calibration(
+            self.instrument.name, imported, path)
 
     def _assign_instrument_calibration(self, path, imported) -> None:
         from core.constants import convert_vmax
-        record, date, origin = self.instrument_calibration(path, imported)
+        choice = self.instrument_calibration(path, imported)
+        record, date = choice.record, choice.date
         name = self.instrument.name
         if record is None:
             # Se mantiene la Vmax que hubiera (plantilla o fichero anterior).
-            self.calibration_warning = (
-                f"{path.name}: no measurement date; no calibration of '{name}' assigned"
-                if date is None else
-                f"{path.name}: '{name}' has no calibration on or before {date.isoformat()}")
+            if choice.rule == "latest":
+                self.calibration_warning = f"{path.name}: '{name}' has no calibrations"
+            elif date is None:
+                self.calibration_warning = (
+                    f"{path.name}: no measurement date; no calibration of '{name}' assigned")
+            else:
+                self.calibration_warning = (
+                    f"{path.name}: '{name}' has no calibration on or before {date.isoformat()}")
             return
         self.calibration_warning = None
         self.model.vars["vmax"] = convert_vmax(record.vmax, record.sextet_pattern,
@@ -466,8 +468,9 @@ class HeadlessSession:
             "sextet_pattern": record.sextet_pattern,
             "calibration_id": record.id,
             "calibration_date": record.date.isoformat(),
-            "measurement_date": date.isoformat(),
-            "measurement_date_source": origin,
+            "calibration_rule": choice.rule,
+            "measurement_date": date.isoformat() if date else None,
+            "measurement_date_source": choice.origin,
             "calibration_file_name": record.file_name,
             "calibration_file_path": str(cal_file) if cal_file else None,
         }
@@ -624,7 +627,7 @@ class HeadlessSession:
                 if self.instrument is not None:
                     info = self.calibration_info or {}
                     row["calibration"] = {
-                        "measured": info.get("measurement_date", ""),
+                        "measured": info.get("measurement_date") or "",
                         "date": info.get("calibration_date", ""),
                         "vmax": float(self.model.vars.get("vmax", 0.0)),
                     }

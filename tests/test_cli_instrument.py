@@ -126,3 +126,15 @@ def test_cli_instrument_auto(setup, tmp_path, capsys):
                      "--instrument", "auto", "--instruments-dir", str(lib.root), "--quiet"]) == 0
     single = json.loads((tmp_path / "1.json").read_text())
     assert single["calibration"]["instrument"] == "Lab B"
+
+
+def test_cli_latest_rule(setup, tmp_path, capsys):
+    lib, files, template = setup
+    prof = lib.get("Lab B"); prof.calibration_rule = "latest"; lib.save(prof)
+    out = tmp_path / "o.json"
+    assert cli.main(["--template", str(template), "--spectrum", str(files[0]),
+                     "--out", str(out), "--instrument", "Lab B",
+                     "--instruments-dir", str(lib.root)]) == 0
+    cal = json.loads(out.read_text())["calibration"]
+    assert cal["calibration_date"] == "2025-06-01" and cal["calibration_rule"] == "latest"
+    assert "la más reciente" in capsys.readouterr().out

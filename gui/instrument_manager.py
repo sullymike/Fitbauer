@@ -2,7 +2,8 @@
 
 Cada equipo guarda sus calibraciones de velocidad con la fecha desde la que
 valen; al importar un espectro con ese equipo se le asigna la vigente en su
-fecha de medida (:func:`core.instruments.calibration_for_date`). Aquí solo
+fecha de medida o la más reciente, según la regla del equipo
+(:meth:`core.instruments.InstrumentLibrary.choose_calibration`). Aquí solo
 hay controles: el almacenamiento vive en :mod:`core.instruments`.
 """
 from __future__ import annotations
@@ -157,11 +158,17 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.verticalHeader().setVisible(False)
         v.addWidget(self.table, stretch=1)
-        hint = QtWidgets.QLabel(tr(
-            "instr.rule", default="A cada espectro importado con este equipo se le aplica "
-            "la última calibración con fecha igual o anterior a la de su medida."))
-        hint.setWordWrap(True)
-        v.addWidget(hint)
+        rule_row = QtWidgets.QHBoxLayout()
+        rule_row.addWidget(QtWidgets.QLabel(
+            tr("instr.rule_label", default="Calibración de cada espectro:")))
+        self.rule_combo = QtWidgets.QComboBox()
+        self.rule_combo.addItem(tr("instr.rule_date", default="Por fecha de medida"), "date")
+        self.rule_combo.addItem(tr("instr.rule_latest", default="La más reciente"), "latest")
+        rule_row.addWidget(self.rule_combo)
+        self.rule_hint = QtWidgets.QLabel()
+        self.rule_hint.setWordWrap(True)
+        rule_row.addWidget(self.rule_hint, stretch=1)
+        v.addLayout(rule_row)
 
         row = QtWidgets.QHBoxLayout()
         self.btn_add_current = QtWidgets.QPushButton(
@@ -184,6 +191,7 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
         self.btn_remove.clicked.connect(self._on_remove)
         self.instrument_combo.currentIndexChanged.connect(lambda *_: self._refresh())
         self.date_order_combo.currentIndexChanged.connect(self._on_date_order)
+        self.rule_combo.currentIndexChanged.connect(self._on_rule)
         self.table.itemSelectionChanged.connect(self._refresh_buttons)
         self._reload(instrument)
 
@@ -224,6 +232,24 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
         profile.date_order = self.date_order_combo.currentData()
         self.library.save(profile)
 
+    def _on_rule(self) -> None:
+        profile = self.library.get(self.instrument_name() or "")
+        if profile is not None:
+            profile.calibration_rule = self.rule_combo.currentData()
+            self.library.save(profile)
+        self._refresh_rule_hint()
+
+    def _refresh_rule_hint(self) -> None:
+        if self.rule_combo.currentData() == "latest":
+            text = tr("instr.rule_latest_tip",
+                      default="Se aplica la calibración más reciente del equipo, sin mirar "
+                              "fechas (para ficheros que no las traen).")
+        else:
+            text = tr("instr.rule",
+                      default="A cada espectro importado con este equipo se le aplica la "
+                              "última calibración con fecha igual o anterior a la de su medida.")
+        self.rule_hint.setText(text)
+
     def _on_match_changed(self) -> None:
         profile = self.library.get(self.instrument_name() or "")
         if profile is None:
@@ -248,6 +274,12 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
             max(0, self.date_order_combo.findData(profile.date_order if profile else "dmy")))
         self.date_order_combo.blockSignals(False)
         self.date_order_combo.setEnabled(profile is not None)
+        self.rule_combo.blockSignals(True)
+        self.rule_combo.setCurrentIndex(
+            max(0, self.rule_combo.findData(profile.calibration_rule if profile else "date")))
+        self.rule_combo.blockSignals(False)
+        self.rule_combo.setEnabled(profile is not None)
+        self._refresh_rule_hint()
         for edit, values in ((self.match_text_edit, profile.match_text if profile else []),
                              (self.match_name_edit, profile.match_name if profile else [])):
             edit.blockSignals(True)

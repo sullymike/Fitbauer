@@ -24,19 +24,14 @@ class CalibrationActionsMixin:
         except (OSError, ValueError):
             return None
 
-    def _instrument_calibration(self, path, imported, instrument):
-        """Calibración del equipo vigente cuando se midió el fichero.
-
-        Devuelve ``(registro | None, fecha | None, origen_fecha | None)``.
-        """
-        profile = self._instrument_profile(instrument)
-        if profile is None:
-            return None, None, None
-        from core.spectrum_import import measurement_date
-        date, origin = measurement_date(imported, path, profile.date_order)
-        if date is None:
-            return None, None, None
-        return self._instrument_library().calibration_for(instrument, date), date, origin
+    def _instrument_calibration(self, path, imported, instrument, record_id=None):
+        """:class:`~core.instruments.CalibrationChoice` del equipo para un fichero:
+        la elegida a mano (``record_id``) o la que da la regla del equipo."""
+        from core.instruments import CalibrationChoice
+        if self._instrument_profile(instrument) is None:
+            return CalibrationChoice(None)
+        return self._instrument_library().choose_calibration(
+            instrument, imported, path, record_id=record_id)
 
     def _instrument_vmax(self, record) -> float:
         """Vmax de un registro de calibración en el patrón activo."""
@@ -53,24 +48,33 @@ class CalibrationActionsMixin:
         instrument = getattr(self.file, "instrument", None)
         if not instrument:
             return None, None
-        record, date, origin = self._instrument_calibration(path, imported, instrument)
+        choice = self._instrument_calibration(path, imported, instrument)
+        record, date = choice.record, choice.date
+        measured = date.isoformat() if date else ""
         if record is None:
-            return None, ({"measured": date.isoformat(), "date": "", "vmax": ""}
+            return None, ({"measured": measured, "date": "", "vmax": ""}
                           if date else None)
         vmax = self._instrument_vmax(record)
-        return vmax, {"measured": date.isoformat(), "date": record.date.isoformat(),
-                      "vmax": vmax, "date_source": origin}
+        return vmax, {"measured": measured, "date": record.date.isoformat(),
+                      "vmax": vmax, "date_source": choice.origin}
 
-    def _assign_instrument_calibration(self, path, imported, instrument) -> None:
-        """Fija la calibración del equipo vigente en la fecha de medida.
+    def _assign_instrument_calibration(self, path, imported, instrument,
+                                       record_id=None) -> None:
+        """Fija la calibración del equipo para el fichero: la elegida a mano
+        (``record_id``) o la de la regla del equipo (por fecha o la más reciente).
 
-        Sin fecha o sin calibración anterior se mantiene la fijada y se avisa.
+        Si no hay ninguna aplicable se mantiene la fijada y se avisa.
         """
         if not instrument:
             return
-        record, date, origin = self._instrument_calibration(path, imported, instrument)
+        choice = self._instrument_calibration(path, imported, instrument, record_id)
+        record, date = choice.record, choice.date
         if record is None:
-            if date is None:
+            if choice.rule in ("latest", "manual"):
+                msg = tr("instr.no_calibrations", name=instrument,
+                         default="«{name}» no tiene calibraciones; "
+                                 "se mantiene la calibración actual.")
+            elif date is None:
                 msg = tr("instr.no_date", name=instrument,
                          default="Sin fecha de medida: no se asigna calibración de «{name}».")
             else:
@@ -90,8 +94,9 @@ class CalibrationActionsMixin:
             "sextet_pattern": record.sextet_pattern,
             "calibration_id": record.id,
             "calibration_date": record.date.isoformat(),
-            "measurement_date": date.isoformat(),
-            "measurement_date_source": origin,
+            "calibration_rule": choice.rule,
+            "measurement_date": date.isoformat() if date else None,
+            "measurement_date_source": choice.origin,
             "calibration_file_name": record.file_name,
             "calibration_file_path": str(cal_file) if cal_file else None,
         }
@@ -295,6 +300,25 @@ class CalibrationActionsMixin:
         except Exception:
             pass
 
+    @staticmethod
+    def _instrument_calib_text(info: dict) -> str:
+        """«Equipo X: calibración del … (por qué esa)» para la etiqueta."""
+        rule = info.get("calibration_rule") or "date"
+        name, cal = info.get("instrument", ""), info.get("calibration_date", "")
+        if rule == "latest":
+            return tr("instr.label_latest", name=name, cal=cal,
+                      default="Equipo {name}: calibración del {cal} (la más reciente)")
+        if rule == "manual":
+            return tr("instr.label_manual", name=name, cal=cal,
+                      default="Equipo {name}: calibración del {cal} (elegida a mano)")
+        key = ("instr.label_file_date" if info.get("measurement_date_source") == "file"
+               else "instr.label")
+        return tr(key, name=name, cal=cal, measured=info.get("measurement_date") or "",
+                  default=("Equipo {name}: calibración del {cal} (medida {measured})"
+                           if key == "instr.label" else
+                           "Equipo {name}: calibración del {cal} (medida {measured}, "
+                           "fecha del fichero)"))
+
     def _refresh_calib_label(self) -> None:
         if not self.calibration_info:
             self.calib_label.setText("")
@@ -317,16 +341,7 @@ class CalibrationActionsMixin:
             iso_txt = f"{iso_ref:.4f}" if iso_ref is not None else "—"
             txt += f"Vmax = {vmax_txt} mm/s · IS = {iso_txt} mm/s"
             if info.get("source") == "instrument":
-                key = ("instr.label_file_date" if info.get("measurement_date_source") == "file"
-                       else "instr.label")
-                txt += "<br>" + tr(
-                    key, name=info.get("instrument", ""),
-                    cal=info.get("calibration_date", ""),
-                    measured=info.get("measurement_date", ""),
-                    default=("Equipo {name}: calibración del {cal} (medida {measured})"
-                             if key == "instr.label" else
-                             "Equipo {name}: calibración del {cal} (medida {measured}, "
-                             "fecha del fichero)"))
+                txt += "<br>" + self._instrument_calib_text(info)
             if abs(escala - 1.0) > 1e-12:
                 txt += "<br>" + tr(
                     "calib.converted", vmax=f"{float(vmax):.4f}",

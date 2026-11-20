@@ -283,10 +283,38 @@ def test_import_dialog_shows_assigned_calibration(qapp, tmp_path):
     from gui.import_dialog import ImportDialog
     dlg = ImportDialog(None, _dated_copy(tmp_path, "a.dat", "2025-03-14"),
                        library=_lab(tmp_path), vmax=12.0, instrument="Lab B")
-    rec, date, origin = dlg.assigned_calibration()
-    assert rec.vmax == 10.5 and origin == "header"
+    choice = dlg.assigned_calibration()
+    assert choice.record.vmax == 10.5 and choice.origin == "header" and choice.rule == "date"
     assert dlg.preview_vmax() == pytest.approx(10.5)
     assert "2025-01-10" in dlg.summary.text()
+    dlg.deleteLater()
+
+
+def test_latest_rule_ignores_dates(make_window, tmp_path):
+    from gui.import_dialog import ImportDialog
+    lib = _lab(tmp_path)
+    prof = lib.get("Lab B"); prof.calibration_rule = "latest"; lib.save(prof)
+    win = make_window()
+    win._instruments = lib
+    # Medida anterior a todas las calibraciones: por fecha no habría ninguna.
+    win._load_file(_dated_copy(tmp_path, "a.dat", "2020-01-01"), None, "Lab B")
+    info = win.calibration_info
+    assert info["calibration_date"] == "2025-06-01" and info["calibration_rule"] == "latest"
+    assert "2025-06-01" in win.calib_label.text()
+    dlg = ImportDialog(None, _dated_copy(tmp_path, "b.dat", "2020-01-01"),
+                       library=lib, vmax=12.0, instrument="Lab B")
+    assert dlg.assigned_calibration().record.date.isoformat() == "2025-06-01"
+    assert "2025-06-01" in dlg.summary.text()
+    dlg.deleteLater()
+
+
+def test_instrument_manager_rule_combo(qapp, tmp_path):
+    from gui.instrument_manager import InstrumentManagerDialog
+    lib = _lab(tmp_path)
+    dlg = InstrumentManagerDialog(None, lib, "Lab B")
+    assert dlg.rule_combo.currentData() == "date"
+    dlg.rule_combo.setCurrentIndex(dlg.rule_combo.findData("latest"))
+    assert lib.get("Lab B").calibration_rule == "latest"
     dlg.deleteLater()
 
 

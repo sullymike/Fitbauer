@@ -345,8 +345,12 @@ def _print_single_summary(args, session: dict) -> None:
     print(f"OK  {args.spectrum[0].name}  χ²={chi2_txt}  red_χ²={red_txt}")
     cal = session.get("calibration") or {}
     if cal.get("source") == "instrument":
-        nota = " (fecha del fichero)" if cal.get("measurement_date_source") == "file" else ""
-        print(f"  equipo {cal['instrument']}: medida {cal['measurement_date']}{nota} → "
+        if cal.get("calibration_rule") == "latest":
+            cuando = "la más reciente"
+        else:
+            nota = " (fecha del fichero)" if cal.get("measurement_date_source") == "file" else ""
+            cuando = f"medida {cal['measurement_date']}{nota}"
+        print(f"  equipo {cal['instrument']}: {cuando} → "
               f"calibración del {cal['calibration_date']}, "
               f"vmax = {session['model_state']['vars']['vmax']:.6g}")
     if result.get("warning"):
