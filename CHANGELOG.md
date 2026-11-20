@@ -2,6 +2,10 @@
 
 ## Sin publicar
 
+- **Importación: traza de un subespectro de WMOSS.** Con la línea base desplazada
+  por debajo de cero (p. ej. `fit-2.b`, el sitio menor) se leía como «cuentas»
+  negativas; ahora es T − 1 en %, como el resto de ficheros de WMOSS.
+
 - **Equipos: «Abrir espectro de calibración».** El gestor abre la copia del α-Fe
   guardada con una calibración, con su equipo y esa calibración, para revisarla
   o reajustar la Vmax.

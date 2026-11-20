@@ -181,6 +181,15 @@ def test_transmission_deviation_percent_wmoss():
     np.testing.assert_allclose(r.transmission()[0], t, atol=1e-5)
 
 
+def test_offset_subspectrum_trace_is_not_counts():
+    # Traza de un sitio de WMOSS: línea base en −1.6 %, picos hasta −4.3 %.
+    v = np.linspace(-6, 6, 256)
+    y = -1.6 - 2.7 * 0.04 / ((v - 1.0) ** 2 + 0.04)
+    r = parse_spectrum_text("\n".join(f"{a:.5f}\t{b:.5f}" for a, b in zip(v, y)))
+    assert r.y_kind == "transmission_deviation_percent"
+    assert r.transmission()[0].max() == pytest.approx(0.984, abs=1e-3)
+
+
 def test_ws5_metadata_excludes_data_block():
     text = ('<?xml version="1.0"?>\r\n<wissoft version="1.1">\r\n<comment>http://x</comment>\r\n'
             '<data channels="4" time="0">\r\n10\r\n11\r\n12\r\n13\r\n</data>\r\n</wissoft>\r\n')

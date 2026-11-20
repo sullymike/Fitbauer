@@ -354,6 +354,12 @@ def _guess_y_kind(y: np.ndarray) -> str:
             return ("transmission_deviation_percent" if span > 1.0
                     else "transmission_deviation")
         return "absorption" if ymax <= 1.0 else "absorption_percent"
+    if ymin < 0 and abs(ymin) > abs(ymax):
+        # Picos hacia abajo con la línea base desplazada (p. ej. la traza de
+        # un subespectro de WMOSS, dibujada por debajo de cero): T − 1, no
+        # cuentas, que nunca son negativas.
+        return ("transmission_deviation_percent" if span > 1.0
+                else "transmission_deviation")
     return "counts"
 
 
