@@ -236,7 +236,7 @@ class FileActionsMixin:
                 vel = vel + iso
                 suffix += " (α-Fe → " + tr("compare.source_axis", default="fuente") + ")"
         else:
-            prep = self._prepare_like_active(self._read_like_active(fpath).y)
+            prep = self._prepare_like_active(self._read_like_active(fpath).y, path=fpath)
             y_raw, vel = prep.y, prep.velocity
         norm = float(np.percentile(y_raw, 90)) or 1.0
         label = fpath.stem + suffix

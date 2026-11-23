@@ -63,7 +63,10 @@ def folded_velocity_data(
     path = Path(path)
     counts = read_ws5_counts(path)
     if center is None:
-        center = read_normos_folding_point(path)
+        # El de un ajuste previo de NORMOS solo si es plausible (hay .RES con 0
+        # o, en 1024 canales, partido por la mitad).
+        from core.spectrum_loading import Acquisition, file_fold_center
+        center = file_fold_center(path, Acquisition(), counts.size)
     if center is None:
         center = find_best_integer_or_half_center(counts)
     folded, _pairs = fold_integer_or_half(counts, center)

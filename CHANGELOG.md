@@ -2,6 +2,15 @@
 
 ## Sin publicar
 
+- **Punto de plegado de NORMOS: el mismo en la ventana y en el CLI, y solo si es
+  plausible.** El CLI (y los de distribución) doblaban en el «Final folding point»
+  del `.RES` de un ajuste previo de NORMOS y la ventana lo ignoraba. En
+  `validacion/` hay 68 `.RES` con 0 (se doblaba en 0) y 8 de 1024 canales en los
+  que la regla «≥ 400 → ÷2» daba 256.25 en vez de 512.5. Ahora todos usan
+  `core.spectrum_loading.initial_fold_center`: el de NORMOS si cae en N/2 ± margen
+  y, si no, el detectado. También al cambiar la forma de onda, en la serie y en la
+  comparación. «Detectar centro» sigue detectando.
+
 - **Interno: carga de espectros en el núcleo** (`core/spectrum_loading.py`). La
   ventana, el ajuste en serie, el ajuste global de Néel, la comparación, la vista
   previa de *Importar…* y la sesión sin GUI preparan los datos y eligen la

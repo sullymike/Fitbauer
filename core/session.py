@@ -362,7 +362,7 @@ class HeadlessSession:
         con eje de velocidad no se cargan aquí.
         """
         from core.spectrum_loading import (
-            Acquisition, file_fold_center, open_spectrum, prepare_spectrum)
+            Acquisition, open_spectrum, prepare_spectrum)
         path = Path(path)
         if hints is None and self.instrument is not None:
             hints = self.instrument.import_hints
@@ -379,7 +379,7 @@ class HeadlessSession:
                                   canonical_fold_mode(self.model.fold_mode),
                                   bool(self.model.reverse_velocity))
         prep = prepare_spectrum(opened.imported.y, acquisition, None,
-                                center=file_fold_center(path, acquisition),
+                                path=path,
                                 edge_trim=_EDGE_TRIM)
         self.spectrum = LoadedSpectrum(
             path=path, counts=prep.counts, center=prep.center,

@@ -11,7 +11,7 @@ from core.constants import GLOBAL_PARAM_NAMES, SEXTET_PARAM_NAMES
 from core.folding import channel_velocity_axis, detect_fold_center, fold_center_window
 from core.spectrum_import import ImportedSpectrum, ImportHints, read_spectrum_file
 from core.spectrum_loading import (
-    Acquisition, PreparedSpectrum, open_spectrum, prepare_spectrum,
+    Acquisition, PreparedSpectrum, initial_fold_center, open_spectrum, prepare_spectrum,
 )
 from core.fit_engine import FitState, resolve_values
 from core.result_views import discrete_result_view
@@ -298,14 +298,15 @@ class ModelWorkflowMixin:
                                 default="{name} does not contain counts per channel."))
         return imported
 
-    def _prepare_like_active(self, counts: np.ndarray, vmax: float | None = None
-                             ) -> PreparedSpectrum:
+    def _prepare_like_active(self, counts: np.ndarray, vmax: float | None = None,
+                             path: Path | None = None) -> PreparedSpectrum:
         """Prepara otras cuentas como las del espectro activo: misma forma de
-        onda, plegado, recorte, sentido y (salvo ``vmax``) Vmax del panel."""
+        onda, plegado, recorte, sentido y (salvo ``vmax``) Vmax del panel.
+        Con ``path``, el centro de un ajuste previo de NORMOS si lo hay."""
         return prepare_spectrum(
             counts, self._acquisition(),
             self.calib.to_view_state().vmax if vmax is None else vmax,
-            edge_trim=int(getattr(self, "_edge_trim", 0)))
+            path=path, edge_trim=int(getattr(self, "_edge_trim", 0)))
 
     def _prepare_series_file(self, path: Path):
         """Un fichero de una serie listo para ajustar, con la calibración de su
@@ -314,7 +315,7 @@ class ModelWorkflowMixin:
         calibración, la fila para la tabla de resultados (o ``None``)."""
         imported = self._read_like_active(path)
         vmax, cal = self._series_calibration(path, imported)
-        return vmax, cal, self._prepare_like_active(imported.y, vmax=vmax)
+        return vmax, cal, self._prepare_like_active(imported.y, vmax=vmax, path=path)
 
     def _fold_counts_for_center(self, center: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Dobla las cuentas o las deja sin doblar (seno o modo sin doblar)."""
@@ -376,7 +377,7 @@ class ModelWorkflowMixin:
             self._refresh_plot()
             return
         counts = self.file.counts
-        center = self._detect_center(counts)
+        center = initial_fold_center(counts, self._acquisition(), self.file.path)
         self._building = True
         try:
             self._update_center_range(counts.size)
@@ -1201,7 +1202,7 @@ class ModelWorkflowMixin:
     def _load_counts(self, opened) -> None:
         """Carga cuentas por canal (``OpenedSpectrum``) y las dobla según el panel."""
         path, counts = opened.path, opened.imported.y
-        prep = prepare_spectrum(counts, self._acquisition(), None,
+        prep = prepare_spectrum(counts, self._acquisition(), None, path=path,
                                 edge_trim=int(getattr(self, "_edge_trim", 0)))
         center = prep.center
         self.file = FileState(path=path, counts=counts, center=center)

@@ -572,3 +572,17 @@ def test_window_axis_matches_headless_with_adaptive_trim(make_window):
     assert win.file.center == pytest.approx(s.spectrum.center)
     np.testing.assert_allclose(win.file.velocity, s._velocity(), rtol=0, atol=1e-12)
     assert abs(win.file.velocity[0]) < vmax
+
+
+def test_window_uses_plausible_normos_fold_point(make_window, tmp_path):
+    """La ventana dobla, como el CLI, en el centro de un ajuste previo de NORMOS."""
+    import numpy as np
+    from core.session import HeadlessSession
+    p = tmp_path / "s.MOS"
+    p.write_text("\n".join(str(x) for x in np.random.default_rng(3).poisson(1e4, 512)))
+    (tmp_path / "s.RES").write_text(" Final folding point = 256.75\n")
+    win = make_window()
+    win._load_file(p)
+    s = HeadlessSession()
+    s.load_ws5(p, vmax=win.calib.vmax.value())
+    assert win.file.center == s.spectrum.center == 256.75

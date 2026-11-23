@@ -111,3 +111,38 @@ def test_open_rejects_channel_data_that_are_not_counts(tmp_path):
     p.write_text("\n".join(f"{1 - 0.01 * np.sin(i):.6f}" for i in range(256)))
     with pytest.raises(ValueError):
         open_spectrum(p)
+
+
+def _with_res(tmp_path, name, n, pfp):
+    c = np.random.default_rng(2).poisson(1e4, n)
+    p = tmp_path / f"{name}.MOS"
+    p.write_text("\n".join(str(x) for x in c))
+    (tmp_path / f"{name}.RES").write_text(f" Final folding point = {pfp}\n")
+    return p, c
+
+
+def test_normos_fold_point_only_if_plausible(tmp_path):
+    """El «Final folding point» de un .RES de NORMOS se usa (ventana y CLI) solo
+    si cae en N/2 ± margen: hay .RES con 0 y, en 1024 canales, la regla
+    ≥ 400 → ÷2 lo partía (512.5 → 256.25)."""
+    from core.spectrum_loading import file_fold_center, initial_fold_center
+    acq = Acquisition()
+    good, c = _with_res(tmp_path, "good", 512, 256.75)
+    assert file_fold_center(good, acq, 512) == 256.75
+    assert initial_fold_center(c, acq, good) == 256.75
+    assert file_fold_center(good, Acquisition(fold_mode="single_sweep"), 512) is None
+    assert file_fold_center(good, Acquisition(drive_form="sine"), 512) is None
+    zero, c0 = _with_res(tmp_path, "zero", 512, 0.0)
+    assert file_fold_center(zero, acq, 512) is None
+    assert initial_fold_center(c0, acq, zero) != 0.0
+    big, cb = _with_res(tmp_path, "big", 1024, 512.5)
+    assert file_fold_center(big, acq, 1024) is None
+    assert 492 <= initial_fold_center(cb, acq, big) <= 532
+    # La sesión sin GUI (CLI) usa la misma regla.
+    for p, expected in ((good, 256.75), (zero, None), (big, None)):
+        s = HeadlessSession()
+        s.load_ws5(p, vmax=6.0)
+        if expected is None:
+            assert s.spectrum.center > 100
+        else:
+            assert s.spectrum.center == expected

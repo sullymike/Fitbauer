@@ -35,6 +35,7 @@ from core.folding import (
     canonical_fold_mode,
     channel_velocity_axis,
     detect_fold_center,
+    fold_center_window,
     prepare_channel_counts,
     read_normos_folding_point,
 )
@@ -70,28 +71,56 @@ class PreparedSpectrum:
     velocity: np.ndarray | None
 
 
-def file_fold_center(path: str | Path, acquisition: Acquisition) -> float | None:
-    """Punto de plegado que declara el propio fichero (cabecera NORMOS), si
-    procede doblar; ``None`` si no lo declara o no hay plegado."""
+def file_fold_center(path: str | Path, acquisition: Acquisition,
+                     n_channels: int) -> float | None:
+    """Punto de plegado de un ajuste previo de NORMOS (``.RES`` junto al
+    fichero, «Final folding point»), si procede doblar.
+
+    ``None`` si no lo hay, no se dobla o no es plausible: fuera de la ventana
+    del centro (N/2 ± margen). Hay ``.RES`` con 0 y, en 1024 canales, la
+    regla de :func:`read_normos_folding_point` (≥ 400 → ÷2) lo parte por la
+    mitad; en esos casos se detecta.
+    """
     if (acquisition.drive_form == "sine"
             or canonical_fold_mode(acquisition.fold_mode) == "single_sweep"):
         return None
-    return read_normos_folding_point(Path(path))
+    try:
+        center = read_normos_folding_point(Path(path))
+    except (OSError, ValueError):
+        return None
+    if center is None:
+        return None
+    lo, hi = fold_center_window(int(n_channels), drive_form=acquisition.drive_form)
+    return float(center) if lo <= center <= hi else None
+
+
+def initial_fold_center(counts: np.ndarray, acquisition: Acquisition,
+                        path: str | Path | None = None) -> float:
+    """Centro con que se dobla un espectro al abrirlo: el de un ajuste previo
+    de NORMOS si es plausible (:func:`file_fold_center`) o el detectado."""
+    counts = np.asarray(counts, dtype=float)
+    if path is not None:
+        center = file_fold_center(path, acquisition, counts.size)
+        if center is not None:
+            return center
+    return float(detect_fold_center(counts, drive_form=acquisition.drive_form,
+                                    fold_mode=acquisition.fold_mode))
 
 
 def prepare_spectrum(counts: np.ndarray, acquisition: Acquisition,
                      vmax: float | None, *, center: float | None = None,
+                     path: str | Path | None = None,
                      edge_trim: int = EDGE_TRIM_DEFAULT) -> PreparedSpectrum:
     """Dobla (o no) ``counts`` y construye su eje de velocidad.
 
-    Sin ``center`` se detecta (:func:`detect_fold_center`). Al doblar, el
+    Sin ``center``, :func:`initial_fold_center` (el de NORMOS junto a
+    ``path`` si es plausible, o el detectado). Al doblar, el
     recorte de bordes del eje se deduce del nº de puntos, igual que el de los
     datos (también con el recorte adaptativo).
     """
     counts = np.asarray(counts, dtype=float)
     if center is None:
-        center = detect_fold_center(counts, drive_form=acquisition.drive_form,
-                                    fold_mode=acquisition.fold_mode)
+        center = initial_fold_center(counts, acquisition, path)
     center = float(center)
     folded, sigma, y, norm = prepare_channel_counts(
         counts, center, fold_mode=acquisition.fold_mode,
