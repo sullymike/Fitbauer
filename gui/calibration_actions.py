@@ -83,23 +83,8 @@ class CalibrationActionsMixin:
                                  "se mantiene la calibración actual.")
             self.statusBar().showMessage(msg, 8000)
             return
-        lib = self._instrument_library()
-        cal_file = lib.calibration_file(instrument, record)
-        self.calibration_info = {
-            "source": "instrument",
-            "instrument": instrument,
-            "calibration_sample": record.sample or record.date.isoformat(),
-            "velocity_calibrated": float(record.vmax),
-            "isomer_shift": record.isomer_shift,
-            "sextet_pattern": record.sextet_pattern,
-            "calibration_id": record.id,
-            "calibration_date": record.date.isoformat(),
-            "calibration_rule": choice.rule,
-            "measurement_date": date.isoformat() if date else None,
-            "measurement_date_source": choice.origin,
-            "calibration_file_name": record.file_name,
-            "calibration_file_path": str(cal_file) if cal_file else None,
-        }
+        self.calibration_info = self._instrument_library().calibration_info(
+            instrument, choice)
         self._refresh_calib_label()
 
     # ── Calibración rápida desde el cuadro de fichero ─────────────────────

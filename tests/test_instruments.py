@@ -156,6 +156,13 @@ def test_choose_calibration_rules(tmp_path):
         ch = lib.choose_calibration("Lab", spec)
         assert (ch.rule, ch.record.vmax) == ("latest", 10.2)
     assert lib.choose_calibration("nadie", old).record is None
+    # calibration_info: el mismo diccionario para la GUI y la sesión sin GUI.
+    info = lib.calibration_info("Lab", lib.choose_calibration("Lab", old, record_id=a.id))
+    assert info["source"] == "instrument" and info["instrument"] == "Lab"
+    assert (info["velocity_calibrated"], info["calibration_rule"]) == (10.0, "manual")
+    assert info["measurement_date"] == "2025-03-14" and info["calibration_id"] == a.id
+    assert info["calibration_file_path"] is None
+    assert lib.calibration_info("Lab", lib.choose_calibration("nadie", old)) is None
     assert InstrumentProfile.from_dict({"name": "x", "calibration_rule": "raro"}).calibration_rule == "date"
 
 

@@ -458,22 +458,7 @@ class HeadlessSession:
         self.calibration_warning = None
         self.model.vars["vmax"] = convert_vmax(record.vmax, record.sextet_pattern,
                                                self.model.sextet_pattern)
-        cal_file = self.instrument_library.calibration_file(name, record)
-        self.calibration_info = {
-            "source": "instrument",
-            "instrument": name,
-            "calibration_sample": record.sample or record.date.isoformat(),
-            "velocity_calibrated": float(record.vmax),
-            "isomer_shift": record.isomer_shift,
-            "sextet_pattern": record.sextet_pattern,
-            "calibration_id": record.id,
-            "calibration_date": record.date.isoformat(),
-            "calibration_rule": choice.rule,
-            "measurement_date": date.isoformat() if date else None,
-            "measurement_date_source": choice.origin,
-            "calibration_file_name": record.file_name,
-            "calibration_file_path": str(cal_file) if cal_file else None,
-        }
+        self.calibration_info = self.instrument_library.calibration_info(name, choice)
 
     @staticmethod
     def _geometry_diagnostics(counts: np.ndarray, center: float) -> dict:

@@ -378,6 +378,30 @@ class InstrumentLibrary:
         record = calibration_for_date(records, date) if date is not None else None
         return CalibrationChoice(record, date, origin, "date")
 
+    def calibration_info(self, name: str, choice: CalibrationChoice) -> dict | None:
+        """``calibration_info`` de sesión para la calibración elegida de ``name``
+        (``None`` si no hay ninguna). Fuente única para la GUI y la sesión
+        sin GUI: así ambas guardan lo mismo."""
+        record, date = choice.record, choice.date
+        if record is None:
+            return None
+        cal_file = self.calibration_file(name, record)
+        return {
+            "source": "instrument",
+            "instrument": name,
+            "calibration_sample": record.sample or record.date.isoformat(),
+            "velocity_calibrated": float(record.vmax),
+            "isomer_shift": record.isomer_shift,
+            "sextet_pattern": record.sextet_pattern,
+            "calibration_id": record.id,
+            "calibration_date": record.date.isoformat(),
+            "calibration_rule": choice.rule,
+            "measurement_date": date.isoformat() if date else None,
+            "measurement_date_source": choice.origin,
+            "calibration_file_name": record.file_name,
+            "calibration_file_path": str(cal_file) if cal_file else None,
+        }
+
     def delete(self, name: str) -> bool:
         """Borra el perfil; sus calibraciones y la carpeta se conservan si las hay."""
         folder = self._folder(name)
