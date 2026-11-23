@@ -8,11 +8,11 @@ from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
 from core.constants import GLOBAL_PARAM_NAMES, SEXTET_PARAM_NAMES
-from core.folding import (
-    channel_velocity_axis, detect_fold_center, fold_center_window,
-    prepare_channel_counts,
-)
+from core.folding import channel_velocity_axis, detect_fold_center, fold_center_window
 from core.spectrum_import import ImportedSpectrum, ImportHints, read_spectrum_file
+from core.spectrum_loading import (
+    Acquisition, PreparedSpectrum, open_spectrum, prepare_spectrum,
+)
 from core.fit_engine import FitState, resolve_values
 from core.result_views import discrete_result_view
 from core.reconstruction import (
@@ -274,8 +274,13 @@ class ModelWorkflowMixin:
         return detect_fold_center(counts, drive_form=self._drive_form(),
                                   fold_mode=self._fold_mode())
 
-    def _read_series_spectrum(self, path: Path) -> ImportedSpectrum:
-        """Lee un fichero de una serie como el espectro activo: mismas
+    def _acquisition(self) -> Acquisition:
+        """Forma de onda, plegado y sentido del panel."""
+        st = self.calib.to_view_state()
+        return Acquisition(st.drive_form, st.fold_mode, bool(st.reverse_velocity))
+
+    def _read_like_active(self, path: Path) -> ImportedSpectrum:
+        """Lee otro fichero (serie, comparación) como el espectro activo: mismas
         correcciones de lectura (las del equipo). Exige cuentas por canal."""
         profile = self._instrument_profile(getattr(self.file, "instrument", None))
         if profile is not None:
@@ -293,38 +298,31 @@ class ModelWorkflowMixin:
                                 default="{name} does not contain counts per channel."))
         return imported
 
-    def _read_channel_counts(self, path: Path) -> np.ndarray:
-        """Cuentas por canal de cualquier fichero (para series y comparaciones)."""
-        return self._read_series_spectrum(path).y
-
-    def _prepare_counts(self, counts: np.ndarray, vmax: float | None = None
-                        ) -> tuple[float, np.ndarray, np.ndarray, float, np.ndarray]:
-        """Prepara otras cuentas (serie, comparación) como las del espectro activo.
-
-        Misma forma de onda, plegado, recorte, Vmax y sentido que la ventana.
-        Devuelve ``(center, sigma, y, norm, velocity)``.
-        """
-        calib_state = self.calib.to_view_state()
-        center = self._detect_center(counts)
-        _data, sigma, y, norm = prepare_channel_counts(
-            counts, center, fold_mode=calib_state.fold_mode,
-            drive_form=calib_state.drive_form,
+    def _prepare_like_active(self, counts: np.ndarray, vmax: float | None = None
+                             ) -> PreparedSpectrum:
+        """Prepara otras cuentas como las del espectro activo: misma forma de
+        onda, plegado, recorte, sentido y (salvo ``vmax``) Vmax del panel."""
+        return prepare_spectrum(
+            counts, self._acquisition(),
+            self.calib.to_view_state().vmax if vmax is None else vmax,
             edge_trim=int(getattr(self, "_edge_trim", 0)))
-        v = channel_velocity_axis(
-            counts.size, calib_state.vmax if vmax is None else vmax, y.size,
-            center=center, fold_mode=calib_state.fold_mode,
-            drive_form=calib_state.drive_form, reverse=calib_state.reverse_velocity)
-        return center, sigma, y, norm, v
+
+    def _prepare_series_file(self, path: Path):
+        """Un fichero de una serie listo para ajustar, con la calibración de su
+        equipo si el activo se abrió con uno. Devuelve ``(vmax, calibración,
+        preparado)``: ``vmax`` es la del equipo (``None`` = la del panel) y la
+        calibración, la fila para la tabla de resultados (o ``None``)."""
+        imported = self._read_like_active(path)
+        vmax, cal = self._series_calibration(path, imported)
+        return vmax, cal, self._prepare_like_active(imported.y, vmax=vmax)
 
     def _fold_counts_for_center(self, center: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Dobla las cuentas o las deja sin doblar (seno o modo sin doblar)."""
         if self.file.counts is None:
             raise ValueError("No hay cuentas cargadas")
-        folded, sigma, y, _norm = prepare_channel_counts(
-            self.file.counts, center, fold_mode=self._fold_mode(),
-            drive_form=self._drive_form(),
-            edge_trim=int(getattr(self, "_edge_trim", 0)))
-        return folded, sigma, y
+        prep = prepare_spectrum(self.file.counts, self._acquisition(), None, center=center,
+                                edge_trim=int(getattr(self, "_edge_trim", 0)))
+        return prep.folded, prep.sigma, prep.y
 
     def _velocity_for_folded(self, n_points: int) -> np.ndarray:
         """Eje de velocidad de los datos (doblados, por canal o senoidal).
@@ -1139,17 +1137,19 @@ class ModelWorkflowMixin:
         entre cabecera y pie y deduce las columnas. Las cuentas por canal se
         doblan (o no) según el panel; un eje de velocidad se usa tal cual.
         """
-        imported = read_spectrum_file(path, hints)
-        if imported.x_kind == "velocity":
-            self._load_velocity_data(path, imported)
-        elif not imported.is_counts:
-            raise ValueError(tr("load.not_channel_counts", name=path.name,
-                                default="{name} does not contain counts per channel."))
+        lib = self._instrument_library() if instrument else None
+        opened = open_spectrum(path, hints, library=lib, instrument=instrument,
+                               calibration_id=calibration_id)
+        imported = opened.imported
+        if opened.has_velocity_axis:
+            self._load_velocity_data(opened)
         else:
-            # Con equipo: su calibración vigente en la fecha de medida pasa a
-            # ser la fijada antes de doblar (la impone _load_counts).
-            self._assign_instrument_calibration(path, imported, instrument, calibration_id)
-            self._load_counts(path, imported.y)
+            # Con equipo: su calibración (por fecha, la más reciente o la
+            # elegida) pasa a ser la fijada antes de doblar.
+            if instrument:
+                self._take_instrument_calibration(instrument, opened.choice,
+                                                  opened.calibration)
+            self._load_counts(opened)
         self.file.import_hints = (hints.to_dict() or None) if hints else None
         self.file.instrument = instrument
         self.file.imported = imported
@@ -1198,22 +1198,22 @@ class ModelWorkflowMixin:
         self.runtime_results.clear()
         self._refresh_plot()
 
-    def _load_counts(self, path: Path, counts: np.ndarray) -> None:
-        center = self._detect_center(counts)
+    def _load_counts(self, opened) -> None:
+        """Carga cuentas por canal (``OpenedSpectrum``) y las dobla según el panel."""
+        path, counts = opened.path, opened.imported.y
+        prep = prepare_spectrum(counts, self._acquisition(), None,
+                                edge_trim=int(getattr(self, "_edge_trim", 0)))
+        center = prep.center
         self.file = FileState(path=path, counts=counts, center=center)
         self._reset_for_new_spectrum()
-        folded, sigma, y = self._fold_counts_for_center(center)
-        norm = float(np.percentile(folded, 90)) if folded.size else 1.0
-        norm = norm or 1.0
         # Cuentas en bruto: el fichero NO trae calibración propia → se aplica la
-        # calibración fijada (si la hay) antes de construir el eje de velocidad.
-        self._apply_calibration_on_load(path, file_vmax=None)
-        v = self._velocity_for_folded(folded.size)
-        self.file.folded = folded
-        self.file.sigma = sigma
-        self.file.norm_factor = norm
-        self.file.velocity = v
-        self.file.y_data = y
+        # del equipo o la fijada (si la hay) antes de construir el eje.
+        self._apply_calibration_on_load(opened)
+        self.file.folded = prep.folded
+        self.file.sigma = prep.sigma
+        self.file.norm_factor = norm = prep.norm
+        self.file.velocity = self._velocity_for_folded(prep.folded.size)
+        self.file.y_data = prep.y
         # actualiza UI
         self._update_center_range(counts.size)
         self.calib.center.set_value(center)
@@ -1225,7 +1225,7 @@ class ModelWorkflowMixin:
             status=tr("status.file_loaded", name=path.name, n=counts.size,
                       center=f"{center:.3f}"))
 
-    def _load_velocity_data(self, path: Path, imported: ImportedSpectrum) -> None:
+    def _load_velocity_data(self, opened) -> None:
         """Carga un espectro con eje de velocidad propio (no se dobla).
 
         ``FileState.counts`` queda en ``None``: no hay cuentas por canal, así
@@ -1234,6 +1234,7 @@ class ModelWorkflowMixin:
         es la de la columna de errores o la estimada del ruido, y el ajuste usa
         pesos gaussianos (ver ``_build_state``).
         """
+        path, imported = opened.path, opened.imported
         order = np.argsort(imported.x, kind="stable")
         vel = imported.x[order]
         if imported.is_counts:
@@ -1248,8 +1249,7 @@ class ModelWorkflowMixin:
             sigma = s[order]
             norm = 1.0
 
-        # Vmax aproximado a partir del eje de velocidad.
-        vmax = float(np.max(np.abs(vel))) if vel.size else 12.0
+        vmax = opened.file_vmax     # aproximada, del eje de velocidad
 
         self.file = FileState(
             path=path,
@@ -1266,7 +1266,7 @@ class ModelWorkflowMixin:
 
         # El fichero trae calibración propia (eje de velocidad): sustituye la
         # calibración fijada por la del fichero y actualiza el control de Vmax.
-        self._apply_calibration_on_load(path, file_vmax=vmax)
+        self._apply_calibration_on_load(opened)
 
         n_pts = int(vel.size)
         self.file_label.setText(

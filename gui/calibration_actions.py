@@ -33,18 +33,13 @@ class CalibrationActionsMixin:
         return self._instrument_library().choose_calibration(
             instrument, imported, path, record_id=record_id)
 
-    def _instrument_vmax(self, record) -> float:
-        """Vmax de un registro de calibración en el patrón activo."""
-        from core.constants import convert_vmax
-        return convert_vmax(record.vmax, record.sextet_pattern,
-                            getattr(self, "sextet_pattern", "normos"))
+    def _series_calibration(self, path, imported):
+        """Vmax de un fichero de una serie según su equipo (o ``None``).
 
-    def _series_vmax(self, path, imported):
-        """Vmax de un fichero de una serie según su fecha (o ``None``).
-
-        Solo si el espectro activo se abrió con un equipo y la Vmax no se
-        ajusta. Devuelve también la información para la tabla de resultados.
+        Solo si el espectro activo se abrió con un equipo. Devuelve también la
+        información para la tabla de resultados.
         """
+        from core.spectrum_loading import calibration_vmax
         instrument = getattr(self.file, "instrument", None)
         if not instrument:
             return None, None
@@ -54,38 +49,43 @@ class CalibrationActionsMixin:
         if record is None:
             return None, ({"measured": measured, "date": "", "vmax": ""}
                           if date else None)
-        vmax = self._instrument_vmax(record)
+        info = self._instrument_library().calibration_info(instrument, choice)
+        vmax = calibration_vmax(info, getattr(self, "sextet_pattern", "normos"))
         return vmax, {"measured": measured, "date": record.date.isoformat(),
                       "vmax": vmax, "date_source": choice.origin}
 
     def _assign_instrument_calibration(self, path, imported, instrument,
                                        record_id=None) -> None:
         """Fija la calibración del equipo para el fichero: la elegida a mano
-        (``record_id``) o la de la regla del equipo (por fecha o la más reciente).
-
-        Si no hay ninguna aplicable se mantiene la fijada y se avisa.
-        """
+        (``record_id``) o la de la regla del equipo (por fecha o la más reciente)."""
         if not instrument:
             return
         choice = self._instrument_calibration(path, imported, instrument, record_id)
-        record, date = choice.record, choice.date
-        if record is None:
-            if choice.rule in ("latest", "manual"):
-                msg = tr("instr.no_calibrations", name=instrument,
-                         default="«{name}» no tiene calibraciones; "
-                                 "se mantiene la calibración actual.")
-            elif date is None:
-                msg = tr("instr.no_date", name=instrument,
-                         default="Sin fecha de medida: no se asigna calibración de «{name}».")
-            else:
-                msg = tr("instr.no_calibration", name=instrument, date=date.isoformat(),
-                         default="«{name}» no tiene calibraciones del {date} o anteriores; "
-                                 "se mantiene la calibración actual.")
-            self.statusBar().showMessage(msg, 8000)
+        info = (self._instrument_library().calibration_info(instrument, choice)
+                if choice.record is not None else None)
+        self._take_instrument_calibration(instrument, choice, info)
+
+    def _take_instrument_calibration(self, instrument, choice, info) -> None:
+        """Deja fijada la calibración ``info`` del equipo o, si no hay ninguna
+        aplicable, mantiene la fijada y avisa del porqué."""
+        from core.spectrum_loading import missing_calibration_reason
+        if info is not None:
+            self.calibration_info = info
+            self._refresh_calib_label()
             return
-        self.calibration_info = self._instrument_library().calibration_info(
-            instrument, choice)
-        self._refresh_calib_label()
+        reason = missing_calibration_reason(choice)
+        if reason == "none":
+            msg = tr("instr.no_calibrations", name=instrument,
+                     default="«{name}» no tiene calibraciones; "
+                             "se mantiene la calibración actual.")
+        elif reason == "no_date":
+            msg = tr("instr.no_date", name=instrument,
+                     default="Sin fecha de medida: no se asigna calibración de «{name}».")
+        else:
+            msg = tr("instr.no_calibration", name=instrument, date=choice.date.isoformat(),
+                     default="«{name}» no tiene calibraciones del {date} o anteriores; "
+                             "se mantiene la calibración actual.")
+        self.statusBar().showMessage(msg, 8000)
 
     # ── Calibración rápida desde el cuadro de fichero ─────────────────────
     def _show_file_box_menu(self, pos: QtCore.QPoint) -> None:
@@ -170,31 +170,13 @@ class CalibrationActionsMixin:
         self._refresh_calib_label()
 
     # ── Calibración fija: aplicación al cargar datos ──────────────────────
-    @staticmethod
-    def _calibration_pattern(info: dict | None) -> str | None:
-        """Patrón del sextete con que se obtuvo una calibración.
-
-        ``None`` si no depende de él (eje de velocidad propio del fichero).
-        Sin la marca, las calibraciones locales de Fitbauer anteriores a la
-        v5.2.5 se hicieron con el patrón histórico; las de la API web son las
-        VMAX calibradas en NORMOS, con su patrón (la API dice «legacy» en las
-        que la web guardó con su ajuste antiguo).
-        """
-        if not info or info.get("source") == "embedded":
-            return None
-        from core.constants import canonical_sextet_pattern
-        defecto = "normos" if info.get("source") == "web_api" else "legacy"
-        try:
-            return canonical_sextet_pattern(info.get("sextet_pattern") or defecto)
-        except ValueError:
-            return defecto
-
     def _calibration_scale(self) -> float:
         """Factor que lleva la Vmax (y el IS) de la calibración al patrón activo."""
-        origen = self._calibration_pattern(self.calibration_info)
+        from core.constants import convert_vmax
+        from core.spectrum_loading import calibration_pattern
+        origen = calibration_pattern(self.calibration_info)
         if origen is None:
             return 1.0
-        from core.constants import convert_vmax
         return convert_vmax(1.0, origen, getattr(self, "sextet_pattern", "normos"))
 
     def _fixed_calibration_vmax(self) -> float | None:
@@ -203,15 +185,9 @@ class CalibrationActionsMixin:
         Si la calibración se hizo con otro patrón, se convierte: es la Vmax
         que da 33.0 T al mismo α-Fe con el patrón activo.
         """
-        info = self.calibration_info
-        if not info:
-            return None
-        value = info.get("velocity_calibrated")
-        try:
-            vmax = float(value) if value not in (None, "") else None
-        except (TypeError, ValueError):
-            return None
-        return None if vmax is None else vmax * self._calibration_scale()
+        from core.spectrum_loading import calibration_vmax
+        return calibration_vmax(self.calibration_info,
+                                getattr(self, "sextet_pattern", "normos"))
 
     def _reapply_fixed_calibration(self) -> None:
         """Vuelve a imponer la Vmax de la calibración fijada (p. ej. al cambiar
@@ -234,46 +210,36 @@ class CalibrationActionsMixin:
         finally:
             self._building = prev
 
-    def _apply_calibration_on_load(self, path, *, file_vmax: float | None) -> None:
-        """Aplica la política de calibración fija al cargar un espectro.
+    def _apply_calibration_on_load(self, opened) -> None:
+        """Aplica al cargar la prioridad entre calibraciones
+        (:func:`core.spectrum_loading.calibration_after_load`) e impone su Vmax.
 
-        - ``file_vmax is None`` → el fichero NO trae calibración propia
-          (cuentas en bruto: ``.ws5``/``.adt``). Si hay una calibración fijada,
-          se **usa** (se impone su Vmax); la calibración no varía.
-        - ``file_vmax`` numérico → el fichero trae calibración propia (eje de
-          velocidad, CSV/TXT/DAT/EXP). **Sustituye** la calibración fijada por la
-          del fichero y se avisa en la barra de estado.
+        Un fichero con eje de velocidad propio sustituye la calibración fijada
+        (y se avisa si cambia la Vmax); unas cuentas usan la del equipo, si la
+        hay, o la fijada.
         """
-        fixed = self._fixed_calibration_vmax()
-        if file_vmax is None:
-            # Datos sin calibración propia: aplicar la fija si existe.
-            if fixed is not None:
-                self._set_vmax_quiet(fixed)
-            return
-        # Fichero con calibración propia: sustituye.
-        if fixed is not None and abs(fixed - float(file_vmax)) > 1e-9:
-            try:
-                self.statusBar().showMessage(
-                    tr("status.calib_replaced",
-                       name=getattr(path, "name", str(path)),
-                       old=f"{fixed:.4f}", new=f"{float(file_vmax):.4f}",
-                       default=(f"Calibración sustituida por la del fichero "
-                                f"{getattr(path, 'name', path)}: "
-                                f"Vmax {fixed:.4f} → {float(file_vmax):.4f} mm/s")),
-                    6000)
-            except Exception:
-                pass
-        keep_iso = (self.calibration_info or {}).get("isomer_shift")
-        self.calibration_info = {
-            "source": "embedded",
-            "calibration_sample": getattr(path, "stem", str(path)),
-            "velocity_calibrated": float(file_vmax),
-            "isomer_shift": keep_iso,
-            "calibration_file_name": getattr(path, "name", str(path)),
-            "calibration_file_path": str(path),
-        }
-        self._set_vmax_quiet(float(file_vmax))
-        self._refresh_calib_label()
+        from core.spectrum_loading import calibration_after_load
+        before = self._fixed_calibration_vmax()
+        info = calibration_after_load(self.calibration_info, opened)
+        if opened.has_velocity_axis:
+            new = opened.file_vmax
+            if before is not None and abs(before - new) > 1e-9:
+                name = opened.path.name
+                try:
+                    self.statusBar().showMessage(
+                        tr("status.calib_replaced", name=name,
+                           old=f"{before:.4f}", new=f"{new:.4f}",
+                           default=(f"Calibración sustituida por la del fichero "
+                                    f"{name}: Vmax {before:.4f} → {new:.4f} mm/s")),
+                        6000)
+                except Exception:
+                    pass
+        if info is not self.calibration_info:
+            self.calibration_info = info
+            self._refresh_calib_label()
+        vmax = self._fixed_calibration_vmax()
+        if vmax is not None:
+            self._set_vmax_quiet(vmax)
 
     def _release_calibration(self) -> None:
         """Libera la calibración fijada (deja de aplicarse a cargas futuras)."""

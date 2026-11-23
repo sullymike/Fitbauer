@@ -236,8 +236,8 @@ class FileActionsMixin:
                 vel = vel + iso
                 suffix += " (α-Fe → " + tr("compare.source_axis", default="fuente") + ")"
         else:
-            counts = self._read_channel_counts(fpath)
-            _c, _sigma, y_raw, _norm, vel = self._prepare_counts(counts)
+            prep = self._prepare_like_active(self._read_like_active(fpath).y)
+            y_raw, vel = prep.y, prep.velocity
         norm = float(np.percentile(y_raw, 90)) or 1.0
         label = fpath.stem + suffix
         self.comparison_spectra.append(

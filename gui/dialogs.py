@@ -262,12 +262,10 @@ class BatchFitDialog(QtWidgets.QDialog):
                 # Reusar warm-start: aplicamos el estado actual del Qt y
                 # cargamos el nuevo espectro (que sobrescribe folding center).
                 # Mismo plegado, recorte y eje que el espectro de la ventana.
-                imported = self.parent_win._read_series_spectrum(e["path"])
-                counts = imported.y
-                # Con equipo, cada fichero con la calibración de su fecha.
-                vmax_file, cal = self.parent_win._series_vmax(e["path"], imported)
-                center, sigma, y, norm, v = self.parent_win._prepare_counts(
-                    counts, vmax=vmax_file)
+                # Con equipo, cada fichero con la calibración que le toca.
+                vmax_file, cal, prep = self.parent_win._prepare_series_file(e["path"])
+                counts, center, sigma, y, norm, v = (
+                    prep.counts, prep.center, prep.sigma, prep.y, prep.norm, prep.velocity)
                 # Construir state desde la UI parental
                 state = self.parent_win._build_state()
                 if state is None:
@@ -572,11 +570,9 @@ class GlobalNeelFitDialog(QtWidgets.QDialog):
         load_errors: list[str] = []
         for e in self.entries:
             try:
-                imported = self.parent_win._read_series_spectrum(e["path"])
-                vmax_file, e["calibration"] = self.parent_win._series_vmax(
-                    e["path"], imported)
-                _c, sigma, y, _norm, vel = self.parent_win._prepare_counts(
-                    imported.y, vmax=vmax_file)
+                _vmax, e["calibration"], prep = self.parent_win._prepare_series_file(
+                    e["path"])
+                sigma, y, vel = prep.sigma, prep.y, prep.velocity
                 spectra.append(GlobalRelaxationSpectrum(
                     velocity=vel,
                     y_data=y,

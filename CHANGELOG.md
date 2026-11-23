@@ -2,6 +2,15 @@
 
 ## Sin publicar
 
+- **Interno: carga de espectros en el núcleo** (`core/spectrum_loading.py`). La
+  ventana, el ajuste en serie, el ajuste global de Néel, la comparación, la vista
+  previa de *Importar…* y la sesión sin GUI preparan los datos y eligen la
+  calibración con las mismas funciones; la prioridad entre calibraciones (eje propio
+  del fichero > equipo > la fijada) está escrita en un solo sitio. Sin cambios de
+  resultados: con los datos de los tres equipos del grupo, 39 escenarios de carga
+  (ventana, serie, comparación, «Aplicar», «Abrir calibración», CLI y ajustes) dan
+  los mismos números bit a bit.
+
 - **Ventana: eje de velocidad con recorte adaptativo de bordes.** Cuando el
   doblado quita canales extremos atípicos (p. ej. `data_sample/calibration.adt`,
   uno por lado), la ventana estiraba el eje a ±Vmax sobre menos puntos (escala

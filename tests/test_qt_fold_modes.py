@@ -275,10 +275,9 @@ def test_series_vmax_per_file(make_window, tmp_path):
     win._instruments = _lab(tmp_path)
     win._load_file(_dated_copy(tmp_path, "a.dat", "2025-03-14"), None, "Lab B")
     p = _dated_copy(tmp_path, "b.dat", "2025-02-01")
-    vmax, cal = win._series_vmax(p, win._read_series_spectrum(p))
+    vmax, cal, prep = win._prepare_series_file(p)
     assert vmax == pytest.approx(10.5) and cal["date"] == "2025-01-10"
-    _c, _s, _y, _n, v = win._prepare_counts(win._read_channel_counts(p), vmax=vmax)
-    assert abs(v).max() == pytest.approx(10.5, rel=0.02)
+    assert abs(prep.velocity).max() == pytest.approx(10.5, rel=0.02)
 
 
 def test_import_dialog_shows_assigned_calibration(qapp, tmp_path):

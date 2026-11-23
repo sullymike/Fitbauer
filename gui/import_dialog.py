@@ -17,11 +17,10 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 from mossbauer_i18n import tr
-from core.folding import (
-    FOLD_MODES, channel_velocity_axis, detect_fold_center, prepare_channel_counts,
-)
+from core.folding import FOLD_MODES
 from core.constants import convert_vmax
 from core.instruments import CalibrationChoice, InstrumentLibrary, InstrumentProfile
+from core.spectrum_loading import Acquisition, prepare_spectrum
 from core.spectrum_import import (
     COLUMN_ROLES, Y_KINDS, ImportedSpectrum, ImportHints,
     parse_spectrum_text, read_text,
@@ -539,14 +538,10 @@ class ImportDialog(QtWidgets.QDialog):
             return r.x[order], r.transmission()[0][order]
         if not r.is_counts:
             return None
-        center = detect_fold_center(r.y, drive_form=self.drive_form(),
-                                    fold_mode=self.fold_mode())
-        _d, _s, y, _n = prepare_channel_counts(
-            r.y, center, fold_mode=self.fold_mode(), drive_form=self.drive_form())
-        v = channel_velocity_axis(r.y.size, self.preview_vmax(), y.size, center=center,
-                                  fold_mode=self.fold_mode(), drive_form=self.drive_form(),
-                                  reverse=self.reverse())
-        return v, y
+        prep = prepare_spectrum(
+            r.y, Acquisition(self.drive_form(), self.fold_mode(), self.reverse()),
+            self.preview_vmax())
+        return prep.velocity, prep.y
 
     def _plot(self, r: ImportedSpectrum | None) -> None:
         self.figure.clear()

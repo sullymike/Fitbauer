@@ -1260,9 +1260,14 @@ def test_calibracion_y_patron_del_sextete(win):
 def test_velocity_file_substitutes_fixed_calibration(win):
     """Un fichero con calibración propia (velocidad) sustituye la fijada."""
     from pathlib import Path as _P
+    from types import SimpleNamespace
+    import numpy as _np
+    from core.spectrum_loading import OpenedSpectrum
     win.calibration_info = {"source": "local", "calibration_sample": "alphaFe",
                             "velocity_calibrated": 9.876, "isomer_shift": -0.1}
-    win._apply_calibration_on_load(_P("otros/datos.csv"), file_vmax=11.5)
+    opened = OpenedSpectrum(_P("otros/datos.csv"), SimpleNamespace(
+        x_kind="velocity", x=_np.array([-11.5, 0.0, 11.5])))
+    win._apply_calibration_on_load(opened)
     assert abs(float(win.calib.vmax.value()) - 11.5) < 1e-6
     assert win.calibration_info["source"] == "embedded"
     assert abs(win.calibration_info["velocity_calibrated"] - 11.5) < 1e-6
