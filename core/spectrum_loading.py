@@ -14,11 +14,14 @@ Prioridad de calibraciones al cargar un espectro
 ------------------------------------------------
 1. **Eje de velocidad propio** (CSV/TXT procesado): el fichero trae su
    calibración; sustituye a la fijada (``source="embedded"``, Vmax = max|v|) y
-   conserva el δ(α-Fe) que hubiera.
+   conserva el δ(α-Fe) que hubiera. Es **solo de ese fichero**: guarda la que
+   sustituyó (``replaced_calibration``) y la Vmax del panel (``replaced_vmax``).
 2. **Cuentas abiertas con un equipo** que tiene calibración aplicable (por
    fecha, la más reciente o elegida a mano): esa (``source="instrument"``).
-3. **En otro caso**, la calibración fijada que hubiera (local, de la web, de
-   un fichero anterior o de un equipo) se mantiene y su Vmax se impone.
+3. **En otro caso**, la calibración fijada que hubiera (local, de la web o de
+   un equipo) se mantiene y su Vmax se impone. Si lo último abierto fue un
+   fichero con eje propio, vuelve la que ese fichero sustituyó: el máximo |v|
+   de un fichero procesado no es la Vmax de unas cuentas en bruto.
 
 La Vmax se lleva al patrón del sextete activo con :func:`calibration_vmax`.
 """
@@ -169,12 +172,20 @@ def calibration_vmax(info: dict | None, active_pattern: str | None) -> float | N
 
 
 def embedded_calibration_info(path: str | Path, file_vmax: float,
-                              previous: dict | None = None) -> dict:
+                              previous: dict | None = None,
+                              vmax_before: float | None = None) -> dict:
     """Calibración que trae un fichero con eje de velocidad propio.
 
     Conserva el δ(α-Fe) de la calibración anterior (sigue haciendo falta para
-    referir δ al α-Fe)."""
+    referir δ al α-Fe) y guarda la que sustituye y la Vmax del panel, que
+    vuelven al abrir después unas cuentas (:func:`calibration_after_load`)."""
     path = Path(path)
+    if previous and previous.get("source") == "embedded":
+        # Varios procesados seguidos: lo que vuelve es lo de antes del primero.
+        replaced = previous.get("replaced_calibration")
+        vmax_before = previous.get("replaced_vmax", vmax_before)
+    else:
+        replaced = dict(previous) if previous else None
     return {
         "source": "embedded",
         "calibration_sample": path.stem,
@@ -182,6 +193,8 @@ def embedded_calibration_info(path: str | Path, file_vmax: float,
         "isomer_shift": (previous or {}).get("isomer_shift"),
         "calibration_file_name": path.name,
         "calibration_file_path": str(path),
+        "replaced_calibration": replaced,
+        "replaced_vmax": None if vmax_before is None else float(vmax_before),
     }
 
 
@@ -245,10 +258,17 @@ def open_spectrum(path: str | Path, hints: ImportHints | None = None, *,
     return opened
 
 
-def calibration_after_load(previous: dict | None, opened: OpenedSpectrum) -> dict | None:
-    """Calibración vigente tras cargar ``opened`` (ver la prioridad del módulo)."""
+def calibration_after_load(previous: dict | None, opened: OpenedSpectrum,
+                           vmax_before: float | None = None) -> dict | None:
+    """Calibración vigente tras cargar ``opened`` (ver la prioridad del módulo).
+
+    ``vmax_before`` es la Vmax en uso al abrirlo (la que se recupera si un
+    fichero con eje propio no sustituía ninguna calibración)."""
     if opened.has_velocity_axis:
-        return embedded_calibration_info(opened.path, opened.file_vmax, previous)
+        return embedded_calibration_info(opened.path, opened.file_vmax, previous,
+                                         vmax_before)
     if opened.calibration is not None:
         return opened.calibration
+    if previous and previous.get("source") == "embedded":
+        return previous.get("replaced_calibration")
     return previous

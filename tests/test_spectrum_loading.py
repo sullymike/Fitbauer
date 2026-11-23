@@ -103,6 +103,17 @@ def test_velocity_file_brings_its_own_calibration(tmp_path):
                                    "velocity_calibrated": 6.0}, opened)
     assert info["source"] == "embedded" and info["isomer_shift"] == -0.1
     assert calibration_vmax(info, "legacy") == pytest.approx(6.2)
+    # Es solo de ese fichero: unas cuentas abiertas después recuperan la fijada,
+    # también tras varios procesados seguidos.
+    counts = open_spectrum(_counts_file(tmp_path))
+    assert calibration_after_load(info, counts)["velocity_calibrated"] == 6.0
+    info2 = calibration_after_load(info, opened)
+    assert calibration_after_load(info2, counts)["velocity_calibrated"] == 6.0
+    # Sin calibración fijada detrás: ninguna, y la Vmax de antes en replaced_vmax.
+    bare = calibration_after_load(None, opened, vmax_before=5.5)
+    assert bare["replaced_vmax"] == 5.5
+    assert calibration_after_load(bare, counts) is None
+    assert calibration_after_load(bare, opened)["replaced_vmax"] == 5.5
 
 
 def test_open_rejects_channel_data_that_are_not_counts(tmp_path):

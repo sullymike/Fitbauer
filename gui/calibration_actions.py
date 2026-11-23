@@ -220,7 +220,10 @@ class CalibrationActionsMixin:
         """
         from core.spectrum_loading import calibration_after_load
         before = self._fixed_calibration_vmax()
-        info = calibration_after_load(self.calibration_info, opened)
+        previous = self.calibration_info
+        panel_vmax = (float(self.calib.to_view_state().vmax)
+                      if hasattr(self, "calib") else None)
+        info = calibration_after_load(previous, opened, panel_vmax)
         if opened.has_velocity_axis:
             new = opened.file_vmax
             if before is not None and abs(before - new) > 1e-9:
@@ -238,6 +241,11 @@ class CalibrationActionsMixin:
             self.calibration_info = info
             self._refresh_calib_label()
         vmax = self._fixed_calibration_vmax()
+        if (vmax is None and not opened.has_velocity_axis
+                and (previous or {}).get("source") == "embedded"):
+            # Tras un fichero con eje propio sin calibración detrás: vuelve
+            # la Vmax que había en el panel antes de abrirlo.
+            vmax = previous.get("replaced_vmax")
         if vmax is not None:
             self._set_vmax_quiet(vmax)
 

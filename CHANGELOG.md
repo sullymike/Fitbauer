@@ -2,6 +2,14 @@
 
 ## Sin publicar
 
+- **La Vmax de un fichero procesado ya no se queda fijada.** Al abrir un fichero
+  con eje de velocidad propio, su máximo |v| pasaba a ser la calibración fijada y
+  se imponía a las cuentas en bruto abiertas después (p. ej. el `raw-data.t` del
+  equipo 2 se abría con 6.2179, el máximo del procesado del equipo 3, en vez de su
+  6.0014). Ahora esa calibración es solo de ese fichero: guarda la que sustituyó
+  (`replaced_calibration`) y la Vmax del panel (`replaced_vmax`), que vuelven con
+  las siguientes cuentas. Regla en `core.spectrum_loading.calibration_after_load`.
+
 - **Punto de plegado de NORMOS: el mismo en la ventana y en el CLI, y solo si es
   plausible.** El CLI (y los de distribución) doblaban en el «Final folding point»
   del `.RES` de un ajuste previo de NORMOS y la ventana lo ignoraba. En

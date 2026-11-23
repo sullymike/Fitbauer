@@ -586,3 +586,29 @@ def test_window_uses_plausible_normos_fold_point(make_window, tmp_path):
     s = HeadlessSession()
     s.load_ws5(p, vmax=win.calib.vmax.value())
     assert win.file.center == s.spectrum.center == 256.75
+
+
+def test_processed_file_vmax_does_not_stick(make_window, tmp_path):
+    """La Vmax de un fichero procesado (máx |v|) es solo de ese fichero: las
+    cuentas abiertas después vuelven a la calibración fijada o a la Vmax previa."""
+    import numpy as np
+    vfile = tmp_path / "proc.txt"
+    v = np.linspace(-7.3, 7.3, 201)
+    vfile.write_text("\n".join(f"{x:.5f}\t{1 - 0.02 * np.exp(-x * x):.6f}" for x in v))
+    win = make_window()
+    win.calibration_info = {"source": "local", "calibration_sample": "afe",
+                            "velocity_calibrated": 6.05, "isomer_shift": -0.11,
+                            "sextet_pattern": "normos"}
+    win._load_file(vfile)
+    assert win.calib.vmax.value() == pytest.approx(7.3, abs=1e-4)
+    assert win.calibration_info["source"] == "embedded"
+    win._load_file(SPECTRUM)
+    assert win.calibration_info["source"] == "local"
+    assert win.calib.vmax.value() == pytest.approx(6.05, abs=1e-4)
+    # Sin calibración fijada: vuelve la Vmax que había en el panel.
+    win2 = make_window()
+    win2.calib.vmax.set_value(5.9)
+    win2._load_file(vfile)
+    win2._load_file(SPECTRUM)
+    assert win2.calibration_info is None
+    assert win2.calib.vmax.value() == pytest.approx(5.9, abs=1e-4)
