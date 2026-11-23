@@ -207,6 +207,32 @@ def missing_calibration_reason(choice) -> str:
     return "no_date" if choice.date is None else "none_before"
 
 
+def resolve_session_spectrum(file_path: str | Path | None,
+                             session_path: str | Path) -> Path | None:
+    """Fichero del espectro de una sesión que se ha movido de sitio.
+
+    Si ``file_path`` existe, ese. Si no (sesión de otro ordenador o carpeta
+    movida), el fichero del mismo nombre junto a la sesión, también con otras
+    mayúsculas (``calibration.ADT`` → ``calibration.adt``). ``None`` si no hay.
+    """
+    if not file_path:
+        return None
+    original = Path(file_path)
+    folder = Path(session_path).parent
+    if original.is_absolute() and original.exists():
+        return original
+    if not original.is_absolute() and (folder / original).exists():
+        return folder / original
+    name = original.name.lower()
+    try:
+        for candidate in folder.iterdir():
+            if candidate.is_file() and candidate.name.lower() == name:
+                return candidate
+    except OSError:
+        return None
+    return original if original.exists() else None
+
+
 # ── Abrir un fichero ──────────────────────────────────────────────────────
 @dataclass
 class OpenedSpectrum:

@@ -1,8 +1,8 @@
 {
   "version": 1,
   "program": "mossbauer_qt.py",
-  "file_path": "/home/jorge/pythonPro/mossbauer/data_sample/calibration.ADT",
-  "file_name": "calibration.ADT",
+  "file_path": "calibration.adt",
+  "file_name": "calibration.adt",
   "counts": [
     227190.0,
     452427.0,

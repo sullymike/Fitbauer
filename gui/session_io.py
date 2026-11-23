@@ -711,6 +711,13 @@ class SessionIOMixin:
                 self, tr("file.load_session"),
                 f"{type(exc).__name__}: {exc}")
             return False
+        # Sesión movida de sitio (otro ordenador, carpeta copiada): el espectro
+        # se busca también junto a la sesión.
+        from core.spectrum_loading import resolve_session_spectrum
+        if isinstance(data, dict) and data.get("file_path"):
+            found = resolve_session_spectrum(data["file_path"], path)
+            if found is not None:
+                data = dict(data, file_path=str(found))
         try:
             self._apply_session_payload(data)
             self._conventions_from_job = False   # la sesión trae los suyos

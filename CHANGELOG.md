@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- **Sesiones movidas de sitio.** Si el espectro de una sesión no está en la ruta
+  guardada (otro ordenador, carpeta copiada), se busca junto a la sesión, también
+  con otras mayúsculas (`core.spectrum_loading.resolve_session_spectrum`). Las
+  sesiones de `data_sample/` apuntaban a rutas de otros ordenadores y se abrían
+  con las cuentas embebidas; ahora guardan solo el nombre del fichero.
+
 - **Doblete con ΔEQ libre.** Al pasar un componente de sextete (ΔEQ fijado en 0
   por defecto) a doblete, ΔEQ se quedaba fijado y el ajuste no lo movía. Ahora
   queda libre al cambiar a doblete.

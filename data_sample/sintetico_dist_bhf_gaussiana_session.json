@@ -1,7 +1,7 @@
 {
   "version": 2,
   "program": "fitbauer",
-  "file_path": "/home/user/Mossbauer/data_sample/sintetico_dist_bhf_gaussiana.adt",
+  "file_path": "sintetico_dist_bhf_gaussiana.adt",
   "file_name": "sintetico_dist_bhf_gaussiana.adt",
   "model_state": {
     "vars": {

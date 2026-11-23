@@ -169,3 +169,14 @@ def test_deep_doublet_is_not_capped():
         velocity=np.linspace(-4, 4, 256), y_data=np.ones(256), sigma_data=np.ones(256),
         counts=None, norm_factor=1.0)
     assert st.bounds["s1_depth"][1] >= 1.0
+
+
+def test_resolve_moved_session_spectrum(tmp_path):
+    from core.spectrum_loading import resolve_session_spectrum
+    sess = tmp_path / "s_session.json"
+    (tmp_path / "cal.adt").write_text("1\n")
+    assert resolve_session_spectrum("/otro/ordenador/CAL.ADT", sess) == tmp_path / "cal.adt"
+    assert resolve_session_spectrum("cal.adt", sess) == tmp_path / "cal.adt"
+    assert resolve_session_spectrum(str(tmp_path / "cal.adt"), sess) == tmp_path / "cal.adt"
+    assert resolve_session_spectrum("/otro/nada.adt", sess) is None
+    assert resolve_session_spectrum(None, sess) is None

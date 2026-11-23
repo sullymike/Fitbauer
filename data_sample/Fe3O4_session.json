@@ -1,8 +1,8 @@
 {
   "version": 1,
   "program": "mossbauer_qt.py",
-  "file_path": "/home/jorge/pythonPro/mossbauer/data_sample/Fe3O4.ADT",
-  "file_name": "Fe3O4.ADT",
+  "file_path": "Fe3O4.adt",
+  "file_name": "Fe3O4.adt",
   "counts": [
     102474.0,
     204631.0,

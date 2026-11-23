@@ -671,3 +671,14 @@ def test_doublet_frees_quadrupole_splitting(make_window):
     cp.type_combo.setCurrentText("Doblete")
     assert not cp.params["quad"].is_fixed()
 
+
+def test_sample_sessions_open_their_spectrum(make_window, monkeypatch):
+    """Las sesiones de ejemplo abren su espectro junto a ellas (antes apuntaban
+    a rutas de otro ordenador y se usaban las cuentas embebidas)."""
+    # «Ajustar Vmax» de la sesión de calibración avisa con un diálogo modal.
+    monkeypatch.setattr(mq.QtWidgets.QMessageBox, "information",
+                        staticmethod(lambda *a, **k: mq.QtWidgets.QMessageBox.StandardButton.Ok))
+    for name in ("calibration_session.json", "Fe3O4_session.json"):
+        win = make_window()
+        assert win.load_session_file(DATA / name)
+        assert win.file.path.exists() and win.file.path.parent == DATA
