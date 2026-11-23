@@ -157,3 +157,15 @@ def test_normos_fold_point_only_if_plausible(tmp_path):
             assert s.spectrum.center > 100
         else:
             assert s.spectrum.center == expected
+
+
+def test_deep_doublet_is_not_capped():
+    """Un doblete fino con líneas del ~35 % se ajusta sin topar con la cota de
+    profundidad (antes 0.30: Γ se ensanchaba para compensar)."""
+    from core.session import ModelState
+    from core.params import COMPONENT_FIT_BOUNDS
+    assert COMPONENT_FIT_BOUNDS["depth"][1] >= 1.0
+    st = ModelState.defaults(1).build_fit_state(
+        velocity=np.linspace(-4, 4, 256), y_data=np.ones(256), sigma_data=np.ones(256),
+        counts=None, norm_factor=1.0)
+    assert st.bounds["s1_depth"][1] >= 1.0

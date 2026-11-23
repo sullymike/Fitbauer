@@ -648,3 +648,15 @@ def test_fit_state_axis_follows_panel_vmax(make_window):
     assert st.values["vmax"] == pytest.approx(6.5)
     assert np.abs(st.velocity).max() == pytest.approx(6.5, rel=1e-6)
 
+
+def test_fit_result_outside_panel_range_is_not_clipped(make_window):
+    """Un resultado fuera del rango del control (p. ej. profundidad 0.33 con el
+    panel a 0.07) se muestra entero: antes se recortaba en silencio y el
+    modelo dibujado y el siguiente ajuste partían del valor recortado."""
+    win = make_window()
+    cp = win.components_panels[0]
+    hi = cp.params["depth"].spin.maximum()
+    cp.apply_values({"s1_depth": hi + 0.25})
+    assert cp.params["depth"].value() == pytest.approx(hi + 0.25)
+    cp.params["depth"].set_value(hi + 1.0)          # a mano sigue recortando
+    assert cp.params["depth"].value() == pytest.approx(hi + 0.25)

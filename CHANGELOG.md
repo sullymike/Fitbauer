@@ -2,6 +2,14 @@
 
 ## Sin publicar
 
+- **Dobletes profundos y resultados fuera del rango del panel.** La cota de
+  ajuste de la profundidad era 0.30: un doblete con líneas del 33 % (equipo 3 del
+  grupo) se quedaba en ella y compensaba ensanchando Γ (0.332 frente a 0.31 de
+  WinNormos; χ²ᵣ 3.08). Ahora es 1.0 (Γ 0.306, χ²ᵣ 1.08). Además, el panel
+  recortaba en silencio al rango del control (profundidad 0.07 por defecto) los
+  valores de un ajuste o de una sesión: el modelo dibujado y el siguiente ajuste
+  partían del valor recortado. Ahora el rango se amplía para mostrarlo.
+
 - **El eje de los datos sigue a la Vmax del panel.** Cuando la Vmax cambiaba por
   código (calibración aplicada desde el gestor, sesión, web, resultado de un
   ajuste), el eje de velocidad de los datos se quedaba con la anterior hasta el

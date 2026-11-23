@@ -90,7 +90,13 @@ class ParamControl(QtWidgets.QWidget):
     def value(self) -> float:
         return float(self.spin.value())
 
-    def set_value(self, v: float) -> None:
+    def set_value(self, v: float, *, widen: bool = False) -> None:
+        """Pone el valor sin emitir señal. Fuera del rango se recorta, salvo
+        con ``widen``: entonces el rango se amplía para mostrarlo (resultados
+        de un ajuste o de una sesión, que no deben cambiar al volcarse)."""
+        v = float(v)
+        if widen and (v < self._lo or v > self._hi):
+            self.set_range(min(self._lo, v), max(self._hi, v))
         self._syncing = True
         self.spin.blockSignals(True)
         self.slider.blockSignals(True)

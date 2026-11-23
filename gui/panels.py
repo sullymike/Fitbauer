@@ -768,10 +768,12 @@ class ComponentPanel(QtWidgets.QWidget):
         return self.to_view_state().prefixed_fixed()
 
     def apply_values(self, values: dict[str, float]) -> None:
+        """Vuelca valores (de un ajuste, una sesión…) sin recortarlos al rango
+        del control: si alguno se sale, el rango se amplía."""
         for k, ctl in self.params.items():
             v = values.get(f"s{self.idx}_{k}")
             if v is not None:
-                ctl.set_value(v)
+                ctl.set_value(v, widen=True)
 
 
 def _mezcla(c1: tuple[int, int, int], c2: tuple[int, int, int], t: float) -> str:
