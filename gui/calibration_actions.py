@@ -202,6 +202,9 @@ class CalibrationActionsMixin:
         if hasattr(self, "calib") and hasattr(self.calib, "vmax"):
             self.calib.vmax.set_value(float(vmax))
         self._refresh_calib_label()
+        # set_value no emite señal: el eje de los datos y el gráfico se
+        # rehacen aquí con la Vmax nueva.
+        self._refresh_plot()
 
     def _set_vmax_quiet(self, vmax: float) -> None:
         """Fija el control de Vmax sin disparar refolds intermedios."""

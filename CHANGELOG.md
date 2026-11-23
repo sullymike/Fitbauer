@@ -2,6 +2,14 @@
 
 ## Sin publicar
 
+- **El eje de los datos sigue a la Vmax del panel.** Cuando la Vmax cambiaba por
+  código (calibración aplicada desde el gestor, sesión, web, resultado de un
+  ajuste), el eje de velocidad de los datos se quedaba con la anterior hasta el
+  siguiente redibujado; un ajuste justo después usaba el eje viejo (tras «Aplicar
+  al espectro actual», ±12.007 con la Vmax en 6.0915) y, con «ajustar Vmax», el
+  ajuste no se movía del valor de arranque. `_sync_velocity_axis` lo alinea al
+  construir el ajuste discreto o de distribución y al redibujar.
+
 - **Avisos de carga visibles.** «El equipo no tiene calibración para esta fecha»,
   «calibración sustituida por la del fichero» y los avisos de lectura se mostraban
   en la barra de estado y el mensaje de «fichero cargado» los tapaba al instante

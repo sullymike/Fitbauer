@@ -373,6 +373,9 @@ def test_manager_applies_calibration_to_current_spectrum(make_window, tmp_path, 
     assert win.calibration_info["calibration_rule"] == "manual"
     assert win.calib.vmax.value() == pytest.approx(
         convert_vmax(11.0, "legacy", win.sextet_pattern), abs=1e-4)
+    # El eje de los datos sigue a la Vmax aplicada (antes se quedaba con la
+    # anterior hasta el siguiente redibujado y un ajuste lo usaba así).
+    assert abs(win.file.velocity).max() == pytest.approx(win.calib.vmax.value(), rel=1e-6)
     dlg.deleteLater()
     # Sin la función de aplicar (p. ej. desde Importar…) no hay botón.
     dlg2 = InstrumentManagerDialog(None, lib, "Lab B")
@@ -632,3 +635,16 @@ def test_load_warnings_are_not_hidden_by_load_status(make_window, tmp_path):
     win._load_file(vfile)
     msg = win.statusBar().currentMessage()
     assert "6.0500" in msg and "7.3000" in msg and "proc.txt" in msg
+
+
+def test_fit_state_axis_follows_panel_vmax(make_window):
+    """Una Vmax puesta por código (sin señal) no deja el eje de los datos atrás:
+    el estado del ajuste usa siempre el de la Vmax del panel."""
+    import numpy as np
+    win = make_window()
+    win._load_file(SPECTRUM)
+    win.calib.vmax.set_value(6.5)          # sin señal, como hacen sesión/web/calibración
+    st = win._build_state()
+    assert st.values["vmax"] == pytest.approx(6.5)
+    assert np.abs(st.velocity).max() == pytest.approx(6.5, rel=1e-6)
+

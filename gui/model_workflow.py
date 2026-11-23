@@ -851,9 +851,26 @@ class ModelWorkflowMixin:
                 return f
         return None
 
+    def _sync_velocity_axis(self) -> None:
+        """Ajusta el eje de los datos a la Vmax del panel (cuentas por canal).
+
+        La Vmax puede cambiar por código sin señal (calibración aplicada,
+        sesión, web, resultado de un ajuste) y ``file.velocity`` se quedaba
+        con la anterior hasta el siguiente redibujado: un ajuste justo después
+        usaba el eje viejo (y con «ajustar Vmax», arrancaba de una escala
+        incoherente). Un fichero con eje propio no se toca.
+        """
+        v, y = self.file.velocity, self.file.y_data
+        if v is None or y is None or self.file.counts is None:
+            return
+        expected = self._velocity_for_folded(y.size)
+        if v.size and expected.size == v.size and not np.allclose(v, expected, atol=1e-9, rtol=0.0):
+            self.file.velocity = expected
+
     def _build_state(self, *, validate_params: bool = False) -> FitState | None:
         if self.file.velocity is None or self.file.y_data is None:
             return None
+        self._sync_velocity_axis()
         state = self._model_state().build_fit_state(
             velocity=self.file.velocity, y_data=self.file.y_data,
             sigma_data=self.file.sigma, counts=self.file.counts,
@@ -1288,10 +1305,8 @@ class ModelWorkflowMixin:
         v = self.file.velocity
         y = self.file.y_data
         # Recalcular velocidad si vmax cambia, respetando el recorte de bordes.
-        expected_v = self._velocity_for_folded(y.size)
-        if v.size and expected_v.size == v.size and not np.allclose(v, expected_v, atol=1e-9, rtol=0.0):
-            v = expected_v
-            self.file.velocity = v
+        self._sync_velocity_axis()
+        v = self.file.velocity
         if self.is_distribution_mode:
             # En distribución los paneles de componentes están ocultos y el
             # modelo discreto no es lo que se ajusta: simularlo pintaba el

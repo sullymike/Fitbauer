@@ -223,6 +223,7 @@ class DistributionFitMixin:
             return
         if self.file.velocity is None or self.file.y_data is None:
             return
+        self._sync_velocity_axis()
         d = self.dist_panel
         # α/L-curve solo tienen sentido en el histograma regularizado.
         if d.shape != "Histograma":
@@ -416,6 +417,7 @@ class DistributionFitMixin:
         self._simulate_enabled = True
         if self.file.velocity is None or self.file.y_data is None:
             return
+        self._sync_velocity_axis()
         d = self.dist_panel
         var = self.dist_variable
         dist_state = d.to_view_state(variable=var)
