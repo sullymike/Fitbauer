@@ -660,3 +660,14 @@ def test_fit_result_outside_panel_range_is_not_clipped(make_window):
     assert cp.params["depth"].value() == pytest.approx(hi + 0.25)
     cp.params["depth"].set_value(hi + 1.0)          # a mano sigue recortando
     assert cp.params["depth"].value() == pytest.approx(hi + 0.25)
+
+
+def test_doublet_frees_quadrupole_splitting(make_window):
+    """Al pasar de sextete a doblete, ΔEQ queda libre (el sextete por defecto
+    lo fija en 0 y antes se quedaba bloqueado)."""
+    win = make_window()
+    cp = win.components_panels[0]
+    assert cp.params["quad"].is_fixed()
+    cp.type_combo.setCurrentText("Doblete")
+    assert not cp.params["quad"].is_fixed()
+

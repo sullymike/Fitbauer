@@ -2,6 +2,10 @@
 
 ## Sin publicar
 
+- **Doblete con ΔEQ libre.** Al pasar un componente de sextete (ΔEQ fijado en 0
+  por defecto) a doblete, ΔEQ se quedaba fijado y el ajuste no lo movía. Ahora
+  queda libre al cambiar a doblete.
+
 - **Dobletes profundos y resultados fuera del rango del panel.** La cota de
   ajuste de la profundidad era 0.30: un doblete con líneas del 33 % (equipo 3 del
   grupo) se quedaba en ella y compensaba ensanchando Γ (0.332 frente a 0.31 de

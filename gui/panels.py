@@ -663,6 +663,9 @@ class ComponentPanel(QtWidgets.QWidget):
                 self.params["int1"].set_fixed(True)
                 self.params["int2"].set_value(1.0)
                 self.params["int2"].set_fixed(True)
+                # ΔEQ es lo que define un doblete: el sextete por defecto lo
+                # deja fijado en 0 y, al cambiar de tipo, se quedaba bloqueado.
+                self.params["quad"].set_fixed(False)
             elif kind == "Singlete":
                 self.params["int1"].set_value(1.0)
                 self.params["int1"].set_fixed(True)
