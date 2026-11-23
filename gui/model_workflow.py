@@ -1160,9 +1160,8 @@ class ModelWorkflowMixin:
         textos = [tr(f"import.warn.{w}", default=w) for w in imported.warnings]
         self.statusBar().showMessage(" · ".join(textos), 10000)
 
-    def _load_counts(self, path: Path, counts: np.ndarray) -> None:
-        center = self._detect_center(counts)
-        self.file = FileState(path=path, counts=counts, center=center)
+    def _reset_for_new_spectrum(self) -> None:
+        """Lo que se reinicia al abrir cualquier espectro (cuentas o velocidad)."""
         self._simulate_enabled = False
         self.mark_saved()      # espectro recién cargado: nada que perder aún
         self._dist_map_2d = None
@@ -1172,6 +1171,35 @@ class ModelWorkflowMixin:
         self._dist_map_2d_fig = None
         if hasattr(self, "dist_panel"):
             self.dist_panel.btn_show_map.setVisible(False)
+
+    def _on_spectrum_loaded(self, path: Path, *, has_counts: bool, status: str) -> None:
+        """Cierre común de cualquier carga: acciones, recientes, estado y gráfico.
+
+        Sin cuentas por canal (eje de velocidad propio) no hay centro que
+        detectar ni fichero que tomar como calibración.
+        """
+        for act in (self.act_fit, self.act_init, self.act_edit_minima,
+                    self.act_auto_fit, self.act_ai, self.act_upload_session,
+                    self.act_profile, self.act_save_fit,
+                    self.act_export_distribution, self.act_export_report,
+                    self.act_export_short_report, self.act_bootstrap,
+                    self.act_lcurve):
+            act.setEnabled(True)
+        if hasattr(self, 'act_identify_phases'):
+            self.act_identify_phases.setEnabled(
+                getattr(self, 'phase_predict_enabled', False))
+        self.act_find_center.setEnabled(has_counts)
+        self.act_use_as_calib.setEnabled(has_counts)
+        self._set_quick_action_buttons_enabled(True)
+        self._add_recent(path)
+        self.statusBar().showMessage(status)
+        self.runtime_results.clear()
+        self._refresh_plot()
+
+    def _load_counts(self, path: Path, counts: np.ndarray) -> None:
+        center = self._detect_center(counts)
+        self.file = FileState(path=path, counts=counts, center=center)
+        self._reset_for_new_spectrum()
         folded, sigma, y = self._fold_counts_for_center(center)
         norm = float(np.percentile(folded, 90)) if folded.size else 1.0
         norm = norm or 1.0
@@ -1190,30 +1218,10 @@ class ModelWorkflowMixin:
         self.file_label.setText(f"<b>{path.name}</b><br>" +
                                 tr("file.label_info", n=counts.size, center=f"{center:.3f}",
                                    norm=f"{norm:.4g}"))
-        self.act_fit.setEnabled(True)
-        self.act_init.setEnabled(True)
-        if hasattr(self, 'act_identify_phases'):
-            self.act_identify_phases.setEnabled(
-                getattr(self, 'phase_predict_enabled', False))
-        self.act_edit_minima.setEnabled(True)
-        self.act_auto_fit.setEnabled(True)
-        self.act_ai.setEnabled(True)
-        self.act_upload_session.setEnabled(True)
-        self.act_use_as_calib.setEnabled(True)
-        self.act_profile.setEnabled(True)
-        self.act_find_center.setEnabled(True)
-        self.act_save_fit.setEnabled(True)
-        self.act_export_distribution.setEnabled(True)
-        self.act_export_report.setEnabled(True)
-        self.act_export_short_report.setEnabled(True)
-        self.act_bootstrap.setEnabled(True)
-        self.act_lcurve.setEnabled(True)
-        self._set_quick_action_buttons_enabled(True)
-        self._add_recent(path)
-        self.statusBar().showMessage(
-            tr("status.file_loaded", name=path.name, n=counts.size, center=f"{center:.3f}"))
-        self.runtime_results.clear()
-        self._refresh_plot()
+        self._on_spectrum_loaded(
+            path, has_counts=True,
+            status=tr("status.file_loaded", name=path.name, n=counts.size,
+                      center=f"{center:.3f}"))
 
     def _load_velocity_data(self, path: Path, imported: ImportedSpectrum) -> None:
         """Carga un espectro con eje de velocidad propio (no se dobla).
@@ -1252,14 +1260,7 @@ class ModelWorkflowMixin:
             y_data=y,
             y_kind=imported.y_kind,
         )
-        self._simulate_enabled = False
-        self._dist_map_2d = None
-        _prev_fig = getattr(self, "_dist_map_2d_fig", None)
-        if _prev_fig is not None:
-            _prev_fig.clf()
-        self._dist_map_2d_fig = None
-        if hasattr(self, "dist_panel"):
-            self.dist_panel.btn_show_map.setVisible(False)
+        self._reset_for_new_spectrum()
 
         # El fichero trae calibración propia (eje de velocidad): sustituye la
         # calibración fijada por la del fichero y actualiza el control de Vmax.
@@ -1270,33 +1271,9 @@ class ModelWorkflowMixin:
             f"<b>{path.name}</b><br>"
             f"{n_pts} puntos · velocidad CSV · norm={norm:.4g}"
         )
-        # Habilitar acciones compatibles con espectros sin cuentas en bruto.
-        self.act_fit.setEnabled(True)
-        self.act_init.setEnabled(True)
-        if hasattr(self, 'act_identify_phases'):
-            self.act_identify_phases.setEnabled(
-                getattr(self, 'phase_predict_enabled', False))
-        self.act_edit_minima.setEnabled(True)
-        self.act_auto_fit.setEnabled(True)
-        self.act_ai.setEnabled(True)
-        self.act_upload_session.setEnabled(True)
-        self.act_profile.setEnabled(True)
-        self.act_save_fit.setEnabled(True)
-        self.act_export_distribution.setEnabled(True)
-        self.act_export_report.setEnabled(True)
-        self.act_export_short_report.setEnabled(True)
-        self.act_bootstrap.setEnabled(True)
-        self.act_lcurve.setEnabled(True)
-        self._set_quick_action_buttons_enabled(True)
-        # Acciones que requieren cuentas en bruto quedan deshabilitadas.
-        self.act_find_center.setEnabled(False)
-        self.act_use_as_calib.setEnabled(False)
-        self._add_recent(path)
-        self.statusBar().showMessage(
-            f"{path.name} · {n_pts} puntos · CSV velocidad · vmax≈{vmax:.3g} mm/s"
-        )
-        self.runtime_results.clear()
-        self._refresh_plot()
+        self._on_spectrum_loaded(
+            path, has_counts=False,
+            status=f"{path.name} · {n_pts} puntos · CSV velocidad · vmax≈{vmax:.3g} mm/s")
 
     def _refresh_plot(self) -> None:
         if self._building or self.file.velocity is None:
