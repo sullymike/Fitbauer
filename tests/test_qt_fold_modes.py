@@ -345,14 +345,22 @@ def test_import_dialog_manual_calibration(make_window, tmp_path, monkeypatch):
     assert "elegida a mano" in win.calib_label.text() or "manually" in win.calib_label.text()
 
 
-def test_manager_applies_calibration_to_current_spectrum(make_window, tmp_path):
+def test_manager_applies_calibration_to_current_spectrum(make_window, tmp_path, monkeypatch):
     from core.constants import convert_vmax
     from gui.instrument_manager import InstrumentManagerDialog
+    import gui.model_workflow as mw
     lib = _lab(tmp_path)
     win = make_window()
     win._instruments = lib
     win._load_file(_dated_copy(tmp_path, "a.dat", "2025-03-14"), None, "Lab B")
     assert win.calib.vmax.value() == pytest.approx(10.5)
+    # Lo leído se guarda: aplicar o tomar la entrada no vuelve a leer el fichero.
+    assert win.file.imported is not None
+
+    def _no_read(*_a, **_k):
+        raise AssertionError("no debería releer el espectro activo")
+    monkeypatch.setattr(mw, "read_spectrum_file", _no_read)
+    assert win._current_calibration_entry()["date"].isoformat() == "2025-03-14"
     dlg = InstrumentManagerDialog(win, lib, "Lab B", win._current_calibration_entry,
                                   apply_calibration=win._apply_instrument_calibration)
     assert dlg.btn_apply.isVisible() or not dlg.isVisible()

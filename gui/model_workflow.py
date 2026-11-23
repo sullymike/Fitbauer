@@ -972,11 +972,7 @@ class ModelWorkflowMixin:
         path = getattr(self.file, "path", None)
         if path is None or getattr(self.file, "counts", None) is None:
             return False
-        hints = getattr(self.file, "import_hints", None)
-        try:
-            imported = read_spectrum_file(path, ImportHints.from_dict(hints) if hints else None)
-        except (OSError, ValueError):
-            imported = None
+        imported = self._active_imported()
         if imported is not None and imported.x_kind != "channel":
             self.statusBar().showMessage(tr(
                 "instr.apply_velocity",
@@ -995,6 +991,21 @@ class ModelWorkflowMixin:
             default="Aplicada la calibración del {cal} de «{name}» al espectro actual."), 8000)
         return True
 
+    def _active_imported(self):
+        """Lo leído del espectro activo; si no se guardó (p. ej. una sesión
+        antigua), se vuelve a leer con sus correcciones. ``None`` si no se puede."""
+        imported = getattr(self.file, "imported", None)
+        path = getattr(self.file, "path", None)
+        if imported is not None or path is None:
+            return imported
+        hints = getattr(self.file, "import_hints", None)
+        try:
+            imported = read_spectrum_file(path, ImportHints.from_dict(hints) if hints else None)
+        except (OSError, ValueError):
+            return None
+        self.file.imported = imported
+        return imported
+
     def _current_calibration_entry(self) -> dict | None:
         """La calibración que da el espectro activo (α-Fe ajustado): Vmax del
         panel en el patrón activo, δ del componente 1 y fecha de medida."""
@@ -1002,15 +1013,15 @@ class ModelWorkflowMixin:
         if path is None or getattr(self.file, "counts", None) is None:
             return None
         date = None
-        try:
+        imported = self._active_imported()
+        if imported is not None:
             from core.spectrum_import import measurement_date
-            hints = getattr(self.file, "import_hints", None)
-            imported = read_spectrum_file(path, ImportHints.from_dict(hints) if hints else None)
             profile = self._instrument_profile(getattr(self.file, "instrument", None))
-            date, _origin = measurement_date(imported, path,
-                                             profile.date_order if profile else "dmy")
-        except (OSError, ValueError):
-            pass
+            try:
+                date, _origin = measurement_date(imported, path,
+                                                 profile.date_order if profile else "dmy")
+            except (OSError, ValueError):
+                pass
         return {
             "vmax": float(self.calib.to_view_state().vmax),
             "isomer_shift": float(self.components_panels[0].to_view_state().value("delta")),
@@ -1139,6 +1150,7 @@ class ModelWorkflowMixin:
             self._load_counts(path, imported.y)
         self.file.import_hints = (hints.to_dict() or None) if hints else None
         self.file.instrument = instrument
+        self.file.imported = imported
         self._show_import_warnings(imported)
 
     def _show_import_warnings(self, imported: ImportedSpectrum) -> None:

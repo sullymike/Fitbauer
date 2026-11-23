@@ -73,6 +73,10 @@ class FileState:
     # la sesión las guarda para volver a leer el fichero igual.
     import_hints: dict | None = None
     instrument: str | None = None
+    # Lo leído del fichero (core.spectrum_import.ImportedSpectrum), para no
+    # volver a leerlo al aplicar una calibración o tomarlo como calibración.
+    # Solo en ejecución: la sesión no lo guarda.
+    imported: object | None = None
 
 
 @dataclass
