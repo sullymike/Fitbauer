@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **Ventana: eje de velocidad con recorte adaptativo de bordes.** Cuando el
+  doblado quita canales extremos atípicos (p. ej. `data_sample/calibration.adt`,
+  uno por lado), la ventana estiraba el eje a ±Vmax sobre menos puntos (escala
+  ~0.8 % mayor, y con ella el BHF o la Vmax calibrada); la serie y el CLI ya lo
+  recortaban. Ahora la ventana usa el mismo eje (`channel_velocity_axis`). Con
+  ficheros sin ese recorte no cambia nada.
+
 - **Comparar espectro: ficheros procesados de WMOSS/WinNormos.** Se puede elegir
   la columna que se superpone (datos, ajuste total o un sitio de WinNormos) y
   llevar a la fuente un eje con el α-Fe en 0 sumando el δ(α-Fe) de la calibración

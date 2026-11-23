@@ -9,8 +9,8 @@ from PySide6 import QtWidgets
 from mossbauer_i18n import tr
 from core.constants import GLOBAL_PARAM_NAMES, SEXTET_PARAM_NAMES
 from core.folding import (
-    channel_velocity_axis, detect_fold_center, fold_center_window, is_pair_averaged,
-    prepare_channel_counts, velocity_axis,
+    channel_velocity_axis, detect_fold_center, fold_center_window,
+    prepare_channel_counts,
 )
 from core.spectrum_import import ImportedSpectrum, ImportHints, read_spectrum_file
 from core.fit_engine import FitState, resolve_values
@@ -326,15 +326,17 @@ class ModelWorkflowMixin:
             edge_trim=int(getattr(self, "_edge_trim", 0)))
         return folded, sigma, y
 
-    def _velocity_for_folded(self, n_points: int, trim_edges: bool = True) -> np.ndarray:
-        """Eje de velocidad de los datos (doblados, por canal o senoidal)."""
+    def _velocity_for_folded(self, n_points: int) -> np.ndarray:
+        """Eje de velocidad de los datos (doblados, por canal o senoidal).
+
+        El mismo que la serie y la sesión sin GUI: al doblar, el recorte de
+        bordes se deduce de ``n_points``. Antes se pasaba el recorte mínimo
+        fijo (0) y, si el recorte adaptativo quitaba canales, el eje se
+        estiraba a ±Vmax sobre menos puntos (escala ~0.8 % mayor).
+        """
         if self.file.counts is None:
             return np.array([], dtype=float)
         calib_state = self.calib.to_view_state()
-        if (is_pair_averaged(calib_state.fold_mode, calib_state.drive_form)
-                and not calib_state.reverse_velocity):
-            return velocity_axis(self.file.counts.size, calib_state.vmax,
-                                 n_points, int(getattr(self, "_edge_trim", 0)), trim_edges)
         center = float(self.file.center) if self.file.center is not None else float(calib_state.center)
         return channel_velocity_axis(
             self.file.counts.size, calib_state.vmax, n_points, center=center,

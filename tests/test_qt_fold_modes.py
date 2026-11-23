@@ -555,3 +555,21 @@ def test_comparison_column_and_alpha_fe_shift(make_window, tmp_path, monkeypatch
     dlg = ComparisonOptionsDialog(win, path, imp, intensity_column_choices(imp), 1, -0.115, True)
     assert dlg.column_combo.count() == 3 and dlg.column() == 1 and dlg.shift_alpha_fe()
     dlg.deleteLater()
+
+
+def test_window_axis_matches_headless_with_adaptive_trim(make_window):
+    """Con recorte adaptativo de bordes (calibration.adt pierde un canal por
+    lado) la ventana usa el mismo eje que la sesión sin GUI: recortado, no
+    estirado a ±Vmax sobre menos puntos."""
+    import numpy as np
+    from core.session import HeadlessSession
+    path = DATA / "calibration.adt"
+    win = make_window()
+    win._load_file(path)
+    vmax = win.calib.vmax.value()
+    s = HeadlessSession()
+    s.load_ws5(path, vmax=vmax)
+    assert win.file.y_data.size < win.file.counts.size // 2     # hubo recorte
+    assert win.file.center == pytest.approx(s.spectrum.center)
+    np.testing.assert_allclose(win.file.velocity, s._velocity(), rtol=0, atol=1e-12)
+    assert abs(win.file.velocity[0]) < vmax
