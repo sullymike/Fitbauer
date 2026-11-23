@@ -65,14 +65,16 @@ class CalibrationActionsMixin:
                 if choice.record is not None else None)
         self._take_instrument_calibration(instrument, choice, info)
 
-    def _take_instrument_calibration(self, instrument, choice, info) -> None:
+    def _take_instrument_calibration(self, instrument, choice, info, *,
+                                     show: bool = True) -> str | None:
         """Deja fijada la calibración ``info`` del equipo o, si no hay ninguna
-        aplicable, mantiene la fijada y avisa del porqué."""
+        aplicable, mantiene la fijada y devuelve el aviso del porqué (y lo
+        muestra con ``show``; al cargar se muestra junto al resto)."""
         from core.spectrum_loading import missing_calibration_reason
         if info is not None:
             self.calibration_info = info
             self._refresh_calib_label()
-            return
+            return None
         reason = missing_calibration_reason(choice)
         if reason == "none":
             msg = tr("instr.no_calibrations", name=instrument,
@@ -85,7 +87,9 @@ class CalibrationActionsMixin:
             msg = tr("instr.no_calibration", name=instrument, date=choice.date.isoformat(),
                      default="«{name}» no tiene calibraciones del {date} o anteriores; "
                              "se mantiene la calibración actual.")
-        self.statusBar().showMessage(msg, 8000)
+        if show:
+            self.statusBar().showMessage(msg, 8000)
+        return msg
 
     # ── Calibración rápida desde el cuadro de fichero ─────────────────────
     def _show_file_box_menu(self, pos: QtCore.QPoint) -> None:
@@ -227,16 +231,14 @@ class CalibrationActionsMixin:
         if opened.has_velocity_axis:
             new = opened.file_vmax
             if before is not None and abs(before - new) > 1e-9:
+                # Se muestra al terminar la carga, junto al resto de avisos.
                 name = opened.path.name
-                try:
-                    self.statusBar().showMessage(
-                        tr("status.calib_replaced", name=name,
-                           old=f"{before:.4f}", new=f"{new:.4f}",
-                           default=(f"Calibración sustituida por la del fichero "
-                                    f"{name}: Vmax {before:.4f} → {new:.4f} mm/s")),
-                        6000)
-                except Exception:
-                    pass
+                self._load_notes = getattr(self, "_load_notes", None) or []
+                self._load_notes.append(
+                    tr("status.calib_replaced", name=name,
+                       old=f"{before:.4f}", new=f"{new:.4f}",
+                       default=(f"Calibración sustituida por la del fichero "
+                                f"{name}: Vmax {before:.4f} → {new:.4f} mm/s")))
         if info is not self.calibration_info:
             self.calibration_info = info
             self._refresh_calib_label()

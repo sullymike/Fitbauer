@@ -2,6 +2,11 @@
 
 ## Sin publicar
 
+- **Avisos de carga visibles.** «El equipo no tiene calibración para esta fecha»,
+  «calibración sustituida por la del fichero» y los avisos de lectura se mostraban
+  en la barra de estado y el mensaje de «fichero cargado» los tapaba al instante
+  (o al revés). Ahora salen juntos, delante del mensaje de carga.
+
 - **La Vmax de un fichero procesado ya no se queda fijada.** Al abrir un fichero
   con eje de velocidad propio, su máximo |v| pasaba a ser la calibración fijada y
   se imponía a las cuentas en bruto abiertas después (p. ej. el `raw-data.t` del

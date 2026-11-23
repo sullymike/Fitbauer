@@ -612,3 +612,23 @@ def test_processed_file_vmax_does_not_stick(make_window, tmp_path):
     win2._load_file(SPECTRUM)
     assert win2.calibration_info is None
     assert win2.calib.vmax.value() == pytest.approx(5.9, abs=1e-4)
+
+
+def test_load_warnings_are_not_hidden_by_load_status(make_window, tmp_path):
+    """El aviso de «sin calibración» del equipo y el de calibración sustituida
+    se ven junto al mensaje de carga (antes este los tapaba al instante)."""
+    import numpy as np
+    lib = _lab(tmp_path)
+    win = make_window()
+    win._instruments = lib
+    win._load_file(_dated_copy(tmp_path, "old.dat", "2024-01-01"), None, "Lab B")
+    msg = win.statusBar().currentMessage()
+    assert "2024-01-01" in msg and "old.dat" in msg
+    vfile = tmp_path / "proc.txt"
+    v = np.linspace(-7.3, 7.3, 201)
+    vfile.write_text("\n".join(f"{x:.5f}\t{1 - 0.02 * np.exp(-x * x):.6f}" for x in v))
+    win.calibration_info = {"source": "local", "velocity_calibrated": 6.05,
+                            "sextet_pattern": "normos"}
+    win._load_file(vfile)
+    msg = win.statusBar().currentMessage()
+    assert "6.0500" in msg and "7.3000" in msg and "proc.txt" in msg

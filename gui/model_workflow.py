@@ -1142,26 +1142,30 @@ class ModelWorkflowMixin:
         opened = open_spectrum(path, hints, library=lib, instrument=instrument,
                                calibration_id=calibration_id)
         imported = opened.imported
+        self._load_notes = []
         if opened.has_velocity_axis:
             self._load_velocity_data(opened)
         else:
             # Con equipo: su calibración (por fecha, la más reciente o la
             # elegida) pasa a ser la fijada antes de doblar.
             if instrument:
-                self._take_instrument_calibration(instrument, opened.choice,
-                                                  opened.calibration)
+                msg = self._take_instrument_calibration(
+                    instrument, opened.choice, opened.calibration, show=False)
+                if msg:
+                    self._load_notes.append(msg)
             self._load_counts(opened)
         self.file.import_hints = (hints.to_dict() or None) if hints else None
         self.file.instrument = instrument
         self.file.imported = imported
-        self._show_import_warnings(imported)
-
-    def _show_import_warnings(self, imported: ImportedSpectrum) -> None:
-        """Lo que conviene saber de la lectura (σ estimada, unidades dudosas)."""
-        if not imported.warnings:
-            return
-        textos = [tr(f"import.warn.{w}", default=w) for w in imported.warnings]
-        self.statusBar().showMessage(" · ".join(textos), 10000)
+        # Avisos (calibración del equipo, lectura) delante del mensaje de
+        # carga, en vez de taparse unos a otros.
+        notes = self._load_notes + [tr(f"import.warn.{w}", default=w)
+                                     for w in imported.warnings]
+        self._load_notes = []
+        if notes:
+            current = self.statusBar().currentMessage()
+            self.statusBar().showMessage(" · ".join(notes + ([current] if current else [])),
+                                         15000)
 
     def _reset_for_new_spectrum(self) -> None:
         """Lo que se reinicia al abrir cualquier espectro (cuentas o velocidad)."""
