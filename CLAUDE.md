@@ -55,6 +55,12 @@ del código de la GUI.**
   fichero en el ajuste en serie (`gui/instrument_manager.py` = gestor).
   Reconocimiento: `match_text`/`match_name` del perfil e `InstrumentLibrary.recognize`; *Cargar*,
   arrastrar y recientes (`_open_spectrum`) aplican el único equipo que reconoce el fichero.
+- `spectrum_loading.py` — **de un fichero a datos listos para ajustar**, fuente única de la
+  ventana, la serie, la comparación, la vista previa de *Importar…* y `HeadlessSession`:
+  `open_spectrum` (lee y elige la calibración del equipo → `OpenedSpectrum`),
+  `prepare_spectrum` (doblar/normalizar/eje según `Acquisition` = forma de onda, plegado,
+  sentido) y la **prioridad entre calibraciones** al cargar (`calibration_after_load`:
+  eje propio del fichero > equipo > la fijada), con `calibration_vmax` para el patrón activo.
 - `fit_engine.py` — motor de ajuste discreto (singlete/doblete/sextete).
 - `profile_likelihood.py` — intervalos de confianza por verosimilitud perfilada.
 - `batch_fit.py` — ajuste en serie por warm-start.

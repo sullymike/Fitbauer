@@ -24,14 +24,10 @@ from core.folding import (
     canonical_fold_mode,
     channel_velocity_axis,
     is_pair_averaged,
-    prepare_channel_counts,
-    find_best_integer_or_half_center,
     geometry_effect_amplitude,
-    find_sine_symmetry_center,
     fold_and_normalize,
-    read_normos_folding_point,
 )
-from core.spectrum_import import ImportHints, read_spectrum_file
+from core.spectrum_import import ImportHints
 from mossbauer_i18n import tr
 from core.params import (
     ACTIVE_PARAM_ORDER as _ACTIVE_PARAM_ORDER,
@@ -365,39 +361,35 @@ class HeadlessSession:
         (cabecera y pie incluidos; ``hints`` corrige lo deducido). Los ficheros
         con eje de velocidad no se cargan aquí.
         """
+        from core.spectrum_loading import (
+            Acquisition, file_fold_center, open_spectrum, prepare_spectrum)
         path = Path(path)
         if hints is None and self.instrument is not None:
             hints = self.instrument.import_hints
-        imported = read_spectrum_file(path, hints)
-        if imported.x_kind != "channel" or not imported.is_counts:
+        with_instrument = vmax is None and self.instrument is not None
+        opened = open_spectrum(
+            path, hints,
+            library=self.instrument_library if with_instrument else None,
+            instrument=self.instrument.name if with_instrument else None)
+        if opened.has_velocity_axis:
             raise ValueError(tr(
                 "load.not_channel_counts", name=path.name,
                 default="{name} does not contain counts per channel."))
-        counts = imported.y
-        mode = canonical_fold_mode(self.model.fold_mode)
-        if self.model.drive_form == "sine":
-            # Drive senoidal (NORMOS FOLD=.FALSE.): no se dobla; se usa el
-            # espectro sin plegar y su punto de simetría (~N/4) como fase.
-            center = find_sine_symmetry_center(counts)
-        elif mode == "single_sweep":
-            # Ya doblado o un solo barrido: no hay punto de plegado.
-            center = 0.5 * (counts.size + 1)
-        else:
-            center = read_normos_folding_point(path)
-            if center is None:
-                center = find_best_integer_or_half_center(counts)
-        folded, sigma, y, norm = prepare_channel_counts(
-            counts, center, fold_mode=mode, drive_form=self.model.drive_form,
-            edge_trim=_EDGE_TRIM)
+        acquisition = Acquisition(self.model.drive_form,
+                                  canonical_fold_mode(self.model.fold_mode),
+                                  bool(self.model.reverse_velocity))
+        prep = prepare_spectrum(opened.imported.y, acquisition, None,
+                                center=file_fold_center(path, acquisition),
+                                edge_trim=_EDGE_TRIM)
         self.spectrum = LoadedSpectrum(
-            path=path, counts=counts, center=float(center),
-            folded=folded, y_data=y, sigma=sigma, norm_factor=norm)
-        self.geometry_effect = self._geometry_diagnostics(counts, float(center))
-        self.model.vars["center"] = float(center)
+            path=path, counts=prep.counts, center=prep.center,
+            folded=prep.folded, y_data=prep.y, sigma=prep.sigma, norm_factor=prep.norm)
+        self.geometry_effect = self._geometry_diagnostics(prep.counts, prep.center)
+        self.model.vars["center"] = prep.center
         if vmax is not None:
             self.model.vars["vmax"] = float(vmax)
-        elif self.instrument is not None:
-            self._assign_instrument_calibration(path, imported)
+        elif with_instrument:
+            self._assign_instrument_calibration(opened)
 
     # ── Equipo ────────────────────────────────────────────────────────────
     def use_instrument(self, name: str, library=None) -> None:
@@ -439,26 +431,28 @@ class HeadlessSession:
         return self.instrument_library.choose_calibration(
             self.instrument.name, imported, path)
 
-    def _assign_instrument_calibration(self, path, imported) -> None:
-        from core.constants import convert_vmax
-        choice = self.instrument_calibration(path, imported)
-        record, date = choice.record, choice.date
-        name = self.instrument.name
-        if record is None:
+    def _assign_instrument_calibration(self, opened) -> None:
+        """Calibración del equipo para el fichero abierto (``OpenedSpectrum``):
+        su Vmax en el patrón del modelo, o un aviso si no hay ninguna."""
+        from core.spectrum_loading import calibration_vmax, missing_calibration_reason
+        choice, path, name = opened.choice, opened.path, self.instrument.name
+        if opened.calibration is None:
             # Se mantiene la Vmax que hubiera (plantilla o fichero anterior).
-            if choice.rule == "latest":
+            reason = missing_calibration_reason(choice)
+            if reason == "none":
                 self.calibration_warning = f"{path.name}: '{name}' has no calibrations"
-            elif date is None:
+            elif reason == "no_date":
                 self.calibration_warning = (
                     f"{path.name}: no measurement date; no calibration of '{name}' assigned")
             else:
                 self.calibration_warning = (
-                    f"{path.name}: '{name}' has no calibration on or before {date.isoformat()}")
+                    f"{path.name}: '{name}' has no calibration on or before "
+                    f"{choice.date.isoformat()}")
             return
         self.calibration_warning = None
-        self.model.vars["vmax"] = convert_vmax(record.vmax, record.sextet_pattern,
-                                               self.model.sextet_pattern)
-        self.calibration_info = self.instrument_library.calibration_info(name, choice)
+        self.calibration_info = opened.calibration
+        self.model.vars["vmax"] = calibration_vmax(opened.calibration,
+                                                   self.model.sextet_pattern)
 
     @staticmethod
     def _geometry_diagnostics(counts: np.ndarray, center: float) -> dict:
