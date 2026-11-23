@@ -76,6 +76,10 @@ class FitState:
     bounds: dict[str, tuple[float, float]]
     components: list[Component]
     constraints: list[dict] = field(default_factory=list)
+    # Cotas blandas por parámetro, dentro de ``bounds``: el ajuste trabaja en
+    # ellas y suelta hasta la dura la que quede pegada al final. Ver
+    # params.COMPONENT_SOFT_BOUNDS.
+    soft_bounds: dict[str, tuple[float, float]] = field(default_factory=dict)
     # opciones
     likelihood: str = "gauss"           # "gauss" / "poisson"
     robust_loss: str = "linear"         # "linear" / "soft_l1" / "huber"
@@ -670,6 +674,16 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
                 raise
         return r
 
+    # Cotas blandas: el ajuste trabaja dentro de ``soft_bounds`` (ampliadas
+    # hasta el valor de partida); las duras se guardan para soltar al final
+    # las que queden pegadas (paso 5c).
+    hard_lo, hard_hi = lo_arr.copy(), hi_arr.copy()
+    for i, key in enumerate(free_keys):
+        if key in state.soft_bounds:
+            s_lo, s_hi = state.soft_bounds[key]
+            lo_arr[i] = min(max(hard_lo[i], s_lo), x0_arr[i])
+            hi_arr[i] = max(min(hard_hi[i], s_hi), x0_arr[i])
+
     # 3. Multistart determinista.
     rng = np.random.default_rng(12345)
     span = hi_arr - lo_arr
@@ -793,6 +807,24 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
     if result is None:
         return FitResult(values=dict(state.values), errors={}, free_keys=free_keys,
                          cov=None, stats={}, correlations={}, n_starts=n_starts, success=False)
+
+    # 5c. Cotas blandas pegadas: se sueltan hasta la dura y se refina desde
+    # el mejor punto (p. ej. un doblete con líneas más profundas que 0.30).
+    tol_b = 1e-3 * np.maximum(hi_arr - lo_arr, 1e-12)
+    stuck = (((result.x >= hi_arr - tol_b) & (hi_arr < hard_hi))
+             | ((result.x <= lo_arr + tol_b) & (lo_arr > hard_lo)))
+    if np.any(stuck):
+        lo_arr = np.where(stuck, hard_lo, lo_arr)
+        hi_arr = np.where(stuck, hard_hi, hi_arr)
+        try:
+            res_rel = least_squares(residual, result.x, bounds=(lo_arr, hi_arr),
+                                    max_nfev=7000, **ls_kwargs)
+            n_starts += 1
+            if res_rel.cost < result.cost:
+                result = res_rel
+        except Exception:
+            if progress_state.get("aborted"):
+                raise
 
     # 6. Covarianza aproximada.
     cov = None
@@ -997,6 +1029,7 @@ def _replica_state(
     return FitState(
         velocity=state.velocity, y_data=y_data, sigma_data=sigma_data,
         values=dict(values), fixed=fixed, bounds=dict(state.bounds),
+        soft_bounds=dict(state.soft_bounds),
         components=state.components, constraints=state.constraints,
         likelihood=state.likelihood, robust_loss=state.robust_loss,
         line_profile=state.line_profile,

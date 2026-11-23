@@ -15,7 +15,11 @@
 - **Dobletes profundos y resultados fuera del rango del panel.** La cota de
   ajuste de la profundidad era 0.30: un doblete con líneas del 33 % (equipo 3 del
   grupo) se quedaba en ella y compensaba ensanchando Γ (0.332 frente a 0.31 de
-  WinNormos; χ²ᵣ 3.08). Ahora es 1.0 (Γ 0.306, χ²ᵣ 1.08). Además, el panel
+  WinNormos; χ²ᵣ 3.08). Ahora es una cota *blanda*: el ajuste trabaja en 0–0.30
+  como siempre y, si una profundidad queda pegada, la suelta hasta 1.0 y refina
+  (Γ 0.306, χ²ᵣ 1.08). Subir la cota dura a 1.0 sin más cambiaba el multiarranque
+  y el TRF y empeoraba ajustes multisitio del banco NORMOS (D1_n05: χ²ᵣ 0.05 →
+  0.91); con la cota blanda, si nada toca 0.30 el ajuste es idéntico. Además, el panel
   recortaba en silencio al rango del control (profundidad 0.07 por defecto) los
   valores de un ajuste o de una sesión: el modelo dibujado y el siguiente ajuste
   partían del valor recortado. Ahora el rango se amplía para mostrarlo.

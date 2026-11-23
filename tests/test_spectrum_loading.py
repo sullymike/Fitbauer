@@ -159,16 +159,53 @@ def test_normos_fold_point_only_if_plausible(tmp_path):
             assert s.spectrum.center == expected
 
 
-def test_deep_doublet_is_not_capped():
-    """Un doblete fino con líneas del ~35 % se ajusta sin topar con la cota de
-    profundidad (antes 0.30: Γ se ensanchaba para compensar)."""
+def _doublet_fit(depths, start_depth, soft=True):
+    """Ajusta un espectro sintético de dobletes (sin ruido salvo uno leve)."""
+    import dataclasses
+    from core.fit_engine import fit_discrete, model_from_values
     from core.session import ModelState
+    n = len(depths)
+    ms = ModelState.defaults(n)
+    for i, d in enumerate(depths, 1):
+        ms.sextet_enabled[i] = True
+        ms.component_kind[i] = "Doblete"
+        ms.vars.update({f"s{i}_delta": 0.3 + 0.5 * i, f"s{i}_quad": 0.6 + 0.4 * i,
+                        f"s{i}_gamma1": 0.30, f"s{i}_depth": d})
+        ms.fixed[f"s{i}_quad"] = False
+    v = np.linspace(-4, 4, 256)
+    st = ms.build_fit_state(velocity=v, y_data=np.ones(256), sigma_data=np.full(256, 0.003),
+                            counts=None, norm_factor=1.0)
+    y = model_from_values(v, st.values, st.components, st.constraints, bounds=st.bounds)
+    y = y + 0.003 * np.random.default_rng(1).standard_normal(y.size)
+    values = dict(st.values)
+    for i in range(1, n + 1):
+        values[f"s{i}_depth"] = start_depth
+        values[f"s{i}_gamma1"] = 0.35
+    st = dataclasses.replace(st, y_data=y, values=values)
+    if not soft:   # como antes: cota dura 0.30 y sin cotas blandas
+        st = dataclasses.replace(st, soft_bounds={}, bounds={
+            **st.bounds, **{f"s{i}_depth": (0.0, 0.30) for i in range(1, n + 1)}})
+    return fit_discrete(st)
+
+
+def test_deep_doublet_is_not_capped():
+    """Un doblete con líneas del 40 % se ajusta sin topar con 0.30 (la cota
+    blanda se suelta): antes Γ se ensanchaba para compensar."""
     from core.params import COMPONENT_FIT_BOUNDS
     assert COMPONENT_FIT_BOUNDS["depth"][1] >= 1.0
-    st = ModelState.defaults(1).build_fit_state(
-        velocity=np.linspace(-4, 4, 256), y_data=np.ones(256), sigma_data=np.ones(256),
-        counts=None, norm_factor=1.0)
-    assert st.bounds["s1_depth"][1] >= 1.0
+    r = _doublet_fit([0.40], start_depth=0.10)
+    assert abs(r.values["s1_depth"] - 0.40) < 0.01
+    assert abs(r.values["s1_gamma1"] - 0.30) < 0.005
+
+
+def test_shallow_fit_unchanged_by_soft_depth_bound():
+    """Si ninguna profundidad toca 0.30, el ajuste es idéntico al de la cota
+    dura antigua: la cota de 1 no cambia el multiarranque ni el TRF (banco
+    NORMOS, D1_n05 pasaba de χ²ᵣ 0.05 a 0.91)."""
+    a = _doublet_fit([0.05, 0.03, 0.02], start_depth=0.04)
+    b = _doublet_fit([0.05, 0.03, 0.02], start_depth=0.04, soft=False)
+    for k in a.free_keys:
+        assert a.values[k] == b.values[k], k
 
 
 def test_resolve_moved_session_spectrum(tmp_path):

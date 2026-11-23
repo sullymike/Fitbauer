@@ -204,6 +204,15 @@ COMPONENT_FIT_BOUNDS = {
     "neel_mean_d_nm": (0.5, 100.0), "neel_sigma": (0.01, 1.5),
     "neel_log10_tau0": (-12.0, -6.0), "neel_bins": (3.0, 80.0),
 }
+# Cotas BLANDAS: el ajuste trabaja dentro de ellas y, si un parámetro acaba
+# pegado a una, se suelta hasta la cota dura y se refina desde ahí (ver
+# fit_engine.fit_discrete). La profundidad se ajusta en 0–0.30, como siempre,
+# y solo pasa de ahí si los datos lo piden (doblete con líneas del 33 %).
+# Con la cota dura de 1 desde el principio, el multiarranque, la DE y el
+# escalado del TRF de scipy (que depende de la distancia a las cotas)
+# cambiaban y dejaban ajustes multisitio en mínimos peores (banco NORMOS,
+# D1_n05: χ²ᵣ 0.05 → 0.91).
+COMPONENT_SOFT_BOUNDS = {"depth": (0.0, 0.30)}
 
 
 # Especificación de los controles del panel de calibración.

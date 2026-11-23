@@ -33,6 +33,7 @@ from core.params import (
     ACTIVE_PARAM_ORDER as _ACTIVE_PARAM_ORDER,
     COMPONENT_KINDS as _COMPONENT_KINDS,
     COMPONENT_FIT_BOUNDS as _PARAM_BOUNDS,
+    COMPONENT_SOFT_BOUNDS as _SOFT_BOUNDS,
     GLOBAL_FIT_BOUNDS as _GLOBAL_BOUNDS,
     INTENSITY_MODES as _INTENSITY_MODES_TUPLE,
     PARAM_ORDER as _PARAM_ORDER,
@@ -220,14 +221,18 @@ class ModelState:
                 idx=idx, enabled=bool(self.sextet_enabled.get(idx, False)),
                 kind=kind, intensity_mode=imode, quad_treatment=qtreat))
         bounds = dict(_GLOBAL_BOUNDS)
+        soft_bounds: dict[str, tuple[float, float]] = {}
         for idx in self.sextet_enabled:
             for name, rng in _PARAM_BOUNDS.items():
                 bounds[f"s{idx}_{name}"] = rng
+            for name, rng in _SOFT_BOUNDS.items():
+                soft_bounds[f"s{idx}_{name}"] = rng
         if self.absorber_model == "transmission":
             # En transmisión "depth" es profundidad ÓPTICA (τ puede superar 1):
             # se relaja el límite superior solo en este modo.
             for idx in self.sextet_enabled:
                 bounds[f"s{idx}_depth"] = (0.0, 5.0)
+                soft_bounds.pop(f"s{idx}_depth", None)
         if self.wide_delta:
             vmax_abs = abs(float(self.vars.get("vmax", 12.0)))
             for idx in self.sextet_enabled:
@@ -249,8 +254,8 @@ class ModelState:
                 bounds["center"] = fold_center_window(n, drive_form=self.drive_form)
         return FitState(
             velocity=velocity, y_data=y_data, sigma_data=sigma_data,
-            values=values, fixed=fixed, bounds=bounds, components=components,
-            constraints=list(self.constraints),
+            values=values, fixed=fixed, bounds=bounds, soft_bounds=soft_bounds,
+            components=components, constraints=list(self.constraints),
             likelihood=self.likelihood, robust_loss=self.robust_loss,
             line_profile=self.line_profile,
             voigt_sigma=float(values.get("voigt_sigma", 0.05)),
