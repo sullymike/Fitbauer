@@ -810,9 +810,14 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
 
     # 5c. Cotas blandas pegadas: se sueltan hasta la dura y se refina desde
     # el mejor punto (p. ej. un doblete con líneas más profundas que 0.30).
-    tol_b = 1e-3 * np.maximum(hi_arr - lo_arr, 1e-12)
-    stuck = (((result.x >= hi_arr - tol_b) & (hi_arr < hard_hi))
-             | ((result.x <= lo_arr + tol_b) & (lo_arr > hard_lo)))
+    # Solo pueden estar pegados los parámetros con cota blanda (finita y más
+    # estrecha que la dura); así no se opera con cotas infinitas.
+    soft_hi = np.isfinite(hi_arr) & (hi_arr < hard_hi)
+    soft_lo = np.isfinite(lo_arr) & (lo_arr > hard_lo)
+    span = np.where(np.isfinite(hi_arr - lo_arr), hi_arr - lo_arr, 0.0)
+    tol_b = 1e-3 * np.maximum(span, 1e-12)
+    stuck = ((soft_hi & (result.x >= np.where(soft_hi, hi_arr, 0.0) - tol_b))
+             | (soft_lo & (result.x <= np.where(soft_lo, lo_arr, 0.0) + tol_b)))
     if np.any(stuck):
         lo_arr = np.where(stuck, hard_lo, lo_arr)
         hi_arr = np.where(stuck, hard_hi, hi_arr)
