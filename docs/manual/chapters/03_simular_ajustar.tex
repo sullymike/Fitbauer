@@ -381,15 +381,14 @@ Aun así, un mismo modelo no da el mismo $\chi^2_r$ en los dos programas, porque
 los datos doblados no son iguales: los de WMOSS están suavizados (véase el
 doblado en el capítulo de carga de datos) y su $\sigma$ no lo descuenta, así que
 su $\chi^2_r$ sale más bajo. En un espectro real de cuatro dobletes estrechos,
-una misma curva daba $2{,}42$ sobre los datos doblados por WMOSS y $3{,}07$
+una misma curva daba $2{,}42$ sobre los datos doblados por WMOSS y $3{,}12$
 sobre los doblados por Fitbauer; los ajustes de cada programa, con parámetros
-casi iguales, $2{,}42$ y $2{,}89$.
+casi iguales, $2{,}42$ y $2{,}94$.
 
 \begin{nota}
-Para comparar programas, compare parámetros y curvas, no el $\chi^2_r$. Fitbauer
-tampoco está libre del efecto: con un punto de doblado alejado del semientero su
-interpolación cúbica reduce la varianza hasta al $76\%$ y el $\chi^2_r$ sale
-hasta un $24\%$ bajo. NORMOS, que no interpola, no tiene ese sesgo.
+Para comparar programas, compare parámetros y curvas, no el $\chi^2_r$. Fitbauer descuenta el suavizado de su propia interpolación cúbica (hasta al
+$76\%$ de la varianza con centro entero), así que su $\chi^2_r$ es correcto con
+cualquier punto de doblado. NORMOS no interpola y no lo necesita.
 \end{nota}
 
 \subsection{Estimación de incertidumbres}

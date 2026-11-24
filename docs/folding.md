@@ -136,8 +136,14 @@ interpolar; simulación con 200 000 cuentas por canal):
 | Cúbica (Fitbauer) | 0,99 | 0,97 | 0,90 | 0,83 | 0,77 | 0,76 |
 | Lineal | 1,00 | 0,82 | 0,68 | 0,58 | 0,52 | 0,50 |
 
-La σ del ajuste sale de las cuentas (`fold_and_normalize`) y **no** descuenta este
-suavizado, así que el χ² reducido sale hasta un 24 % bajo con centro entero.
+La σ del ajuste (`fold_and_normalize`) **descuenta** este suavizado con
+`fold_noise_factor`: la varianza de Poisson del punto doblado se multiplica por
+g = Σ w², la suma de los cuadrados de los pesos de la interpolación en el desfase
+f = frac(centro − 0,5), que es el mismo para los dos canales del par y para todos los
+puntos. Así χ²ᵣ y los errores no dependen de la fracción del centro, y los parámetros
+ajustados no cambian (con el centro libre se quita además un sesgo: el χ² ya no
+premia los centros fraccionarios). Antes no se descontaba y χ²ᵣ salía hasta un 24 %
+bajo con centro entero.
 
 - **NORMOS** trunca el punto de doblado y suma canales enteros: no suaviza, pero
   desalinea los pares hasta medio canal.
@@ -152,7 +158,7 @@ suavizado, así que el χ² reducido sale hasta un 24 % bajo con centro entero.
   base en Nvar. Reconstruyendo las cuentas de sus `.b` (cabecera: BL20 y área de
   absorción) se reproduce exactamente el valor que imprime. Como sus datos están
   suavizados, el mismo modelo da un χ²ᵣ más bajo en WMOSS: en un espectro real de
-  cuatro dobletes estrechos, 2,42 sobre sus datos y 3,07 sobre los de Fitbauer para la
+  cuatro dobletes estrechos, 2,42 sobre sus datos y 3,12 sobre los de Fitbauer para la
   misma curva. Entre programas se comparan parámetros y curvas, no χ²ᵣ.
 
 ---

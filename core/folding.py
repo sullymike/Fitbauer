@@ -285,8 +285,8 @@ EDGE_OUTLIER_REL_DROP = 0.2
 #:
 #: Interpolar también SUAVIZA el ruido: con centro entero (el peor caso) la
 #: varianza del punto doblado baja al 76 % de la de Poisson con la cúbica y al
-#: 50 % con la lineal. La σ de :func:`fold_and_normalize` sale de las cuentas y
-#: no lo descuenta, así que χ²ᵣ sale hasta un 24 % bajo lejos del semientero.
+#: 50 % con la lineal. La σ de :func:`fold_and_normalize` lo descuenta con
+#: :func:`fold_noise_factor` (antes no, y χ²ᵣ salía hasta un 24 % bajo).
 #: WMOSS (suma de mitades con punto fraccionario y, opcionalmente, reproyección
 #: por interpolación a escala lineal) suaviza más: en espectros reales, el 38 %
 #: de la varianza de Poisson entre puntos vecinos. Su χ² es el mismo estadístico
@@ -391,6 +391,38 @@ def interp_channel_1based(counts: np.ndarray, channel: float) -> float:
     if frac < 1e-12:
         return float(counts[lo - 1])
     return float((1.0 - frac) * counts[lo - 1] + frac * counts[lo])
+
+
+_NOISE_FACTOR_CACHE: dict[tuple[int, float], float] = {}
+
+
+def fold_noise_factor(center: float, order: int | None = None) -> float:
+    """Varianza de un punto doblado respecto a la de Poisson sin interpolar.
+
+    Los dos canales de cada par se muestrean con el mismo desfase
+    ``f = frac(center − 0.5)`` respecto a los canales enteros, así que el
+    punto doblado es ``½·[Σ w_j c_j + Σ w_j c'_j]`` con los pesos ``w_j`` de
+    la interpolación en ese desfase y su varianza es ``g·folded/2`` con
+    ``g = Σ w_j²``. Interpolar promedia canales vecinos: ``g = 1`` con centro
+    semientero (no se interpola) y baja con centro entero a 0.76 con la
+    cúbica y a 0.50 con la lineal. Sin este factor la σ sobrestimaba el
+    ruido y χ²ᵣ salía hasta un 24 % bajo (ver docs/folding.md). Solo corrige
+    la varianza de cada punto: la correlación entre vecinos no entra en χ².
+    """
+    k = FOLD_INTERP_ORDER_DEFAULT if order is None else int(order)
+    f = round(float(center - 0.5) % 1.0, 4)
+    if f in (0.0, 1.0):
+        return 1.0
+    if k <= 1:
+        return (1.0 - f) ** 2 + f ** 2
+    key = (k, f)
+    if key not in _NOISE_FACTOR_CACHE:
+        from scipy.interpolate import make_interp_spline
+        m = 41
+        x = np.arange(1, m + 1, dtype=float)
+        weights = make_interp_spline(x, np.eye(m), k=k)(21.0 + f)
+        _NOISE_FACTOR_CACHE[key] = float(np.sum(weights ** 2))
+    return _NOISE_FACTOR_CACHE[key]
 
 
 def fold_integer_or_half(
@@ -643,7 +675,8 @@ def fold_and_normalize(counts: np.ndarray, center: float,
         folded = folded[n:-n]
     norm = float(np.percentile(folded, 90)) if folded.size else 1.0
     norm = norm or 1.0
-    sigma = np.sqrt(np.maximum(folded / 2.0, 1.0)) / norm
+    var = fold_noise_factor(center, order) * folded / 2.0
+    sigma = np.sqrt(np.maximum(var, 1.0)) / norm
     y = folded / norm
     return folded, sigma, y, norm
 

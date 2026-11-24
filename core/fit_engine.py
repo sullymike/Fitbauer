@@ -241,7 +241,8 @@ def _refold_at_center(
 
     Réplica del ``data_for_center`` de la GUI Tk: dobla al estilo Normos, normaliza
     por el percentil 90 (cae a ``fallback_norm`` si es 0) y estima σ Poisson del
-    promedio de dos canales (Var ≈ folded/2), con un suelo para evitar pesos
+    promedio de dos canales (Var ≈ g·folded/2, g = :func:`core.folding.fold_noise_factor`
+    por el suavizado de la interpolación), con un suelo para evitar pesos
     infinitos. Si ``n_points`` es menor que el espectro doblado en un número par
     de canales, recorta bordes simétricamente (mismo criterio que
     ``fold_and_normalize`` con ``edge_trim``) para casar con la malla del modelo.
@@ -258,7 +259,9 @@ def _refold_at_center(
     if not norm:
         norm = fallback_norm or 1.0
     y = folded / norm
-    sig = np.sqrt(np.maximum(folded / 2.0, 1.0)) / max(norm, 1e-12)
+    from core.folding import fold_noise_factor
+    var = fold_noise_factor(center) * folded / 2.0     # interpolar suaviza el ruido
+    sig = np.sqrt(np.maximum(var, 1.0)) / max(norm, 1e-12)
     return y, np.maximum(sig, 1e-9)
 
 

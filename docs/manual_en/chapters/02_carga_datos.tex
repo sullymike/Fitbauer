@@ -249,10 +249,10 @@ Variance / Poisson, linear           & 1.00 & 0.82 & 0.68 & 0.58 & 0.52 & 0.50 \
 \end{center}
 
 \noindent NORMOS does not interpolate (it adds whole channels): it does not
-smooth, but it misaligns the pairs by up to half a channel. No program discounts
-this smoothing in the fit $\sigma$, which comes from the counts; that is why the
-reduced $\chi^2$ comes out somewhat low when the centre is far from a half-integer
-(§\ref{sec:chi2-programas}).
+smooth, but it misaligns the pairs by up to half a channel. Fitbauer discounts this smoothing: it multiplies the variance of each point by
+the factor in the table, so the reduced $\chi^2$ and the errors do not depend on
+the centre fraction, and the fitted parameters do not change (the factor is the
+same for every point). WMOSS does not discount it (§\ref{sec:chi2-programas}).
 
 \paragraph{WMOSS folding.} WMOSS adds the two halves of the sweep (Fitbauer
 averages them, which is the same once normalised) with a fractional folding

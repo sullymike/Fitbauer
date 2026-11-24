@@ -137,8 +137,14 @@ simulation with 200,000 counts per channel):
 | Cubic (Fitbauer) | 0.99 | 0.97 | 0.90 | 0.83 | 0.77 | 0.76 |
 | Linear | 1.00 | 0.82 | 0.68 | 0.58 | 0.52 | 0.50 |
 
-The fit σ comes from the counts (`fold_and_normalize`) and does **not** discount this
-smoothing, so the reduced χ² comes out up to 24 % low with an integer centre.
+The fit σ (`fold_and_normalize`) **discounts** this smoothing with
+`fold_noise_factor`: the Poisson variance of the folded point is multiplied by
+g = Σ w², the sum of the squared interpolation weights at the offset
+f = frac(centre − 0.5), which is the same for both channels of the pair and for every
+point. So χ²ᵣ and the errors do not depend on the centre fraction, and the fitted
+parameters do not change (with a free centre it also removes a bias: χ² no longer
+rewards fractional centres). Previously it was not discounted and χ²ᵣ came out up to
+24 % low with an integer centre.
 
 - **NORMOS** truncates the folding point and adds whole channels: no smoothing, but
   the pairs are misaligned by up to half a channel.
@@ -153,7 +159,7 @@ smoothing, so the reduced χ² comes out up to 24 % low with an integer centre.
   Nvar. Rebuilding the counts from its `.b` files (header: BL20 and absorption area)
   reproduces the printed value exactly. Because its data are smoothed, the same model
   gives a lower χ²ᵣ in WMOSS: in a real spectrum of four narrow doublets, 2.42 on its
-  data and 3.07 on Fitbauer's for the same curve. Across programs, compare parameters
+  data and 3.12 on Fitbauer's for the same curve. Across programs, compare parameters
   and curves, not χ²ᵣ.
 
 ---

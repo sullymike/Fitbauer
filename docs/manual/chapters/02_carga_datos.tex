@@ -245,9 +245,10 @@ Varianza / Poisson, lineal            & 1,00 & 0,82 & 0,68 & 0,58 & 0,52 & 0,50 
 \end{center}
 
 \noindent NORMOS no interpola (suma canales enteros): no suaviza, pero desalinea
-los pares hasta medio canal. Ningún programa descuenta este suavizado en la
-$\sigma$ del ajuste, que sale de las cuentas; por eso el $\chi^2$ reducido sale
-algo bajo cuando el centro se aleja del semientero (§\ref{sec:chi2-programas}).
+los pares hasta medio canal. Fitbauer descuenta este suavizado: multiplica la varianza de cada punto por el
+factor de la tabla, así que el $\chi^2$ reducido y los errores no dependen de la
+fracción del centro, y los parámetros ajustados no cambian (el factor es el mismo
+para todos los puntos). WMOSS no lo descuenta (§\ref{sec:chi2-programas}).
 
 \paragraph{Doblado de WMOSS.} WMOSS suma las dos mitades del barrido (Fitbauer
 las promedia, que una vez normalizado es lo mismo) con un punto de doblado

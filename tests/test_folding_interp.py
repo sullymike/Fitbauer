@@ -267,3 +267,27 @@ def test_una_linea_de_absorcion_en_el_borde_no_se_recorta():
     for i, factor in enumerate((0.88, 0.90, 0.93, 0.96, 0.98)):
         f[-1 - i] = base * factor
     assert edge_outlier_trim(f) == 0
+
+
+@pytest.mark.parametrize("center", [512.5, 512.3, 512.0])
+@pytest.mark.parametrize("order", [3, 1])
+def test_sigma_discounts_interpolation_smoothing(center, order):
+    """Interpolar al doblar promedia canales vecinos: la σ lo descuenta
+    (fold_noise_factor) y el χ²ᵣ del ruido de Poisson puro es 1 con cualquier
+    fracción del centro (antes bajaba a 0.76 con centro entero y cúbica)."""
+    from core.folding import fold_and_normalize
+    rng = np.random.default_rng(3)
+    mu = 150000.0
+    vals = []
+    for _ in range(60):
+        counts = rng.poisson(mu, 1024).astype(float)
+        _f, sigma, y, norm = fold_and_normalize(counts, center, order=order)
+        vals.append(np.mean(((y[10:-10] - mu / norm) / sigma[10:-10]) ** 2))
+    assert abs(np.mean(vals) - 1.0) < 0.03
+
+
+def test_fold_noise_factor_values():
+    from core.folding import fold_noise_factor
+    assert fold_noise_factor(512.5) == 1.0
+    assert abs(fold_noise_factor(512.0) - 0.756) < 0.005          # cúbica
+    assert abs(fold_noise_factor(512.0, order=1) - 0.5) < 1e-9    # lineal

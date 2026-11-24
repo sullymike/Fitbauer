@@ -2,6 +2,18 @@
 
 ## Sin publicar
 
+- **La σ descuenta el suavizado de la interpolación del doblado.** Con un punto de
+  doblado fraccionario, interpolar promedia canales vecinos: la varianza del punto
+  doblado baja hasta al 76 % de la de Poisson (centro entero, interpolación cúbica) y
+  χ²ᵣ salía hasta un 24 % bajo, con errores sobrestimados en la misma proporción
+  (raíz). `core.folding.fold_noise_factor` da ese factor (g = Σ w², pesos de la
+  interpolación en el desfase del par) y `fold_and_normalize` y el re-doblado del
+  ajuste con centro libre lo aplican. Con centro semientero (g = 1) no cambia nada;
+  en otro caso los parámetros ajustados tampoco (el factor es el mismo para todos los
+  puntos), solo χ²ᵣ y los errores; con el centro libre se quita además el sesgo que
+  premiaba los centros fraccionarios. Ruido de Poisson puro da ahora χ²ᵣ = 1 con
+  cualquier centro (test).
+
 - **Documentado: doblado de WMOSS frente al de Fitbauer y su efecto en χ².** WMOSS
   calcula el χ² igual que Fitbauer (σ² = cuentas sumadas del punto doblado,
   χ²ᵣ = χ²/(N − Nvar) con áreas y línea base), comprobado reconstruyendo las cuentas
