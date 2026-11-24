@@ -1,6 +1,6 @@
 # Changelog
 
-## Sin publicar
+## v5.3.0 — Espectros de cualquier equipo, equipos y calibraciones por fecha
 
 - **La σ descuenta el suavizado de la interpolación del doblado.** Con un punto de
   doblado fraccionario, interpolar promedia canales vecinos: la varianza del punto

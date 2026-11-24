@@ -11,15 +11,15 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/versi%C3%B3n-5.2.5-0e7490" alt="versión 5.2.5">
+  <img src="https://img.shields.io/badge/versi%C3%B3n-5.3.0-0e7490" alt="versión 5.3.0">
   <img src="https://img.shields.io/badge/validado%20frente%20a-NORMOS-2563eb" alt="validado frente a NORMOS">
-  <img src="https://img.shields.io/badge/tests-770%20en%20verde-16a34a" alt="770 tests en verde">
+  <img src="https://img.shields.io/badge/tests-933%20en%20verde-16a34a" alt="933 tests en verde">
   <img src="https://img.shields.io/badge/licencia-Apache%202.0-64748b" alt="Apache 2.0">
 </p>
 
 Programa de escritorio estable para cargar, doblar, simular y ajustar espectros Mössbauer de Fe-57.
 
-Versión estable actual: **v5.2.5**  
+Versión estable actual: **v5.3.0**  
 Arranque: `python fitbauer.py`  
 Ajuste por línea de comandos (headless): `mossbauer_fit_cli.py` (discreto) · `fit_bhf_distribution_cli.py` (distribuciones)
 
@@ -193,6 +193,8 @@ lo pendiente, con qué habría que tocar y cómo validarlo, en
 ## Funciones principales
 
 - Carga local de `.ws5` y `.adt`; descarga de espectros y calibraciones desde la web del laboratorio.
+- **Espectros de cualquier equipo**, abiertos por su contenido: un lector genérico deduce el bloque de datos, las columnas y el tipo de intensidad, con una ventana de importación para revisarlo y corregirlo. Doblar es una elección explícita (doblar, un solo barrido o dos ramas).
+- **Equipos y calibraciones por fecha** — cada equipo recuerda cómo leer y doblar sus ficheros y qué calibración de velocidad vale en cada fecha; también en el ajuste en serie y el CLI (`--instrument`).
 - Doblado del espectro con folding point fraccionario e interpolación cúbica.
 - **Ajuste cristalino** — singletes, dobletes y sextetes; perfiles Lorentziano/Voigt; verosimilitud Poisson o Gauss; pérdida robusta; χ²/AIC/BIC.
 - **Arranques múltiples** configurables y errores bootstrap Monte Carlo.

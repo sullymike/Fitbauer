@@ -11,15 +11,15 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.2.5-0e7490" alt="version 5.2.5">
+  <img src="https://img.shields.io/badge/version-5.3.0-0e7490" alt="version 5.3.0">
   <img src="https://img.shields.io/badge/validated%20against-NORMOS-2563eb" alt="validated against NORMOS">
-  <img src="https://img.shields.io/badge/tests-770%20passing-16a34a" alt="770 tests passing">
+  <img src="https://img.shields.io/badge/tests-933%20passing-16a34a" alt="933 tests passing">
   <img src="https://img.shields.io/badge/licence-Apache%202.0-64748b" alt="Apache 2.0">
 </p>
 
 Stable desktop application to load, fold, simulate and fit ⁵⁷Fe Mössbauer spectra.
 
-Current stable version: **v5.2.5**  
+Current stable version: **v5.3.0**  
 Launch: `python fitbauer.py`  
 Headless CLI fitting: `mossbauer_fit_cli.py` (discrete) · `fit_bhf_distribution_cli.py` (distributions)
 
@@ -190,6 +190,8 @@ what remains, with what to touch and how to validate it, is in
 ## Features
 
 - Load local `.ws5` and `.adt` files; download measurements and calibrations from the laboratory web database.
+- **Open spectra from any instrument** by their content: a generic reader works out the data block, columns and intensity type, with an import window to check and correct it. Folding is an explicit choice (fold, single sweep or two branches).
+- **Instruments and dated calibrations** — each instrument remembers how to read and fold its files and which velocity calibration applies on each date; also in batch fits and the CLI (`--instrument`).
 - Spectrum folding with a fractional folding point and cubic interpolation.
 - **Discrete fitting** — singlets, doublets and sextets; Lorentzian/Voigt profiles; Poisson or Gaussian likelihood; robust loss functions; χ²/AIC/BIC.
 - **Multi-start fitting** with configurable restarts and Monte Carlo bootstrap errors.
