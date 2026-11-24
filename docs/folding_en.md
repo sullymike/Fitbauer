@@ -40,10 +40,12 @@ precision (`find_best_integer_or_half_center`).
 ## Channel interpolation (`interp_channel_1based`)
 
 The folding point rarely falls on an integer channel. The function folds into $N/2$
-points in the Normos style, obtaining each count by **linear interpolation** between
-adjacent channels. At the edges (channels outside the range 1..N), **minimal linear
-extrapolation** is used, which avoids losing a channel for half-integer centers such
-as 255.5 in 512-channel spectra.
+points in the Normos style, obtaining each count by **interpolation** between
+channels: by default a **cubic** B-spline (`FOLD_INTERP_ORDER_DEFAULT = 3`; linear
+interpolation biases the recovered width by up to +9.5 %, cubic by +2.8 %). With a
+half-integer centre nothing is interpolated. At the edges (channels outside the range
+1..N), **minimal linear extrapolation** is used, which avoids losing a channel for
+half-integer centers such as 255.5 in 512-channel spectra.
 
 For each folded point $j$ (with $j = 0..N/2-1$):
 
@@ -120,6 +122,39 @@ inherit parameters:
 
 The final Normos values are translated into internal parameters
 (`s1_delta`, `s1_bhf`, `s1_quad`, `s1_gamma1`, `s1_depth`) as a starting point.
+
+---
+
+## Noise of a folded point and χ² (Fitbauer, NORMOS and WMOSS)
+
+Interpolation averages neighbouring channels: a folded point carries less noise than
+its counts suggest and is correlated with its neighbours. Variance of the folded point
+relative to Poisson, by centre fraction (0.5 = half-integer, no interpolation;
+simulation with 200,000 counts per channel):
+
+| Centre fraction | 0.5 | 0.4 | 0.3 | 0.2 | 0.1 | 0 |
+|---|---|---|---|---|---|---|
+| Cubic (Fitbauer) | 0.99 | 0.97 | 0.90 | 0.83 | 0.77 | 0.76 |
+| Linear | 1.00 | 0.82 | 0.68 | 0.58 | 0.52 | 0.50 |
+
+The fit σ comes from the counts (`fold_and_normalize`) and does **not** discount this
+smoothing, so the reduced χ² comes out up to 24 % low with an integer centre.
+
+- **NORMOS** truncates the folding point and adds whole channels: no smoothing, but
+  the pairs are misaligned by up to half a channel.
+- **WMOSS** (WMOSS4 manual ver. F, §4.1–4.3) adds the two halves of the sweep with a
+  fractional folding point, manual or automatic; with its velocity non-linearity
+  correction it first re-projects the unfolded data onto a linear scale by
+  interpolation. In real spectra folded by WMOSS, the variance of the difference
+  between neighbouring points in the flat region was 38 % of Poisson (Fitbauer, same
+  counts: 102 %).
+- **WMOSS χ².** Same statistic as Fitbauer: χ² = Σ (D − M)² / D with D the summed
+  counts of the folded point, and χ²ᵣ = χ² / (N − Nvar), with areas and baseline in
+  Nvar. Rebuilding the counts from its `.b` files (header: BL20 and absorption area)
+  reproduces the printed value exactly. Because its data are smoothed, the same model
+  gives a lower χ²ᵣ in WMOSS: in a real spectrum of four narrow doublets, 2.42 on its
+  data and 3.07 on Fitbauer's for the same curve. Across programs, compare parameters
+  and curves, not χ²ᵣ.
 
 ---
 

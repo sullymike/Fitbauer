@@ -228,6 +228,36 @@ punto de doblado, así que el propio doblado lo cancela. Una amplitud relativa
 por encima del $1\%$ delata un problema de geometría del espectrómetro y
 conviene mirarlo antes de dar el ajuste por bueno.
 
+\paragraph{Ruido del punto doblado.} Interpolar entre canales promedia canales
+vecinos: un punto doblado tiene algo menos de ruido del que indican sus cuentas
+y queda correlacionado con sus vecinos. Cuánto depende de la fracción del punto
+de doblado (fracción $0{,}5$ = centro semientero, sin interpolar):
+
+\begin{center}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+Fracción del centro & 0,5 & 0,4 & 0,3 & 0,2 & 0,1 & 0 \\
+\midrule
+Varianza / Poisson, cúbica (Fitbauer) & 0,99 & 0,97 & 0,90 & 0,83 & 0,77 & 0,76 \\
+Varianza / Poisson, lineal            & 1,00 & 0,82 & 0,68 & 0,58 & 0,52 & 0,50 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent NORMOS no interpola (suma canales enteros): no suaviza, pero desalinea
+los pares hasta medio canal. Ningún programa descuenta este suavizado en la
+$\sigma$ del ajuste, que sale de las cuentas; por eso el $\chi^2$ reducido sale
+algo bajo cuando el centro se aleja del semientero (§\ref{sec:chi2-programas}).
+
+\paragraph{Doblado de WMOSS.} WMOSS suma las dos mitades del barrido (Fitbauer
+las promedia, que una vez normalizado es lo mismo) con un punto de doblado
+fraccionario, manual o automático. Si se activa su corrección de no linealidad
+de la velocidad, antes reproyecta por interpolación los datos sin doblar sobre
+una escala lineal. Sus puntos doblados salen suavizados: en espectros reales
+doblados por WMOSS, la diferencia entre puntos vecinos de la zona plana tenía
+solo el $38\%$ de la varianza de Poisson; las mismas cuentas dobladas por
+Fitbauer daban el $102\%$.
+
 \begin{aviso}
 Un centro mal elegido produce líneas dobles o asimétricas. Si observa
 desdoblamientos espurios o un espectro «fantasma» desplazado, revise

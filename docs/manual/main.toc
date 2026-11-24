@@ -19,198 +19,205 @@
 \contentsline {chapter}{\numberline {3}Carga y visualización de datos}{13}{chapter.3}%
 \contentsline {section}{\numberline {3.1}Formatos admitidos}{13}{section.3.1}%
 \contentsline {section}{\numberline {3.2}Cargar un espectro}{13}{section.3.2}%
-\contentsline {section}{\numberline {3.3}El folding y el centro}{14}{section.3.3}%
-\contentsline {paragraph}{Cómo dobla Fitbauer.}{14}{section*.7}%
-\contentsline {paragraph}{Efecto geométrico.}{15}{section*.8}%
-\contentsline {subsection}{\numberline {3.3.1}Forma de onda: triangular o senoidal}{15}{subsection.3.3.1}%
-\contentsline {section}{\numberline {3.4}Normalización y ruido}{16}{section.3.4}%
-\contentsline {section}{\numberline {3.5}Visualización}{16}{section.3.5}%
-\contentsline {section}{\numberline {3.6}Comparar espectros}{16}{section.3.6}%
-\contentsline {section}{\numberline {3.7}Guardar, exportar y reutilizar}{18}{section.3.7}%
-\contentsline {section}{\numberline {3.8}Interoperabilidad con NORMOS: ficheros \texttt {.JOB}}{18}{section.3.8}%
-\contentsline {paragraph}{Los convenios de NORMOS.}{19}{section*.14}%
-\contentsline {chapter}{\numberline {4}Simular y ajustar}{21}{chapter.4}%
-\contentsline {section}{\numberline {4.1}El modelo directo}{21}{section.4.1}%
-\contentsline {subsection}{\numberline {4.1.1}Las matemáticas del modelo}{22}{subsection.4.1.1}%
-\contentsline {subsection}{\numberline {4.1.2}Perfil de línea y modelo de absorbente}{22}{subsection.4.1.2}%
-\contentsline {subsection}{\numberline {4.1.3}Intensidades y textura del sexteto}{23}{subsection.4.1.3}%
-\contentsline {section}{\numberline {4.2}Simular sin ajustar}{23}{section.4.2}%
-\contentsline {paragraph}{Para qué sirve simular.}{23}{section*.18}%
-\contentsline {section}{\numberline {4.3}Ajustar un calibrado de $\alpha $-Fe}{24}{section.4.3}%
-\contentsline {section}{\numberline {4.4}Opciones de ajuste}{25}{section.4.4}%
-\contentsline {subsection}{\numberline {4.4.1}Restricciones y presets físicos}{25}{subsection.4.4.1}%
-\contentsline {section}{\numberline {4.5}Qué parámetros se ven}{25}{section.4.5}%
-\contentsline {paragraph}{Parámetros compactos.}{26}{section*.20}%
-\contentsline {section}{\numberline {4.6}Calidad del ajuste y errores}{26}{section.4.6}%
-\contentsline {subsection}{\numberline {4.6.1}Los estadísticos y para qué sirven}{26}{subsection.4.6.1}%
-\contentsline {subsection}{\numberline {4.6.2}Estimación de incertidumbres}{26}{subsection.4.6.2}%
-\contentsline {section}{\numberline {4.7}Herramientas de ayuda al ajuste}{27}{section.4.7}%
-\contentsline {section}{\numberline {4.8}Componentes de relajación magnética}{27}{section.4.8}%
-\contentsline {chapter}{\numberline {5}Distribuciones de campo hiperfino}{29}{chapter.5}%
-\contentsline {section}{\numberline {5.1}La física: por qué aparecen las distribuciones}{29}{section.5.1}%
-\contentsline {subsection}{\numberline {5.1.1}Del cristal perfecto al material real}{29}{subsection.5.1.1}%
-\contentsline {subsection}{\numberline {5.1.2}Qué es $P(B_{\mathrm {hf}})$}{29}{subsection.5.1.2}%
-\contentsline {subsection}{\numberline {5.1.3}Distribución no es lo mismo que línea ancha}{30}{subsection.5.1.3}%
-\contentsline {subsection}{\numberline {5.1.4}Qué le dice cada rasgo de la distribución}{30}{subsection.5.1.4}%
-\contentsline {section}{\numberline {5.2}Idea: de un sexteto a una distribución}{31}{section.5.2}%
-\contentsline {section}{\numberline {5.3}Simular el espectro de un caso cristalino}{31}{section.5.3}%
-\contentsline {section}{\numberline {5.4}El panel de distribución, control a control}{31}{section.5.4}%
-\contentsline {subsection}{\numberline {5.4.1}Qué se distribuye: la variable}{32}{subsection.5.4.1}%
-\contentsline {subsection}{\numberline {5.4.2}Forma y regularizador}{33}{subsection.5.4.2}%
-\contentsline {subsection}{\numberline {5.4.3}Parámetros del núcleo (cada subespectro)}{33}{subsection.5.4.3}%
-\contentsline {subsection}{\numberline {5.4.4}Física del kernel: 1er orden o Hamiltoniano (v4.19)}{33}{subsection.5.4.4}%
-\contentsline {subsection}{\numberline {5.4.5}Fuente polarizada (v4.20)}{34}{subsection.5.4.5}%
-\contentsline {subsection}{\numberline {5.4.6}Correlación con el campo: $\kappa _\delta $ y $\kappa _q$}{34}{subsection.5.4.6}%
-\contentsline {subsection}{\numberline {5.4.7}La malla de valores}{34}{subsection.5.4.7}%
-\contentsline {subsection}{\numberline {5.4.8}La regularización: $\log \alpha $ y atajos}{34}{subsection.5.4.8}%
-\contentsline {subsection}{\numberline {5.4.9}Controles de la 2D}{34}{subsection.5.4.9}%
-\contentsline {subsection}{\numberline {5.4.10}Otros}{35}{subsection.5.4.10}%
-\contentsline {section}{\numberline {5.5}Formas de la distribución}{35}{section.5.5}%
-\contentsline {subsection}{\numberline {5.5.1}Histograma (Hesse--Rübartsch)}{35}{subsection.5.5.1}%
-\contentsline {subsection}{\numberline {5.5.2}Gaussiana}{36}{subsection.5.5.2}%
-\contentsline {subsection}{\numberline {5.5.3}VBF (Voigt-Based Fitting, Rancourt--Ping)}{36}{subsection.5.5.3}%
-\contentsline {paragraph}{Anchura acotada.}{36}{section*.24}%
-\contentsline {subsection}{\numberline {5.5.4}Binomial}{36}{subsection.5.5.4}%
-\contentsline {subsection}{\numberline {5.5.5}Fija}{37}{subsection.5.5.5}%
-\contentsline {subsection}{\numberline {5.5.6}Czjzek y Czjzek extendido}{37}{subsection.5.5.6}%
-\contentsline {subsection}{\numberline {5.5.7}Le Caër (con campo)}{38}{subsection.5.5.7}%
-\contentsline {subsection}{\numberline {5.5.8}2D: dos variables a la vez}{38}{subsection.5.5.8}%
-\contentsline {subsection}{\numberline {5.5.9}Áreas de cada gaussiana (VBF)}{38}{subsection.5.5.9}%
-\contentsline {section}{\numberline {5.6}Regularización del histograma}{38}{section.5.6}%
-\contentsline {subsection}{\numberline {5.6.1}Regularizadores}{39}{subsection.5.6.1}%
-\contentsline {subsection}{\numberline {5.6.2}El parámetro $\alpha $}{39}{subsection.5.6.2}%
-\contentsline {subsection}{\numberline {5.6.3}Anclaje de los bordes de la malla}{39}{subsection.5.6.3}%
-\contentsline {section}{\numberline {5.7}La L-curve: elegir $\alpha $ con criterio}{39}{section.5.7}%
-\contentsline {subsection}{\numberline {5.7.1}Qué es y por qué tiene forma de L}{39}{subsection.5.7.1}%
-\contentsline {subsection}{\numberline {5.7.2}El diálogo, panel a panel}{40}{subsection.5.7.2}%
-\contentsline {subsection}{\numberline {5.7.3}Elegir $\alpha $: automático o a mano}{40}{subsection.5.7.3}%
-\contentsline {subsection}{\numberline {5.7.4}Cómo interpretarla en la práctica}{41}{subsection.5.7.4}%
-\contentsline {section}{\numberline {5.8}Correlación $\delta (H)$ y $\Delta E_{Q}(H)$}{41}{section.5.8}%
-\contentsline {section}{\numberline {5.9}Distribuciones 2D: $P(B_{\mathrm {hf}}, \Delta E_{Q})$}{42}{section.5.9}%
-\contentsline {section}{\numberline {5.10}Componentes nítidos junto a la distribución}{42}{section.5.10}%
-\contentsline {section}{\numberline {5.11}Paso a paso: ajustar una $P(B_{\mathrm {hf}})$ desde cero}{43}{section.5.11}%
-\contentsline {part}{Anexos matemáticos}{43}{Item.35}%
-\contentsline {chapter}{\numberline {A}Manual matemático del motor de ajuste}{44}{appendix.Alph1}%
-\contentsline {section}{\numberline {A.1}Modelo directo}{44}{section.Alph1.1}%
-\contentsline {subsection}{\numberline {A.1.1}Espectro de transmisión}{44}{subsection.Alph1.1.1}%
-\contentsline {subsubsection}{Forma de onda del drive y eje de velocidad}{44}{section*.26}%
-\contentsline {subsection}{\numberline {A.1.2}Perfiles de línea}{45}{subsection.Alph1.1.2}%
-\contentsline {subsubsection}{Lorentziana}{45}{section*.27}%
-\contentsline {subsubsection}{Pseudo-Voigt (Faddeeva)}{45}{section*.28}%
-\contentsline {subsection}{\numberline {A.1.3}Sextete magnético}{46}{subsection.Alph1.1.3}%
-\contentsline {subsubsection}{Tratamiento de primer orden}{46}{section*.31}%
-\contentsline {subsubsection}{Tratamiento de Kündig (Hamiltoniano completo axial)}{46}{section*.33}%
-\contentsline {subsubsection}{Promedio policristalino}{48}{section*.34}%
-\contentsline {subsection}{\numberline {A.1.4}Intensidades y textura}{49}{subsection.Alph1.1.4}%
-\contentsline {subsubsection}{Intensidades libres}{49}{section*.36}%
-\contentsline {subsubsection}{Parámetro de textura}{49}{section*.37}%
-\contentsline {subsection}{\numberline {A.1.5}Doblete y singlete}{49}{subsection.Alph1.1.5}%
-\contentsline {section}{\numberline {A.2}Ajuste discreto}{50}{section.Alph1.2}%
-\contentsline {subsection}{\numberline {A.2.1}Parametrización y restricciones}{50}{subsection.Alph1.2.1}%
-\contentsline {subsection}{\numberline {A.2.2}Estadística de los datos}{50}{subsection.Alph1.2.2}%
-\contentsline {subsubsection}{Modo Gauss}{50}{section*.39}%
-\contentsline {subsubsection}{Modo Poisson (IRLS)}{50}{section*.40}%
-\contentsline {subsubsection}{Propagación de la incertidumbre de calibración}{50}{section*.41}%
-\contentsline {subsection}{\numberline {A.2.3}Funcional de coste y pérdidas robustas}{51}{subsection.Alph1.2.3}%
-\contentsline {subsection}{\numberline {A.2.4}Optimización}{51}{subsection.Alph1.2.4}%
-\contentsline {subsubsection}{Región de confianza (TRF)}{51}{section*.43}%
-\contentsline {subsubsection}{Arranque múltiple}{51}{section*.44}%
-\contentsline {subsubsection}{Optimización global (opcional)}{52}{section*.46}%
-\contentsline {subsection}{\numberline {A.2.5}Incertidumbres y diagnósticos}{52}{subsection.Alph1.2.5}%
-\contentsline {subsubsection}{Covarianza}{52}{section*.47}%
-\contentsline {subsubsection}{Estadísticos de bondad de ajuste}{52}{section*.49}%
-\contentsline {subsubsection}{Diagnósticos del residuo}{53}{section*.50}%
-\contentsline {subsubsection}{Bootstrap}{53}{section*.51}%
-\contentsline {section}{\numberline {A.3}Ajuste de distribución}{53}{section.Alph1.3}%
-\contentsline {subsection}{\numberline {A.3.1}Discretización y núcleo}{53}{subsection.Alph1.3.1}%
-\contentsline {subsection}{\numberline {A.3.2}Sistema lineal aumentado}{54}{subsection.Alph1.3.2}%
-\contentsline {subsubsection}{Preacondicionamiento por escala de columnas}{54}{section*.52}%
-\contentsline {subsection}{\numberline {A.3.3}Regularización}{54}{subsection.Alph1.3.3}%
-\contentsline {subsubsection}{Tikhonov (suavidad, L2)}{54}{section*.54}%
-\contentsline {subsubsection}{Variación total (bordes, L1)}{55}{section*.55}%
-\contentsline {subsubsection}{Máxima entropía (MaxEnt)}{55}{section*.56}%
-\contentsline {subsection}{\numberline {A.3.4}Verosimilitud Poisson en la distribución}{55}{subsection.Alph1.3.4}%
-\contentsline {subsection}{\numberline {A.3.5}Grados de libertad efectivos}{55}{subsection.Alph1.3.5}%
-\contentsline {subsection}{\numberline {A.3.6}Selección del parámetro de regularización}{55}{subsection.Alph1.3.6}%
-\contentsline {subsubsection}{$\alpha $ adimensional}{55}{section*.57}%
-\contentsline {subsection}{\numberline {A.3.7}Barras de error de $P(B_{\mathrm {hf}})$}{56}{subsection.Alph1.3.7}%
-\contentsline {subsection}{\numberline {A.3.8}Distribuciones paramétricas}{57}{subsection.Alph1.3.8}%
-\contentsline {paragraph}{VBF (Voigt-Based Fitting, Rancourt--Ping 1991).}{57}{section*.58}%
-\contentsline {subsection}{\numberline {A.3.9}Correlación $\delta (H)$ y $\Delta E_{Q}(H)$ en el núcleo}{57}{subsection.Alph1.3.9}%
-\contentsline {subsection}{\numberline {A.3.10}Refinamiento global (VARPRO)}{57}{subsection.Alph1.3.10}%
-\contentsline {paragraph}{Correlación de $P$ con los globales.}{58}{section*.59}%
-\contentsline {section}{\numberline {A.4}Apéndices}{58}{section.Alph1.4}%
-\contentsline {subsection}{\numberline {A.4.1}Calibración del sextete}{58}{subsection.Alph1.4.1}%
-\contentsline {subsection}{\numberline {A.4.2}Cotas de los parámetros}{58}{subsection.Alph1.4.2}%
-\contentsline {subsection}{\numberline {A.4.3}Función de Faddeeva}{59}{subsection.Alph1.4.3}%
-\contentsline {subsection}{\numberline {A.4.4}Resumen de la pila de optimización}{59}{subsection.Alph1.4.4}%
-\contentsline {chapter}{\numberline {B}Ajuste por Voigt (VBF)}{60}{appendix.Alph2}%
-\contentsline {section}{\numberline {B.1}Motivación: una base de gaussianas para $P(B_{\mathrm {hf}})$}{60}{section.Alph2.1}%
-\contentsline {section}{\numberline {B.2}Del campo al espectro: el modelo directo}{60}{section.Alph2.2}%
-\contentsline {paragraph}{Núcleo gaussiano normalizado a área unidad.}{61}{section*.60}%
-\contentsline {section}{\numberline {B.3}Por qué «basado en Voigt»}{61}{section.Alph2.3}%
-\contentsline {paragraph}{La doble lectura del ensanchamiento gaussiano.}{61}{section*.61}%
-\contentsline {section}{\numberline {B.4}Problema de mínimos cuadrados y parametrización}{61}{section.Alph2.4}%
-\contentsline {section}{\numberline {B.5}Áreas, poblaciones y porcentajes}{62}{section.Alph2.5}%
-\contentsline {section}{\numberline {B.6}Correlación $\delta (H)$ y $\Delta E_{Q}(H)$}{63}{section.Alph2.6}%
-\contentsline {section}{\numberline {B.7}Caso $N=1$: la forma «Gaussiana»}{63}{section.Alph2.7}%
-\contentsline {section}{\numberline {B.8}VBF frente al histograma}{63}{section.Alph2.8}%
-\contentsline {section}{\numberline {B.9}Buenas prácticas}{63}{section.Alph2.9}%
-\contentsline {chapter}{\numberline {C}Distribuciones de desplazamiento isomérico $P(\mathrm {IS})$}{65}{appendix.Alph3}%
-\contentsline {section}{\numberline {C.1}Motivación física}{65}{section.Alph3.1}%
-\contentsline {section}{\numberline {C.2}Distribución unidimensional $P(\delta )$}{66}{section.Alph3.2}%
-\contentsline {section}{\numberline {C.3}Distribución bidimensional $P(\delta ,\Delta E_Q)$}{66}{section.Alph3.3}%
-\contentsline {section}{\numberline {C.4}Interpretación de $P(\delta ,\Delta E_Q)$}{66}{section.Alph3.4}%
-\contentsline {section}{\numberline {C.5}Distribución $P(B_{\mathrm {hf}},\delta )$}{67}{section.Alph3.5}%
-\contentsline {section}{\numberline {C.6}Riesgos de identificabilidad}{67}{section.Alph3.6}%
-\contentsline {section}{\numberline {C.7}Buenas prácticas}{67}{section.Alph3.7}%
-\contentsline {chapter}{\numberline {D}Distribuciones bidimensionales $P(B_{\mathrm {hf}},\Delta E_{Q})$}{69}{appendix.Alph4}%
-\contentsline {section}{\numberline {D.1}Motivación}{69}{section.Alph4.1}%
-\contentsline {section}{\numberline {D.2}Modelo espectral}{69}{section.Alph4.2}%
-\contentsline {section}{\numberline {D.3}Regularización 2D}{69}{section.Alph4.3}%
-\contentsline {paragraph}{$\alpha _B$, $\alpha _Q$ adimensionales.}{70}{section*.65}%
-\contentsline {section}{\numberline {D.4}Marginales, momentos y correlación}{70}{section.Alph4.4}%
-\contentsline {section}{\numberline {D.5}Componentes nítidas simultáneas}{71}{section.Alph4.5}%
-\contentsline {section}{\numberline {D.6}Elección de $\alpha _B$ y $\alpha _Q$}{71}{section.Alph4.6}%
-\contentsline {section}{\numberline {D.7}Riesgo de sobreajuste}{72}{section.Alph4.7}%
-\contentsline {section}{\numberline {D.8}Buenas prácticas}{72}{section.Alph4.8}%
-\contentsline {chapter}{\numberline {E}Modelos de relajación magnética}{73}{appendix.Alph5}%
-\contentsline {section}{\numberline {E.1}Motivación física}{73}{section.Alph5.1}%
-\contentsline {section}{\numberline {E.2}Notación común}{73}{section.Alph5.2}%
-\contentsline {section}{\numberline {E.3}Modelo fenomenológico \texttt {\small Relajacion}}{74}{section.Alph5.3}%
-\contentsline {subsection}{\numberline {E.3.1}Definición}{74}{subsection.Alph5.3.1}%
-\contentsline {subsection}{\numberline {E.3.2}Fracción bloqueada y tasa fenomenológica}{75}{subsection.Alph5.3.2}%
-\contentsline {section}{\numberline {E.4}Modelo dinámico \texttt {\small BlumeTjon}: dos estados}{75}{section.Alph5.4}%
-\contentsline {subsection}{\numberline {E.4.1}Matriz de intercambio}{75}{subsection.Alph5.4.1}%
-\contentsline {subsection}{\numberline {E.4.2}Perfil de intercambio para una transición}{75}{subsection.Alph5.4.2}%
-\contentsline {subsection}{\numberline {E.4.3}Límites}{76}{subsection.Alph5.4.3}%
-\contentsline {subsection}{\numberline {E.4.4}Polarización de poblaciones}{76}{subsection.Alph5.4.4}%
-\contentsline {subsection}{\numberline {E.4.5}Campo externo}{77}{subsection.Alph5.4.5}%
-\contentsline {section}{\numberline {E.5}Néel--Arrhenius y distribución de tamaños}{77}{section.Alph5.5}%
-\contentsline {section}{\numberline {E.6}Ajuste global multi-temperatura}{78}{section.Alph5.6}%
-\contentsline {section}{\numberline {E.7}Relación con el ajuste y los informes}{79}{section.Alph5.7}%
-\contentsline {chapter}{\numberline {F}Corrección por espesor}{80}{appendix.Alph6}%
-\contentsline {section}{\numberline {F.1}El problema: absorbente delgado vs. grueso}{80}{section.Alph6.1}%
-\contentsline {section}{\numberline {F.2}Modelo de saturación exponencial}{80}{section.Alph6.2}%
-\contentsline {section}{\numberline {F.3}Beneficios}{81}{section.Alph6.3}%
-\contentsline {section}{\numberline {F.4}Cuándo aplicarla}{81}{section.Alph6.4}%
-\contentsline {section}{\numberline {F.5}Cómo se aplica en el ajuste}{82}{section.Alph6.5}%
-\contentsline {subsection}{\numberline {F.5.1}Selección y parámetro}{82}{subsection.Alph6.5.1}%
-\contentsline {subsection}{\numberline {F.5.2}Modo discreto}{82}{subsection.Alph6.5.2}%
-\contentsline {subsection}{\numberline {F.5.3}Modo distribución: no se aplica}{82}{subsection.Alph6.5.3}%
-\contentsline {section}{\numberline {F.6}Qué cambia en la vista}{82}{section.Alph6.6}%
-\contentsline {section}{\numberline {F.7}Varios subespectros}{83}{section.Alph6.7}%
-\contentsline {section}{\numberline {F.8}Resumen}{83}{section.Alph6.8}%
-\contentsline {chapter}{\numberline {G}Herramientas de línea de comandos}{84}{appendix.Alph7}%
-\contentsline {section}{\numberline {G.1}Ajustes discretos: \textcolor {black!70}{\texttt {\small mossbauer\_fit\_cli.py}}}{84}{section.Alph7.1}%
-\contentsline {subsection}{\numberline {G.1.1}Opciones}{85}{subsection.Alph7.1.1}%
-\contentsline {subsection}{\numberline {G.1.2}Convenios de NORMOS}{85}{subsection.Alph7.1.2}%
-\contentsline {subsection}{\numberline {G.1.3}Errores avanzados}{86}{subsection.Alph7.1.3}%
-\contentsline {subsection}{\numberline {G.1.4}Series con arranque en caliente}{86}{subsection.Alph7.1.4}%
-\contentsline {section}{\numberline {G.2}Ajustes de distribución: \textcolor {black!70}{\texttt {\small fit\_bhf\_distribution\_cli.py}}}{86}{section.Alph7.2}%
-\contentsline {subsection}{\numberline {G.2.1}Distribución y forma}{88}{subsection.Alph7.2.1}%
-\contentsline {subsection}{\numberline {G.2.2}Kernel}{89}{subsection.Alph7.2.2}%
-\contentsline {subsection}{\numberline {G.2.3}Malla, fondo y doblado}{89}{subsection.Alph7.2.3}%
-\contentsline {subsection}{\numberline {G.2.4}Distribuciones bidimensionales}{89}{subsection.Alph7.2.4}%
-\contentsline {subsection}{\numberline {G.2.5}Elección de $\alpha $}{90}{subsection.Alph7.2.5}%
-\contentsline {subsection}{\numberline {G.2.6}Ficheros de salida}{90}{subsection.Alph7.2.6}%
+\contentsline {section}{\numberline {3.3}Importar: ver y corregir la lectura}{14}{section.3.3}%
+\contentsline {section}{\numberline {3.4}Equipos y calibraciones por fecha}{14}{section.3.4}%
+\contentsline {section}{\numberline {3.5}El folding y el centro}{15}{section.3.5}%
+\contentsline {paragraph}{Cómo dobla Fitbauer.}{16}{section*.7}%
+\contentsline {paragraph}{Efecto geométrico.}{16}{section*.8}%
+\contentsline {paragraph}{Ruido del punto doblado.}{16}{section*.9}%
+\contentsline {paragraph}{Doblado de WMOSS.}{17}{section*.10}%
+\contentsline {subsection}{\numberline {3.5.1}Forma de onda: triangular o senoidal}{17}{subsection.3.5.1}%
+\contentsline {subsection}{\numberline {3.5.2}Plegado: doblar o no}{18}{subsection.3.5.2}%
+\contentsline {section}{\numberline {3.6}Normalización y ruido}{18}{section.3.6}%
+\contentsline {section}{\numberline {3.7}Visualización}{18}{section.3.7}%
+\contentsline {section}{\numberline {3.8}Comparar espectros}{19}{section.3.8}%
+\contentsline {paragraph}{Ficheros procesados por otros programas.}{19}{section*.13}%
+\contentsline {section}{\numberline {3.9}Guardar, exportar y reutilizar}{19}{section.3.9}%
+\contentsline {section}{\numberline {3.10}Interoperabilidad con NORMOS: ficheros \texttt {.JOB}}{21}{section.3.10}%
+\contentsline {paragraph}{Los convenios de NORMOS.}{21}{section*.17}%
+\contentsline {chapter}{\numberline {4}Simular y ajustar}{23}{chapter.4}%
+\contentsline {section}{\numberline {4.1}El modelo directo}{23}{section.4.1}%
+\contentsline {subsection}{\numberline {4.1.1}Las matemáticas del modelo}{24}{subsection.4.1.1}%
+\contentsline {subsection}{\numberline {4.1.2}Perfil de línea y modelo de absorbente}{24}{subsection.4.1.2}%
+\contentsline {subsection}{\numberline {4.1.3}Intensidades y textura del sexteto}{25}{subsection.4.1.3}%
+\contentsline {section}{\numberline {4.2}Simular sin ajustar}{25}{section.4.2}%
+\contentsline {paragraph}{Para qué sirve simular.}{25}{section*.21}%
+\contentsline {section}{\numberline {4.3}Ajustar un calibrado de $\alpha $-Fe}{26}{section.4.3}%
+\contentsline {section}{\numberline {4.4}Opciones de ajuste}{27}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}Restricciones y presets físicos}{27}{subsection.4.4.1}%
+\contentsline {section}{\numberline {4.5}Qué parámetros se ven}{27}{section.4.5}%
+\contentsline {paragraph}{Parámetros compactos.}{28}{section*.23}%
+\contentsline {section}{\numberline {4.6}Calidad del ajuste y errores}{28}{section.4.6}%
+\contentsline {subsection}{\numberline {4.6.1}Los estadísticos y para qué sirven}{28}{subsection.4.6.1}%
+\contentsline {subsection}{\numberline {4.6.2}El $\chi ^2$ de otros programas}{29}{subsection.4.6.2}%
+\contentsline {subsection}{\numberline {4.6.3}Estimación de incertidumbres}{29}{subsection.4.6.3}%
+\contentsline {section}{\numberline {4.7}Herramientas de ayuda al ajuste}{29}{section.4.7}%
+\contentsline {section}{\numberline {4.8}Componentes de relajación magnética}{30}{section.4.8}%
+\contentsline {chapter}{\numberline {5}Distribuciones de campo hiperfino}{32}{chapter.5}%
+\contentsline {section}{\numberline {5.1}La física: por qué aparecen las distribuciones}{32}{section.5.1}%
+\contentsline {subsection}{\numberline {5.1.1}Del cristal perfecto al material real}{32}{subsection.5.1.1}%
+\contentsline {subsection}{\numberline {5.1.2}Qué es $P(B_{\mathrm {hf}})$}{32}{subsection.5.1.2}%
+\contentsline {subsection}{\numberline {5.1.3}Distribución no es lo mismo que línea ancha}{33}{subsection.5.1.3}%
+\contentsline {subsection}{\numberline {5.1.4}Qué le dice cada rasgo de la distribución}{33}{subsection.5.1.4}%
+\contentsline {section}{\numberline {5.2}Idea: de un sexteto a una distribución}{34}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Simular el espectro de un caso cristalino}{34}{section.5.3}%
+\contentsline {section}{\numberline {5.4}El panel de distribución, control a control}{34}{section.5.4}%
+\contentsline {subsection}{\numberline {5.4.1}Qué se distribuye: la variable}{35}{subsection.5.4.1}%
+\contentsline {subsection}{\numberline {5.4.2}Forma y regularizador}{36}{subsection.5.4.2}%
+\contentsline {subsection}{\numberline {5.4.3}Parámetros del núcleo (cada subespectro)}{36}{subsection.5.4.3}%
+\contentsline {subsection}{\numberline {5.4.4}Física del kernel: 1er orden o Hamiltoniano (v4.19)}{36}{subsection.5.4.4}%
+\contentsline {subsection}{\numberline {5.4.5}Fuente polarizada (v4.20)}{37}{subsection.5.4.5}%
+\contentsline {subsection}{\numberline {5.4.6}Correlación con el campo: $\kappa _\delta $ y $\kappa _q$}{37}{subsection.5.4.6}%
+\contentsline {subsection}{\numberline {5.4.7}La malla de valores}{37}{subsection.5.4.7}%
+\contentsline {subsection}{\numberline {5.4.8}La regularización: $\log \alpha $ y atajos}{37}{subsection.5.4.8}%
+\contentsline {subsection}{\numberline {5.4.9}Controles de la 2D}{37}{subsection.5.4.9}%
+\contentsline {subsection}{\numberline {5.4.10}Otros}{38}{subsection.5.4.10}%
+\contentsline {section}{\numberline {5.5}Formas de la distribución}{38}{section.5.5}%
+\contentsline {subsection}{\numberline {5.5.1}Histograma (Hesse--Rübartsch)}{38}{subsection.5.5.1}%
+\contentsline {subsection}{\numberline {5.5.2}Gaussiana}{39}{subsection.5.5.2}%
+\contentsline {subsection}{\numberline {5.5.3}VBF (Voigt-Based Fitting, Rancourt--Ping)}{39}{subsection.5.5.3}%
+\contentsline {paragraph}{Anchura acotada.}{39}{section*.27}%
+\contentsline {subsection}{\numberline {5.5.4}Binomial}{39}{subsection.5.5.4}%
+\contentsline {subsection}{\numberline {5.5.5}Fija}{40}{subsection.5.5.5}%
+\contentsline {subsection}{\numberline {5.5.6}Czjzek y Czjzek extendido}{40}{subsection.5.5.6}%
+\contentsline {subsection}{\numberline {5.5.7}Le Caër (con campo)}{41}{subsection.5.5.7}%
+\contentsline {subsection}{\numberline {5.5.8}2D: dos variables a la vez}{41}{subsection.5.5.8}%
+\contentsline {subsection}{\numberline {5.5.9}Áreas de cada gaussiana (VBF)}{41}{subsection.5.5.9}%
+\contentsline {section}{\numberline {5.6}Regularización del histograma}{41}{section.5.6}%
+\contentsline {subsection}{\numberline {5.6.1}Regularizadores}{42}{subsection.5.6.1}%
+\contentsline {subsection}{\numberline {5.6.2}El parámetro $\alpha $}{42}{subsection.5.6.2}%
+\contentsline {subsection}{\numberline {5.6.3}Anclaje de los bordes de la malla}{42}{subsection.5.6.3}%
+\contentsline {section}{\numberline {5.7}La L-curve: elegir $\alpha $ con criterio}{42}{section.5.7}%
+\contentsline {subsection}{\numberline {5.7.1}Qué es y por qué tiene forma de L}{42}{subsection.5.7.1}%
+\contentsline {subsection}{\numberline {5.7.2}El diálogo, panel a panel}{43}{subsection.5.7.2}%
+\contentsline {subsection}{\numberline {5.7.3}Elegir $\alpha $: automático o a mano}{43}{subsection.5.7.3}%
+\contentsline {subsection}{\numberline {5.7.4}Cómo interpretarla en la práctica}{44}{subsection.5.7.4}%
+\contentsline {section}{\numberline {5.8}Correlación $\delta (H)$ y $\Delta E_{Q}(H)$}{44}{section.5.8}%
+\contentsline {section}{\numberline {5.9}Distribuciones 2D: $P(B_{\mathrm {hf}}, \Delta E_{Q})$}{45}{section.5.9}%
+\contentsline {section}{\numberline {5.10}Componentes nítidos junto a la distribución}{45}{section.5.10}%
+\contentsline {section}{\numberline {5.11}Paso a paso: ajustar una $P(B_{\mathrm {hf}})$ desde cero}{46}{section.5.11}%
+\contentsline {part}{Anexos matemáticos}{46}{Item.35}%
+\contentsline {chapter}{\numberline {A}Manual matemático del motor de ajuste}{47}{appendix.Alph1}%
+\contentsline {section}{\numberline {A.1}Modelo directo}{47}{section.Alph1.1}%
+\contentsline {subsection}{\numberline {A.1.1}Espectro de transmisión}{47}{subsection.Alph1.1.1}%
+\contentsline {subsubsection}{Forma de onda del drive y eje de velocidad}{47}{section*.29}%
+\contentsline {subsection}{\numberline {A.1.2}Perfiles de línea}{48}{subsection.Alph1.1.2}%
+\contentsline {subsubsection}{Lorentziana}{48}{section*.30}%
+\contentsline {subsubsection}{Pseudo-Voigt (Faddeeva)}{48}{section*.31}%
+\contentsline {subsection}{\numberline {A.1.3}Sextete magnético}{49}{subsection.Alph1.1.3}%
+\contentsline {subsubsection}{Tratamiento de primer orden}{49}{section*.34}%
+\contentsline {subsubsection}{Tratamiento de Kündig (Hamiltoniano completo axial)}{49}{section*.36}%
+\contentsline {subsubsection}{Promedio policristalino}{51}{section*.37}%
+\contentsline {subsection}{\numberline {A.1.4}Intensidades y textura}{52}{subsection.Alph1.1.4}%
+\contentsline {subsubsection}{Intensidades libres}{52}{section*.39}%
+\contentsline {subsubsection}{Parámetro de textura}{52}{section*.40}%
+\contentsline {subsection}{\numberline {A.1.5}Doblete y singlete}{52}{subsection.Alph1.1.5}%
+\contentsline {section}{\numberline {A.2}Ajuste discreto}{53}{section.Alph1.2}%
+\contentsline {subsection}{\numberline {A.2.1}Parametrización y restricciones}{53}{subsection.Alph1.2.1}%
+\contentsline {subsection}{\numberline {A.2.2}Estadística de los datos}{53}{subsection.Alph1.2.2}%
+\contentsline {subsubsection}{Modo Gauss}{53}{section*.42}%
+\contentsline {subsubsection}{Modo Poisson (IRLS)}{53}{section*.43}%
+\contentsline {subsubsection}{Propagación de la incertidumbre de calibración}{53}{section*.44}%
+\contentsline {subsection}{\numberline {A.2.3}Funcional de coste y pérdidas robustas}{54}{subsection.Alph1.2.3}%
+\contentsline {subsection}{\numberline {A.2.4}Optimización}{54}{subsection.Alph1.2.4}%
+\contentsline {subsubsection}{Región de confianza (TRF)}{54}{section*.46}%
+\contentsline {subsubsection}{Arranque múltiple}{54}{section*.47}%
+\contentsline {subsubsection}{Optimización global (opcional)}{55}{section*.49}%
+\contentsline {subsection}{\numberline {A.2.5}Incertidumbres y diagnósticos}{55}{subsection.Alph1.2.5}%
+\contentsline {subsubsection}{Covarianza}{55}{section*.50}%
+\contentsline {subsubsection}{Estadísticos de bondad de ajuste}{55}{section*.52}%
+\contentsline {subsubsection}{Diagnósticos del residuo}{56}{section*.53}%
+\contentsline {subsubsection}{Bootstrap}{56}{section*.54}%
+\contentsline {section}{\numberline {A.3}Ajuste de distribución}{56}{section.Alph1.3}%
+\contentsline {subsection}{\numberline {A.3.1}Discretización y núcleo}{56}{subsection.Alph1.3.1}%
+\contentsline {subsection}{\numberline {A.3.2}Sistema lineal aumentado}{57}{subsection.Alph1.3.2}%
+\contentsline {subsubsection}{Preacondicionamiento por escala de columnas}{57}{section*.55}%
+\contentsline {subsection}{\numberline {A.3.3}Regularización}{57}{subsection.Alph1.3.3}%
+\contentsline {subsubsection}{Tikhonov (suavidad, L2)}{57}{section*.57}%
+\contentsline {subsubsection}{Variación total (bordes, L1)}{58}{section*.58}%
+\contentsline {subsubsection}{Máxima entropía (MaxEnt)}{58}{section*.59}%
+\contentsline {subsection}{\numberline {A.3.4}Verosimilitud Poisson en la distribución}{58}{subsection.Alph1.3.4}%
+\contentsline {subsection}{\numberline {A.3.5}Grados de libertad efectivos}{58}{subsection.Alph1.3.5}%
+\contentsline {subsection}{\numberline {A.3.6}Selección del parámetro de regularización}{58}{subsection.Alph1.3.6}%
+\contentsline {subsubsection}{$\alpha $ adimensional}{58}{section*.60}%
+\contentsline {subsection}{\numberline {A.3.7}Barras de error de $P(B_{\mathrm {hf}})$}{59}{subsection.Alph1.3.7}%
+\contentsline {subsection}{\numberline {A.3.8}Distribuciones paramétricas}{60}{subsection.Alph1.3.8}%
+\contentsline {paragraph}{VBF (Voigt-Based Fitting, Rancourt--Ping 1991).}{60}{section*.61}%
+\contentsline {subsection}{\numberline {A.3.9}Correlación $\delta (H)$ y $\Delta E_{Q}(H)$ en el núcleo}{60}{subsection.Alph1.3.9}%
+\contentsline {subsection}{\numberline {A.3.10}Refinamiento global (VARPRO)}{60}{subsection.Alph1.3.10}%
+\contentsline {paragraph}{Correlación de $P$ con los globales.}{61}{section*.62}%
+\contentsline {section}{\numberline {A.4}Apéndices}{61}{section.Alph1.4}%
+\contentsline {subsection}{\numberline {A.4.1}Calibración del sextete}{61}{subsection.Alph1.4.1}%
+\contentsline {subsection}{\numberline {A.4.2}Cotas de los parámetros}{61}{subsection.Alph1.4.2}%
+\contentsline {subsection}{\numberline {A.4.3}Función de Faddeeva}{62}{subsection.Alph1.4.3}%
+\contentsline {subsection}{\numberline {A.4.4}Resumen de la pila de optimización}{62}{subsection.Alph1.4.4}%
+\contentsline {chapter}{\numberline {B}Ajuste por Voigt (VBF)}{63}{appendix.Alph2}%
+\contentsline {section}{\numberline {B.1}Motivación: una base de gaussianas para $P(B_{\mathrm {hf}})$}{63}{section.Alph2.1}%
+\contentsline {section}{\numberline {B.2}Del campo al espectro: el modelo directo}{63}{section.Alph2.2}%
+\contentsline {paragraph}{Núcleo gaussiano normalizado a área unidad.}{64}{section*.63}%
+\contentsline {section}{\numberline {B.3}Por qué «basado en Voigt»}{64}{section.Alph2.3}%
+\contentsline {paragraph}{La doble lectura del ensanchamiento gaussiano.}{64}{section*.64}%
+\contentsline {section}{\numberline {B.4}Problema de mínimos cuadrados y parametrización}{64}{section.Alph2.4}%
+\contentsline {section}{\numberline {B.5}Áreas, poblaciones y porcentajes}{65}{section.Alph2.5}%
+\contentsline {section}{\numberline {B.6}Correlación $\delta (H)$ y $\Delta E_{Q}(H)$}{66}{section.Alph2.6}%
+\contentsline {section}{\numberline {B.7}Caso $N=1$: la forma «Gaussiana»}{66}{section.Alph2.7}%
+\contentsline {section}{\numberline {B.8}VBF frente al histograma}{66}{section.Alph2.8}%
+\contentsline {section}{\numberline {B.9}Buenas prácticas}{66}{section.Alph2.9}%
+\contentsline {chapter}{\numberline {C}Distribuciones de desplazamiento isomérico $P(\mathrm {IS})$}{68}{appendix.Alph3}%
+\contentsline {section}{\numberline {C.1}Motivación física}{68}{section.Alph3.1}%
+\contentsline {section}{\numberline {C.2}Distribución unidimensional $P(\delta )$}{69}{section.Alph3.2}%
+\contentsline {section}{\numberline {C.3}Distribución bidimensional $P(\delta ,\Delta E_Q)$}{69}{section.Alph3.3}%
+\contentsline {section}{\numberline {C.4}Interpretación de $P(\delta ,\Delta E_Q)$}{69}{section.Alph3.4}%
+\contentsline {section}{\numberline {C.5}Distribución $P(B_{\mathrm {hf}},\delta )$}{70}{section.Alph3.5}%
+\contentsline {section}{\numberline {C.6}Riesgos de identificabilidad}{70}{section.Alph3.6}%
+\contentsline {section}{\numberline {C.7}Buenas prácticas}{70}{section.Alph3.7}%
+\contentsline {chapter}{\numberline {D}Distribuciones bidimensionales $P(B_{\mathrm {hf}},\Delta E_{Q})$}{72}{appendix.Alph4}%
+\contentsline {section}{\numberline {D.1}Motivación}{72}{section.Alph4.1}%
+\contentsline {section}{\numberline {D.2}Modelo espectral}{72}{section.Alph4.2}%
+\contentsline {section}{\numberline {D.3}Regularización 2D}{72}{section.Alph4.3}%
+\contentsline {paragraph}{$\alpha _B$, $\alpha _Q$ adimensionales.}{73}{section*.68}%
+\contentsline {section}{\numberline {D.4}Marginales, momentos y correlación}{73}{section.Alph4.4}%
+\contentsline {section}{\numberline {D.5}Componentes nítidas simultáneas}{74}{section.Alph4.5}%
+\contentsline {section}{\numberline {D.6}Elección de $\alpha _B$ y $\alpha _Q$}{74}{section.Alph4.6}%
+\contentsline {section}{\numberline {D.7}Riesgo de sobreajuste}{75}{section.Alph4.7}%
+\contentsline {section}{\numberline {D.8}Buenas prácticas}{75}{section.Alph4.8}%
+\contentsline {chapter}{\numberline {E}Modelos de relajación magnética}{76}{appendix.Alph5}%
+\contentsline {section}{\numberline {E.1}Motivación física}{76}{section.Alph5.1}%
+\contentsline {section}{\numberline {E.2}Notación común}{76}{section.Alph5.2}%
+\contentsline {section}{\numberline {E.3}Modelo fenomenológico \texttt {\small Relajacion}}{77}{section.Alph5.3}%
+\contentsline {subsection}{\numberline {E.3.1}Definición}{77}{subsection.Alph5.3.1}%
+\contentsline {subsection}{\numberline {E.3.2}Fracción bloqueada y tasa fenomenológica}{78}{subsection.Alph5.3.2}%
+\contentsline {section}{\numberline {E.4}Modelo dinámico \texttt {\small BlumeTjon}: dos estados}{78}{section.Alph5.4}%
+\contentsline {subsection}{\numberline {E.4.1}Matriz de intercambio}{78}{subsection.Alph5.4.1}%
+\contentsline {subsection}{\numberline {E.4.2}Perfil de intercambio para una transición}{78}{subsection.Alph5.4.2}%
+\contentsline {subsection}{\numberline {E.4.3}Límites}{79}{subsection.Alph5.4.3}%
+\contentsline {subsection}{\numberline {E.4.4}Polarización de poblaciones}{79}{subsection.Alph5.4.4}%
+\contentsline {subsection}{\numberline {E.4.5}Campo externo}{80}{subsection.Alph5.4.5}%
+\contentsline {section}{\numberline {E.5}Néel--Arrhenius y distribución de tamaños}{80}{section.Alph5.5}%
+\contentsline {section}{\numberline {E.6}Ajuste global multi-temperatura}{81}{section.Alph5.6}%
+\contentsline {section}{\numberline {E.7}Relación con el ajuste y los informes}{82}{section.Alph5.7}%
+\contentsline {chapter}{\numberline {F}Corrección por espesor}{83}{appendix.Alph6}%
+\contentsline {section}{\numberline {F.1}El problema: absorbente delgado vs. grueso}{83}{section.Alph6.1}%
+\contentsline {section}{\numberline {F.2}Modelo de saturación exponencial}{83}{section.Alph6.2}%
+\contentsline {section}{\numberline {F.3}Beneficios}{84}{section.Alph6.3}%
+\contentsline {section}{\numberline {F.4}Cuándo aplicarla}{84}{section.Alph6.4}%
+\contentsline {section}{\numberline {F.5}Cómo se aplica en el ajuste}{85}{section.Alph6.5}%
+\contentsline {subsection}{\numberline {F.5.1}Selección y parámetro}{85}{subsection.Alph6.5.1}%
+\contentsline {subsection}{\numberline {F.5.2}Modo discreto}{85}{subsection.Alph6.5.2}%
+\contentsline {subsection}{\numberline {F.5.3}Modo distribución: no se aplica}{85}{subsection.Alph6.5.3}%
+\contentsline {section}{\numberline {F.6}Qué cambia en la vista}{85}{section.Alph6.6}%
+\contentsline {section}{\numberline {F.7}Varios subespectros}{86}{section.Alph6.7}%
+\contentsline {section}{\numberline {F.8}Resumen}{86}{section.Alph6.8}%
+\contentsline {chapter}{\numberline {G}Herramientas de línea de comandos}{87}{appendix.Alph7}%
+\contentsline {section}{\numberline {G.1}Ajustes discretos: \textcolor {black!70}{\texttt {\small mossbauer\_fit\_cli.py}}}{87}{section.Alph7.1}%
+\contentsline {subsection}{\numberline {G.1.1}Opciones}{88}{subsection.Alph7.1.1}%
+\contentsline {subsection}{\numberline {G.1.2}Convenios de NORMOS}{88}{subsection.Alph7.1.2}%
+\contentsline {subsection}{\numberline {G.1.3}Errores avanzados}{89}{subsection.Alph7.1.3}%
+\contentsline {subsection}{\numberline {G.1.4}Series con arranque en caliente}{89}{subsection.Alph7.1.4}%
+\contentsline {section}{\numberline {G.2}Ajustes de distribución: \textcolor {black!70}{\texttt {\small fit\_bhf\_distribution\_cli.py}}}{90}{section.Alph7.2}%
+\contentsline {subsection}{\numberline {G.2.1}Distribución y forma}{91}{subsection.Alph7.2.1}%
+\contentsline {subsection}{\numberline {G.2.2}Kernel}{92}{subsection.Alph7.2.2}%
+\contentsline {subsection}{\numberline {G.2.3}Malla, fondo y doblado}{92}{subsection.Alph7.2.3}%
+\contentsline {subsection}{\numberline {G.2.4}Distribuciones bidimensionales}{92}{subsection.Alph7.2.4}%
+\contentsline {subsection}{\numberline {G.2.5}Elección de $\alpha $}{93}{subsection.Alph7.2.5}%
+\contentsline {subsection}{\numberline {G.2.6}Ficheros de salida}{93}{subsection.Alph7.2.6}%

@@ -232,6 +232,36 @@ about the folding point, so folding itself cancels it. A relative amplitude
 above $1\,\%$ betrays a spectrometer geometry problem and is worth investigating
 before accepting the fit.
 
+\paragraph{Noise of a folded point.} Interpolating between channels averages
+neighbouring channels: a folded point carries slightly less noise than its counts
+suggest and is correlated with its neighbours. How much depends on the fraction
+of the folding point (fraction $0.5$ = half-integer centre, no interpolation):
+
+\begin{center}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+Centre fraction & 0.5 & 0.4 & 0.3 & 0.2 & 0.1 & 0 \\
+\midrule
+Variance / Poisson, cubic (Fitbauer) & 0.99 & 0.97 & 0.90 & 0.83 & 0.77 & 0.76 \\
+Variance / Poisson, linear           & 1.00 & 0.82 & 0.68 & 0.58 & 0.52 & 0.50 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent NORMOS does not interpolate (it adds whole channels): it does not
+smooth, but it misaligns the pairs by up to half a channel. No program discounts
+this smoothing in the fit $\sigma$, which comes from the counts; that is why the
+reduced $\chi^2$ comes out somewhat low when the centre is far from a half-integer
+(§\ref{sec:chi2-programas}).
+
+\paragraph{WMOSS folding.} WMOSS adds the two halves of the sweep (Fitbauer
+averages them, which is the same once normalised) with a fractional folding
+point, manual or automatic. If its velocity non-linearity correction is enabled,
+it first re-projects the unfolded data onto a linear scale by interpolation. Its
+folded points come out smoothed: in real spectra folded by WMOSS, the difference
+between neighbouring points in the flat region had only $38\,\%$ of the Poisson
+variance, while the same counts folded by Fitbauer gave $102\,\%$.
+
 \begin{aviso}
 A poorly chosen centre produces double or asymmetric lines. If you observe
 spurious splittings or a shifted "ghost" spectrum, check the folding centre

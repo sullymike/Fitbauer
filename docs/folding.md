@@ -39,9 +39,11 @@ subcanal (`find_best_integer_or_half_center`).
 ## Interpolación de canales (`interp_channel_1based`)
 
 El folding point rara vez cae en un canal entero. La función dobla en $N/2$ puntos al
-estilo Normos, obteniendo cada conteo por **interpolación lineal** entre canales
-adyacentes. En los bordes (canales fuera del rango 1..N) se usa **extrapolación lineal
-mínima**, lo que evita perder un canal para centros semienteros como 255.5 en
+estilo Normos, obteniendo cada conteo por **interpolación** entre canales: por
+defecto un B-spline **cúbico** (`FOLD_INTERP_ORDER_DEFAULT = 3`; la lineal sesga la
+anchura recuperada hasta un +9,5 %, la cúbica un +2,8 %). Con centro semientero no se
+interpola nada. En los bordes (canales fuera del rango 1..N) se usa **extrapolación
+lineal mínima**, lo que evita perder un canal para centros semienteros como 255.5 en
 espectros de 512 canales.
 
 Para cada punto doblado $j$ (con $j = 0..N/2-1$):
@@ -119,6 +121,39 @@ heredar parámetros:
 
 Los valores finales de Normos se traducen a parámetros internos
 (`s1_delta`, `s1_bhf`, `s1_quad`, `s1_gamma1`, `s1_depth`) como punto de partida.
+
+---
+
+## Ruido del punto doblado y χ² (Fitbauer, NORMOS y WMOSS)
+
+Interpolar promedia canales vecinos: el punto doblado tiene menos ruido del que dicen
+sus cuentas y queda correlacionado con sus vecinos. Varianza del punto doblado
+respecto a la de Poisson, según la fracción del centro (0,5 = semientero, sin
+interpolar; simulación con 200 000 cuentas por canal):
+
+| Fracción del centro | 0,5 | 0,4 | 0,3 | 0,2 | 0,1 | 0 |
+|---|---|---|---|---|---|---|
+| Cúbica (Fitbauer) | 0,99 | 0,97 | 0,90 | 0,83 | 0,77 | 0,76 |
+| Lineal | 1,00 | 0,82 | 0,68 | 0,58 | 0,52 | 0,50 |
+
+La σ del ajuste sale de las cuentas (`fold_and_normalize`) y **no** descuenta este
+suavizado, así que el χ² reducido sale hasta un 24 % bajo con centro entero.
+
+- **NORMOS** trunca el punto de doblado y suma canales enteros: no suaviza, pero
+  desalinea los pares hasta medio canal.
+- **WMOSS** (manual WMOSS4 ver. F, §4.1–4.3) suma las dos mitades del barrido con un
+  punto de doblado fraccionario, manual o automático; con la corrección de no
+  linealidad de la velocidad, antes reproyecta por interpolación los datos sin doblar
+  sobre una escala lineal. En espectros reales doblados por WMOSS, la varianza de la
+  diferencia entre puntos vecinos de la zona plana era el 38 % de la de Poisson
+  (Fitbauer, mismas cuentas: 102 %).
+- **χ² de WMOSS.** Mismo estadístico que Fitbauer: χ² = Σ (D − M)² / D con D las
+  cuentas sumadas del punto doblado, y χ²ᵣ = χ² / (N − Nvar), con las áreas y la línea
+  base en Nvar. Reconstruyendo las cuentas de sus `.b` (cabecera: BL20 y área de
+  absorción) se reproduce exactamente el valor que imprime. Como sus datos están
+  suavizados, el mismo modelo da un χ²ᵣ más bajo en WMOSS: en un espectro real de
+  cuatro dobletes estrechos, 2,42 sobre sus datos y 3,07 sobre los de Fitbauer para la
+  misma curva. Entre programas se comparan parámetros y curvas, no χ²ᵣ.
 
 ---
 

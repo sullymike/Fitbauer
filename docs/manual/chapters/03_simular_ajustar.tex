@@ -364,6 +364,34 @@ correlaciones. Un modelo con $\chi^2_r=1{,}1$ y parámetros bien definidos es me
 que uno con $\chi^2_r=1{,}0$ lleno de componentes correlacionados.
 \end{truco}
 
+\subsection{El \texorpdfstring{$\chi^2$}{chi2} de otros programas}
+\label{sec:chi2-programas}
+
+WMOSS calcula el $\chi^2$ igual que Fitbauer,
+\[
+  \chi^2 = \sum_i \frac{(D_i - M_i)^2}{D_i}, \qquad
+  \chi^2_r = \frac{\chi^2}{N - N_\text{var}},
+\]
+con $D_i$ las cuentas sumadas de cada punto doblado, $M_i$ el modelo y
+$N_\text{var}$ los parámetros libres, incluidos los lineales (áreas y línea
+base). Se comprobó reconstruyendo las cuentas de sus ficheros \ruta{.b}: el valor
+coincide con el que imprime WMOSS.
+
+Aun así, un mismo modelo no da el mismo $\chi^2_r$ en los dos programas, porque
+los datos doblados no son iguales: los de WMOSS están suavizados (véase el
+doblado en el capítulo de carga de datos) y su $\sigma$ no lo descuenta, así que
+su $\chi^2_r$ sale más bajo. En un espectro real de cuatro dobletes estrechos,
+una misma curva daba $2{,}42$ sobre los datos doblados por WMOSS y $3{,}07$
+sobre los doblados por Fitbauer; los ajustes de cada programa, con parámetros
+casi iguales, $2{,}42$ y $2{,}89$.
+
+\begin{nota}
+Para comparar programas, compare parámetros y curvas, no el $\chi^2_r$. Fitbauer
+tampoco está libre del efecto: con un punto de doblado alejado del semientero su
+interpolación cúbica reduce la varianza hasta al $76\%$ y el $\chi^2_r$ sale
+hasta un $24\%$ bajo. NORMOS, que no interpola, no tiene ese sesgo.
+\end{nota}
+
 \subsection{Estimación de incertidumbres}
 
 Los estadísticos dicen si el ajuste es bueno; los \textbf{errores} dicen cuánto se

@@ -2,6 +2,17 @@
 
 ## Sin publicar
 
+- **Documentado: doblado de WMOSS frente al de Fitbauer y su efecto en χ².** WMOSS
+  calcula el χ² igual que Fitbauer (σ² = cuentas sumadas del punto doblado,
+  χ²ᵣ = χ²/(N − Nvar) con áreas y línea base), comprobado reconstruyendo las cuentas
+  de sus `.b`. Pero sus datos doblados están suavizados (suma con punto fraccionario
+  y reproyección por interpolación): la varianza entre puntos vecinos es el 38 % de la
+  de Poisson, así que el mismo modelo da un χ²ᵣ más bajo en WMOSS (2,42 frente a 2,89
+  en un espectro real de cuatro dobletes). La interpolación cúbica de Fitbauer también
+  reduce la varianza (al 76 % con centro entero; χ²ᵣ hasta un 24 % bajo). En la ayuda
+  (Folding y Estadística, 8 idiomas), el manual ES/EN y `docs/folding*.md`, que además
+  decía que se interpolaba de forma lineal (es cúbica desde la v5.0.0).
+
 - **Sesiones movidas de sitio.** Si el espectro de una sesión no está en la ruta
   guardada (otro ordenador, carpeta copiada), se busca junto a la sesión, también
   con otras mayúsculas (`core.spectrum_loading.resolve_session_spectrum`). Las

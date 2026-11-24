@@ -282,6 +282,16 @@ EDGE_OUTLIER_REL_DROP = 0.2
 #: suma pares de canales enteros, sin interpolar nunca (``normospr.for``,
 #: doblado de Hoersten 14.4.89). A cambio, desalinea el par hasta medio canal,
 #: que ensancha lo mismo que la interpolación lineal.
+#:
+#: Interpolar también SUAVIZA el ruido: con centro entero (el peor caso) la
+#: varianza del punto doblado baja al 76 % de la de Poisson con la cúbica y al
+#: 50 % con la lineal. La σ de :func:`fold_and_normalize` sale de las cuentas y
+#: no lo descuenta, así que χ²ᵣ sale hasta un 24 % bajo lejos del semientero.
+#: WMOSS (suma de mitades con punto fraccionario y, opcionalmente, reproyección
+#: por interpolación a escala lineal) suaviza más: en espectros reales, el 38 %
+#: de la varianza de Poisson entre puntos vecinos. Su χ² es el mismo estadístico
+#: (σ² = cuentas sumadas, ν = N − Nvar), pero sale más bajo por ese suavizado.
+#: Ver docs/folding.md.
 FOLD_INTERP_ORDER_DEFAULT = 3
 
 

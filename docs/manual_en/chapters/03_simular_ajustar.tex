@@ -364,6 +364,35 @@ correlations. A model with $\chi^2_r=1{,}1$ and well-defined parameters is bette
 than one with $\chi^2_r=1{,}0$ full of correlated components.
 \end{truco}
 
+\subsection{The \texorpdfstring{$\chi^2$}{chi2} of other programs}
+\label{sec:chi2-programas}
+
+WMOSS computes $\chi^2$ the same way as Fitbauer,
+\[
+  \chi^2 = \sum_i \frac{(D_i - M_i)^2}{D_i}, \qquad
+  \chi^2_r = \frac{\chi^2}{N - N_\text{var}},
+\]
+with $D_i$ the summed counts of each folded point, $M_i$ the model and
+$N_\text{var}$ the free parameters, linear ones included (areas and baseline).
+This was checked by rebuilding the counts from its \ruta{.b} files: the value
+matches the one WMOSS prints.
+
+Even so, the same model does not give the same $\chi^2_r$ in both programs,
+because the folded data are not the same: WMOSS's are smoothed (see folding in
+the data-loading chapter) and its $\sigma$ does not discount it, so its
+$\chi^2_r$ comes out lower. In a real spectrum of four narrow doublets, the same
+curve gave $2.42$ on the data folded by WMOSS and $3.07$ on the data folded by
+Fitbauer; each program's own fit, with almost identical parameters, gave $2.42$
+and $2.89$.
+
+\begin{nota}
+To compare programs, compare parameters and curves, not $\chi^2_r$. Fitbauer is
+not free of the effect either: with a folding point far from a half-integer, its
+cubic interpolation lowers the variance to as little as $76\,\%$ and $\chi^2_r$
+comes out up to $24\,\%$ low. NORMOS, which does not interpolate, has no such
+bias.
+\end{nota}
+
 \subsection{Estimating uncertainties}
 
 The statistics tell you whether the fit is good; the \textbf{errors} tell you how
