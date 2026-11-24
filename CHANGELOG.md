@@ -1,5 +1,17 @@
 # Changelog
 
+## Sin publicar
+
+- **«Autoajustar desde mínimos» con dos sextetes que comparten líneas
+  (magnetita).** El segundo sextete de `data_sample/Fe3O4.adt` solo deja tres
+  mínimos propios; los demás se solapan con el primero. Los sobrantes se
+  emparejaban como un doblete centrado en −5.27 mm/s, fuera de las cotas de δ, y
+  el ajuste ni arrancaba («parámetros no válidos»). Ahora, si sobran mínimos que
+  no pueden ser el centro de un componente paramagnético, se busca un sextete que
+  use al menos dos de ellos y comparta el resto con los ya encontrados; y nunca se
+  propone un singlete o doblete con el centro fuera de las cotas. En los demás
+  espectros de `data_sample/` el resultado no cambia.
+
 ## v5.3.0 — Espectros de cualquier equipo, equipos y calibraciones por fecha
 
 - **La σ descuenta el suavizado de la interpolación del doblado.** Con un punto de

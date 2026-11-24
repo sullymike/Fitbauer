@@ -1133,6 +1133,24 @@ def test_auto_fit_from_minima(win):
     assert abs(bhf - 33.0) < 1.0
 
 
+def test_auto_fit_from_minima_magnetite_shared_lines(win):
+    """Magnetita medida: el segundo sextete solo deja 3 mínimos propios
+    (comparte las líneas interiores con el primero). Antes se emparejaban como
+    un doblete centrado en −5.27 mm/s, fuera de las cotas de δ, y el ajuste ni
+    arrancaba; ahora salen dos sextetes (sitios A y B)."""
+    win._load_file(DATA / "Fe3O4.adt")
+    win.last_fit_result = None
+    win.on_auto_fit_from_minima()
+    assert win.last_fit_result is not None
+    on = [cp for cp in win.components_panels[:win.n_components_spin.value()]
+          if cp.enabled.isChecked()]
+    kinds = sorted(cp.type_combo.currentText() for cp in on)
+    assert kinds == ["Sextete", "Sextete"]
+    bhf = sorted(cp.params["bhf"].value() for cp in on)
+    assert 45.5 < bhf[0] < 48.5 and 48.5 < bhf[1] < 50.5
+    assert win.last_fit_result.stats["red_chi2"] < 2.0
+
+
 def test_ai_summary_dialog_builds(win, monkeypatch):
     """AI summary construye un JSON con los picos detectados sin bloquear modal."""
     import json as _json

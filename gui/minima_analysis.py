@@ -7,7 +7,7 @@ from PySide6 import QtWidgets
 from mossbauer_i18n import tr
 from core.constants import BHF_DEFAULT_T, LINE_POS_33T
 from core.fit_engine import Component, model_from_values
-from core.params import SEXTET_WEIGHTS
+from core.params import COMPONENT_FIT_BOUNDS, SEXTET_WEIGHTS
 from core.param_overrides import effective_fit_init_specs as _eff_fi, effective_peak_detection_specs as _eff_pd
 from gui.panels import ComponentPanel
 
@@ -313,6 +313,59 @@ class MinimaAnalysisMixin:
             return self._try_split_peaks_for_sextet(peaks)
         return sub, delta, bhf, width, depth
 
+    def _sextet_sharing_lines(
+        self, remaining: list[dict[str, float]], peaks: list[dict[str, float]]
+    ) -> tuple[list[dict[str, float]], float, float, float, float] | None:
+        """Sextete con al menos dos mínimos de ``remaining`` y el resto de ``peaks``.
+
+        En un espectro con dos sextetes de campo parecido (magnetita) las
+        líneas interiores se solapan: el segundo sextete solo deja dos o tres
+        mínimos propios y comparte los demás con el primero. Se prueban los
+        subconjuntos de 6 (o 5, con una línea perdida) de los mínimos más
+        profundos que incluyan al menos dos de ``remaining``.
+        """
+        from itertools import combinations
+        rem_ids = {int(p["i"]) for p in remaining}
+        if len(rem_ids) < 2:
+            return None
+        cands = sorted(peaks, key=lambda p: p["smooth_depth"], reverse=True)[:10]
+        for p in remaining:                     # los sobrantes, siempre
+            if all(int(p["i"]) != int(c["i"]) for c in cands):
+                cands.append(p)
+        weights_all = np.array(SEXTET_WEIGHTS, dtype=float)
+        tol = _PD["score_tol"].default
+        best = None
+        for n in (6, 5):
+            for subset in combinations(cands, n):
+                if sum(int(p["i"]) in rem_ids for p in subset) < 2:
+                    continue
+                sub = sorted(subset, key=lambda p: p["pos"])
+                pos = np.array([p["pos"] for p in sub], dtype=float)
+                missing_opts = [None] if n == 6 else range(6)
+                for missing in missing_opts:
+                    ref = LINE_POS_33T if missing is None else np.delete(LINE_POS_33T, missing)
+                    A = np.column_stack([np.ones(ref.size), ref])
+                    delta, scale = np.linalg.lstsq(A, pos, rcond=None)[0]
+                    rms = float(np.sqrt(np.mean((pos - (delta + scale * ref)) ** 2)))
+                    bhf = scale * BHF_DEFAULT_T
+                    if not (_FI["sextet_bhf_min"].default <= bhf <= _FI["sextet_bhf_max"].default):
+                        continue
+                    if rms > tol * max(1.0, abs(bhf / BHF_DEFAULT_T)):
+                        continue
+                    if best is None or rms < best[0]:
+                        w = weights_all if missing is None else np.delete(weights_all, missing)
+                        own = [p for p in sub if int(p["i"]) in rem_ids]
+                        own_w = np.array([w[sub.index(p)] for p in own], dtype=float)
+                        depth = float(np.median(np.array([p["depth"] for p in own]) / own_w))
+                        best = (rms, sub, float(delta), float(bhf),
+                                float(np.median([p["width"] for p in own])), depth)
+            if best is not None:
+                break
+        if best is None:
+            return None
+        _rms, sub, delta, bhf, width, depth = best
+        return sub, delta, bhf, width, depth
+
     def _try_split_peaks_for_sextet(self, peaks: list[dict[str, float]]) -> tuple | None:
         if len(peaks) < 4 or len(peaks) >= 6:
             return None
@@ -547,6 +600,10 @@ class MinimaAnalysisMixin:
 
         remaining = [p for p in sorted(peaks, key=lambda q: q["smooth_depth"], reverse=True)
                      if int(p["i"]) not in used_ids]
+        # Centros admisibles para un componente nuevo: rango de inicialización
+        # dentro de las cotas de δ del ajuste.
+        delta_lo = max(_FI["init_delta_lo"].default, COMPONENT_FIT_BOUNDS["delta"][0])
+        delta_hi = min(_FI["init_delta_hi"].default, COMPONENT_FIT_BOUNDS["delta"][1])
         next_idx = 2 if components else 1
         while next_idx <= min(3, MAX_QT_COMPONENTS) and remaining:
             if len(remaining) >= 5:
@@ -565,6 +622,28 @@ class MinimaAnalysisMixin:
                         remaining = [p for p in remaining if int(p["i"]) not in sub_ids]
                         next_idx += 1
                         continue
+            # Sobrantes fuera del rango de un centro paramagnético: son líneas de
+            # otro sextete que comparte las interiores con uno ya encontrado.
+            if any(not (delta_lo <= p["pos"] <= delta_hi) for p in remaining):
+                shared = self._sextet_sharing_lines(remaining, peaks)
+                if shared is not None:
+                    sub_s, delta_s, bhf_s, width_s, depth_s = shared
+                    pfx = f"s{next_idx}_"
+                    components.append((next_idx, "Sextete", sub_s))
+                    params[pfx + "delta"] = float(np.clip(delta_s, delta_lo, delta_hi))
+                    params[pfx + "bhf"] = float(np.clip(bhf_s, _FI["init_bhf_min"].default, _FI["sextet_bhf_max"].default))
+                    params[pfx + "quad"] = 0.0
+                    params[pfx + "gamma1"] = float(np.clip(width_s, _FI["init_gamma_min"].default, _FI["init_gamma_max"].default))
+                    params[pfx + "depth"] = float(np.clip(depth_s, _FI["init_depth_min"].default, _FI["init_depth_max"].default))
+                    sub_ids = {int(pk["i"]) for pk in sub_s}
+                    remaining = [p for p in remaining if int(p["i"]) not in sub_ids]
+                    next_idx += 1
+                    continue
+                # Sin sextete posible: un singlete o doblete con el centro fuera
+                # de las cotas de δ ni siquiera arrancaría el ajuste.
+                remaining = [p for p in remaining if delta_lo <= p["pos"] <= delta_hi]
+                if not remaining:
+                    break
             two_peak_sext = self._try_2peak_sextet_estimate(remaining) if len(remaining) == 2 else None
             if two_peak_sext is not None:
                 sub2, delta2, bhf2, width2, depth2 = two_peak_sext
@@ -581,7 +660,9 @@ class MinimaAnalysisMixin:
             if len(remaining) >= 2:
                 pair = sorted(remaining[:2], key=lambda p: p["pos"])
                 sep = abs(pair[1]["pos"] - pair[0]["pos"])
-                if _FI["doublet_sep_min"].default <= sep <= _FI["doublet_sep_max"].default:
+                mid = 0.5 * (pair[0]["pos"] + pair[1]["pos"])
+                if (_FI["doublet_sep_min"].default <= sep <= _FI["doublet_sep_max"].default
+                        and delta_lo <= mid <= delta_hi):
                     kind = "Doblete"
                     group = pair
                     remaining = [p for p in remaining if p not in pair]
