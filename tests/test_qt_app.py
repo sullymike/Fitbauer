@@ -1151,6 +1151,29 @@ def test_auto_fit_from_minima_magnetite_shared_lines(win):
     assert win.last_fit_result.stats["red_chi2"] < 2.0
 
 
+def test_legend_follows_component_type_change(win):
+    """Cambiar el tipo de una componente con las curvas ya dibujadas renombra
+    su entrada de la leyenda. El refresco incremental del canvas (misma
+    disposición) dejaba «Sextet 2» aunque ya fuera un doblete."""
+    from mossbauer_i18n import tr
+    win._load_file(DATA / "hematita_Fe2O3.adt")
+    win.n_components_spin.setValue(2)
+    win._simulate_enabled = True      # como al tocar un parámetro
+    win._refresh_plot()
+
+    def legend():
+        lg = win.canvas.ax.get_legend()
+        return [t.get_text() for t in lg.get_texts()] if lg is not None else []
+
+    before = legend()
+    assert any(t.endswith(" 2") for t in before)
+    win.components_panels[1].type_combo.setCurrentText("Doblete")
+    win._refresh_plot()
+    after = legend()
+    assert after != before
+    assert tr("kind.Doblete", default="Doblete") + " 2" in after
+
+
 def test_ai_summary_dialog_builds(win, monkeypatch):
     """AI summary construye un JSON con los picos detectados sin bloquear modal."""
     import json as _json

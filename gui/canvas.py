@@ -117,7 +117,10 @@ class SpectrumCanvas(FigureCanvas):
         has_2d = dist_map_2d is not None
         # Firma de la disposición: si no cambia, se reutilizan los ejes/artistas
         # y solo se reescriben los datos (mucho más rápido, sin reconstruir).
-        layout_sig = (actual_show_residual, model is not None, n_comp, n_cmp,
+        # Los tipos van en la firma: la leyenda («Sextete 3» → «Doblete 3») solo
+        # se reescribe al reconstruir.
+        comp_kinds = tuple((int(idx), str(kind)) for idx, kind, _ in (components or []))
+        layout_sig = (actual_show_residual, model is not None, n_comp, comp_kinds, n_cmp,
                       bool(show_legend), show_component_fill, style_name,
                       int(np.asarray(v).size),
                       int(np.asarray(mv).size), has_2d)

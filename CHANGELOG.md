@@ -12,6 +12,11 @@
   propone un singlete o doblete con el centro fuera de las cotas. En los demás
   espectros de `data_sample/` el resultado no cambia.
 
+- **Leyenda del gráfico al cambiar el tipo de una componente.** Con las curvas ya
+  dibujadas, pasar una componente de sextete a doblete (o a cualquier otro tipo)
+  dejaba su entrada antigua en la leyenda («Sextet 3»): el refresco incremental del
+  canvas no incluía los tipos en su firma de disposición. Ahora sí.
+
 ## v5.3.0 — Espectros de cualquier equipo, equipos y calibraciones por fecha
 
 - **La σ descuenta el suavizado de la interpolación del doblado.** Con un punto de
