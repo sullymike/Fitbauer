@@ -48,6 +48,19 @@ def _fmt(x, nd: int = 3) -> str:
     return "—" if not math.isfinite(x) else f"{x:.{nd}f}"
 
 
+def _fmt_err(x, err, nd: int = 3) -> str:
+    """«valor» y debajo «± error» (dos líneas, para que la tabla quepa en el
+    panel); sin error (parámetro fijo o sin covarianza), solo el valor."""
+    txt = _fmt(x, nd)
+    try:
+        e = float(err)
+    except (TypeError, ValueError):
+        return txt
+    if txt == "—" or not math.isfinite(e) or e <= 0:
+        return txt
+    return f"{txt}\n± {_fmt(e, nd)}"
+
+
 class _Step(QtWidgets.QFrame):
     """Caja de un paso: número + título, estado y zona de botones."""
 
@@ -131,8 +144,8 @@ class GuidedPanel(QtWidgets.QWidget):
         self.s_res = _Step(5, tr("guided.s5_title"), tr("guided.s5_hint"))
         self.table = QtWidgets.QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels([
-            tr("guided.col_kind"), "δ", "ΔEQ", "BHF (T)",
-            tr("guided.col_area"), tr("guided.col_phase")])
+            tr("guided.col_kind"), "δ\n(mm/s)", "ΔEQ\n(mm/s)", "BHF\n(T)",
+            tr("guided.col_area") + "\n(%)", tr("guided.col_phase").replace(" ", "\n", 1)])
         self.table.setWordWrap(False)
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -396,26 +409,37 @@ class GuidedPanel(QtWidgets.QWidget):
     def _fill_table(self, has_fit: bool) -> None:
         w = self._win
         comps = self._components() if has_fit else []
-        pct = {}
+        pct, pct_err = {}, {}
+        res = getattr(getattr(w, "runtime_results", None), "fit_result", None)
+        errs = dict(getattr(res, "errors", None) or {}) if comps else {}
         if comps:
             try:
                 idxs, _areas, perc = w.component_area_percentages()
                 pct = {int(i): float(p) for i, p in zip(idxs, perc)}
             except Exception:
                 pct = {}
+            try:
+                pct_err = {int(i): float(e) for i, e in w.component_percentage_errors().items()}
+            except Exception:
+                pct_err = {}
         self.table.setRowCount(len(comps))
         for r, (idx, kind, d, q, b) in enumerate(comps):
             magnet = kind not in ("Doblete", "Singlete")
-            cells = [f"{idx} · " + tr(f"kind.{kind}", default=kind), _fmt(d), _fmt(q),
-                     _fmt(b, 2) if magnet else "—",
-                     f"{pct[idx]:.1f} %" if idx in pct else "—",
-                     self._phase(kind, d, q, b) or "—"]
+            e = lambda name: errs.get(f"s{idx}_{name}")
+            cells = [f"{idx} · " + tr(f"kind.{kind}", default=kind),
+                     _fmt_err(d, e("delta")), _fmt_err(q, e("quad")),
+                     _fmt_err(b, e("bhf"), 2) if magnet else "—",
+                     _fmt_err(pct[idx], pct_err.get(idx), 1) if idx in pct else "—",
+                     (self._phase(kind, d, q, b) or "—").replace(" (", "\n(", 1)]
             for col, txt in enumerate(cells):
                 self.table.setItem(r, col, QtWidgets.QTableWidgetItem(txt))
         self.table.resizeColumnsToContents()
-        fila = self.table.verticalHeader().defaultSectionSize()
-        cab = self.table.horizontalHeader().sizeHint().height()
-        self.table.setFixedHeight(cab + fila * len(comps) + 8)
+        self.table.resizeRowsToContents()
+        alto = self.table.horizontalHeader().sizeHint().height() + 2 * self.table.frameWidth()
+        alto += sum(self.table.rowHeight(r) for r in range(len(comps)))
+        if self.table.horizontalHeader().length() > self.table.viewport().width():
+            alto += self.table.horizontalScrollBar().sizeHint().height()
+        self.table.setFixedHeight(alto)
         self.table.setVisible(bool(comps))
         self.s_res.status.setText("" if comps else tr("guided.s5_none"))
         self.btn_report.setEnabled(bool(comps))

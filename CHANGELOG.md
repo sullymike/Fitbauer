@@ -2,6 +2,11 @@
 
 ## Sin publicar
 
+- **Modo guiado: errores en la tabla de resultados.** δ, ΔEQ, BHF y el área
+  llevan debajo su ± (covarianza del ajuste; el del área, propagado como en el
+  informe); un parámetro fijo sale sin ±. Unidades en la cabecera y celdas en
+  dos líneas para que la tabla quepa en el panel sin barra horizontal.
+
 - **El modo guiado cuenta lo que hace cada paso.** Detectar: cuántos mínimos
   y cómo se agruparon (componente, nº de líneas, δ/BHF/ΔEQ de partida, los no
   usados), marcados en la gráfica (▼ con el número de su componente) hasta el

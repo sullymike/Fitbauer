@@ -4131,6 +4131,8 @@ def test_modo_guiado_cuenta_lo_que_hace(win, app):
         st = win._last_fit_story
         assert st and set(st["end"]) <= set(st["start"])
         assert "→" in p.s_fit.status.text()
+        # Tabla de resultados con errores (δ libre → «± …»; área con su error).
+        assert "±" in p.table.item(0, 1).text() and "±" in p.table.item(0, 4).text()
         historia = win._last_fit_story
         p.btn_residual.click(); p.refresh()
         r = win._last_residual_story
