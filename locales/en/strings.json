@@ -1460,5 +1460,8 @@
   "instr.match_name_ph": "e.g. *.ws5; FeB*",
   "instr.match_tip": "Several values separated by “;”: one is enough. If both fields are filled, both must match. When a file is opened without choosing an instrument, the only instrument that recognizes it is applied automatically.",
   "import.kind.transmission_deviation_percent": "(Transmission − 1) in %",
-  "status.fit_vmax_released": "“Fit Vmax” unchecked: the Vmax of the fixed calibration is used."
+  "status.fit_vmax_released": "“Fit Vmax” unchecked: the Vmax of the fixed calibration is used.",
+  "info.area_pct_of": "% area {label}",
+  "rep.area_split_header": "Area split (quantification)",
+  "rep.area_split_note": "Full thin-absorber areas, not truncated to the measured range; area % = iron fraction only if the recoil-free fractions are equal."
 }

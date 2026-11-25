@@ -410,6 +410,17 @@ class ReportMixin:
                 lines.append(f"| {idx} | {kind} | {comp['delta']:.4g} | {quad} | {bhf} | "
                              f"{comp['gamma']:.4g} | {w:.4g} |")
             lines.append("")
+        split = getattr(result, "area_split", None)
+        if split:
+            lines.append(f"### {_r('area_split_header')}")
+            lines.append("")
+            lines.append(f"| {_r('col_component')} | {_r('col_pct_area')} | {_r('col_abs_area')} |")
+            lines.append("|---|---|---|")
+            for lbl, _idx, area, pct in split:
+                lines.append(f"| {lbl} | {pct:.2f}% | {area:.6g} |")
+            lines.append("")
+            lines.append(f"_{_r('area_split_note')}_")
+            lines.append("")
 
         # ── Avisos ──────────────────────────────────────────────────────
         avisos = []

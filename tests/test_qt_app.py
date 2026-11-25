@@ -3604,3 +3604,20 @@ def test_cargar_datos_con_calibracion_fijada_desmarca_ajustar_vmax(win):
     assert win.calibration_iso_ref() == pytest.approx(-0.11)
     from mossbauer_i18n import tr
     assert tr("status.fit_vmax_released") in win.statusBar().currentMessage()
+
+
+def test_distribucion_con_nitido_da_el_reparto_de_area(win, monkeypatch):
+    """Con nítidos, la distribución y cada nítido dan su % de área completa
+    (panel e informe). Sintético: α-Fe ≈ 15.2 % del área."""
+    from PySide6 import QtWidgets
+    monkeypatch.setattr(QtWidgets.QDialog, "exec", lambda self: 0)
+    win._load_file(DATA / "sintetico_dist_bhf_nitido.adt")
+    win.load_session_file(DATA / "sintetico_dist_bhf_nitido_session.json")
+    win.on_fit_distribution()
+    split = win.runtime_results.distribution_result.area_split
+    assert [s[1] for s in split] == [0, 1]
+    assert sum(s[3] for s in split) == pytest.approx(100.0)
+    assert split[1][3] == pytest.approx(15.2, abs=1.0)
+    texto = "\n".join(win._build_report_lines())
+    from mossbauer_i18n import tr
+    assert tr("rep.area_split_header") in texto

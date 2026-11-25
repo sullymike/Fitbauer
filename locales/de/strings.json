@@ -1460,5 +1460,8 @@
   "instr.match_name_ph": "z. B. *.ws5; FeB*",
   "instr.match_tip": "Mehrere Werte durch „;“ getrennt: einer genügt. Sind beide Felder ausgefüllt, müssen beide passen. Wird eine Datei ohne Gerätewahl geöffnet, wird das einzige Gerät, das sie erkennt, automatisch angewendet.",
   "import.kind.transmission_deviation_percent": "(Transmission − 1) in %",
-  "status.fit_vmax_released": "„Vmax anpassen“ deaktiviert: die Vmax der festgelegten Kalibrierung wird verwendet."
+  "status.fit_vmax_released": "„Vmax anpassen“ deaktiviert: die Vmax der festgelegten Kalibrierung wird verwendet.",
+  "info.area_pct_of": "% Fläche {label}",
+  "rep.area_split_header": "Flächenaufteilung (Quantifizierung)",
+  "rep.area_split_note": "Vollständige Flächen (dünner Absorber), nicht auf den Messbereich beschnitten; Flächen-% = Eisenanteil nur bei gleichen f-Faktoren."
 }

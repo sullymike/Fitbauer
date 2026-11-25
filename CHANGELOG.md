@@ -2,6 +2,15 @@
 
 ## Sin publicar
 
+- **Reparto del área entre la distribución y los componentes nítidos.** En modo
+  distribución con nítidos no se daba ningún %: solo las profundidades. Ahora el
+  panel de información y el informe dan el % del área completa de la
+  distribución y de cada nítido (tabla «Reparto del área (cuantificación)»). El
+  área de la distribución es Σ pesos × área de una columna del kernel (todas
+  valen lo mismo, caigan donde caigan sus líneas), comprobado con Histograma,
+  VBF, Binomial, P(ΔEQ), Czjzek, Le Caër y 2D. En el sintético
+  `sintetico_dist_bhf_nitido` el α-Fe sale con 14.8 % (verdad: 15.2 %).
+
 - **% de área de las componentes: área completa y con el modelo del ajuste.**
   Para cuantificar mezclas, el área de cada componente se integraba solo dentro
   del rango de velocidad medido, así que las colas lorentzianas de fuera se

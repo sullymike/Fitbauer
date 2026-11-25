@@ -107,6 +107,10 @@ class BhfQuadDistribution2DFit:
     #: refinaron, y su covarianza {(clave_i, clave_j): cov} (los pone la GUI).
     global_values: dict | None = None
     global_cov: dict | None = None
+    #: Reparto del área COMPLETA (cuantificación) entre la distribución y los
+    #: componentes nítidos: ``((etiqueta, idx, área, %), …)``; idx 0 = la
+    #: distribución. Lo rellena la GUI; solo en memoria.
+    area_split: tuple | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -189,6 +193,10 @@ class BhfDistributionFit:
     fit_variable: str | None = None
     global_values: dict | None = None
     global_cov: dict | None = None
+    #: Reparto del área COMPLETA (cuantificación) entre la distribución y los
+    #: componentes nítidos: ``((etiqueta, idx, área, %), …)``; idx 0 = la
+    #: distribución. Lo rellena la GUI; solo en memoria.
+    area_split: tuple | None = None
     vbf_n_components: int | None = None
     #: Límites de anchura ``(σ_mín, σ_máx)`` aplicados a las gaussianas del VBF
     #: (y de la Gaussiana), en unidades de la variable distribuida.
@@ -526,6 +534,33 @@ def neel_size_relaxation_absorption(
             log10_nu=float(np.clip(lognu, -50.0, 50.0)),
         )
     return total
+
+
+def kernel_column_area(gamma: float, profile: str = "Lorentz",
+                       voigt_sigma: float = 0.05) -> float:
+    """Área COMPLETA (capa fina) de una columna del kernel con peso 1.
+
+    Cada columna es un sextete (o su colapso en doblete/singlete) con las
+    intensidades normalizadas a 12 y la anchura global Γ: su área no depende de
+    dónde caen las líneas, así que una sola integral sirve para toda la malla
+    (y para 1D, 2D, Czjzek o Le Caër, que reparten la misma área). Se integra
+    en la rejilla amplia de :func:`core.reconstruction.area_integration_grid`,
+    sin recortar al rango medido.
+    """
+    from core.reconstruction import area_integration_grid
+    grid = area_integration_grid()
+    with line_profile(profile, voigt_sigma):
+        col = build_hyperfine_distribution_kernel(
+            grid, np.array([BHF_DEFAULT_T]), variable="bhf", gamma=float(gamma))[:, 0]
+    return float(np.trapezoid(np.maximum(col, 0.0), grid))
+
+
+def distribution_absorption_area(weights: np.ndarray, gamma: float,
+                                 profile: str = "Lorentz",
+                                 voigt_sigma: float = 0.05) -> float:
+    """Área completa de la parte distribuida: Σ pesos × área de una columna."""
+    w = np.clip(np.asarray(weights, dtype=float), 0.0, None)
+    return float(w.sum()) * kernel_column_area(gamma, profile, voigt_sigma)
 
 
 def parameter_grid(pmin: float = 0.0, pmax: float = 50.0, nbins: int = 50) -> np.ndarray:

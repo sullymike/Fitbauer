@@ -947,6 +947,7 @@ class DistributionFitMixin:
         # coherente con los residuos. La rama alternativa está en SHA a7c803b y se
         # puede recuperar cuando el multi-ajuste esté integrado.
         components_for_plot: list[tuple[int, str, np.ndarray]] = []
+        sharp_for_area: list[tuple[int, str, np.ndarray, dict | None]] = []
         if self.dist_use_sharp and hasattr(result, "sharp_weights") and result.sharp_weights is not None and result.sharp_weights.size:
             baseline_line = float(result.baseline) + float(result.slope) * self.file.velocity
             sharp_abs_sum = np.zeros_like(self.file.velocity, dtype=float)
@@ -974,12 +975,18 @@ class DistributionFitMixin:
                         "log10_tau0": float(vals.get(pfx + "neel_log10_tau0", -9.0)),
                         "n_bins": int(round(float(vals.get(pfx + "neel_bins", 20.0)))),
                     }
+                sharp_for_area.append((idx, comp_state.kind, params.copy(), extras))
                 sharp_abs = component_absorption(self.file.velocity, comp_state.kind, params, extras=extras)
                 sharp_abs_sum += sharp_abs
                 components_for_plot.append((idx, tr("plot.sharp_label", kind=tr(f"kind.{comp_state.kind}", default=comp_state.kind)), baseline_line - sharp_abs))
             if np.any(sharp_abs_sum > 0):
                 dist_name = label if is_2d else ("P(ΔEQ)" if var == "quad" else ("P(IS)" if var == "delta" else "P(BHF)"))
                 components_for_plot.insert(0, (0, dist_name, result.fitted_curve + sharp_abs_sum))
+
+        if sharp_for_area:
+            result = dataclasses.replace(result, area_split=self._distribution_area_split(
+                result, sharp_for_area, shape, calib_state,
+                dist_name if np.any(sharp_abs_sum > 0) else label))
 
         # Persistimos el mapa 2D para que sobreviva a los re-renders posteriores
         # (_finish_gui_fit_result vuelve a dibujar vía _render_fit_result).
@@ -1084,6 +1091,8 @@ class DistributionFitMixin:
                 r.values[f"g{i}_mu_{pair[0]}"] = float(mx)
                 r.values[f"g{i}_mu_{pair[1]}"] = float(my)
                 r.values[f"g{i}_rho"] = float(rho)
+        for lbl, _idx, _area, pct in (getattr(result, "area_split", None) or ()):
+            r.values[tr("info.area_pct_of", label=lbl)] = pct
         if getattr(result, "binomial_start", None) is not None:
             r.values["binom_conc%"] = 100.0 * float(result.fitted_dist_p)
             r.values["binom_start"] = float(result.binomial_start)
@@ -1125,6 +1134,32 @@ class DistributionFitMixin:
         if hasattr(self, "_record_fit_history") and not live:
             self._record_fit_history("distribution", r.stats)
         self._show_distribution_dialog(result)
+
+    def _distribution_area_split(self, result, sharp_for_area, shape, calib_state,
+                                 dist_name: str) -> tuple:
+        """Reparto del área completa entre la distribución y los nítidos.
+
+        Para cuantificar mezclas: la distribución es Σ pesos × área de una
+        columna del kernel; cada nítido, su absorción de capa fina con el peso
+        ajustado, integrada entera (sin recortar al rango medido).
+        """
+        from core.physics import line_profile
+        from core.reconstruction import area_integration_grid
+        from mossbauer_distribution import distribution_absorption_area
+        profile = "Lorentz" if shape == "Gaussiana" else calib_state.line_profile
+        sigma = calib_state.voigt_sigma
+        gamma = float(self.dist_panel.gamma.value())
+        rows = [(dist_name, 0, distribution_absorption_area(result.weights, gamma, profile, sigma))]
+        grid = area_integration_grid()
+        with line_profile(profile, sigma):
+            for idx, kind, params, extras in sharp_for_area:
+                a = component_absorption(grid, kind, params, extras=extras)
+                label = tr("plot.sharp_label", kind=tr(f"kind.{kind}", default=kind))
+                rows.append((f"{label} {idx}", idx,
+                             float(np.trapezoid(np.maximum(a, 0.0), grid))))
+        total = sum(r[2] for r in rows)
+        return tuple((lbl, idx, area, 100.0 * area / total if total > 0 else 0.0)
+                     for lbl, idx, area in rows)
 
     @staticmethod
     def _distribution_outer_derivatives(fit_at, x: np.ndarray, lo: np.ndarray,

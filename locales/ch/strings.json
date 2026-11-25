@@ -1460,5 +1460,8 @@
   "instr.match_name_ph": "例如 *.ws5; FeB*",
   "instr.match_tip": "多个值用“;”分隔：满足其一即可。若两个字段都填写，则须同时满足。未选择仪器而打开文件时，唯一能识别它的仪器会被自动应用。",
   "import.kind.transmission_deviation_percent": "（透射率 − 1）（%）",
-  "status.fit_vmax_released": "已取消“拟合 Vmax”：使用已固定校准的 Vmax。"
+  "status.fit_vmax_released": "已取消“拟合 Vmax”：使用已固定校准的 Vmax。",
+  "info.area_pct_of": "面积 % {label}",
+  "rep.area_split_header": "面积分配（定量）",
+  "rep.area_split_note": "薄吸收体的完整面积（不截断到测量范围）；只有在无反冲分数 f 相同时，面积 % 才等于铁的比例。"
 }

@@ -235,3 +235,14 @@ def test_porcentajes_con_parametros_del_tipo_y_perfil():
                                              voigt_sigma=0.2)
     assert ar_v[0] > ar_l[0] * 1.2
 
+
+def test_area_de_la_distribucion_cuadra_con_la_curva():
+    """Σ pesos × área de columna = área de la absorción ajustada (dentro del
+    rango, salvo las colas que caen fuera)."""
+    import mossbauer_distribution as md
+    v = np.linspace(-12, 12, 256)
+    centers = md.parameter_grid(20, 40, 20)
+    K = md.build_hyperfine_distribution_kernel(v, centers, variable="bhf", gamma=0.2)
+    w = np.exp(-0.5 * ((centers - 30) / 3) ** 2) * 0.002
+    full = md.distribution_absorption_area(w, 0.2)
+    assert np.trapezoid(K @ w, v) / full == pytest.approx(0.99, abs=0.01)

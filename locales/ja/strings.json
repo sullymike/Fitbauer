@@ -1460,5 +1460,8 @@
   "instr.match_name_ph": "例: *.ws5; FeB*",
   "instr.match_tip": "複数の値は「;」で区切ります（どれか1つで一致）。両方の欄を入力した場合は両方の一致が必要です。装置を選ばずにファイルを開くと、それを認識する唯一の装置が自動的に適用されます。",
   "import.kind.transmission_deviation_percent": "(透過率 − 1)（%）",
-  "status.fit_vmax_released": "「Vmax をフィット」を解除しました：固定された校正の Vmax を使用します。"
+  "status.fit_vmax_released": "「Vmax をフィット」を解除しました：固定された校正の Vmax を使用します。",
+  "info.area_pct_of": "面積 % {label}",
+  "rep.area_split_header": "面積の配分（定量）",
+  "rep.area_split_note": "薄い吸収体の全面積（測定範囲で切り捨てない）。面積 % が鉄の割合に等しいのは無反跳分率 f が等しい場合のみ。"
 }

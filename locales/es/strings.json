@@ -1460,5 +1460,8 @@
   "instr.match_name_ph": "p. ej. *.ws5; FeB*",
   "instr.match_tip": "Varios valores separados por «;»: basta uno. Si rellenas los dos campos, se exigen ambos. Al abrir un fichero sin elegir equipo, el único equipo que lo reconoce se aplica solo.",
   "import.kind.transmission_deviation_percent": "(Transmisión − 1) en %",
-  "status.fit_vmax_released": "«Ajustar Vmax» desmarcado: se usa la Vmax de la calibración fijada."
+  "status.fit_vmax_released": "«Ajustar Vmax» desmarcado: se usa la Vmax de la calibración fijada.",
+  "info.area_pct_of": "% área {label}",
+  "rep.area_split_header": "Reparto del área (cuantificación)",
+  "rep.area_split_note": "Áreas completas de capa fina, sin recortar al rango medido; área % = fracción de hierro solo si los factores f son iguales."
 }
