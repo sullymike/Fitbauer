@@ -2,6 +2,18 @@
 
 ## Sin publicar
 
+- **Modo guiado** (Vista › Modo guiado). Panel lateral con los pasos de un
+  ajuste discreto para quien no conoce el programa: 1) espectro y calibración,
+  2) detectar componentes desde los mínimos, con la fase de referencia más
+  parecida (solo si la similitud es ≥ 75 %), 3) ajustar y «buscar lo que
+  falta» (autoajuste del residuo), 4) «¿es fiable?»: el veredicto del
+  diagnóstico en lenguaje llano con un botón de arreglo por aviso (añadir
+  componente, cambiar límites, probar varios arranques), 5) resultado (tipo,
+  δ, ΔEQ, BHF, área, fase probable) con informe PDF y guardar sesión. Solo
+  llama a acciones que ya existían; el resto de la ventana sigue igual y lo
+  que se cambie allí se ve en el panel. Se recuerda entre arranques
+  (`gui/guided_mode.py`).
+
 - **Panel de componente en dos niveles.** Se ven δ, ΔEQ, BHF, Γ, profundidad y
   los parámetros propios de cada tipo de relajación; los secundarios (Γ
   relativas, intensidades, textura, β/η/φ, Bex/Gax, polarización, campo

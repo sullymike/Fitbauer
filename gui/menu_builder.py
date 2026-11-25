@@ -30,7 +30,7 @@ MENU_LAYOUT: list[tuple[str, list[str]]] = [
                       "file.export_report", "file.export_short_report"]),
     ("menu.tools", ["fit.batch_fit", "fit.global_neel_fit", "-", "@normos", "-",
                     "fit.ollama_start"]),
-    ("menu.view", ["view.show_residual", "view.show_legend", "view.show_component_fill",
+    ("menu.view", ["view.guided_mode", "-", "view.show_residual", "view.show_legend", "view.show_component_fill",
                    "view.compact_params", "-", "@theme", "@plot_style", "@color_theme",
                    "@language", "-", "view.configure_layout"]),
 ]
@@ -90,6 +90,7 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     ("file.export_normos_job", "menu.tools", "file.export_normos_job", ""),
     ("fit.ollama_start", "menu.tools", "fit.ollama_start", ""),
     # ── Vista ──
+    ("view.guided_mode", "menu.view", "guided.menu", ""),
     ("view.show_residual", "menu.view", "options.show_residual", ""),
     ("view.show_legend", "menu.view", "options.show_legend", ""),
     ("view.show_component_fill", "menu.view", "options.show_component_fill", ""),
@@ -598,6 +599,12 @@ class MenuBuilderMixin:
         self.act_compact_params.toggled.connect(self._on_compact_params_toggled)
         view_menu.addAction(self.act_compact_params)
         self._reg("view.compact_params", self.act_compact_params)
+        # Modo guiado: panel lateral con los pasos de un ajuste.
+        self.act_guided_mode = QtGui.QAction(
+            tr("guided.menu", default="Modo guiado"), self, checkable=True)
+        self.act_guided_mode.setChecked(getattr(self, "guided_mode", False))
+        self.act_guided_mode.toggled.connect(self._on_guided_toggled)
+        self._reg("view.guided_mode", self.act_guided_mode)
         view_menu.addSeparator()
         # Tema UI (QStyle de Qt). Por defecto Fusion.
         theme_menu = view_menu.addMenu(tr("options.theme"))

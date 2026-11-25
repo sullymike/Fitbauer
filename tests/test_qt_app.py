@@ -4063,3 +4063,40 @@ def test_panel_de_componente_en_dos_niveles(win, app):
     claves = set(win.active_param_keys())
     cp.more_btn.click()
     assert set(win.active_param_keys()) == claves
+
+
+def test_modo_guiado_pasos_y_arreglos(win, app):
+    """Vista › Modo guiado: el panel lateral sigue los pasos (cargar,
+    detectar, ajustar, diagnóstico, resultado) y ofrece el arreglo de cada
+    aviso; la preferencia se guarda."""
+    from pathlib import Path
+    from PySide6 import QtWidgets
+    win.show()
+    win.act_guided_mode.setChecked(True)
+    app.processEvents()
+    panel = win.guided_panel
+    assert win._guided_dock.isVisible() and win._ui_preferences_state().guided_mode
+    panel.refresh()
+    assert not panel.s_comp.isEnabled() and not panel.s_fit.isEnabled()
+    win._open_spectrum(Path(__file__).resolve().parents[1] / "data_sample" / "Fe3O4.adt")
+    panel.refresh()
+    assert panel.s_comp.isEnabled() and "Fe3O4.adt" in panel.s_file.status.text()
+    panel.btn_detect.click()
+    panel.refresh()
+    assert [c.kind for c in win._active_component_states()] == ["Sextete", "Sextete"]
+    panel.btn_fit.click()
+    panel.refresh()
+    assert win.runtime_results.fit_result is not None
+    assert panel.table.rowCount() == 2 and panel.btn_report.isEnabled()
+    avisos = [c for c in win.fit_checks() if c.status in ("warn", "fail")]
+    botones = [b.text() for b in panel.findChildren(QtWidgets.QPushButton)]
+    if any(c.key in ("chi2", "residual") for c in avisos):
+        from mossbauer_i18n import tr
+        assert tr("guided.fix_residual") in botones
+    # «Probar con varios arranques» cambia a exploración y ajusta.
+    win._guided_fit_explore()
+    assert win._fit_strategy() == "explore"
+    win.act_guided_mode.setChecked(False)
+    app.processEvents()
+    assert not win._guided_dock.isVisible() and not win._ui_preferences_state().guided_mode
+    win.mark_saved()

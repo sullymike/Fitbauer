@@ -533,6 +533,7 @@ class LayoutSettingsMixin:
             wide_delta=getattr(self, "wide_delta", False),
             auto_global=getattr(self, "auto_global", True),
             compact_params=getattr(self, "compact_params", False),
+            guided_mode=getattr(self, "guided_mode", False),
             # Solo lo elegido en el menú es preferencia: los convenios que trae
             # una sesión o un .JOB son de ese análisis (una sesión antigua con
             # el patrón histórico no debe volverlo el defecto de los nuevos).
@@ -583,6 +584,7 @@ class LayoutSettingsMixin:
         self.auto_global = bool(prefs.auto_global)
         self.compact_params = bool(prefs.compact_params)
         self._apply_compact_params()
+        self.guided_mode = bool(prefs.guided_mode)
         # Convenios NORMOS: la preferencia guardada es el punto de partida de
         # los análisis nuevos (una sesión cargada trae los suyos).
         self.sextet_pattern = prefs.sextet_pattern

@@ -655,6 +655,8 @@ class UiPreferencesState:
     compact_params: bool = False
     # Casillas mín/máx de las cotas de ajuste por componente.
     show_fit_limits: bool = False
+    # Modo guiado (panel lateral con los pasos del ajuste).
+    guided_mode: bool = False
     # Convenios NORMOS: preferencia por defecto para análisis nuevos (la
     # sesión guarda los suyos).
     sextet_pattern: str = "normos"
@@ -687,6 +689,7 @@ class UiPreferencesState:
             auto_global=bool(data.get("auto_global", True)),
             compact_params=bool(data.get("compact_params", False)),
             show_fit_limits=bool(data.get("show_fit_limits", False)),
+            guided_mode=bool(data.get("guided_mode", False)),
             sextet_pattern=(
                 _choice(data.get("sextet_pattern"), SEXTET_PATTERN_CHOICES)
                 if int(_value_or(data.get("conventions_version"), 1)) >= CONVENTIONS_VERSION
@@ -711,6 +714,7 @@ class UiPreferencesState:
             "auto_global": bool(self.auto_global),
             "compact_params": bool(self.compact_params),
             "show_fit_limits": bool(self.show_fit_limits),
+            "guided_mode": bool(self.guided_mode),
             "sextet_pattern": self.sextet_pattern,
             "intensity_convention": self.intensity_convention,
             "relax_convention": self.relax_convention,
