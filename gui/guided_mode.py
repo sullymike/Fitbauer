@@ -368,7 +368,7 @@ class GuidedPanel(QtWidgets.QWidget):
         if out == "none":
             return "<br><b>" + tr("guided.res_title") + ":</b> " + st.get("text", "")
         prop = "; ".join(
-            tr("kind." + p["kind"], default=p["kind"]) + f" (δ ≈ {_fmt(p.get('delta'), 2)}"
+            tr(f"kind.{p['kind']}", default=p["kind"]) + f" (δ ≈ {_fmt(p.get('delta'), 2)}"
             + (f", BHF ≈ {_fmt(p.get('bhf'), 1)} T" if p.get("bhf") is not None else "")
             + (f", ΔEQ ≈ {_fmt(p.get('quad'), 2)}" if p.get("quad") is not None else "") + ")"
             for p in st.get("proposed", []))
