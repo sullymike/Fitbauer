@@ -1459,5 +1459,6 @@
   "instr.match_name": "file name",
   "instr.match_name_ph": "e.g. *.ws5; FeB*",
   "instr.match_tip": "Several values separated by “;”: one is enough. If both fields are filled, both must match. When a file is opened without choosing an instrument, the only instrument that recognizes it is applied automatically.",
-  "import.kind.transmission_deviation_percent": "(Transmission − 1) in %"
+  "import.kind.transmission_deviation_percent": "(Transmission − 1) in %",
+  "status.fit_vmax_released": "“Fit Vmax” unchecked: the Vmax of the fixed calibration is used."
 }

@@ -1459,5 +1459,6 @@
   "instr.match_name": "ファイル名",
   "instr.match_name_ph": "例: *.ws5; FeB*",
   "instr.match_tip": "複数の値は「;」で区切ります（どれか1つで一致）。両方の欄を入力した場合は両方の一致が必要です。装置を選ばずにファイルを開くと、それを認識する唯一の装置が自動的に適用されます。",
-  "import.kind.transmission_deviation_percent": "(透過率 − 1)（%）"
+  "import.kind.transmission_deviation_percent": "(透過率 − 1)（%）",
+  "status.fit_vmax_released": "「Vmax をフィット」を解除しました：固定された校正の Vmax を使用します。"
 }

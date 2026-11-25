@@ -2,6 +2,15 @@
 
 ## Sin publicar
 
+- **«Ajustar Vmax» se desmarca al abrir datos con una calibración fijada.** Tras
+  calibrar con el α-Fe la casilla seguía marcada y el ajuste de la muestra
+  reajustaba la Vmax con un BHF que no es 33 T, sustituyendo la calibración por un
+  valor incorrecto. Al cargar un espectro con calibración fijada (local, del
+  equipo, de la web o el eje propio del fichero) se desmarca y se avisa en la
+  barra de estado; sin calibración fijada se respeta (se está calibrando).
+  Comprobado además que las calibraciones de los equipos traen, con la Vmax, el
+  δ(α-Fe) de referencia.
+
 - **Tipos de componente y formas de distribución traducidos.** El selector de
   tipo mostraba en cualquier idioma los códigos internos («Sextete», «Doblete»,
   «Relajacion», «BlumeTjon», «NeelSize»), y la barra de estado, el aviso de

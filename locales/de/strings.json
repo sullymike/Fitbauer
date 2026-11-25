@@ -1459,5 +1459,6 @@
   "instr.match_name": "Dateiname",
   "instr.match_name_ph": "z. B. *.ws5; FeB*",
   "instr.match_tip": "Mehrere Werte durch „;“ getrennt: einer genügt. Sind beide Felder ausgefüllt, müssen beide passen. Wird eine Datei ohne Gerätewahl geöffnet, wird das einzige Gerät, das sie erkennt, automatisch angewendet.",
-  "import.kind.transmission_deviation_percent": "(Transmission − 1) in %"
+  "import.kind.transmission_deviation_percent": "(Transmission − 1) in %",
+  "status.fit_vmax_released": "„Vmax anpassen“ deaktiviert: die Vmax der festgelegten Kalibrierung wird verwendet."
 }

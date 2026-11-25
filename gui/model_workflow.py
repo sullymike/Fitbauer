@@ -1171,6 +1171,7 @@ class ModelWorkflowMixin:
                 if msg:
                     self._load_notes.append(msg)
             self._load_counts(opened)
+        self._release_fit_velocity_after_load()
         self.file.import_hints = (hints.to_dict() or None) if hints else None
         self.file.instrument = instrument
         self.file.imported = imported
@@ -1183,6 +1184,24 @@ class ModelWorkflowMixin:
             current = self.statusBar().currentMessage()
             self.statusBar().showMessage(" · ".join(notes + ([current] if current else [])),
                                          15000)
+
+    def _release_fit_velocity_after_load(self) -> None:
+        """Desmarca «Ajustar Vmax» al abrir datos con una calibración fijada.
+
+        Tras calibrar con el α-Fe la casilla seguía marcada y el siguiente
+        ajuste de la muestra reajustaba la Vmax con su BHF, que no es 33 T:
+        la calibración quedaba sustituida por un valor incorrecto. Con una
+        calibración fijada (local, del equipo, web o el eje del fichero) la
+        Vmax es esa; sin ninguna se respeta la casilla (se está calibrando).
+        """
+        if not (hasattr(self, "calib") and self.calib.fit_velocity.isChecked()):
+            return
+        if self._fixed_calibration_vmax() is None:
+            return
+        self.calib.fit_velocity.setChecked(False)
+        self._load_notes.append(tr(
+            "status.fit_vmax_released",
+            default="«Ajustar Vmax» desmarcado: se usa la Vmax de la calibración fijada."))
 
     def _reset_for_new_spectrum(self) -> None:
         """Lo que se reinicia al abrir cualquier espectro (cuentas o velocidad)."""

@@ -1459,5 +1459,6 @@
   "instr.match_name": "nombre de fichero",
   "instr.match_name_ph": "p. ej. *.ws5; FeB*",
   "instr.match_tip": "Varios valores separados por «;»: basta uno. Si rellenas los dos campos, se exigen ambos. Al abrir un fichero sin elegir equipo, el único equipo que lo reconoce se aplica solo.",
-  "import.kind.transmission_deviation_percent": "(Transmisión − 1) en %"
+  "import.kind.transmission_deviation_percent": "(Transmisión − 1) en %",
+  "status.fit_vmax_released": "«Ajustar Vmax» desmarcado: se usa la Vmax de la calibración fijada."
 }

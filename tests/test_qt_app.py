@@ -3585,3 +3585,22 @@ def test_tipos_y_formas_se_muestran_traducidos(qapp):
     finally:
         set_language(original)
 
+
+def test_cargar_datos_con_calibracion_fijada_desmarca_ajustar_vmax(win):
+    """Tras calibrar con el α-Fe, «Ajustar Vmax» seguía marcado al abrir la
+    muestra y el ajuste reajustaba la Vmax con un BHF que no es 33 T. Con
+    una calibración fijada se desmarca al cargar (y se avisa); sin ninguna
+    se respeta (se está calibrando). La calibración trae también el δ(α-Fe)."""
+    win.calibration_info = None
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    win.calib.fit_velocity.setChecked(True)
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    assert win.calib.fit_velocity.isChecked()                # calibrando: se respeta
+    win.calibration_info = {"source": "local", "velocity_calibrated": 12.0,
+                            "isomer_shift": -0.11, "sextet_pattern": "normos"}
+    win._load_file(DATA / "hematita_Fe2O3.adt")
+    assert not win.calib.fit_velocity.isChecked()
+    assert win.calib.vmax.value() == pytest.approx(12.0)
+    assert win.calibration_iso_ref() == pytest.approx(-0.11)
+    from mossbauer_i18n import tr
+    assert tr("status.fit_vmax_released") in win.statusBar().currentMessage()
