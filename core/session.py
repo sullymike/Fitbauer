@@ -134,6 +134,11 @@ class ModelState:
     #: ``{"s2_gamma1": [mín|None, máx|None]}``. Sustituyen a las generales
     #: (``COMPONENT_FIT_BOUNDS``) solo en el lado dado; vacío = las generales.
     user_bounds: dict = field(default_factory=dict)
+    #: Cotas generales por nombre de parámetro (``{"delta": (-5, 3)}``) que
+    #: sustituyen a ``COMPONENT_FIT_BOUNDS`` en todas las componentes. La GUI
+    #: las rellena con lo cambiado en Vista › Límites de parámetros; vacío =
+    #: las del código. No se guardan en la sesión: son configuración.
+    general_bounds: dict = field(default_factory=dict)
 
     @classmethod
     def defaults(cls, n_components: int = MAX_COMPONENTS_DEFAULT) -> "ModelState":
@@ -282,6 +287,15 @@ class ModelState:
                 # el ajuste).
                 bounds[f"s{idx}_quad"] = (-2.0 * (vmax_abs + 2.0),
                                           2.0 * (vmax_abs + 2.0))
+        for idx in self.sextet_enabled:
+            for name, (g_lo, g_hi) in (self.general_bounds or {}).items():
+                key = f"s{idx}_{name}"
+                if key not in bounds:
+                    continue
+                lo, hi = bounds[key]
+                bounds[key] = (lo if g_lo is None else float(g_lo),
+                               hi if g_hi is None else float(g_hi))
+                soft_bounds.pop(key, None)
         # Cotas propias del usuario (por componente y parámetro): sustituyen
         # a las generales en el lado dado y son duras (sin cota blanda).
         for key, (u_lo, u_hi) in clean_user_bounds(self.user_bounds).items():

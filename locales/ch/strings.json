@@ -1598,5 +1598,6 @@
   "diag.sharp_meaning": "尖锐组分贡献极小：该吸收已由分布解释。",
   "diag.sharp_action": "禁用它，或依据外部信息固定其参数。",
   "valid.open_limits": "更改限制…",
-  "valid.limits_hint": "在面板中修正数值，或在 视图 › 参数范围 中放宽限制。"
+  "valid.limits_hint": "在面板中修正数值，或在 视图 › 参数范围 › 组分 中修改限制（同时作用于拟合和输入框）。",
+  "valid.limits_hint_own": "该限制仅属于此组分：请在面板中其最小/最大框内修改（视图 › 显示各组分的拟合界限）。"
 }

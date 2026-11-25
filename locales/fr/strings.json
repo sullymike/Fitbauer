@@ -1598,5 +1598,6 @@
   "diag.sharp_meaning": "Une composante nette contribue à peine : la distribution explique déjà cette absorption.",
   "diag.sharp_action": "Désactivez-la ou fixez ses paramètres à partir d'informations externes.",
   "valid.open_limits": "Modifier les limites…",
-  "valid.limits_hint": "Corrigez la valeur dans le panneau ou élargissez la limite dans Vue › Limites des paramètres."
+  "valid.limits_hint": "Corrigez la valeur dans le panneau ou modifiez la limite dans Vue › Limites des paramètres › Composantes (elle s'applique à l'ajustement et aux champs).",
+  "valid.limits_hint_own": "Cette limite est une borne propre à cette composante : modifiez-la dans ses champs min/max du panneau (Vue › Afficher les bornes d'ajustement par composante)."
 }

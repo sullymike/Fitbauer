@@ -104,3 +104,36 @@ def test_diagnostico_de_distribucion():
     assert checks["sharp"].status == "warn"
     assert checks["bounds"].status == "warn" and "Γ" in checks["bounds"].value
     assert checks["errors"].status == "ok"
+
+
+def test_limites_de_la_ventana_son_las_cotas_del_ajuste(tmp_path, monkeypatch):
+    """Lo cambiado en Vista › Límites de parámetros vale también para el
+    ajuste y su aviso (antes solo cambiaba la casilla: δ = −3 con el límite
+    en −5 seguía dando «fuera de [−2, 3]»)."""
+    import json
+    import numpy as np
+    from core import param_overrides
+    from core.session import ModelState
+    from core.validation import validate_fit_state
+    fich = tmp_path / "param_limits.json"
+    monkeypatch.setattr(param_overrides, "PARAM_LIMITS_PATH", fich)
+    assert param_overrides.component_fit_bound_overrides() == {}
+    # Profundidad sin tocar: su cota de ajuste (1) es más amplia que la casilla.
+    fich.write_text(json.dumps({"component": {
+        "delta": {"lo": -5.0, "hi": 3.0}, "depth": {"lo": 0.0, "hi": 0.07}}}))
+    gen = param_overrides.component_fit_bound_overrides()
+    assert gen == {"delta": (-5.0, None)}
+    ms = ModelState.defaults(n_components=1)
+    ms.sextet_enabled[1] = True
+    ms.vars["s1_delta"] = -3.0
+    v = np.linspace(-10, 10, 64)
+    st = ms.build_fit_state(velocity=v, y_data=np.ones_like(v), sigma_data=None,
+                            counts=None, norm_factor=None)
+    assert st.bounds["s1_delta"] == (-2.0, 3.0)
+    assert [i.key for i in validate_fit_state(st)] == ["s1_delta"]
+    ms.general_bounds = gen
+    st = ms.build_fit_state(velocity=v, y_data=np.ones_like(v), sigma_data=None,
+                            counts=None, norm_factor=None)
+    assert st.bounds["s1_delta"] == (-5.0, 3.0)
+    assert st.bounds["s1_depth"] == (0.0, 1.0)
+    assert validate_fit_state(st) == []

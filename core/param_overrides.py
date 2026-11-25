@@ -112,3 +112,35 @@ def effective_fit_init_specs() -> dict[str, ParamSpec]:
 
 def effective_peak_detection_specs() -> dict[str, ParamSpec]:
     return effective_specs("peak_detection")
+
+
+def component_fit_bound_overrides() -> dict[str, tuple[float | None, float | None]]:
+    """Cotas de ajuste que el usuario cambió en Vista › Límites de parámetros.
+
+    La ventana guarda el rango de las casillas; si un extremo difiere del de
+    fábrica, ese extremo pasa a ser también la cota del ajuste (antes solo
+    cambiaba la casilla y el ajuste seguía con ``COMPONENT_FIT_BOUNDS``, de
+    modo que el aviso «fuera de límites» mostraba otro rango). Los extremos
+    sin cambiar devuelven ``None``: se queda la cota del código, que en
+    profundidad e intensidades es más amplia que el rango de la casilla.
+    """
+    from core.params import COMPONENT_FIT_BOUNDS
+    raw = load_raw().get("component", {})
+    out: dict[str, tuple[float | None, float | None]] = {}
+    for name in COMPONENT_FIT_BOUNDS:
+        override, spec = raw.get(name), COMPONENT_PARAM_SPECS.get(name)
+        if not isinstance(override, dict) or spec is None:
+            continue
+        lo = hi = None
+        try:
+            if "lo" in override and float(override["lo"]) != spec.lo:
+                lo = float(override["lo"])
+            if "hi" in override and float(override["hi"]) != spec.hi:
+                hi = float(override["hi"])
+        except (TypeError, ValueError):
+            continue
+        if lo is not None and hi is not None and lo >= hi:
+            continue
+        if lo is not None or hi is not None:
+            out[name] = (lo, hi)
+    return out

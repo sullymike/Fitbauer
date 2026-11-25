@@ -2,6 +2,16 @@
 
 ## Sin publicar
 
+- **Vista › Límites de parámetros también acota el ajuste.** Antes solo
+  cambiaba el rango de las casillas; el ajuste y el aviso «fuera de límites»
+  seguían con las cotas del código (δ en [−2, 3] aunque la ventana dijera −5).
+  Ahora el extremo que se cambie en la pestaña Componentes pasa a ser la cota
+  general del ajuste (`ModelState.general_bounds`,
+  `core.param_overrides.component_fit_bound_overrides`); los no tocados siguen
+  como estaban (profundidad e intensidades conservan su cota amplia). El aviso
+  distingue la cota propia de una componente (casillas mín./máx.) de la
+  general, y solo ofrece «Cambiar límites…» cuando es la general.
+
 - **Diagnóstico de los ajustes de distribución.** Además de χ² y residuo:
   convergencia (avisa si el refinado de los globales agotó su presupuesto de
   evaluaciones), P apilada en el borde de la malla (> 30 % del máximo: rango

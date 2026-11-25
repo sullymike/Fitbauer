@@ -1598,5 +1598,6 @@
   "diag.sharp_meaning": "Uma componente nítida quase não contribui: a distribuição já explica essa absorção.",
   "diag.sharp_action": "Desative-a ou fixe os seus parâmetros com informação externa.",
   "valid.open_limits": "Alterar limites…",
-  "valid.limits_hint": "Corrija o valor no painel ou alargue o limite em Vista › Limites de parâmetros."
+  "valid.limits_hint": "Corrija o valor no painel ou altere o limite em Vista › Limites de parâmetros › Componentes (vale para o ajuste e para as caixas).",
+  "valid.limits_hint_own": "Esse limite é próprio desta componente: altere-o nas caixas mín./máx. do painel (Vista › Mostrar limites do ajuste por componente)."
 }

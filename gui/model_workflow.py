@@ -256,12 +256,19 @@ class ModelWorkflowMixin:
         box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
         box.setWindowTitle(tr("msg.validation_title", default="Parámetros no válidos"))
         box.setText(format_validation_issues(issues))
-        fuera = any(i.key in (bounds or {}) for i in issues)
+        fuera = [i.key for i in issues if i.key in (bounds or {})]
         btn_lim = None
         if fuera and hasattr(self, "on_param_limits"):
-            box.setInformativeText(tr("valid.limits_hint"))
-            btn_lim = box.addButton(tr("valid.open_limits"),
-                                    QtWidgets.QMessageBox.ButtonRole.ActionRole)
+            from core.session import clean_user_bounds
+            propias = clean_user_bounds(self._model_state().user_bounds)
+            # Cota propia de la componente (casillas mín/máx del panel) o la
+            # general de Vista › Límites de parámetros: el aviso dice cuál.
+            if any(k in propias for k in fuera):
+                box.setInformativeText(tr("valid.limits_hint_own"))
+            else:
+                box.setInformativeText(tr("valid.limits_hint"))
+                btn_lim = box.addButton(tr("valid.open_limits"),
+                                        QtWidgets.QMessageBox.ButtonRole.ActionRole)
         box.addButton(QtWidgets.QMessageBox.StandardButton.Ok)
         box.exec()
         if btn_lim is not None and box.clickedButton() is btn_lim:
@@ -1002,6 +1009,8 @@ class ModelWorkflowMixin:
             ms.intensity_mode[comp_state.idx] = comp_state.intensity_mode
             ms.quad_treatment[comp_state.idx] = comp_state.quad_treatment
         self._fit_options_state().apply_to_model_state(ms)
+        from core.param_overrides import component_fit_bound_overrides
+        ms.general_bounds = component_fit_bound_overrides()
         ms.constraints = list(self.constraints)
         return ms
 

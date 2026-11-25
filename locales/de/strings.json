@@ -1598,5 +1598,6 @@
   "diag.sharp_meaning": "Eine scharfe Komponente trägt kaum bei: die Verteilung erklärt diese Absorption bereits.",
   "diag.sharp_action": "Deaktivieren oder ihre Parameter aus externer Information fixieren.",
   "valid.open_limits": "Grenzen ändern…",
-  "valid.limits_hint": "Wert im Panel korrigieren oder die Grenze unter Ansicht › Parametergrenzen erweitern."
+  "valid.limits_hint": "Wert im Panel korrigieren oder die Grenze unter Ansicht › Parametergrenzen › Komponenten ändern (gilt für die Anpassung und die Eingabefelder).",
+  "valid.limits_hint_own": "Diese Grenze gilt nur für diese Komponente: in ihren Min/Max-Feldern im Panel ändern (Ansicht › Anpassungsgrenzen je Komponente anzeigen)."
 }
