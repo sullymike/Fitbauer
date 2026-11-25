@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **Opciones avanzadas en una ventana.** Ajuste › Opciones avanzadas de ajuste…
+  abre una ventana con pestañas (Modelo físico, Estadística, Búsqueda del
+  mínimo, Convenios NORMOS, Distribución) y una línea de explicación por opción,
+  en lugar de seis submenús. Las acciones del menú siguen siendo el estado (lo
+  que leen sesión, presets y ajuste); la ventana las refleja y las cambia, en
+  los dos sentidos (`gui/advanced_options_dialog.py`).
+
 - **Menús por pasos del trabajo.** La barra pasa de Archivo / Ajuste / Vista /
   Ayuda a Archivo / Datos / Modelo / Ajuste / Resultados / Herramientas / Vista /
   Ayuda. Ajuste tenía ~20 entradas que mezclaban preparación, errores, serie,

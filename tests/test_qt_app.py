@@ -3999,3 +3999,35 @@ def test_menus_por_pasos_del_trabajo(win):
             assert en_menu[action_id] == menu_key, action_id
     # El diagnóstico se activa al haber comprobaciones.
     assert not win.act_fit_diagnostics.isEnabled()
+
+
+def test_ventana_de_opciones_avanzadas_refleja_y_cambia_el_estado(win):
+    """La ventana con pestañas cambia las mismas opciones que leía el menú
+    (y que guarda la sesión), y se actualiza si cambian por otro lado."""
+    from PySide6 import QtWidgets
+    win.on_advanced_options()
+    dlg = win._adv_dialog
+    assert dlg.isVisible() and dlg.tabs.count() == 5
+    combos = dlg.findChildren(QtWidgets.QComboBox)
+    textos = {a.text().replace("&", ""): a for a in win.likelihood_action_group.actions()}
+    lik = next(c for c in combos if c.itemText(0) in textos or c.itemText(1) in textos)
+    i_poisson = next(i for i in range(lik.count())
+                     if textos.get(lik.itemText(i)) is not None
+                     and textos[lik.itemText(i)] is win.likelihood_action_group.actions()[1])
+    lik.activated.emit(i_poisson)
+    assert win.likelihood == "poisson"
+    # Al revés: el estado cambia fuera (p. ej. al cargar una sesión).
+    win.likelihood_action_group.actions()[0].trigger()
+    assert win.likelihood == "gauss" and lik.currentIndex() != i_poisson
+    checks = {c.text(): c for c in dlg.findChildren(QtWidgets.QCheckBox)}
+    cb = checks[win.act_wide_delta.text().replace("&", "")]
+    cb.setChecked(not win.act_wide_delta.isChecked())
+    assert win.wide_delta == cb.isChecked()
+    win.act_wide_delta.setChecked(False)
+    assert not cb.isChecked()
+    spins = dlg.findChildren(QtWidgets.QSpinBox)
+    sp = next(s for s in spins if s.value() == win._multistart_spin.value()
+              and s.maximum() == win._multistart_spin.maximum())
+    sp.setValue(3)
+    assert win.multistart_n == 3
+    dlg.close()

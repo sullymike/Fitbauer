@@ -23,7 +23,7 @@ MENU_LAYOUT: list[tuple[str, list[str]]] = [
                     "model.phase_predict", "fit.identify_phases", "-",
                     "fit.free_all", "fit.fix_all", "fit.constraints", "fit.physical_presets", "-",
                     "model.param_limits", "fit.component_limits"]),
-    ("menu.fit", ["fit.run", "fit.undo_fit", "fit.history", "-", "@mode", "-", "@advanced"]),
+    ("menu.fit", ["fit.run", "fit.undo_fit", "fit.history", "-", "@mode", "-", "fit.advanced_options"]),
     ("menu.results", ["results.diagnostics", "results.show_distribution", "-",
                       "fit.bootstrap", "fit.profile_likelihood", "fit.lcurve", "-",
                       "file.copy_results", "file.save_fit", "file.export_distribution",
@@ -71,6 +71,7 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     ("fit.run", "menu.fit", "fit.run", "Ctrl+R"),
     ("fit.undo_fit", "menu.fit", "fit.undo_fit", "Ctrl+Z"),
     ("fit.history", "menu.fit", "history.title", ""),
+    ("fit.advanced_options", "menu.fit", "options.advanced_fit", ""),
     # ── Resultados ──
     ("results.diagnostics", "menu.results", "results.diagnostics", ""),
     ("results.show_distribution", "menu.results", "button.show_distribution", ""),
@@ -378,8 +379,14 @@ class MenuBuilderMixin:
         self._reg("fit.physical_presets", act_presets)
         fit_menu.addSeparator()
         # Submenú de opciones avanzadas.
+        # Las opciones avanzadas viven en una ventana con pestañas
+        # (gui/advanced_options_dialog.py). Este submenú ya no está en la
+        # barra: sus acciones son el estado que la ventana muestra y cambia
+        # (y que leen la sesión, los presets y el ajuste).
         adv_menu = fit_menu.addMenu(tr("options.advanced_fit"))
-        self._submenus["advanced"] = adv_menu
+        act_adv = QtGui.QAction(tr("options.advanced_fit") + "…", self)
+        act_adv.triggered.connect(lambda _checked=False: self.on_advanced_options())
+        self._reg("fit.advanced_options", act_adv)
         # Perfil de línea
         prof_menu = adv_menu.addMenu(tr("options.line_profile"))
         self.profile_action_group = QtGui.QActionGroup(self)
