@@ -9,7 +9,7 @@
   "view.configure_layout": "Configurar layout de painéis…",
   "view.param_limits": "Limites de parâmetros…",
   "param_limits.title": "Limites de parâmetros",
-  "param_limits.note": "As alterações aplicam-se ao reiniciar a aplicação. São guardadas em ~/.config/mossbauer_fe33_gui/param_limits.json",
+  "param_limits.note": "As alterações aplicam-se ao guardar. São guardadas em ~/.config/mossbauer_fe33_gui/param_limits.json",
   "param_limits.tab_component": "Componentes",
   "param_limits.tab_calibration": "Calibração",
   "param_limits.tab_distribution": "Distribuição",
@@ -24,8 +24,6 @@
   "param_limits.btn_reset": "Repor separador para valores predefinidos",
   "param_limits.btn_save": "Guardar e fechar",
   "param_limits.save_error_title": "Erro ao guardar",
-  "param_limits.saved_title": "Guardado",
-  "param_limits.saved_msg": "Os limites foram guardados. Serão aplicados ao reiniciar a aplicação.",
   "webapi.login_title": "Login (API laboratório)",
   "webapi.login": "Login",
   "webapi.login_failed": "Login falhado: {err}",
@@ -1463,5 +1461,6 @@
   "status.fit_vmax_released": "«Ajustar Vmax» desmarcado: usa-se a Vmax da calibração fixada.",
   "info.area_pct_of": "% área {label}",
   "rep.area_split_header": "Repartição da área (quantificação)",
-  "rep.area_split_note": "Áreas completas de absorvente fino, sem cortar ao intervalo medido; % de área = fração de ferro só se os fatores f forem iguais."
+  "rep.area_split_note": "Áreas completas de absorvente fino, sem cortar ao intervalo medido; % de área = fração de ferro só se os fatores f forem iguais.",
+  "param_limits.applied": "Limites dos parâmetros aplicados."
 }

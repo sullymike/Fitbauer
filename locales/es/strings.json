@@ -9,7 +9,7 @@
   "view.configure_layout": "Configurar layout de paneles…",
   "view.param_limits": "Límites de parámetros…",
   "param_limits.title": "Límites de parámetros",
-  "param_limits.note": "Los cambios se aplican al reiniciar la aplicación. Se guardan en ~/.config/mossbauer_fe33_gui/param_limits.json",
+  "param_limits.note": "Los cambios se aplican al guardar. Se guardan en ~/.config/mossbauer_fe33_gui/param_limits.json",
   "param_limits.tab_component": "Componentes",
   "param_limits.tab_calibration": "Calibración",
   "param_limits.tab_distribution": "Distribución",
@@ -24,8 +24,6 @@
   "param_limits.btn_reset": "Restablecer pestaña a valores predeterminados",
   "param_limits.btn_save": "Guardar y cerrar",
   "param_limits.save_error_title": "Error al guardar",
-  "param_limits.saved_title": "Guardado",
-  "param_limits.saved_msg": "Los límites se han guardado. Se aplicarán al reiniciar la aplicación.",
   "webapi.login_title": "Login (API laboratorio)",
   "webapi.login": "Login",
   "webapi.login_failed": "Login fallido: {err}",
@@ -1463,5 +1461,6 @@
   "status.fit_vmax_released": "«Ajustar Vmax» desmarcado: se usa la Vmax de la calibración fijada.",
   "info.area_pct_of": "% área {label}",
   "rep.area_split_header": "Reparto del área (cuantificación)",
-  "rep.area_split_note": "Áreas completas de capa fina, sin recortar al rango medido; área % = fracción de hierro solo si los factores f son iguales."
+  "rep.area_split_note": "Áreas completas de capa fina, sin recortar al rango medido; área % = fracción de hierro solo si los factores f son iguales.",
+  "param_limits.applied": "Límites de parámetros aplicados."
 }

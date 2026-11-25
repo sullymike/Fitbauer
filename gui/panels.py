@@ -770,6 +770,13 @@ class ComponentPanel(QtWidgets.QWidget):
     def fixed_dict(self) -> dict[str, bool]:
         return self.to_view_state().prefixed_fixed()
 
+    def apply_specs(self, specs) -> None:
+        """Rangos, pasos y decimales nuevos de los límites de parámetros."""
+        for name, ctl in self.params.items():
+            spec = specs.get(name)
+            if spec is not None:
+                ctl.apply_spec(spec)
+
     def apply_values(self, values: dict[str, float]) -> None:
         """Vuelca valores (de un ajuste, una sesión…) sin recortarlos al rango
         del control: si alguno se sale, el rango se amplía."""

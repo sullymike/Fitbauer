@@ -616,7 +616,42 @@ class MenuBuilderMixin:
         """Abre el diálogo de edición de límites de parámetros."""
         from gui.param_limits_dialog import ParamLimitsDialog
         dlg = ParamLimitsDialog(self)
-        dlg.exec()
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            self.apply_param_limits()
+
+    def apply_param_limits(self) -> None:
+        """Aplica al momento los límites guardados en el diálogo.
+
+        Antes se leían solo al construir los controles y había que reiniciar.
+        Cambian rangos, pasos y decimales de los controles (sin tocar sus
+        valores) y los umbrales de inicialización y detección de mínimos.
+        """
+        from core.param_overrides import (effective_calibration_specs,
+                                          effective_component_specs,
+                                          effective_distribution_specs)
+        from gui.controls import ParamControl
+        from gui import minima_analysis
+        minima_analysis.reload_param_specs()
+        cspecs = effective_component_specs()
+        for cp in self.components_panels:
+            cp.apply_specs(cspecs)
+        for name, spec in effective_calibration_specs().items():
+            ctl = getattr(self.calib, name, None)
+            if name != "center" and isinstance(ctl, ParamControl):
+                ctl.apply_spec(spec)
+        counts = getattr(self.file, "counts", None)
+        n = int(len(counts)) if counts is not None else 512
+        self._update_center_range(n)
+        d = getattr(self, "dist_panel", None)
+        if d is not None:
+            dspecs = effective_distribution_specs()
+            d._dist_eff_specs = dspecs
+            for name, spec in dspecs.items():
+                ctl = getattr(d, name, None)
+                if isinstance(ctl, ParamControl):
+                    ctl.apply_spec(spec)
+        self.statusBar().showMessage(tr("param_limits.applied",
+                                        default="Límites de parámetros aplicados."), 5000)
 
     def _set_dist_use_sharp(self, enabled: bool) -> None:
         self.dist_use_sharp = bool(enabled)

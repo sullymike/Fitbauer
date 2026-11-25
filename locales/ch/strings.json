@@ -9,7 +9,7 @@
   "view.configure_layout": "配置面板布局…",
   "view.param_limits": "参数范围…",
   "param_limits.title": "参数范围",
-  "param_limits.note": "更改将在应用程序重启后生效。它们保存在 ~/.config/mossbauer_fe33_gui/param_limits.json 中",
+  "param_limits.note": "更改在保存时生效。它们保存在 ~/.config/mossbauer_fe33_gui/param_limits.json 中",
   "param_limits.tab_component": "分量",
   "param_limits.tab_calibration": "校准",
   "param_limits.tab_distribution": "分布",
@@ -24,8 +24,6 @@
   "param_limits.btn_reset": "将该标签页重置为默认值",
   "param_limits.btn_save": "保存并关闭",
   "param_limits.save_error_title": "保存错误",
-  "param_limits.saved_title": "已保存",
-  "param_limits.saved_msg": "范围已保存。它们将在应用程序重启后生效。",
   "webapi.login_title": "登录（实验室 API）",
   "webapi.login": "登录",
   "webapi.login_failed": "登录失败：{err}",
@@ -1463,5 +1461,6 @@
   "status.fit_vmax_released": "已取消“拟合 Vmax”：使用已固定校准的 Vmax。",
   "info.area_pct_of": "面积 % {label}",
   "rep.area_split_header": "面积分配（定量）",
-  "rep.area_split_note": "薄吸收体的完整面积（不截断到测量范围）；只有在无反冲分数 f 相同时，面积 % 才等于铁的比例。"
+  "rep.area_split_note": "薄吸收体的完整面积（不截断到测量范围）；只有在无反冲分数 f 相同时，面积 % 才等于铁的比例。",
+  "param_limits.applied": "参数范围已应用。"
 }

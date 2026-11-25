@@ -9,7 +9,7 @@
   "view.configure_layout": "Настроить компоновку панелей…",
   "view.param_limits": "Пределы параметров…",
   "param_limits.title": "Пределы параметров",
-  "param_limits.note": "Изменения применяются при перезапуске приложения. Они сохраняются в ~/.config/mossbauer_fe33_gui/param_limits.json",
+  "param_limits.note": "Изменения применяются при сохранении. Они сохраняются в ~/.config/mossbauer_fe33_gui/param_limits.json",
   "param_limits.tab_component": "Компоненты",
   "param_limits.tab_calibration": "Калибровка",
   "param_limits.tab_distribution": "Распределение",
@@ -24,8 +24,6 @@
   "param_limits.btn_reset": "Сбросить вкладку к значениям по умолчанию",
   "param_limits.btn_save": "Сохранить и закрыть",
   "param_limits.save_error_title": "Ошибка сохранения",
-  "param_limits.saved_title": "Сохранено",
-  "param_limits.saved_msg": "Пределы сохранены. Они применятся при перезапуске приложения.",
   "webapi.login_title": "Вход (лабораторный API)",
   "webapi.login": "Войти",
   "webapi.login_failed": "Ошибка входа: {err}",
@@ -1463,5 +1461,6 @@
   "status.fit_vmax_released": "«Подгонять Vmax» снято: используется Vmax закреплённой калибровки.",
   "info.area_pct_of": "% площади {label}",
   "rep.area_split_header": "Распределение площади (количественный анализ)",
-  "rep.area_split_note": "Полные площади (тонкий поглотитель), без обрезки по измеренному диапазону; % площади = доля железа только при равных f-факторах."
+  "rep.area_split_note": "Полные площади (тонкий поглотитель), без обрезки по измеренному диапазону; % площади = доля железа только при равных f-факторах.",
+  "param_limits.applied": "Пределы параметров применены."
 }

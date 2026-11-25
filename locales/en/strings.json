@@ -9,7 +9,7 @@
   "view.configure_layout": "Configure panel layout…",
   "view.param_limits": "Parameter limits…",
   "param_limits.title": "Parameter limits",
-  "param_limits.note": "Changes apply on application restart. They are saved in ~/.config/mossbauer_fe33_gui/param_limits.json",
+  "param_limits.note": "Changes apply when you save. They are saved in ~/.config/mossbauer_fe33_gui/param_limits.json",
   "param_limits.tab_component": "Components",
   "param_limits.tab_calibration": "Calibration",
   "param_limits.tab_distribution": "Distribution",
@@ -24,8 +24,6 @@
   "param_limits.btn_reset": "Reset tab to default values",
   "param_limits.btn_save": "Save and close",
   "param_limits.save_error_title": "Save error",
-  "param_limits.saved_title": "Saved",
-  "param_limits.saved_msg": "Limits have been saved. They will apply on application restart.",
   "webapi.login_title": "Login (lab API)",
   "webapi.login": "Login",
   "webapi.login_failed": "Login failed: {err}",
@@ -1463,5 +1461,6 @@
   "status.fit_vmax_released": "“Fit Vmax” unchecked: the Vmax of the fixed calibration is used.",
   "info.area_pct_of": "% area {label}",
   "rep.area_split_header": "Area split (quantification)",
-  "rep.area_split_note": "Full thin-absorber areas, not truncated to the measured range; area % = iron fraction only if the recoil-free fractions are equal."
+  "rep.area_split_note": "Full thin-absorber areas, not truncated to the measured range; area % = iron fraction only if the recoil-free fractions are equal.",
+  "param_limits.applied": "Parameter limits applied."
 }

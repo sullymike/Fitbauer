@@ -9,7 +9,7 @@
   "view.configure_layout": "パネルレイアウトを構成…",
   "view.param_limits": "パラメータの範囲…",
   "param_limits.title": "パラメータの範囲",
-  "param_limits.note": "変更はアプリケーションの再起動時に適用されます。~/.config/mossbauer_fe33_gui/param_limits.json に保存されます",
+  "param_limits.note": "変更は保存時に適用されます。~/.config/mossbauer_fe33_gui/param_limits.json に保存されます",
   "param_limits.tab_component": "成分",
   "param_limits.tab_calibration": "較正",
   "param_limits.tab_distribution": "分布",
@@ -24,8 +24,6 @@
   "param_limits.btn_reset": "タブを既定値にリセット",
   "param_limits.btn_save": "保存して閉じる",
   "param_limits.save_error_title": "保存エラー",
-  "param_limits.saved_title": "保存しました",
-  "param_limits.saved_msg": "範囲を保存しました。アプリケーションの再起動時に適用されます。",
   "webapi.login_title": "ログイン（ラボ API）",
   "webapi.login": "ログイン",
   "webapi.login_failed": "ログインに失敗しました：{err}",
@@ -1463,5 +1461,6 @@
   "status.fit_vmax_released": "「Vmax をフィット」を解除しました：固定された校正の Vmax を使用します。",
   "info.area_pct_of": "面積 % {label}",
   "rep.area_split_header": "面積の配分（定量）",
-  "rep.area_split_note": "薄い吸収体の全面積（測定範囲で切り捨てない）。面積 % が鉄の割合に等しいのは無反跳分率 f が等しい場合のみ。"
+  "rep.area_split_note": "薄い吸収体の全面積（測定範囲で切り捨てない）。面積 % が鉄の割合に等しいのは無反跳分率 f が等しい場合のみ。",
+  "param_limits.applied": "パラメータの範囲を適用しました。"
 }

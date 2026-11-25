@@ -9,7 +9,7 @@
   "view.configure_layout": "Configurer la disposition des panneaux…",
   "view.param_limits": "Limites des paramètres…",
   "param_limits.title": "Limites des paramètres",
-  "param_limits.note": "Les changements s'appliquent au redémarrage de l'application. Ils sont enregistrés dans ~/.config/mossbauer_fe33_gui/param_limits.json",
+  "param_limits.note": "Les changements s'appliquent à l'enregistrement. Ils sont enregistrés dans ~/.config/mossbauer_fe33_gui/param_limits.json",
   "param_limits.tab_component": "Composants",
   "param_limits.tab_calibration": "Étalonnage",
   "param_limits.tab_distribution": "Distribution",
@@ -24,8 +24,6 @@
   "param_limits.btn_reset": "Réinitialiser l'onglet aux valeurs par défaut",
   "param_limits.btn_save": "Enregistrer et fermer",
   "param_limits.save_error_title": "Erreur d'enregistrement",
-  "param_limits.saved_title": "Enregistré",
-  "param_limits.saved_msg": "Les limites ont été enregistrées. Elles s'appliqueront au redémarrage de l'application.",
   "webapi.login_title": "Connexion (API labo)",
   "webapi.login": "Connexion",
   "webapi.login_failed": "Échec de connexion : {err}",
@@ -1463,5 +1461,6 @@
   "status.fit_vmax_released": "« Ajuster Vmax » décoché : la Vmax de l’étalonnage fixé est utilisée.",
   "info.area_pct_of": "% aire {label}",
   "rep.area_split_header": "Répartition de l’aire (quantification)",
-  "rep.area_split_note": "Aires complètes en absorbant mince, non tronquées à la plage mesurée ; % d’aire = fraction de fer seulement si les facteurs f sont égaux."
+  "rep.area_split_note": "Aires complètes en absorbant mince, non tronquées à la plage mesurée ; % d’aire = fraction de fer seulement si les facteurs f sont égaux.",
+  "param_limits.applied": "Limites des paramètres appliquées."
 }

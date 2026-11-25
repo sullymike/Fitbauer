@@ -155,6 +155,20 @@ class ParamControl(QtWidgets.QWidget):
         self.spin.blockSignals(False)
         self._syncing = False
 
+    def apply_spec(self, spec) -> None:
+        """Aplica un ``ParamSpec`` nuevo (diálogo de límites) sin reiniciar.
+
+        Cambian el rango, el paso y los decimales del control; el valor
+        actual no se toca: si queda fuera del rango nuevo, el rango se amplía
+        para contenerlo (como al volcar un resultado).
+        """
+        value = float(self.spin.value())
+        self.spin.blockSignals(True)
+        self.spin.setDecimals(int(spec.decimals))
+        self.spin.blockSignals(False)
+        self.set_range(min(float(spec.lo), value), max(float(spec.hi), value), float(spec.step))
+        self.set_value(value)
+
     def _value_to_slider(self, value: float) -> int:
         if self._hi <= self._lo:
             return 0

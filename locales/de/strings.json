@@ -9,7 +9,7 @@
   "view.configure_layout": "Panel-Layout konfigurieren…",
   "view.param_limits": "Parametergrenzen…",
   "param_limits.title": "Parametergrenzen",
-  "param_limits.note": "Änderungen werden beim Neustart der Anwendung wirksam. Sie werden in ~/.config/mossbauer_fe33_gui/param_limits.json gespeichert",
+  "param_limits.note": "Änderungen werden beim Speichern wirksam. Sie werden in ~/.config/mossbauer_fe33_gui/param_limits.json gespeichert",
   "param_limits.tab_component": "Komponenten",
   "param_limits.tab_calibration": "Kalibrierung",
   "param_limits.tab_distribution": "Verteilung",
@@ -24,8 +24,6 @@
   "param_limits.btn_reset": "Tab auf Standardwerte zurücksetzen",
   "param_limits.btn_save": "Speichern und schließen",
   "param_limits.save_error_title": "Speicherfehler",
-  "param_limits.saved_title": "Gespeichert",
-  "param_limits.saved_msg": "Grenzen wurden gespeichert. Sie werden beim Neustart der Anwendung wirksam.",
   "webapi.login_title": "Anmeldung (Labor-API)",
   "webapi.login": "Anmelden",
   "webapi.login_failed": "Anmeldung fehlgeschlagen: {err}",
@@ -1463,5 +1461,6 @@
   "status.fit_vmax_released": "„Vmax anpassen“ deaktiviert: die Vmax der festgelegten Kalibrierung wird verwendet.",
   "info.area_pct_of": "% Fläche {label}",
   "rep.area_split_header": "Flächenaufteilung (Quantifizierung)",
-  "rep.area_split_note": "Vollständige Flächen (dünner Absorber), nicht auf den Messbereich beschnitten; Flächen-% = Eisenanteil nur bei gleichen f-Faktoren."
+  "rep.area_split_note": "Vollständige Flächen (dünner Absorber), nicht auf den Messbereich beschnitten; Flächen-% = Eisenanteil nur bei gleichen f-Faktoren.",
+  "param_limits.applied": "Parametergrenzen übernommen."
 }

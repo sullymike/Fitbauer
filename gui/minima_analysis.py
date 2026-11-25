@@ -14,6 +14,13 @@ from gui.panels import ComponentPanel
 _FI = _eff_fi()
 _PD = _eff_pd()
 
+
+def reload_param_specs() -> None:
+    """Relee los límites de inicialización y detección (diálogo de límites)."""
+    global _FI, _PD
+    _FI = _eff_fi()
+    _PD = _eff_pd()
+
 from core.params import MAX_COMPONENTS as MAX_QT_COMPONENTS
 
 # Calibración del estimador de anchura CWT: para una Lorentziana de FWHM Γ, la

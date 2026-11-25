@@ -3621,3 +3621,28 @@ def test_distribucion_con_nitido_da_el_reparto_de_area(win, monkeypatch):
     texto = "\n".join(win._build_report_lines())
     from mossbauer_i18n import tr
     assert tr("rep.area_split_header") in texto
+
+
+def test_limites_de_parametros_se_aplican_sin_reiniciar(win):
+    """Guardar el diálogo de límites cambia al momento el rango, el paso y los
+    decimales de los controles (antes había que reiniciar), sin tocar los
+    valores: si uno queda fuera del rango nuevo, el rango se amplía."""
+    from core import param_overrides
+    from gui import minima_analysis
+    ctl = win.components_panels[0].params["gamma1"]
+    ctl.set_value(0.5)
+    param_overrides.save_raw({
+        "component": {"gamma1": {"lo": 0.1, "hi": 0.3, "step": 0.002, "decimals": 3}},
+        "calibration": {"baseline": {"lo": 0.9, "hi": 1.1}},
+        "fit_init": {"sextet_bhf_min": {"default": 12.0}},
+    })
+    win.apply_param_limits()
+    assert ctl.spin.decimals() == 3 and ctl.spin.singleStep() == pytest.approx(0.002)
+    assert ctl.value() == pytest.approx(0.5)               # el valor no cambia
+    assert ctl.spin.minimum() == pytest.approx(0.1) and ctl.spin.maximum() == pytest.approx(0.5)
+    assert win.calib.baseline.spin.maximum() == pytest.approx(1.1)
+    try:
+        assert minima_analysis._FI["sextet_bhf_min"].default == 12.0
+    finally:
+        param_overrides.save_raw({})                       # no contaminar otros tests
+        minima_analysis.reload_param_specs()

@@ -166,7 +166,7 @@ class ParamLimitsDialog(QtWidgets.QDialog):
             tr(
                 "param_limits.note",
                 default=(
-                    "Los cambios se aplican al reiniciar la aplicación. "
+                    "Los cambios se aplican al guardar. "
                     "Se guardan en ~/.config/mossbauer_fe33_gui/param_limits.json"
                 ),
             )
@@ -218,12 +218,4 @@ class ParamLimitsDialog(QtWidgets.QDialog):
                 str(exc),
             )
             return
-        QtWidgets.QMessageBox.information(
-            self,
-            tr("param_limits.saved_title", default="Guardado"),
-            tr(
-                "param_limits.saved_msg",
-                default="Los límites se han guardado. Se aplicarán al reiniciar la aplicación.",
-            ),
-        )
         self.accept()

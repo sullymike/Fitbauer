@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **Los límites de parámetros se aplican sin reiniciar.** *Vista → Límites de
+  parámetros…* solo se leía al construir los controles. Ahora, al guardar,
+  cambian al momento el rango, el paso y los decimales de los controles de
+  componentes, calibración y distribución (sin tocar los valores: si uno queda
+  fuera, el rango se amplía), la ventana del punto de doblado y los umbrales de
+  inicialización y detección de mínimos.
+
 - **Reparto del área entre la distribución y los componentes nítidos.** En modo
   distribución con nítidos no se daba ningún %: solo las profundidades. Ahora el
   panel de información y el informe dan el % del área completa de la
