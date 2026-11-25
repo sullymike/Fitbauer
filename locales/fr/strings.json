@@ -1599,5 +1599,11 @@
   "diag.sharp_action": "Désactivez-la ou fixez ses paramètres à partir d'informations externes.",
   "valid.open_limits": "Modifier les limites…",
   "valid.limits_hint": "Corrigez la valeur dans le panneau ou modifiez la limite dans Vue › Limites des paramètres › Composantes (elle s'applique à l'ajustement et aux champs).",
-  "valid.limits_hint_own": "Cette limite est une borne propre à cette composante : modifiez-la dans ses champs min/max du panneau (Vue › Afficher les bornes d'ajustement par composante)."
+  "valid.limits_hint_own": "Cette limite est une borne propre à cette composante : modifiez-la dans ses champs min/max du panneau (Vue › Afficher les bornes d'ajustement par composante).",
+  "diag.reg_title": "Régularisation",
+  "diag.reg_thr": "k_eff < {pct} % des paramètres possibles",
+  "diag.reg_value": "k_eff = {k} sur {n} possibles · log α = {la}",
+  "diag.reg_meaning": "La régularisation n'agit presque pas : chaque bin est ajusté librement et P peut présenter des pics qui sont du bruit, pas de la structure.",
+  "diag.reg_action": "Augmentez log α (dans ce programme, l'effet apparaît en général au-dessus de +1) ou utilisez la courbe L, et comparez P pour plusieurs α : gardez les traits qui persistent.",
+  "diag.reg_ok_meaning": "La régularisation lisse P (k_eff nettement inférieur au nombre de bins)."
 }

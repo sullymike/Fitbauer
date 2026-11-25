@@ -1599,5 +1599,11 @@
   "diag.sharp_action": "Disable it or fix its parameters from external information.",
   "valid.open_limits": "Change limits…",
   "valid.limits_hint": "Correct the value in the panel or change the limit in View › Parameter limits › Components (it applies to the fit and to the input boxes).",
-  "valid.limits_hint_own": "That limit is a bound of this component only: change it in its min/max boxes in the panel (View › Show fit bounds per component)."
+  "valid.limits_hint_own": "That limit is a bound of this component only: change it in its min/max boxes in the panel (View › Show fit bounds per component).",
+  "diag.reg_title": "Regularization",
+  "diag.reg_thr": "k_eff < {pct} % of the possible parameters",
+  "diag.reg_value": "k_eff = {k} of {n} possible · log α = {la}",
+  "diag.reg_meaning": "Regularization hardly acts: each bin is fitted on its own and P may show peaks that are noise, not structure.",
+  "diag.reg_action": "Raise log α (in this program it usually starts to show above +1) or use the L-curve, and compare P at several α: keep the features that persist.",
+  "diag.reg_ok_meaning": "Regularization smooths P (k_eff clearly below the number of bins)."
 }

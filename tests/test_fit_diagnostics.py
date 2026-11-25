@@ -137,3 +137,20 @@ def test_limites_de_la_ventana_son_las_cotas_del_ajuste(tmp_path, monkeypatch):
     assert st.bounds["s1_delta"] == (-5.0, 3.0)
     assert st.bounds["s1_depth"] == (0.0, 1.0)
     assert validate_fit_state(st) == []
+
+
+def test_aviso_de_regularizacion_casi_nula():
+    """Histograma con k_eff ≈ nº de parámetros: la regularización no actúa."""
+    from types import SimpleNamespace
+    import numpy as np
+    from core.fit_diagnostics import check_regularization
+    x = np.linspace(5, 55, 80)
+    base = dict(shape="Histograma", reg_mode="tikhonov", bhf_centers=x,
+                sharp_weights=None, alpha=10 ** -1.5)
+    sin = check_regularization(SimpleNamespace(effective_dof=81.5, **base))
+    assert sin.status == "warn" and "81.5" in sin.value and "82" in sin.value
+    con = check_regularization(SimpleNamespace(effective_dof=40.0, **base))
+    assert con.status == "ok"
+    # Formas paramétricas y MaxEnt: no aplica.
+    assert check_regularization(SimpleNamespace(effective_dof=5.0, **{**base, "shape": "VBF"})) is None
+    assert check_regularization(SimpleNamespace(effective_dof=80.0, **{**base, "reg_mode": "maxent"})) is None

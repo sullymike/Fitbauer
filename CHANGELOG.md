@@ -2,6 +2,20 @@
 
 ## Sin publicar
 
+- **Regularización de distribuciones: aviso cuando casi no actúa y curva L
+  que llega al codo.** Medido con los sintéticos de distribución, por debajo
+  de log α ≈ 1 la P sale igual que sin regularizar (k_eff ≈ nº de bins, P con
+  picos de ruido) y el codo de la L-curve cae en log α ≈ 5.5–6.5, no en ≈ 0
+  como decía la ayuda. El cálculo de k_eff y de las bandas de P era correcto
+  (el escalado de columnas se cancela en el penalizador); lo que fallaba es la
+  calibración de `ALPHA_REF_SCALE`, que no se toca aquí porque cambiaría todo
+  ajuste guardado.
+  - Diagnóstico: nueva comprobación «Regularización» (Histograma con
+    Tikhonov/TV) que avisa si k_eff ≥ 90 % de los parámetros posibles.
+  - Barrido de la L-curve por defecto [−2, +8] (antes [−4, +4], que dejaba el
+    codo fuera y proponía un punto sin regularizar); log α admite hasta +10.
+  - Ayuda (8 idiomas): dónde empieza a actuar α y dónde suele caer el codo.
+
 - **Estrategia de ajuste por defecto: local** (desde los valores actuales). La
   exploración con varios arranques queda a un clic en el mismo desplegable. Las
   sesiones guardadas con exploración la conservan; las que no dicen nada se

@@ -30,6 +30,9 @@ SWAP_RATIO = 0.5        # intercambio si la asignación cruzada cuesta < la mita
 EDGE_PILEUP_MAX = 0.3   # P en el bin extremo / máximo de P: la malla se queda corta
 COMP_SHARE_MIN = 0.02   # gaussiana (VBF) con menos del 2 % del área: sobra
 SHARP_SHARE_MIN = 0.01  # componente nítida con menos del 1 % del área: sobra
+#: Histograma regularizado: k_eff / parámetros posibles por encima de esto =
+#: la regularización casi no actúa (cada bin va por libre).
+REG_DOF_MAX = 0.9
 #: Desplazamiento de línea por unidad de la variable distribuida (mm/s): las
 #: líneas externas del sextete (1/6) por tesla, cada línea del doblete por
 #: mm/s de ΔEQ y todas las líneas por mm/s de δ.
@@ -369,6 +372,44 @@ def check_mesh(centers, variable: str, gamma) -> Check | None:
     return Check("mesh", "ok", title, val, thr, tr("diag.mesh_ok_meaning"))
 
 
+def check_regularization(result) -> Check | None:
+    """Histograma (Tikhonov/TV): ¿actúa de verdad la regularización?
+
+    k_eff es la traza del operador regularizado: con α efectivo nulo vale el
+    número de parámetros (bins + fondo + nítidos) y baja al suavizar. Si
+    queda cerca del máximo, la P se ajusta bin a bin y sus picos pueden ser
+    ruido. El umbral solo marca el caso «prácticamente sin regularizar».
+    """
+    if getattr(result, "shape", None) != "Histograma":
+        return None
+    if str(getattr(result, "reg_mode", "tikhonov") or "tikhonov") not in ("tikhonov", "tv"):
+        return None
+    k = getattr(result, "effective_dof", None)
+    centers = np.asarray(getattr(result, "bhf_centers", []), dtype=float)
+    try:
+        k = float(k)
+    except (TypeError, ValueError):
+        return None
+    if centers.size < 3 or not math.isfinite(k):
+        return None
+    sharp = getattr(result, "sharp_weights", None)
+    n_sharp = int(np.size(sharp)) if sharp is not None else 0
+    posibles = centers.size + 2 + n_sharp            # bins + fondo y pendiente + nítidos
+    ratio = k / posibles
+    alpha = getattr(result, "alpha", None)
+    try:
+        la = f"{math.log10(float(alpha)):.1f}"
+    except (TypeError, ValueError):
+        la = "—"
+    title = tr("diag.reg_title")
+    thr = tr("diag.reg_thr", pct=f"{100 * REG_DOF_MAX:.0f}")
+    val = tr("diag.reg_value", k=f"{k:.1f}", n=posibles, la=la)
+    if ratio >= REG_DOF_MAX:
+        return Check("regularization", "warn", title, val, thr, tr("diag.reg_meaning"),
+                     tr("diag.reg_action"))
+    return Check("regularization", "ok", title, val, thr, tr("diag.reg_ok_meaning"))
+
+
 def _shape_components(result) -> tuple[list, list, tuple | None]:
     """(componentes [(A, μ, σ)] 1D o [(A, μx, μy, σx, σy, ρ)] 2D, cotas de σ)."""
     comps = getattr(result, "vbf_components", None)
@@ -482,7 +523,8 @@ def diagnose_distribution(result, summary: dict, *, outer=None,
                           summary.get("variable") or "bhf", gamma)
         if mesh is not None:
             checks.append(mesh)
-    for extra in (check_shape_components(result, getattr(result, "bhf_centers", [])),
+    for extra in (check_regularization(result) if not is_2d else None,
+                  check_shape_components(result, getattr(result, "bhf_centers", [])),
                   check_sharp(getattr(result, "area_split", None))):
         if extra is not None:
             checks.append(extra)

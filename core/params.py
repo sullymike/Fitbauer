@@ -256,7 +256,8 @@ DISTRIBUTION_PARAM_SPECS: dict[str, ParamSpec] = {
     "bmin":        ParamSpec(0.0,  -10.0,  60.0,  0.1, 4),
     "bmax":        ParamSpec(50.0, -10.0,  60.0,  0.1, 4),
     "nbins":       ParamSpec(50.0,  10.0, 100.0,  1.0, 0),
-    "log_alpha":   ParamSpec( 0.0,  -6.0,   6.0,  0.1, 2),
+    # Hasta +10: el codo de la L-curve cae en log α ≈ 5–7 en espectros típicos.
+    "log_alpha":   ParamSpec( 0.0,  -6.0,  10.0,  0.1, 2),
     # Límites exteriores del eje X en modo IS (δ) y ΔEQ distribuido.
     # Controlan hasta dónde pueden llegar los sliders bmin/bmax en esos modos.
     "is_lo":       ParamSpec(-2.5, -10.0,  0.0,  0.1, 2),
@@ -267,7 +268,7 @@ DISTRIBUTION_PARAM_SPECS: dict[str, ParamSpec] = {
     "qmin":        ParamSpec(-1.0,  -4.0,  4.0, 0.01, 3),
     "qmax":        ParamSpec(1.0,   -4.0,  4.0, 0.01, 3),
     "qbins":       ParamSpec(21.0,   5.0, 80.0,  1.0, 0),
-    "log_alpha_q": ParamSpec( 0.0,  -6.0,  6.0,  0.1, 2),
+    "log_alpha_q": ParamSpec( 0.0,  -6.0, 10.0,  0.1, 2),
     # Límites de anchura σ de las gaussianas de VBF/Gaussiana, comunes a todas
     # (unidades del eje: T o mm/s). 0 = automático (resolución de la malla /
     # anchura total). El eje Y solo existe en las formas 2D.
@@ -297,9 +298,12 @@ FIT_INIT_SPECS: dict[str, ParamSpec] = {
     # Separación de picos para clasificar como doblete
     "doublet_sep_min":     ParamSpec(0.18, 0.05, 1.0,  0.01, 3),
     "doublet_sep_max":     ParamSpec(5.0,  1.0, 10.0,   0.1, 2),
-    # L-curve: rango del barrido de α
-    "lcurve_alpha_lo":     ParamSpec(-4.0, -10.0, -1.0,  0.5, 1),
-    "lcurve_alpha_hi":     ParamSpec( 4.0,   0.0,  6.0,  0.5, 1),
+    # L-curve: rango del barrido de α. Con [−4, +4] el codo quedaba fuera
+    # (la regularización apenas actúa por debajo de log α ≈ 1) y la
+    # «esquina» elegida era un punto sin regularizar; medido con los
+    # sintéticos de distribución, el codo cae en log α ≈ 5.5–6.5.
+    "lcurve_alpha_lo":     ParamSpec(-2.0, -10.0,  2.0,  0.5, 1),
+    "lcurve_alpha_hi":     ParamSpec( 8.0,   0.0, 12.0,  0.5, 1),
     "lcurve_n_points":     ParamSpec(25.0,   5.0, 100.0,  1.0, 0),
     # Bootstrap
     "bootstrap_nrep":      ParamSpec(30.0,   5.0, 500.0,  5.0, 0),

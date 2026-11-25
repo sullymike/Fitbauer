@@ -1599,5 +1599,11 @@
   "diag.sharp_action": "Desative-a ou fixe os seus parâmetros com informação externa.",
   "valid.open_limits": "Alterar limites…",
   "valid.limits_hint": "Corrija o valor no painel ou altere o limite em Vista › Limites de parâmetros › Componentes (vale para o ajuste e para as caixas).",
-  "valid.limits_hint_own": "Esse limite é próprio desta componente: altere-o nas caixas mín./máx. do painel (Vista › Mostrar limites do ajuste por componente)."
+  "valid.limits_hint_own": "Esse limite é próprio desta componente: altere-o nas caixas mín./máx. do painel (Vista › Mostrar limites do ajuste por componente).",
+  "diag.reg_title": "Regularização",
+  "diag.reg_thr": "k_eff < {pct} % dos parâmetros possíveis",
+  "diag.reg_value": "k_eff = {k} de {n} possíveis · log α = {la}",
+  "diag.reg_meaning": "A regularização quase não atua: cada bin ajusta-se livremente e a P pode ter picos que são ruído, não estrutura.",
+  "diag.reg_action": "Sobe log α (neste programa costuma notar-se acima de +1) ou usa a curva L, e compara a P a vários α: fica com os traços que se mantêm.",
+  "diag.reg_ok_meaning": "A regularização suaviza a P (k_eff claramente abaixo do número de bins)."
 }
