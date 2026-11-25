@@ -1478,5 +1478,7 @@
   "calib.src_local": "lokal",
   "calib.src_instrument": "Gerät",
   "calib.src_web_api": "Web",
-  "calib.src_embedded": "aus der Datei"
+  "calib.src_embedded": "aus der Datei",
+  "info.active_components": "Aktive Komponenten: {list}",
+  "info.comp_short": "Komp. {idx}"
 }

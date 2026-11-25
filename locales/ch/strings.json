@@ -1478,5 +1478,7 @@
   "calib.src_local": "本地",
   "calib.src_instrument": "仪器",
   "calib.src_web_api": "网络",
-  "calib.src_embedded": "文件内置"
+  "calib.src_embedded": "文件内置",
+  "info.active_components": "启用的组分：{list}",
+  "info.comp_short": "组分 {idx}"
 }

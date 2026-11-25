@@ -3702,3 +3702,21 @@ def test_rotulo_de_calibracion_traduce_el_origen(win):
         assert "Local calibration: calibration.ADT" in win.calib_label.text()
     finally:
         i18n.set_language(prev)
+
+
+def test_panel_de_estado_legible(win):
+    """El panel lista las componentes activas con su tipo, los fijos con su
+    rótulo (sin claves internas ni la I₃ oculta) y parte las líneas largas."""
+    from pathlib import Path
+    from PySide6 import QtWidgets
+    root = Path(__file__).resolve().parents[1] / "data_sample"
+    win._open_spectrum(root / "Fe3O4.adt")
+    win.load_session_file(root / "Fe3O4_session.json")
+    win.components_panels[0].type_combo.setCurrentText("Doblete")
+    txt = win.info_panel.text.toPlainText()
+    assert "(Doblete)" in txt or "(Doublet)" in txt
+    fijos = [l for l in txt.splitlines() if "s1_" in l or "s2_" in l or "curv3" in l]
+    assert not fijos, fijos
+    assert win.info_panel.text.lineWrapMode() == QtWidgets.QTextEdit.LineWrapMode.WidgetWidth
+    assert win._param_short_name("s2_quad").endswith("(2)")
+    win.mark_saved()

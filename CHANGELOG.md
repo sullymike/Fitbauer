@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **Panel «Estado y parámetros» más legible.** «Sextetes activos» pasa a
+  «Componentes activas: 1 (Doblete), 2 (Sextete)», con el tipo de cada una; la
+  lista de fijos y la matriz de correlaciones usan los rótulos de los controles
+  («Γ 2,5 / Γ₁», «ΔEQ (2)») en vez de claves internas (`s1_gamma2`), agrupados
+  por componente y sin la intensidad de referencia oculta; las líneas largas
+  se parten al ancho del panel en vez de obligar a desplazarse en horizontal.
+
 - **Rótulo de calibración y «punto de doblado» en español.** El rótulo mostraba
   el código interno del origen y la raíz del fichero («Calibración [local]
   calibration»); ahora traduce el origen y enseña el nombre del fichero

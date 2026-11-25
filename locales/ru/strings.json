@@ -1478,5 +1478,7 @@
   "calib.src_local": "локальная",
   "calib.src_instrument": "прибор",
   "calib.src_web_api": "веб",
-  "calib.src_embedded": "из файла"
+  "calib.src_embedded": "из файла",
+  "info.active_components": "Активные компоненты: {list}",
+  "info.comp_short": "комп. {idx}"
 }

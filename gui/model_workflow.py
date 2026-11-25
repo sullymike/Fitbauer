@@ -219,16 +219,60 @@ class ModelWorkflowMixin:
         self._apply_compact_params()
         self._save_settings()
 
-    def _param_display_name(self, key: str) -> str:
-        """«Γ 1,6 (global) · comp. 2» para ``s2_gamma1``; otras claves, tal cual."""
+    def _param_label(self, key: str) -> tuple[str, int | None]:
+        """(rótulo legible, índice de componente o None) de una clave interna.
+
+        Usa el rótulo que muestra el propio control (traducido y propio del
+        tipo de componente: el ΔEQ de un doblete no es el 2ε de un sextete).
+        """
         import re
+        from gui.controls import ParamControl
         m = re.fullmatch(r"s(\d+)_(\w+)", key)
-        if not m:
-            return key
-        idx, name = int(m.group(1)), m.group(2)
-        label = tr(f"slider.s_{name}", default=name)
+        if m:
+            idx, name = int(m.group(1)), m.group(2)
+            panels = getattr(self, "components_panels", [])
+            ctl = panels[idx - 1].params.get(name) if 0 < idx <= len(panels) else None
+            label = (getattr(ctl, "_label_text", None)
+                     or tr(f"slider.s_{name}", default=name))
+            return label, idx
+        ctl = getattr(getattr(self, "calib", None), key, None)
+        if isinstance(ctl, ParamControl):
+            return ctl._label_text, None
+        return tr(f"slider.{key}", default=key), None
+
+    def _param_display_name(self, key: str) -> str:
+        """«Γ 1,6 (global) · comp. 2» para ``s2_gamma1``; «Pendiente» para ``slope``."""
+        label, idx = self._param_label(key)
+        if idx is None:
+            return label
         return tr("limits.param_in_comp", param=label, idx=idx,
                   default="{param} · comp. {idx}")
+
+    def _param_short_name(self, key: str) -> str:
+        """Rótulo corto para tablas: «ΔEQ (2)» para ``s2_quad``."""
+        label, idx = self._param_label(key)
+        return label if idx is None else f"{label} ({idx})"
+
+    def _fixed_params_text(self, keys: list[str]) -> str:
+        """Parámetros fijos agrupados: «comp. 1: Γ 2,5 / Γ₁, I13 · Curvatura…»."""
+        generales: list[str] = []
+        por_comp: dict[int, list[str]] = {}
+        for key in keys:
+            label, idx = self._param_label(key)
+            if idx is not None:
+                # Los ocultos (p. ej. I₃, referencia siempre fija) no aportan.
+                ctl = self.components_panels[idx - 1].params.get(key.split("_", 1)[1])
+                if ctl is not None and ctl.isHidden():
+                    continue
+            if idx is None:
+                generales.append(label)
+            else:
+                por_comp.setdefault(idx, []).append(label)
+        partes = [tr("info.comp_short", idx=idx, default="comp. {idx}") + ": " + ", ".join(labs)
+                  for idx, labs in sorted(por_comp.items())]
+        if generales:
+            partes.append(", ".join(generales))
+        return " · ".join(partes) if partes else tr("info.none")
 
     def _bound_warnings(self, result=None) -> list[str]:
         """Avisos de cotas del último ajuste discreto.
@@ -660,7 +704,11 @@ class ModelWorkflowMixin:
             tr("info.vmax", value=f"{calib_state.vmax:.6g}"),
             tr("info.baseline", value=f"{calib_state.baseline:.6g}"),
             tr("info.slope", value=f"{calib_state.slope:.6g}"),
-            tr("info.active_sextets", list=", ".join(map(str, active))),
+            # Todas las componentes activas con su tipo (antes «Sextetes
+            # activos» listaba también los dobletes y singletes).
+            tr("info.active_components", list=", ".join(
+                f"{c.idx} ({tr(f'kind.{c.kind}', default=c.kind)})"
+                for c in self._active_component_states()) or tr("info.none")),
             tr("info.fit_velocity_yes") if calib_state.fit_velocity else tr("info.fit_velocity_no"),
             tr("info.rms", value=f"{self._info_rms():.6g}"),
         ]
@@ -739,7 +787,7 @@ class ModelWorkflowMixin:
             if iso_ref is not None:
                 lines.append(tr("info.delta_corrected",
                                value=f"{comp_state.value('delta') - iso_ref:.6g}", ref=f"{iso_ref:.6g}"))
-        lines.extend(["", tr("info.fixed_line", fixed=", ".join(fixed) if fixed else tr("info.none"))])
+        lines.extend(["", tr("info.fixed_line", fixed=self._fixed_params_text(fixed))])
         cons = self.enabled_constraints()
         if cons:
             lines.append("")

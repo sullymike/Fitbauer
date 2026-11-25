@@ -1478,5 +1478,7 @@
   "calib.src_local": "ローカル",
   "calib.src_instrument": "装置",
   "calib.src_web_api": "Web",
-  "calib.src_embedded": "ファイル内"
+  "calib.src_embedded": "ファイル内",
+  "info.active_components": "有効な成分：{list}",
+  "info.comp_short": "成分 {idx}"
 }

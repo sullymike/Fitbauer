@@ -212,6 +212,7 @@ class MainLayoutMixin:
         self.canvas = SpectrumCanvas(center)
         self.toolbar = NavigationToolbar(self.canvas, center)
         self.info_panel = InfoPanel()
+        self.info_panel.label_for = self._param_short_name
         self._center_bottom_widget = QtWidgets.QWidget(center)
         self._center_bottom_layout = QtWidgets.QVBoxLayout(self._center_bottom_widget)
         self._center_bottom_layout.setContentsMargins(6, 0, 6, 6)

@@ -1,7 +1,7 @@
 """Paneles principales reutilizables de la GUI Qt."""
 from __future__ import annotations
 
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from mossbauer_i18n import tr
 from dataclasses import astuple
@@ -836,7 +836,8 @@ def correlation_matrix_html(labels: list[str], matrix, *, base=(255, 255, 255),
              "<tr><td></td>" + "".join(
                  f"<td align='center'><b>{k + 1}</b></td>" for k in range(n)) + "</tr>"]
     for i, lab in enumerate(labels):
-        celdas = [f"<td><b>{i + 1}</b>&nbsp;{_html.escape(str(lab))}</td>"]
+        nombre = _html.escape(str(lab)).replace(" ", "&nbsp;")   # sin partir el rótulo
+        celdas = [f"<td nowrap><b>{i + 1}</b>&nbsp;{nombre}</td>"]
         for j in range(n):
             r = m[i, j]
             if i == j:
@@ -851,7 +852,7 @@ def correlation_matrix_html(labels: list[str], matrix, *, base=(255, 255, 255),
             valor = f"{r:+.2f}".replace("0.", ".")
             if a >= 0.95:
                 valor = f"<b>{valor}</b>"
-            celdas.append(f"<td align='center' bgcolor='{fondo}' "
+            celdas.append(f"<td nowrap align='center' bgcolor='{fondo}' "
                           f"style='color:{color};'>{valor}</td>")
         filas.append("<tr>" + "".join(celdas) + "</tr>")
     filas.append("</table>")
@@ -869,6 +870,12 @@ class InfoPanel(QtWidgets.QGroupBox):
         self.text.setReadOnly(True)
         self.text.setMinimumHeight(120)
         self.text.setStyleSheet("QTextEdit { font-family: monospace; font-size: 10pt; }")
+        # Las líneas largas se parten al ancho del panel en vez de obligar a
+        # desplazarse en horizontal.
+        self.text.setLineWrapMode(QtWidgets.QTextEdit.LineWrapMode.WidgetWidth)
+        self.text.setWordWrapMode(QtGui.QTextOption.WrapMode.WordWrap)
+        #: Traduce claves internas (``s1_delta``) a rótulos legibles.
+        self.label_for = None
         v.addWidget(self.text)
 
     def set_lines(self, lines: list[str], correlations: dict | None = None) -> None:
@@ -887,10 +894,14 @@ class InfoPanel(QtWidgets.QGroupBox):
         texto = pal.color(pal.ColorRole.Text).getRgb()[:3]
         cuerpo = _html.escape("\n".join(lines))
         leyenda = _html.escape(tr("info.corr_matrix_legend"))
+        etiquetas = datos[0]
+        if self.label_for is not None:
+            etiquetas = [self.label_for(k) for k in etiquetas]
         self.text.setHtml(
-            f"<pre style='font-family: monospace; font-size: 10pt;'>{cuerpo}</pre>"
+            f"<div style='white-space: pre-wrap; font-family: monospace; font-size: 10pt;'>"
+            f"{cuerpo}</div>"
             f"<p><b>{_html.escape(tr('info.corr_matrix_title'))}</b></p>"
-            + correlation_matrix_html(datos[0], datos[1], base=base, text=texto)
+            + correlation_matrix_html(etiquetas, datos[1], base=base, text=texto)
             + f"<p style='font-size:8pt;'>{leyenda}</p>")
 
     def show_result(self, result) -> None:
