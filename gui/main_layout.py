@@ -284,6 +284,6 @@ class MainLayoutMixin:
             cp.paramChanged.connect(self._on_model_param_changed)
             # Al cambiar el tipo, el panel puede crecer (p.ej. NeelSize tiene
             # más parámetros que Sextete): revisar si sigue cabiendo apilado.
-            cp.type_combo.currentTextChanged.connect(
+            cp.type_combo.codeChanged.connect(
                 lambda _text, self=self: self._check_layout()
             )

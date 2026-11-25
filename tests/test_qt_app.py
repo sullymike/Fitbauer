@@ -3553,3 +3553,35 @@ def test_alpha_en_directo_reajusta_el_histograma(win):
     d.shape_combo.setCurrentIndex(d.shape_combo.findData("VBF"))
     d._set_log_alpha(0.0)
     assert not win._alpha_live_timer.isActive()
+
+
+def test_tipos_y_formas_se_muestran_traducidos(qapp):
+    """El selector de tipo mostraba los códigos internos («Sextete», «Doblete»,
+    «Relajacion») en cualquier idioma, y la barra de estado e informes las
+    formas de distribución («Histograma»). Ahora se ve el rótulo del idioma,
+    pero ``currentText()``/``setCurrentText()``/``kind`` siguen con el código."""
+    from mossbauer_i18n import get_language, set_language
+    from core.params import COMPONENT_KINDS
+    from gui.distribution_panel import DistributionPanel
+    from gui.panels import ComponentPanel
+    original = get_language()
+    try:
+        set_language("en")
+        cp = ComponentPanel(1)
+        shown = [cp.type_combo.itemText(i) for i in range(cp.type_combo.count())]
+        assert shown[:4] == ["Sextet", "Doublet", "Singlet", "Relaxation"]
+        assert not set(shown) & set(COMPONENT_KINDS) - {"BlumeTjon"}
+        cambios = []
+        cp.type_combo.codeChanged.connect(cambios.append)
+        cp.type_combo.setCurrentText("Doblete")              # por código
+        assert cp.kind == "Doblete" and cp.type_combo.currentText() == "Doblete"
+        assert cp.type_combo.currentLabel() == "Doublet"
+        cp.type_combo.setCurrentText("Singlet")              # o por rótulo
+        assert cp.kind == "Singlete" and cambios == ["Doblete", "Singlete"]
+        assert DistributionPanel.shape_label("Histograma") == "Histogram"
+        assert DistributionPanel.shape_label("2D").endswith("2D")
+        set_language("es")
+        assert ComponentPanel(1).type_combo.itemText(1) == "Doblete"
+    finally:
+        set_language(original)
+

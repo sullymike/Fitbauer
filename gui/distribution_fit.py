@@ -20,6 +20,7 @@ from core.reconstruction import reconstruct_distribution_curves
 from core.validation import format_validation_issues, validate_distribution_parameters
 from core.param_overrides import effective_fit_init_specs as _eff_fi, effective_distribution_specs as _eff_ds
 from core.params import EFG_SIGMA_SHAPES, LECAER_SHAPE, is_2d_shape
+from gui.distribution_panel import DistributionPanel
 from gui.fit_workflow import GuiFitRenderState, GuiFitResult
 from mossbauer_distribution import (
     fit_hyperfine_distribution,
@@ -491,7 +492,8 @@ class DistributionFitMixin:
         label = (f"P({label_map.get(pair[0], pair[0])}, {label_map.get(pair[1], pair[1])})"
                  if is_2d else f"P({label_map.get(var, var)})")
 
-        self.statusBar().showMessage(tr("status.fitting_distribution", label=label, shape=shape))
+        shape_txt = DistributionPanel.shape_label(shape)
+        self.statusBar().showMessage(tr("status.fitting_distribution", label=label, shape=shape_txt))
         sharp_components, sharp_indices = self._active_sharp_components_for_distribution()
         calib_state = self.calib.to_view_state()
         fit_baseline = not calib_state.is_fixed("baseline")
@@ -856,8 +858,8 @@ class DistributionFitMixin:
                     if not is_2d and getattr(result_local, "moment_cov", None) is not None:
                         outer_opt["dm_dx"] = dm
             else:
-                update_progress(tr("progress.distribution_compute", shape=shape,
-                                   default=f"Calculando distribución {shape}…"))
+                update_progress(tr("progress.distribution_compute", shape=shape_txt,
+                                   default=f"Calculando distribución {shape_txt}…"))
                 result_local = run_fit(base_delta, base_quad, base_gamma, sharp_components)
             return result_local, fitted_x_local
 
@@ -1010,12 +1012,12 @@ class DistributionFitMixin:
                    f"αB=10^{dist_state.log_alpha:.2f} αQ=10^{alpha_q_log:.2f}  "
                    f"RMS={result.rms:.5g}")
         elif is_2d:
-            msg = f"{label}: {shape}  bins={nbins}×{qbins}  RMS={result.rms:.5g}"
+            msg = f"{label}: {shape_txt}  bins={nbins}×{qbins}  RMS={result.rms:.5g}"
         if is_2d and getattr(result, "dof_warning", None):
             msg += f"  ⚠ {result.dof_warning}"
         else:
             reg_tag = f"/{result.reg_mode}" if getattr(result, "reg_mode", None) else ""
-            msg = (f"{label}: {shape}{reg_tag}  bins={nbins}  "
+            msg = (f"{label}: {shape_txt}{reg_tag}  bins={nbins}  "
                    f"α=10^{dist_state.log_alpha:.2f}  RMS={result.rms:.5g}")
 
         gui_result = GuiFitResult(

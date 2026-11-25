@@ -168,6 +168,8 @@ class ReportMixin:
                 return str(v)
 
         shape = getattr(result, "shape", None) or "—"
+        from gui.distribution_panel import DistributionPanel
+        shape_disp = DistributionPanel.shape_label(shape) if shape != "—" else shape
         reg_mode = getattr(result, "reg_mode", None)
         is_2d = view.is_2d()
         regularized_2d = is_2d and shape == "2D"
@@ -209,7 +211,7 @@ class ReportMixin:
 
         lines: list[str] = []
         if short:
-            bits = [modo, _r("dist_short_shape", shape=shape)]
+            bits = [modo, _r("dist_short_shape", shape=shape_disp)]
             if reg_mode:
                 bits.append(_r("dist_short_reg", mode=reg_mode))
             if regularized_2d:
@@ -239,7 +241,7 @@ class ReportMixin:
         lines.append(f"| {_r('col_field')} | {_r('col_value')} |")
         lines.append("|---|---|")
         lines.append(f"| {_r('dist_mode')} | {modo} |")
-        lines.append(f"| {_r('shape')} | {shape} |")
+        lines.append(f"| {_r('shape')} | {shape_disp} |")
         if reg_mode and (shape == "Histograma" or regularized_2d):
             lines.append(f"| {_r('regularizer')} | {reg_mode} |")
         if regularized_2d:

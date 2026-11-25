@@ -347,6 +347,17 @@ class DistributionPanel(QtWidgets.QGroupBox):
     _SHAPE_TO_2D = {"Histograma": "2D", "Gaussiana": "Gaussiana 2D", "VBF": "VBF 2D"}
     _VAR_SHORT = {"bhf": "BHF", "quad": "ΔEQ", "delta": "IS"}
 
+    @classmethod
+    def shape_label(cls, code: str) -> str:
+        """Rótulo traducido de un código de forma («Histograma» → «Histogram»)."""
+        for c, key in cls._SHAPES_1D:
+            if c == code:
+                return tr(key, default=code)
+        for c, key in cls._SHAPES_2D:
+            if c == code:
+                return f"{tr(key, default=code)} 2D"
+        return str(code)
+
     def _fill_shape_combo(self, shapes) -> None:
         for code, key in shapes:
             self.shape_combo.addItem(tr(key, default=code), code)

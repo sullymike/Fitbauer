@@ -6,6 +6,39 @@ from PySide6 import QtCore, QtWidgets
 from mossbauer_i18n import tr
 
 
+class CodeComboBox(QtWidgets.QComboBox):
+    """Combo que muestra rótulos traducidos pero trabaja con códigos internos.
+
+    ``currentText()``/``setCurrentText()`` leen y aceptan el **código** (p. ej.
+    ``"Doblete"``), y ``codeChanged`` lo emite; el texto visible es el rótulo del
+    idioma activo. Así la lógica, las sesiones y los tests siguen usando los
+    códigos y la interfaz no los enseña. ``setCurrentText`` acepta también el
+    rótulo visible.
+    """
+
+    codeChanged = QtCore.Signal(str)
+
+    def __init__(self, items, parent=None):
+        super().__init__(parent)
+        for code, label in items:
+            self.addItem(label, code)
+        self.currentIndexChanged.connect(lambda _i: self.codeChanged.emit(self.currentText()))
+
+    def currentText(self) -> str:  # noqa: N802 (API de Qt)
+        code = self.currentData()
+        return code if code is not None else super().currentText()
+
+    def setCurrentText(self, text: str) -> None:  # noqa: N802 (API de Qt)
+        i = self.findData(text)
+        if i < 0:
+            i = self.findText(text)
+        if i >= 0:
+            self.setCurrentIndex(i)
+
+    def currentLabel(self) -> str:
+        return super().currentText()
+
+
 class ParamControl(QtWidgets.QWidget):
     """Una fila: etiqueta + QDoubleSpinBox + casilla 'fijo'.
 

@@ -12,7 +12,7 @@ from core.params import (
 )
 from core.folding import fold_center_window
 from core.param_overrides import effective_calibration_specs, effective_component_specs
-from gui.controls import ParamControl
+from gui.controls import CodeComboBox, ParamControl
 from core.result_views import discrete_result_view
 from gui.state import CalibrationViewState, ComponentViewState
 
@@ -476,8 +476,8 @@ class ComponentPanel(QtWidgets.QWidget):
         row = QtWidgets.QHBoxLayout()
         self.enabled = QtWidgets.QCheckBox(tr("component.enable", idx=idx))
         self.enabled.setChecked(idx == 1)
-        self.type_combo = QtWidgets.QComboBox()
-        self.type_combo.addItems(list(COMPONENT_KINDS))
+        self.type_combo = CodeComboBox(
+            [(k, tr(f"kind.{k}", default=k)) for k in COMPONENT_KINDS])
         row.addWidget(self.enabled)
         row.addStretch(1)
         row.addWidget(QtWidgets.QLabel(tr("component.shape_label")))
@@ -523,7 +523,7 @@ class ComponentPanel(QtWidgets.QWidget):
         self.params["relax_bext"].set_fixed(True)
         v.addLayout(self.params_grid)
         self.enabled.toggled.connect(lambda *_: self.paramChanged.emit())
-        self.type_combo.currentTextChanged.connect(self._on_type_changed)
+        self.type_combo.codeChanged.connect(self._on_type_changed)
         # No se comprime: si los componentes apilados no caben, el QScrollArea
         # del panel izquierdo proporciona desplazamiento.
         self.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)

@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **Tipos de componente y formas de distribución traducidos.** El selector de
+  tipo mostraba en cualquier idioma los códigos internos («Sextete», «Doblete»,
+  «Relajacion», «BlumeTjon», «NeelSize»), y la barra de estado, el aviso de
+  progreso y el informe, la forma interna de la distribución («Histograma»).
+  Ahora se ve el rótulo del idioma activo; los códigos siguen siendo los mismos
+  en sesiones, plantillas e informes JSON (`CodeComboBox` en `gui/controls.py`).
+
 - **α en directo en el histograma P(BHF)/P(ΔEQ)/P(IS).** Tras un primer ajuste
   con la forma Histograma, cambiar log₁₀ α (campo, deslizador, preajustes
   fina/media/suave o «Usar L-curve») reajusta solo, 300 ms después del último
