@@ -968,8 +968,14 @@ def model_state_to_job(state: dict, stem: str = "FITBAUER",
     # NLTEXT NO son los títulos del .JOB: son las líneas de cabecera del
     # fichero de DATOS que NORMOS debe saltarse. 4 es lo que necesita un WS5
     # XML de Wissel; para otros formatos hay que ajustarlo con ``data_extra``.
+    seno = str(state.get("drive_form", "triangular")) == "sine"
     data = {"NLTEXT": "4", "TRIANG": ".TRUE.", "MXCFUN": "5000",
             "REMOTE": ".TRUE.", "PLTDAT": ".TRUE.", "PLTSUB": ".TRUE."}
+    if seno:
+        # Drive senoidal: ni corrección triangular ni doblado (la importación
+        # lee TRIANG=.FALSE. como drive_form="sine").
+        data["TRIANG"] = ".FALSE."
+        data["FOLD"] = ".FALSE."
     if data_extra:
         data.update({str(k).upper(): str(x) for k, x in data_extra.items()})
     if vmax is None:
@@ -979,8 +985,11 @@ def model_state_to_job(state: dict, stem: str = "FITBAUER",
         data["VMAX"] = f"{float(vmax):g}"
     if center is None:
         center = v.get("center")
-    if (str(state.get("drive_form", "triangular")) != "sine"
-            and state.get("fold_mode") == "single_sweep"):
+    if seno:
+        # En seno el «centro» de Fitbauer es el punto de simetría del drive,
+        # no un punto de doblado: no se traduce a PFP.
+        center = None
+    elif state.get("fold_mode") == "single_sweep":
         # Un solo barrido: FOLD=.FALSE.; NORMOS toma V1 = −|VMAX| y el paso
         # que lleva a +|VMAX|. V1 positivo invierte el sentido.
         data["FOLD"] = ".FALSE."

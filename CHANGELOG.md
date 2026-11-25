@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- **Exportar a `.JOB` con drive senoidal.** Se escribía siempre `TRIANG=.TRUE.`,
+  así que NORMOS doblaba como triangular un ajuste senoidal. Ahora sale
+  `TRIANG=.FALSE.`, `FOLD=.FALSE.` y sin `PFP` (en seno el centro de Fitbauer
+  es el punto de simetría del drive, no un punto de doblado); al reimportarlo
+  vuelve como seno.
+
 - **Autoajustar el residuo.** Nueva acción (flecha del botón «Autoajustar desde
   mínimos» y menú Ajuste): quita a los datos la absorción de las componentes
   activas, busca mínimos en lo que queda (con umbral de 2σ del ruido y 25 % del

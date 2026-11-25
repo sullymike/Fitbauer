@@ -994,3 +994,17 @@ def test_la_gui_carga_el_espectro_junto_al_job(tmp_path, monkeypatch):
         win.close()
         win.deleteLater()
         app.processEvents()
+
+
+def test_exportar_seno_escribe_triang_false():
+    """Un ajuste con drive senoidal se exporta TRIANG=.FALSE., FOLD=.FALSE.,
+    sin PFP, y vuelve a importarse como seno."""
+    estado = job_to_model_state(JOB_C2)["model_state"]
+    estado["vars"].update(vmax=10.0, center=128.0)
+    estado["drive_form"] = "sine"
+    texto = model_state_to_job(estado)
+    assert "TRIANG=.FALSE." in texto and "FOLD=.FALSE." in texto
+    assert "PFP" not in texto
+    assert job_to_model_state(texto)["model_state"]["drive_form"] == "sine"
+    tri = model_state_to_job({**estado, "drive_form": "triangular", "fold_mode": "fold"})
+    assert "TRIANG=.TRUE." in tri and "PFP=128" in tri
