@@ -979,7 +979,7 @@
   "file.channels_session": "каналов: {n} (сессия)",
   "status.session_saved": "Сессия сохранена: {path}",
   "status.session_loaded": "Сессия загружена: {path}",
-  "calib.label": "Калибровка [{src}] {sample}",
+  "calib.label": "Калибровка ({src}): {sample}",
   "calib.converted": "пересчитана из прежнего шаблона (исходная Vmax {vmax} мм/с)",
   "web.token_reused": "Сохранённый токен действителен; используется повторно.",
   "web.login_as": "Вход как «{user}»...",
@@ -1474,5 +1474,9 @@
   "limits.dependent_outside": "{param} = {value}, вне своих границ (задаётся связью)",
   "limits.start_clipped": "Начальное значение вне границ, перенесено на границу: {params}",
   "info.bounds_header": "⚠ Границы подгонки:",
-  "limits.report_user": "Собственные границы подгонки"
+  "limits.report_user": "Собственные границы подгонки",
+  "calib.src_local": "локальная",
+  "calib.src_instrument": "прибор",
+  "calib.src_web_api": "веб",
+  "calib.src_embedded": "из файла"
 }

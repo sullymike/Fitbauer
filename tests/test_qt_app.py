@@ -3682,3 +3682,23 @@ def test_cotas_de_ajuste_por_componente(win):
     win._apply_session_payload(json.loads(json.dumps(payload)))
     assert win.components_panels[1].params["gamma1"].fit_limits() == (None, 0.35)
     win.mark_saved()
+
+
+def test_rotulo_de_calibracion_traduce_el_origen(win):
+    """El rótulo no muestra el código interno del origen («[local]») y, en una
+    calibración local, enseña el nombre del fichero."""
+    import mossbauer_i18n as i18n
+    win.calibration_info = {"source": "local", "calibration_sample": "calibration",
+                            "calibration_file_name": "calibration.ADT",
+                            "velocity_calibrated": 12.03, "isomer_shift": -0.11}
+    prev = i18n.get_language() if hasattr(i18n, "get_language") else "es"
+    try:
+        i18n.set_language("es")
+        win._refresh_calib_label()
+        txt = win.calib_label.text()
+        assert "Calibración local: calibration.ADT" in txt and "[" not in txt
+        i18n.set_language("en")
+        win._refresh_calib_label()
+        assert "Local calibration: calibration.ADT" in win.calib_label.text()
+    finally:
+        i18n.set_language(prev)

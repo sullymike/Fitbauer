@@ -288,8 +288,14 @@ class CalibrationActionsMixin:
             self.calib_label.setText("")
             return
         info = self.calibration_info
-        src = info.get("source", "local")
-        sample = info.get("calibration_sample", "")
+        code = str(info.get("source") or "local")
+        src = {"local": tr("calib.src_local"), "instrument": tr("calib.src_instrument"),
+               "web_api": tr("calib.src_web_api"),
+               "embedded": tr("calib.src_embedded")}.get(code, code)
+        # Calibración local: el nombre del fichero dice más que su raíz
+        # («calibration» parecía un rótulo sin traducir).
+        sample = (info.get("calibration_file_name") if code == "local" else None) \
+            or info.get("calibration_sample", "")
         vmax = info.get("velocity_calibrated")
         iso = info.get("isomer_shift")
         fija = tr("label.calib_fixed", default="fija") if vmax not in (None, "") else ""

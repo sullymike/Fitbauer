@@ -979,7 +979,7 @@
   "file.channels_session": "{n} channels (session)",
   "status.session_saved": "Session saved: {path}",
   "status.session_loaded": "Session loaded: {path}",
-  "calib.label": "Calibration [{src}] {sample}",
+  "calib.label": "{src} calibration: {sample}",
   "calib.converted": "converted from the legacy pattern (original Vmax {vmax} mm/s)",
   "web.token_reused": "Saved token is valid; reusing it.",
   "web.login_as": "Logging in as '{user}'...",
@@ -1474,5 +1474,9 @@
   "limits.dependent_outside": "{param} = {value}, outside its bounds (set by a constraint)",
   "limits.start_clipped": "Starting value outside its bounds, moved to the bound: {params}",
   "info.bounds_header": "⚠ Fit bounds:",
-  "limits.report_user": "Per-component fit bounds"
+  "limits.report_user": "Per-component fit bounds",
+  "calib.src_local": "Local",
+  "calib.src_instrument": "Instrument",
+  "calib.src_web_api": "Web",
+  "calib.src_embedded": "Embedded"
 }

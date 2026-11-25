@@ -979,7 +979,7 @@
   "file.channels_session": "{n} canaux (session)",
   "status.session_saved": "Session enregistrée : {path}",
   "status.session_loaded": "Session chargée : {path}",
-  "calib.label": "Étalonnage [{src}] {sample}",
+  "calib.label": "Étalonnage {src} : {sample}",
   "calib.converted": "convertie depuis le motif historique (Vmax d'origine {vmax} mm/s)",
   "web.token_reused": "Jeton enregistré valide ; réutilisation.",
   "web.login_as": "Connexion en tant que « {user} »...",
@@ -1474,5 +1474,9 @@
   "limits.dependent_outside": "{param} = {value}, hors de ses bornes (fixé par une contrainte)",
   "limits.start_clipped": "Valeur de départ hors de ses bornes, ramenée à la borne : {params}",
   "info.bounds_header": "⚠ Bornes d'ajustement :",
-  "limits.report_user": "Bornes d'ajustement propres"
+  "limits.report_user": "Bornes d'ajustement propres",
+  "calib.src_local": "local",
+  "calib.src_instrument": "de l'instrument",
+  "calib.src_web_api": "du site web",
+  "calib.src_embedded": "du fichier"
 }

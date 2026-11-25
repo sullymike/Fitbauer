@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- **Rótulo de calibración y «punto de doblado» en español.** El rótulo mostraba
+  el código interno del origen y la raíz del fichero («Calibración [local]
+  calibration»); ahora traduce el origen y enseña el nombre del fichero
+  («Calibración local: calibration.ADT»). En la interfaz, los informes y la
+  ayuda en español, «Folding point» pasa a «Punto de doblado».
+
 - **Cotas de ajuste por componente.** *Vista → Mostrar cotas de ajuste por
   componente* añade casillas mín/máx junto a «fijo» en cada parámetro de cada
   componente. Vacías, el ajuste usa la cota general; con valor la sustituyen

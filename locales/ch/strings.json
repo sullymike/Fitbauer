@@ -979,7 +979,7 @@
   "file.channels_session": "{n} 个通道（会话）",
   "status.session_saved": "会话已保存：{path}",
   "status.session_loaded": "会话已加载：{path}",
-  "calib.label": "校准 [{src}] {sample}",
+  "calib.label": "校准（{src}）：{sample}",
   "calib.converted": "由旧图样换算（原 Vmax {vmax} mm/s）",
   "web.token_reused": "已保存的令牌有效，将重复使用。",
   "web.login_as": "正在以“{user}”登录...",
@@ -1474,5 +1474,9 @@
   "limits.dependent_outside": "{param} = {value}，超出其界限（由约束决定）",
   "limits.start_clipped": "初始值超出界限，已移至界限：{params}",
   "info.bounds_header": "⚠ 拟合界限：",
-  "limits.report_user": "自定义拟合界限"
+  "limits.report_user": "自定义拟合界限",
+  "calib.src_local": "本地",
+  "calib.src_instrument": "仪器",
+  "calib.src_web_api": "网络",
+  "calib.src_embedded": "文件内置"
 }

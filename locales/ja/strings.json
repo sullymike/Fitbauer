@@ -979,7 +979,7 @@
   "file.channels_session": "{n} チャンネル（セッション）",
   "status.session_saved": "セッションを保存しました：{path}",
   "status.session_loaded": "セッションを読み込みました：{path}",
-  "calib.label": "較正 [{src}] {sample}",
+  "calib.label": "較正（{src}）：{sample}",
   "calib.converted": "旧パターンから換算（元の Vmax {vmax} mm/s）",
   "web.token_reused": "保存済みのトークンが有効です。再利用します。",
   "web.login_as": "「{user}」としてログイン中...",
@@ -1474,5 +1474,9 @@
   "limits.dependent_outside": "{param} = {value}、範囲外（拘束条件で決定）",
   "limits.start_clipped": "初期値が範囲外のため境界値に移動：{params}",
   "info.bounds_header": "⚠ フィット範囲：",
-  "limits.report_user": "個別のフィット範囲"
+  "limits.report_user": "個別のフィット範囲",
+  "calib.src_local": "ローカル",
+  "calib.src_instrument": "装置",
+  "calib.src_web_api": "Web",
+  "calib.src_embedded": "ファイル内"
 }

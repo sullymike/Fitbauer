@@ -979,7 +979,7 @@
   "file.channels_session": "{n} Kanäle (Sitzung)",
   "status.session_saved": "Sitzung gespeichert: {path}",
   "status.session_loaded": "Sitzung geladen: {path}",
-  "calib.label": "Kalibrierung [{src}] {sample}",
+  "calib.label": "Kalibrierung ({src}): {sample}",
   "calib.converted": "aus dem Altmuster umgerechnet (ursprüngliche Vmax {vmax} mm/s)",
   "web.token_reused": "Gespeichertes Token gültig; wird wiederverwendet.",
   "web.login_as": "Anmeldung als „{user}“...",
@@ -1474,5 +1474,9 @@
   "limits.dependent_outside": "{param} = {value}, außerhalb seiner Grenzen (durch eine Nebenbedingung festgelegt)",
   "limits.start_clipped": "Startwert außerhalb der Grenzen, auf die Grenze gesetzt: {params}",
   "info.bounds_header": "⚠ Anpassungsgrenzen:",
-  "limits.report_user": "Eigene Anpassungsgrenzen"
+  "limits.report_user": "Eigene Anpassungsgrenzen",
+  "calib.src_local": "lokal",
+  "calib.src_instrument": "Gerät",
+  "calib.src_web_api": "Web",
+  "calib.src_embedded": "aus der Datei"
 }
