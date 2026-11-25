@@ -11,6 +11,9 @@
   (nueva entrada), la distribución, los errores y la exportación; Herramientas,
   serie, Néel, NORMOS e IA local. La disposición es una lista declarativa
   (`MENU_LAYOUT` en `gui/menu_builder.py`) y los atajos indican su menú nuevo.
+  La ayuda (8 idiomas), los avisos y los README nombran las rutas nuevas; los
+  capítulos de la ayuda siguen organizados por los menús antiguos.
+
 - **Cotas de ajuste por componente, fuera del panel.** Las casillas mín/máx
   junto a «fijo» (Vista › Mostrar cotas de ajuste por componente) eran dos
   casillas más por parámetro y no cabían. Ahora se editan con clic derecho
