@@ -2,6 +2,15 @@
 
 ## Sin publicar
 
+- **Menús por pasos del trabajo.** La barra pasa de Archivo / Ajuste / Vista /
+  Ayuda a Archivo / Datos / Modelo / Ajuste / Resultados / Herramientas / Vista /
+  Ayuda. Ajuste tenía ~20 entradas que mezclaban preparación, errores, serie,
+  Néel e IA: ahora Datos reúne equipos, calibración, centro y comparación;
+  Modelo, la inicialización desde mínimos, fases, fijar/liberar, restricciones y
+  límites (Límites de parámetros sale de Vista); Resultados, el diagnóstico
+  (nueva entrada), la distribución, los errores y la exportación; Herramientas,
+  serie, Néel, NORMOS e IA local. La disposición es una lista declarativa
+  (`MENU_LAYOUT` en `gui/menu_builder.py`) y los atajos indican su menú nuevo.
 - **Cotas de ajuste por componente, fuera del panel.** Las casillas mín/máx
   junto a «fijo» (Vista › Mostrar cotas de ajuste por componente) eran dos
   casillas más por parámetro y no cabían. Ahora se editan con clic derecho

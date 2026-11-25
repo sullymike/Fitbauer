@@ -3980,3 +3980,22 @@ def test_candados_fijan_y_vuelven_a_como_estaba(win):
     win.btn_sim_free_all.click()
     win.btn_sim_free_all.click()            # sin memoria parcial: libera todo
     assert win.fix_group.state() == FREE
+
+
+def test_menus_por_pasos_del_trabajo(win):
+    """La barra sigue ``MENU_LAYOUT`` y cada atajo está en el menú que dice."""
+    from gui.menu_builder import MENU_LAYOUT, SHORTCUT_REGISTRY
+    from mossbauer_i18n import tr
+    titulos = [a.text() for a in win.menuBar().actions()]
+    assert titulos == [tr(k) for k, _ in MENU_LAYOUT] + [tr("menu.help")]
+    en_menu = {i: k for k, items in MENU_LAYOUT for i in items}
+    for action_id, menu_key, _, _ in SHORTCUT_REGISTRY:
+        assert action_id in win._action_registry, action_id
+        if menu_key == "menu.help":
+            continue
+        if action_id.startswith("file.") and "normos" in action_id:
+            assert en_menu["@normos"] == menu_key
+        else:
+            assert en_menu[action_id] == menu_key, action_id
+    # El diagnóstico se activa al haber comprobaciones.
+    assert not win.act_fit_diagnostics.isEnabled()

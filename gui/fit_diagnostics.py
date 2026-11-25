@@ -156,6 +156,9 @@ class FitDiagnosticsMixin:
         """Guarda las comprobaciones del último ajuste y actualiza el indicador."""
         self._fit_checks = list(checks or [])
         self._fit_checks_note = note
+        act = getattr(self, "act_fit_diagnostics", None)
+        if act is not None:
+            act.setEnabled(bool(self._fit_checks))
         btn = self._ensure_fit_indicator()
         lab = self.fit_summary_label
         lab.setText(summary)
