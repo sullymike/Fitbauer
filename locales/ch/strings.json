@@ -1568,5 +1568,7 @@
   "msg.auto_residual_none": "残差中没有显著吸收：未添加组分。",
   "msg.auto_residual_full": "没有空位用于新组分（已达上限）。",
   "msg.auto_residual_done": "残差已拟合：{summary}（已有组分在拟合中保持固定）。",
-  "msg.auto_residual_rejected": "在残差中找到的组分（{summary}）对模型改善不足（ΔBIC = {dbic}；需要 ≤ −6）：它们只会解释噪声或小的失配。已舍弃，模型保持原样。"
+  "msg.auto_residual_rejected": "在残差中找到的组分（{summary}）对模型改善不足（ΔBIC = {dbic}；需要 ≤ −6）：它们只会解释噪声或小的失配。已舍弃，模型保持原样。",
+  "valid.open_limits": "更改限制…",
+  "valid.limits_hint": "在面板中修正数值，或在 视图 › 参数范围 中放宽限制。"
 }

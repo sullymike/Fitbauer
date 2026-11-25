@@ -2,6 +2,14 @@
 
 ## Sin publicar
 
+- **Validación antes de ajustar: solo lo que interviene.** Un valor fuera de
+  límites en una componente desactivada o por encima del número elegido (p. ej.
+  de cuando se usaron tres) seguía bloqueando el ajuste. Ahora solo se comprueban
+  las componentes activas y, de cada una, los parámetros que usa su tipo
+  (`core.validation._keys_in_use`). El aviso da el nombre legible
+  («δ isomérico · comp. 3», no `s3_delta`) y un botón *Cambiar límites…* que abre
+  la ventana de límites.
+
 - **Exportar a `.JOB` con drive senoidal.** Se escribía siempre `TRIANG=.TRUE.`,
   así que NORMOS doblaba como triangular un ajuste senoidal. Ahora sale
   `TRIANG=.FALSE.`, `FOLD=.FALSE.` y sin `PFP` (en seno el centro de Fitbauer

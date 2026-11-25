@@ -5,6 +5,7 @@ decida si las muestra como aviso, error CLI, etc.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any, Iterable, Mapping
 
@@ -36,8 +37,13 @@ def validate_values_against_bounds(
     *,
     keys: Iterable[str] | None = None,
     tolerance: float = 1e-12,
+    label=None,
 ) -> list[ValidationIssue]:
-    """Comprueba finitud y límites de un mapa plano de parámetros."""
+    """Comprueba finitud y límites de un mapa plano de parámetros.
+
+    ``label(clave)`` da el nombre legible para el mensaje (por defecto, la
+    clave tal cual)."""
+    name_of = label or str
     issues: list[ValidationIssue] = []
     selected = list(keys) if keys is not None else list(values.keys())
     for key in selected:
@@ -45,7 +51,7 @@ def validate_values_against_bounds(
             continue
         value = values[key]
         if not _is_finite_number(value):
-            issues.append(ValidationIssue(str(key), tr("valid.not_finite", name=key)))
+            issues.append(ValidationIssue(str(key), tr("valid.not_finite", name=name_of(key))))
             continue
         if key in bounds:
             lo, hi = bounds[key]
@@ -53,14 +59,43 @@ def validate_values_against_bounds(
             if x < float(lo) - tolerance or x > float(hi) + tolerance:
                 issues.append(ValidationIssue(
                     str(key),
-                    tr("valid.out_of_bounds", name=key, value=f"{x:.6g}",
+                    tr("valid.out_of_bounds", name=name_of(key), value=f"{x:.6g}",
                        lo=f"{float(lo):.6g}", hi=f"{float(hi):.6g}"),
                 ))
     return issues
 
 
-def validate_fit_state(state: Any) -> list[ValidationIssue]:
-    """Valida un ``core.fit_engine.FitState`` o compatible."""
+_COMP_KEY = re.compile(r"^s(\d+)_(.+)$")
+
+
+def _keys_in_use(values: Mapping[str, Any], components) -> list[str]:
+    """Claves que intervienen en el ajuste: las globales y, de cada componente
+    ACTIVA, solo los parámetros que usa su tipo. Una componente desactivada
+    (o por encima del número elegido) no se comprueba aunque conserve valores
+    fuera de rango de un uso anterior."""
+    from core.params import relevant_params
+    usados: dict[int, set[str]] = {}
+    for comp in components or []:
+        if not getattr(comp, "enabled", True):
+            continue
+        usados[int(comp.idx)] = relevant_params(
+            getattr(comp, "kind", ""), getattr(comp, "intensity_mode", "free"),
+            getattr(comp, "quad_treatment", "1st_order"))
+    out = []
+    for key in values:
+        m = _COMP_KEY.match(str(key))
+        if m is None:
+            out.append(key)
+        elif int(m.group(1)) in usados and m.group(2) in usados[int(m.group(1))]:
+            out.append(key)
+    return out
+
+
+def validate_fit_state(state: Any, *, label=None) -> list[ValidationIssue]:
+    """Valida un ``core.fit_engine.FitState`` o compatible.
+
+    Solo se comprueban los parámetros que intervienen en el ajuste (ver
+    :func:`_keys_in_use`); ``label`` da los nombres legibles."""
     issues: list[ValidationIssue] = []
     velocity = np.asarray(getattr(state, "velocity", []), dtype=float)
     y_data = np.asarray(getattr(state, "y_data", []), dtype=float)
@@ -83,8 +118,10 @@ def validate_fit_state(state: Any) -> list[ValidationIssue]:
             issues.append(ValidationIssue("sigma", tr("valid.sigma_invalid")))
     values = getattr(state, "values", {}) or {}
     bounds = getattr(state, "bounds", {}) or {}
-    issues.extend(validate_values_against_bounds(values, bounds))
-    for comp in getattr(state, "components", []) or []:
+    components = getattr(state, "components", []) or []
+    issues.extend(validate_values_against_bounds(
+        values, bounds, keys=_keys_in_use(values, components), label=label))
+    for comp in components:
         idx = getattr(comp, "idx", "?")
         kind = getattr(comp, "kind", "")
         if kind not in COMPONENT_KINDS:

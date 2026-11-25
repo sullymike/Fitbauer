@@ -1568,5 +1568,7 @@
   "msg.auto_residual_none": "Im Residuum bleibt keine signifikante Absorption: keine Komponente hinzugefügt.",
   "msg.auto_residual_full": "Keine freien Plätze für neue Komponenten (Maximum erreicht).",
   "msg.auto_residual_done": "Residuum angepasst: {summary} (vorhandene Komponenten blieben beim Fit fest).",
-  "msg.auto_residual_rejected": "Die im Residuum gefundenen Komponenten ({summary}) verbessern das Modell nicht genug (ΔBIC = {dbic}; nötig ≤ −6): sie würden nur Rauschen oder eine kleine Abweichung erklären. Sie werden verworfen, das Modell bleibt unverändert."
+  "msg.auto_residual_rejected": "Die im Residuum gefundenen Komponenten ({summary}) verbessern das Modell nicht genug (ΔBIC = {dbic}; nötig ≤ −6): sie würden nur Rauschen oder eine kleine Abweichung erklären. Sie werden verworfen, das Modell bleibt unverändert.",
+  "valid.open_limits": "Grenzen ändern…",
+  "valid.limits_hint": "Wert im Panel korrigieren oder die Grenze unter Ansicht › Parametergrenzen erweitern."
 }

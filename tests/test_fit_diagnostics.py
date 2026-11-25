@@ -52,3 +52,25 @@ def test_estrategia_local_un_solo_arranque_y_paso_maximo():
     checks = {c.key: c for c in diagnose_discrete(explora)}
     assert checks["convergence"].status == "ok"
     assert checks["start"].status in ("ok", "warn")
+
+
+def test_validacion_solo_componentes_activas_y_nombre_legible():
+    """Un valor fuera de rango en una componente desactivada (o por encima del
+    número elegido) no bloquea el ajuste; en una activa, el aviso usa el
+    nombre legible."""
+    from core.fit_engine import Component
+    from core.validation import validate_fit_state
+    v, y, sigma = _load_alpha_fe()
+    st = _alpha_fe_state(v, y, sigma)
+    st.values["s3_delta"] = 9.0
+    st.bounds["s3_delta"] = (-2.0, 3.0)
+    assert validate_fit_state(st) == []
+    st.components = list(st.components) + [Component(idx=3, enabled=False)]
+    assert validate_fit_state(st) == []
+    st.components[-1] = Component(idx=3, enabled=True, kind="Doblete")
+    issues = validate_fit_state(st, label=lambda k: "δ · comp. 3" if k == "s3_delta" else k)
+    assert [i.key for i in issues] == ["s3_delta"] and "δ · comp. 3" in issues[0].message
+    # Un parámetro que el tipo no usa (BHF en un doblete) tampoco cuenta.
+    st.values["s3_bhf"] = 99.0
+    st.bounds["s3_bhf"] = (0.0, 60.0)
+    assert [i.key for i in validate_fit_state(st)] == ["s3_delta"]

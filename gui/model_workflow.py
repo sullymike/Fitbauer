@@ -248,6 +248,25 @@ class ModelWorkflowMixin:
         return tr("limits.param_in_comp", param=label, idx=idx,
                   default="{param} · comp. {idx}")
 
+    def _show_validation_issues(self, issues, bounds=None) -> None:
+        """Aviso de parámetros no válidos, con nombres legibles y un botón que
+        abre la ventana de límites cuando el problema es un valor fuera de
+        ellos."""
+        box = QtWidgets.QMessageBox(self)
+        box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+        box.setWindowTitle(tr("msg.validation_title", default="Parámetros no válidos"))
+        box.setText(format_validation_issues(issues))
+        fuera = any(i.key in (bounds or {}) for i in issues)
+        btn_lim = None
+        if fuera and hasattr(self, "on_param_limits"):
+            box.setInformativeText(tr("valid.limits_hint"))
+            btn_lim = box.addButton(tr("valid.open_limits"),
+                                    QtWidgets.QMessageBox.ButtonRole.ActionRole)
+        box.addButton(QtWidgets.QMessageBox.StandardButton.Ok)
+        box.exec()
+        if btn_lim is not None and box.clickedButton() is btn_lim:
+            self.on_param_limits()
+
     def _param_short_name(self, key: str) -> str:
         """Rótulo corto para tablas: «ΔEQ (2)» para ``s2_quad``."""
         label, idx = self._param_label(key)
@@ -1044,13 +1063,9 @@ class ModelWorkflowMixin:
         # cota (con aviso tras el ajuste) en vez de bloquear el ajuste.
         self._start_clipped = self._clip_start_to_user_bounds(state)
         if validate_params:
-            issues = validate_fit_state(state)
+            issues = validate_fit_state(state, label=self._param_display_name)
             if issues:
-                QtWidgets.QMessageBox.warning(
-                    self,
-                    tr("msg.validation_title", default="Parámetros no válidos"),
-                    format_validation_issues(issues),
-                )
+                self._show_validation_issues(issues, getattr(state, "bounds", {}) or {})
                 return None
         return state
 

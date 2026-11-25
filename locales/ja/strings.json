@@ -1568,5 +1568,7 @@
   "msg.auto_residual_none": "残差に有意な吸収は残っていません：成分は追加しません。",
   "msg.auto_residual_full": "新しい成分のための空きがありません（上限に達しました）。",
   "msg.auto_residual_done": "残差をフィットしました：{summary}（既存の成分はフィット中固定）。",
-  "msg.auto_residual_rejected": "残差で見つかった成分（{summary}）はモデルを十分に改善しません（ΔBIC = {dbic}、≤ −6 が必要）：ノイズか小さな不一致を説明するだけです。破棄し、モデルは元のままにします。"
+  "msg.auto_residual_rejected": "残差で見つかった成分（{summary}）はモデルを十分に改善しません（ΔBIC = {dbic}、≤ −6 が必要）：ノイズか小さな不一致を説明するだけです。破棄し、モデルは元のままにします。",
+  "valid.open_limits": "範囲を変更…",
+  "valid.limits_hint": "パネルで値を直すか、表示 › パラメータの範囲 で範囲を広げてください。"
 }

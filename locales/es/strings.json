@@ -1568,5 +1568,7 @@
   "msg.auto_residual_none": "No queda absorción significativa en el residuo: no se añade ninguna componente.",
   "msg.auto_residual_full": "No quedan huecos libres para componentes nuevas (máximo alcanzado).",
   "msg.auto_residual_done": "Residuo autoajustado: {summary} (las componentes previas quedaron fijas durante el ajuste).",
-  "msg.auto_residual_rejected": "Las componentes encontradas en el residuo ({summary}) no mejoran el modelo lo suficiente (ΔBIC = {dbic}; hace falta ≤ −6): solo explicarían ruido o un desajuste pequeño. Se descartan y se deja el modelo como estaba."
+  "msg.auto_residual_rejected": "Las componentes encontradas en el residuo ({summary}) no mejoran el modelo lo suficiente (ΔBIC = {dbic}; hace falta ≤ −6): solo explicarían ruido o un desajuste pequeño. Se descartan y se deja el modelo como estaba.",
+  "valid.open_limits": "Cambiar límites…",
+  "valid.limits_hint": "Corrige el valor en el panel o amplía el límite en Vista › Límites de parámetros."
 }

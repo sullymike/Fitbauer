@@ -1568,5 +1568,7 @@
   "msg.auto_residual_none": "Il ne reste pas d'absorption significative dans le résidu : aucune composante ajoutée.",
   "msg.auto_residual_full": "Plus d'emplacement libre pour de nouvelles composantes (maximum atteint).",
   "msg.auto_residual_done": "Résidu ajusté : {summary} (les composantes existantes sont restées fixes pendant l'ajustement).",
-  "msg.auto_residual_rejected": "Les composantes trouvées dans le résidu ({summary}) n'améliorent pas assez le modèle (ΔBIC = {dbic} ; il faut ≤ −6) : elles n'expliqueraient que du bruit ou un petit écart. Elles sont écartées et le modèle reste tel quel."
+  "msg.auto_residual_rejected": "Les composantes trouvées dans le résidu ({summary}) n'améliorent pas assez le modèle (ΔBIC = {dbic} ; il faut ≤ −6) : elles n'expliqueraient que du bruit ou un petit écart. Elles sont écartées et le modèle reste tel quel.",
+  "valid.open_limits": "Modifier les limites…",
+  "valid.limits_hint": "Corrigez la valeur dans le panneau ou élargissez la limite dans Vue › Limites des paramètres."
 }
