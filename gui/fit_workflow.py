@@ -206,16 +206,26 @@ class FitWorkflowMixin:
         *,
         error_title: str | None = None,
         disable_fit_action: bool = False,
+        quiet: bool = False,
     ) -> Any | None:
-        """Ejecuta un cálculo con diálogo de progreso y manejo uniforme de error."""
+        """Ejecuta un cálculo con diálogo de progreso y manejo uniforme de error.
+
+        ``quiet``: sin diálogo de progreso y con el error en la barra de estado
+        (reajustes automáticos breves, p. ej. α en directo)."""
         if disable_fit_action and hasattr(self, "act_fit"):
             self.act_fit.setEnabled(False)
-        _dlg, update_progress, close_progress = self._open_progress_dialog(title, message)
+        if quiet:
+            update_progress, close_progress = (lambda *_a, **_k: None), (lambda: None)
+        else:
+            _dlg, update_progress, close_progress = self._open_progress_dialog(title, message)
         try:
             return run(update_progress)
         except FitCancelledError:
             return None
         except Exception as exc:
+            if quiet:
+                self.statusBar().showMessage(f"{error_title or tr('fit.run')}: {type(exc).__name__}: {exc}")
+                return None
             QtWidgets.QMessageBox.critical(
                 self,
                 error_title or tr("fit.run"),

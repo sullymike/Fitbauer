@@ -3511,3 +3511,45 @@ def test_errores_de_los_globales_en_el_histograma_2d(win):
         sigmas.append(cov[("dist_gamma", "dist_gamma")] ** 0.5)
     # Estable: con la jacobiana de least_squares cambiaba ×3 entre ajustes.
     assert max(sigmas) / min(sigmas) < 1.5
+
+
+def test_alpha_en_directo_reajusta_el_histograma(win):
+    """Tras un primer ajuste del histograma P(BHF), cambiar α reajusta solo (sin
+    diálogo de progreso ni entrada en el historial) y redibuja la ventana P(BHF)
+    abierta, que ya no es modal; cerrada, el directo no la reabre. Con otra
+    forma que no use α no hay directo."""
+    win._load_file(DATA / "sintetico_dist_bhf_bimodal.adt")
+    win.mode_combo.setCurrentIndex(1)                     # P(BHF)
+    d = win.dist_panel
+    _fix_dist_globals(d)
+    d._set_log_alpha(-2.0)
+    assert not win._alpha_live_timer.isActive()           # sin ajuste previo, nada
+    win.on_fit()
+    dlg = win._dist_dialog_1d
+    assert dlg.isVisible() and not dlg.isModal()
+    r0 = win.runtime_results.distribution_result
+    assert r0.shape == "Histograma" and r0.alpha == pytest.approx(1e-2)
+    n_hist = len(win.fit_history)
+    opened = []
+    win._open_progress_dialog = lambda *a, **k: opened.append(a)
+
+    d._set_log_alpha(3.0)                                 # preajuste / L-curve
+    assert win._alpha_live_timer.isActive()
+    win._alpha_live_timer.stop()
+    win._live_alpha_refit()
+    r1 = win.runtime_results.distribution_result
+    assert r1 is not r0 and r1.alpha == pytest.approx(1e3)
+    assert win._dist_dialog_1d is dlg and dlg.isVisible()  # la misma ventana, redibujada
+    assert not opened and len(win.fit_history) == n_hist
+
+    d.log_alpha.spin.setValue(1.0)                        # campo o deslizador
+    assert win._alpha_live_timer.isActive()
+    win._alpha_live_timer.stop()
+    dlg.close()
+    win._live_alpha_refit()
+    assert win.runtime_results.distribution_result.alpha == pytest.approx(10.0)
+    assert not dlg.isVisible()                            # cerrada: no se reabre
+
+    d.shape_combo.setCurrentIndex(d.shape_combo.findData("VBF"))
+    d._set_log_alpha(0.0)
+    assert not win._alpha_live_timer.isActive()

@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 import numpy as np
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -378,7 +378,7 @@ class DistributionFitMixin:
         cv.mpl_connect("button_press_event", _on_pick)
         btn_use.clicked.connect(
             lambda _=False: (
-                d.log_alpha.set_value(float(np.log10(float(alphas[int(sel["idx"])]))))
+                d._set_log_alpha(float(np.log10(float(alphas[int(sel["idx"])]))))
                 if alphas.size else None, dlg.accept()))
         _update_selection()
         dlg.exec()
@@ -411,6 +411,48 @@ class DistributionFitMixin:
             return
         self.dist_panel.fixed_path = Path(path)
         self.statusBar().showMessage(tr("status.fixed_p_loaded", path=path), 5000)
+
+    # ── α en directo ─────────────────────────────────────────────────────
+    #: espera tras el último cambio de α antes de reajustar (ms)
+    LIVE_ALPHA_DELAY_MS = 300
+    #: solo en directo si el último ajuste tardó menos que esto (s)
+    LIVE_ALPHA_MAX_SECS = 2.0
+
+    def _init_live_alpha(self) -> None:
+        """Reajusta el histograma al cambiar α, tras un primer ajuste manual."""
+        self._dist_live_refit = False
+        self._alpha_live_timer = QtCore.QTimer(self)
+        self._alpha_live_timer.setSingleShot(True)
+        self._alpha_live_timer.setInterval(self.LIVE_ALPHA_DELAY_MS)
+        self._alpha_live_timer.timeout.connect(self._live_alpha_refit)
+        self.dist_panel.alphaChanged.connect(self._schedule_live_alpha)
+
+    def _live_alpha_ready(self) -> bool:
+        if not self.is_distribution_mode or self.dist_panel.shape != "Histograma":
+            return False
+        if self.file.velocity is None or self.file.y_data is None:
+            return False
+        result = getattr(self.runtime_results, "distribution_result", None)
+        if result is None or getattr(result, "shape", None) != "Histograma":
+            return False
+        if (getattr(result, "fit_variable", None) or "bhf") != self.dist_variable:
+            return False
+        return float(getattr(self, "_dist_last_fit_secs", 0.0)) <= self.LIVE_ALPHA_MAX_SECS
+
+    def _schedule_live_alpha(self) -> None:
+        if getattr(self, "_building", False) or self._dist_live_refit:
+            return
+        if self._live_alpha_ready():
+            self._alpha_live_timer.start()
+
+    def _live_alpha_refit(self) -> None:
+        if self._dist_live_refit or not self._live_alpha_ready():
+            return
+        self._dist_live_refit = True
+        try:
+            self.on_fit_distribution()
+        finally:
+            self._dist_live_refit = False
 
     # ── Ajuste distribución P(BHF) / P(ΔEQ) / P(IS) / 2D ───────────────────
     def on_fit_distribution(self) -> None:
@@ -819,13 +861,17 @@ class DistributionFitMixin:
                 result_local = run_fit(base_delta, base_quad, base_gamma, sharp_components)
             return result_local, fitted_x_local
 
+        live = bool(getattr(self, "_dist_live_refit", False))
         self._pre_fit_snapshot = self._project_state().to_session_payload()
+        t_fit = time.monotonic()
         fit_output = self._run_with_fit_progress(
             tr("progress.distribution_title", default="Distribución hiperfina"),
             tr("progress.distribution_prepare", default="Preparando ajuste de distribución…"),
             compute_distribution,
             error_title=tr("fit.run"),
+            quiet=live,
         )
+        self._dist_last_fit_secs = time.monotonic() - t_fit
         if fit_output is None:
             return
         if hasattr(self, "act_undo_fit"):
@@ -1074,7 +1120,7 @@ class DistributionFitMixin:
         r.correlations = resumen["correlations"]
         r.n_starts = 1
         self.info_panel.show_result(r)
-        if hasattr(self, "_record_fit_history"):
+        if hasattr(self, "_record_fit_history") and not live:
             self._record_fit_history("distribution", r.stats)
         self._show_distribution_dialog(result)
 
@@ -1484,13 +1530,40 @@ class DistributionFitMixin:
 
         return fig
 
+    @staticmethod
+    def _clear_layout(lay) -> None:
+        while lay.count():
+            item = lay.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.setParent(None)
+                w.deleteLater()
+            elif item.layout() is not None:
+                DistributionFitMixin._clear_layout(item.layout())
+                item.layout().deleteLater()
+
     def _show_distribution_dialog_1d(self, result) -> None:
+        """Ventana de P(x) 1D, no modal: si ya está abierta se redibuja dentro
+        (así sigue en directo los reajustes al mover α). Un reajuste en directo
+        no la abre si el usuario la cerró."""
         var = getattr(result, "fit_variable", None) or self.dist_variable
         title = {"quad": "P(ΔEQ)", "delta": "P(IS)"}.get(var, "P(BHF)")
-        dlg = QtWidgets.QDialog(self)
+        dlg = getattr(self, "_dist_dialog_1d", None)
+        try:
+            open_ = dlg is not None and dlg.isVisible()
+        except RuntimeError:          # el objeto C++ ya se destruyó
+            open_ = False
+        if not open_:
+            if getattr(self, "_dist_live_refit", False):
+                return
+            dlg = QtWidgets.QDialog(self)
+            dlg.resize(720, 480)
+            lay = QtWidgets.QVBoxLayout(dlg)
+            self._dist_dialog_1d = dlg
+        else:
+            lay = dlg.layout()
+            self._clear_layout(lay)
         dlg.setWindowTitle(title)
-        dlg.resize(720, 480)
-        lay = QtWidgets.QVBoxLayout(dlg)
         fig, ax, band, corr_ax = self._distribution_figure_1d(result)
         cv = FigureCanvas(fig); lay.addWidget(cv, stretch=1)
         bottom = QtWidgets.QHBoxLayout()
@@ -1533,7 +1606,9 @@ class DistributionFitMixin:
         lay.addLayout(bottom)
         self._dist_dialog_axes = (ax, corr_ax)
         self._dist_dialog_band = band
-        dlg.exec()
+        if not open_:
+            dlg.show()
+            dlg.raise_()
 
     @staticmethod
     def _draw_probability_band(ax, xc, pr, result):

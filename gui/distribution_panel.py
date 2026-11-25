@@ -38,6 +38,9 @@ class DistributionPanel(QtWidgets.QGroupBox):
 
     paramChanged = QtCore.Signal()
     loadFixedRequested = QtCore.Signal()
+    # α cambiado por el usuario (campo, deslizador, preajustes o L-curve):
+    # la ventana lo usa para reajustar el histograma en directo.
+    alphaChanged = QtCore.Signal()
 
     def __init__(self, parent=None):
         super().__init__(tr("tab.distribution_bhf"), parent)
@@ -292,6 +295,7 @@ class DistributionPanel(QtWidgets.QGroupBox):
         for w in (self.qmin, self.qmax, self.qbins, self.log_alpha_q):
             right_v.addWidget(w)
             w.valueChanged.connect(lambda *_: self.paramChanged.emit())
+        self.log_alpha.valueChanged.connect(lambda *_: self.alphaChanged.emit())
 
         alpha_row = QtWidgets.QHBoxLayout()
         alpha_row.setSpacing(4)
@@ -375,6 +379,7 @@ class DistributionPanel(QtWidgets.QGroupBox):
     def _set_log_alpha(self, value: float) -> None:
         self.log_alpha.set_value(float(value))
         self.paramChanged.emit()
+        self.alphaChanged.emit()
 
     def _dist_var_label(self, var: str, role: str) -> str:
         if var == "delta":

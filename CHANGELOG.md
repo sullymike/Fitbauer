@@ -2,6 +2,16 @@
 
 ## Sin publicar
 
+- **α en directo en el histograma P(BHF)/P(ΔEQ)/P(IS).** Tras un primer ajuste
+  con la forma Histograma, cambiar log₁₀ α (campo, deslizador, preajustes
+  fina/media/suave o «Usar L-curve») reajusta solo, 300 ms después del último
+  cambio: sin ventana de progreso ni entrada en el historial de ajustes. La
+  ventana de P(x) 1D deja de ser modal: si está abierta se redibuja con cada
+  reajuste; si se cerró, el directo no la reabre. Solo actúa si el ajuste
+  anterior tardó menos de 2 s (con globales libres y muchos bins se sigue
+  usando *Ajustar*). «Usar L-curve» avisa ahora del cambio de α al resto de la
+  ventana, como ya hacían los preajustes.
+
 - **«Autoajustar desde mínimos» con dos sextetes que comparten líneas
   (magnetita).** El segundo sextete de `data_sample/Fe3O4.adt` solo deja tres
   mínimos propios; los demás se solapan con el primero. Los sobrantes se
