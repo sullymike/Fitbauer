@@ -2358,6 +2358,10 @@ def test_el_panel_solo_muestra_los_parametros_ajustables(win, app):
     cp._set_intensity_mode("free")
     app.processEvents()
 
+    # Plegado: lo aplicable menos los secundarios fijos; desplegado, todo.
+    assert _visibles(cp) == cp.relevant_params() - set(cp._hidden_secondary())
+    cp.set_show_more(True)
+    app.processEvents()
     assert _visibles(cp) == cp.relevant_params()
     # η/φ/β pertenecen al sextete pero solo existen con el Hamiltoniano.
     assert not (_visibles(cp) & {"eta", "phi", "beta", "bex", "gax", "texture"})
@@ -3354,7 +3358,9 @@ def test_bext_de_blume_tjon_en_el_panel(win):
     cp = win.components_panels[0]
     cp.type_combo.setCurrentText("BlumeTjon")
     ctl = cp.params["relax_bext"]
-    assert ctl.isVisibleTo(cp) and ctl.is_fixed()
+    assert ctl.is_fixed() and not ctl.isVisibleTo(cp)     # secundario fijo: plegado
+    cp.set_show_more(True)
+    assert ctl.isVisibleTo(cp)
     win._set_all_fixed(False)
     assert ctl.is_fixed() and not cp.params["relax_log_nu"].is_fixed()
     cp.type_combo.setCurrentText("Sextete")
@@ -4031,3 +4037,29 @@ def test_ventana_de_opciones_avanzadas_refleja_y_cambia_el_estado(win):
     sp.setValue(3)
     assert win.multistart_n == 3
     dlg.close()
+
+
+def test_panel_de_componente_en_dos_niveles(win, app):
+    """Plegado se ve lo básico; los secundarios fijos van tras «Más (n)» y
+    uno secundario LIBRE se ve siempre, porque se ajusta."""
+    cp = win.components_panels[0]
+    cp.type_combo.setCurrentText("Sextete")
+    cp._set_quad_treatment("1st_order")
+    cp._set_intensity_mode("free")
+    cp.set_show_more(False)
+    app.processEvents()
+    assert {"delta", "quad", "bhf", "gamma1", "depth"} <= _visibles(cp)
+    ocultos = set(cp._hidden_secondary())
+    assert ocultos and not (ocultos & _visibles(cp))
+    assert cp.more_btn.isVisibleTo(cp) and str(len(ocultos)) in cp.more_btn.text()
+    # Una sesión libera Γ2 estando plegado: aparece sin tocar nada.
+    cp.params["gamma2"].set_fixed(False)
+    app.processEvents()
+    assert "gamma2" in _visibles(cp)
+    cp.more_btn.click()
+    app.processEvents()
+    assert _visibles(cp) == cp.relevant_params()
+    # Ocultar no cambia lo que se ajusta.
+    claves = set(win.active_param_keys())
+    cp.more_btn.click()
+    assert set(win.active_param_keys()) == claves

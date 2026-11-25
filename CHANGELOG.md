@@ -2,6 +2,14 @@
 
 ## Sin publicar
 
+- **Panel de componente en dos niveles.** Se ven δ, ΔEQ, BHF, Γ, profundidad y
+  los parámetros propios de cada tipo de relajación; los secundarios (Γ
+  relativas, intensidades, textura, β/η/φ, Bex/Gax, polarización, campo
+  externo, σ/τ₀/bins de Néel) se esconden tras «Más (n) ▸» **solo si están
+  fijos**: uno libre se ve siempre, también si lo libera una sesión o un preset
+  estando plegado. Ocultar es solo presentación: no cambia lo que se ajusta
+  (`SECONDARY_PARAMS` en `gui/panels.py`).
+
 - **Opciones avanzadas en una ventana.** Ajuste › Opciones avanzadas de ajuste…
   abre una ventana con pestañas (Modelo físico, Estadística, Búsqueda del
   mínimo, Convenios NORMOS, Distribución) y una línea de explicación por opción,
