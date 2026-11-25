@@ -141,6 +141,8 @@ class SessionIOMixin:
             # Igual que _load_file: los resultados runtime (y el mapa 2D) del
             # estado anterior no pertenecen a la sesión restaurada.
             self.runtime_results.clear()
+            if hasattr(self, "_set_fit_diagnostics"):
+                self._set_fit_diagnostics(None)
             self._dist_map_2d = None
             _prev_fig = getattr(self, "_dist_map_2d_fig", None)
             if _prev_fig is not None:
@@ -302,6 +304,13 @@ class SessionIOMixin:
                 self.wide_delta = bool(state["wide_delta"])
             if "auto_global" in state:
                 self.auto_global = bool(state["auto_global"])
+            # Estrategia de ajuste y paso máximo (sesiones anteriores: exploración).
+            combo = getattr(self, "strategy_combo", None)
+            if combo is not None:
+                combo.setCurrentText("local" if state.get("fit_strategy") == "local" else "explore")
+            spin = getattr(self, "max_step_spin", None)
+            if spin is not None:
+                spin.setValue(float(state.get("max_step_frac") or 0.0))
             # Convenios NORMOS: son parte del análisis. Una sesión sin ellos
             # (anterior a que existieran) se hizo con los de Fitbauer.
             from gui.state import FitOptionsState

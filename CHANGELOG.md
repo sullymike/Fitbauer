@@ -2,6 +2,29 @@
 
 ## Sin publicar
 
+- **Diagnóstico del ajuste.** El «⚠ ajuste poco fiable» de la barra de estado
+  (solo miraba χ²red y se perdía con el siguiente mensaje) pasa a ser un
+  indicador fijo y pulsable abajo a la izquierda (✓ / ⚠ con avisos / ✗ poco
+  fiable) que abre la ventana *Diagnóstico del ajuste*: una fila por
+  comprobación con estado, valor, umbral (fijo y visible), qué significa y qué
+  hacer. Comprueba convergencia, χ²red alto y también bajo (< 0.7, σ
+  sobrestimada), estructura del residuo, errores, parámetros en una cota,
+  correlaciones ≥ 0.95, de qué arranque sale la solución, si otros arranques dan
+  soluciones distintas con χ² indistinguible (Δχ² ≤ max(1, χ²red) y parámetros
+  a > 3σ) y si dos componentes del mismo tipo se han intercambiado. El veredicto
+  es el peor de todos. Fuente única `core/fit_diagnostics.py`: también va al
+  informe, a la salida de `HeadlessSession.run_fit` y al CLI. En distribución,
+  χ² y residuo.
+- **Estrategia de ajuste: Exploración o Local, con paso máximo.** En el panel de
+  ajuste. *Exploración* (por defecto) es el multiarranque de siempre; *Local*
+  hace un único mínimos cuadrados desde los valores actuales, sin
+  perturbaciones ni búsqueda global, y admite un *paso máximo* por iteración en
+  fracción del rango de cotas (región de confianza móvil). Se guardan en la
+  sesión y la plantilla (`fit_strategy`, `max_step_frac`). El resultado guarda
+  cada arranque y cuál ganó, y la gráfica en vivo ya no dibuja los arranques
+  perturbados ni la búsqueda global (los «ajustes imposibles» que se veían):
+  sigue el arranque del usuario y, en los demás, el mejor hasta el momento.
+
 - **Panel «Estado y parámetros» más legible.** «Sextetes activos» pasa a
   «Componentes activas: 1 (Doblete), 2 (Sextete)», con el tipo de cada una; la
   lista de fijos y la matriz de correlaciones usan los rótulos de los controles

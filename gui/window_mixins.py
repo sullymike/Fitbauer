@@ -15,6 +15,7 @@ from gui.menu_builder import MenuBuilderMixin
 from gui.layout_manager import LayoutSettingsMixin
 from gui.model_workflow import ModelWorkflowMixin
 from gui.fit_workflow import FitWorkflowMixin
+from gui.fit_diagnostics import FitDiagnosticsMixin
 from gui.discrete_fit import DiscreteFitMixin
 from gui.distribution_fit import DistributionFitMixin
 from gui.minima_analysis import MinimaAnalysisMixin
@@ -40,6 +41,7 @@ class WindowMixins(
     # Estado/modelo/datos
     ModelWorkflowMixin,
     FitWorkflowMixin,
+    FitDiagnosticsMixin,
     # Ajustes y herramientas científicas
     DiscreteFitMixin,
     DistributionFitMixin,

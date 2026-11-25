@@ -9,6 +9,7 @@ from core.constants import (APP_NAME, APP_AUTHOR, APP_DEPARTMENT,
                             APP_VERSION, LINE_POS_33T)
 from gui.branding import _logo_pixmap
 from gui.canvas import SpectrumCanvas
+from gui.controls import CodeComboBox
 from gui.distribution_panel import DistributionPanel
 from gui.panels import CalibrationPanel, ComponentPanel, InfoPanel
 
@@ -153,6 +154,30 @@ class MainLayoutMixin:
         self.btn_sim_ai.clicked.connect(self.on_ai_summary)
         self._set_quick_action_buttons_enabled(False)
         sim_lay.addLayout(action_grid)
+
+        # Estrategia de ajuste: exploración (multiarranque, por defecto) o
+        # local (un único ajuste desde los valores actuales, con paso máximo
+        # opcional). A un clic, no escondida en las opciones avanzadas.
+        strat_row = QtWidgets.QHBoxLayout()
+        strat_row.addWidget(QtWidgets.QLabel(tr("fit.strategy", default="Estrategia:")))
+        self.strategy_combo = CodeComboBox([
+            ("explore", tr("fit.strategy_explore", default="Exploración (varios arranques)")),
+            ("local", tr("fit.strategy_local", default="Local (desde los valores actuales)")),
+        ])
+        self.strategy_combo.setToolTip(tr("fit.strategy_tip"))
+        strat_row.addWidget(self.strategy_combo, stretch=1)
+        strat_row.addWidget(QtWidgets.QLabel(tr("fit.max_step", default="Paso máx.:")))
+        self.max_step_spin = QtWidgets.QDoubleSpinBox()
+        self.max_step_spin.setRange(0.0, 1.0)
+        self.max_step_spin.setDecimals(3)
+        self.max_step_spin.setSingleStep(0.01)
+        self.max_step_spin.setValue(0.0)
+        self.max_step_spin.setSpecialValueText(tr("fit.max_step_none", default="sin límite"))
+        self.max_step_spin.setToolTip(tr("fit.max_step_tip"))
+        self.max_step_spin.setEnabled(False)
+        strat_row.addWidget(self.max_step_spin)
+        self.strategy_combo.codeChanged.connect(self._on_strategy_changed)
+        sim_lay.addLayout(strat_row)
 
         self.calib = CalibrationPanel()
         lv.addWidget(self.calib)

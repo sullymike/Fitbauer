@@ -122,6 +122,13 @@ class FitState:
     # ±15 %; la pre-pasada DE recuperó el 100 % de los casos probados.
     auto_global: bool = False
     auto_global_chi2: float = 10.0
+    # Estrategia: "explore" = multiarranque (+ DE opcional/automática), lo de
+    # siempre; "local" = un único mínimos cuadrados desde los valores
+    # actuales, sin perturbaciones ni búsqueda global.
+    fit_strategy: str = "explore"
+    # Paso máximo por iteración en modo local, en fracción del rango de cotas
+    # de cada parámetro (0 = sin límite: TRF elige su región de confianza).
+    max_step_frac: float = 0.0
     # Re-folding del centro (portado del Tk): cuentas crudas sin doblar y
     # normalización de referencia. Si se proporcionan y fit_center=True, el
     # residuo vuelve a doblar las cuentas en el centro de prueba en cada
@@ -143,6 +150,11 @@ class FitResult:
     success: bool
     #: Cotas con que se ajustó cada parámetro (las generales o las propias).
     bounds: dict[str, tuple[float, float]] = field(default_factory=dict)
+    #: Un registro por arranque: ``{"label": "base"|"perturbed"|"global"|
+    #: "auto_global"|"local", "n": nº, "cost": χ²/2, "x": [...]}``.
+    starts: list[dict] = field(default_factory=list)
+    #: Arranque del que sale la solución (``{"label", "n"}``), o vacío.
+    best_start: dict = field(default_factory=dict)
 
 
 def parameters_at_bounds(result: "FitResult", rel_tol: float = 1e-4
@@ -554,6 +566,36 @@ def _make_residual(state: FitState, free_keys: list[str]) -> Callable[[np.ndarra
 # ── Ajuste discreto ───────────────────────────────────────────────────────
 
 
+def _step_limited_least_squares(residual, x0, lo, hi, frac, ls_kwargs, progress_state,
+                                max_outer: int = 300):
+    """Mínimos cuadrados con paso máximo: región de confianza móvil.
+
+    Cada pasada solo puede moverse dentro de ``x ± frac·rango`` (cortado por
+    las cotas). Si el óptimo de la pasada queda dentro de esa caja, es un
+    mínimo local de verdad y se termina; si toca el borde, se recentra la caja
+    y se sigue. Así el ajuste avanza a pasos acotados en vez de saltar.
+    """
+    x = np.asarray(x0, dtype=float).copy()
+    span = np.where(np.isfinite(hi - lo) & (hi > lo), hi - lo, np.maximum(np.abs(x), 1.0))
+    step = np.maximum(float(frac) * span, 1e-12)
+    res = None
+    for k in range(max_outer):
+        box_lo = np.maximum(lo, x - step)
+        box_hi = np.minimum(hi, x + step)
+        box_hi = np.where(box_hi <= box_lo, box_lo + 1e-12, box_hi)
+        progress_state["detail"] = tr("progress.fit_step", k=k + 1,
+                                      default="Paso {k}")
+        res = least_squares(residual, np.clip(x, box_lo, box_hi),
+                            bounds=(box_lo, box_hi), max_nfev=2000, **ls_kwargs)
+        tol = 1e-6 * step
+        en_borde = (((res.x <= box_lo + tol) & (box_lo > lo))
+                    | ((res.x >= box_hi - tol) & (box_hi < hi)))
+        x = res.x
+        if not np.any(en_borde):
+            break
+    return res
+
+
 def fit_discrete(state: FitState, progress_cb: Callable[[object], None] | None = None) -> FitResult:
     """Ejecuta el ajuste discreto y devuelve los resultados.
 
@@ -690,6 +732,7 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
                 "params": _progress_params(x),
                 "free_keys": list(progress_keys),
                 "free_values": x.tolist(),
+                "render": bool(progress_state.get("render", True)),
             }
             if progress_state.get("max_eval") is not None:
                 payload["max_iter"] = int(progress_state["max_eval"])  # type: ignore[arg-type]
@@ -715,16 +758,20 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
     # 3. Multistart determinista.
     rng = np.random.default_rng(12345)
     span = hi_arr - lo_arr
+    local = str(getattr(state, "fit_strategy", "explore")) == "local"
     candidates = [x0_arr]
-    for _ in range(max(0, state.multistart_n)):
+    labels = ["local" if local else "base"]
+    for _ in range(0 if local else max(0, state.multistart_n)):
         trial = x0_arr.copy()
         for i in range(trial.size):
             w = span[i] if np.isfinite(span[i]) and span[i] > 0 else 0.0
             trial[i] += rng.normal(0.0, 0.12 * w)
         candidates.append(np.clip(trial, lo_arr, hi_arr))
+        labels.append("perturbed")
 
     # 4. Opcional: pre-pasada Differential Evolution.
-    if state.global_opt:
+    if state.global_opt and not local:
+        progress_state["render"] = False
         progress_state.update({
             "phase": tr("progress.fit_global"),
             "detail": tr("progress.fit_global_detail"),
@@ -747,6 +794,7 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
                 updating="deferred",
             )
             candidates.insert(0, np.clip(de.x, lo_arr, hi_arr))
+            labels.insert(0, "global")
         except Exception:
             if progress_state.get("aborted"):
                 raise
@@ -761,31 +809,53 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
     _stagnation = 0
     _stagnation_patience = 4
     _stagnation_rel_tol = 1e-6
-    for cand in candidates:
+    starts: list[dict] = []
+    best_start: dict = {}
+    step_frac = float(getattr(state, "max_step_frac", 0.0) or 0.0)
+    for cand, label in zip(candidates, labels):
         n_starts += 1
+        phase_key = {"perturbed": "progress.fit_start_perturbed",
+                     "global": "progress.fit_start_global"}.get(label, "progress.fit_start")
+        phase = tr(phase_key, i=n_starts, n=len(candidates))
+        # La gráfica en vivo solo sigue el arranque del usuario; los
+        # perturbados y la búsqueda global pasan por modelos absurdos.
+        progress_state["render"] = label in ("base", "local")
         progress_state.update({
-            "phase": tr("progress.fit_start", i=n_starts, n=len(candidates)),
+            "phase": phase,
             "detail": tr("progress.fit_start_detail"),
             "eval": 0,
             "max_eval": 7000,
             "last": 0.0,
         })
         progress_cb({
-            "phase": tr("progress.fit_start", i=n_starts, n=len(candidates)),
+            "phase": phase,
             "detail": tr("progress.fit_start_detail"),
             "iteration": 0,
             "max_iter": 7000,
             "params": _progress_params(cand),
         })
         try:
-            res_i = least_squares(residual, cand, bounds=(lo_arr, hi_arr),
-                                   max_nfev=7000, **ls_kwargs)
+            if label == "local" and step_frac > 0:
+                res_i = _step_limited_least_squares(
+                    residual, cand, lo_arr, hi_arr, step_frac, ls_kwargs,
+                    progress_state)
+            else:
+                res_i = least_squares(residual, cand, bounds=(lo_arr, hi_arr),
+                                       max_nfev=7000, **ls_kwargs)
         except Exception:
+            if progress_state.get("aborted"):
+                raise
             _stagnation += 1
             continue
+        starts.append({"label": label, "n": n_starts, "cost": float(res_i.cost),
+                       "x": [float(v) for v in res_i.x]})
         _prev_cost = result.cost if result is not None else float("inf")
         if result is None or res_i.cost < result.cost:
             result = res_i
+            best_start = {"label": label, "n": n_starts}
+            # Fuera del arranque del usuario se dibuja solo el mejor hasta ahora.
+            progress_cb({"phase": phase, "best_free_values": result.x.tolist(),
+                         "free_keys": list(progress_keys)})
         if _prev_cost == float("inf"):
             rel_improvement = float("inf")
         else:
@@ -806,9 +876,10 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
     # 5b. Escalado global automático (banco NORMOS §6.10): si el multistart
     # local terminó claramente mal, una pasada DE + refinado local. No corre
     # si global_opt ya hizo la pre-pasada, ni cuando el ajuste es aceptable.
-    if state.auto_global and not state.global_opt and result is not None:
+    if state.auto_global and not state.global_opt and not local and result is not None:
         _dof = max(1, int(np.asarray(state.y_data).size) - len(free_keys))
         if 2.0 * float(result.cost) / _dof > float(state.auto_global_chi2):
+            progress_state["render"] = False
             progress_state.update({"phase": tr("progress.auto_global"),
                                    "detail": tr("progress.auto_global_detail"),
                                    "eval": 0, "max_eval": None, "last": 0.0})
@@ -826,8 +897,11 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
                                        bounds=(lo_arr, hi_arr), max_nfev=7000,
                                        **ls_kwargs)
                 n_starts += 1
+                starts.append({"label": "auto_global", "n": n_starts,
+                               "cost": float(res_de.cost), "x": [float(v) for v in res_de.x]})
                 if res_de.cost < result.cost:
                     result = res_de
+                    best_start = {"label": "auto_global", "n": n_starts}
             except Exception:
                 if progress_state.get("aborted"):
                     raise
@@ -849,6 +923,7 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
     if np.any(stuck):
         lo_arr = np.where(stuck, hard_lo, lo_arr)
         hi_arr = np.where(stuck, hard_hi, hi_arr)
+        progress_state["render"] = True
         try:
             res_rel = least_squares(residual, result.x, bounds=(lo_arr, hi_arr),
                                     max_nfev=7000, **ls_kwargs)
@@ -937,7 +1012,7 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
         data_resid = data_resid[np.argsort(v_axis, kind="stable")]
     stats.update(residual_diagnostics(data_resid))
 
-    return FitResult(bounds=dict(state.bounds), values=values_final, errors=errors, free_keys=free_keys,
+    return FitResult(bounds=dict(state.bounds), starts=starts, best_start=best_start, values=values_final, errors=errors, free_keys=free_keys,
                      cov=cov, stats=stats, correlations=correlations,
                      n_starts=n_starts, success=result.success)
 

@@ -181,6 +181,8 @@ def fit_spectrum(template_path: Path, spectrum_path: Path,
         "errors": fit_result["errors"],
         "stats": fit_result["stats"],
         "free_keys": fit_result["free_keys"],
+        "verdict": fit_result.get("verdict"),
+        "diagnostics": fit_result.get("diagnostics", []),
     }
     if session_engine.calibration_warning:
         session["batch_fit_result"]["warning"] = session_engine.calibration_warning
@@ -355,6 +357,15 @@ def _print_single_summary(args, session: dict) -> None:
               f"vmax = {session['model_state']['vars']['vmax']:.6g}")
     if result.get("warning"):
         print(f"  AVISO {result['warning']}")
+    # Diagnóstico del ajuste (el mismo que la ventana de la GUI): veredicto y
+    # las comprobaciones que fallan, con su umbral.
+    diags = [d for d in result.get("diagnostics", []) if d.get("status") in ("warn", "fail")]
+    if result.get("verdict"):
+        print(f"  diagnóstico: {result['verdict']}"
+              + (f" ({len(diags)} aviso(s))" if diags else ""))
+        for d in diags:
+            marca = "✗" if d["status"] == "fail" else "⚠"
+            print(f"    {marca} {d['title']}: {d['value']}  [umbral: {d['threshold']}]")
     rel = geo.get("relative")
     if isinstance(rel, (int, float)) and rel:
         # Diagnóstico portado de NORMOS: modulación de la tasa de cuentas con la

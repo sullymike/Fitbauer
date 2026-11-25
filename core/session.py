@@ -125,6 +125,10 @@ class ModelState:
     # ~40 % de fallos del multistart local en multisitio solapado y una
     # recuperación del 100 % con la pasada DE.
     auto_global: bool = True
+    #: "explore" (multiarranque, por defecto) o "local" (un único ajuste).
+    fit_strategy: str = "explore"
+    #: Paso máximo por iteración en local (fracción del rango; 0 = sin límite).
+    max_step_frac: float = 0.0
     n_components: int = 1
     #: Cotas de ajuste propias por parámetro de componente:
     #: ``{"s2_gamma1": [mín|None, máx|None]}``. Sustituyen a las generales
@@ -207,6 +211,10 @@ class ModelState:
                 setattr(self, flag, bool(state[flag]))
         if "multistart_n" in state:
             self.multistart_n = max(0, min(10, int(state["multistart_n"])))
+        if state.get("fit_strategy") in ("explore", "local"):
+            self.fit_strategy = str(state["fit_strategy"])
+        if state.get("max_step_frac") is not None:
+            self.max_step_frac = max(0.0, min(1.0, float(state["max_step_frac"])))
         if "channel_sub" in state:
             self.channel_sub = max(1, min(8, int(state["channel_sub"])))
         for skey in ("line_profile", "likelihood", "robust_loss", "absorber_model",
@@ -311,6 +319,8 @@ class ModelState:
             multistart_n=self.multistart_n,
             channel_sub=max(1, int(self.channel_sub)),
             auto_global=bool(self.auto_global),
+            fit_strategy=self.fit_strategy,
+            max_step_frac=float(self.max_step_frac),
             counts=counts, norm_factor=norm_factor)
 
     def active_param_keys(self) -> list[str]:
@@ -358,6 +368,8 @@ class ModelState:
             "channel_sub": self.channel_sub,
             "wide_delta": self.wide_delta,
             "auto_global": self.auto_global,
+            "fit_strategy": self.fit_strategy,
+            "max_step_frac": float(self.max_step_frac),
             "n_components": self.n_components,
             "constraints": list(self.constraints),
             "bounds_user": {k: [lo, hi] for k, (lo, hi)
@@ -543,6 +555,7 @@ class HeadlessSession:
     def run_fit(self) -> dict:
         """Ejecuta el ajuste discreto y devuelve {values, errors, stats, free_keys}."""
         state = self.build_fit_state()
+        start_values = dict(state.values)
         result = fit_discrete(state)
         for k, v in result.values.items():
             if k in self.model.vars:
@@ -594,11 +607,21 @@ class HeadlessSession:
                     "curv4", "line_asym"):
             if key in self.model.vars and not self.model.fixed.get(key, True):
                 values_out[key] = float(self.model.vars[key])
+        # Mismo diagnóstico que la ventana de la GUI (core.fit_diagnostics).
+        from core.fit_diagnostics import diagnose_discrete, verdict
+        checks = diagnose_discrete(
+            result, start_values=start_values,
+            kinds={c.idx: c.kind for c in state.components if c.enabled})
         return {
             "values": values_out,
             "errors": dict(result.errors),
             "stats": stats,
             "free_keys": list(result.free_keys),
+            "verdict": verdict(checks),
+            "diagnostics": [
+                {"check": c.key, "status": c.status, "title": c.title, "value": c.value,
+                 "threshold": c.threshold, "meaning": c.meaning, "action": c.action}
+                for c in checks],
         }
 
     def session_payload(self) -> dict:

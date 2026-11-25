@@ -282,7 +282,6 @@ class ModelWorkflowMixin:
         cotas propias (las restricciones mandan sobre las cotas).
         """
         from core.fit_engine import parameters_at_bounds
-        from core.session import clean_user_bounds
         result = result if result is not None else self.runtime_results.fit_result
         if result is None or not getattr(result, "bounds", None):
             return []
@@ -292,15 +291,25 @@ class ModelWorkflowMixin:
                       value=f"{value:.5g}", bound=f"{bound:.5g}")
             out.append(tr("limits.at_bound_min", **kw) if side == "min"
                        else tr("limits.at_bound_max", **kw))
+        for key, v in self._dependent_outside(result):
+            out.append(tr("limits.dependent_outside", param=self._param_display_name(key),
+                          value=f"{v:.5g}",
+                          default="{param} = {value} fuera de sus cotas (lo fija una restricción)"))
+        return out
+
+    def _dependent_outside(self, result) -> list[tuple[str, float]]:
+        """Dependientes de una restricción que quedan fuera de sus cotas propias."""
+        from core.session import clean_user_bounds
+        if result is None:
+            return []
         targets = {c.get("target") for c in self.enabled_constraints()}
+        out = []
         for key, (lo, hi) in clean_user_bounds(self._model_state().user_bounds).items():
             if key not in targets or key not in result.values:
                 continue
             v = float(result.values[key])
             if (lo is not None and v < lo) or (hi is not None and v > hi):
-                out.append(tr("limits.dependent_outside", param=self._param_display_name(key),
-                              value=f"{v:.5g}",
-                              default="{param} = {value} fuera de sus cotas (lo fija una restricción)"))
+                out.append((key, v))
         return out
 
     def _clip_start_to_user_bounds(self, state) -> list[str]:
@@ -317,6 +326,22 @@ class ModelWorkflowMixin:
                 state.values[key] = min(max(v, lo), hi)
                 out.append(self._param_display_name(key))
         return out
+
+    def _fit_strategy(self) -> str:
+        combo = getattr(self, "strategy_combo", None)
+        return combo.currentText() if combo is not None else "explore"
+
+    def _max_step_frac(self) -> float:
+        spin = getattr(self, "max_step_spin", None)
+        if spin is None or self._fit_strategy() != "local":
+            return 0.0
+        return float(spin.value())
+
+    def _on_strategy_changed(self, *_):
+        local = self._fit_strategy() == "local"
+        spin = getattr(self, "max_step_spin", None)
+        if spin is not None:
+            spin.setEnabled(local)
 
     def _on_show_fit_limits_toggled(self, checked: bool) -> None:
         self.show_fit_limits = bool(checked)
@@ -818,6 +843,8 @@ class ModelWorkflowMixin:
             channel_sub=getattr(self, "channel_sub", 1),
             wide_delta=getattr(self, "wide_delta", False),
             auto_global=getattr(self, "auto_global", True),
+            fit_strategy=self._fit_strategy(),
+            max_step_frac=self._max_step_frac(),
             sextet_pattern=getattr(self, "sextet_pattern", "normos"),
             intensity_convention=getattr(self, "intensity_convention", "depth"),
             relax_convention=getattr(self, "relax_convention", "blume"),
@@ -1366,6 +1393,8 @@ class ModelWorkflowMixin:
         self._add_recent(path)
         self.statusBar().showMessage(status)
         self.runtime_results.clear()
+        if hasattr(self, "_set_fit_diagnostics"):
+            self._set_fit_diagnostics(None)
         self._refresh_plot()
 
     def _load_counts(self, opened) -> None:

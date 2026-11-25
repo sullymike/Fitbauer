@@ -1054,6 +1054,9 @@ class DistributionFitMixin:
         # se ponía el RMS como «χ²red» y dof/AIC/BIC a 0, también en el
         # historial de ajustes.
         resumen = self._distribution_summary(result)
+        from core.fit_diagnostics import diagnose_stats
+        self._set_fit_diagnostics(diagnose_stats(resumen["goodness"]), tr("diag.dist_note"),
+                                  summary=gui_result.message)
         r.stats = {k: float(v) for k, v in resumen["goodness"].items()
                    if k in ("chi2", "red_chi2", "dof", "aic", "bic", "n_params")}
         # El resultado 2D expone alpha_bhf/alpha_quad en vez de un único alpha.

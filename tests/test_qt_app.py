@@ -3720,3 +3720,30 @@ def test_panel_de_estado_legible(win):
     assert win.info_panel.text.lineWrapMode() == QtWidgets.QTextEdit.LineWrapMode.WidgetWidth
     assert win._param_short_name("s2_quad").endswith("(2)")
     win.mark_saved()
+
+
+def test_indicador_de_diagnostico_tras_ajustar(win):
+    """Tras ajustar, abajo a la izquierda queda un indicador pulsable con el
+    veredicto de todas las comprobaciones, que abre la ventana de diagnóstico;
+    la estrategia local hace un único arranque."""
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1] / "data_sample"
+    win._open_spectrum(root / "Fe3O4.adt")
+    win.load_session_file(root / "Fe3O4_session.json")
+    win.n_components_spin.setValue(1)
+    win.on_fit()
+    assert not win.fit_indicator.isHidden()
+    assert "✗" in win.fit_indicator.text()                       # χ²red ≫ 3 con un sextete
+    win.fit_indicator.click()
+    dlg = win._fit_diag_dialog
+    assert dlg.isVisible() and dlg.table.rowCount() >= 6
+    dlg.close()
+    win.load_session_file(root / "Fe3O4_session.json")
+    win.strategy_combo.setCurrentText("local")
+    assert win.max_step_spin.isEnabled()
+    win.max_step_spin.setValue(0.02)
+    win.on_fit()
+    res = win.runtime_results.fit_result
+    assert res.n_starts == 1 and res.best_start["label"] == "local"
+    assert win._session_payload()["model_state"]["fit_strategy"] == "local"
+    win.mark_saved()

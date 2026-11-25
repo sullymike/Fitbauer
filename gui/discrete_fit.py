@@ -8,6 +8,7 @@ import time
 from PySide6 import QtWidgets
 
 from mossbauer_i18n import tr
+from core.fit_diagnostics import diagnose_discrete
 from core.fit_engine import bootstrap_errors, fit_discrete
 from core.param_overrides import effective_fit_init_specs as _eff_fi
 from gui.fit_workflow import GuiFitResult
@@ -88,8 +89,16 @@ class DiscreteFitMixin:
             last_render = [0.0]
 
             def cb(info):
+                if isinstance(info, dict) and "best_free_values" in info:
+                    # Nuevo mejor arranque: se dibuja siempre (es lo que
+                    # quedaría si el ajuste terminara ahora).
+                    last_render[0] = time.monotonic()
+                    self._render_intermediate_fit(
+                        state, info["free_keys"], info["best_free_values"])
+                    return
                 update_progress(info)
-                if isinstance(info, dict) and "free_keys" in info:
+                if (isinstance(info, dict) and "free_values" in info
+                        and info.get("render", True)):
                     now = time.monotonic()
                     if now - last_render[0] >= _INTERMEDIATE_RENDER_S:
                         last_render[0] = now
@@ -112,17 +121,18 @@ class DiscreteFitMixin:
         self._apply_discrete_result_values(state, result)
         red = result.stats.get("red_chi2", float("nan"))
         chi2 = result.stats.get("chi2", float("nan"))
-        import math
-        if math.isnan(red) or red < 1.5:
-            quality = "✓"
-        elif red < 3.0:
-            quality = "⚠"
-        else:
-            quality = tr("fit.unreliable")
+        # Diagnóstico completo (core.fit_diagnostics): el veredicto sale de
+        # todas las comprobaciones, no solo del χ²red, y queda en el indicador
+        # pulsable de la barra de estado.
+        checks = diagnose_discrete(
+            result, start_values=dict(state.values),
+            kinds={c.idx: c.kind for c in state.components},
+            dependent_outside=self._dependent_outside(result),
+            label=self._param_display_name)
         gui_result = GuiFitResult(
             mode="discrete",
             raw_result=result,
-            message=f"{quality} χ²={chi2:.4g}  χ²red={red:.4g}  ·  " + tr("fit.n_starts", n=result.n_starts),
+            message=f"χ²={chi2:.4g}  χ²red={red:.4g}  ·  " + tr("fit.n_starts", n=result.n_starts),
         )
         avisos = self._bound_warnings(result)
         if fuera:
@@ -133,6 +143,7 @@ class DiscreteFitMixin:
                 gui_result, message=gui_result.message + "  ·  ⚠ " + " · ".join(avisos))
         self.runtime_results.set_discrete_fit(result, gui_result=gui_result)
         self._finish_gui_fit_result(gui_result)
+        self._set_fit_diagnostics(checks, summary=gui_result.message)
         self._refresh_plot()
         if hasattr(self, "_record_fit_history"):
             self._record_fit_history("discrete", result.stats)

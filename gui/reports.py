@@ -792,6 +792,27 @@ class ReportMixin:
                 lines.append("")
             lines.extend(correlation_report_lines(corr, code=True))
 
+        # ── Diagnóstico del ajuste ─────────────────────────────────────
+        checks = self.fit_checks() if hasattr(self, "fit_checks") else []
+        if checks:
+            from gui.fit_diagnostics import verdict_text
+            lines.append(f"## 🩺 {tr('diag.window_title')}")
+            lines.append("")
+            lines.append(f"**{verdict_text(checks)}**")
+            lines.append("")
+            lines.append(f"| | {tr('diag.col_check')} | {tr('diag.col_value')} | "
+                         f"{tr('diag.col_threshold')} |")
+            lines.append("|---|---|---|---|")
+            marca = {"ok": "✓", "warn": "⚠", "fail": "✗", "na": "–"}
+            for c in checks:
+                lines.append(f"| {marca.get(c.status, '?')} | {c.title} | "
+                             f"{c.value.replace('|', '¦')} | {c.threshold.replace('|', '¦')} |")
+            lines.append("")
+            for c in checks:
+                if c.status in ("warn", "fail") and c.action:
+                    lines.append(f"- **{c.title}:** {c.meaning} {c.action}")
+            lines.append("")
+
         # ── Cotas del ajuste ────────────────────────────────────────────
         avisos_cotas = self._bound_warnings() if hasattr(self, "_bound_warnings") else []
         if avisos_cotas:
