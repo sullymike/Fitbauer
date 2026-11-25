@@ -2,6 +2,17 @@
 
 ## Sin publicar
 
+- **Diagnóstico de los ajustes de distribución.** Además de χ² y residuo:
+  convergencia (avisa si el refinado de los globales agotó su presupuesto de
+  evaluaciones), P apilada en el borde de la malla (> 30 % del máximo: rango
+  corto), paso de la malla frente a Γ (desplazamiento de línea por bin > Γ: P a
+  escalones), gaussianas del VBF/Gaussiana sobrantes (< 2 % del área o encima de
+  otra), en su límite de σ o con el centro fuera de la malla, componentes nítidas
+  con < 1 % del área, globales y nítidos en su cota, sin error o con |r| ≥ 0.95.
+  `diagnose_distribution` en `core/fit_diagnostics.py`. Se probó y se descartó
+  un aviso por parámetros efectivos de la regularización: la traza de Tikhonov
+  ignora P ≥ 0 y daba ≈ nº de bins incluso en ajustes buenos.
+
 - **Bocadillo de «Paso máx.»** también en los rótulos de la fila de estrategia
   (la casilla está desactivada fuera del modo Local y no se veía), con un texto
   que explica qué limita, con un ejemplo, y para qué sirve.

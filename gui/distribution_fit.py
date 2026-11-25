@@ -827,6 +827,7 @@ class DistributionFitMixin:
                     fitted_x_local = opt.x
                     outer_opt.update(jac=opt.jac, fun=opt.fun, x=opt.x)
                 except _OuterBudgetExhausted:
+                    outer_opt["exhausted"] = True
                     best_x = progress_state["best_x"]
                     fitted_x_local = x0 if best_x is None else best_x
                     # Sin jacobiana del optimizador: se calcula en el mejor
@@ -936,7 +937,13 @@ class DistributionFitMixin:
                          "free": libres,
                          # Parámetros del bucle externo (globales y de los
                          # nítidos): consumen grados de libertad.
-                         "n_outer": len(outer_specs)}
+                         "n_outer": len(outer_specs),
+                         # Para el diagnóstico: cada parámetro del bucle
+                         # externo con su valor final y sus cotas, y si el
+                         # bucle agotó sus evaluaciones.
+                         "outer": self._outer_for_diagnostics(
+                             outer_specs, fitted_x, sharp_indices),
+                         "budget_exhausted": bool(outer_opt.get("exhausted"))}
         if is_2d:
             result = dataclasses.replace(result, global_cov=global_cov,
                                          global_values=global_values)
@@ -1054,9 +1061,12 @@ class DistributionFitMixin:
         # se ponía el RMS como «χ²red» y dof/AIC/BIC a 0, también en el
         # historial de ajustes.
         resumen = self._distribution_summary(result)
-        from core.fit_diagnostics import diagnose_stats
-        self._set_fit_diagnostics(diagnose_stats(resumen["goodness"]), tr("diag.dist_note"),
-                                  summary=gui_result.message)
+        from core.fit_diagnostics import diagnose_distribution
+        gv = getattr(result, "global_values", None) or {}
+        self._set_fit_diagnostics(
+            diagnose_distribution(result, resumen, outer=gv.get("outer"),
+                                  budget_exhausted=bool(gv.get("budget_exhausted"))),
+            tr("diag.dist_note"), summary=gui_result.message)
         r.stats = {k: float(v) for k, v in resumen["goodness"].items()
                    if k in ("chi2", "red_chi2", "dof", "aic", "bic", "n_params")}
         # El resultado 2D expone alpha_bhf/alpha_quad en vez de un único alpha.
@@ -1143,6 +1153,23 @@ class DistributionFitMixin:
         if hasattr(self, "_record_fit_history") and not live:
             self._record_fit_history("distribution", r.stats)
         self._show_distribution_dialog(result)
+
+    def _outer_for_diagnostics(self, outer_specs, fitted_x, sharp_indices) -> list:
+        """(rótulo, valor, cota_inf, cota_sup) de cada parámetro del bucle externo."""
+        if fitted_x is None:
+            return []
+        nombres = {"dist_delta": "δ", "dist_quad": "ΔEQ", "dist_gamma": "Γ",
+                   "dist_delta_slope": "κδ", "dist_quad_slope": "κq"}
+        out = []
+        for i, (key, kind, lo, hi) in enumerate(outer_specs):
+            value = float(np.exp(fitted_x[i])) if kind == "loggamma" else float(fitted_x[i])
+            if key.startswith("sharp:"):
+                _s, pos_txt, pname = key.split(":")
+                lbl = self._param_display_name(f"s{sharp_indices[int(pos_txt)]}_{pname}")
+            else:
+                lbl = nombres.get(key, key)
+            out.append((lbl, value, float(lo), float(hi)))
+        return out
 
     def _distribution_area_split(self, result, sharp_for_area, shape, calib_state,
                                  dist_name: str) -> tuple:

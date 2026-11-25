@@ -3778,3 +3778,19 @@ def test_autoajustar_el_residuo_conserva_las_componentes(win, monkeypatch):
     assert [(c.idx, c.kind) for c in win._active_component_states()] == activas
     assert win.runtime_results.fit_result is res and avisos
     win.mark_saved()
+
+
+def test_diagnostico_tras_ajuste_de_distribucion(win):
+    """Un ajuste de distribución deja en el indicador las comprobaciones
+    propias (borde y paso de la malla), no solo χ² y residuo."""
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1] / "data_sample"
+    win._open_spectrum(root / "sintetico_dist_bhf_bimodal.adt")
+    win.load_session_file(root / "sintetico_dist_bhf_bimodal_session.json")
+    win.dist_panel.bmax.set_value(46.0)
+    win.on_fit_distribution()
+    checks = {c.key: c for c in win.fit_checks()}
+    assert {"edge", "mesh", "convergence"} <= set(checks)
+    assert checks["edge"].status == "warn"
+    assert not win.fit_indicator.isHidden()
+    win.mark_saved()

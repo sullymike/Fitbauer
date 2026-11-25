@@ -26,6 +26,15 @@ RUNS_Z_MAX = 2.0        # |z| de la prueba de rachas del residuo
 CORR_MAX = 0.95         # |r| entre dos parámetros libres
 SWAP_RATIO = 0.5        # intercambio si la asignación cruzada cuesta < la mitad
 
+# Ajustes de distribución
+EDGE_PILEUP_MAX = 0.3   # P en el bin extremo / máximo de P: la malla se queda corta
+COMP_SHARE_MIN = 0.02   # gaussiana (VBF) con menos del 2 % del área: sobra
+SHARP_SHARE_MIN = 0.01  # componente nítida con menos del 1 % del área: sobra
+#: Desplazamiento de línea por unidad de la variable distribuida (mm/s): las
+#: líneas externas del sextete (1/6) por tesla, cada línea del doblete por
+#: mm/s de ΔEQ y todas las líneas por mm/s de δ.
+_LINE_SHIFT = {"quad": 0.5, "delta": 1.0}
+
 # Escalas para comparar componentes (intercambio de papeles).
 _SWAP_SCALES = {"delta": 0.1, "quad": 0.1, "bhf": 1.0, "gamma1": 0.1}
 
@@ -276,6 +285,217 @@ def diagnose_discrete(result, *, start_values: dict | None = None,
             checks.append(extra)
     if start_values and kinds and len(kinds) > 1:
         checks.append(check_swaps(component_swaps(start_values, result.values, kinds)))
+    return checks
+
+
+# ── Ajustes de distribución ───────────────────────────────────────────────
+def _at_bounds(outer, rel_tol: float = 1e-4) -> list:
+    """``outer``: (clave, valor, cota_inf, cota_sup) → las que tocan una cota."""
+    out = []
+    for key, v, lo, hi in outer or ():
+        v, lo, hi = float(v), float(lo), float(hi)
+        span = hi - lo if math.isfinite(hi - lo) and hi > lo else max(1.0, abs(v))
+        tol = rel_tol * span
+        if math.isfinite(lo) and v <= lo + tol:
+            out.append((key, v, "min", lo))
+        elif math.isfinite(hi) and v >= hi - tol:
+            out.append((key, v, "max", hi))
+    return out
+
+
+def check_convergence_dist(success: bool, budget_exhausted: bool) -> Check:
+    if not success:
+        return check_convergence(False)
+    if budget_exhausted:
+        return Check("convergence", "warn", tr("diag.conv_title"), tr("diag.conv_budget"),
+                     tr("diag.conv_thr"), tr("diag.conv_budget_meaning"),
+                     tr("diag.conv_budget_action"))
+    return check_convergence(True)
+
+
+def edge_ratio(probability) -> float:
+    """``max(P en el borde de la malla) / max(P)`` (1D: primer y último bin;
+    2D: todo el contorno)."""
+    p = np.asarray(probability, dtype=float)
+    if p.size == 0 or not np.all(np.isfinite(p)):
+        return float("nan")
+    top = float(np.max(p))
+    if top <= 0:
+        return float("nan")
+    if p.ndim == 1:
+        borde = max(p[0], p[-1])
+    else:
+        borde = max(p[0, :].max(), p[-1, :].max(), p[:, 0].max(), p[:, -1].max())
+    return float(borde) / top
+
+
+def check_edge(ratio: float) -> Check:
+    title = tr("diag.edge_title")
+    thr = tr("diag.edge_thr", r=EDGE_PILEUP_MAX)
+    if not math.isfinite(ratio):
+        return Check("edge", "na", title, "—", thr)
+    val = tr("diag.edge_value", pct=f"{100.0 * ratio:.0f}")
+    if ratio > EDGE_PILEUP_MAX:
+        return Check("edge", "warn", title, val, thr, tr("diag.edge_meaning"),
+                     tr("diag.edge_action"))
+    return Check("edge", "ok", title, val, thr, tr("diag.edge_ok_meaning"))
+
+
+def line_shift_per_unit(variable: str) -> float:
+    if variable == "bhf":
+        from core.constants import LINE_POS_33T
+        return abs(float(LINE_POS_33T[0])) / 33.0
+    return _LINE_SHIFT.get(variable, float("nan"))
+
+
+def check_mesh(centers, variable: str, gamma) -> Check | None:
+    """Paso de la malla, en mm/s sobre las líneas, frente a la anchura Γ."""
+    c = np.asarray(centers, dtype=float)
+    try:
+        g = float(gamma)
+    except (TypeError, ValueError):
+        return None
+    f = line_shift_per_unit(variable)
+    if c.size < 2 or not (math.isfinite(g) and g > 0 and math.isfinite(f)):
+        return None
+    paso = float(abs(c[1] - c[0]))
+    mov = paso * f
+    title = tr("diag.mesh_title")
+    thr = tr("diag.mesh_thr")
+    val = tr("diag.mesh_value", step=_fmt(paso, 3), shift=_fmt(mov, 2), gamma=_fmt(g, 3))
+    if mov > g:
+        return Check("mesh", "warn", title, val, thr, tr("diag.mesh_meaning"),
+                     tr("diag.mesh_action"))
+    return Check("mesh", "ok", title, val, thr, tr("diag.mesh_ok_meaning"))
+
+
+def _shape_components(result) -> tuple[list, list, tuple | None]:
+    """(componentes [(A, μ, σ)] 1D o [(A, μx, μy, σx, σy, ρ)] 2D, cotas de σ)."""
+    comps = getattr(result, "vbf_components", None)
+    if comps:
+        b = getattr(result, "vbf_sigma_bounds", None)
+        return [tuple(map(float, c)) for c in comps], [], b
+    comps2 = getattr(result, "vbf2d_components", None)
+    if comps2:
+        return [], [tuple(map(float, c)) for c in comps2], getattr(result, "vbf2d_sigma_bounds", None)
+    return [], [], None
+
+
+def _sig_at_bound(s: float, b) -> str | None:
+    if not b:
+        return None
+    lo, hi = float(b[0]), float(b[1])
+    tol = 1e-3 * max(hi - lo, 1e-12) if math.isfinite(hi - lo) else 1e-9
+    if math.isfinite(lo) and s <= lo + tol:
+        return "min"
+    if math.isfinite(hi) and s >= hi - tol:
+        return "max"
+    return None
+
+
+def check_shape_components(result, centers) -> Check | None:
+    """Gaussianas del VBF/Gaussiana: σ en su cota, peso despreciable,
+    solapadas (redundantes) o con el centro fuera de la malla."""
+    c1, c2, bounds = _shape_components(result)
+    comps = c1 or c2
+    if not comps:
+        return None
+    title = tr("diag.comp_title")
+    thr = tr("diag.comp_thr", pct=f"{100 * COMP_SHARE_MIN:g}")
+    total = sum(max(c[0], 0.0) for c in comps) or 1.0
+    avisos: list[str] = []
+    x = np.asarray(centers, dtype=float)
+    lo_x, hi_x = (float(x.min()), float(x.max())) if x.size else (-np.inf, np.inf)
+    for k, c in enumerate(comps, start=1):
+        share = max(c[0], 0.0) / total
+        if len(comps) > 1 and share < COMP_SHARE_MIN:
+            avisos.append(tr("diag.comp_small", k=k, pct=f"{100 * share:.1f}"))
+        sigmas = (c[2],) if c1 else (c[3], c[4])
+        ejes = bounds if (c2 and bounds) else ((bounds,) if bounds else ())
+        for s, b in zip(sigmas, ejes):
+            side = _sig_at_bound(s, b)
+            if side:
+                avisos.append(tr("diag.comp_sigma", k=k, s=_fmt(s, 3),
+                                 side=tr("diag.min") if side == "min" else tr("diag.max")))
+        if c1 and not (lo_x <= c[1] <= hi_x):
+            avisos.append(tr("diag.comp_outside", k=k, mu=_fmt(c[1], 4)))
+    if c1:
+        for i in range(len(c1)):
+            for j in range(i + 1, len(c1)):
+                if abs(c1[i][1] - c1[j][1]) < 0.5 * min(c1[i][2], c1[j][2]):
+                    avisos.append(tr("diag.comp_overlap", a=i + 1, b=j + 1))
+    if not avisos:
+        return Check("components", "ok", title, tr("diag.comp_ok", n=len(comps)), thr)
+    return Check("components", "warn", title, "; ".join(avisos), thr,
+                 tr("diag.comp_meaning"), tr("diag.comp_action"))
+
+
+def check_sharp(area_split) -> Check | None:
+    """Componentes nítidas con un área despreciable frente al total."""
+    filas = [f for f in (area_split or ()) if int(f[1]) != 0]
+    if not filas:
+        return None
+    title = tr("diag.sharp_title")
+    thr = tr("diag.sharp_thr", pct=f"{100 * SHARP_SHARE_MIN:g}")
+    pocas = [f for f in filas if float(f[3]) < 100.0 * SHARP_SHARE_MIN]
+    if not pocas:
+        return Check("sharp", "ok", title, tr("diag.none"), thr)
+    txt = "; ".join(f"{f[0]} ({float(f[3]):.2f} %)" for f in pocas)
+    return Check("sharp", "warn", title, txt, thr, tr("diag.sharp_meaning"),
+                 tr("diag.sharp_action"))
+
+
+def check_dist_errors(globals_rows: list[dict]) -> Check | None:
+    libres = [g for g in globals_rows or () if g.get("free")]
+    if not libres:
+        return None
+    title = tr("diag.err_title")
+    thr = tr("diag.err_thr")
+    faltan = [g["label"] for g in libres if not g.get("sigma")]
+    if faltan:
+        return Check("errors", "warn", title, tr("diag.err_missing", n=len(faltan)), thr,
+                     tr("diag.err_meaning"), tr("diag.err_action"), tuple(faltan))
+    return Check("errors", "ok", title, tr("diag.err_ok"), thr)
+
+
+def diagnose_distribution(result, summary: dict, *, outer=None,
+                          budget_exhausted: bool = False, label=str) -> list[Check]:
+    """Todas las comprobaciones de un ajuste de distribución.
+
+    ``summary`` es el resumen del ajuste (bondad, globales con σ y libres,
+    pares de correlación, variable); ``outer`` los parámetros del bucle
+    externo (globales y de los nítidos) como ``(clave, valor, cota_inf,
+    cota_sup)``; ``budget_exhausted`` si ese bucle agotó sus evaluaciones.
+    """
+    goodness = summary.get("goodness") or {}
+    is_2d = bool(summary.get("is_2d"))
+    checks: list[Check] = [
+        check_convergence_dist(bool(getattr(result, "success", True)), budget_exhausted),
+        check_chi2(goodness),
+        check_residual(goodness),
+        check_edge(edge_ratio(getattr(result, "probability", []))),
+    ]
+    if not is_2d:
+        gamma = next((g["value"] for g in summary.get("globals") or ()
+                      if g.get("key") == "dist_gamma"), None)
+        mesh = check_mesh(getattr(result, "bhf_centers", []),
+                          summary.get("variable") or "bhf", gamma)
+        if mesh is not None:
+            checks.append(mesh)
+    for extra in (check_shape_components(result, getattr(result, "bhf_centers", [])),
+                  check_sharp(getattr(result, "area_split", None))):
+        if extra is not None:
+            checks.append(extra)
+    if outer:
+        checks.append(check_bounds(_at_bounds(outer), label))
+    err = check_dist_errors(summary.get("globals") or [])
+    if err is not None:
+        checks.append(err)
+    pairs = list(summary.get("corr_pairs") or [])
+    if pairs:
+        corr = {"high_pairs": [p for p in pairs if abs(float(p["corr"])) >= CORR_MAX],
+                "max_abs_corr": max(abs(float(p["corr"])) for p in pairs)}
+        checks.append(check_correlations(corr, str))
     return checks
 
 

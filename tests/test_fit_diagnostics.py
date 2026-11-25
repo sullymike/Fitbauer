@@ -74,3 +74,33 @@ def test_validacion_solo_componentes_activas_y_nombre_legible():
     st.values["s3_bhf"] = 99.0
     st.bounds["s3_bhf"] = (0.0, 60.0)
     assert [i.key for i in validate_fit_state(st)] == ["s3_delta"]
+
+
+def test_diagnostico_de_distribucion():
+    """Borde de la malla, paso frente a Γ, gaussianas sobrantes, nítidos
+    despreciables y globales en su cota."""
+    from types import SimpleNamespace
+    import numpy as np
+    from core.fit_diagnostics import diagnose_distribution, edge_ratio
+    x = np.linspace(0.5, 59.5, 60)
+    p = np.exp(-0.5 * ((x - 30) / 4) ** 2)
+    assert edge_ratio(p) < 0.01
+    apilada = p.copy(); apilada[-1] = 0.8
+    assert edge_ratio(apilada) == pytest.approx(0.8 / p.max())
+    res = SimpleNamespace(
+        success=True, probability=apilada, bhf_centers=x, shape="VBF",
+        vbf_components=((1.0, 30.0, 4.0), (0.01, 31.0, 4.0)), vbf_sigma_bounds=(0.1, 4.0),
+        area_split=(("P(BHF)", 0, 0.99, 99.5), ("Comp. 2", 2, 0.005, 0.5)))
+    resumen = {"goodness": {"red_chi2": 1.0}, "variable": "bhf",
+               "globals": [{"key": "dist_gamma", "label": "Γ", "value": 0.1,
+                            "free": True, "sigma": 0.01}]}
+    checks = {c.key: c for c in diagnose_distribution(
+        res, resumen, outer=[("Γ", 0.1, 0.1, 1.0)], budget_exhausted=True)}
+    assert checks["convergence"].status == "warn"
+    assert checks["edge"].status == "warn"
+    assert checks["mesh"].status == "warn"          # 1 T → 0.16 mm/s > Γ = 0.1
+    comp = checks["components"]
+    assert comp.status == "warn" and "2" in comp.value
+    assert checks["sharp"].status == "warn"
+    assert checks["bounds"].status == "warn" and "Γ" in checks["bounds"].value
+    assert checks["errors"].status == "ok"
