@@ -304,10 +304,10 @@ class SessionIOMixin:
                 self.wide_delta = bool(state["wide_delta"])
             if "auto_global" in state:
                 self.auto_global = bool(state["auto_global"])
-            # Estrategia de ajuste y paso máximo (sesiones anteriores: exploración).
+            # Estrategia de ajuste y paso máximo (sin dato: local, la de defecto).
             combo = getattr(self, "strategy_combo", None)
             if combo is not None:
-                combo.setCurrentText("local" if state.get("fit_strategy") == "local" else "explore")
+                combo.setCurrentText("explore" if state.get("fit_strategy") == "explore" else "local")
             spin = getattr(self, "max_step_spin", None)
             if spin is not None:
                 spin.setValue(float(state.get("max_step_frac") or 0.0))

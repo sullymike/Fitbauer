@@ -167,9 +167,9 @@ class MainLayoutMixin:
         self._set_quick_action_buttons_enabled(False)
         sim_lay.addLayout(action_grid)
 
-        # Estrategia de ajuste: exploración (multiarranque, por defecto) o
-        # local (un único ajuste desde los valores actuales, con paso máximo
-        # opcional). A un clic, no escondida en las opciones avanzadas.
+        # Estrategia de ajuste: local (un único ajuste desde los valores
+        # actuales, con paso máximo opcional; por defecto) o exploración
+        # (multiarranque). A un clic, no escondida en las opciones avanzadas.
         strat_row = QtWidgets.QHBoxLayout()
         _lbl_strat = QtWidgets.QLabel(tr("fit.strategy", default="Estrategia:"))
         _lbl_strat.setToolTip(tr("fit.strategy_tip"))
@@ -192,8 +192,11 @@ class MainLayoutMixin:
         self.max_step_spin.setValue(0.0)
         self.max_step_spin.setSpecialValueText(tr("fit.max_step_none", default="sin límite"))
         self.max_step_spin.setToolTip(tr("fit.max_step_tip"))
-        self.max_step_spin.setEnabled(False)
         strat_row.addWidget(self.max_step_spin)
+        # Por defecto, local: lo habitual es refinar lo que ya se ve en
+        # pantalla; la exploración se elige cuando el inicio es dudoso.
+        self.strategy_combo.setCurrentText("local")
+        self.max_step_spin.setEnabled(True)
         self.strategy_combo.codeChanged.connect(self._on_strategy_changed)
         sim_lay.addLayout(strat_row)
 

@@ -309,7 +309,7 @@ class FitOptionsState:
     channel_sub: int = 1
     wide_delta: bool = False
     auto_global: bool = True
-    fit_strategy: str = "explore"
+    fit_strategy: str = "local"
     max_step_frac: float = 0.0
     # Convenios de compatibilidad con NORMOS (ver core.constants.sextet_pattern
     # y core.physics.intensity_convention / relaxation_convention).
@@ -337,7 +337,7 @@ class FitOptionsState:
             channel_sub=max(1, min(8, int(_value_or(state.get("channel_sub"), 1)))),
             wide_delta=bool(state.get("wide_delta", False)),
             auto_global=bool(state.get("auto_global", True)),
-            fit_strategy=("local" if state.get("fit_strategy") == "local" else "explore"),
+            fit_strategy=("explore" if state.get("fit_strategy") == "explore" else "local"),
             max_step_frac=max(0.0, min(1.0, float(_value_or(state.get("max_step_frac"), 0.0)))),
             sextet_pattern=_session_sextet_pattern(state.get("sextet_pattern")),
             intensity_convention=_choice(state.get("intensity_convention"),

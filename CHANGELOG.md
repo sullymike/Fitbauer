@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- **Estrategia de ajuste por defecto: local** (desde los valores actuales). La
+  exploración con varios arranques queda a un clic en el mismo desplegable. Las
+  sesiones guardadas con exploración la conservan; las que no dicen nada se
+  abren en local. El CLI/headless sigue con exploración por defecto (las
+  plantillas suelen partir lejos del mínimo).
+
 - **Vista › Límites de parámetros también acota el ajuste.** Antes solo
   cambiaba el rango de las casillas; el ajuste y el aviso «fuera de límites»
   seguían con las cotas del código (δ en [−2, 3] aunque la ventana dijera −5).
