@@ -1462,5 +1462,17 @@
   "info.area_pct_of": "% área {label}",
   "rep.area_split_header": "Repartição da área (quantificação)",
   "rep.area_split_note": "Áreas completas de absorvente fino, sem cortar ao intervalo medido; % de área = fração de ferro só se os fatores f forem iguais.",
-  "param_limits.applied": "Limites dos parâmetros aplicados."
+  "param_limits.applied": "Limites dos parâmetros aplicados.",
+  "limits.min_ph": "mín",
+  "limits.max_ph": "máx",
+  "tooltip.fit_limits": "Limite do ajuste para este parâmetro desta componente. Vazio: o limite geral.",
+  "tooltip.fit_limits_set": "Limites do ajuste: {lo} … {hi}",
+  "options.show_fit_limits": "Mostrar limites do ajuste por componente",
+  "limits.param_in_comp": "{param} · comp. {idx}",
+  "limits.at_bound_min": "{param} = {value}, no seu limite mínimo ({bound}): o seu erro não é fiável",
+  "limits.at_bound_max": "{param} = {value}, no seu limite máximo ({bound}): o seu erro não é fiável",
+  "limits.dependent_outside": "{param} = {value}, fora dos seus limites (fixado por uma restrição)",
+  "limits.start_clipped": "Valor inicial fora dos limites, levado ao limite: {params}",
+  "info.bounds_header": "⚠ Limites do ajuste:",
+  "limits.report_user": "Limites de ajuste próprios"
 }

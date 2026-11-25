@@ -1462,5 +1462,17 @@
   "info.area_pct_of": "% área {label}",
   "rep.area_split_header": "Reparto del área (cuantificación)",
   "rep.area_split_note": "Áreas completas de capa fina, sin recortar al rango medido; área % = fracción de hierro solo si los factores f son iguales.",
-  "param_limits.applied": "Límites de parámetros aplicados."
+  "param_limits.applied": "Límites de parámetros aplicados.",
+  "limits.min_ph": "mín",
+  "limits.max_ph": "máx",
+  "tooltip.fit_limits": "Cota del ajuste para este parámetro de esta componente. Vacía: la cota general.",
+  "tooltip.fit_limits_set": "Cotas del ajuste: {lo} … {hi}",
+  "options.show_fit_limits": "Mostrar cotas de ajuste por componente",
+  "limits.param_in_comp": "{param} · comp. {idx}",
+  "limits.at_bound_min": "{param} = {value}, en su cota mínima ({bound}): su error no es fiable",
+  "limits.at_bound_max": "{param} = {value}, en su cota máxima ({bound}): su error no es fiable",
+  "limits.dependent_outside": "{param} = {value}, fuera de sus cotas (lo fija una restricción)",
+  "limits.start_clipped": "Valor de partida fuera de sus cotas, llevado a la cota: {params}",
+  "info.bounds_header": "⚠ Cotas del ajuste:",
+  "limits.report_user": "Cotas de ajuste propias"
 }

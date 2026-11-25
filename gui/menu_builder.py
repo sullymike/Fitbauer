@@ -55,6 +55,7 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     ("view.show_legend",       "menu.view", "options.show_legend",    ""),
     ("view.show_component_fill", "menu.view", "options.show_component_fill", ""),
     ("view.compact_params",    "menu.view", "options.compact_params", ""),
+    ("view.show_fit_limits",   "menu.view", "options.show_fit_limits", ""),
     ("view.configure_layout",  "menu.view", "view.configure_layout",  ""),
     # ── Ayuda ──
     ("help.open",              "menu.help", "help.open",              "F1"),
@@ -523,6 +524,15 @@ class MenuBuilderMixin:
         self.act_compact_params.toggled.connect(self._on_compact_params_toggled)
         view_menu.addAction(self.act_compact_params)
         self._reg("view.compact_params", self.act_compact_params)
+        # Cotas de ajuste por componente: casillas mín/máx junto a «fijo».
+        # Ocultas por defecto (son dos casillas más por parámetro).
+        self.act_show_fit_limits = QtGui.QAction(
+            tr("options.show_fit_limits", default="Mostrar cotas de ajuste por componente"),
+            self, checkable=True)
+        self.act_show_fit_limits.setChecked(getattr(self, "show_fit_limits", False))
+        self.act_show_fit_limits.toggled.connect(self._on_show_fit_limits_toggled)
+        view_menu.addAction(self.act_show_fit_limits)
+        self._reg("view.show_fit_limits", self.act_show_fit_limits)
         view_menu.addSeparator()
         # Tema UI (QStyle de Qt). Por defecto Fusion.
         theme_menu = view_menu.addMenu(tr("options.theme"))

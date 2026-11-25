@@ -55,6 +55,31 @@ _INTENSITY_MODES = set(_INTENSITY_MODES_TUPLE)
 _QUAD_TREATMENTS = set(_QUAD_TREATMENTS_TUPLE)
 
 
+def clean_user_bounds(raw) -> dict[str, tuple[float | None, float | None]]:
+    """Normaliza las cotas propias de una sesión o plantilla.
+
+    Acepta ``{"s1_gamma1": [mín, máx]}`` con ``None``/``null`` en el lado no
+    dado; descarta entradas sin ningún lado o mal formadas y ordena mín ≤ máx.
+    """
+    out: dict[str, tuple[float | None, float | None]] = {}
+    if not isinstance(raw, dict):
+        return out
+    for key, val in raw.items():
+        if not isinstance(val, (list, tuple)) or len(val) != 2:
+            continue
+        try:
+            lo = None if val[0] is None else float(val[0])
+            hi = None if val[1] is None else float(val[1])
+        except (TypeError, ValueError):
+            continue
+        if lo is None and hi is None:
+            continue
+        if lo is not None and hi is not None and lo > hi:
+            lo, hi = hi, lo
+        out[str(key)] = (lo, hi)
+    return out
+
+
 @dataclass
 class ModelState:
     """Estado del modelo de ajuste sin Tk: dicts planos en vez de ``tk.Variable``."""
@@ -101,6 +126,10 @@ class ModelState:
     # recuperación del 100 % con la pasada DE.
     auto_global: bool = True
     n_components: int = 1
+    #: Cotas de ajuste propias por parámetro de componente:
+    #: ``{"s2_gamma1": [mín|None, máx|None]}``. Sustituyen a las generales
+    #: (``COMPONENT_FIT_BOUNDS``) solo en el lado dado; vacío = las generales.
+    user_bounds: dict = field(default_factory=dict)
 
     @classmethod
     def defaults(cls, n_components: int = MAX_COMPONENTS_DEFAULT) -> "ModelState":
@@ -193,6 +222,8 @@ class ModelState:
             self.constraints = list(state["constraints"])
         if "n_components" in state:
             self.n_components = int(state["n_components"])
+        if "bounds_user" in state:
+            self.user_bounds = clean_user_bounds(state["bounds_user"])
         # int3 sigue siendo referencia fija aunque la plantilla diga otra cosa.
         for idx in self.sextet_enabled:
             key = f"s{idx}_int3"
@@ -243,6 +274,15 @@ class ModelState:
                 # el ajuste).
                 bounds[f"s{idx}_quad"] = (-2.0 * (vmax_abs + 2.0),
                                           2.0 * (vmax_abs + 2.0))
+        # Cotas propias del usuario (por componente y parámetro): sustituyen
+        # a las generales en el lado dado y son duras (sin cota blanda).
+        for key, (u_lo, u_hi) in clean_user_bounds(self.user_bounds).items():
+            if key not in values:
+                continue
+            lo, hi = bounds.get(key, (-np.inf, np.inf))
+            bounds[key] = (lo if u_lo is None else float(u_lo),
+                           hi if u_hi is None else float(u_hi))
+            soft_bounds.pop(key, None)
         # Límites del centro de doblado según el nº de canales real (N/2 ± el
         # margen ajustable; en seno, la fase ~N/4 con su propio rango). Sin
         # esto, fit_center caía al default (250, 263) del motor, válido solo
@@ -320,6 +360,8 @@ class ModelState:
             "auto_global": self.auto_global,
             "n_components": self.n_components,
             "constraints": list(self.constraints),
+            "bounds_user": {k: [lo, hi] for k, (lo, hi)
+                            in clean_user_bounds(self.user_bounds).items()},
         }
 
 

@@ -1,6 +1,8 @@
 """Ajuste discreto y bootstrap desde la GUI Qt."""
 from __future__ import annotations
 
+import dataclasses
+
 import time
 
 from PySide6 import QtWidgets
@@ -78,6 +80,7 @@ class DiscreteFitMixin:
         if state is None:
             return
         self._pre_fit_snapshot = self._project_state().to_session_payload()
+        fuera = list(getattr(self, "_start_clipped", []))
 
         def _progress(update_progress):
             # Cada redibujado intermedio cuesta ~0.2 s (relayout de Matplotlib):
@@ -121,6 +124,13 @@ class DiscreteFitMixin:
             raw_result=result,
             message=f"{quality} χ²={chi2:.4g}  χ²red={red:.4g}  ·  " + tr("fit.n_starts", n=result.n_starts),
         )
+        avisos = self._bound_warnings(result)
+        if fuera:
+            avisos.insert(0, tr("limits.start_clipped", params=", ".join(fuera),
+                                default="Valor de partida fuera de sus cotas, llevado a la cota: {params}"))
+        if avisos:
+            gui_result = dataclasses.replace(
+                gui_result, message=gui_result.message + "  ·  ⚠ " + " · ".join(avisos))
         self.runtime_results.set_discrete_fit(result, gui_result=gui_result)
         self._finish_gui_fit_result(gui_result)
         self._refresh_plot()

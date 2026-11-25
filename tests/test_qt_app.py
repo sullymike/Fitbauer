@@ -3646,3 +3646,39 @@ def test_limites_de_parametros_se_aplican_sin_reiniciar(win):
     finally:
         param_overrides.save_raw({})                       # no contaminar otros tests
         minima_analysis.reload_param_specs()
+
+
+def test_cotas_de_ajuste_por_componente(win):
+    """Cotas propias de un parámetro de una componente: sustituyen a la
+    general en el lado dado, el valor de partida fuera de ellas se lleva a la
+    cota, el resultado en la cota se avisa y la sesión las conserva."""
+    import json
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1] / "data_sample"
+    win._open_spectrum(root / "Fe3O4.adt")
+    win.load_session_file(root / "Fe3O4_session.json")
+    ctl = win.components_panels[1].params["gamma1"]
+    assert ctl.lim_lo is not None and ctl.lim_lo.isHidden()
+    win.act_show_fit_limits.setChecked(True)
+    assert not ctl.lim_lo.isHidden()
+    ctl.set_value(0.45)
+    ctl.lim_hi.setText("0.35")
+    ctl.lim_hi.editingFinished.emit()
+    assert ctl.fit_limits() == (None, 0.35)
+    state = win._build_state(validate_params=True)
+    assert state is not None
+    assert state.bounds["s2_gamma1"][1] == pytest.approx(0.35)
+    assert state.values["s2_gamma1"] == pytest.approx(0.35)          # llevado a la cota
+    assert "s1_gamma1" not in win._model_state().user_bounds
+    win.on_fit()
+    res = win.runtime_results.fit_result
+    assert res.values["s2_gamma1"] <= 0.35 + 1e-9
+    assert any("comp. 2" in a for a in win._bound_warnings())
+    payload = win._session_payload()
+    assert payload["model_state"]["bounds_user"] == {"s2_gamma1": [None, 0.35]}
+    win.act_show_fit_limits.setChecked(False)
+    assert ctl.label.text().endswith("↔")                           # marca con casillas ocultas
+    ctl.set_fit_limits(None, None)
+    win._apply_session_payload(json.loads(json.dumps(payload)))
+    assert win.components_panels[1].params["gamma1"].fit_limits() == (None, 0.35)
+    win.mark_saved()

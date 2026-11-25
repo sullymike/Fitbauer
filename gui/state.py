@@ -216,6 +216,8 @@ class ComponentViewState:
     quad_treatment: str
     values: dict[str, float] = field(default_factory=dict)
     fixed: dict[str, bool] = field(default_factory=dict)
+    #: Cotas de ajuste propias ``{nombre: (mín|None, máx|None)}`` (solo las puestas).
+    limits: dict[str, tuple] = field(default_factory=dict)
 
     def value(self, name: str, default: float = 0.0) -> float:
         return float(self.values.get(name, default))
@@ -230,6 +232,10 @@ class ComponentViewState:
     def prefixed_fixed(self) -> dict[str, bool]:
         prefix = f"s{self.idx}_"
         return {prefix + k: bool(v) for k, v in self.fixed.items()}
+
+    def prefixed_limits(self) -> dict[str, list]:
+        prefix = f"s{self.idx}_"
+        return {prefix + k: [lo, hi] for k, (lo, hi) in self.limits.items()}
 
 
 @dataclass(frozen=True)
@@ -639,6 +645,8 @@ class UiPreferencesState:
     # Modo compacto: los ParamControl pierden el slider y ocupan una fila en
     # vez de dos, para que quepan varios componentes a la vez.
     compact_params: bool = False
+    # Casillas mín/máx de las cotas de ajuste por componente.
+    show_fit_limits: bool = False
     # Convenios NORMOS: preferencia por defecto para análisis nuevos (la
     # sesión guarda los suyos).
     sextet_pattern: str = "normos"
@@ -670,6 +678,7 @@ class UiPreferencesState:
             wide_delta=bool(data.get("wide_delta", False)),
             auto_global=bool(data.get("auto_global", True)),
             compact_params=bool(data.get("compact_params", False)),
+            show_fit_limits=bool(data.get("show_fit_limits", False)),
             sextet_pattern=(
                 _choice(data.get("sextet_pattern"), SEXTET_PATTERN_CHOICES)
                 if int(_value_or(data.get("conventions_version"), 1)) >= CONVENTIONS_VERSION
@@ -693,6 +702,7 @@ class UiPreferencesState:
             "wide_delta": bool(self.wide_delta),
             "auto_global": bool(self.auto_global),
             "compact_params": bool(self.compact_params),
+            "show_fit_limits": bool(self.show_fit_limits),
             "sextet_pattern": self.sextet_pattern,
             "intensity_convention": self.intensity_convention,
             "relax_convention": self.relax_convention,

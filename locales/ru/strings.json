@@ -1462,5 +1462,17 @@
   "info.area_pct_of": "% площади {label}",
   "rep.area_split_header": "Распределение площади (количественный анализ)",
   "rep.area_split_note": "Полные площади (тонкий поглотитель), без обрезки по измеренному диапазону; % площади = доля железа только при равных f-факторах.",
-  "param_limits.applied": "Пределы параметров применены."
+  "param_limits.applied": "Пределы параметров применены.",
+  "limits.min_ph": "мин",
+  "limits.max_ph": "макс",
+  "tooltip.fit_limits": "Граница подгонки этого параметра для данной компоненты. Пусто: общая граница.",
+  "tooltip.fit_limits_set": "Границы подгонки: {lo} … {hi}",
+  "options.show_fit_limits": "Показывать границы подгонки для компонент",
+  "limits.param_in_comp": "{param} · комп. {idx}",
+  "limits.at_bound_min": "{param} = {value}, на нижней границе ({bound}): его погрешность ненадёжна",
+  "limits.at_bound_max": "{param} = {value}, на верхней границе ({bound}): его погрешность ненадёжна",
+  "limits.dependent_outside": "{param} = {value}, вне своих границ (задаётся связью)",
+  "limits.start_clipped": "Начальное значение вне границ, перенесено на границу: {params}",
+  "info.bounds_header": "⚠ Границы подгонки:",
+  "limits.report_user": "Собственные границы подгонки"
 }

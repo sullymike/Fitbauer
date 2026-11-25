@@ -2,6 +2,17 @@
 
 ## Sin publicar
 
+- **Cotas de ajuste por componente.** *Vista → Mostrar cotas de ajuste por
+  componente* añade casillas mín/máx junto a «fijo» en cada parámetro de cada
+  componente. Vacías, el ajuste usa la cota general; con valor la sustituyen
+  solo en ese lado (y quitan la cota blanda de la profundidad). Ocultas, el
+  rótulo lleva «↔». Se guardan en la sesión y la plantilla (`bounds_user`), así
+  que valen también para el CLI y la serie, y acotan los nítidos del ajuste de
+  distribución. Un valor de partida fuera de sus cotas se lleva a la cota con
+  aviso; tras el ajuste, los parámetros libres que acaban en una cota (su error
+  no es fiable) y los dependientes de una restricción que quedan fuera de sus
+  cotas se avisan en la barra de estado, el panel de información y el informe.
+
 - **Los límites de parámetros se aplican sin reiniciar.** *Vista → Límites de
   parámetros…* solo se leía al construir los controles. Ahora, al guardar,
   cambian al momento el rango, el paso y los decimales de los controles de

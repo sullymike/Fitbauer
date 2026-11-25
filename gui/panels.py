@@ -519,6 +519,8 @@ class ComponentPanel(QtWidgets.QWidget):
             self.params[name] = ctl
             ctl.valueChanged.connect(lambda *_: self.paramChanged.emit())
             ctl.fixedChanged.connect(lambda *_: self.paramChanged.emit())
+            ctl.enable_fit_limits()
+            ctl.limitsChanged.connect(lambda *_: self.paramChanged.emit())
         # El campo del imán es un dato del experimento, no algo que ajustar.
         self.params["relax_bext"].set_fixed(True)
         v.addLayout(self.params_grid)
@@ -742,7 +744,7 @@ class ComponentPanel(QtWidgets.QWidget):
             if ctl is None:
                 continue
             base_key = f"slider.s_{name}"
-            ctl.label.setText(tr(f"{base_key}{suffix}", default=tr(base_key)))
+            ctl.set_label(tr(f"{base_key}{suffix}", default=tr(base_key)))
 
         # El grupo oculto (int3) nunca se muestra ni ocupa celda.
         for name in COMPONENT_PARAM_LAYOUT["hidden"]:
@@ -762,6 +764,8 @@ class ComponentPanel(QtWidgets.QWidget):
             quad_treatment=self.quad_treatment,
             values={k: ctl.value() for k, ctl in self.params.items()},
             fixed={k: ctl.is_fixed() for k, ctl in self.params.items()},
+            limits={k: ctl.fit_limits() for k, ctl in self.params.items()
+                    if ctl.has_fit_limits()},
         )
 
     def values_dict(self) -> dict[str, float]:
@@ -769,6 +773,21 @@ class ComponentPanel(QtWidgets.QWidget):
 
     def fixed_dict(self) -> dict[str, bool]:
         return self.to_view_state().prefixed_fixed()
+
+    def set_limits_visible(self, visible: bool) -> None:
+        """Muestra u oculta las casillas mín/máx de las cotas de ajuste."""
+        for ctl in self.params.values():
+            ctl.set_limits_visible(visible)
+
+    def apply_limits(self, limits: dict) -> None:
+        """Cotas propias de una sesión o plantilla (``{"s1_gamma1": [lo, hi]}``);
+        las que no aparecen se quitan."""
+        for k, ctl in self.params.items():
+            lim = limits.get(f"s{self.idx}_{k}")
+            if isinstance(lim, (list, tuple)) and len(lim) == 2:
+                ctl.set_fit_limits(*lim)
+            else:
+                ctl.set_fit_limits(None, None)
 
     def apply_specs(self, specs) -> None:
         """Rangos, pasos y decimales nuevos de los límites de parámetros."""

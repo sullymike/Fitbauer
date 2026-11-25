@@ -141,6 +141,31 @@ class FitResult:
     correlations: dict[str, object]
     n_starts: int
     success: bool
+    #: Cotas con que se ajustó cada parámetro (las generales o las propias).
+    bounds: dict[str, tuple[float, float]] = field(default_factory=dict)
+
+
+def parameters_at_bounds(result: "FitResult", rel_tol: float = 1e-4
+                         ) -> list[tuple[str, float, str, float]]:
+    """Parámetros libres que acabaron pegados a una cota del ajuste.
+
+    Devuelve ``(clave, valor, "min"|"max", cota)``. En una cota el error por
+    covarianza no tiene sentido (el óptimo no es un mínimo libre) y suele
+    indicar que la cota, el modelo o el punto de partida no son adecuados.
+    """
+    out: list[tuple[str, float, str, float]] = []
+    for key in result.free_keys:
+        if key not in result.bounds or key not in result.values:
+            continue
+        lo, hi = (float(b) for b in result.bounds[key])
+        v = float(result.values[key])
+        span = hi - lo if np.isfinite(hi - lo) and hi > lo else max(1.0, abs(v))
+        tol = rel_tol * span
+        if np.isfinite(lo) and v <= lo + tol:
+            out.append((key, v, "min", lo))
+        elif np.isfinite(hi) and v >= hi - tol:
+            out.append((key, v, "max", hi))
+    return out
 
 
 # ── Utilidades puras ──────────────────────────────────────────────────────
@@ -622,7 +647,7 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
     hi_arr = np.array(hi, dtype=float)
 
     if x0_arr.size == 0:
-        return FitResult(values=dict(state.values), errors={}, free_keys=free_keys,
+        return FitResult(bounds=dict(state.bounds), values=dict(state.values), errors={}, free_keys=free_keys,
                          cov=None, stats={}, correlations={}, n_starts=0, success=False)
 
     raw_residual = _make_residual(state, free_keys)
@@ -808,7 +833,7 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
                     raise
 
     if result is None:
-        return FitResult(values=dict(state.values), errors={}, free_keys=free_keys,
+        return FitResult(bounds=dict(state.bounds), values=dict(state.values), errors={}, free_keys=free_keys,
                          cov=None, stats={}, correlations={}, n_starts=n_starts, success=False)
 
     # 5c. Cotas blandas pegadas: se sueltan hasta la dura y se refina desde
@@ -912,7 +937,7 @@ def _fit_discrete_impl(state: FitState, progress_cb: Callable[[object], None] | 
         data_resid = data_resid[np.argsort(v_axis, kind="stable")]
     stats.update(residual_diagnostics(data_resid))
 
-    return FitResult(values=values_final, errors=errors, free_keys=free_keys,
+    return FitResult(bounds=dict(state.bounds), values=values_final, errors=errors, free_keys=free_keys,
                      cov=cov, stats=stats, correlations=correlations,
                      n_starts=n_starts, success=result.success)
 

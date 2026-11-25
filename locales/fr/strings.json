@@ -1462,5 +1462,17 @@
   "info.area_pct_of": "% aire {label}",
   "rep.area_split_header": "Répartition de l’aire (quantification)",
   "rep.area_split_note": "Aires complètes en absorbant mince, non tronquées à la plage mesurée ; % d’aire = fraction de fer seulement si les facteurs f sont égaux.",
-  "param_limits.applied": "Limites des paramètres appliquées."
+  "param_limits.applied": "Limites des paramètres appliquées.",
+  "limits.min_ph": "min",
+  "limits.max_ph": "max",
+  "tooltip.fit_limits": "Borne d'ajustement de ce paramètre pour cette composante. Vide : la borne générale.",
+  "tooltip.fit_limits_set": "Bornes d'ajustement : {lo} … {hi}",
+  "options.show_fit_limits": "Afficher les bornes d'ajustement par composante",
+  "limits.param_in_comp": "{param} · comp. {idx}",
+  "limits.at_bound_min": "{param} = {value}, à sa borne inférieure ({bound}) : son erreur n'est pas fiable",
+  "limits.at_bound_max": "{param} = {value}, à sa borne supérieure ({bound}) : son erreur n'est pas fiable",
+  "limits.dependent_outside": "{param} = {value}, hors de ses bornes (fixé par une contrainte)",
+  "limits.start_clipped": "Valeur de départ hors de ses bornes, ramenée à la borne : {params}",
+  "info.bounds_header": "⚠ Bornes d'ajustement :",
+  "limits.report_user": "Bornes d'ajustement propres"
 }

@@ -792,6 +792,22 @@ class ReportMixin:
                 lines.append("")
             lines.extend(correlation_report_lines(corr, code=True))
 
+        # ── Cotas del ajuste ────────────────────────────────────────────
+        avisos_cotas = self._bound_warnings() if hasattr(self, "_bound_warnings") else []
+        if avisos_cotas:
+            lines.append(f"> ⚠️ **{tr('info.bounds_header', default='Cotas del ajuste:').lstrip('⚠ ')}**")
+            for a in avisos_cotas:
+                lines.append(f"> - {a}")
+            lines.append("")
+        cotas_propias = self._model_state().user_bounds if hasattr(self, "_model_state") else {}
+        if cotas_propias:
+            from core.session import clean_user_bounds
+            lines.append(f"_{tr('limits.report_user', default='Cotas de ajuste propias')}:_ " + "; ".join(
+                f"{self._param_display_name(k)} ∈ [{'−∞' if lo is None else f'{lo:g}'}, "
+                f"{'+∞' if hi is None else f'{hi:g}'}]"
+                for k, (lo, hi) in clean_user_bounds(cotas_propias).items()))
+            lines.append("")
+
         # ── Análisis de áreas ───────────────────────────────────────────
         pct_active, areas, percentages = self.component_area_percentages()
         pct_errors = self.component_percentage_errors()

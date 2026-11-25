@@ -713,9 +713,15 @@ class DistributionFitMixin:
                     ctl = cp.params.get(pname)
                     if ctl is None or comp_state.is_fixed(pname):
                         continue
+                    # Cotas propias del parámetro, si las tiene; si no, el
+                    # rango del control.
+                    u_lo, u_hi = ctl.fit_limits()
+                    if pname == "gamma1" and u_lo is not None:
+                        u_lo = max(u_lo, 1e-4)         # se ajusta en log(Γ)
                     outer_specs.append((f"sharp:{pos}:{pname}",
                                         "loggamma" if pname == "gamma1" else "lin",
-                                        ctl._lo, ctl._hi))
+                                        ctl._lo if u_lo is None else u_lo,
+                                        ctl._hi if u_hi is None else u_hi))
 
         # Tope de evaluaciones del ajuste interno, contando también las de la
         # jacobiana por diferencias finitas (``max_nfev`` de least_squares no

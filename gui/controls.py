@@ -46,6 +46,8 @@ class ParamControl(QtWidgets.QWidget):
     """
     valueChanged = QtCore.Signal(float)
     fixedChanged = QtCore.Signal(bool)
+    #: Cambió alguna de las cotas de ajuste propias (mín/máx).
+    limitsChanged = QtCore.Signal()
 
     def __init__(self, label: str, value: float, lo: float, hi: float,
                  step: float = 0.01, decimals: int = 4, with_fixed: bool = True,
@@ -53,7 +55,14 @@ class ParamControl(QtWidgets.QWidget):
         super().__init__(parent)
         self._lo = float(lo)
         self._hi = float(hi)
+        #: Rango del control según los límites de parámetros (sin cotas propias).
+        self._spec_range = (float(lo), float(hi))
+        #: Cotas de ajuste propias (``None`` = la general del motor).
+        self._fit_limits: tuple[float | None, float | None] = (None, None)
+        self.lim_lo: QtWidgets.QLineEdit | None = None
+        self.lim_hi: QtWidgets.QLineEdit | None = None
         self._syncing = False
+        self._label_text = label
 
         v = QtWidgets.QVBoxLayout(self)
         v.setContentsMargins(0, 2, 0, 2)
@@ -72,6 +81,7 @@ class ParamControl(QtWidgets.QWidget):
         self.spin.setMinimumWidth(80)
         h.addWidget(self.label, stretch=1)
         h.addWidget(self.spin)
+        self._row = h
         self.fixed_cb = None
         if with_fixed:
             self.fixed_cb = QtWidgets.QCheckBox(tr("checkbox.fixed"))
@@ -101,8 +111,10 @@ class ParamControl(QtWidgets.QWidget):
         la barra; si el globo solo estuviera en una de las tres, aparecería a
         ratos y el usuario no llegaría a fiarse de él.
         """
+        self._help = text
         for w in (self, self.label, self.spin, self.slider):
             w.setToolTip(text)
+        self._update_limits_marker()
         if self.fixed_cb is not None:
             self.fixed_cb.setToolTip(
                 tr("tooltip.fixed_cb",
@@ -166,8 +178,118 @@ class ParamControl(QtWidgets.QWidget):
         self.spin.blockSignals(True)
         self.spin.setDecimals(int(spec.decimals))
         self.spin.blockSignals(False)
-        self.set_range(min(float(spec.lo), value), max(float(spec.hi), value), float(spec.step))
+        self._spec_range = (float(spec.lo), float(spec.hi))
+        self.spin.setSingleStep(float(spec.step))
+        self._apply_display_range()
         self.set_value(value)
+
+    # ── Cotas de ajuste propias ──────────────────────────────────────────
+    def enable_fit_limits(self) -> None:
+        """Crea las casillas mín/máx (ocultas) junto a «fijo».
+
+        Vacías = el ajuste usa la cota general del parámetro; con valor, la
+        sustituyen solo para este parámetro de esta componente.
+        """
+        if self.lim_lo is not None:
+            return
+        idx = self._row.indexOf(self.fixed_cb) if self.fixed_cb is not None else -1
+        for attr, ph in (("lim_lo", tr("limits.min_ph", default="mín")),
+                         ("lim_hi", tr("limits.max_ph", default="máx"))):
+            ed = QtWidgets.QLineEdit()
+            ed.setPlaceholderText(ph)
+            ed.setFixedWidth(50)
+            ed.setToolTip(tr("tooltip.fit_limits",
+                             default="Cota del ajuste para este parámetro. Vacía: la general."))
+            ed.editingFinished.connect(self._on_limits_edited)
+            ed.hide()
+            setattr(self, attr, ed)
+            if idx >= 0:
+                self._row.insertWidget(idx, ed)
+                idx += 1
+            else:
+                self._row.addWidget(ed)
+
+    def set_limits_visible(self, visible: bool) -> None:
+        if self.lim_lo is None:
+            return
+        self.lim_lo.setVisible(bool(visible))
+        self.lim_hi.setVisible(bool(visible))
+        # Con las casillas, el número no debe estrecharse hasta cortarse.
+        self.spin.setMinimumWidth(self.spin.sizeHint().width() if visible else 0)
+        self._update_limits_marker()
+
+    def fit_limits(self) -> tuple[float | None, float | None]:
+        return self._fit_limits
+
+    def has_fit_limits(self) -> bool:
+        return any(x is not None for x in self._fit_limits)
+
+    def set_fit_limits(self, lo: float | None, hi: float | None) -> None:
+        """Pone las cotas propias sin emitir señal (sesión, plantilla)."""
+        lo = None if lo is None else float(lo)
+        hi = None if hi is None else float(hi)
+        if lo is not None and hi is not None and lo > hi:
+            lo, hi = hi, lo
+        self._fit_limits = (lo, hi)
+        if self.lim_lo is not None:
+            fmt = f"{{:.{self.spin.decimals()}f}}"
+            for ed, val in ((self.lim_lo, lo), (self.lim_hi, hi)):
+                ed.blockSignals(True)
+                ed.setText("" if val is None else fmt.format(val))
+                ed.blockSignals(False)
+        self._apply_display_range()
+        self._update_limits_marker()
+
+    @staticmethod
+    def _parse_limit(text: str) -> float | None:
+        text = text.strip().replace(",", ".")
+        if not text:
+            return None
+        return float(text)
+
+    def _on_limits_edited(self) -> None:
+        old = self._fit_limits
+        try:
+            lo = self._parse_limit(self.lim_lo.text())
+            hi = self._parse_limit(self.lim_hi.text())
+        except ValueError:
+            self.set_fit_limits(*old)          # texto no numérico: se descarta
+            return
+        self.set_fit_limits(lo, hi)
+        if self._fit_limits != old:
+            self.limitsChanged.emit()
+
+    def _apply_display_range(self) -> None:
+        """Rango del control: el de los límites de parámetros o, si las hay,
+        las cotas propias; siempre ampliado para contener el valor."""
+        lo, hi = self._spec_range
+        u_lo, u_hi = self._fit_limits
+        if u_lo is not None:
+            lo = u_lo
+        if u_hi is not None:
+            hi = u_hi
+        if hi <= lo:
+            hi = lo + max(abs(lo) * 1e-3, 10.0 ** -self.spin.decimals())
+        value = float(self.spin.value())
+        self.set_range(min(lo, value), max(hi, value))
+
+    def _update_limits_marker(self) -> None:
+        """Con cotas propias y las casillas ocultas, la etiqueta lo indica."""
+        mark = self.has_fit_limits() and (self.lim_lo is None or self.lim_lo.isHidden())
+        self.label.setText(f"{self._label_text} ↔" if mark else self._label_text)
+        tip = getattr(self, "_help", "")
+        if self.has_fit_limits():
+            lo, hi = self._fit_limits
+            txt = tr("tooltip.fit_limits_set", lo="−∞" if lo is None else f"{lo:g}",
+                     hi="+∞" if hi is None else f"{hi:g}",
+                     default="Cotas del ajuste: {lo} … {hi}")
+            tip = f"{tip}\n\n{txt}" if tip else txt
+        self.label.setToolTip(tip)
+
+    def set_label(self, text: str) -> None:
+        """Cambia el rótulo conservando la marca de cotas propias."""
+        self._label_text = text
+        self._update_limits_marker()
 
     def _value_to_slider(self, value: float) -> int:
         if self._hi <= self._lo:

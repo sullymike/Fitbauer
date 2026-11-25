@@ -1462,5 +1462,17 @@
   "info.area_pct_of": "面積 % {label}",
   "rep.area_split_header": "面積の配分（定量）",
   "rep.area_split_note": "薄い吸収体の全面積（測定範囲で切り捨てない）。面積 % が鉄の割合に等しいのは無反跳分率 f が等しい場合のみ。",
-  "param_limits.applied": "パラメータの範囲を適用しました。"
+  "param_limits.applied": "パラメータの範囲を適用しました。",
+  "limits.min_ph": "最小",
+  "limits.max_ph": "最大",
+  "tooltip.fit_limits": "この成分のこのパラメータのフィット範囲。空欄なら全体の範囲。",
+  "tooltip.fit_limits_set": "フィット範囲：{lo} … {hi}",
+  "options.show_fit_limits": "成分ごとのフィット範囲を表示",
+  "limits.param_in_comp": "{param} · 成分 {idx}",
+  "limits.at_bound_min": "{param} = {value}、下限 ({bound}) に到達：誤差は信頼できません",
+  "limits.at_bound_max": "{param} = {value}、上限 ({bound}) に到達：誤差は信頼できません",
+  "limits.dependent_outside": "{param} = {value}、範囲外（拘束条件で決定）",
+  "limits.start_clipped": "初期値が範囲外のため境界値に移動：{params}",
+  "info.bounds_header": "⚠ フィット範囲：",
+  "limits.report_user": "個別のフィット範囲"
 }

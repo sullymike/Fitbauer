@@ -1462,5 +1462,17 @@
   "info.area_pct_of": "% area {label}",
   "rep.area_split_header": "Area split (quantification)",
   "rep.area_split_note": "Full thin-absorber areas, not truncated to the measured range; area % = iron fraction only if the recoil-free fractions are equal.",
-  "param_limits.applied": "Parameter limits applied."
+  "param_limits.applied": "Parameter limits applied.",
+  "limits.min_ph": "min",
+  "limits.max_ph": "max",
+  "tooltip.fit_limits": "Fit bound for this parameter of this component. Empty: the general bound.",
+  "tooltip.fit_limits_set": "Fit bounds: {lo} … {hi}",
+  "options.show_fit_limits": "Show fit bounds per component",
+  "limits.param_in_comp": "{param} · comp. {idx}",
+  "limits.at_bound_min": "{param} = {value}, at its lower bound ({bound}): its error is not reliable",
+  "limits.at_bound_max": "{param} = {value}, at its upper bound ({bound}): its error is not reliable",
+  "limits.dependent_outside": "{param} = {value}, outside its bounds (set by a constraint)",
+  "limits.start_clipped": "Starting value outside its bounds, moved to the bound: {params}",
+  "info.bounds_header": "⚠ Fit bounds:",
+  "limits.report_user": "Per-component fit bounds"
 }

@@ -1462,5 +1462,17 @@
   "info.area_pct_of": "% Fläche {label}",
   "rep.area_split_header": "Flächenaufteilung (Quantifizierung)",
   "rep.area_split_note": "Vollständige Flächen (dünner Absorber), nicht auf den Messbereich beschnitten; Flächen-% = Eisenanteil nur bei gleichen f-Faktoren.",
-  "param_limits.applied": "Parametergrenzen übernommen."
+  "param_limits.applied": "Parametergrenzen übernommen.",
+  "limits.min_ph": "min",
+  "limits.max_ph": "max",
+  "tooltip.fit_limits": "Anpassungsgrenze dieses Parameters für diese Komponente. Leer: die allgemeine Grenze.",
+  "tooltip.fit_limits_set": "Anpassungsgrenzen: {lo} … {hi}",
+  "options.show_fit_limits": "Anpassungsgrenzen je Komponente anzeigen",
+  "limits.param_in_comp": "{param} · Komp. {idx}",
+  "limits.at_bound_min": "{param} = {value}, an seiner Untergrenze ({bound}): sein Fehler ist nicht verlässlich",
+  "limits.at_bound_max": "{param} = {value}, an seiner Obergrenze ({bound}): sein Fehler ist nicht verlässlich",
+  "limits.dependent_outside": "{param} = {value}, außerhalb seiner Grenzen (durch eine Nebenbedingung festgelegt)",
+  "limits.start_clipped": "Startwert außerhalb der Grenzen, auf die Grenze gesetzt: {params}",
+  "info.bounds_header": "⚠ Anpassungsgrenzen:",
+  "limits.report_user": "Eigene Anpassungsgrenzen"
 }

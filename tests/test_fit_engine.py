@@ -426,3 +426,18 @@ def test_cancelar_durante_la_pasada_de_no_se_pierde(modo):
     with pytest.raises(Cancelado):
         fit_discrete(state, progress_cb=cb)
     assert pulsado["v"]
+def test_cotas_propias_sustituyen_a_las_generales():
+    """``bounds_user`` cambia solo el lado dado y quita la cota blanda."""
+    import numpy as np
+    from core.session import ModelState
+    ms = ModelState.defaults()
+    ms.apply_template({"bounds_user": {"s1_depth": [None, 0.5], "s1_gamma1": [0.2, 0.1],
+                                       "s1_bhf": [None, None], "basura": "x"}})
+    assert ms.user_bounds == {"s1_depth": (None, 0.5), "s1_gamma1": (0.1, 0.2)}
+    v = np.linspace(-10, 10, 64)
+    st = ms.build_fit_state(velocity=v, y_data=np.ones_like(v), sigma_data=None,
+                            counts=None, norm_factor=None)
+    assert st.bounds["s1_depth"][1] == 0.5
+    assert "s1_depth" not in st.soft_bounds
+    assert st.bounds["s1_gamma1"] == (0.1, 0.2)
+    assert ms.to_model_state_dict()["bounds_user"]["s1_depth"] == [None, 0.5]

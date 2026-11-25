@@ -245,6 +245,8 @@ class SessionIOMixin:
                     f = state.get("fixed", {}).get(f"s{cp.idx}_{name}")
                     if f is not None:
                         ctl.set_fixed(bool(f))
+                # Cotas de ajuste propias (sin ellas en la sesión: las generales).
+                cp.apply_limits(state.get("bounds_user") or {})
             # Casillas «Fijo» de calibración (antes solo se restauraban las de
             # los componentes y la de σ; baseline/slope/sat_scale se perdían).
             fixed_map_calib = state.get("fixed", {})

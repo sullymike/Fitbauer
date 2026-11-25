@@ -219,6 +219,74 @@ class ModelWorkflowMixin:
         self._apply_compact_params()
         self._save_settings()
 
+    def _param_display_name(self, key: str) -> str:
+        """«Γ 1,6 (global) · comp. 2» para ``s2_gamma1``; otras claves, tal cual."""
+        import re
+        m = re.fullmatch(r"s(\d+)_(\w+)", key)
+        if not m:
+            return key
+        idx, name = int(m.group(1)), m.group(2)
+        label = tr(f"slider.s_{name}", default=name)
+        return tr("limits.param_in_comp", param=label, idx=idx,
+                  default="{param} · comp. {idx}")
+
+    def _bound_warnings(self, result=None) -> list[str]:
+        """Avisos de cotas del último ajuste discreto.
+
+        Parámetros libres pegados a una cota (su error no tiene sentido) y
+        parámetros dependientes de una restricción que quedan fuera de sus
+        cotas propias (las restricciones mandan sobre las cotas).
+        """
+        from core.fit_engine import parameters_at_bounds
+        from core.session import clean_user_bounds
+        result = result if result is not None else self.runtime_results.fit_result
+        if result is None or not getattr(result, "bounds", None):
+            return []
+        out = []
+        for key, value, side, bound in parameters_at_bounds(result):
+            kw = dict(param=self._param_display_name(key),
+                      value=f"{value:.5g}", bound=f"{bound:.5g}")
+            out.append(tr("limits.at_bound_min", **kw) if side == "min"
+                       else tr("limits.at_bound_max", **kw))
+        targets = {c.get("target") for c in self.enabled_constraints()}
+        for key, (lo, hi) in clean_user_bounds(self._model_state().user_bounds).items():
+            if key not in targets or key not in result.values:
+                continue
+            v = float(result.values[key])
+            if (lo is not None and v < lo) or (hi is not None and v > hi):
+                out.append(tr("limits.dependent_outside", param=self._param_display_name(key),
+                              value=f"{v:.5g}",
+                              default="{param} = {value} fuera de sus cotas (lo fija una restricción)"))
+        return out
+
+    def _clip_start_to_user_bounds(self, state) -> list[str]:
+        """Lleva a su cota los valores de partida libres que caen fuera de
+        una cota propia; devuelve sus nombres para el aviso."""
+        from core.session import clean_user_bounds
+        out = []
+        for key in clean_user_bounds(self._model_state().user_bounds):
+            if key not in state.values or state.fixed.get(key, False) or key not in state.bounds:
+                continue
+            lo, hi = state.bounds[key]
+            v = float(state.values[key])
+            if v < lo or v > hi:
+                state.values[key] = min(max(v, lo), hi)
+                out.append(self._param_display_name(key))
+        return out
+
+    def _on_show_fit_limits_toggled(self, checked: bool) -> None:
+        self.show_fit_limits = bool(checked)
+        self._apply_show_fit_limits()
+        self._save_settings()
+
+    def _apply_show_fit_limits(self) -> None:
+        """Muestra u oculta las casillas mín/máx de las cotas de ajuste propias."""
+        visible = bool(getattr(self, "show_fit_limits", False))
+        for panel in getattr(self, "components_panels", []):
+            panel.set_limits_visible(visible)
+        if hasattr(self, "_check_layout"):
+            self._check_layout()
+
     def _apply_compact_params(self) -> None:
         """Aplica el modo compacto a TODOS los controles de parámetro.
 
@@ -633,6 +701,11 @@ class ModelWorkflowMixin:
                 lines.append(tr("info.component_percent_line", idx=idx, kind=kind_disp,
                                pct=pct, err_txt=err_txt, area=area))
             lines.append("")
+        avisos_cotas = self._bound_warnings(result)
+        if avisos_cotas:
+            lines.append(tr("info.bounds_header", default="⚠ Cotas del ajuste:"))
+            lines.extend(f"  {a}" for a in avisos_cotas)
+            lines.append("")
         iso_ref = self.calibration_iso_ref()
         for comp_state in self._active_component_states():
             i3_real = comp_state.value("int3", 1.0)
@@ -829,6 +902,7 @@ class ModelWorkflowMixin:
             comp_state = cp.to_view_state()
             ms.vars.update(comp_state.prefixed_values())
             ms.fixed.update(comp_state.prefixed_fixed())
+            ms.user_bounds.update(comp_state.prefixed_limits())
             ms.sextet_enabled[comp_state.idx] = comp_state.enabled
             ms.component_kind[comp_state.idx] = comp_state.kind
             ms.intensity_mode[comp_state.idx] = comp_state.intensity_mode
@@ -891,6 +965,9 @@ class ModelWorkflowMixin:
         # «Propagar incertidumbre de calibración» necesita σ(vmax): sin este
         # cableado el flag era un no-op silencioso (sigma_vmax quedaba None).
         state.sigma_vmax = self._calibration_sigma_vmax()
+        # Cotas propias: un valor de partida libre fuera de ellas se lleva a la
+        # cota (con aviso tras el ajuste) en vez de bloquear el ajuste.
+        self._start_clipped = self._clip_start_to_user_bounds(state)
         if validate_params:
             issues = validate_fit_state(state)
             if issues:
