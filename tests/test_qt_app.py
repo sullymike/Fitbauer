@@ -4100,3 +4100,44 @@ def test_modo_guiado_pasos_y_arreglos(win, app):
     app.processEvents()
     assert not win._guided_dock.isVisible() and not win._ui_preferences_state().guided_mode
     win.mark_saved()
+
+
+def test_modo_guiado_cuenta_lo_que_hace(win, app):
+    """Cada paso cuenta lo que hizo: mínimos y su agrupación (con marcas en
+    la gráfica), parámetros antes → después y la decisión ΔBIC de «Buscar lo
+    que falta» en el panel, sin ventana emergente; y avisa si no hay
+    calibración de δ."""
+    from pathlib import Path
+    from PySide6 import QtWidgets
+    from mossbauer_i18n import tr
+    emergentes = []
+    orig = QtWidgets.QMessageBox.information
+    QtWidgets.QMessageBox.information = staticmethod(lambda *a, **k: emergentes.append(a) or 0)
+    try:
+        win.show()
+        win.act_guided_mode.setChecked(True)
+        p = win.guided_panel
+        win._open_spectrum(Path(__file__).resolve().parents[1] / "data_sample" / "Fe3O4.adt")
+        win.calibration_info = {}
+        p.refresh()
+        assert "⚠" in p.s_file.status.text()                      # sin calibración
+        p.btn_detect.click(); p.refresh()
+        det = win._last_detection
+        assert det["n_peaks"] >= 6 and len(det["components"]) == 2
+        assert str(det["n_peaks"]) in p.s_comp.status.text()
+        # Marcas de la detección en la gráfica (▼).
+        assert any(getattr(c, "get_paths", None) for c in win.canvas.ax.collections)
+        p.btn_fit.click(); p.refresh()
+        st = win._last_fit_story
+        assert st and set(st["end"]) <= set(st["start"])
+        assert "→" in p.s_fit.status.text()
+        historia = win._last_fit_story
+        p.btn_residual.click(); p.refresh()
+        r = win._last_residual_story
+        assert r["outcome"] in ("accepted", "rejected", "none") and not emergentes
+        assert tr("guided.res_title") in p.s_fit.status.text()
+        if r["outcome"] == "rejected":
+            assert win._last_fit_story is historia               # relato restaurado
+    finally:
+        QtWidgets.QMessageBox.information = orig
+        win.mark_saved()

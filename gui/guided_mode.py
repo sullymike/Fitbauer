@@ -196,7 +196,11 @@ class GuidedPanel(QtWidgets.QWidget):
         checks = tuple((c.key, c.status) for c in w.fit_checks())
         return (str(getattr(w.file, "path", "")), w.file.y_data is not None,
                 bool(w.is_distribution_mode), comps, id(res), checks,
-                getattr(w, "_fit_strategy", lambda: "")())
+                getattr(w, "_fit_strategy", lambda: "")(),
+                id(getattr(w, "calibration_info", None)),
+                id(getattr(w, "_last_detection", None)),
+                id(getattr(w, "_last_fit_story", None)),
+                id(getattr(w, "_last_residual_story", None)))
 
     def refresh(self) -> None:
         sig = self._signature()
@@ -214,8 +218,17 @@ class GuidedPanel(QtWidgets.QWidget):
         if loaded:
             nombre = getattr(w.file.path, "name", None) or str(w.file.path or "")
             vmax = w.calib.to_view_state().values_dict().get("vmax")
-            self.s_file.status.setText(
-                tr("guided.s1_status", file=nombre, vmax=_fmt(vmax, 4)))
+            texto = tr("guided.s1_status", file=nombre, vmax=_fmt(vmax, 4))
+            iso = w.calibration_iso_ref() if hasattr(w, "calibration_iso_ref") else None
+            info = getattr(w, "calibration_info", None) or {}
+            if iso is None:
+                texto += ("<br><span style='color:%s'>⚠ %s</span>"
+                          % (_COLOR["warn"], tr("guided.s1_no_calib")))
+            else:
+                cal = (info.get("calibration_sample") or info.get("calibration_file_name")
+                       or info.get("source") or "")
+                texto += "<br>" + tr("guided.s1_calib", name=cal, iso=_fmt(iso, 4))
+            self.s_file.status.setText(texto)
         else:
             self.s_file.status.setText(tr("guided.s1_empty"))
 
@@ -229,7 +242,8 @@ class GuidedPanel(QtWidgets.QWidget):
                 if fase:
                     txt += f" · ≈ {fase}"
                 filas.append(txt)
-            self.s_comp.status.setText("<br>".join(filas))
+            det = self._detection_text()
+            self.s_comp.status.setText((det + "<br>" if det else "") + "<br>".join(filas))
         else:
             self.s_comp.status.setText(tr("guided.s2_none"))
 
@@ -238,10 +252,13 @@ class GuidedPanel(QtWidgets.QWidget):
         estrategia = tr("fit.strategy_local") if w._fit_strategy() == "local" \
             else tr("fit.strategy_explore")
         if res is not None and getattr(res, "stats", None):
-            self.s_fit.status.setText(tr("guided.s3_done", chi2=_fmt(res.stats.get("red_chi2"), 2),
-                                         strategy=estrategia))
+            texto = tr("guided.s3_done", chi2=_fmt(res.stats.get("red_chi2"), 2),
+                       strategy=estrategia)
+            texto += self._fit_story_text()
         else:
-            self.s_fit.status.setText(tr("guided.s3_strategy", strategy=estrategia))
+            texto = tr("guided.s3_strategy", strategy=estrategia)
+        texto += self._residual_story_text()
+        self.s_fit.status.setText(texto)
         self.btn_residual.setEnabled(bool(comps))
 
         # 4. ¿Es fiable?
@@ -292,6 +309,75 @@ class GuidedPanel(QtWidgets.QWidget):
         # 5. Resultado
         self._fill_table(res is not None)
         QtCore.QTimer.singleShot(0, self._fit_labels)
+
+    # ── relatos de lo que hizo cada acción ───────────────────────────────
+    def _detection_text(self) -> str:
+        det = getattr(self._win, "_last_detection", None)
+        if not det:
+            return ""
+        partes = []
+        for c in det["components"]:
+            kind = tr(f"kind.{c['kind']}", default=c["kind"])
+            datos = [f"δ ≈ {_fmt(c.get('delta'), 2)}"]
+            if c["kind"] == "Doblete":
+                datos.append(f"ΔEQ ≈ {_fmt(c.get('quad'), 2)}")
+            elif c["kind"] not in ("Singlete",):
+                datos.append(f"BHF ≈ {_fmt(c.get('bhf'), 1)} T")
+            partes.append(tr("guided.det_comp", idx=c["idx"], kind=kind,
+                             n=len(c["positions"]), data=", ".join(datos)))
+        txt = tr("guided.det_head", n=det["n_peaks"]) + "<br>" + "<br>".join(
+            "&nbsp;&nbsp;" + p for p in partes)
+        if det["unused"]:
+            txt += "<br>&nbsp;&nbsp;" + tr(
+                "guided.det_unused", n=len(det["unused"]),
+                pos=", ".join(_fmt(x, 2) for x in det["unused"][:6]))
+        if getattr(self._win, "_detection_fresh", False):
+            txt += "<br><i>" + tr("guided.det_marks") + "</i>"
+        return txt
+
+    def _fit_story_text(self) -> str:
+        """Los parámetros que más se movieron (respecto a su rango de ajuste)."""
+        w = self._win
+        st = getattr(w, "_last_fit_story", None)
+        if not st:
+            return ""
+        filas = []
+        for k, v1 in st["end"].items():
+            v0 = st["start"].get(k)
+            if v0 is None:
+                continue
+            lo, hi = st["bounds"].get(k, (-math.inf, math.inf))
+            rango = (hi - lo) if math.isfinite(hi - lo) and hi > lo else max(abs(v0), 1.0)
+            filas.append((abs(v1 - v0) / rango, k, v0, v1))
+        filas.sort(reverse=True)
+        movidos = [f for f in filas if f[0] > 1e-4][:5]
+        cab = tr("guided.fit_head", n=len(st["end"]), starts=st["n_starts"])
+        if not movidos:
+            return "<br>" + cab + " " + tr("guided.fit_nothing")
+        nombre = getattr(w, "_param_short_name", lambda k: k)
+        lineas = [f"&nbsp;&nbsp;{nombre(k)}: {_fmt(v0, 4)} → <b>{_fmt(v1, 4)}</b>"
+                  + (f" ± {_fmt(st['errors'].get(k), 4)}" if st["errors"].get(k) else "")
+                  for _r, k, v0, v1 in movidos]
+        return "<br>" + cab + "<br>" + "<br>".join(lineas)
+
+    def _residual_story_text(self) -> str:
+        st = getattr(self._win, "_last_residual_story", None)
+        if not st:
+            return ""
+        out = st.get("outcome")
+        if out == "none":
+            return "<br><b>" + tr("guided.res_title") + ":</b> " + st.get("text", "")
+        prop = "; ".join(
+            tr("kind." + p["kind"], default=p["kind"]) + f" (δ ≈ {_fmt(p.get('delta'), 2)}"
+            + (f", BHF ≈ {_fmt(p.get('bhf'), 1)} T" if p.get("bhf") is not None else "")
+            + (f", ΔEQ ≈ {_fmt(p.get('quad'), 2)}" if p.get("quad") is not None else "") + ")"
+            for p in st.get("proposed", []))
+        dbic = _fmt(st.get("dbic"), 1)
+        clave = "guided.res_accepted" if out == "accepted" else "guided.res_rejected"
+        color = _COLOR["ok"] if out == "accepted" else _COLOR["warn"]
+        return ("<br><b>" + tr("guided.res_title") + ":</b> " + tr("guided.res_proposed", what=prop)
+                + f"<br>&nbsp;&nbsp;<span style='color:{color}'>"
+                + tr(clave, dbic=dbic) + "</span>")
 
     def _phase(self, kind, d, q, b) -> str:
         if d is None:
@@ -366,6 +452,8 @@ class GuidedModeMixin:
             self._ensure_guided_dock().show()
         elif getattr(self, "_guided_dock", None) is not None:
             self._guided_dock.hide()
+        if getattr(self.file, "velocity", None) is not None:
+            self._refresh_plot()      # pone o quita las marcas de la detección
 
     def _on_guided_toggled(self, checked: bool) -> None:
         self.set_guided_mode(checked)
@@ -377,6 +465,40 @@ class GuidedModeMixin:
                 and getattr(self, "guided_mode", False) and self._guided_dock.isHidden():
             self.set_guided_mode(False)
             self._save_settings()
+
+    def _draw_guided_overlay(self) -> None:
+        """En modo guiado y tras «Detectar», marca sobre los datos los mínimos
+        de cada componente propuesta (número encima) y, en gris, los que no
+        se usaron. Desaparecen con el siguiente ajuste."""
+        det = getattr(self, "_last_detection", None)
+        if not (getattr(self, "guided_mode", False) and det
+                and getattr(self, "_detection_fresh", False)):
+            return
+        canvas = getattr(self, "canvas", None)
+        ax = getattr(canvas, "ax", None)
+        v, y = self.file.velocity, self.file.y_data
+        if ax is None or v is None or y is None:
+            return
+        import numpy as np
+        v = np.asarray(v, dtype=float)
+        y = np.asarray(y, dtype=float)
+        orden = np.argsort(v)
+        colores = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2"]
+        for k, c in enumerate(det["components"]):
+            col = colores[k % len(colores)]
+            xs = np.asarray(c["positions"], dtype=float)
+            ys = np.interp(xs, v[orden], y[orden])
+            ax.scatter(xs, ys, s=70, marker="v", c=col, edgecolors="white",
+                       linewidths=1.0, zorder=7)
+            for xx, yy in zip(xs, ys):
+                ax.annotate(str(c["idx"]), (xx, yy), textcoords="offset points",
+                            xytext=(0, -14), ha="center", color=col, fontsize=9,
+                            fontweight="bold", zorder=8)
+        if det["unused"]:
+            xs = np.asarray(det["unused"], dtype=float)
+            ax.scatter(xs, np.interp(xs, v[orden], y[orden]), s=60, marker="v",
+                       facecolors="none", edgecolors="#94a3b8", linewidths=1.2, zorder=7)
+        canvas.draw_idle()
 
     def _guided_fit_explore(self) -> None:
         """Arreglo del diagnóstico: repetir el ajuste con varios arranques."""

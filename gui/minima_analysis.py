@@ -129,6 +129,19 @@ class MinimaAnalysisMixin:
 
         # Igual que en Tk: tras inicializar desde mínimos se dibuja ya la
         # simulación propuesta (habilita el trazado del modelo).
+        # Lo que se decidió, para contarlo (modo guiado) y marcarlo en la
+        # gráfica: mínimos de cada componente y los que no se usaron.
+        usados = {int(pk["i"]) for _i, _k, g in components for pk in g}
+        self._last_detection = {
+            "n_peaks": len(peaks),
+            "components": [
+                {"idx": idx, "kind": kind, "positions": [float(pk["pos"]) for pk in g],
+                 "delta": params.get(f"s{idx}_delta"), "quad": params.get(f"s{idx}_quad"),
+                 "bhf": params.get(f"s{idx}_bhf")}
+                for idx, kind, g in components],
+            "unused": [float(pk["pos"]) for pk in peaks if int(pk["i"]) not in usados],
+        }
+        self._detection_fresh = True
         self._simulate_enabled = True
         self._refresh_plot()
         summary = ", ".join(

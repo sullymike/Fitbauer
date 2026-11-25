@@ -2,6 +2,16 @@
 
 ## Sin publicar
 
+- **El modo guiado cuenta lo que hace cada paso.** Detectar: cuántos mínimos
+  y cómo se agruparon (componente, nº de líneas, δ/BHF/ΔEQ de partida, los no
+  usados), marcados en la gráfica (▼ con el número de su componente) hasta el
+  siguiente ajuste. Ajustar: nº de parámetros libres y arranques y los que más
+  se movieron (antes → después ± error, ordenados respecto a su rango).
+  Buscar lo que falta: qué se propuso y la decisión con su ΔBIC, en el panel y
+  no en una ventana emergente; si se descarta, el relato vuelve al ajuste
+  restaurado. El paso 1 avisa si no hay calibración (δ sin referir al α-Fe:
+  δ y la fase probable pueden salir desplazados).
+
 - **Modo guiado** (Vista › Modo guiado). Panel lateral con los pasos de un
   ajuste discreto para quien no conoce el programa: 1) espectro y calibración,
   2) detectar componentes desde los mínimos, con la fase de referencia más
