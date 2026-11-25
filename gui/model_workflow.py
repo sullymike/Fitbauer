@@ -1378,7 +1378,8 @@ class ModelWorkflowMixin:
         detectar ni fichero que tomar como calibración.
         """
         for act in (self.act_fit, self.act_init, self.act_edit_minima,
-                    self.act_auto_fit, self.act_ai, self.act_upload_session,
+                    self.act_auto_fit, self.act_auto_residual, self.act_ai,
+                    self.act_upload_session,
                     self.act_profile, self.act_save_fit,
                     self.act_export_distribution, self.act_export_report,
                     self.act_export_short_report, self.act_bootstrap,

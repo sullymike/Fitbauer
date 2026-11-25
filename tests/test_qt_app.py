@@ -3747,3 +3747,34 @@ def test_indicador_de_diagnostico_tras_ajustar(win):
     assert res.n_starts == 1 and res.best_start["label"] == "local"
     assert win._session_payload()["model_state"]["fit_strategy"] == "local"
     win.mark_saved()
+
+
+def test_autoajustar_el_residuo_conserva_las_componentes(win, monkeypatch):
+    """«Autoajustar el residuo»: con solo el sitio A de la magnetita, añade el
+    sitio B sin mover el A (fijo durante el ajuste, con su «fijo» restaurado);
+    repetido, lo que queda es ruido y se descarta por ΔBIC."""
+    from pathlib import Path
+    from PySide6 import QtWidgets
+    avisos = []
+    monkeypatch.setattr(QtWidgets.QMessageBox, "information",
+                        staticmethod(lambda *a, **k: avisos.append(a[2]) or 0))
+    root = Path(__file__).resolve().parents[1] / "data_sample"
+    win._open_spectrum(root / "Fe3O4.adt")
+    win.load_session_file(root / "Fe3O4_session.json")
+    win.on_fit()
+    win.n_components_spin.setValue(1)
+    c1 = win.components_panels[0].params
+    c1["bhf"].set_fixed(True)
+    antes = {k: c1[k].value() for k in ("bhf", "delta", "gamma1", "depth")}
+    fijos = {k: c.is_fixed() for k, c in c1.items()}
+    win.on_auto_fit_residual()
+    activas = [(c.idx, c.kind) for c in win._active_component_states()]
+    assert activas == [(1, "Sextete"), (2, "Sextete")]
+    assert {k: c1[k].value() for k in antes} == antes
+    assert {k: c.is_fixed() for k, c in c1.items()} == fijos
+    res = win.runtime_results.fit_result
+    assert res.values["s2_bhf"] == pytest.approx(46.1, abs=0.5)
+    win.on_auto_fit_residual()
+    assert [(c.idx, c.kind) for c in win._active_component_states()] == activas
+    assert win.runtime_results.fit_result is res and avisos
+    win.mark_saved()

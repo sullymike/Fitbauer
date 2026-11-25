@@ -1561,5 +1561,12 @@
   "diag.swap_thr": "每个组分保持原位",
   "diag.swap_pair": "组分 {a} ↔ 组分 {b}",
   "diag.swap_meaning": "两个同类型组分相对于你的初始值互换了角色。",
-  "diag.swap_action": "检查位点归属；若要保持，请限定各组分的参数或使用局部策略。"
+  "diag.swap_action": "检查位点归属；若要保持，请限定各组分的参数或使用局部策略。",
+  "fit.auto_residual": "自动拟合残差",
+  "fit.auto_residual_tip": "为当前模型未能解释的吸收添加组分：在残差中寻找极小值，只拟合新组分，已有组分保持固定。之后恢复其“固定”状态。",
+  "msg.auto_residual_no_components": "没有启用的组分：请使用“从极小值自动拟合”。",
+  "msg.auto_residual_none": "残差中没有显著吸收：未添加组分。",
+  "msg.auto_residual_full": "没有空位用于新组分（已达上限）。",
+  "msg.auto_residual_done": "残差已拟合：{summary}（已有组分在拟合中保持固定）。",
+  "msg.auto_residual_rejected": "在残差中找到的组分（{summary}）对模型改善不足（ΔBIC = {dbic}；需要 ≤ −6）：它们只会解释噪声或小的失配。已舍弃，模型保持原样。"
 }

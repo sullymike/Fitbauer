@@ -39,6 +39,7 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     ("fit.init_from_minima",   "menu.fit",  "fit.init_from_minima",   "Ctrl+M"),
     ("fit.identify_phases",    "menu.fit",  "phase.identify",         ""),
     ("fit.edit_minima",        "menu.fit",  "minima.edit_action",     "Ctrl+E"),
+    ("fit.auto_residual",      "menu.fit",  "fit.auto_residual",      ""),
     ("fit.auto_from_minima",   "menu.fit",  "fit.auto_from_minima",   "Ctrl+Shift+M"),
     ("fit.ollama_start",       "menu.fit",  "fit.ollama_start",       ""),
     ("fit.bootstrap",          "menu.fit",  "fit.bootstrap",          ""),
@@ -270,6 +271,14 @@ class MenuBuilderMixin:
         self.act_auto_fit.setEnabled(False)
         prep_menu.addAction(self.act_auto_fit)
         self._reg("fit.auto_from_minima", self.act_auto_fit)
+        # Autoajuste del residuo: añade componentes para lo que falta sin
+        # tocar las existentes (quedan fijas durante ese ajuste).
+        self.act_auto_residual = QtGui.QAction(tr("fit.auto_residual"), self)
+        self.act_auto_residual.setToolTip(tr("fit.auto_residual_tip"))
+        self.act_auto_residual.triggered.connect(lambda _checked=False: self.on_auto_fit_residual())
+        self.act_auto_residual.setEnabled(False)
+        prep_menu.addAction(self.act_auto_residual)
+        self._reg("fit.auto_residual", self.act_auto_residual)
         self.act_ai = QtGui.QAction(tr("fit.ollama_start"), self)
         self.act_ai.triggered.connect(self.on_ai_summary)
         self.act_ai.setEnabled(False)

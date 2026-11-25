@@ -224,7 +224,7 @@ class MinimaAnalysisMixin:
                           "width": width})
         return peaks
 
-    def detect_absorption_minima(self) -> tuple[list[dict[str, float]], float, float]:
+    def detect_absorption_minima(self, y_override=None) -> tuple[list[dict[str, float]], float, float]:
         """Detecta mínimos de transmisión como máximos de absorción.
 
         Qt usaba una detección directa sobre datos sin suavizar y solo miraba la
@@ -235,7 +235,9 @@ class MinimaAnalysisMixin:
         if self.file.velocity is None or self.file.y_data is None or self.file.y_data.size < 7:
             return [], 1.0, 0.0
         v = self.file.velocity
-        y = self.file.y_data
+        # ``y_override``: otra curva sobre el mismo eje (p. ej. el residuo de
+        # las componentes ya existentes, para «Autoajustar el residuo»).
+        y = self.file.y_data if y_override is None else np.asarray(y_override, dtype=float)
 
         absorption, baseline0, slope = self._compute_absorption(v, y)
 
@@ -530,31 +532,11 @@ class MinimaAnalysisMixin:
                 if key in params:
                     params[key] = float(params[key] * factor)
 
-    def on_init_from_minima(self, show_message: bool = True,
-                            peaks_override: list[dict] | None = None,
-                            multiplicities: dict[int, int] | None = None) -> bool:
-        """Detecta mínimos y configura componentes discretas como en Tk.
-
-        Con ``peaks_override`` se usan los mínimos ya curados por el usuario en
-        el editor semi-manual (en vez de la detección automática), y
-        ``multiplicities`` indica cuántas contribuciones tiene cada mínimo
-        (``{índice_canal: nº}``) para añadir componentes solapadas extra.
-        """
-        if self.file.velocity is None or self.file.y_data is None:
-            return False
-        if peaks_override is not None:
-            peaks = list(peaks_override)
-            _, baseline, slope = self.detect_absorption_minima()
-        else:
-            peaks, baseline, slope = self.detect_absorption_minima()
-        if not peaks:
-            if show_message:
-                QtWidgets.QMessageBox.information(
-                    self, tr("fit.init_from_minima"),
-                    tr("msg.auto_minima_none", default="No se detectaron mínimos de absorción."))
-            return False
-
-        self.mode_combo.setCurrentIndex(0)
+    def _components_from_peaks(self, peaks: list[dict], baseline: float, slope: float,
+                               multiplicities: dict[int, int] | None = None
+                               ) -> tuple[list[tuple[int, str, list[dict]]], dict[str, float]]:
+        """Componentes (índice, tipo, mínimos) y sus parámetros iniciales a
+        partir de los mínimos detectados, numeradas desde 1. No toca la GUI."""
         params: dict[str, float] = {
             "baseline": baseline,
             "slope": float(np.clip(slope, -1e-4, 1e-4)),
@@ -722,6 +704,35 @@ class MinimaAnalysisMixin:
                     params[pfx + "depth"] = float(np.clip(pk["depth"] * 0.5, _FI["init_depth_min"].default, _FI["init_depth_max"].default))
                     params[pfx + "int1"] = 1.0
                     next_extra += 1
+
+        return components, params
+
+    def on_init_from_minima(self, show_message: bool = True,
+                            peaks_override: list[dict] | None = None,
+                            multiplicities: dict[int, int] | None = None) -> bool:
+        """Detecta mínimos y configura componentes discretas como en Tk.
+
+        Con ``peaks_override`` se usan los mínimos ya curados por el usuario en
+        el editor semi-manual (en vez de la detección automática), y
+        ``multiplicities`` indica cuántas contribuciones tiene cada mínimo
+        (``{índice_canal: nº}``) para añadir componentes solapadas extra.
+        """
+        if self.file.velocity is None or self.file.y_data is None:
+            return False
+        if peaks_override is not None:
+            peaks = list(peaks_override)
+            _, baseline, slope = self.detect_absorption_minima()
+        else:
+            peaks, baseline, slope = self.detect_absorption_minima()
+        if not peaks:
+            if show_message:
+                QtWidgets.QMessageBox.information(
+                    self, tr("fit.init_from_minima"),
+                    tr("msg.auto_minima_none", default="No se detectaron mínimos de absorción."))
+            return False
+
+        self.mode_combo.setCurrentIndex(0)
+        components, params = self._components_from_peaks(peaks, baseline, slope, multiplicities)
 
         active_count = max(1, max((idx for idx, _kind, _g in components), default=1))
         self._building = True

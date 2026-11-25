@@ -1561,5 +1561,12 @@
   "diag.swap_thr": "jede Komponente bleibt an ihrem Platz",
   "diag.swap_pair": "Komp. {a} ↔ Komp. {b}",
   "diag.swap_meaning": "Zwei Komponenten gleichen Typs haben gegenüber Ihren Startwerten die Rollen getauscht.",
-  "diag.swap_action": "Zuordnung der Plätze prüfen; um sie zu halten, die Parameter jeder Komponente begrenzen oder die Strategie Lokal verwenden."
+  "diag.swap_action": "Zuordnung der Plätze prüfen; um sie zu halten, die Parameter jeder Komponente begrenzen oder die Strategie Lokal verwenden.",
+  "fit.auto_residual": "Residuum automatisch anpassen",
+  "fit.auto_residual_tip": "Fügt Komponenten für die Absorption hinzu, die das aktuelle Modell nicht erklärt: sucht Minima im Residuum und passt nur die neuen an, Ihre vorhandenen Komponenten bleiben fest. Ihr „fix“-Zustand wird danach wiederhergestellt.",
+  "msg.auto_residual_no_components": "Keine aktiven Komponenten: „Automatisch aus Minima anpassen“ verwenden.",
+  "msg.auto_residual_none": "Im Residuum bleibt keine signifikante Absorption: keine Komponente hinzugefügt.",
+  "msg.auto_residual_full": "Keine freien Plätze für neue Komponenten (Maximum erreicht).",
+  "msg.auto_residual_done": "Residuum angepasst: {summary} (vorhandene Komponenten blieben beim Fit fest).",
+  "msg.auto_residual_rejected": "Die im Residuum gefundenen Komponenten ({summary}) verbessern das Modell nicht genug (ΔBIC = {dbic}; nötig ≤ −6): sie würden nur Rauschen oder eine kleine Abweichung erklären. Sie werden verworfen, das Modell bleibt unverändert."
 }

@@ -1561,5 +1561,12 @@
   "diag.swap_thr": "each component stays in place",
   "diag.swap_pair": "comp. {a} ↔ comp. {b}",
   "diag.swap_meaning": "Two components of the same type have swapped roles relative to your starting values.",
-  "diag.swap_action": "Check the site assignment; to keep it, bound each component's parameters or use the Local strategy."
+  "diag.swap_action": "Check the site assignment; to keep it, bound each component's parameters or use the Local strategy.",
+  "fit.auto_residual": "Auto-fit the residual",
+  "fit.auto_residual_tip": "Adds components for the absorption the current model does not explain: it looks for minima in the residual and fits only the new ones, with your existing components held fixed. Their \"fix\" state is restored afterwards.",
+  "msg.auto_residual_no_components": "There are no active components: use \"Auto-fit from minima\".",
+  "msg.auto_residual_none": "No significant absorption is left in the residual: no component added.",
+  "msg.auto_residual_full": "No free slots left for new components (maximum reached).",
+  "msg.auto_residual_done": "Residual auto-fitted: {summary} (existing components were held fixed during the fit).",
+  "msg.auto_residual_rejected": "The components found in the residual ({summary}) do not improve the model enough (ΔBIC = {dbic}; ≤ −6 is required): they would only explain noise or a small misfit. They are discarded and the model is left as it was."
 }

@@ -143,7 +143,19 @@ class MainLayoutMixin:
         action_grid.setVerticalSpacing(4)
         self.btn_sim_fit = QtWidgets.QPushButton(tr("fit.run"))
         self.btn_sim_free_all = QtWidgets.QPushButton(tr("fit.free_all"))
-        self.btn_sim_auto_min = QtWidgets.QPushButton(tr("fit.auto_from_minima"))
+        # Botón con flecha: clic = autoajustar desde mínimos (lo de siempre);
+        # la flecha ofrece «Autoajustar el residuo» (conserva lo que hay).
+        self.btn_sim_auto_min = QtWidgets.QToolButton()
+        self.btn_sim_auto_min.setText(tr("fit.auto_from_minima"))
+        self.btn_sim_auto_min.setPopupMode(
+            QtWidgets.QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+        self.btn_sim_auto_min.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
+                                            QtWidgets.QSizePolicy.Policy.Fixed)
+        _auto_menu = QtWidgets.QMenu(self.btn_sim_auto_min)
+        _act_res = _auto_menu.addAction(tr("fit.auto_residual"))
+        _act_res.setToolTip(tr("fit.auto_residual_tip"))
+        _act_res.triggered.connect(lambda _checked=False: self.on_auto_fit_residual())
+        self.btn_sim_auto_min.setMenu(_auto_menu)
         self.btn_sim_ai = QtWidgets.QPushButton(tr("fit.ollama_start"))
         for pos, btn in enumerate((self.btn_sim_fit, self.btn_sim_free_all,
                                    self.btn_sim_auto_min, self.btn_sim_ai)):

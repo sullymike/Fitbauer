@@ -20,6 +20,147 @@ class FitToolsMixin:
             if not self.is_distribution_mode:
                 self.on_fit()
 
+    def on_auto_fit_residual(self) -> None:
+        """«Autoajustar el residuo»: añade componentes para lo que el modelo
+        actual no explica, sin tocar las que ya hay.
+
+        1. Quita a los datos la absorción de las componentes activas (queda el
+           residuo sobre la línea base).
+        2. Detecta mínimos en ese residuo y construye componentes nuevas en los
+           huecos libres (como «Autoajustar desde mínimos»).
+        3. Ajusta con TODOS los parámetros de las componentes previas fijos y
+           al terminar restaura el «fijo» que tenía cada uno, para que un
+           ajuste normal posterior pueda refinarlo todo junto.
+        """
+        from core.reconstruction import reconstruct_discrete_model
+        from gui.panels import ComponentPanel
+        if self.is_distribution_mode or self.file.velocity is None or self.file.y_data is None:
+            return
+        previas = [c for c in self._active_component_states()]
+        if not previas:
+            QtWidgets.QMessageBox.information(
+                self, tr("fit.auto_residual"), tr("msg.auto_residual_no_components"))
+            return
+        state = self._build_state()
+        if state is None:
+            return
+        v, y = self.file.velocity, self.file.y_data
+        try:
+            con = reconstruct_discrete_model(
+                v, y, state.values, state.components, state.constraints,
+                absorber_model=state.absorber_model, line_profile_kind=state.line_profile,
+                voigt_sigma=state.voigt_sigma)
+            sin = reconstruct_discrete_model(
+                v, y, state.values, [], [], absorber_model=state.absorber_model,
+                line_profile_kind=state.line_profile, voigt_sigma=state.voigt_sigma)
+        except Exception as exc:
+            QtWidgets.QMessageBox.warning(self, tr("fit.auto_residual"), str(exc))
+            return
+        y_res = np.asarray(con.residual, dtype=float) + np.asarray(sin.model, dtype=float)
+        peaks, baseline, slope = self.detect_absorption_minima(y_override=y_res)
+        # En el residuo la absorción máxima es pequeña y los umbrales relativos
+        # de la detección dejan pasar ruido: se exige además que cada mínimo
+        # supere 2σ del ruido por punto y un 25 % del más profundo.
+        ruido = float(np.std(np.diff(np.asarray(y, dtype=float)))) / np.sqrt(2.0)
+        hondo = max((float(p.get("smooth_depth", p["depth"])) for p in peaks), default=0.0)
+        umbral = max(2.0 * ruido, 0.25 * hondo)
+        peaks = [p for p in peaks if float(p.get("smooth_depth", p["depth"])) >= umbral]
+        ocupados = {c.idx for c in previas}
+        libres = [i for i in range(1, len(self.components_panels) + 1) if i not in ocupados]
+        if not peaks or not libres:
+            QtWidgets.QMessageBox.information(
+                self, tr("fit.auto_residual"),
+                tr("msg.auto_residual_none") if not peaks else tr("msg.auto_residual_full"))
+            return
+        nuevas, params = self._components_from_peaks(peaks, baseline, slope)
+        # Las nuevas van a los huecos libres, en orden.
+        remap = {idx: libres[k] for k, (idx, _kind, _g) in enumerate(nuevas) if k < len(libres)}
+        nuevas = [(remap[idx], kind, g) for idx, kind, g in nuevas if idx in remap]
+        valores = {}
+        for key, val in params.items():
+            if key.startswith("s") and "_" in key:
+                pre, name = key.split("_", 1)
+                try:
+                    idx = int(pre[1:])
+                except ValueError:
+                    continue
+                if idx in remap:
+                    valores[f"s{remap[idx]}_{name}"] = val
+        # Estado previo, para descartar las nuevas si no mejoran el modelo.
+        snapshot = self._project_state().to_session_payload()
+        prev_result = self.runtime_results.fit_result
+        prev_gui = self.runtime_results.gui_result
+        prev_checks = (self.fit_checks(), getattr(self, "_fit_checks_note", ""),
+                       self.fit_summary_label.text() if hasattr(self, "fit_summary_label") else "")
+        sigma = (np.asarray(state.sigma_data, dtype=float) if state.sigma_data is not None
+                 else np.full(np.shape(y), float(np.std(np.diff(y))) / np.sqrt(2.0)))
+        chi2_prev = float(np.sum((np.asarray(con.residual, dtype=float)
+                                  / np.maximum(sigma, 1e-300)) ** 2))
+        # Congelar las previas, recordando su «fijo».
+        fijos_previos = {(c.idx, name): ctl.is_fixed()
+                         for c in previas
+                         for name, ctl in self.components_panels[c.idx - 1].params.items()}
+        self._building = True
+        try:
+            self._sync_component_count(max(ocupados | {idx for idx, _k, _g in nuevas}))
+            for idx, kind, _g in nuevas:
+                cp = self.components_panels[idx - 1]
+                cp.enabled.setChecked(True)
+                cp.type_combo.setCurrentText(kind)
+                cp.apply_values({k: val for k, val in valores.items() if k.startswith(f"s{idx}_")})
+                for name in ComponentPanel._USED_BY.get(kind, set()):
+                    cp.params[name].set_fixed(False)
+            # Los parámetros que el tipo no usa quedan como estaban (fijos).
+            for c in previas:
+                for ctl in self.components_panels[c.idx - 1].params.values():
+                    ctl.set_fixed(True)
+        finally:
+            self._building = False
+        self._simulate_enabled = True
+        self._refresh_plot()
+        resumen = ", ".join(
+            tr("text.component_kind_label", idx=idx, kind=tr(f"kind.{kind}", default=kind))
+            for idx, kind, _g in nuevas)
+        try:
+            self.on_fit()
+        finally:
+            self._building = True
+            try:
+                for (idx, name), fijo in fijos_previos.items():
+                    self.components_panels[idx - 1].params[name].set_fixed(fijo)
+            finally:
+                self._building = False
+        res = self.runtime_results.fit_result
+        if res is None or res is prev_result:
+            return
+        # ¿Mejoran de verdad? BIC (misma definición que el motor): las nuevas
+        # deben bajarlo al menos 6 (evidencia fuerte); si no, solo explican
+        # ruido o un desajuste pequeño del modelo y se descartan.
+        n_obs = int(np.size(y))
+        nuevas_idx = {idx for idx, _k, _g in nuevas}
+        n_nuevos = sum(1 for k in res.free_keys
+                       if k.startswith("s") and k.split("_", 1)[0][1:].isdigit()
+                       and int(k.split("_", 1)[0][1:]) in nuevas_idx)
+        k_prev = max(0.0, float(res.stats.get("n_params", len(res.free_keys))) - n_nuevos)
+        bic_prev = n_obs * np.log(max(chi2_prev / n_obs, 1e-300)) + k_prev * np.log(n_obs)
+        d_bic = float(res.stats.get("bic", np.inf)) - bic_prev
+        if not d_bic <= -6.0:
+            mode_idx = self.mode_combo.currentIndex()
+            self._apply_session_payload(snapshot)
+            self.mode_combo.setCurrentIndex(mode_idx)
+            if prev_result is not None:
+                self.runtime_results.set_discrete_fit(prev_result, gui_result=prev_gui)
+            else:
+                self.runtime_results.clear()
+            self._set_fit_diagnostics(*prev_checks)
+            self._refresh_plot()
+            QtWidgets.QMessageBox.information(
+                self, tr("fit.auto_residual"),
+                tr("msg.auto_residual_rejected", summary=resumen, dbic=f"{d_bic:+.1f}"))
+            return
+        self.statusBar().showMessage(
+            tr("msg.auto_residual_done", summary=resumen) + f"  ΔBIC = {d_bic:+.1f}", 8000)
+
     def on_ai_summary(self) -> None:
         """Muestra un resumen JSON del espectro listo para pegar en un LLM."""
         if self.file.velocity is None or self.file.y_data is None:

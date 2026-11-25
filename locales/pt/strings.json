@@ -1561,5 +1561,12 @@
   "diag.swap_thr": "cada componente fica no seu lugar",
   "diag.swap_pair": "comp. {a} ↔ comp. {b}",
   "diag.swap_meaning": "Duas componentes do mesmo tipo trocaram de papel em relação aos seus valores iniciais.",
-  "diag.swap_action": "Verifique a atribuição de sítios; para a manter, limite os parâmetros de cada componente ou use a estratégia Local."
+  "diag.swap_action": "Verifique a atribuição de sítios; para a manter, limite os parâmetros de cada componente ou use a estratégia Local.",
+  "fit.auto_residual": "Autoajustar o resíduo",
+  "fit.auto_residual_tip": "Acrescenta componentes para a absorção que o modelo atual não explica: procura mínimos no resíduo e ajusta só as novas, com as suas componentes existentes fixas. Depois restaura-se o seu «fixo».",
+  "msg.auto_residual_no_components": "Não há componentes ativas: use «Autoajustar a partir de mínimos».",
+  "msg.auto_residual_none": "Não resta absorção significativa no resíduo: nenhuma componente acrescentada.",
+  "msg.auto_residual_full": "Não há lugares livres para novas componentes (máximo atingido).",
+  "msg.auto_residual_done": "Resíduo autoajustado: {summary} (as componentes anteriores ficaram fixas durante o ajuste).",
+  "msg.auto_residual_rejected": "As componentes encontradas no resíduo ({summary}) não melhoram o modelo o suficiente (ΔBIC = {dbic}; é preciso ≤ −6): só explicariam ruído ou um pequeno desajuste. São descartadas e o modelo fica como estava."
 }

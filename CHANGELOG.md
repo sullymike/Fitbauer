@@ -2,6 +2,16 @@
 
 ## Sin publicar
 
+- **Autoajustar el residuo.** Nueva acción (flecha del botón «Autoajustar desde
+  mínimos» y menú Ajuste): quita a los datos la absorción de las componentes
+  activas, busca mínimos en lo que queda (con umbral de 2σ del ruido y 25 % del
+  más profundo), coloca las componentes nuevas en los huecos libres y ajusta con
+  TODOS los parámetros de las previas fijos; al terminar restaura el «fijo» de
+  cada uno. Si las nuevas no bajan el BIC al menos 6 se descartan y se restaura
+  el modelo y el ajuste anteriores. `detect_absorption_minima` admite otra
+  curva (`y_override`) y la construcción de componentes desde mínimos queda en
+  `_components_from_peaks`.
+
 - **Diagnóstico del ajuste.** El «⚠ ajuste poco fiable» de la barra de estado
   (solo miraba χ²red y se perdía con el siguiente mensaje) pasa a ser un
   indicador fijo y pulsable abajo a la izquierda (✓ / ⚠ con avisos / ✗ poco

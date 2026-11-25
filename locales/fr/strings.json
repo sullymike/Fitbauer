@@ -1561,5 +1561,12 @@
   "diag.swap_thr": "chaque composante reste à sa place",
   "diag.swap_pair": "comp. {a} ↔ comp. {b}",
   "diag.swap_meaning": "Deux composantes du même type ont échangé leurs rôles par rapport à vos valeurs de départ.",
-  "diag.swap_action": "Vérifiez l'attribution des sites ; pour la conserver, bornez les paramètres de chaque composante ou utilisez la stratégie Locale."
+  "diag.swap_action": "Vérifiez l'attribution des sites ; pour la conserver, bornez les paramètres de chaque composante ou utilisez la stratégie Locale.",
+  "fit.auto_residual": "Ajuster automatiquement le résidu",
+  "fit.auto_residual_tip": "Ajoute des composantes pour l'absorption que le modèle actuel n'explique pas : cherche des minima dans le résidu et n'ajuste que les nouvelles, vos composantes existantes restant fixes. Leur état « fixe » est ensuite restauré.",
+  "msg.auto_residual_no_components": "Aucune composante active : utilisez « Ajuster automatiquement depuis les minima ».",
+  "msg.auto_residual_none": "Il ne reste pas d'absorption significative dans le résidu : aucune composante ajoutée.",
+  "msg.auto_residual_full": "Plus d'emplacement libre pour de nouvelles composantes (maximum atteint).",
+  "msg.auto_residual_done": "Résidu ajusté : {summary} (les composantes existantes sont restées fixes pendant l'ajustement).",
+  "msg.auto_residual_rejected": "Les composantes trouvées dans le résidu ({summary}) n'améliorent pas assez le modèle (ΔBIC = {dbic} ; il faut ≤ −6) : elles n'expliqueraient que du bruit ou un petit écart. Elles sont écartées et le modèle reste tel quel."
 }
