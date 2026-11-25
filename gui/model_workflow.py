@@ -446,10 +446,14 @@ class ModelWorkflowMixin:
     def component_area_percentages(
         self, values: dict[str, float] | None = None
     ) -> tuple[list[int], np.ndarray, np.ndarray]:
+        calib_state = self.calib.to_view_state()
         return core_component_area_percentages(
             self._active_component_states(),
             self.file.velocity,
             values,
+            constraints=self.enabled_constraints(),
+            line_profile_kind=calib_state.line_profile,
+            voigt_sigma=calib_state.voigt_sigma,
         )
 
     def component_percentage_errors(self) -> dict[int, float]:

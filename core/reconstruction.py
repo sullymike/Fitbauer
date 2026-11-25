@@ -62,20 +62,40 @@ def component_params_array(component: Any, values: Mapping[str, float] | None = 
     return np.array(out, dtype=float)
 
 
+#: Semiancho de la rejilla de integración de áreas (mm/s). Más allá, la cola
+#: lorentziana de una línea de Γ = 1 mm/s centrada en ±11 aporta < 0.05 %.
+AREA_GRID_HALF_WIDTH = 1000.0
+
+
+def area_integration_grid(velocity: np.ndarray | None = None) -> np.ndarray:
+    """Rejilla para integrar el área COMPLETA de una componente.
+
+    Densa (paso 0.004 mm/s) en la zona de líneas, ±15 mm/s o el rango medido
+    si es mayor, y colas geométricas hasta ±:data:`AREA_GRID_HALF_WIDTH`. No se
+    recorta al rango medido: las colas lorentzianas que caen fuera también son
+    área de la especie, y recortarlas sesga el reparto hacia las componentes
+    estrechas y centrales (un sextete ancho medido a ±6 mm/s perdía la mitad).
+    """
+    core = 15.0
+    if velocity is not None and np.asarray(velocity).size > 1:
+        core = max(core, float(np.max(np.abs(np.asarray(velocity, dtype=float)))) + 2.0)
+    dense = np.linspace(-core, core, int(2 * core / 0.004) + 1)
+    tail = np.geomspace(core, AREA_GRID_HALF_WIDTH, 800)[1:]
+    return np.concatenate([-tail[::-1], dense, tail])
+
+
 def component_absorption_area(
     kind: str,
     params: np.ndarray,
     velocity: np.ndarray | None = None,
 ) -> float:
-    """Área positiva de absorción de una componente en el rango de velocidad."""
-    if velocity is not None and np.asarray(velocity).size > 1:
-        arr = np.asarray(velocity, dtype=float)
-        vmin = float(np.min(arr))
-        vmax = float(np.max(arr))
-        n = max(2000, int(arr.size) * 8)
-        grid = np.linspace(vmin, vmax, n)
-    else:
-        grid = np.linspace(-12.0, 12.0, 4000)
+    """Área positiva de absorción de una componente, COMPLETA.
+
+    Se integra la absorción de capa fina de la componente (con su forma de
+    línea, anchuras, intensidades y tipo) en :func:`area_integration_grid`,
+    no solo en el rango medido ``velocity`` (que solo amplía la zona densa).
+    """
+    grid = area_integration_grid(velocity)
     absorption = component_absorption(grid, kind, np.asarray(params, dtype=float))
     return float(np.trapezoid(np.maximum(absorption, 0.0), grid))
 
@@ -84,14 +104,53 @@ def component_area_percentages(
     components: list[Any],
     velocity: np.ndarray | None = None,
     values: Mapping[str, float] | None = None,
+    *,
+    constraints: list[dict] | None = None,
+    line_profile_kind: str | None = None,
+    voigt_sigma: float = 0.05,
 ) -> tuple[list[int], np.ndarray, np.ndarray]:
-    """Áreas y porcentajes de componentes activas descritas por snapshots."""
-    active: list[int] = []
-    areas: list[float] = []
+    """Áreas COMPLETAS y porcentajes de las componentes (cuantificación).
+
+    Cada componente se evalúa como en el ajuste (:func:`model_from_values`):
+    restricciones y textura resueltas (``resolve_values``), parámetros propios
+    del tipo (fracción bloqueada y ν de la relajación, Néel, tratamiento del
+    cuadrupolo…), perfil de línea y asimetría. Su absorción de capa fina se
+    integra entera en :func:`area_integration_grid`.
+
+    Antes se usaban solo los diez parámetros básicos (la relajación, cuya
+    área cambia con la fracción bloqueada y ν, salía con los valores por
+    defecto), el perfil que hubiera quedado en el estado global y el área
+    recortada al rango medido.
+    """
+    from core.fit_engine import Component, _build_components_list, resolve_values
+    from core.physics import line_asymmetry
+
+    vals: dict[str, float] = {}
+    comps: list[Component] = []
     for component in components:
-        p_arr = component_params_array(component, values)
-        areas.append(max(0.0, component_absorption_area(component.kind, p_arr, velocity)))
-        active.append(int(component.idx))
+        idx = int(component.idx)
+        if hasattr(component, "prefixed_values"):
+            vals.update(component.prefixed_values())
+        else:
+            vals.update({f"s{idx}_{n}": float(component.value(n)) for n in SEXTET_PARAM_NAMES})
+        comps.append(Component(
+            idx=idx, enabled=True, kind=component.kind,
+            intensity_mode=getattr(component, "intensity_mode", "free"),
+            quad_treatment=getattr(component, "quad_treatment", "1st_order")))
+    if values is not None:
+        vals.update({k: float(v) for k, v in values.items() if isinstance(v, (int, float))})
+    vals = resolve_values(vals, comps, constraints or [])
+    grid = area_integration_grid(velocity)
+    ctx = (line_profile(line_profile_kind, voigt_sigma)
+           if line_profile_kind is not None else nullcontext())
+    areas: list[float] = []
+    with ctx, line_asymmetry(float(vals.get("line_asym", 0.0) or 0.0)):
+        for entry in _build_components_list(vals, comps):
+            kind, params = entry[0], entry[1]
+            extras = entry[2] if len(entry) > 2 else None
+            absorption = component_absorption(grid, kind, params, extras=extras)
+            areas.append(max(0.0, float(np.trapezoid(np.maximum(absorption, 0.0), grid))))
+    active = [c.idx for c in comps]
     area_arr = np.array(areas, dtype=float)
     total = float(np.sum(area_arr))
     pct = 100.0 * area_arr / total if total > 0 else np.zeros_like(area_arr)

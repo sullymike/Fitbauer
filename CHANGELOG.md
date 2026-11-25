@@ -2,6 +2,17 @@
 
 ## Sin publicar
 
+- **% de área de las componentes: área completa y con el modelo del ajuste.**
+  Para cuantificar mezclas, el área de cada componente se integraba solo dentro
+  del rango de velocidad medido, así que las colas lorentzianas de fuera se
+  perdían, y más en las componentes anchas o con líneas cerca del borde (un
+  sextete de Γ = 0.5 mm/s medido a ±6 mm/s perdía la mitad). Ahora se integra
+  entera en una rejilla amplia (±1000 mm/s), y cada componente se evalúa como en
+  el ajuste: restricciones y textura resueltas, parámetros propios del tipo (la
+  relajación usaba siempre ν por defecto, y su área cambia con ν), perfil Lorentz/Voigt
+  del panel (antes el que hubiera dejado el último ajuste) y asimetría. Afecta al
+  panel de información, los informes y los errores del %.
+
 - **«Ajustar Vmax» se desmarca al abrir datos con una calibración fijada.** Tras
   calibrar con el α-Fe la casilla seguía marcada y el ajuste de la muestra
   reajustaba la Vmax con un BHF que no es 33 T, sustituyendo la calibración por un

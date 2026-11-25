@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -186,3 +187,51 @@ def test_component_area_percentages_are_normalized():
     assert active == [1]
     assert areas[0] > 0
     assert pct[0] == 100.0
+
+
+def _params(**kw):
+    base = dict(delta=0.0, quad=0.0, bhf=33.0, gamma1=0.15, gamma2=1.0, gamma3=1.0,
+                depth=0.05, int1=3.0, int2=2.0, int3=1.0)
+    base.update(kw)
+    return np.array([base[n] for n in ("delta", "quad", "bhf", "gamma1", "gamma2",
+                                       "gamma3", "depth", "int1", "int2", "int3")])
+
+
+def test_area_completa_no_depende_del_rango_medido():
+    """El área se integraba solo en el rango medido: un sextete ancho medido a
+    ±6 mm/s perdía la mitad y el reparto se sesgaba hacia lo estrecho."""
+    p = _params(bhf=45.0, gamma1=0.5)
+    exacta = 0.05 * np.pi * 0.5 / 2 * 12          # Σ líneas · d·π·Γ/2
+    for vmax in (12.0, 6.0, 3.0):
+        a = component_absorption_area("Sextete", p, np.linspace(-vmax, vmax, 512))
+        assert a == pytest.approx(exacta, rel=1e-3)
+
+
+def test_porcentajes_con_parametros_del_tipo_y_perfil():
+    """La relajación usa su ν (su área cambia con él) y el perfil se fija
+    explícitamente (no el que dejó el último ajuste en el estado global)."""
+    class Snap:
+        def __init__(self, idx, kind, **vals):
+            self.idx, self.kind = idx, kind
+            self.values = dict(zip(("delta", "quad", "bhf", "gamma1", "gamma2", "gamma3",
+                                    "depth", "int1", "int2", "int3"), _params()))
+            self.values.update(vals)
+
+        def value(self, name, default=0.0):
+            return self.values.get(name, default)
+
+        def prefixed_values(self):
+            return {f"s{self.idx}_{k}": v for k, v in self.values.items()}
+
+    v = np.linspace(-12, 12, 256)
+    comps = [Snap(1, "Sextete"), Snap(2, "Relajacion", relax_log_nu=5.0, relax_fraction=1.0)]
+    _a, _ar, pct = component_area_percentages(comps, v)
+    assert pct == pytest.approx([50.0, 50.0], abs=0.05)
+    comps[1].values["relax_log_nu"] = 8.0             # ensanchada: más área
+    _a, _ar, pct = component_area_percentages(comps, v)
+    assert pct[1] > 60.0
+    _a, ar_l, _ = component_area_percentages(comps[:1], v, line_profile_kind="Lorentz")
+    _a, ar_v, _ = component_area_percentages(comps[:1], v, line_profile_kind="Voigt",
+                                             voigt_sigma=0.2)
+    assert ar_v[0] > ar_l[0] * 1.2
+
