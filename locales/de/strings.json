@@ -1489,7 +1489,7 @@
   "fit.strategy_tip": "Erkundung: neben den aktuellen Werten werden gestörte Starts (und bei schlechtem Fit eine globale Suche) probiert und das kleinste χ² behalten; die Lösung kann aus einem anderen Start als Ihrem stammen. Lokal: ein einziger Fit der kleinsten Quadrate ab den aktuellen Werten, der sie nur verfeinert.",
   "fit.max_step": "Max. Schritt:",
   "fit.max_step_none": "ohne Grenze",
-  "fit.max_step_tip": "Nur im lokalen Modus. Wie weit sich jeder Parameter pro Schritt höchstens bewegen darf, als Anteil seines Grenzbereichs (0,05 = 5 %). Der Fit geht schrittweise vor, bis ein Minimum im Fenster liegt. 0 = ohne Grenze.",
+  "fit.max_step_tip": "Maximaler Schritt (nur bei Strategie Lokal)\n\nBegrenzt, wie stark sich jeder Parameter pro Fit-Iteration ändern darf, als Anteil seines erlaubten Bereichs (seiner Grenzen).\n\nBeispiel: Ist BHF auf 0–60 T begrenzt, erlaubt ein Schritt von 0,02 höchstens 1,2 T pro Iteration.\n\nNützlich bei instabilen Fits: der Fit bewegt sich schrittweise von Ihren Werten aus und bleibt im nächsten Minimum, statt zu einer fernen Lösung zu springen. Kleiner = vorsichtiger, aber langsamer.\n\n„ohne Grenze“ (0) = gewöhnliche kleinste Quadrate.",
   "diag.window_title": "Fit-Diagnose",
   "diag.verdict_ok": "✓ Fit ohne Warnungen",
   "diag.verdict_warn": "⚠ Fit mit Warnungen · {n}",

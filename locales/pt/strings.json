@@ -1489,7 +1489,7 @@
   "fit.strategy_tip": "Exploração: além dos valores atuais, experimenta arranques perturbados (e uma busca global se o ajuste ficar mau) e fica com o menor χ²; a solução pode vir de um arranque que não é o seu. Local: um único ajuste de mínimos quadrados a partir dos valores atuais, que apenas os refina.",
   "fit.max_step": "Passo máx.:",
   "fit.max_step_none": "sem limite",
-  "fit.max_step_tip": "Só em modo local. O máximo que cada parâmetro pode mover-se num passo, em fração do seu intervalo de limites (0,05 = 5 %). O ajuste avança passo a passo até um mínimo dentro da janela. 0 = sem limite.",
+  "fit.max_step_tip": "Passo máximo (só com estratégia Local)\n\nLimita quanto cada parâmetro pode mudar em cada iteração do ajuste, em fração do seu intervalo permitido (os seus limites).\n\nExemplo: com o BHF limitado entre 0 e 60 T, um passo de 0,02 deixa-o mover no máximo 1,2 T por iteração.\n\nÚtil para ajustes instáveis: o ajuste avança pouco a pouco a partir dos seus valores e fica no mínimo mais próximo, em vez de saltar para uma solução distante. Mais pequeno = mais prudente mas mais lento.\n\n«sem limite» (0) = mínimos quadrados normais.",
   "diag.window_title": "Diagnóstico do ajuste",
   "diag.verdict_ok": "✓ Ajuste sem avisos",
   "diag.verdict_warn": "⚠ Ajuste com avisos · {n}",

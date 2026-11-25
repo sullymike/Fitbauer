@@ -2,6 +2,10 @@
 
 ## Sin publicar
 
+- **Bocadillo de «Paso máx.»** también en los rótulos de la fila de estrategia
+  (la casilla está desactivada fuera del modo Local y no se veía), con un texto
+  que explica qué limita, con un ejemplo, y para qué sirve.
+
 - **Validación antes de ajustar: solo lo que interviene.** Un valor fuera de
   límites en una componente desactivada o por encima del número elegido (p. ej.
   de cuando se usaron tres) seguía bloqueando el ajuste. Ahora solo se comprueban

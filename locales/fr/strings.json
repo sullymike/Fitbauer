@@ -1489,7 +1489,7 @@
   "fit.strategy_tip": "Exploration : en plus des valeurs actuelles, essaie des départs perturbés (et une recherche globale si l'ajustement est mauvais) et garde le χ² le plus bas ; la solution peut venir d'un autre départ que le vôtre. Locale : un seul ajustement par moindres carrés depuis les valeurs actuelles, qui ne fait que les affiner.",
   "fit.max_step": "Pas max. :",
   "fit.max_step_none": "sans limite",
-  "fit.max_step_tip": "Mode local uniquement. Déplacement maximal de chaque paramètre par pas, en fraction de son intervalle de bornes (0,05 = 5 %). L'ajustement avance pas à pas jusqu'à un minimum à l'intérieur de la fenêtre. 0 = sans limite.",
+  "fit.max_step_tip": "Pas maximal (stratégie Locale uniquement)\n\nLimite la variation de chaque paramètre à chaque itération de l'ajustement, en fraction de son intervalle permis (ses bornes).\n\nExemple : avec BHF borné entre 0 et 60 T, un pas de 0,02 le laisse bouger d'au plus 1,2 T par itération.\n\nUtile pour les ajustements instables : l'ajustement avance peu à peu depuis vos valeurs et reste dans le minimum le plus proche au lieu de sauter vers une solution éloignée. Plus petit = plus prudent mais plus lent.\n\n« sans limite » (0) = moindres carrés ordinaires.",
   "diag.window_title": "Diagnostic de l'ajustement",
   "diag.verdict_ok": "✓ Ajustement sans avertissement",
   "diag.verdict_warn": "⚠ Ajustement avec avertissements · {n}",

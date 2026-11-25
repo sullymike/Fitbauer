@@ -171,14 +171,20 @@ class MainLayoutMixin:
         # local (un único ajuste desde los valores actuales, con paso máximo
         # opcional). A un clic, no escondida en las opciones avanzadas.
         strat_row = QtWidgets.QHBoxLayout()
-        strat_row.addWidget(QtWidgets.QLabel(tr("fit.strategy", default="Estrategia:")))
+        _lbl_strat = QtWidgets.QLabel(tr("fit.strategy", default="Estrategia:"))
+        _lbl_strat.setToolTip(tr("fit.strategy_tip"))
+        strat_row.addWidget(_lbl_strat)
         self.strategy_combo = CodeComboBox([
             ("explore", tr("fit.strategy_explore", default="Exploración (varios arranques)")),
             ("local", tr("fit.strategy_local", default="Local (desde los valores actuales)")),
         ])
         self.strategy_combo.setToolTip(tr("fit.strategy_tip"))
         strat_row.addWidget(self.strategy_combo, stretch=1)
-        strat_row.addWidget(QtWidgets.QLabel(tr("fit.max_step", default="Paso máx.:")))
+        # El bocadillo va también en el rótulo: la casilla está desactivada
+        # fuera del modo local y ahí es donde se mira primero.
+        _lbl_step = QtWidgets.QLabel(tr("fit.max_step", default="Paso máx.:"))
+        _lbl_step.setToolTip(tr("fit.max_step_tip"))
+        strat_row.addWidget(_lbl_step)
         self.max_step_spin = QtWidgets.QDoubleSpinBox()
         self.max_step_spin.setRange(0.0, 1.0)
         self.max_step_spin.setDecimals(3)

@@ -1489,7 +1489,7 @@
   "fit.strategy_tip": "Exploration: besides the current values, it tries perturbed starts (and a global search if the fit is poor) and keeps the lowest χ²; the solution may come from a start other than yours. Local: a single least-squares fit from the current values, which only refines them.",
   "fit.max_step": "Max. step:",
   "fit.max_step_none": "no limit",
-  "fit.max_step_tip": "Local mode only. The most each parameter may move in one step, as a fraction of its bound range (0.05 = 5 %). The fit advances step by step until a minimum lies inside the window. 0 = no limit.",
+  "fit.max_step_tip": "Maximum step (Local strategy only)\n\nLimits how much each parameter may change in each fit iteration, as a fraction of its allowed range (its bounds).\n\nExample: with BHF bounded between 0 and 60 T, a step of 0.02 lets it move at most 1.2 T per iteration.\n\nUseful for unstable fits: the fit moves gradually from your values and stays in the nearest minimum instead of jumping to a distant solution. Smaller = more cautious but slower.\n\n\"no limit\" (0) = ordinary least squares.",
   "diag.window_title": "Fit diagnostics",
   "diag.verdict_ok": "✓ Fit without warnings",
   "diag.verdict_warn": "⚠ Fit with warnings · {n}",
