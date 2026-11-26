@@ -3814,7 +3814,8 @@ def test_panel_de_informacion_sin_partir_lineas_y_ampliable(win, app):
 
 def test_panel_de_estado_con_errores(win):
     """Tras ajustar, los parámetros libres llevan «± error» en el panel; si
-    se toca la casilla después, el error desaparece."""
+    se toca la casilla después, queda «± —» (el ± está siempre) y los fijos
+    llevan «(fijo)»."""
     from pathlib import Path
     from gui.model_workflow import format_value_error
     assert format_value_error(49.90612, 0.0312) == "49.906 ± 0.031"
@@ -3836,7 +3837,17 @@ def test_panel_de_estado_con_errores(win):
     ctl.spin.setValue(ctl.value() + 1.0)
     win._update_info_panel()
     linea = next(l for l in win.info_panel.text.toPlainText().splitlines() if "BHF=" in l)
-    assert "BHF=" in linea and linea.split(",")[0].count("±") == 0, linea
+    assert "BHF=" in linea and linea.split(",")[0].endswith("± — T"), linea
+    assert "± —:" in win.info_panel.text.toPlainText()      # la leyenda
+    # Un cambio por debajo del redondeo de la casilla no lo quita.
+    ctl.spin.setValue(ctl.value() - 1.0)
+    win._update_info_panel()
+    linea = next(l for l in win.info_panel.text.toPlainText().splitlines() if "BHF=" in l)
+    assert "± —" not in linea, linea
+    # Fijo: «(fijo)» en vez de error.
+    from gui.model_workflow import _value_error_always
+    assert _value_error_always(1.0, None, ".4g", mark="(fijo)") == "1 (fijo)"
+    assert _value_error_always(0.2, None, ".4g") == "0.2 ± —"
     win.mark_saved()
 
 

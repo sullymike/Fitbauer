@@ -1609,5 +1609,8 @@
   "info.expand": "拡大",
   "info.expand_tip": "このパネルを別の大きなウィンドウで開きます（フィットのたびに更新、Ctrl + ホイールで文字サイズ変更）。",
   "calib.sigma_tip": "1σ の不確かさ。フィットした α-Fe から校正を作成すると、フィットの誤差が入ります。「—」= 不明。",
-  "info.calib_no_iso_sigma": "（校正の IS の σ なし）"
+  "info.calib_no_iso_sigma": "（校正の IS の σ なし）",
+  "info.tied_mark": "（連動）",
+  "info.fixed_mark": "（固定）",
+  "info.error_legend": "± —：フィットの誤差なし（未フィット、またはその後に値を変更）。"
 }

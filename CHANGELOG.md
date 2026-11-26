@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **El ± del panel de estado está siempre.** Cada parámetro lleva su error,
+  «(fijo)», «(ligado)» o «± —» (sin ajustar todavía o valor cambiado después,
+  con una línea que lo explica). Antes desaparecía sin aviso: el redondeo de la
+  casilla (BHF e intensidades con 3 decimales) bastaba para darlo por cambiado
+  y con Vmax negativo nunca salía. Ahora se acepta una diferencia de hasta
+  medio error o el redondeo de la casilla, y Vmax se compara en valor absoluto.
+
 - **Las calibraciones guardan σ(Vmax) y σ(IS), y el δ referido al α-Fe sale
   con su error.** `CalibrationRecord` (y la calibración local rápida/detallada)
   guarda `vmax_uncertainty` e `isomer_shift_uncertainty`; al crearla desde el

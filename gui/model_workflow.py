@@ -49,6 +49,24 @@ def format_value_error(value, err, fmt: str = ".6g") -> str:
     return f"{v:.{nd}f} ± {err:.{nd}f}"
 
 
+def _value_error_always(value, err, fmt: str = ".6g", mark: str | None = None) -> str:
+    """Como ``format_value_error`` pero el ± está siempre: ``mark``
+    («(fijo)», «(ligado)») si el parámetro no se ajustó libremente y «± —»
+    si no hay error que le corresponda (sin ajuste todavía, o el valor se
+    cambió después)."""
+    if err is not None:
+        txt = format_value_error(value, err, fmt)
+        if "±" in txt:
+            return txt
+    try:
+        base = f"{float(value):{fmt}}"
+    except (TypeError, ValueError):
+        base = str(value)
+    if mark:
+        return f"{base} {mark}"
+    return f"{base} ± —"
+
+
 def _propagated_error(result, func, shown) -> float | None:
     """Error de una magnitud derivada ``func(valores)`` (Γ₂ real = Γ₁·Γ₂/Γ₁,
     intensidades reales…) por propagación lineal con la covarianza del
@@ -78,7 +96,7 @@ def _propagated_error(result, func, shown) -> float | None:
         shown = float(shown)
     except Exception:
         return None
-    if err is None or abs(shown - f0) > max(0.1 * err, 1e-4 * max(1.0, abs(f0))):
+    if err is None or abs(shown - f0) > _shown_tolerance(err, f0):
         return None
     return err
 
@@ -96,10 +114,19 @@ def _fit_error(result, key: str, shown) -> float | None:
         return None
     if not err > 0:
         return None
-    # Tolerancia: redondeo de la casilla (hasta 1e-4) o una fracción del error.
-    if abs(shown - val) > max(0.1 * err, 1e-4 * max(1.0, abs(val))):
+    if key == "vmax":
+        # El ajuste trabaja con |Vmax|; el signo solo invierte el eje.
+        val, shown = abs(val), abs(shown)
+    if abs(shown - val) > _shown_tolerance(err, val):
         return None
     return err
+
+
+def _shown_tolerance(err: float, val: float) -> float:
+    """Cuánto puede diferir el valor mostrado del ajustado sin que su error
+    deje de valer: medio error, o el redondeo de la casilla (hasta 3
+    decimales en BHF o intensidades), lo que sea mayor."""
+    return max(0.5 * err, 1e-3 * abs(val), 5e-4 if abs(val) >= 0.05 else 0.0)
 
 class ModelWorkflowMixin:
     def _ui_action_state(self) -> UiActionState:
@@ -855,11 +882,25 @@ class ModelWorkflowMixin:
         calib_state = self.calib.to_view_state()
         center = float(calib_state.center)
         _res = self.runtime_results.fit_result
+        fixed_set = set(fixed)
+        if not calib_state.fit_velocity:
+            fixed_set.add("vmax")
+        tied_set = {c["target"] for c in self.enabled_constraints()}
+
+        def _mark(*keys: str) -> str | None:
+            """«(ligado)» si alguno sale de una ligadura, «(fijo)» si todos
+            están fijos; si no, nada (le toca un error)."""
+            if any(k in tied_set for k in keys):
+                return tr("info.tied_mark")
+            if keys and all(k in fixed_set for k in keys):
+                return tr("info.fixed_mark")
+            return None
 
         def ve(key: str, value: float, fmt: str = ".6g") -> str:
             """«valor ± error» si ``key`` se ajustó y el valor mostrado sigue
             siendo el del ajuste; si no, solo el valor."""
-            return format_value_error(value, _fit_error(_res, key, value), fmt)
+            return _value_error_always(value, _fit_error(_res, key, value), fmt,
+                                       mark=_mark(key))
 
         lines = [
             tr("info.file", name=self.file.path.name if self.file.path else "-"),
@@ -932,8 +973,10 @@ class ModelWorkflowMixin:
             kind_disp = tr(f"kind.{comp_state.kind}", default=comp_state.kind)
             pre = f"s{comp_state.idx}_"
 
-            def vp(func, shown, fmt=".4g"):
-                return format_value_error(shown, _propagated_error(_res, func, shown), fmt)
+            def vp(func, shown, deps, fmt=".4g", _p=pre):
+                return _value_error_always(
+                    shown, _propagated_error(_res, func, shown), fmt,
+                    mark=_mark(*(_p + d for d in deps)))
 
             def _g(vals, k, d=1.0, _p=pre):
                 return float(vals.get(_p + k, d))
@@ -943,13 +986,13 @@ class ModelWorkflowMixin:
                    delta=ve(pre + "delta", comp_state.value("delta")),
                    quad=ve(pre + "quad", comp_state.value("quad"))),
                 tr("info.gamma_hwhm", g1=ve(pre + "gamma1", g1, ".4g"),
-                   g2=vp(lambda v: _g(v, "gamma1") * _g(v, "gamma2"), g2),
-                   g3=vp(lambda v: _g(v, "gamma1") * _g(v, "gamma3"), g3)),
+                   g2=vp(lambda v: _g(v, "gamma1") * _g(v, "gamma2"), g2, ("gamma1", "gamma2")),
+                   g3=vp(lambda v: _g(v, "gamma1") * _g(v, "gamma3"), g3, ("gamma1", "gamma3"))),
                 tr("info.gamma_rel", gamma2=comp_state.value("gamma2", 1.0), gamma3=comp_state.value("gamma3", 1.0)),
                 tr("info.depth_intensities", depth=ve(pre + "depth", comp_state.value("depth")),
-                   i1=vp(lambda v: _g(v, "int3") * _g(v, "int1"), i1_real),
-                   i2=vp(lambda v: _g(v, "int3") * _g(v, "int2"), i2_real),
-                   i3=vp(lambda v: _g(v, "int3"), i3_real)),
+                   i1=vp(lambda v: _g(v, "int3") * _g(v, "int1"), i1_real, ("int3", "int1")),
+                   i2=vp(lambda v: _g(v, "int3") * _g(v, "int2"), i2_real, ("int3", "int2")),
+                   i3=vp(lambda v: _g(v, "int3"), i3_real, ("int3",))),
             ])
             derived = self.texture_derived(comp_state)
             if derived is not None:
@@ -967,6 +1010,8 @@ class ModelWorkflowMixin:
                 ))
             if iso_ref is not None:
                 lines.append(self.corrected_delta_text(comp_state, iso_ref, _res))
+        if any("± —" in ln for ln in lines):
+            lines.append(tr("info.error_legend"))
         lines.extend(["", tr("info.fixed_line", fixed=self._fixed_params_text(fixed))])
         cons = self.enabled_constraints()
         if cons:

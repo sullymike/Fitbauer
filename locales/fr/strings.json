@@ -1609,5 +1609,8 @@
   "info.expand": "Agrandir",
   "info.expand_tip": "Ouvre ce panneau dans une fenêtre séparée, plus grande (mise à jour à chaque ajustement ; Ctrl + molette change la taille du texte).",
   "calib.sigma_tip": "Incertitude 1σ. Lorsque l'étalonnage est créé à partir de l'α-Fe ajusté, elle reprend l'erreur de l'ajustement ; « — » = inconnue.",
-  "info.calib_no_iso_sigma": "(pas de σ pour l'IS de l'étalonnage)"
+  "info.calib_no_iso_sigma": "(pas de σ pour l'IS de l'étalonnage)",
+  "info.tied_mark": "(lié)",
+  "info.fixed_mark": "(fixe)",
+  "info.error_legend": "± — : pas d'erreur d'ajustement (pas encore ajusté, ou valeur modifiée ensuite)."
 }

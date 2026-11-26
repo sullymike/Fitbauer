@@ -1609,5 +1609,8 @@
   "info.expand": "Ampliar",
   "info.expand_tip": "Abre este painel numa janela à parte, maior (atualiza-se a cada ajuste; Ctrl + roda muda o tamanho da letra).",
   "calib.sigma_tip": "Incerteza 1σ. Ao criar a calibração a partir do α-Fe ajustado, é preenchida com o erro do ajuste; «—» = não consta.",
-  "info.calib_no_iso_sigma": "(sem σ do IS da calibração)"
+  "info.calib_no_iso_sigma": "(sem σ do IS da calibração)",
+  "info.tied_mark": "(ligado)",
+  "info.fixed_mark": "(fixo)",
+  "info.error_legend": "± —: sem erro do ajuste (ainda não ajustado, ou o valor foi alterado depois)."
 }

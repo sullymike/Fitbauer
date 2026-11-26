@@ -1609,5 +1609,8 @@
   "info.expand": "Vergrößern",
   "info.expand_tip": "Öffnet dieses Feld in einem eigenen, größeren Fenster (wird bei jedem Fit aktualisiert; Strg + Mausrad ändert die Schriftgröße).",
   "calib.sigma_tip": "1σ-Unsicherheit. Wird die Kalibrierung aus dem angepassten α-Fe erstellt, wird der Fehler des Fits übernommen; „—“ = unbekannt.",
-  "info.calib_no_iso_sigma": "(keine σ für den IS der Kalibrierung)"
+  "info.calib_no_iso_sigma": "(keine σ für den IS der Kalibrierung)",
+  "info.tied_mark": "(gekoppelt)",
+  "info.fixed_mark": "(fest)",
+  "info.error_legend": "± —: kein Anpassungsfehler (noch nicht angepasst oder Wert danach geändert)."
 }

@@ -1609,5 +1609,8 @@
   "info.expand": "Enlarge",
   "info.expand_tip": "Opens this panel in a separate, larger window (updated with every fit; Ctrl + wheel changes the font size).",
   "calib.sigma_tip": "1σ uncertainty. When the calibration is created from the fitted α-Fe it is filled with the fit error; «—» = unknown.",
-  "info.calib_no_iso_sigma": "(no σ for the calibration IS)"
+  "info.calib_no_iso_sigma": "(no σ for the calibration IS)",
+  "info.tied_mark": "(tied)",
+  "info.fixed_mark": "(fixed)",
+  "info.error_legend": "± —: no fit error (not fitted yet, or the value was changed afterwards)."
 }
