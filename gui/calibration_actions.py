@@ -119,9 +119,11 @@ class CalibrationActionsMixin:
         vmax = float(calib_state.vmax)
         iso = float(comp_state.value("delta"))
         name = self.file.path.stem
+        sv, si = self.calibration_fit_uncertainties()
         self.calibration_info = {
             "source": "local", "calibration_sample": name,
             "velocity_calibrated": vmax, "isomer_shift": iso,
+            "vmax_uncertainty": sv, "isomer_shift_uncertainty": si,
             "calibration_file_name": self.file.path.name,
             "calibration_file_path": str(self.file.path),
             # Vmax e IS dependen del patrón con que se ajustó el α-Fe.
@@ -153,9 +155,16 @@ class CalibrationActionsMixin:
         e_iso.setRange(_cp["delta"].lo, _cp["delta"].hi)
         e_iso.setDecimals(_cp["delta"].decimals)
         e_iso.setValue(float(comp_state.value("delta")))
+        from gui.instrument_manager import sigma_spin, sigma_value
+        sv, si = self.calibration_fit_uncertainties()
+        s_vmax, s_iso = sigma_spin(sv), sigma_spin(si)
         form.addRow(tr("label.calib_sample_name"), e_name)
-        form.addRow(tr("label.calib_vmax"), e_vmax)
-        form.addRow(tr("label.calib_is"), e_iso)
+        for label, spin, sig in ((tr("label.calib_vmax"), e_vmax, s_vmax),
+                                 (tr("label.calib_is"), e_iso, s_iso)):
+            row = QtWidgets.QHBoxLayout()
+            row.addWidget(spin, stretch=1)
+            row.addWidget(sig)
+            form.addRow(label, row)
         bb = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         bb.accepted.connect(dlg.accept); bb.rejected.connect(dlg.reject)
@@ -167,6 +176,8 @@ class CalibrationActionsMixin:
             "calibration_sample": e_name.text() or self.file.path.stem,
             "velocity_calibrated": float(e_vmax.value()),
             "isomer_shift": float(e_iso.value()),
+            "vmax_uncertainty": sigma_value(s_vmax),
+            "isomer_shift_uncertainty": sigma_value(s_iso),
             "calibration_file_name": self.file.path.name,
             "calibration_file_path": str(self.file.path),
             "sextet_pattern": getattr(self, "sextet_pattern", "normos"),

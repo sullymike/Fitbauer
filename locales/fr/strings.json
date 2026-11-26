@@ -1607,5 +1607,7 @@
   "diag.reg_action": "Augmentez log α (dans ce programme, l'effet apparaît en général au-dessus de +1) ou utilisez la courbe L, et comparez P pour plusieurs α : gardez les traits qui persistent.",
   "diag.reg_ok_meaning": "La régularisation lisse P (k_eff nettement inférieur au nombre de bins).",
   "info.expand": "Agrandir",
-  "info.expand_tip": "Ouvre ce panneau dans une fenêtre séparée, plus grande (mise à jour à chaque ajustement ; Ctrl + molette change la taille du texte)."
+  "info.expand_tip": "Ouvre ce panneau dans une fenêtre séparée, plus grande (mise à jour à chaque ajustement ; Ctrl + molette change la taille du texte).",
+  "calib.sigma_tip": "Incertitude 1σ. Lorsque l'étalonnage est créé à partir de l'α-Fe ajusté, elle reprend l'erreur de l'ajustement ; « — » = inconnue.",
+  "info.calib_no_iso_sigma": "(pas de σ pour l'IS de l'étalonnage)"
 }

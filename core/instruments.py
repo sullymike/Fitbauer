@@ -167,6 +167,9 @@ class CalibrationRecord:
     vmax: float
     sextet_pattern: str = "normos"
     isomer_shift: float | None = None
+    #: Incertidumbres 1σ (del ajuste del α-Fe); ``None`` = no constan.
+    vmax_uncertainty: float | None = None
+    isomer_shift_uncertainty: float | None = None
     sample: str = ""
     file_name: str | None = None
     notes: str = ""
@@ -175,16 +178,27 @@ class CalibrationRecord:
     def to_dict(self) -> dict:
         return {"id": self.id, "date": self.date.isoformat(), "vmax": float(self.vmax),
                 "sextet_pattern": self.sextet_pattern, "isomer_shift": self.isomer_shift,
+                "vmax_uncertainty": self.vmax_uncertainty,
+                "isomer_shift_uncertainty": self.isomer_shift_uncertainty,
                 "sample": self.sample, "file_name": self.file_name, "notes": self.notes}
 
     @classmethod
     def from_dict(cls, data: dict) -> "CalibrationRecord":
         iso = data.get("isomer_shift")
+
+        def _sigma(key):
+            try:
+                v = float(data.get(key))
+            except (TypeError, ValueError):
+                return None
+            return v if v > 0 else None
         return cls(
             date=dt.date.fromisoformat(str(data["date"])[:10]),
             vmax=float(data["vmax"]),
             sextet_pattern=canonical_sextet_pattern(data.get("sextet_pattern") or "normos"),
             isomer_shift=None if iso in (None, "") else float(iso),
+            vmax_uncertainty=_sigma("vmax_uncertainty"),
+            isomer_shift_uncertainty=_sigma("isomer_shift_uncertainty"),
             sample=str(data.get("sample", "")),
             file_name=data.get("file_name") or None,
             notes=str(data.get("notes", "")),
@@ -392,6 +406,8 @@ class InstrumentLibrary:
             "calibration_sample": record.sample or record.date.isoformat(),
             "velocity_calibrated": float(record.vmax),
             "isomer_shift": record.isomer_shift,
+            "vmax_uncertainty": record.vmax_uncertainty,
+            "isomer_shift_uncertainty": record.isomer_shift_uncertainty,
             "sextet_pattern": record.sextet_pattern,
             "calibration_id": record.id,
             "calibration_date": record.date.isoformat(),

@@ -3838,3 +3838,41 @@ def test_panel_de_estado_con_errores(win):
     linea = next(l for l in win.info_panel.text.toPlainText().splitlines() if "BHF=" in l)
     assert "BHF=" in linea and linea.split(",")[0].count("±") == 0, linea
     win.mark_saved()
+
+
+def test_calibracion_guarda_sigmas_y_delta_corregido_con_error(win):
+    """La calibración desde el α-Fe ajustado guarda σ(Vmax) y σ(IS) y el δ
+    referido al α-Fe sale con su error combinado."""
+    import datetime as dt
+    import math
+    from pathlib import Path
+    from core.instruments import CalibrationRecord
+    rec = CalibrationRecord(date=dt.date(2026, 1, 1), vmax=12.0, isomer_shift=-0.11,
+                            vmax_uncertainty=0.002, isomer_shift_uncertainty=0.003)
+    back = CalibrationRecord.from_dict(rec.to_dict())
+    assert (back.vmax_uncertainty, back.isomer_shift_uncertainty) == (0.002, 0.003)
+    assert CalibrationRecord.from_dict({"date": "2026-01-01", "vmax": 12}).vmax_uncertainty is None
+
+    root = Path(__file__).resolve().parents[1] / "data_sample"
+    win._open_spectrum(root / "Fe3O4.adt")
+    win.load_session_file(root / "Fe3O4_session.json")
+    win.on_fit()
+    entry = win._current_calibration_entry()
+    assert entry["isomer_shift_uncertainty"] and entry["isomer_shift_uncertainty"] > 0
+    win.calibration_info = {"source": "local", "velocity_calibrated": 12.03,
+                            "isomer_shift": -0.11, "isomer_shift_uncertainty": 0.003,
+                            "vmax_uncertainty": 0.002, "sextet_pattern": "normos"}
+    cs = win.components_panels[0].to_view_state()
+    s_d = win.runtime_results.fit_result.errors["s1_delta"]
+    txt = win.corrected_delta_text(cs, win.calibration_iso_ref(), win.runtime_results.fit_result)
+    dc = cs.value("delta") - win.calibration_iso_ref()
+    vmax = abs(win.calib.to_view_state().vmax)
+    esperado = math.sqrt(s_d ** 2 + 0.003 ** 2 + (abs(dc) * 0.002 / vmax) ** 2)
+    from gui.model_workflow import format_value_error
+    assert format_value_error(dc, esperado) in txt, txt
+    win.calibration_info = {"source": "local", "velocity_calibrated": 12.03,
+                            "isomer_shift": -0.11, "sextet_pattern": "normos"}
+    txt = win.corrected_delta_text(cs, win.calibration_iso_ref(), win.runtime_results.fit_result)
+    assert "±" in txt and "σ" in txt                 # solo el del ajuste, y lo dice
+    win.calibration_info = {}
+    win.mark_saved()

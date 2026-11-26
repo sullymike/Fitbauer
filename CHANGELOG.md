@@ -2,6 +2,17 @@
 
 ## Sin publicar
 
+- **Las calibraciones guardan σ(Vmax) y σ(IS), y el δ referido al α-Fe sale
+  con su error.** `CalibrationRecord` (y la calibración local rápida/detallada)
+  guarda `vmax_uncertainty` e `isomer_shift_uncertainty`; al crearla desde el
+  α-Fe ajustado se rellenan con los errores del ajuste (Vmax si se ajustó, δ
+  de la componente 1), y en la ventana de calibración y en el gestor de
+  equipos se ven y se pueden editar («± —» = no consta). Las calibraciones
+  antiguas siguen valiendo, sin σ. En el panel de estado, «δ corregido» lleva
+  σ² = σ_δ² (ajuste) + σ_IS² (calibración) + (δ_corr·σ_V/V)²; si la
+  calibración no trae σ del IS, lo indica. La API web acepta también
+  `isomer_shift_uncertainty`/`_error` si los envía.
+
 - **Panel «Estado y parámetros» sin partir líneas y ampliable.** Cada dato
   queda en su línea (barra horizontal si no cabe) en vez de partirse al ancho
   del panel. El botón «⤢ Ampliar» abre el mismo contenido en una ventana

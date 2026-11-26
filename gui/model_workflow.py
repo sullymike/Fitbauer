@@ -728,6 +728,46 @@ class ModelWorkflowMixin:
             return None
         return None if iso is None else iso * self._calibration_scale()
 
+    def calibration_fit_uncertainties(self) -> tuple[float | None, float | None]:
+        """σ(Vmax) y σ(δ de la componente 1) del ajuste actual, para guardarlas
+        con la calibración que da este α-Fe; ``None`` si ese parámetro no se
+        ajustó o se tocó después."""
+        res = self.runtime_results.fit_result
+        vmax = float(self.calib.to_view_state().vmax)
+        delta = float(self.components_panels[0].to_view_state().value("delta"))
+        sv = _fit_error(res, "vmax", abs(vmax)) or _fit_error(res, "vmax", vmax)
+        return sv, _fit_error(res, "s1_delta", delta)
+
+    def calibration_iso_sigma(self) -> float | None:
+        """σ del δ(α-Fe) de la calibración, en la escala del patrón activo."""
+        info = self.calibration_info or {}
+        for key in ("isomer_shift_uncertainty", "isomer_shift_error", "sigma_isomer_shift"):
+            try:
+                v = float(info.get(key))
+            except (TypeError, ValueError):
+                continue
+            if v > 0:
+                return v * self._calibration_scale()
+        return None
+
+    def corrected_delta_text(self, comp_state, iso_ref: float, res) -> str:
+        """δ referido al α-Fe con su error: σ² = σ_δ² (ajuste) + σ_IS² (calibración)
+        + (δ_corr·σ_V/V)² (la escala de velocidades de la calibración)."""
+        import math
+        delta = float(comp_state.value("delta"))
+        dc = delta - iso_ref
+        s_d = _fit_error(res, f"s{comp_state.idx}_delta", delta)
+        s_i = self.calibration_iso_sigma()
+        s_v = self._calibration_sigma_vmax()
+        vmax = abs(float(self.calib.to_view_state().vmax)) or 1.0
+        partes = [s for s in (s_d, s_i, (abs(dc) * s_v / vmax) if s_v else None) if s]
+        err = math.sqrt(sum(s * s for s in partes)) if partes else None
+        txt = tr("info.delta_corrected", value=format_value_error(dc, err),
+                 ref=format_value_error(iso_ref, s_i))
+        if err is not None and s_i is None:
+            txt += " " + tr("info.calib_no_iso_sigma")
+        return txt
+
     def calibration_uncertainty_text(self) -> str | None:
         if not self.calibration_info:
             return None
@@ -926,8 +966,7 @@ class ModelWorkflowMixin:
                     s_err=_fmt_err(derived["sigma_s"]),
                 ))
             if iso_ref is not None:
-                lines.append(tr("info.delta_corrected",
-                               value=f"{comp_state.value('delta') - iso_ref:.6g}", ref=f"{iso_ref:.6g}"))
+                lines.append(self.corrected_delta_text(comp_state, iso_ref, _res))
         lines.extend(["", tr("info.fixed_line", fixed=self._fixed_params_text(fixed))])
         cons = self.enabled_constraints()
         if cons:
@@ -1312,9 +1351,11 @@ class ModelWorkflowMixin:
                                                  profile.date_order if profile else "dmy")
             except (OSError, ValueError):
                 pass
+        sv, si = self.calibration_fit_uncertainties()
         return {
             "vmax": float(self.calib.to_view_state().vmax),
             "isomer_shift": float(self.components_panels[0].to_view_state().value("delta")),
+            "vmax_uncertainty": sv, "isomer_shift_uncertainty": si,
             "sample": Path(path).stem, "path": str(path), "date": date,
             "sextet_pattern": getattr(self, "sextet_pattern", "normos"),
         }

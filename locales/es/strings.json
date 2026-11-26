@@ -1607,5 +1607,7 @@
   "diag.reg_action": "Sube log α (en este programa suele empezar a notarse por encima de +1) o usa la curva L, y compara la P a varios α: quédate con los rasgos que se mantienen.",
   "diag.reg_ok_meaning": "La regularización suaviza la P (k_eff claramente por debajo del número de bins).",
   "info.expand": "Ampliar",
-  "info.expand_tip": "Abre este panel en una ventana aparte, más grande (se actualiza con cada ajuste; Ctrl + rueda cambia el tamaño de letra)."
+  "info.expand_tip": "Abre este panel en una ventana aparte, más grande (se actualiza con cada ajuste; Ctrl + rueda cambia el tamaño de letra).",
+  "calib.sigma_tip": "Incertidumbre 1σ. Al crear la calibración desde el α-Fe ajustado se rellena con el error del ajuste; «—» = no consta.",
+  "info.calib_no_iso_sigma": "(sin σ del IS de la calibración)"
 }

@@ -1607,5 +1607,7 @@
   "diag.reg_action": "提高 log α（在本程序中通常在 +1 以上才开始明显）或使用 L 曲线，并比较多个 α 下的 P：只保留稳定存在的特征。",
   "diag.reg_ok_meaning": "正则化使 P 平滑（k_eff 明显小于分箱数）。",
   "info.expand": "放大",
-  "info.expand_tip": "在单独的较大窗口中打开此面板（每次拟合后更新；Ctrl + 滚轮调整字号）。"
+  "info.expand_tip": "在单独的较大窗口中打开此面板（每次拟合后更新；Ctrl + 滚轮调整字号）。",
+  "calib.sigma_tip": "1σ 不确定度。从拟合的 α-Fe 创建校准时自动填入拟合误差；“—”= 未知。",
+  "info.calib_no_iso_sigma": "（校准的 IS 没有 σ）"
 }

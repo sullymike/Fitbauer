@@ -1607,5 +1607,7 @@
   "diag.reg_action": "log α erhöhen (in diesem Programm wirkt es meist erst oberhalb von +1) oder die L-Kurve verwenden und P bei mehreren α vergleichen: die bleibenden Merkmale behalten.",
   "diag.reg_ok_meaning": "Die Regularisierung glättet P (k_eff deutlich unter der Zahl der Bins).",
   "info.expand": "Vergrößern",
-  "info.expand_tip": "Öffnet dieses Feld in einem eigenen, größeren Fenster (wird bei jedem Fit aktualisiert; Strg + Mausrad ändert die Schriftgröße)."
+  "info.expand_tip": "Öffnet dieses Feld in einem eigenen, größeren Fenster (wird bei jedem Fit aktualisiert; Strg + Mausrad ändert die Schriftgröße).",
+  "calib.sigma_tip": "1σ-Unsicherheit. Wird die Kalibrierung aus dem angepassten α-Fe erstellt, wird der Fehler des Fits übernommen; „—“ = unbekannt.",
+  "info.calib_no_iso_sigma": "(keine σ für den IS der Kalibrierung)"
 }

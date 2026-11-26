@@ -32,12 +32,38 @@ def pattern_label(pattern: str) -> str:
     return pattern
 
 
+def sigma_spin(value: float | None) -> QtWidgets.QDoubleSpinBox:
+    """Casilla «± σ» de una calibración; 0 se muestra «—» (no consta)."""
+    sp = QtWidgets.QDoubleSpinBox()
+    sp.setRange(0.0, 1.0)
+    sp.setDecimals(5)
+    sp.setSingleStep(0.0001)
+    sp.setPrefix("± ")
+    sp.setSpecialValueText("± —")
+    sp.setValue(float(value or 0.0))
+    sp.setToolTip(tr("calib.sigma_tip"))
+    return sp
+
+
+def sigma_value(sp: QtWidgets.QDoubleSpinBox) -> float | None:
+    v = float(sp.value())
+    return v if v > 0 else None
+
+
+def with_sigma(value: float | None, sigma: float | None, nd: int = 4) -> str:
+    if value is None:
+        return ""
+    return f"{value:.{nd}f}" + (f" ± {sigma:.{nd + 1}f}" if sigma else "")
+
+
 class CalibrationEntryDialog(QtWidgets.QDialog):
     """Datos de una calibración: fecha, Vmax, patrón, IS, muestra y notas."""
 
     def __init__(self, parent, *, date: dt.date | None = None, vmax: float = 10.0,
                  pattern: str = "normos", isomer_shift: float | None = None,
-                 sample: str = "", file_name: str | None = None):
+                 sample: str = "", file_name: str | None = None,
+                 vmax_uncertainty: float | None = None,
+                 isomer_shift_uncertainty: float | None = None):
         super().__init__(parent)
         self.setWindowTitle(tr("instr.add_calibration", default="Añadir calibración"))
         form = QtWidgets.QFormLayout(self)
@@ -51,7 +77,11 @@ class CalibrationEntryDialog(QtWidgets.QDialog):
         self.vmax_spin.setRange(-200.0, 200.0)
         self.vmax_spin.setDecimals(4)
         self.vmax_spin.setValue(float(vmax))
-        form.addRow("Vmax (mm/s)", self.vmax_spin)
+        self.vmax_sigma = sigma_spin(vmax_uncertainty)
+        vrow = QtWidgets.QHBoxLayout()
+        vrow.addWidget(self.vmax_spin, stretch=1)
+        vrow.addWidget(self.vmax_sigma)
+        form.addRow("Vmax (mm/s)", vrow)
         self.pattern_combo = QtWidgets.QComboBox()
         for value, key, default in _PATTERNS:
             self.pattern_combo.addItem(tr(key, default=default), value)
@@ -65,10 +95,14 @@ class CalibrationEntryDialog(QtWidgets.QDialog):
         self.iso_check.setChecked(isomer_shift is not None)
         self.iso_spin.setValue(float(isomer_shift or 0.0))
         self.iso_spin.setEnabled(isomer_shift is not None)
+        self.iso_sigma = sigma_spin(isomer_shift_uncertainty)
+        self.iso_sigma.setEnabled(isomer_shift is not None)
         self.iso_check.toggled.connect(self.iso_spin.setEnabled)
+        self.iso_check.toggled.connect(self.iso_sigma.setEnabled)
         iso_row = QtWidgets.QHBoxLayout()
         iso_row.addWidget(self.iso_check)
         iso_row.addWidget(self.iso_spin, stretch=1)
+        iso_row.addWidget(self.iso_sigma)
         form.addRow("IS (mm/s)", iso_row)
         self.sample_edit = QtWidgets.QLineEdit(sample)
         form.addRow(tr("label.calib_sample_name", default="Muestra"), self.sample_edit)
@@ -89,6 +123,9 @@ class CalibrationEntryDialog(QtWidgets.QDialog):
             vmax=float(self.vmax_spin.value()),
             sextet_pattern=self.pattern_combo.currentData(),
             isomer_shift=float(self.iso_spin.value()) if self.iso_check.isChecked() else None,
+            vmax_uncertainty=sigma_value(self.vmax_sigma),
+            isomer_shift_uncertainty=(sigma_value(self.iso_sigma)
+                                      if self.iso_check.isChecked() else None),
             sample=self.sample_edit.text().strip(),
             notes=self.notes_edit.text().strip(),
         )
@@ -311,8 +348,9 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
         records = self._records()
         self.table.setRowCount(len(records))
         for i, r in enumerate(records):
-            cells = (r.date.isoformat(), f"{r.vmax:.4f}", pattern_label(r.sextet_pattern),
-                     "" if r.isomer_shift is None else f"{r.isomer_shift:.4f}",
+            cells = (r.date.isoformat(), with_sigma(r.vmax, r.vmax_uncertainty),
+                     pattern_label(r.sextet_pattern),
+                     with_sigma(r.isomer_shift, r.isomer_shift_uncertainty),
                      r.sample, r.file_name or "", r.notes)
             for j, text in enumerate(cells):
                 item = QtWidgets.QTableWidgetItem(text)
@@ -367,6 +405,8 @@ class InstrumentManagerDialog(QtWidgets.QDialog):
             self, date=cur.get("date"), vmax=cur["vmax"],
             pattern=cur.get("sextet_pattern", "normos"),
             isomer_shift=cur.get("isomer_shift"), sample=cur.get("sample", ""),
+            vmax_uncertainty=cur.get("vmax_uncertainty"),
+            isomer_shift_uncertainty=cur.get("isomer_shift_uncertainty"),
             file_name=path.name if path else None),
             path if path and path.is_file() else None)
 

@@ -466,7 +466,8 @@ class WebApiMixin:
                                or "normos"),
         }
         for key in ("velocity_uncertainty", "vmax_uncertainty", "velocity_error",
-                    "vmax_error", "sigma_vmax"):
+                    "vmax_error", "sigma_vmax", "isomer_shift_uncertainty",
+                    "isomer_shift_error", "sigma_isomer_shift"):
             value = first_value(calibration, key)
             if value not in (None, ""):
                 info[key] = value
