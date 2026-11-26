@@ -551,9 +551,11 @@ class ComponentPanel(QtWidgets.QWidget):
             if name in SECONDARY_PARAMS:
                 # Liberado desde fuera (sesión, preset…) estando escondido:
                 # tiene que aparecer, porque se va a ajustar.
+                # Fijado a la vista: no se esconde, el botón ofrece ocultarlo.
                 ctl.fixedChanged.connect(
-                    lambda fixed, c=ctl: (not fixed and c.isHidden()
-                                          and self._relayout_params()))
+                    lambda fixed, c=ctl: (self._relayout_params()
+                                          if not fixed and c.isHidden()
+                                          else self._update_more_btn()))
         # El campo del imán es un dato del experimento, no algo que ajustar.
         self.params["relax_bext"].set_fixed(True)
         v.addLayout(self.params_grid)
@@ -721,7 +723,40 @@ class ComponentPanel(QtWidgets.QWidget):
         self._relayout_params()
 
     def _toggle_more(self) -> None:
-        self.set_show_more(not self.show_more)
+        # Si hay secundarios fijos a la vista (desplegado, o recién fijados
+        # estando plegado), el botón los oculta; si no, enseña los ocultos.
+        self.set_show_more(not self._visible_fixed_secondary())
+
+    def _visible_fixed_secondary(self) -> list[str]:
+        """Secundarios aplicables, fijos y a la vista: lo que se puede ocultar."""
+        return [n for n in self.relevant_params() & SECONDARY_PARAMS
+                if self.params[n].is_fixed() and not self.params[n].isHidden()]
+
+    def _update_more_btn(self) -> None:
+        """Texto y estado del botón según lo que se ve AHORA, sin recolocar.
+
+        Al fijar un parámetro no se esconde en el acto (molestaría mientras
+        se fijan varios): el botón pasa a ofrecer «Menos (n)» para ocultar
+        los fijos. Está siempre; sin nada que plegar ni desplegar queda
+        desactivado y el tooltip dice por qué."""
+        if not hasattr(self, "intensity_mode"):
+            return          # aún construyéndose; _relayout_params lo pondrá
+        sec = self.relevant_params() & SECONDARY_PARAMS
+        ocultos = [n for n in sec if self.params[n].isHidden()]
+        a_ocultar = self._visible_fixed_secondary()
+        self.more_btn.setVisible(True)
+        if a_ocultar:
+            self.more_btn.setEnabled(True)
+            self.more_btn.setText(tr("component.less_n", n=len(a_ocultar)))
+            self.more_btn.setToolTip(tr("component.less_tip"))
+        elif ocultos:
+            self.more_btn.setEnabled(True)
+            self.more_btn.setText(tr("component.more", n=len(ocultos)))
+            self.more_btn.setToolTip(tr("component.more_tip"))
+        else:
+            self.more_btn.setEnabled(False)
+            self.more_btn.setText(tr("component.more", n=0))
+            self.more_btn.setToolTip(tr("component.more_none_tip"))
 
     def _hidden_secondary(self) -> list[str]:
         """Secundarios aplicables que el panel plegado esconde (fijos)."""
@@ -777,17 +812,6 @@ class ComponentPanel(QtWidgets.QWidget):
         used = self.relevant_params()
         ocultos = self._hidden_secondary()
         shown = set(used) - set(ocultos)
-        # El botón está siempre (que no aparezca y desaparezca según el tipo o
-        # lo fijado); sin nada que plegar ni desplegar queda desactivado y el
-        # tooltip dice por qué.
-        plegables = [n for n in used & SECONDARY_PARAMS if self.params[n].is_fixed()]
-        activo = bool(ocultos) or bool(plegables) or self.show_more
-        self.more_btn.setVisible(True)
-        self.more_btn.setEnabled(activo)
-        self.more_btn.setToolTip(tr("component.more_tip") if activo
-                                 else tr("component.more_none_tip"))
-        self.more_btn.setText(tr("component.less") if self.show_more
-                              else tr("component.more", n=len(ocultos)))
         # Saca todo del grid (los widgets siguen vivos como hijos del panel).
         for ctl in self.params.values():
             self.params_grid.removeWidget(ctl)
@@ -826,6 +850,7 @@ class ComponentPanel(QtWidgets.QWidget):
         for name, ctl in self.params.items():
             if name not in visible:
                 ctl.setVisible(False)
+        self._update_more_btn()
 
         # Etiquetas adaptadas al tipo. Γ1 es la anchura absoluta (global, mm/s)
         # y Γ2/Γ3 son relativas a ella; los números de línea (1,6 / 2,5) solo

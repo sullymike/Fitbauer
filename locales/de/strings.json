@@ -1677,6 +1677,8 @@
   "component.more": "Mehr ({n}) ▸",
   "component.less": "Weniger ◂",
   "component.more_none_tip": "Nichts einzuklappen: die Nebenparameter dieser Komponente sind frei (immer sichtbar, weil sie angepasst werden) oder gelten für diesen Typ nicht.",
+  "component.less_n": "Weniger ({n}) ◂",
+  "component.less_tip": "Blendet die festen Nebenparameter dieser Komponente aus. Freie bleiben sichtbar, weil sie angepasst werden.",
   "component.more_tip": "Zeigt die festen Nebenparameter dieser Komponente (relative Γ, Intensitäten, Textur, Hamiltonoperator…). Freie werden immer angezeigt, weil sie angepasst werden.",
   "guided.menu": "Geführter Modus",
   "guided.title": "Geführter Fit",

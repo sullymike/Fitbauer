@@ -1677,6 +1677,8 @@
   "component.more": "More ({n}) ▸",
   "component.less": "Less ◂",
   "component.more_none_tip": "Nothing to fold: this component's secondary parameters are free (always shown, because they are fitted) or do not apply to this type.",
+  "component.less_n": "Less ({n}) ◂",
+  "component.less_tip": "Hides this component's fixed secondary parameters. Free ones stay visible, because they are fitted.",
   "component.more_tip": "Shows this component's fixed secondary parameters (relative Γ, intensities, texture, Hamiltonian…). Free ones are always shown, because they are fitted.",
   "guided.menu": "Guided mode",
   "guided.title": "Guided fit",

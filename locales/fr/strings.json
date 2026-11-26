@@ -1677,6 +1677,8 @@
   "component.more": "Plus ({n}) ▸",
   "component.less": "Moins ◂",
   "component.more_none_tip": "Rien à replier : les paramètres secondaires de cette composante sont libres (toujours visibles, car ajustés) ou ne s'appliquent pas à ce type.",
+  "component.less_n": "Moins ({n}) ◂",
+  "component.less_tip": "Masque les paramètres secondaires fixes de cette composante. Les libres restent visibles, car ils sont ajustés.",
   "component.more_tip": "Affiche les paramètres secondaires fixes de cette composante (Γ relatives, intensités, texture, hamiltonien…). Les libres sont toujours visibles, car ils sont ajustés.",
   "guided.menu": "Mode guidé",
   "guided.title": "Ajustement guidé",

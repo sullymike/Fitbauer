@@ -2,6 +2,11 @@
 
 ## Sin publicar
 
+- **Fijar un parámetro secundario permite ocultarlo.** Al fijar uno a la vista
+  (p. ej. las Γ relativas tras un ajuste) no se esconde en el acto: el botón
+  pasa a «Menos (n) ◂» y, al pulsarlo, se ocultan los fijos. Antes el botón no
+  se enteraba del cambio y seguía ofreciendo solo «Más».
+
 - **El botón «Más ▸» de cada componente está siempre.** Antes aparecía y
   desaparecía según el tipo o lo que estuviera fijo; ahora, si no hay nada que
   plegar, queda desactivado y su tooltip dice por qué.
