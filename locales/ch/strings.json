@@ -1676,6 +1676,7 @@
   "adv.desc.add_sharp": "在分布模式下，把面板中启用的分量作为尖锐子谱同时拟合（例如 P(BHF) 旁边的顺磁双线）。",
   "component.more": "更多 ({n}) ▸",
   "component.less": "收起 ◂",
+  "component.more_none_tip": "没有可折叠的内容：此分量的次要参数是自由的（因参与拟合而始终显示）或不适用于此类型。",
   "component.more_tip": "显示此分量中固定的次要参数（相对 Γ、强度、织构、哈密顿量…）。自由参数因参与拟合而始终显示。",
   "guided.menu": "引导模式",
   "guided.title": "引导拟合",

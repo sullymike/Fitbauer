@@ -1676,6 +1676,7 @@
   "adv.desc.add_sharp": "En modo distribución, ajusta a la vez las componentes activas del panel como subespectros nítidos (p. ej. un doblete paramagnético junto a la P(BHF)).",
   "component.more": "Más ({n}) ▸",
   "component.less": "Menos ◂",
+  "component.more_none_tip": "No hay nada que plegar: los parámetros secundarios de esta componente están libres (se ven siempre, porque se ajustan) o no aplican a este tipo.",
   "component.more_tip": "Muestra los parámetros secundarios fijos de esta componente (Γ relativas, intensidades, textura, Hamiltoniano…). Los libres se ven siempre, porque se ajustan.",
   "guided.menu": "Modo guiado",
   "guided.title": "Ajuste guiado",

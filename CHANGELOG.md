@@ -2,6 +2,10 @@
 
 ## Sin publicar
 
+- **El botón «Más ▸» de cada componente está siempre.** Antes aparecía y
+  desaparecía según el tipo o lo que estuviera fijo; ahora, si no hay nada que
+  plegar, queda desactivado y su tooltip dice por qué.
+
 - **Modo guiado: errores en la tabla de resultados.** δ, ΔEQ, BHF y el área
   llevan debajo su ± (covarianza del ajuste; el del área, propagado como en el
   informe); un parámetro fijo sale sin ±. Unidades en la cabecera y celdas en

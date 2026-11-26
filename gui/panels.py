@@ -777,9 +777,15 @@ class ComponentPanel(QtWidgets.QWidget):
         used = self.relevant_params()
         ocultos = self._hidden_secondary()
         shown = set(used) - set(ocultos)
-        # El botón solo aparece si hay algo que plegar o desplegar.
+        # El botón está siempre (que no aparezca y desaparezca según el tipo o
+        # lo fijado); sin nada que plegar ni desplegar queda desactivado y el
+        # tooltip dice por qué.
         plegables = [n for n in used & SECONDARY_PARAMS if self.params[n].is_fixed()]
-        self.more_btn.setVisible(bool(ocultos) or (self.show_more and bool(plegables)))
+        activo = bool(ocultos) or bool(plegables) or self.show_more
+        self.more_btn.setVisible(True)
+        self.more_btn.setEnabled(activo)
+        self.more_btn.setToolTip(tr("component.more_tip") if activo
+                                 else tr("component.more_none_tip"))
         self.more_btn.setText(tr("component.less") if self.show_more
                               else tr("component.more", n=len(ocultos)))
         # Saca todo del grid (los widgets siguen vivos como hijos del panel).

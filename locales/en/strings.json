@@ -1676,6 +1676,7 @@
   "adv.desc.add_sharp": "In distribution mode, fits the active panel components at the same time as sharp subspectra (e.g. a paramagnetic doublet next to P(BHF)).",
   "component.more": "More ({n}) ▸",
   "component.less": "Less ◂",
+  "component.more_none_tip": "Nothing to fold: this component's secondary parameters are free (always shown, because they are fitted) or do not apply to this type.",
   "component.more_tip": "Shows this component's fixed secondary parameters (relative Γ, intensities, texture, Hamiltonian…). Free ones are always shown, because they are fitted.",
   "guided.menu": "Guided mode",
   "guided.title": "Guided fit",

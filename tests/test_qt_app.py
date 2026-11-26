@@ -4063,6 +4063,17 @@ def test_panel_de_componente_en_dos_niveles(win, app):
     claves = set(win.active_param_keys())
     cp.more_btn.click()
     assert set(win.active_param_keys()) == claves
+    # El botón está siempre: sin nada que plegar, visible y desactivado.
+    from gui.panels import SECONDARY_PARAMS
+    for n in SECONDARY_PARAMS:
+        if n in cp.params:
+            cp.params[n].set_fixed(False)
+    cp.set_show_more(False)
+    app.processEvents()
+    assert cp.more_btn.isVisibleTo(cp) and not cp.more_btn.isEnabled()
+    cp.type_combo.setCurrentText("Singlete")
+    app.processEvents()
+    assert cp.more_btn.isVisibleTo(cp)
 
 
 def test_modo_guiado_pasos_y_arreglos(win, app):
