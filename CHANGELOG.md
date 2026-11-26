@@ -20,16 +20,16 @@
   calibración no trae σ del IS, lo indica. La API web acepta también
   `isomer_shift_uncertainty`/`_error` si los envía.
 
-- **Panel «Estado y parámetros» sin partir líneas y ampliable.** Cada dato
-  queda en su línea (barra horizontal si no cabe) en vez de partirse al ancho
-  del panel. El botón «⤢ Ampliar» abre el mismo contenido en una ventana
-  aparte, redimensionable y no modal, que se actualiza con cada ajuste y
+- **Panel «Estado y parámetros» ampliable.** Las líneas largas se siguen
+  partiendo al ancho del panel (sin barra horizontal). El botón «⤢ Ampliar»
+  abre el mismo contenido en una ventana aparte, grande, redimensionable y no
+  modal, donde cada dato cabe en su línea; se actualiza con cada ajuste y
   permite copiarlo como texto (Ctrl + rueda cambia el tamaño de letra).
   El botón va en la línea del título, sin gastar una fila. Los parámetros
   ajustados llevan su error (Vmax, fondo, pendiente; BHF, δ, ΔEQ, Γ₁ y
   profundidad de cada componente), con el valor redondeado a la precisión
-  del error; si se toca la casilla después del ajuste, el error deja de
-  mostrarse porque ya no corresponde a ese valor.
+  del error; si se toca la casilla después del ajuste, sale «± —» porque el
+  error ya no corresponde a ese valor.
   Γ₂ y Γ₃ reales e intensidades reales (I = I₃·Iₖ/I₃) llevan su error por
   propagación lineal con la covarianza del ajuste (σ² = J·Cov·Jᵀ, con las
   correlaciones), como el % de área.

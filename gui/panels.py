@@ -870,9 +870,11 @@ class InfoPanel(QtWidgets.QGroupBox):
         self.text.setReadOnly(True)
         self.text.setMinimumHeight(120)
         self.text.setStyleSheet("QTextEdit { font-family: monospace; font-size: 10pt; }")
-        # Sin partir líneas: cada dato en su línea (barra horizontal si no
-        # cabe) y el botón «Ampliar» para verlo en una ventana más grande.
-        self.text.setLineWrapMode(QtWidgets.QTextEdit.LineWrapMode.NoWrap)
+        # Las líneas largas se parten al ancho del panel (sin barra
+        # horizontal); «Ampliar» abre una ventana grande donde cada dato
+        # cabe en su línea.
+        self.text.setLineWrapMode(QtWidgets.QTextEdit.LineWrapMode.WidgetWidth)
+        self.text.setWordWrapMode(QtGui.QTextOption.WrapMode.WordWrap)
         #: Traduce claves internas (``s1_delta``) a rótulos legibles.
         self.label_for = None
         # El botón va en la línea del título del recuadro (posición a mano en
@@ -951,7 +953,7 @@ class InfoPanel(QtWidgets.QGroupBox):
         if self.label_for is not None:
             etiquetas = [self.label_for(k) for k in etiquetas]
         self.text.setHtml(
-            f"<div style='white-space: pre; font-family: monospace; font-size: 10pt;'>"
+            f"<div style='white-space: pre-wrap; font-family: monospace; font-size: 10pt;'>"
             f"{cuerpo}</div>"
             f"<p><b>{_html.escape(tr('info.corr_matrix_title'))}</b></p>"
             + correlation_matrix_html(etiquetas, datos[1], base=base, text=texto)
