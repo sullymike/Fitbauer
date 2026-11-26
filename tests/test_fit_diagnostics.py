@@ -154,3 +154,31 @@ def test_aviso_de_regularizacion_casi_nula():
     # Formas paramétricas y MaxEnt: no aplica.
     assert check_regularization(SimpleNamespace(effective_dof=5.0, **{**base, "shape": "VBF"})) is None
     assert check_regularization(SimpleNamespace(effective_dof=80.0, **{**base, "reg_mode": "maxent"})) is None
+
+
+def test_vmax_negativo_es_valido_y_sus_limites_acotan_el_ajuste(tmp_path, monkeypatch):
+    """Vmax < 0 solo invierte el eje: la validación mira |Vmax|. Y lo cambiado
+    en Vista › Límites de parámetros › Calibración acota también el ajuste."""
+    import json
+    from types import SimpleNamespace
+    import numpy as np
+    import core.param_overrides as po
+    from core.validation import validate_fit_state
+    from core.session import ModelState
+    st = SimpleNamespace(velocity=np.linspace(-5, 5, 10), y_data=np.ones(10), sigma_data=None,
+                         values={"vmax": -5.0}, bounds={"vmax": (1.0, 15.0)}, components=[])
+    assert validate_fit_state(st) == []
+    st.values = {"vmax": -0.5}
+    assert [i.key for i in validate_fit_state(st)] == ["vmax"]
+    # Límites de la casilla −20…20 → |Vmax| hasta 20 en el ajuste.
+    f = tmp_path / "param_limits.json"
+    f.write_text(json.dumps({"calibration": {"vmax": {"lo": -20.0, "hi": 20.0},
+                                             "baseline": {"hi": 1.5}}}))
+    monkeypatch.setattr(po, "PARAM_LIMITS_PATH", f)
+    g = po.global_fit_bound_overrides()
+    assert g == {"vmax": (None, 20.0), "baseline": (None, 1.5)}
+    ms = ModelState.defaults()
+    ms.general_bounds = g
+    fs = ms.build_fit_state(velocity=np.linspace(-5, 5, 10), y_data=np.ones(10),
+                            sigma_data=None, counts=None, norm_factor=1.0)
+    assert fs.bounds["vmax"] == (1.0, 20.0) and fs.bounds["baseline"] == (0.7, 1.5)

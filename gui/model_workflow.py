@@ -1009,8 +1009,10 @@ class ModelWorkflowMixin:
             ms.intensity_mode[comp_state.idx] = comp_state.intensity_mode
             ms.quad_treatment[comp_state.idx] = comp_state.quad_treatment
         self._fit_options_state().apply_to_model_state(ms)
-        from core.param_overrides import component_fit_bound_overrides
-        ms.general_bounds = component_fit_bound_overrides()
+        from core.param_overrides import (component_fit_bound_overrides,
+                                          global_fit_bound_overrides)
+        ms.general_bounds = {**component_fit_bound_overrides(),
+                             **global_fit_bound_overrides()}
         ms.constraints = list(self.constraints)
         return ms
 

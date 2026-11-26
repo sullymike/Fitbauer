@@ -287,6 +287,12 @@ class ModelState:
                 # el ajuste).
                 bounds[f"s{idx}_quad"] = (-2.0 * (vmax_abs + 2.0),
                                           2.0 * (vmax_abs + 2.0))
+        for name, (g_lo, g_hi) in (self.general_bounds or {}).items():
+            # Globales (vmax, baseline…): misma clave, sin prefijo de componente.
+            if name in _GLOBAL_BOUNDS:
+                lo, hi = bounds[name]
+                bounds[name] = (lo if g_lo is None else float(g_lo),
+                                hi if g_hi is None else float(g_hi))
         for idx in self.sextet_enabled:
             for name, (g_lo, g_hi) in (self.general_bounds or {}).items():
                 key = f"s{idx}_{name}"

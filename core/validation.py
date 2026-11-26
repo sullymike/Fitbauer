@@ -119,6 +119,10 @@ def validate_fit_state(state: Any, *, label=None) -> list[ValidationIssue]:
     values = getattr(state, "values", {}) or {}
     bounds = getattr(state, "bounds", {}) or {}
     components = getattr(state, "components", []) or []
+    if _is_finite_number(values.get("vmax")):
+        # El ajuste trabaja con |Vmax| (cota [1, 15]); el signo solo invierte
+        # el eje, así que Vmax = −5 es válido.
+        values = {**values, "vmax": abs(float(values["vmax"]))}
     issues.extend(validate_values_against_bounds(
         values, bounds, keys=_keys_in_use(values, components), label=label))
     for comp in components:

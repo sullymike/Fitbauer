@@ -114,21 +114,12 @@ def effective_peak_detection_specs() -> dict[str, ParamSpec]:
     return effective_specs("peak_detection")
 
 
-def component_fit_bound_overrides() -> dict[str, tuple[float | None, float | None]]:
-    """Cotas de ajuste que el usuario cambió en Vista › Límites de parámetros.
-
-    La ventana guarda el rango de las casillas; si un extremo difiere del de
-    fábrica, ese extremo pasa a ser también la cota del ajuste (antes solo
-    cambiaba la casilla y el ajuste seguía con ``COMPONENT_FIT_BOUNDS``, de
-    modo que el aviso «fuera de límites» mostraba otro rango). Los extremos
-    sin cambiar devuelven ``None``: se queda la cota del código, que en
-    profundidad e intensidades es más amplia que el rango de la casilla.
-    """
-    from core.params import COMPONENT_FIT_BOUNDS
-    raw = load_raw().get("component", {})
+def _changed_sides(category: str, names, specs) -> dict[str, tuple[float | None, float | None]]:
+    """Extremos de la ventana de límites que difieren de los de fábrica."""
+    raw = load_raw().get(category, {})
     out: dict[str, tuple[float | None, float | None]] = {}
-    for name in COMPONENT_FIT_BOUNDS:
-        override, spec = raw.get(name), COMPONENT_PARAM_SPECS.get(name)
+    for name in names:
+        override, spec = raw.get(name), specs.get(name)
         if not isinstance(override, dict) or spec is None:
             continue
         lo = hi = None
@@ -144,3 +135,37 @@ def component_fit_bound_overrides() -> dict[str, tuple[float | None, float | Non
         if lo is not None or hi is not None:
             out[name] = (lo, hi)
     return out
+
+
+def global_fit_bound_overrides() -> dict[str, tuple[float | None, float | None]]:
+    """Igual que :func:`component_fit_bound_overrides` para los parámetros
+    globales (pestaña Calibración: fondo, pendiente, Vmax, σ Voigt…).
+
+    Vmax es especial: la casilla admite signo (negativo = eje invertido) y el
+    ajuste trabaja con |Vmax| en [1, 15]. Si se cambia algún extremo de la
+    casilla, la cota superior de |Vmax| pasa a ser el mayor |extremo|; la
+    inferior (1 mm/s) no se toca.
+    """
+    from core.params import GLOBAL_FIT_BOUNDS
+    out = _changed_sides("calibration", GLOBAL_FIT_BOUNDS, CALIBRATION_PARAM_SPECS)
+    if "vmax" in out:
+        lo, hi = out["vmax"]
+        spec = CALIBRATION_PARAM_SPECS["vmax"]
+        lo = spec.lo if lo is None else lo
+        hi = spec.hi if hi is None else hi
+        out["vmax"] = (None, max(abs(lo), abs(hi)))
+    return out
+
+
+def component_fit_bound_overrides() -> dict[str, tuple[float | None, float | None]]:
+    """Cotas de ajuste que el usuario cambió en Vista › Límites de parámetros.
+
+    La ventana guarda el rango de las casillas; si un extremo difiere del de
+    fábrica, ese extremo pasa a ser también la cota del ajuste (antes solo
+    cambiaba la casilla y el ajuste seguía con ``COMPONENT_FIT_BOUNDS``, de
+    modo que el aviso «fuera de límites» mostraba otro rango). Los extremos
+    sin cambiar devuelven ``None``: se queda la cota del código, que en
+    profundidad e intensidades es más amplia que el rango de la casilla.
+    """
+    from core.params import COMPONENT_FIT_BOUNDS
+    return _changed_sides("component", COMPONENT_FIT_BOUNDS, COMPONENT_PARAM_SPECS)

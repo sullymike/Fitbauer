@@ -2,6 +2,17 @@
 
 ## Sin publicar
 
+- **Vmax negativo ya no se rechaza, y la pestaña Calibración de los límites
+  también acota el ajuste.** El aviso decía que Vmax = −5 estaba fuera de
+  [1, 15], aunque la casilla admite −15…15: el ajuste trabaja con |Vmax| (el
+  signo solo invierte el eje) y la validación comparaba el valor con signo.
+  Ahora se valida |Vmax|. Además, igual que se hizo con las componentes, el
+  extremo cambiado en Vista › Límites de parámetros › Calibración (fondo,
+  pendiente, σ Voigt…) pasa a ser la cota del ajuste
+  (`core.param_overrides.global_fit_bound_overrides`); para Vmax, el mayor
+  |extremo| de la casilla es la cota superior de |Vmax|. El aviso nombra la
+  pestaña que corresponde (Componentes o Calibración).
+
 - **Regularización de distribuciones: aviso cuando casi no actúa y curva L
   que llega al codo.** Medido con los sintéticos de distribución, por debajo
   de log α ≈ 1 la P sale igual que sin regularizar (k_eff ≈ nº de bins, P con
