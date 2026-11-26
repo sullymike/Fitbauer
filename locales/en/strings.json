@@ -1698,7 +1698,7 @@
   "guided.s3_done": "Last fit: reduced χ² = <b>{chi2}</b> · {strategy}",
   "guided.s3_strategy": "Strategy: {strategy}",
   "guided.s4_title": "Is it reliable?",
-  "guided.s4_hint": "Automatic checks of the last fit. Each warning offers a fix.",
+  "guided.s4_hint": "Automatic checks of the last fit. Each warning offers a fix. Outside guided mode, the same diagnostics appear after every fit in the status-bar indicator (bottom; click it for details) and in Results › Fit diagnostics.",
   "guided.s4_details": "Details…",
   "guided.s4_none": "Fit first to see the diagnostics.",
   "guided.s4_ok": "The fit looks right.",

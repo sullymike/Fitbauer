@@ -1698,7 +1698,7 @@
   "guided.s3_done": "上次拟合：约化 χ² = <b>{chi2}</b> · {strategy}",
   "guided.s3_strategy": "策略：{strategy}",
   "guided.s4_title": "是否可靠？",
-  "guided.s4_hint": "对上次拟合的自动检查。每个警告都给出修正办法。",
+  "guided.s4_hint": "对上次拟合的自动检查。每个警告都给出修正办法。在引导模式之外，每次拟合后同样的诊断会显示在状态栏指示器中（底部，点击查看详情），也可在 结果 › 拟合诊断 中查看。",
   "guided.s4_details": "查看详情…",
   "guided.s4_none": "请先拟合以查看诊断。",
   "guided.s4_ok": "拟合看起来正确。",

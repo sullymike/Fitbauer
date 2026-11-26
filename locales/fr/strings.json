@@ -1698,7 +1698,7 @@
   "guided.s3_done": "Dernier ajustement : χ² réduit = <b>{chi2}</b> · {strategy}",
   "guided.s3_strategy": "Stratégie : {strategy}",
   "guided.s4_title": "Est-ce fiable ?",
-  "guided.s4_hint": "Vérifications automatiques du dernier ajustement. Chaque avertissement propose une correction.",
+  "guided.s4_hint": "Vérifications automatiques du dernier ajustement. Chaque avertissement propose une correction. Hors du mode guidé, le même diagnostic apparaît après chaque ajustement dans l'indicateur de la barre d'état (en bas ; un clic ouvre les détails) et dans Résultats › Diagnostic de l'ajustement.",
   "guided.s4_details": "Détails…",
   "guided.s4_none": "Ajustez d'abord pour voir le diagnostic.",
   "guided.s4_ok": "L'ajustement semble correct.",
