@@ -875,17 +875,25 @@ class InfoPanel(QtWidgets.QGroupBox):
         self.text.setLineWrapMode(QtWidgets.QTextEdit.LineWrapMode.NoWrap)
         #: Traduce claves internas (``s1_delta``) a rótulos legibles.
         self.label_for = None
-        barra = QtWidgets.QHBoxLayout()
-        barra.addStretch(1)
-        self.btn_expand = QtWidgets.QToolButton()
+        # El botón va en la línea del título del recuadro (posición a mano en
+        # resizeEvent) para no gastar una fila.
+        self.btn_expand = QtWidgets.QToolButton(self)
         self.btn_expand.setText("⤢ " + tr("info.expand"))
         self.btn_expand.setToolTip(tr("info.expand_tip"))
         self.btn_expand.setAutoRaise(True)
         self.btn_expand.clicked.connect(self.open_large)
-        barra.addWidget(self.btn_expand)
-        v.addLayout(barra)
+        self.btn_expand.setStyleSheet("QToolButton { padding: 0 4px; }")
         v.addWidget(self.text)
+        self.btn_expand.raise_()        # por encima del cuadro de texto
         self._large: QtWidgets.QDialog | None = None
+
+    def resizeEvent(self, event):  # noqa: N802 (API de Qt)
+        super().resizeEvent(event)
+        b = self.btn_expand
+        b.adjustSize()
+        b.setFixedHeight(self.fontMetrics().height() + 4)
+        b.move(self.width() - b.width() - 6, 0)
+        b.raise_()
 
     def open_large(self) -> None:
         """Ventana aparte, redimensionable y no modal, con el mismo contenido;

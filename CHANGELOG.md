@@ -7,6 +7,11 @@
   del panel. El botón «⤢ Ampliar» abre el mismo contenido en una ventana
   aparte, redimensionable y no modal, que se actualiza con cada ajuste y
   permite copiarlo como texto (Ctrl + rueda cambia el tamaño de letra).
+  El botón va en la línea del título, sin gastar una fila. Los parámetros
+  ajustados llevan su error (Vmax, fondo, pendiente; BHF, δ, ΔEQ, Γ₁ y
+  profundidad de cada componente), con el valor redondeado a la precisión
+  del error; si se toca la casilla después del ajuste, el error deja de
+  mostrarse porque ya no corresponde a ese valor.
 
 - **Vmax negativo ya no se rechaza, y la pestaña Calibración de los límites
   también acota el ajuste.** El aviso decía que Vmax = −5 estaba fuera de

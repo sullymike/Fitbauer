@@ -32,6 +32,41 @@ from gui.state import FileState, FitOptionsState, PlotViewState, UiActionState
 ROOT = Path(__file__).resolve().parents[1]
 
 
+
+def format_value_error(value, err, fmt: str = ".6g") -> str:
+    """«49.906 ± 0.031»: el valor redondeado a la precisión del error (dos
+    cifras significativas); sin error, el valor con ``fmt``."""
+    import math
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if err is None or not (math.isfinite(err) and err > 0) or not math.isfinite(v):
+        return f"{v:{fmt}}"
+    nd = max(0, 1 - int(math.floor(math.log10(err))))
+    if nd > 8:
+        return f"{v:{fmt}} ± {err:.2g}"
+    return f"{v:.{nd}f} ± {err:.{nd}f}"
+
+
+def _fit_error(result, key: str, shown) -> float | None:
+    """Error del ajuste para ``key`` si el valor mostrado es aún el ajustado
+    (si se tocó la casilla después, el error ya no le corresponde)."""
+    if result is None:
+        return None
+    err = (getattr(result, "errors", None) or {}).get(key)
+    val = (getattr(result, "values", None) or {}).get(key)
+    try:
+        err = float(err); val = float(val); shown = float(shown)
+    except (TypeError, ValueError):
+        return None
+    if not err > 0:
+        return None
+    # Tolerancia: redondeo de la casilla (hasta 1e-4) o una fracción del error.
+    if abs(shown - val) > max(0.1 * err, 1e-4 * max(1.0, abs(val))):
+        return None
+    return err
+
 class ModelWorkflowMixin:
     def _ui_action_state(self) -> UiActionState:
         """Snapshot ligero de acciones Qt usadas como estado runtime."""
@@ -745,6 +780,13 @@ class ModelWorkflowMixin:
         pct_errors = self.component_percentage_errors()
         calib_state = self.calib.to_view_state()
         center = float(calib_state.center)
+        _res = self.runtime_results.fit_result
+
+        def ve(key: str, value: float, fmt: str = ".6g") -> str:
+            """«valor ± error» si ``key`` se ajustó y el valor mostrado sigue
+            siendo el del ajuste; si no, solo el valor."""
+            return format_value_error(value, _fit_error(_res, key, value), fmt)
+
         lines = [
             tr("info.file", name=self.file.path.name if self.file.path else "-"),
             tr("info.channels_read", n=self.file.counts.size),
@@ -752,9 +794,9 @@ class ModelWorkflowMixin:
             tr("info.folding_normos", value=f"{2.0 * center:.5f}"),
             tr("info.folded_pairs", n=int(self.file.folded.size)),
             tr("info.normalization", factor=f"{self.file.norm_factor:.6g}"),
-            tr("info.vmax", value=f"{calib_state.vmax:.6g}"),
-            tr("info.baseline", value=f"{calib_state.baseline:.6g}"),
-            tr("info.slope", value=f"{calib_state.slope:.6g}"),
+            tr("info.vmax", value=ve("vmax", calib_state.vmax)),
+            tr("info.baseline", value=ve("baseline", calib_state.baseline)),
+            tr("info.slope", value=ve("slope", calib_state.slope)),
             # Todas las componentes activas con su tipo (antes «Sextetes
             # activos» listaba también los dobletes y singletes).
             tr("info.active_components", list=", ".join(
@@ -814,12 +856,16 @@ class ModelWorkflowMixin:
             g2 = g1 * comp_state.value("gamma2", 1.0)
             g3 = g1 * comp_state.value("gamma3", 1.0)
             kind_disp = tr(f"kind.{comp_state.kind}", default=comp_state.kind)
+            pre = f"s{comp_state.idx}_"
             lines.extend([
                 tr("info.component_params_line", kind=kind_disp, idx=comp_state.idx,
-                   bhf=comp_state.value("bhf"), delta=comp_state.value("delta"), quad=comp_state.value("quad")),
-                tr("info.gamma_hwhm", g1=g1, g2=g2, g3=g3),
+                   bhf=ve(pre + "bhf", comp_state.value("bhf")),
+                   delta=ve(pre + "delta", comp_state.value("delta")),
+                   quad=ve(pre + "quad", comp_state.value("quad"))),
+                tr("info.gamma_hwhm", g1=ve(pre + "gamma1", g1, ".4g"), g2=g2, g3=g3),
                 tr("info.gamma_rel", gamma2=comp_state.value("gamma2", 1.0), gamma3=comp_state.value("gamma3", 1.0)),
-                tr("info.depth_intensities", depth=comp_state.value("depth"), i1=i1_real, i2=i2_real, i3=i3_real),
+                tr("info.depth_intensities", depth=ve(pre + "depth", comp_state.value("depth")),
+                   i1=i1_real, i2=i2_real, i3=i3_real),
             ])
             derived = self.texture_derived(comp_state)
             if derived is not None:

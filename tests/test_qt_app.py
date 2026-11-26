@@ -3810,3 +3810,25 @@ def test_panel_de_informacion_sin_partir_lineas_y_ampliable(win, app):
     p.set_lines(["otra cosa"])
     assert "otra cosa" in dlg.view.toPlainText()
     dlg.close()
+
+
+def test_panel_de_estado_con_errores(win):
+    """Tras ajustar, los parámetros libres llevan «± error» en el panel; si
+    se toca la casilla después, el error desaparece."""
+    from pathlib import Path
+    from gui.model_workflow import format_value_error
+    assert format_value_error(49.90612, 0.0312) == "49.906 ± 0.031"
+    assert format_value_error(0.1965, None) == "0.1965"
+    root = Path(__file__).resolve().parents[1] / "data_sample"
+    win._open_spectrum(root / "Fe3O4.adt")
+    win.load_session_file(root / "Fe3O4_session.json")
+    win.on_fit()
+    txt = win.info_panel.text.toPlainText()
+    linea = next(l for l in txt.splitlines() if "BHF=" in l)
+    assert linea.count("±") == 3, linea
+    ctl = win.components_panels[0].params["bhf"]
+    ctl.spin.setValue(ctl.value() + 1.0)
+    win._update_info_panel()
+    linea = next(l for l in win.info_panel.text.toPlainText().splitlines() if "BHF=" in l)
+    assert "BHF=" in linea and linea.split(",")[0].count("±") == 0, linea
+    win.mark_saved()
