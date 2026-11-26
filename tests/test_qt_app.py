@@ -3706,7 +3706,8 @@ def test_rotulo_de_calibracion_traduce_el_origen(win):
 
 def test_panel_de_estado_legible(win):
     """El panel lista las componentes activas con su tipo, los fijos con su
-    rótulo (sin claves internas ni la I₃ oculta) y parte las líneas largas."""
+    rótulo (sin claves internas ni la I₃ oculta) y no parte las líneas
+    (barra horizontal; «Ampliar» para verlo grande)."""
     from pathlib import Path
     from PySide6 import QtWidgets
     root = Path(__file__).resolve().parents[1] / "data_sample"
@@ -3717,7 +3718,7 @@ def test_panel_de_estado_legible(win):
     assert "(Doblete)" in txt or "(Doublet)" in txt
     fijos = [l for l in txt.splitlines() if "s1_" in l or "s2_" in l or "curv3" in l]
     assert not fijos, fijos
-    assert win.info_panel.text.lineWrapMode() == QtWidgets.QTextEdit.LineWrapMode.WidgetWidth
+    assert win.info_panel.text.lineWrapMode() == QtWidgets.QTextEdit.LineWrapMode.NoWrap
     assert win._param_short_name("s2_quad").endswith("(2)")
     win.mark_saved()
 
@@ -3794,3 +3795,18 @@ def test_diagnostico_tras_ajuste_de_distribucion(win):
     assert checks["edge"].status == "warn"
     assert not win.fit_indicator.isHidden()
     win.mark_saved()
+
+
+def test_panel_de_informacion_sin_partir_lineas_y_ampliable(win, app):
+    """Las líneas no se parten (barra horizontal) y «Ampliar» abre una
+    ventana aparte con el mismo contenido, que sigue a cada actualización."""
+    from PySide6 import QtWidgets
+    p = win.info_panel
+    assert p.text.lineWrapMode() == QtWidgets.QTextEdit.LineWrapMode.NoWrap
+    p.set_lines(["línea larga " * 30, "segunda"])
+    p.btn_expand.click()
+    dlg = p._large
+    assert dlg.isVisible() and "segunda" in dlg.view.toPlainText()
+    p.set_lines(["otra cosa"])
+    assert "otra cosa" in dlg.view.toPlainText()
+    dlg.close()

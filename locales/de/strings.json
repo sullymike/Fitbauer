@@ -1605,5 +1605,7 @@
   "diag.reg_value": "k_eff = {k} von {n} möglichen · log α = {la}",
   "diag.reg_meaning": "Die Regularisierung wirkt kaum: Jeder Bin wird frei angepasst und P kann Spitzen zeigen, die Rauschen und keine Struktur sind.",
   "diag.reg_action": "log α erhöhen (in diesem Programm wirkt es meist erst oberhalb von +1) oder die L-Kurve verwenden und P bei mehreren α vergleichen: die bleibenden Merkmale behalten.",
-  "diag.reg_ok_meaning": "Die Regularisierung glättet P (k_eff deutlich unter der Zahl der Bins)."
+  "diag.reg_ok_meaning": "Die Regularisierung glättet P (k_eff deutlich unter der Zahl der Bins).",
+  "info.expand": "Vergrößern",
+  "info.expand_tip": "Öffnet dieses Feld in einem eigenen, größeren Fenster (wird bei jedem Fit aktualisiert; Strg + Mausrad ändert die Schriftgröße)."
 }

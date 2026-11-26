@@ -1605,5 +1605,7 @@
   "diag.reg_value": "k_eff = {k}（可能 {n}）· log α = {la}",
   "diag.reg_meaning": "正则化几乎不起作用：每个分箱独立拟合，P 中的峰可能是噪声而非结构。",
   "diag.reg_action": "提高 log α（在本程序中通常在 +1 以上才开始明显）或使用 L 曲线，并比较多个 α 下的 P：只保留稳定存在的特征。",
-  "diag.reg_ok_meaning": "正则化使 P 平滑（k_eff 明显小于分箱数）。"
+  "diag.reg_ok_meaning": "正则化使 P 平滑（k_eff 明显小于分箱数）。",
+  "info.expand": "放大",
+  "info.expand_tip": "在单独的较大窗口中打开此面板（每次拟合后更新；Ctrl + 滚轮调整字号）。"
 }

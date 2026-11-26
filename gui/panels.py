@@ -870,13 +870,57 @@ class InfoPanel(QtWidgets.QGroupBox):
         self.text.setReadOnly(True)
         self.text.setMinimumHeight(120)
         self.text.setStyleSheet("QTextEdit { font-family: monospace; font-size: 10pt; }")
-        # Las líneas largas se parten al ancho del panel en vez de obligar a
-        # desplazarse en horizontal.
-        self.text.setLineWrapMode(QtWidgets.QTextEdit.LineWrapMode.WidgetWidth)
-        self.text.setWordWrapMode(QtGui.QTextOption.WrapMode.WordWrap)
+        # Sin partir líneas: cada dato en su línea (barra horizontal si no
+        # cabe) y el botón «Ampliar» para verlo en una ventana más grande.
+        self.text.setLineWrapMode(QtWidgets.QTextEdit.LineWrapMode.NoWrap)
         #: Traduce claves internas (``s1_delta``) a rótulos legibles.
         self.label_for = None
+        barra = QtWidgets.QHBoxLayout()
+        barra.addStretch(1)
+        self.btn_expand = QtWidgets.QToolButton()
+        self.btn_expand.setText("⤢ " + tr("info.expand"))
+        self.btn_expand.setToolTip(tr("info.expand_tip"))
+        self.btn_expand.setAutoRaise(True)
+        self.btn_expand.clicked.connect(self.open_large)
+        barra.addWidget(self.btn_expand)
+        v.addLayout(barra)
         v.addWidget(self.text)
+        self._large: QtWidgets.QDialog | None = None
+
+    def open_large(self) -> None:
+        """Ventana aparte, redimensionable y no modal, con el mismo contenido;
+        se actualiza sola con cada ajuste (Ctrl + rueda cambia el tamaño)."""
+        if self._large is None:
+            dlg = QtWidgets.QDialog(self.window())
+            dlg.setWindowTitle(tr("controls.info_box"))
+            dlg.resize(900, 700)
+            lay = QtWidgets.QVBoxLayout(dlg)
+            view = QtWidgets.QTextEdit()
+            view.setReadOnly(True)
+            view.setLineWrapMode(QtWidgets.QTextEdit.LineWrapMode.NoWrap)
+            view.setStyleSheet("QTextEdit { font-family: monospace; font-size: 11pt; }")
+            lay.addWidget(view)
+            bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Close)
+            btn_copy = bb.addButton(tr("diag.copy"), QtWidgets.QDialogButtonBox.ButtonRole.ActionRole)
+            btn_copy.clicked.connect(
+                lambda: QtWidgets.QApplication.clipboard().setText(view.toPlainText()))
+            bb.rejected.connect(dlg.close)
+            lay.addWidget(bb)
+            dlg.view = view
+            self._large = dlg
+        self._sync_large()
+        self._large.show()
+        self._large.raise_()
+        self._large.activateWindow()
+
+    def _sync_large(self) -> None:
+        dlg = self._large
+        if dlg is None:
+            return
+        bar = dlg.view.verticalScrollBar()
+        pos = bar.value()
+        dlg.view.setHtml(self.text.toHtml())
+        bar.setValue(pos)
 
     def set_lines(self, lines: list[str], correlations: dict | None = None) -> None:
         """Texto del panel y, si hay ``correlations``, su tabla de colores."""
@@ -888,6 +932,7 @@ class InfoPanel(QtWidgets.QGroupBox):
         self.corr_labels, self.corr_matrix = datos if datos else (None, None)
         if datos is None:
             self.text.setPlainText("\n".join(lines) if lines else "—")
+            self._sync_large()
             return
         pal = self.text.palette()
         base = pal.color(pal.ColorRole.Base).getRgb()[:3]
@@ -898,11 +943,12 @@ class InfoPanel(QtWidgets.QGroupBox):
         if self.label_for is not None:
             etiquetas = [self.label_for(k) for k in etiquetas]
         self.text.setHtml(
-            f"<div style='white-space: pre-wrap; font-family: monospace; font-size: 10pt;'>"
+            f"<div style='white-space: pre; font-family: monospace; font-size: 10pt;'>"
             f"{cuerpo}</div>"
             f"<p><b>{_html.escape(tr('info.corr_matrix_title'))}</b></p>"
             + correlation_matrix_html(etiquetas, datos[1], base=base, text=texto)
             + f"<p style='font-size:8pt;'>{leyenda}</p>")
+        self._sync_large()
 
     def show_result(self, result) -> None:
         """Compatibilidad para llamadas antiguas: muestra sólo el ajuste."""

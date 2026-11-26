@@ -1605,5 +1605,7 @@
   "diag.reg_value": "k_eff = {k} of {n} possible · log α = {la}",
   "diag.reg_meaning": "Regularization hardly acts: each bin is fitted on its own and P may show peaks that are noise, not structure.",
   "diag.reg_action": "Raise log α (in this program it usually starts to show above +1) or use the L-curve, and compare P at several α: keep the features that persist.",
-  "diag.reg_ok_meaning": "Regularization smooths P (k_eff clearly below the number of bins)."
+  "diag.reg_ok_meaning": "Regularization smooths P (k_eff clearly below the number of bins).",
+  "info.expand": "Enlarge",
+  "info.expand_tip": "Opens this panel in a separate, larger window (updated with every fit; Ctrl + wheel changes the font size)."
 }

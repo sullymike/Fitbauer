@@ -1605,5 +1605,7 @@
   "diag.reg_value": "k_eff = {k} sur {n} possibles · log α = {la}",
   "diag.reg_meaning": "La régularisation n'agit presque pas : chaque bin est ajusté librement et P peut présenter des pics qui sont du bruit, pas de la structure.",
   "diag.reg_action": "Augmentez log α (dans ce programme, l'effet apparaît en général au-dessus de +1) ou utilisez la courbe L, et comparez P pour plusieurs α : gardez les traits qui persistent.",
-  "diag.reg_ok_meaning": "La régularisation lisse P (k_eff nettement inférieur au nombre de bins)."
+  "diag.reg_ok_meaning": "La régularisation lisse P (k_eff nettement inférieur au nombre de bins).",
+  "info.expand": "Agrandir",
+  "info.expand_tip": "Ouvre ce panneau dans une fenêtre séparée, plus grande (mise à jour à chaque ajustement ; Ctrl + molette change la taille du texte)."
 }

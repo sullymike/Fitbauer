@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- **Panel «Estado y parámetros» sin partir líneas y ampliable.** Cada dato
+  queda en su línea (barra horizontal si no cabe) en vez de partirse al ancho
+  del panel. El botón «⤢ Ampliar» abre el mismo contenido en una ventana
+  aparte, redimensionable y no modal, que se actualiza con cada ajuste y
+  permite copiarlo como texto (Ctrl + rueda cambia el tamaño de letra).
+
 - **Vmax negativo ya no se rechaza, y la pestaña Calibración de los límites
   también acota el ajuste.** El aviso decía que Vmax = −5 estaba fuera de
   [1, 15], aunque la casilla admite −15…15: el ajuste trabaja con |Vmax| (el
