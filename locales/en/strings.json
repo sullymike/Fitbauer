@@ -1652,7 +1652,7 @@
   "diag.sharp_meaning": "A sharp component barely contributes: the distribution already explains that absorption.",
   "diag.sharp_action": "Disable it or fix its parameters from external information.",
   "valid.open_limits": "Change limits…",
-  "valid.limits_hint": "Correct the value in the panel or change the limit in Model › Parameter limits › Components (it applies to the fit and to the input boxes).",
+  "valid.limits_hint": "Correct the value in the panel or change the limit in Model › Parameter limits › {tab} (it applies to the fit and to the input boxes).",
   "valid.limits_hint_own": "That limit is a bound of this component only: change it by right-clicking the parameter → «Fit bounds…» or in Model › Bounds per component…",
   "menu.data": "Data",
   "menu.model": "Model",

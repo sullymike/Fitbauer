@@ -4143,3 +4143,10 @@ def test_modo_guiado_cuenta_lo_que_hace(win, app):
     finally:
         QtWidgets.QMessageBox.information = orig
         win.mark_saved()
+
+
+def test_aviso_de_limites_nombra_la_pestana():
+    """El texto del aviso lleva la pestaña (Componentes o Calibración)."""
+    from mossbauer_i18n import tr
+    t = tr("valid.limits_hint", tab=tr("param_limits.tab_calibration"))
+    assert tr("param_limits.tab_calibration") in t and "{tab}" not in t

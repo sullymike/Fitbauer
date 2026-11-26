@@ -1652,7 +1652,7 @@
   "diag.sharp_meaning": "Una componente nítida apenas contribuye: la distribución ya explica esa absorción.",
   "diag.sharp_action": "Desactívala o fija sus parámetros con información externa.",
   "valid.open_limits": "Cambiar límites…",
-  "valid.limits_hint": "Corrige el valor en el panel o cambia el límite en Modelo › Límites de parámetros › Componentes (vale para el ajuste y para las casillas).",
+  "valid.limits_hint": "Corrige el valor en el panel o cambia el límite en Modelo › Límites de parámetros › {tab} (vale para el ajuste y para las casillas).",
   "valid.limits_hint_own": "Ese límite es una cota propia de esta componente: cámbiala con clic derecho sobre el parámetro → «Cotas de ajuste…» o en Modelo › Cotas por componente…",
   "menu.data": "Datos",
   "menu.model": "Modelo",
