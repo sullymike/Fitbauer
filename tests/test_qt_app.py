@@ -3826,6 +3826,12 @@ def test_panel_de_estado_con_errores(win):
     txt = win.info_panel.text.toPlainText()
     linea = next(l for l in txt.splitlines() if "BHF=" in l)
     assert linea.count("±") == 3, linea
+    # Derivados propagados con la covarianza: Γ₂/Γ₃ reales e intensidades.
+    lineas = txt.splitlines()
+    i = next(k for k, l in enumerate(lineas) if "BHF=" in l)
+    gam, prof = lineas[i + 1], lineas[i + 3]
+    assert gam.count("±") == 3, gam
+    assert prof.count("±") >= 3, prof        # profundidad + I₁, I₂ libres
     ctl = win.components_panels[0].params["bhf"]
     ctl.spin.setValue(ctl.value() + 1.0)
     win._update_info_panel()

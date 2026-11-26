@@ -12,6 +12,9 @@
   profundidad de cada componente), con el valor redondeado a la precisión
   del error; si se toca la casilla después del ajuste, el error deja de
   mostrarse porque ya no corresponde a ese valor.
+  Γ₂ y Γ₃ reales e intensidades reales (I = I₃·Iₖ/I₃) llevan su error por
+  propagación lineal con la covarianza del ajuste (σ² = J·Cov·Jᵀ, con las
+  correlaciones), como el % de área.
 
 - **Vmax negativo ya no se rechaza, y la pestaña Calibración de los límites
   también acota el ajuste.** El aviso decía que Vmax = −5 estaba fuera de

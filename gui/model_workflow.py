@@ -49,6 +49,40 @@ def format_value_error(value, err, fmt: str = ".6g") -> str:
     return f"{v:.{nd}f} ± {err:.{nd}f}"
 
 
+def _propagated_error(result, func, shown) -> float | None:
+    """Error de una magnitud derivada ``func(valores)`` (Γ₂ real = Γ₁·Γ₂/Γ₁,
+    intensidades reales…) por propagación lineal con la covarianza del
+    ajuste: σ² = J·Cov·Jᵀ, con J por diferencias centradas respecto a los
+    parámetros libres (incluye sus correlaciones). ``None`` si no hay
+    covarianza, si no depende de ningún libre o si el valor mostrado ya no
+    es el del ajuste."""
+    import math
+    if result is None or getattr(result, "cov", None) is None or not result.free_keys:
+        return None
+    base = dict(result.values)
+    try:
+        f0 = float(func(base))
+        jac = np.zeros(len(result.free_keys))
+        for j, key in enumerate(result.free_keys):
+            if key not in base:
+                continue
+            x = float(base[key])
+            h = max(1e-6, abs(x) * 1e-5)
+            vp = dict(base); vp[key] = x + h
+            vm = dict(base); vm[key] = x - h
+            jac[j] = (float(func(vp)) - float(func(vm))) / (2.0 * h)
+        if not np.any(jac):
+            return None
+        var = float(jac @ np.asarray(result.cov, dtype=float) @ jac)
+        err = math.sqrt(var) if var > 0 else None
+        shown = float(shown)
+    except Exception:
+        return None
+    if err is None or abs(shown - f0) > max(0.1 * err, 1e-4 * max(1.0, abs(f0))):
+        return None
+    return err
+
+
 def _fit_error(result, key: str, shown) -> float | None:
     """Error del ajuste para ``key`` si el valor mostrado es aún el ajustado
     (si se tocó la casilla después, el error ya no le corresponde)."""
@@ -857,15 +891,25 @@ class ModelWorkflowMixin:
             g3 = g1 * comp_state.value("gamma3", 1.0)
             kind_disp = tr(f"kind.{comp_state.kind}", default=comp_state.kind)
             pre = f"s{comp_state.idx}_"
+
+            def vp(func, shown, fmt=".4g"):
+                return format_value_error(shown, _propagated_error(_res, func, shown), fmt)
+
+            def _g(vals, k, d=1.0, _p=pre):
+                return float(vals.get(_p + k, d))
             lines.extend([
                 tr("info.component_params_line", kind=kind_disp, idx=comp_state.idx,
                    bhf=ve(pre + "bhf", comp_state.value("bhf")),
                    delta=ve(pre + "delta", comp_state.value("delta")),
                    quad=ve(pre + "quad", comp_state.value("quad"))),
-                tr("info.gamma_hwhm", g1=ve(pre + "gamma1", g1, ".4g"), g2=g2, g3=g3),
+                tr("info.gamma_hwhm", g1=ve(pre + "gamma1", g1, ".4g"),
+                   g2=vp(lambda v: _g(v, "gamma1") * _g(v, "gamma2"), g2),
+                   g3=vp(lambda v: _g(v, "gamma1") * _g(v, "gamma3"), g3)),
                 tr("info.gamma_rel", gamma2=comp_state.value("gamma2", 1.0), gamma3=comp_state.value("gamma3", 1.0)),
                 tr("info.depth_intensities", depth=ve(pre + "depth", comp_state.value("depth")),
-                   i1=i1_real, i2=i2_real, i3=i3_real),
+                   i1=vp(lambda v: _g(v, "int3") * _g(v, "int1"), i1_real),
+                   i2=vp(lambda v: _g(v, "int3") * _g(v, "int2"), i2_real),
+                   i3=vp(lambda v: _g(v, "int3"), i3_real)),
             ])
             derived = self.texture_derived(comp_state)
             if derived is not None:
