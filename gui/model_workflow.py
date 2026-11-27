@@ -217,6 +217,7 @@ class ModelWorkflowMixin:
         return ("bhf", "quad")         # P(BHF, ΔEQ) 2D (idx==4)
 
     def _on_model_param_changed(self, *args) -> None:
+        self._refresh_fix_locks()
         if not self._building:
             self._simulate_enabled = True
             self.mark_dirty()
@@ -500,7 +501,41 @@ class ModelWorkflowMixin:
         self._check_layout()
 
     # ── Helpers UI ───────────────────────────────────────────────────────
+    def _lockable_controls(self) -> list[ParamControl]:
+        """Lo que fija/libera el candado global: línea base, pendiente, la
+        escala de saturación si el absorbente es grueso, y lo ajustable de
+        cada componente activa."""
+        calib = getattr(self, "calib", None)
+        if calib is None:
+            return []
+        ctls = [calib.baseline, calib.slope]
+        if calib.absorber_model == "thickness":
+            ctls.append(calib.sat_scale)
+        for cp in getattr(self, "components_panels", []):
+            if cp.enabled.isChecked():
+                ctls.extend(cp.lockable_params())
+        return ctls
+
+    def _refresh_fix_locks(self) -> None:
+        group = getattr(self, "fix_group", None)
+        if group is None:
+            return
+        self.btn_sim_free_all.refresh()
+        for cp in getattr(self, "components_panels", []):
+            cp.lock_btn.refresh()
+
+    def _on_global_lock_used(self) -> None:
+        # Las memorias de cada componente ya no valen tras un cambio global.
+        for cp in self.components_panels:
+            cp.fix_group.memory = None
+        self._refresh_fix_locks()
+        self._refresh_plot()
+
     def _set_all_fixed(self, value: bool) -> None:
+        if getattr(self, "fix_group", None) is not None:
+            self.fix_group.memory = None
+            for cp in self.components_panels:
+                cp.fix_group.memory = None
         self._building = True
         for ctl in (self.calib.baseline, self.calib.slope, self.calib.sat_scale):
             ctl.set_fixed(value)
@@ -514,6 +549,7 @@ class ModelWorkflowMixin:
                     continue
                 ctl.set_fixed(value)
         self._building = False
+        self._refresh_fix_locks()
         self._refresh_plot()
 
     def _drive_form(self) -> str:

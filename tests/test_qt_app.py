@@ -3918,3 +3918,43 @@ def test_acerca_de_con_autores_y_agradecimientos(win, app, monkeypatch):
     assert "matelec.qfa.uam.es" in todo and "/fitbauer/" in todo
     from mossbauer_i18n import tr
     assert tr("help.about_thanks") in todo
+
+
+def test_candados_fijan_y_vuelven_a_como_estaba(win):
+    """Candado por componente y global: fijar recuerda lo fijado a mano y
+    liberar vuelve a eso; liberar una componente tras un «fijar todo» global
+    usa lo que había antes del global; el menú fija/libera todos."""
+    from gui.fix_lock import FIXED, FREE, PARTIAL
+    from mossbauer_i18n import tr
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    cp = win.components_panels[0]
+
+    def fijos():
+        return {id(c): c.is_fixed() for c in win._lockable_controls()}
+
+    antes = fijos()
+    assert cp.fix_group.state() == PARTIAL
+    cp.lock_btn.click()
+    assert cp.fix_group.state() == FIXED
+    assert not cp.params["int3"].isVisible() and cp.params["int3"].is_fixed()
+    cp.lock_btn.click()
+    assert fijos() == antes
+
+    win.btn_sim_free_all.click()
+    assert win.fix_group.state() == FIXED and cp.fix_group.state() == FIXED
+    assert win.btn_sim_free_all.text() == tr("fixlock.restore")
+    cp.lock_btn.click()                     # desde el global: solo la componente
+    comp = {id(c) for c in cp.lockable_params()}
+    assert {k: v for k, v in fijos().items() if k in comp} == {
+        k: v for k, v in antes.items() if k in comp}
+    assert win.calib.baseline.is_fixed()
+    cp.lock_btn.click()
+    win.btn_sim_free_all.click()
+    assert fijos() == antes
+
+    win.fix_group.set_all(False)
+    assert win.fix_group.state() == FREE
+    assert cp.params["int3"].is_fixed()     # nunca se libera
+    win.btn_sim_free_all.click()
+    win.btn_sim_free_all.click()            # sin memoria parcial: libera todo
+    assert win.fix_group.state() == FREE

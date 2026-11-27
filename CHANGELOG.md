@@ -2,6 +2,17 @@
 
 ## Sin publicar
 
+- **Candados para fijar/liberar.** Cada componente tiene un candado en su
+  cabecera (abierto = todo libre, medio = algunos fijos, cerrado = todo fijo)
+  que fija de una vez lo ajustable de esa componente; un segundo clic vuelve
+  a como estaba (lo fijado a mano se respeta). El botón «Liberar todos» junto
+  a «Ajustar» pasa a ser el mismo candado para todo (línea base, pendiente,
+  saturación si el absorbente es grueso y las componentes activas); su rótulo
+  dice lo que hará el clic, y la flecha ofrece «Fijar todos» / «Liberar
+  todos». Liberar una componente tras fijar todo vuelve a lo que tenía antes.
+  Sirve para ajustar por partes (fijar el sextete A del Fe3O4 y ajustar el
+  B) o para congelar una fase conocida.
+
 - **Detección de componentes: propuestas evaluadas por BIC.** «Inicializar
   desde mínimos» ya no aplica solo las reglas fijas (mejor sextete, dobletes
   por separación, singletes con lo que sobra), que no comprobaban si la

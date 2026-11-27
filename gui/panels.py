@@ -12,6 +12,7 @@ from core.params import (
 )
 from core.folding import fold_center_window
 from core.param_overrides import effective_calibration_specs, effective_component_specs
+from gui.fix_lock import FixGroup, FixLockButton
 from gui.controls import CodeComboBox, ParamControl
 from core.result_views import discrete_result_view
 from gui.state import CalibrationViewState, ComponentViewState
@@ -130,6 +131,7 @@ def param_tooltip(name: str, prefijo: str = "p") -> str:
         if mas:
             texto = f"{texto}\n\n{mas}" if texto else mas
     return texto
+
 
 
 class CalibrationPanel(QtWidgets.QGroupBox):
@@ -480,6 +482,9 @@ class ComponentPanel(QtWidgets.QWidget):
             [(k, tr(f"kind.{k}", default=k)) for k in COMPONENT_KINDS])
         row.addWidget(self.enabled)
         row.addStretch(1)
+        # Candado: fija o libera de una vez los parámetros de la componente
+        # (gui/fix_lock.py); se crea abajo, cuando ya existen los controles.
+        self._lock_slot = row.count()
         row.addWidget(QtWidgets.QLabel(tr("component.shape_label")))
         row.addWidget(self.type_combo)
         v.addLayout(row)
@@ -557,6 +562,12 @@ class ComponentPanel(QtWidgets.QWidget):
         # Fijos típicos para α-Fe (intensidades + gammas relativas + quad).
         for k in ("int1", "int2", "int3", "gamma2", "gamma3", "quad", "texture"):
             self.params[k].set_fixed(True)
+        self.fix_group = FixGroup(self.lockable_params)
+        self.lock_btn = FixLockButton(self.fix_group, parent=self,
+                                      on_changed=self.paramChanged.emit)
+        row.insertWidget(self._lock_slot, self.lock_btn)
+        for ctl in self.params.values():
+            ctl.fixedChanged.connect(lambda *_: self._on_fixed_changed())
         v.addStretch(1)
         self._apply_tooltips()
         self._on_type_changed(self.type_combo.currentText())
@@ -646,6 +657,18 @@ class ComponentPanel(QtWidgets.QWidget):
     def kind(self) -> str:
         return self.type_combo.currentText()
 
+    def lockable_params(self) -> list["ParamControl"]:
+        """Lo que fija/libera el candado: lo ajustable ahora (int3 y el campo
+        del imán nunca lo son), en el orden del panel."""
+        used = self.relevant_params() - {"int3", "relax_bext"}
+        return [ctl for name, ctl in self.params.items() if name in used]
+
+    def _on_fixed_changed(self) -> None:
+        group = getattr(self, "fix_group", None)
+        if group is None:
+            return
+        self.lock_btn.refresh()
+
     def relevant_params(self) -> set[str]:
         """Parámetros realmente usados por el tipo y modo actuales (core.params)."""
         return _relevant_params(self.kind, self.intensity_mode, self.quad_treatment)
@@ -674,6 +697,8 @@ class ComponentPanel(QtWidgets.QWidget):
             elif prev == "Doblete":
                 self.params["int2"].set_value(2.0)
         self._relayout_params()
+        if hasattr(self, "lock_btn"):
+            self.lock_btn.refresh()
         self.paramChanged.emit()
 
     def _relayout_params(self) -> None:

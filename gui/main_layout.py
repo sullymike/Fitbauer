@@ -11,6 +11,7 @@ from gui.branding import _logo_pixmap
 from gui.canvas import SpectrumCanvas
 from gui.controls import CodeComboBox
 from gui.distribution_panel import DistributionPanel
+from gui.fix_lock import FixGroup, FixLockButton
 from gui.panels import CalibrationPanel, ComponentPanel, InfoPanel
 
 from core.params import MAX_COMPONENTS as MAX_QT_COMPONENTS
@@ -142,7 +143,13 @@ class MainLayoutMixin:
         action_grid.setHorizontalSpacing(6)
         action_grid.setVerticalSpacing(4)
         self.btn_sim_fit = QtWidgets.QPushButton(tr("fit.run"))
-        self.btn_sim_free_all = QtWidgets.QPushButton(tr("fit.free_all"))
+        # Candado global (antes «Liberar todos»): clic = fijar todo o volver a
+        # como estaba; la flecha, fijar/liberar todos explícito.
+        self.fix_group = FixGroup(self._lockable_controls)
+        self.btn_sim_free_all = FixLockButton(self.fix_group, with_text=True,
+                                              on_changed=self._on_global_lock_used)
+        self.btn_sim_free_all.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
+                                            QtWidgets.QSizePolicy.Policy.Fixed)
         # Botón con flecha: clic = autoajustar desde mínimos (lo de siempre);
         # la flecha ofrece «Autoajustar el residuo» (conserva lo que hay).
         self.btn_sim_auto_min = QtWidgets.QToolButton()
@@ -161,7 +168,6 @@ class MainLayoutMixin:
                                    self.btn_sim_auto_min, self.btn_sim_ai)):
             action_grid.addWidget(btn, pos // 2, pos % 2)
         self.btn_sim_fit.clicked.connect(self.on_fit)
-        self.btn_sim_free_all.clicked.connect(lambda: self._set_all_fixed(False))
         self.btn_sim_auto_min.clicked.connect(lambda _checked=False: self.on_auto_fit_from_minima())
         self.btn_sim_ai.clicked.connect(self.on_ai_summary)
         self._set_quick_action_buttons_enabled(False)
@@ -328,6 +334,9 @@ class MainLayoutMixin:
         # ajuste de velocidad exige que el campo hiperfino esté fijo).
         self.calib.fit_velocity.toggled.connect(self._on_fit_velocity_toggled)
         for cp in self.components_panels:
+            # Liberar una componente fijada con el candado global, sin memoria
+            # propia, vuelve a lo que tenía antes de ese «fijar todo».
+            cp.fix_group._fallback = lambda: self.fix_group.memory
             cp.paramChanged.connect(self._on_model_param_changed)
             # Al cambiar el tipo, el panel puede crecer (p.ej. NeelSize tiene
             # más parámetros que Sextete): revisar si sigue cabiendo apilado.
