@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- **Modo guiado: candado en el paso «Ajustar».** El mismo candado global que
+  hay junto a «Ajustar» (fijar todo / volver a como estaba), y una línea con
+  cuántos parámetros se van a ajustar. «Más/Menos» de cada componente sigue
+  al candado: al fijar en bloque los secundarios se pueden plegar y, si se
+  liberan estando plegados, aparecen.
+
 - **Modo guiado: las propuestas de la detección.** El paso «Componentes» dice
   cuántas propuestas se compararon por BIC, cuál ganó y su ΔBIC frente a las
   reglas, y cada simplificación o componente añadida desde el residuo; el

@@ -701,7 +701,15 @@ class ComponentPanel(QtWidgets.QWidget):
 
     def after_bulk_fix(self) -> None:
         """Tras fijar/liberar en bloque con las señales de cada parámetro
-        calladas: lo que esas señales habrían actualizado en el panel."""
+        calladas: lo que esas señales habrían actualizado en el panel. Un
+        secundario liberado estando escondido tiene que aparecer (se va a
+        ajustar); si no, solo cambia lo que ofrece «Más/Menos»."""
+        used = self.relevant_params()
+        if any(n in used and self.params[n].isHidden() and not self.params[n].is_fixed()
+               for n in SECONDARY_PARAMS):
+            self._relayout_params()
+        else:
+            self._update_more_btn()
         self.lock_btn.refresh()
 
     def _on_lock_used(self) -> None:

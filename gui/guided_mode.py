@@ -152,6 +152,14 @@ class GuidedPanel(QtWidgets.QWidget):
         self.btn_fit = self.s_fit.add_button(tr("guided.s3_fit"), w.on_fit, primary=True)
         self.btn_residual = self.s_fit.add_button(
             tr("guided.s3_residual"), lambda: w.on_auto_fit_residual())
+        # El mismo candado global que hay junto a «Ajustar»: fijar todo o
+        # volver a como estaba, para ajustar por partes.
+        from gui.fix_lock import FixLockButton
+        self.btn_lock = FixLockButton(w.fix_group, with_text=True,
+                                      on_changed=w._on_global_lock_used)
+        self.btn_lock.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
+                                    QtWidgets.QSizePolicy.Policy.Fixed)
+        self.s_fit.buttons.addWidget(self.btn_lock)
         self.s_diag = _Step(5, tr("guided.s4_title"), tr("guided.s4_hint"))
         self.btn_details = self.s_diag.add_button(
             tr("guided.s4_details"), lambda: w.show_fit_diagnostics())
@@ -215,6 +223,23 @@ class GuidedPanel(QtWidgets.QWidget):
             out.append((cs.idx, cs.kind, v.get("delta"), v.get("quad"), v.get("bhf")))
         return out
 
+    def refresh_lock(self) -> None:
+        """Candado y recuento de libres al fijar/liberar (sin esperar al
+        refresco general, que mira la firma)."""
+        if hasattr(self, "btn_lock"):
+            self.btn_lock.refresh()
+            if self.isVisible():
+                self.refresh()      # la firma incluye qué está fijo
+
+    def _free_params_text(self) -> str:
+        ctls = self._win._lockable_controls()
+        if not ctls:
+            return ""
+        libres = sum(1 for c in ctls if not c.is_fixed())
+        clave = ("guided.s3_free_all" if libres == len(ctls)
+                 else "guided.s3_free_none" if libres == 0 else "guided.s3_free")
+        return "<br>" + tr(clave, free=libres, total=len(ctls))
+
     def _signature(self):
         w = self._win
         res = w.runtime_results.fit_result if hasattr(w, "runtime_results") else None
@@ -228,7 +253,8 @@ class GuidedPanel(QtWidgets.QWidget):
                 id(getattr(w, "_last_detection", None)),
                 id(getattr(w, "_last_detection_report", None)),
                 id(getattr(w, "_last_fit_story", None)),
-                id(getattr(w, "_last_residual_story", None)))
+                id(getattr(w, "_last_residual_story", None)),
+                tuple(c.is_fixed() for c in w._lockable_controls()))
 
     def refresh(self) -> None:
         sig = self._signature()
@@ -287,6 +313,7 @@ class GuidedPanel(QtWidgets.QWidget):
         else:
             texto = tr("guided.s3_strategy", strategy=estrategia)
         texto += self._residual_story_text()
+        texto += self._free_params_text()
         self.s_fit.status.setText(texto)
         self.btn_residual.setEnabled(bool(comps))
 

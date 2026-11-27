@@ -4184,3 +4184,23 @@ def test_aviso_de_limites_nombra_la_pestana():
     from mossbauer_i18n import tr
     t = tr("valid.limits_hint", tab=tr("param_limits.tab_calibration"))
     assert tr("param_limits.tab_calibration") in t and "{tab}" not in t
+
+
+def test_guiado_candado_del_paso_ajustar(win):
+    """El paso Ajustar del modo guiado tiene el candado global y dice
+    cuántos parámetros se ajustan; «Más/Menos» sigue al candado."""
+    from gui.fix_lock import FIXED
+    from mossbauer_i18n import tr
+    win.act_guided_mode.setChecked(True)
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    p, cp = win.guided_panel, win.components_panels[0]
+    p.btn_lock.click()
+    assert win.fix_group.state() == FIXED
+    p._sig = None
+    p.refresh()
+    assert tr("guided.s3_free_none") in p.s_fit.status.text()
+    # Todo fijo: los secundarios se pueden plegar (Más/Menos con los 4).
+    assert "(4)" in cp.more_btn.text() and cp.more_btn.isEnabled()
+    p.btn_lock.click()
+    assert win.fix_group.state() != FIXED
+    assert win.btn_sim_free_all.text() == p.btn_lock.text()
