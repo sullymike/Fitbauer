@@ -4077,3 +4077,25 @@ def test_historial_en_arbol_ramas_nota_y_diferencias(win):
     win._open_spectrum(root / "calibration.adt")
     assert win._history_head is None
     win.mark_saved()
+
+
+def test_identificar_fases_usa_delta_respecto_al_alpha_fe(win):
+    """La base de fases da δ respecto al α-Fe; el panel, respecto a la
+    fuente. Se resta el δ(α-Fe) de la calibración al comparar y se suma al
+    aplicar una fase (antes el sitio B de la magnetita salía lepidocrocita)."""
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1] / "data_sample"
+    win._open_spectrum(root / "Fe3O4.adt")
+    win.load_session_file(root / "Fe3O4_session.json")
+    iso = win.calibration_iso_ref()
+    assert iso is not None and iso < 0
+    data = {idx: (params, matches) for idx, _k, params, matches in win._gather_suggestions()}
+    d2 = win.components_panels[1].params["delta"].value()
+    assert data[2][0][0] == pytest.approx(d2 - iso)
+    assert data[2][1][0].sample == "Magnetite"
+    m = data[2][1][0]
+    cp = win.components_panels[0]
+    win._apply_match_to_panel(cp, m, "Sextete")
+    assert cp.params["delta"].value() == pytest.approx(m.delta + iso, abs=1e-3)
+    assert "δ(α-Fe)=" in win._component_header(2, "Sextete", 0.66, 0.0, 46.0)
+    win.mark_saved()

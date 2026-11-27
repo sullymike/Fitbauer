@@ -841,6 +841,13 @@ class ModelWorkflowMixin:
             return None
         return None if iso is None else iso * self._calibration_scale()
 
+    def phase_delta_offset(self) -> float:
+        """Lo que se resta a δ (respecto a la fuente) para compararlo con la
+        base de fases, que está referida al α-Fe: el δ(α-Fe) de la
+        calibración, o 0 si no lo hay (entonces se compara tal cual)."""
+        iso = self.calibration_iso_ref()
+        return float(iso) if iso is not None else 0.0
+
     def calibration_fit_uncertainties(self) -> tuple[float | None, float | None]:
         """σ(Vmax) y σ(δ de la componente 1) del ajuste actual, para guardarlas
         con la calibración que da este α-Fe; ``None`` si ese parámetro no se

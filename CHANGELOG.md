@@ -2,6 +2,14 @@
 
 ## Sin publicar
 
+- **La identificación de fases compara δ respecto al α-Fe.** La base de fases
+  da δ respecto al α-Fe y el panel respecto a la fuente, pero se comparaban
+  sin restar el δ(α-Fe) de la calibración: con la del Fe₃O₄ (−0.11 mm/s), el
+  sitio B de la magnetita salía «lepidocrocita 68 %» y ahora «magnetita
+  89 %». Al aplicar los valores de una fase se suma ese δ(α-Fe), y la
+  cabecera de cada componente dice «δ(α-Fe)=» cuando se ha restado. Sin
+  δ(α-Fe) en la calibración se compara tal cual, como antes.
+
 - **Historial de ajustes en árbol** (Ajuste › Historial de ajustes). Cada
   ajuste guarda de cuál partió: restaurar una entrada y volver a ajustar abre
   una rama nueva desde ella, sin perder las posteriores (como en Olex2). El
