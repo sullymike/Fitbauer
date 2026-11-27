@@ -27,8 +27,16 @@ def general_bound(name: str) -> tuple[float, float] | None:
         over = component_fit_bound_overrides().get(name)
     except Exception:
         over = None
-    b = over or COMPONENT_FIT_BOUNDS.get(name)
-    return (float(b[0]), float(b[1])) if b else None
+    code = COMPONENT_FIT_BOUNDS.get(name)
+    if code is None and over is None:
+        return None
+    # Las cambiadas solo traen el extremo que difiere; el otro es None y se
+    # queda el del código.
+    lo = over[0] if over and over[0] is not None else (code[0] if code else None)
+    hi = over[1] if over and over[1] is not None else (code[1] if code else None)
+    if lo is None or hi is None:
+        return None
+    return (float(lo), float(hi))
 
 
 def _fmt(x: float | None, decimals: int) -> str:
