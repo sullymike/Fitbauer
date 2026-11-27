@@ -59,8 +59,8 @@ class ParamControl(QtWidgets.QWidget):
         self._spec_range = (float(lo), float(hi))
         #: Cotas de ajuste propias (``None`` = la general del motor).
         self._fit_limits: tuple[float | None, float | None] = (None, None)
-        self.lim_lo: QtWidgets.QLineEdit | None = None
-        self.lim_hi: QtWidgets.QLineEdit | None = None
+        #: Admite cotas de ajuste propias (parámetros de componente).
+        self.limits_enabled = False
         self._syncing = False
         self._label_text = label
 
@@ -185,38 +185,11 @@ class ParamControl(QtWidgets.QWidget):
 
     # ── Cotas de ajuste propias ──────────────────────────────────────────
     def enable_fit_limits(self) -> None:
-        """Crea las casillas mín/máx (ocultas) junto a «fijo».
-
-        Vacías = el ajuste usa la cota general del parámetro; con valor, la
-        sustituyen solo para este parámetro de esta componente.
-        """
-        if self.lim_lo is not None:
-            return
-        idx = self._row.indexOf(self.fixed_cb) if self.fixed_cb is not None else -1
-        for attr, ph in (("lim_lo", tr("limits.min_ph", default="mín")),
-                         ("lim_hi", tr("limits.max_ph", default="máx"))):
-            ed = QtWidgets.QLineEdit()
-            ed.setPlaceholderText(ph)
-            ed.setFixedWidth(50)
-            ed.setToolTip(tr("tooltip.fit_limits",
-                             default="Cota del ajuste para este parámetro. Vacía: la general."))
-            ed.editingFinished.connect(self._on_limits_edited)
-            ed.hide()
-            setattr(self, attr, ed)
-            if idx >= 0:
-                self._row.insertWidget(idx, ed)
-                idx += 1
-            else:
-                self._row.addWidget(ed)
-
-    def set_limits_visible(self, visible: bool) -> None:
-        if self.lim_lo is None:
-            return
-        self.lim_lo.setVisible(bool(visible))
-        self.lim_hi.setVisible(bool(visible))
-        # Con las casillas, el número no debe estrecharse hasta cortarse.
-        self.spin.setMinimumWidth(self.spin.sizeHint().width() if visible else 0)
-        self._update_limits_marker()
+        """Admite cotas de ajuste propias. Se editan desde el menú del clic
+        derecho («Cotas de ajuste…») o desde Ajuste › Cotas por componente;
+        en el panel solo queda la marca «↔» junto al nombre. Antes eran dos
+        casillas mín/máx por parámetro junto a «fijo», y no cabían."""
+        self.limits_enabled = True
 
     def fit_limits(self) -> tuple[float | None, float | None]:
         return self._fit_limits
@@ -231,30 +204,12 @@ class ParamControl(QtWidgets.QWidget):
         if lo is not None and hi is not None and lo > hi:
             lo, hi = hi, lo
         self._fit_limits = (lo, hi)
-        if self.lim_lo is not None:
-            fmt = f"{{:.{self.spin.decimals()}f}}"
-            for ed, val in ((self.lim_lo, lo), (self.lim_hi, hi)):
-                ed.blockSignals(True)
-                ed.setText("" if val is None else fmt.format(val))
-                ed.blockSignals(False)
         self._apply_display_range()
         self._update_limits_marker()
 
-    @staticmethod
-    def _parse_limit(text: str) -> float | None:
-        text = text.strip().replace(",", ".")
-        if not text:
-            return None
-        return float(text)
-
-    def _on_limits_edited(self) -> None:
+    def apply_fit_limits(self, lo: float | None, hi: float | None) -> None:
+        """Pone las cotas propias desde la interfaz y avisa si cambiaron."""
         old = self._fit_limits
-        try:
-            lo = self._parse_limit(self.lim_lo.text())
-            hi = self._parse_limit(self.lim_hi.text())
-        except ValueError:
-            self.set_fit_limits(*old)          # texto no numérico: se descarta
-            return
         self.set_fit_limits(lo, hi)
         if self._fit_limits != old:
             self.limitsChanged.emit()
@@ -274,8 +229,8 @@ class ParamControl(QtWidgets.QWidget):
         self.set_range(min(lo, value), max(hi, value))
 
     def _update_limits_marker(self) -> None:
-        """Con cotas propias y las casillas ocultas, la etiqueta lo indica."""
-        mark = self.has_fit_limits() and (self.lim_lo is None or self.lim_lo.isHidden())
+        """Con cotas propias, la etiqueta lo indica («↔») y el globo las dice."""
+        mark = self.has_fit_limits()
         self.label.setText(f"{self._label_text} ↔" if mark else self._label_text)
         tip = getattr(self, "_help", "")
         if self.has_fit_limits():

@@ -2,6 +2,17 @@
 
 ## Sin publicar
 
+- **Cotas de ajuste por componente, fuera del panel.** Las casillas mín/máx
+  junto a «fijo» (Vista › Mostrar cotas de ajuste por componente) eran dos
+  casillas más por parámetro y no cabían. Ahora se editan con clic derecho
+  sobre el parámetro → «Cotas de ajuste…» (mín, máx, la cota general de
+  referencia y «Quitar») o en Ajuste › Cotas por componente…, una tabla con
+  todos los parámetros ajustables de las componentes activas. En el panel
+  solo queda la marca «↔» junto al nombre. Cada parámetro tiene un único menú
+  contextual (modo de intensidades o tratamiento del cuadrupolo donde toca,
+  cotas y ayuda); antes, al cambiar de tipo de componente, el menú de ayuda
+  se conectaba otra vez. Las sesiones y plantillas con cotas no cambian.
+
 - **Candados para fijar/liberar.** Cada componente tiene un candado en su
   cabecera (abierto = todo libre, medio = algunos fijos, cerrado = todo fijo)
   que fija de una vez lo ajustable de esa componente; un segundo clic vuelve

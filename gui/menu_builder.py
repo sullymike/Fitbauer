@@ -50,13 +50,13 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     ("fit.free_all",           "menu.fit",  "fit.free_all",           "Ctrl+F"),
     ("fit.fix_all",            "menu.fit",  "fit.fix_all",            "Ctrl+Shift+F"),
     ("fit.constraints",        "menu.fit",  "options.constraints",    ""),
+    ("fit.component_limits",   "menu.fit",  "limits.menu_table",      ""),
     ("fit.physical_presets",   "menu.fit",  "options.physical_presets",""),
     # ── Vista ──
     ("view.show_residual",     "menu.view", "options.show_residual",  ""),
     ("view.show_legend",       "menu.view", "options.show_legend",    ""),
     ("view.show_component_fill", "menu.view", "options.show_component_fill", ""),
     ("view.compact_params",    "menu.view", "options.compact_params", ""),
-    ("view.show_fit_limits",   "menu.view", "options.show_fit_limits", ""),
     ("view.configure_layout",  "menu.view", "view.configure_layout",  ""),
     # ── Ayuda ──
     ("help.open",              "menu.help", "help.open",              "F1"),
@@ -323,6 +323,10 @@ class MenuBuilderMixin:
         act_constraints.triggered.connect(self.on_constraints)
         fit_menu.addAction(act_constraints)
         self._reg("fit.constraints", act_constraints)
+        act_limits = QtGui.QAction(tr("limits.menu_table"), self)
+        act_limits.triggered.connect(self.on_component_limits)
+        fit_menu.addAction(act_limits)
+        self._reg("fit.component_limits", act_limits)
         act_presets = QtGui.QAction(tr("options.physical_presets"), self)
         act_presets.triggered.connect(self.on_physical_presets)
         fit_menu.addAction(act_presets)
@@ -533,15 +537,6 @@ class MenuBuilderMixin:
         self.act_compact_params.toggled.connect(self._on_compact_params_toggled)
         view_menu.addAction(self.act_compact_params)
         self._reg("view.compact_params", self.act_compact_params)
-        # Cotas de ajuste por componente: casillas mín/máx junto a «fijo».
-        # Ocultas por defecto (son dos casillas más por parámetro).
-        self.act_show_fit_limits = QtGui.QAction(
-            tr("options.show_fit_limits", default="Mostrar cotas de ajuste por componente"),
-            self, checkable=True)
-        self.act_show_fit_limits.setChecked(getattr(self, "show_fit_limits", False))
-        self.act_show_fit_limits.toggled.connect(self._on_show_fit_limits_toggled)
-        view_menu.addAction(self.act_show_fit_limits)
-        self._reg("view.show_fit_limits", self.act_show_fit_limits)
         view_menu.addSeparator()
         # Tema UI (QStyle de Qt). Por defecto Fusion.
         theme_menu = view_menu.addMenu(tr("options.theme"))

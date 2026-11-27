@@ -3663,14 +3663,20 @@ def test_cotas_de_ajuste_por_componente(win):
     root = Path(__file__).resolve().parents[1] / "data_sample"
     win._open_spectrum(root / "Fe3O4.adt")
     win.load_session_file(root / "Fe3O4_session.json")
-    ctl = win.components_panels[1].params["gamma1"]
-    assert ctl.lim_lo is not None and ctl.lim_lo.isHidden()
-    win.act_show_fit_limits.setChecked(True)
-    assert not ctl.lim_lo.isHidden()
+    from PySide6 import QtWidgets
+    from gui.fit_limits_dialog import ComponentLimitsDialog, ParamLimitsDialog
+    cp = win.components_panels[1]
+    ctl = cp.params["gamma1"]
+    # En el panel no hay casillas: se editan en una ventanita (clic derecho)
+    # o en la tabla de Ajuste › Cotas por componente.
+    assert [e.objectName() for e in ctl.findChildren(QtWidgets.QLineEdit)] == ["qt_spinbox_lineedit"]
     ctl.set_value(0.45)
-    ctl.lim_hi.setText("0.35")
-    ctl.lim_hi.editingFinished.emit()
+    dlg = ParamLimitsDialog(cp, ctl, "Γ", "gamma1")
+    assert dlg.ed_hi.placeholderText() == "4"            # la general, de referencia
+    dlg.ed_hi.setText("0,35")
+    dlg._accept()
     assert ctl.fit_limits() == (None, 0.35)
+    assert ctl.label.text().endswith("↔")
     state = win._build_state(validate_params=True)
     assert state is not None
     assert state.bounds["s2_gamma1"][1] == pytest.approx(0.35)
@@ -3682,9 +3688,16 @@ def test_cotas_de_ajuste_por_componente(win):
     assert any("comp. 2" in a for a in win._bound_warnings())
     payload = win._session_payload()
     assert payload["model_state"]["bounds_user"] == {"s2_gamma1": [None, 0.35]}
-    win.act_show_fit_limits.setChecked(False)
-    assert ctl.label.text().endswith("↔")                           # marca con casillas ocultas
-    ctl.set_fit_limits(None, None)
+    # La tabla enseña la misma cota y puede quitarla.
+    tabla = ComponentLimitsDialog(win)
+    fila = next(r for r, (c, _lo, _hi) in enumerate(tabla._rows) if c is ctl)
+    assert tabla._rows[fila][2].text() == "0.3500"
+    tabla._rows[fila][1].setText("abc")
+    tabla._accept()
+    assert tabla.error.isVisibleTo(tabla) and ctl.fit_limits() == (None, 0.35)
+    tabla._clear_all()
+    tabla._accept()
+    assert ctl.fit_limits() == (None, None) and not ctl.label.text().endswith("↔")
     win._apply_session_payload(json.loads(json.dumps(payload)))
     assert win.components_panels[1].params["gamma1"].fit_limits() == (None, 0.35)
     win.mark_saved()

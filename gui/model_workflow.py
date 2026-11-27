@@ -466,18 +466,12 @@ class ModelWorkflowMixin:
         if spin is not None:
             spin.setEnabled(local)
 
-    def _on_show_fit_limits_toggled(self, checked: bool) -> None:
-        self.show_fit_limits = bool(checked)
-        self._apply_show_fit_limits()
-        self._save_settings()
-
-    def _apply_show_fit_limits(self) -> None:
-        """Muestra u oculta las casillas mín/máx de las cotas de ajuste propias."""
-        visible = bool(getattr(self, "show_fit_limits", False))
-        for panel in getattr(self, "components_panels", []):
-            panel.set_limits_visible(visible)
-        if hasattr(self, "_check_layout"):
-            self._check_layout()
+    def on_component_limits(self) -> None:
+        """Ajuste › Cotas por componente…: tabla con todas las cotas propias."""
+        from gui.fit_limits_dialog import ComponentLimitsDialog
+        dlg = ComponentLimitsDialog(self)
+        self._component_limits_dialog = dlg
+        dlg.exec()
 
     def _apply_compact_params(self) -> None:
         """Aplica el modo compacto a TODOS los controles de parámetro.

@@ -121,6 +121,8 @@ def param_tooltip(name: str, prefijo: str = "p") -> str:
     """
     texto = tr(f"tooltip.{prefijo}_{name}", default="")
     pista = CONTEXT_HINTS.get(name)
+    if not pista and prefijo == "p":
+        pista = "tooltip.more_limits"
     if pista:
         extra = tr(pista, default="")
         if extra:
@@ -543,23 +545,15 @@ class ComponentPanel(QtWidgets.QWidget):
         self.intensity_mode = "free"       # "free" / "texture"
         self.quad_treatment = "1st_order"  # 1st_order / kundig_fixed / kundig_powder
 
-        # Clic derecho sobre intensidades y profundidad → menú Intensity mode
-        # (free / textured), igual que el desplegable que sustituye.
-        for k in ("int1", "int2", "texture", "depth"):
-            ctl = self.params[k]
-            for w in (ctl.spin, ctl.label, ctl.slider):
+        # Un solo menú contextual por parámetro (clic derecho): el modo de
+        # intensidades (intensidades y profundidad), el tratamiento del
+        # cuadrupolo (ΔEQ), «Cotas de ajuste…» y «Más información».
+        self.params["texture"].valueChanged.connect(lambda *_: self._update_texture_intensities())
+        for name, ctl in self.params.items():
+            for w in (ctl, ctl.spin, ctl.label, ctl.slider):
                 w.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
                 w.customContextMenuRequested.connect(
-                    lambda pos, c=ctl: self._show_intensity_menu(c, pos))
-        self.params["texture"].valueChanged.connect(lambda *_: self._update_texture_intensities())
-
-        # Clic derecho sobre quad → menú Quadrupole treatment
-        # (1er orden / Kundig fijo / Kundig polvo).
-        ctl_q = self.params["quad"]
-        for w in (ctl_q.spin, ctl_q.label, ctl_q.slider):
-            w.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-            w.customContextMenuRequested.connect(
-                lambda pos, c=ctl_q: self._show_quad_menu(c, pos))
+                    lambda pos, n=name: self._show_param_menu(n, pos))
 
         # Fijos típicos para α-Fe (intensidades + gammas relativas + quad).
         for k in ("int1", "int2", "int3", "gamma2", "gamma3", "quad", "texture"):
@@ -581,19 +575,43 @@ class ComponentPanel(QtWidgets.QWidget):
         int2 cambian con el tipo (sextete/doblete/singlete) y el globo debe
         decir lo mismo que la etiqueta que hay al lado.
         """
-        con_menu_propio = set(CONTEXT_HINTS)
         for nombre, ctl in self.params.items():
             texto = param_tooltip(nombre, "p")
             if texto:
                 ctl.set_help(texto)
-            if nombre not in con_menu_propio:
-                attach_help_menu(self, ctl, PARAM_HELP_CHAPTER.get(nombre, ""))
 
-    def _show_intensity_menu(self, ctl: "ParamControl", pos: QtCore.QPoint) -> None:
+    def _show_param_menu(self, name: str, pos: QtCore.QPoint) -> None:
+        ctl = self.params[name]
         menu = QtWidgets.QMenu(self)
+        if name in ("int1", "int2", "texture", "depth"):
+            self._add_intensity_items(menu)
+        elif name == "quad":
+            self._add_quad_items(menu)
+        if ctl.limits_enabled and ctl in self.lockable_params():
+            if not menu.isEmpty():
+                menu.addSeparator()
+            act = menu.addAction(tr("limits.menu"))
+            act.triggered.connect(lambda _c=False, n=name: self.edit_limits(n))
+        add_help_entry(menu, self, PARAM_HELP_CHAPTER.get(name, ""))
+        if menu.isEmpty():
+            return
+        sender = self.sender()
+        anchor = sender if isinstance(sender, QtWidgets.QWidget) else ctl.spin
+        menu.exec(anchor.mapToGlobal(pos))
+
+    def edit_limits(self, name: str) -> None:
+        """Ventanita de cotas de ajuste de un parámetro."""
+        from gui.fit_limits_dialog import ParamLimitsDialog
+        ctl = self.params[name]
+        title = tr("limits.param_name", idx=self.idx,
+                   param=ctl.label.text().rstrip(" ↔"))
+        dlg = ParamLimitsDialog(self, ctl, title, name)
+        self._limits_dialog = dlg
+        dlg.exec()
+
+    def _add_intensity_items(self, menu: QtWidgets.QMenu) -> None:
         title = menu.addAction(tr("context.intensity_mode_title"))
         title.setEnabled(False)
-        menu.addSeparator()
         for val, key in zip(INTENSITY_MODES,
                             ("context.intensity_mode_free",
                              "context.intensity_mode_texture")):
@@ -601,10 +619,6 @@ class ComponentPanel(QtWidgets.QWidget):
             act.setCheckable(True)
             act.setChecked(self.intensity_mode == val)
             act.triggered.connect(lambda _c=False, v=val: self._set_intensity_mode(v))
-        add_help_entry(menu, self, PARAM_HELP_CHAPTER.get(_nombre_de(self.params, ctl), ""))
-        sender = self.sender()
-        anchor = sender if isinstance(sender, QtWidgets.QWidget) else ctl.spin
-        menu.exec(anchor.mapToGlobal(pos))
 
     def _set_intensity_mode(self, mode: str) -> None:
         if mode not in INTENSITY_MODES:
@@ -628,11 +642,9 @@ class ComponentPanel(QtWidgets.QWidget):
         self.params["int2"].set_value(4.0 * t / denom)
         self.params["int3"].set_value(1.0)
 
-    def _show_quad_menu(self, ctl: "ParamControl", pos: QtCore.QPoint) -> None:
-        menu = QtWidgets.QMenu(self)
+    def _add_quad_items(self, menu: QtWidgets.QMenu) -> None:
         title = menu.addAction(tr("context.quad_treatment_title"))
         title.setEnabled(False)
-        menu.addSeparator()
         for val, key in zip(QUAD_TREATMENTS,
                             ("context.quad_treatment_1st_order",
                              "context.quad_treatment_kundig_fixed",
@@ -643,10 +655,6 @@ class ComponentPanel(QtWidgets.QWidget):
             act.setCheckable(True)
             act.setChecked(self.quad_treatment == val)
             act.triggered.connect(lambda _c=False, v=val: self._set_quad_treatment(v))
-        add_help_entry(menu, self, PARAM_HELP_CHAPTER.get(_nombre_de(self.params, ctl), ""))
-        sender = self.sender()
-        anchor = sender if isinstance(sender, QtWidgets.QWidget) else ctl.spin
-        menu.exec(anchor.mapToGlobal(pos))
 
     def _set_quad_treatment(self, treatment: str) -> None:
         if treatment not in QUAD_TREATMENTS:
@@ -809,11 +817,6 @@ class ComponentPanel(QtWidgets.QWidget):
 
     def fixed_dict(self) -> dict[str, bool]:
         return self.to_view_state().prefixed_fixed()
-
-    def set_limits_visible(self, visible: bool) -> None:
-        """Muestra u oculta las casillas mín/máx de las cotas de ajuste."""
-        for ctl in self.params.values():
-            ctl.set_limits_visible(visible)
 
     def apply_limits(self, limits: dict) -> None:
         """Cotas propias de una sesión o plantilla (``{"s1_gamma1": [lo, hi]}``);
