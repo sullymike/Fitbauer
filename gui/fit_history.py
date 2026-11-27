@@ -299,7 +299,9 @@ class HistoryDialog(QtWidgets.QDialog):
             try:
                 d = float(e.get("red_chi2")) - float(parent.get("red_chi2"))
                 if d == d:
-                    dchi = f"{d:+.3g}"
+                    # Mismo χ²ᵣ (p. ej. una cota que no llega a actuar): «±0»,
+                    # no un −3.2e-09 que parece un cambio.
+                    dchi = "±0" if abs(d) < 5e-4 else f"{d:+.3f}"
             except (TypeError, ValueError):
                 pass
         mode = e.get("mode", "")
@@ -308,7 +310,7 @@ class HistoryDialog(QtWidgets.QDialog):
         item.setData(0, QtCore.Qt.ItemDataRole.UserRole, e.get("id"))
         item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsEditable)
         item.setToolTip(self.NOTE_COL, tr("history.note_tip"))
-        if dchi:
+        if dchi and dchi != "±0":
             item.setForeground(2, QtGui.QBrush(QtGui.QColor(
                 "#15803d" if dchi.startswith("-") else "#b91c1c")))
         return item
