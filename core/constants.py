@@ -18,6 +18,14 @@ APP_AUTHORS: tuple[str, ...] = ("Jorge Sánchez Marcos", "Nieves Menéndez Gonz�
 APP_AUTHOR = ", ".join(APP_AUTHORS)
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
 APP_REPO_URL = "https://github.com/sullymike/Fitbauer"
+#: Página del programa en la web del grupo (versión en español e inglés).
+APP_WEB_URL = {"es": "https://matelec.qfa.uam.es/es/fitbauer/",
+               "en": "https://matelec.qfa.uam.es/en/fitbauer/"}
+
+
+def app_web_url(lang: str) -> str:
+    """Página web en el idioma de la interfaz; en inglés si no hay versión."""
+    return APP_WEB_URL.get(lang, APP_WEB_URL["en"])
 #: Agradecimientos de «Acerca de»: (nombre, aportación) de quienes colaboran
 #: probando, informando de errores o proponiendo mejoras. La aportación es
 #: texto libre (vacío si no se quiere detallar); se muestra tal cual.

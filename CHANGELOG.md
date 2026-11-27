@@ -5,8 +5,10 @@
 - **«Acerca de» renovado.** Muestra los autores (Jorge Sánchez Marcos, Nieves
   Menéndez González) y el departamento, una sección de **agradecimientos** a
   quienes prueban el programa, informan de errores y proponen mejoras, la
-  licencia y el enlace al repositorio; se cierra con «Cerrar» en vez de al
-  pulsar. Los nombres salen de `core/constants.py`: `APP_AUTHORS` (también la
+  licencia y los enlaces a la web del programa (en el idioma de la interfaz:
+  `/es/fitbauer/` o `/en/fitbauer/`) y al repositorio; se cierra con «Cerrar»
+  en vez de al pulsar. Los README (inglés y español) ganan la sección
+  *Acknowledgements* / *Agradecimientos* y el enlace a la web. Los nombres salen de `core/constants.py`: `APP_AUTHORS` (también la
   cabecera) y `APP_ACKNOWLEDGMENTS`, una lista (nombre, aportación) para
   añadir colaboradores.
 

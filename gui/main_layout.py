@@ -78,7 +78,7 @@ class MainLayoutMixin:
         self._header_sub_labels = [
             QtWidgets.QLabel(tr("main.subtitle")),
             QtWidgets.QLabel(APP_AUTHOR),
-            QtWidgets.QLabel(APP_DEPARTMENT),
+            QtWidgets.QLabel(tr("app.department", default=APP_DEPARTMENT)),
         ]
         _header_text.addLayout(_title_row)
         for lbl in self._header_sub_labels:

@@ -3909,5 +3909,6 @@ def test_acerca_de_con_autores_y_agradecimientos(win, app, monkeypatch):
     for autor in APP_AUTHORS:
         assert autor in todo
     assert "Ana Prueba" in todo and APP_REPO_URL in todo
+    assert "matelec.qfa.uam.es" in todo and "/fitbauer/" in todo
     from mossbauer_i18n import tr
     assert tr("help.about_thanks") in todo

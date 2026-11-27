@@ -24,7 +24,8 @@ Arranque: `python fitbauer.py`
 Ajuste por línea de comandos (headless): `mossbauer_fit_cli.py` (discreto) · `fit_bhf_distribution_cli.py` (distribuciones)
 
 **Autores:** Jorge Sánchez Marcos · Nieves Menéndez González  
-Departamento de Química Física · UAM
+Departamento de Química Física · UAM  
+Web: [matelec.qfa.uam.es/es/fitbauer](https://matelec.qfa.uam.es/es/fitbauer/) — vídeos y tutoriales
 
 ---
 
@@ -37,6 +38,7 @@ Departamento de Química Física · UAM
 - [Modos de ajuste](#modos-de-ajuste) — discreto, distribuciones y relajación
 - [Instalación](#instalación) — requisitos, script instalador, instalación manual, ejecución, actualización, problemas
 - [Estructura del proyecto](#estructura-del-proyecto)
+- [Agradecimientos](#agradecimientos)
 - [Historial de cambios](#historial-de-cambios)
 - [Licencia](#licencia)
 
@@ -449,6 +451,18 @@ tests/         Tests de física, ajuste, CLI y Qt
 ```
 
 Los motores de física y de ajuste viven solo en `core/`; la GUI es un cliente fino. Los detalles están en [`docs/architecture.md`](docs/architecture.md).
+
+---
+
+## Agradecimientos
+
+Gracias a todas las personas que prueban Fitbauer, informan de errores y
+proponen mejoras. Muchas de las funciones y correcciones del programa salen de
+esas aportaciones, y todas son muy bienvenidas: los errores y las ideas pueden
+enviarse a través de las [incidencias de GitHub](https://github.com/sullymike/Fitbauer/issues).
+
+Quienes han colaborado figuran también en el propio programa, en
+*Ayuda → Acerca de*.
 
 ---
 

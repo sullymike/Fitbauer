@@ -24,7 +24,8 @@ Launch: `python fitbauer.py`
 Headless CLI fitting: `mossbauer_fit_cli.py` (discrete) · `fit_bhf_distribution_cli.py` (distributions)
 
 **Authors:** Jorge Sánchez Marcos · Nieves Menéndez González  
-Department of Physical Chemistry · UAM
+Department of Physical Chemistry · UAM  
+Website: [matelec.qfa.uam.es/en/fitbauer](https://matelec.qfa.uam.es/en/fitbauer/) — videos and tutorials
 
 ---
 
@@ -37,6 +38,7 @@ Department of Physical Chemistry · UAM
 - [Fitting modes](#fitting-modes) — discrete, distribution and relaxation
 - [Installation](#installation) — requirements, installer script, manual setup, running, updating, troubleshooting
 - [Project structure](#project-structure)
+- [Acknowledgements](#acknowledgements)
 - [Changelog](#changelog)
 - [License](#license)
 
@@ -445,6 +447,18 @@ tests/         Physics, fitting, CLI and Qt tests
 ```
 
 The physics and fitting engines live exclusively in `core/`; the GUI is a thin client. See [`docs/architecture.md`](docs/architecture.md) for details.
+
+---
+
+## Acknowledgements
+
+Our thanks to everyone who tests Fitbauer, reports bugs and suggests
+improvements. Many of the program's features and fixes come from that
+feedback, and every contribution is very welcome: bug reports and ideas can be
+sent through the [GitHub issues](https://github.com/sullymike/Fitbauer/issues).
+
+The people who have contributed are also credited in the program, under
+*Help → About*.
 
 ---
 

@@ -9,7 +9,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from mossbauer_i18n import tr, get_language
 from mossbauer_help import get_help_sections, get_help_groups
 from core.constants import (APP_ACKNOWLEDGMENTS, APP_AUTHORS, APP_DEPARTMENT, APP_NAME,
-                            APP_REPO_URL, APP_VERSION)
+                            APP_REPO_URL, APP_VERSION, app_web_url)
 from core.data_io import SETTINGS_PATH
 from gui.branding import _logo_pixmap
 
@@ -751,8 +751,8 @@ class HelpMixin:
             QtGui.QDesktopServices.openUrl(QtCore.QUrl(MANUAL_EN_URL))
 
     def on_about(self) -> None:
-        """Acerca de: versión, autores, agradecimientos, licencia y enlace al
-        repositorio. Se cierra con «Cerrar» (no al pulsar, por los enlaces)."""
+        """Acerca de: versión, autores, agradecimientos, licencia y enlaces a la
+        web del programa y al repositorio. Se cierra con «Cerrar» (no al pulsar, por los enlaces)."""
         dlg = QtWidgets.QDialog(self)
         dlg.setObjectName("AboutDialog")
         dlg.setWindowTitle(tr("help.about_title", version=APP_VERSION))
@@ -780,7 +780,7 @@ class HelpMixin:
         v.addSpacing(10)
         autores = "<br>".join(f"<b>{esc(a)}</b>" for a in APP_AUTHORS)
         label(f"<p style='margin:0'><u>{esc(tr('help.about_authors'))}</u></p>"
-              f"{autores}<br>{esc(APP_DEPARTMENT)}")
+              f"{autores}<br>{esc(tr('app.department', default=APP_DEPARTMENT))}")
         v.addSpacing(10)
         gracias = esc(tr("help.about_thanks_text"))
         if APP_ACKNOWLEDGMENTS:
@@ -794,8 +794,11 @@ class HelpMixin:
         # Licencias: la LGPLv3 de Qt/PySide6 exige que el uso de la biblioteca
         # sea visible; el detalle está en THIRD-PARTY-LICENSES.md.
         label(f"<small>{tr('help.about_license')}</small>")
-        repo = label(f"<a href='{APP_REPO_URL}'>{esc(APP_REPO_URL)}</a>")
-        repo.setOpenExternalLinks(True)
+        web = app_web_url(get_language())
+        enlaces = label(
+            f"{esc(tr('help.about_web'))}: <a href='{web}'>{esc(web)}</a><br>"
+            f"{esc(tr('help.about_repo'))}: <a href='{APP_REPO_URL}'>{esc(APP_REPO_URL)}</a>")
+        enlaces.setOpenExternalLinks(True)
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Close)
         bb.rejected.connect(dlg.reject)
         v.addSpacing(6)
