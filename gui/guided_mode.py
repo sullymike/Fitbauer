@@ -93,13 +93,15 @@ class _Step(QtWidgets.QFrame):
         self.body = QtWidgets.QVBoxLayout()
         self.body.setSpacing(4)
         lay.addLayout(self.body)
-        # Rejilla de dos columnas: en la columna izquierda (~430 px) tres
-        # botones en fila no caben y se cortaban.
+        # Rejilla de dos columnas si caben y de una si no (fuente grande,
+        # idioma largo): el paso nunca pide más ancho que el de la columna,
+        # que antes cortaba botones y texto por la derecha.
         self.buttons = QtWidgets.QGridLayout()
         self.buttons.setHorizontalSpacing(6)
         self.buttons.setVerticalSpacing(4)
         lay.addLayout(self.buttons)
-        self._n_buttons = 0
+        self._widgets: list[QtWidgets.QWidget] = []
+        self._cols = 2
 
     def add_button(self, text: str, slot, primary: bool = False) -> QtWidgets.QPushButton:
         b = QtWidgets.QPushButton(text)
@@ -112,9 +114,39 @@ class _Step(QtWidgets.QFrame):
         return b
 
     def add_widget(self, widget: QtWidgets.QWidget) -> None:
-        n = self._n_buttons
-        self.buttons.addWidget(widget, n // 2, n % 2)
-        self._n_buttons += 1
+        self._widgets.append(widget)
+        self._place()
+
+    def _place(self) -> None:
+        for w in self._widgets:
+            self.buttons.removeWidget(w)
+        for n, w in enumerate(self._widgets):
+            self.buttons.addWidget(w, n // self._cols, n % self._cols)
+        cols = min(self._cols, max(1, len(self._widgets)))
+        for c in range(2):
+            self.buttons.setColumnStretch(c, 1 if c < cols else 0)
+
+    def _columns_for(self, width: int) -> int:
+        """2 si cada botón cabe en media anchura (las dos columnas son
+        iguales); si no, 1."""
+        sp = self.buttons.horizontalSpacing()
+        widest = max((x.minimumSizeHint().width() for x in self._widgets), default=0)
+        return 2 if 2 * widest + sp <= width else 1
+
+    def minimumSizeHint(self) -> QtCore.QSize:  # noqa: N802 (API de Qt)
+        # El mínimo es el de una sola columna: el sitio decide cuántas caben.
+        hint = super().minimumSizeHint()
+        m = self.layout().contentsMargins()
+        one = max((x.minimumSizeHint().width() for x in self._widgets), default=0)
+        return QtCore.QSize(min(hint.width(), one + m.left() + m.right() + 2), hint.height())
+
+    def resizeEvent(self, event):  # noqa: N802 (API de Qt)
+        super().resizeEvent(event)
+        m = self.layout().contentsMargins()
+        cols = self._columns_for(self.contentsRect().width() - m.left() - m.right())
+        if cols != self._cols:
+            self._cols = cols
+            self._place()
 
 
 class GuidedPanel(QtWidgets.QWidget):
