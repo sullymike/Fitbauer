@@ -4022,3 +4022,58 @@ def test_delta_respecto_al_alpha_fe_solo_cambia_lo_mostrado(win):
     win.act_delta_vs_alpha.setChecked(False)
     assert ctl.label.styleSheet() == ""
     win.mark_saved()
+
+
+def test_historial_en_arbol_ramas_nota_y_diferencias(win):
+    """Restaurar un ajuste y volver a ajustar abre una rama desde él; el
+    diálogo es un árbol por fichero con el nodo actual, nota editable y qué
+    cambió respecto al padre. Otro espectro empieza árbol; deshacer vuelve
+    al padre."""
+    from pathlib import Path
+    from gui.fit_history import HistoryDialog
+    from mossbauer_i18n import tr
+    root = Path(__file__).resolve().parents[1] / "data_sample"
+    win.fit_history.clear()
+    win._open_spectrum(root / "Fe3O4.adt")
+    win.load_session_file(root / "Fe3O4_session.json")
+    assert win._history_head is None
+    win._record_fit_history("discrete", {"red_chi2": 2.0})
+    a = win.fit_history[-1]
+    assert a["parent"] is None
+    cp2 = win.components_panels[1]
+    cp2.params["gamma1"].set_fixed(True)
+    win._record_fit_history("discrete", {"red_chi2": 1.5})
+    b = win.fit_history[-1]
+    assert b["parent"] == a["id"]
+    # Volver a «a» y probar otra cosa: rama nueva, «b» sigue ahí.
+    win._restore_fit_history_entry(a)
+    assert win._history_head == a["id"]
+    win.components_panels[2].enabled.setChecked(True)
+    win._record_fit_history("discrete", {"red_chi2": 1.2})
+    c = win.fit_history[-1]
+    assert c["parent"] == a["id"] and b in win.fit_history
+    txt = win.history_changes_text(c)
+    assert tr("history.diff_chi2", a="2", b="1.2") in txt
+    assert "3" in txt and tr("history.diff_title") in txt
+    assert tr("history.diff_fixed", params=win._param_display_name("s2_gamma1")) \
+        in win.history_changes_text(b)
+    # Diálogo: un grupo por fichero, a con dos hijos, c en negrita (actual).
+    dlg = HistoryDialog(win)
+    assert dlg.tree.topLevelItemCount() == 1
+    it_a = dlg._items[a["id"]]
+    assert it_a.childCount() == 2
+    assert dlg._items[c["id"]].font(0).bold() and dlg._items[c["id"]].text(0).startswith("▶")
+    assert dlg._items[c["id"]].text(2).startswith("-")          # Δχ²ᵣ respecto al padre
+    dlg._items[b["id"]].setText(dlg.NOTE_COL, " sin Γ libre ")
+    assert win._history_entry(b["id"])["note"] == "sin Γ libre"
+    dlg.tree.setCurrentItem(dlg._items[b["id"]])
+    assert dlg.changes.text() == win.history_changes_text(b)
+    dlg.close()
+    # Deshacer: el ajuste deshecho sigue, el siguiente cuelga de su padre.
+    win._pre_fit_snapshot = win._session_payload()
+    win._undo_fit()
+    assert win._history_head == a["id"]
+    # Otro espectro: árbol nuevo.
+    win._open_spectrum(root / "calibration.adt")
+    assert win._history_head is None
+    win.mark_saved()

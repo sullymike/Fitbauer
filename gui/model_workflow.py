@@ -1602,6 +1602,8 @@ class ModelWorkflowMixin:
         entre cabecera y pie y deduce las columnas. Las cuentas por canal se
         doblan (o no) según el panel; un eje de velocidad se usa tal cual.
         """
+        if hasattr(self, "_history_reset_branch"):
+            self._history_reset_branch()     # el próximo ajuste empieza árbol
         lib = self._instrument_library() if instrument else None
         opened = open_spectrum(path, hints, library=lib, instrument=instrument,
                                calibration_id=calibration_id)

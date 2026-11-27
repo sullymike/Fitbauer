@@ -81,7 +81,11 @@ class SessionIOMixin:
             self.mode_combo.currentIndex()
             if hasattr(self, "mode_combo") else None
         )
+        head_entry = (self._history_entry(getattr(self, "_history_head", None))
+                      if hasattr(self, "_history_entry") else None)
         self._apply_session_payload(snapshot)
+        # El ajuste deshecho sigue en el historial; lo siguiente cuelga de su padre.
+        self._history_head = head_entry.get("parent") if head_entry else None
         if mode_idx is not None and hasattr(self, "mode_combo"):
             self.mode_combo.setCurrentIndex(mode_idx)
         self._pre_fit_snapshot = None
@@ -90,6 +94,10 @@ class SessionIOMixin:
         self._refresh_plot()
 
     def _apply_session_payload(self, data: dict) -> None:
+        # Otra sesión: el próximo ajuste empieza árbol (restaurar desde el
+        # historial y deshacer vuelven a fijar el nodo después).
+        if hasattr(self, "_history_reset_branch"):
+            self._history_reset_branch()
         project = ProjectState.from_session_payload(data)
         spectrum = project.spectrum
         # 0. Forma de onda y plegado ANTES de cargar los datos: deciden cómo se
