@@ -673,6 +673,24 @@ class ComponentPanel(QtWidgets.QWidget):
         used = self.relevant_params() - {"int3", "relax_bext"}
         return [ctl for name, ctl in self.params.items() if name in used]
 
+    def set_delta_reference(self, offset: float, state: str, tip: str) -> None:
+        """Referencia con la que se ve δ: ``state`` = "alpha" (δ − δ(α-Fe) de
+        la calibración), "source" (tal cual) o "missing" (se pidió α-Fe pero
+        la calibración no trae su δ: se ve respecto a la fuente, en aviso).
+        Solo cambia lo mostrado: el valor, el rango y las cotas siguen
+        respecto a la fuente, que es lo que se ajusta."""
+        ctl = self.params.get("delta")
+        if ctl is None:
+            return
+        ctl.set_display_offset(offset if state == "alpha" else 0.0)
+        ctl.source_label = tr("delta_ref.short_source")
+        ctl.set_label(tr("delta_ref.short_alpha") if state == "alpha"
+                      else tr("delta_ref.short_source"))
+        ctl.set_label_warning(state == "missing")
+        ctl.reference_note = tr("delta_ref.long_alpha" if state == "alpha"
+                                else "delta_ref.long_source")
+        ctl.set_extra_tip(tip)
+
     def after_bulk_fix(self) -> None:
         """Tras fijar/liberar en bloque con las señales de cada parámetro
         calladas: lo que esas señales habrían actualizado en el panel."""

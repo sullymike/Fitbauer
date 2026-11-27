@@ -653,6 +653,8 @@ class UiPreferencesState:
     # Modo compacto: los ParamControl pierden el slider y ocupan una fila en
     # vez de dos, para que quepan varios componentes a la vez.
     compact_params: bool = False
+    # δ de los paneles de componente respecto al α-Fe de la calibración.
+    delta_vs_alpha: bool = False
     # Casillas mín/máx de las cotas de ajuste por componente.
     show_fit_limits: bool = False
     # Convenios NORMOS: preferencia por defecto para análisis nuevos (la
@@ -686,6 +688,7 @@ class UiPreferencesState:
             wide_delta=bool(data.get("wide_delta", False)),
             auto_global=bool(data.get("auto_global", True)),
             compact_params=bool(data.get("compact_params", False)),
+            delta_vs_alpha=bool(data.get("delta_vs_alpha", False)),
             show_fit_limits=bool(data.get("show_fit_limits", False)),
             sextet_pattern=(
                 _choice(data.get("sextet_pattern"), SEXTET_PATTERN_CHOICES)
@@ -710,6 +713,7 @@ class UiPreferencesState:
             "wide_delta": bool(self.wide_delta),
             "auto_global": bool(self.auto_global),
             "compact_params": bool(self.compact_params),
+            "delta_vs_alpha": bool(self.delta_vs_alpha),
             "show_fit_limits": bool(self.show_fit_limits),
             "sextet_pattern": self.sextet_pattern,
             "intensity_convention": self.intensity_convention,

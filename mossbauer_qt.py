@@ -105,6 +105,7 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
         self.absorber_model = "thin"       # "thin" / "thickness" / "transmission"
         self.channel_sub = 1               # integración del modelo por canal (1 = centro)
         self.wide_delta = False            # líneas sueltas: δ ampliado a ±(vmax+2)
+        self.delta_vs_alpha = False        # δ de los paneles respecto al α-Fe
         self.auto_global = True            # escalado DE automático si χ²red alto
         self._simulate_enabled = False      # igual que Tk: al cargar solo se dibujan datos
         self._dirty = False                 # trabajo sin guardar (aviso al cerrar)
@@ -123,6 +124,7 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
         # _load_settings() corre antes de que existan los paneles, así que la
         # preferencia de parámetros compactos se aplica aquí, ya con la UI viva.
         self._apply_compact_params()
+        self._refresh_delta_reference()
         self._apply_color_theme(self.color_theme, persist=False)
         # Reserva (o no) el espacio de la subgráfica de diferencia desde el
         # arranque, según la preferencia guardada.

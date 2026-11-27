@@ -533,6 +533,7 @@ class LayoutSettingsMixin:
             wide_delta=getattr(self, "wide_delta", False),
             auto_global=getattr(self, "auto_global", True),
             compact_params=getattr(self, "compact_params", False),
+            delta_vs_alpha=getattr(self, "delta_vs_alpha", False),
             # Solo lo elegido en el menú es preferencia: los convenios que trae
             # una sesión o un .JOB son de ese análisis (una sesión antigua con
             # el patrón histórico no debe volverlo el defecto de los nuevos).
@@ -583,6 +584,8 @@ class LayoutSettingsMixin:
         self.auto_global = bool(prefs.auto_global)
         self.compact_params = bool(prefs.compact_params)
         self._apply_compact_params()
+        self.delta_vs_alpha = bool(prefs.delta_vs_alpha)
+        self._refresh_delta_reference()
         # Convenios NORMOS: la preferencia guardada es el punto de partida de
         # los análisis nuevos (una sesión cargada trae los suyos).
         self.sextet_pattern = prefs.sextet_pattern
@@ -595,7 +598,8 @@ class LayoutSettingsMixin:
         self._sync_convention_actions()
         for attr, act_name in (("wide_delta", "act_wide_delta"),
                                ("auto_global", "act_auto_global"),
-                               ("compact_params", "act_compact_params")):
+                               ("compact_params", "act_compact_params"),
+                               ("delta_vs_alpha", "act_delta_vs_alpha")):
             act = getattr(self, act_name, None)
             if act is not None:
                 act.blockSignals(True)

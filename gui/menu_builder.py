@@ -57,6 +57,7 @@ SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     ("view.show_legend",       "menu.view", "options.show_legend",    ""),
     ("view.show_component_fill", "menu.view", "options.show_component_fill", ""),
     ("view.compact_params",    "menu.view", "options.compact_params", ""),
+    ("view.delta_vs_alpha",    "menu.view", "delta_ref.option", ""),
     ("view.configure_layout",  "menu.view", "view.configure_layout",  ""),
     # ── Ayuda ──
     ("help.open",              "menu.help", "help.open",              "F1"),
@@ -537,6 +538,14 @@ class MenuBuilderMixin:
         self.act_compact_params.toggled.connect(self._on_compact_params_toggled)
         view_menu.addAction(self.act_compact_params)
         self._reg("view.compact_params", self.act_compact_params)
+        # δ de los paneles respecto al α-Fe de la calibración (solo se ve
+        # distinto: el ajuste sigue respecto a la fuente).
+        self.act_delta_vs_alpha = QtGui.QAction(tr("delta_ref.option"), self, checkable=True)
+        self.act_delta_vs_alpha.setChecked(getattr(self, "delta_vs_alpha", False))
+        self.act_delta_vs_alpha.setToolTip(tr("delta_ref.option_tip"))
+        self.act_delta_vs_alpha.toggled.connect(self._on_delta_vs_alpha_toggled)
+        view_menu.addAction(self.act_delta_vs_alpha)
+        self._reg("view.delta_vs_alpha", self.act_delta_vs_alpha)
         view_menu.addSeparator()
         # Tema UI (QStyle de Qt). Por defecto Fusion.
         theme_menu = view_menu.addMenu(tr("options.theme"))

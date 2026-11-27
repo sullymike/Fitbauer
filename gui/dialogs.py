@@ -81,7 +81,7 @@ class ConstraintsDialog(QtWidgets.QDialog):
             for name, ctl in cp.params.items():
                 if name in relevant:
                     items.append((f"s{cp.idx}_{name}",
-                                  f"{comp} · {ctl.label.text()}"))
+                                  f"{comp} · {ctl.source_label}"))
         return items
 
     def _load_existing(self) -> None:

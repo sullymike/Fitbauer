@@ -10,6 +10,10 @@ junto al nombre del parámetro que tiene cota propia):
 
 Una casilla vacía = la cota general en ese lado (la de «Límites de
 parámetros…», o la del código).
+
+Todo se ve en la referencia del control (``ctl.display_offset``: δ respecto al
+α-Fe si está activa esa opción) y se guarda respecto a la fuente, como el
+valor.
 """
 from __future__ import annotations
 
@@ -48,15 +52,29 @@ def _parse(text: str) -> float | None:
     return float(text) if text else None
 
 
-def _general_text(name: str) -> str:
+def _general_text(name: str, off: float = 0.0) -> str:
     g = general_bound(name)
-    return "—" if g is None else f"{g[0]:g} … {g[1]:g}"
+    return "—" if g is None else f"{g[0] - off:.6g} … {g[1] - off:.6g}"
 
 
-def _limit_edit(name: str, side: int, decimals: int, value: float | None) -> QtWidgets.QLineEdit:
-    ed = QtWidgets.QLineEdit(_fmt(value, decimals))
+def _shift(x: float | None, off: float) -> float | None:
+    return None if x is None else x - off
+
+
+def _unshift(x: float | None, off: float) -> float | None:
+    return None if x is None else x + off
+
+
+def _reference_text(ctl) -> str | None:
+    """Frase de la referencia de δ, o ``None`` si el parámetro no tiene."""
+    return getattr(ctl, "reference_note", None) or None
+
+
+def _limit_edit(name: str, side: int, decimals: int, value: float | None,
+                off: float = 0.0) -> QtWidgets.QLineEdit:
+    ed = QtWidgets.QLineEdit(_fmt(_shift(value, off), decimals))
     g = general_bound(name)
-    ed.setPlaceholderText(f"{g[side]:g}" if g else ("mín" if side == 0 else "máx"))
+    ed.setPlaceholderText(f"{g[side] - off:.6g}" if g else ("mín" if side == 0 else "máx"))
     ed.setToolTip(tr("limits.empty_tip"))
     return ed
 
@@ -69,15 +87,19 @@ class ParamLimitsDialog(QtWidgets.QDialog):
         self.setWindowTitle(tr("limits.param_title", param=title))
         self._ctl = ctl
         dec = ctl.spin.decimals()
+        self._off = off = ctl.display_offset
         lo, hi = ctl.fit_limits()
         lay = QtWidgets.QVBoxLayout(self)
         form = QtWidgets.QFormLayout()
-        self.ed_lo = _limit_edit(name, 0, dec, lo)
-        self.ed_hi = _limit_edit(name, 1, dec, hi)
+        ref = _reference_text(ctl)
+        if ref:
+            form.addRow(tr("delta_ref.reference"), QtWidgets.QLabel(ref))
+        self.ed_lo = _limit_edit(name, 0, dec, lo, off)
+        self.ed_hi = _limit_edit(name, 1, dec, hi, off)
         form.addRow(tr("limits.min"), self.ed_lo)
         form.addRow(tr("limits.max"), self.ed_hi)
-        form.addRow(tr("limits.general"), QtWidgets.QLabel(_general_text(name)))
-        form.addRow(tr("limits.current"), QtWidgets.QLabel(_fmt(ctl.value(), dec)))
+        form.addRow(tr("limits.general"), QtWidgets.QLabel(_general_text(name, off)))
+        form.addRow(tr("limits.current"), QtWidgets.QLabel(_fmt(ctl.value() - off, dec)))
         lay.addLayout(form)
         note = QtWidgets.QLabel(tr("limits.note"))
         note.setWordWrap(True)
@@ -106,7 +128,7 @@ class ParamLimitsDialog(QtWidgets.QDialog):
             self.error.setText(tr("limits.not_number"))
             self.error.show()
             return
-        self._ctl.apply_fit_limits(lo, hi)
+        self._ctl.apply_fit_limits(_unshift(lo, self._off), _unshift(hi, self._off))
         self.accept()
 
 
@@ -156,9 +178,10 @@ class ComponentLimitsDialog(QtWidgets.QDialog):
         r = self.table.rowCount()
         self.table.insertRow(r)
         dec = ctl.spin.decimals()
+        off = ctl.display_offset
         kind = tr(f"kind.{cp.kind}", default=cp.kind)
         textos = (f"{cp.idx} · {kind}", ctl.label.text().rstrip(" ↔"),
-                  _fmt(ctl.value(), dec), _general_text(name))
+                  _fmt(ctl.value() - off, dec), _general_text(name, off))
         for c, t in enumerate(textos):
             item = QtWidgets.QTableWidgetItem(t)
             item.setFlags(item.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)
@@ -166,10 +189,16 @@ class ComponentLimitsDialog(QtWidgets.QDialog):
                 item.setToolTip(tr("checkbox.fixed"))
             self.table.setItem(r, c, item)
         lo, hi = ctl.fit_limits()
-        ed_lo = _limit_edit(name, 0, dec, lo)
-        ed_hi = _limit_edit(name, 1, dec, hi)
+        ed_lo = _limit_edit(name, 0, dec, lo, off)
+        ed_hi = _limit_edit(name, 1, dec, hi, off)
         for ed in (ed_lo, ed_hi):
             ed.setFrame(False)
+        ref = _reference_text(ctl)
+        if ref:
+            for c in range(4):
+                self.table.item(r, c).setToolTip(ref)
+            for ed in (ed_lo, ed_hi):
+                ed.setToolTip(f"{ref}\n\n{ed.toolTip()}")
         self.table.setCellWidget(r, 4, ed_lo)
         self.table.setCellWidget(r, 5, ed_hi)
         self._rows.append((ctl, ed_lo, ed_hi))
@@ -183,7 +212,9 @@ class ComponentLimitsDialog(QtWidgets.QDialog):
         nuevos = []
         for r, (ctl, ed_lo, ed_hi) in enumerate(self._rows):
             try:
-                nuevos.append((ctl, _parse(ed_lo.text()), _parse(ed_hi.text())))
+                off = ctl.display_offset
+                nuevos.append((ctl, _unshift(_parse(ed_lo.text()), off),
+                               _unshift(_parse(ed_hi.text()), off)))
             except ValueError:
                 self.error.setText(tr("limits.not_number_row", row=r + 1))
                 self.error.show()
