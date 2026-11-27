@@ -256,6 +256,9 @@ class FitWorkflowMixin:
             dist_map_2d=getattr(self, "_dist_map_2d", None),
             comparison=getattr(self, "comparison_spectra", []),
         )
+        overlay = getattr(self, "_draw_guided_overlay", None)
+        if overlay is not None:
+            overlay()
 
     def _finish_gui_fit_result(self, result: GuiFitResult) -> None:
         """Aplica las salidas GUI comunes: render y mensaje de estado."""

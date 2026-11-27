@@ -202,7 +202,7 @@ what remains, with what to touch and how to validate it, is in
 - Advanced quadrupole: first-order, fixed Kündig, powder Kündig; sextet intensity texture.
 - Physical constraint presets (3:2:1 powder, tied widths, linked δ/Γ across components).
 - Relaxation models: phenomenological, Blume–Tjon two-state, Néel–Arrhenius with lognormal size distribution.
-- Parameter limits fully configurable through the GUI (View → Parameter limits…).
+- Parameter limits fully configurable through the GUI (Model → Parameter limits…).
 - Interactive Matplotlib figure with semi-manual minimum editor.
 - Batch fitting across a series of files with warm-start.
 - Fit export as TSV with **per-component subspectra** and an informative header.

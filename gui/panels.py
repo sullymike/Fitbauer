@@ -455,6 +455,17 @@ class CalibrationPanel(QtWidgets.QGroupBox):
             self.fit_sigma.setChecked(refine)
 
 
+#: Parámetros secundarios: con el panel plegado («Más ▸») solo se ven si
+#: están LIBRES; fijos, se esconden. Así nada de lo que se ajusta queda
+#: oculto y el panel básico se reduce a δ, ΔEQ, BHF, Γ y profundidad (más
+#: los parámetros que definen cada tipo de relajación).
+SECONDARY_PARAMS = frozenset({
+    "gamma2", "gamma3", "int1", "int2", "texture", "beta", "eta", "phi",
+    "bex", "gax", "relax_polarization", "relax_bext",
+    "neel_sigma", "neel_log10_tau0", "neel_bins",
+})
+
+
 class ComponentPanel(QtWidgets.QWidget):
     """10 parámetros + selector de tipo (Sextete/Doblete/Singlete) + 'activo'.
 
@@ -485,6 +496,13 @@ class ComponentPanel(QtWidgets.QWidget):
         self.type_combo = CodeComboBox(
             [(k, tr(f"kind.{k}", default=k)) for k in COMPONENT_KINDS])
         row.addWidget(self.enabled)
+        # Plegar/desplegar los parámetros secundarios fijos.
+        self.show_more = False
+        self.more_btn = QtWidgets.QToolButton()
+        self.more_btn.setAutoRaise(True)
+        self.more_btn.setToolTip(tr("component.more_tip"))
+        self.more_btn.clicked.connect(self._toggle_more)
+        row.addWidget(self.more_btn)
         row.addStretch(1)
         # Candado: fija o libera de una vez los parámetros de la componente
         # (gui/fix_lock.py); se crea abajo, cuando ya existen los controles.
@@ -530,6 +548,14 @@ class ComponentPanel(QtWidgets.QWidget):
             ctl.fixedChanged.connect(lambda *_: self.paramChanged.emit())
             ctl.enable_fit_limits()
             ctl.limitsChanged.connect(lambda *_: self.paramChanged.emit())
+            if name in SECONDARY_PARAMS:
+                # Liberado desde fuera (sesión, preset…) estando escondido:
+                # tiene que aparecer, porque se va a ajustar.
+                # Fijado a la vista: no se esconde, el botón ofrece ocultarlo.
+                ctl.fixedChanged.connect(
+                    lambda fixed, c=ctl: (self._relayout_params()
+                                          if not fixed and c.isHidden()
+                                          else self._update_more_btn()))
         # El campo del imán es un dato del experimento, no algo que ajustar.
         self.params["relax_bext"].set_fixed(True)
         v.addLayout(self.params_grid)
@@ -693,7 +719,15 @@ class ComponentPanel(QtWidgets.QWidget):
 
     def after_bulk_fix(self) -> None:
         """Tras fijar/liberar en bloque con las señales de cada parámetro
-        calladas: lo que esas señales habrían actualizado en el panel."""
+        calladas: lo que esas señales habrían actualizado en el panel. Un
+        secundario liberado estando escondido tiene que aparecer (se va a
+        ajustar); si no, solo cambia lo que ofrece «Más/Menos»."""
+        used = self.relevant_params()
+        if any(n in used and self.params[n].isHidden() and not self.params[n].is_fixed()
+               for n in SECONDARY_PARAMS):
+            self._relayout_params()
+        else:
+            self._update_more_btn()
         self.lock_btn.refresh()
 
     def _on_lock_used(self) -> None:
@@ -709,6 +743,53 @@ class ComponentPanel(QtWidgets.QWidget):
     def relevant_params(self) -> set[str]:
         """Parámetros realmente usados por el tipo y modo actuales (core.params)."""
         return _relevant_params(self.kind, self.intensity_mode, self.quad_treatment)
+
+    def set_show_more(self, show: bool) -> None:
+        self.show_more = bool(show)
+        self._relayout_params()
+
+    def _toggle_more(self) -> None:
+        # Si hay secundarios fijos a la vista (desplegado, o recién fijados
+        # estando plegado), el botón los oculta; si no, enseña los ocultos.
+        self.set_show_more(not self._visible_fixed_secondary())
+
+    def _visible_fixed_secondary(self) -> list[str]:
+        """Secundarios aplicables, fijos y a la vista: lo que se puede ocultar."""
+        return [n for n in self.relevant_params() & SECONDARY_PARAMS
+                if self.params[n].is_fixed() and not self.params[n].isHidden()]
+
+    def _update_more_btn(self) -> None:
+        """Texto y estado del botón según lo que se ve AHORA, sin recolocar.
+
+        Al fijar un parámetro no se esconde en el acto (molestaría mientras
+        se fijan varios): el botón pasa a ofrecer «Menos (n)» para ocultar
+        los fijos. Está siempre; sin nada que plegar ni desplegar queda
+        desactivado y el tooltip dice por qué."""
+        if not hasattr(self, "intensity_mode"):
+            return          # aún construyéndose; _relayout_params lo pondrá
+        sec = self.relevant_params() & SECONDARY_PARAMS
+        ocultos = [n for n in sec if self.params[n].isHidden()]
+        a_ocultar = self._visible_fixed_secondary()
+        self.more_btn.setVisible(True)
+        if a_ocultar:
+            self.more_btn.setEnabled(True)
+            self.more_btn.setText(tr("component.less_n", n=len(a_ocultar)))
+            self.more_btn.setToolTip(tr("component.less_tip"))
+        elif ocultos:
+            self.more_btn.setEnabled(True)
+            self.more_btn.setText(tr("component.more", n=len(ocultos)))
+            self.more_btn.setToolTip(tr("component.more_tip"))
+        else:
+            self.more_btn.setEnabled(False)
+            self.more_btn.setText(tr("component.more", n=0))
+            self.more_btn.setToolTip(tr("component.more_none_tip"))
+
+    def _hidden_secondary(self) -> list[str]:
+        """Secundarios aplicables que el panel plegado esconde (fijos)."""
+        if self.show_more:
+            return []
+        return [n for n in self.relevant_params() & SECONDARY_PARAMS
+                if self.params[n].is_fixed()]
 
     def set_compact(self, compact: bool) -> None:
         """Propaga el modo compacto a todos los controles del componente."""
@@ -755,7 +836,8 @@ class ComponentPanel(QtWidgets.QWidget):
         de intensidad, que son combos siempre visibles.
         """
         used = self.relevant_params()
-        shown = set(used)
+        ocultos = self._hidden_secondary()
+        shown = set(used) - set(ocultos)
         # Saca todo del grid (los widgets siguen vivos como hijos del panel).
         for ctl in self.params.values():
             self.params_grid.removeWidget(ctl)
@@ -794,6 +876,7 @@ class ComponentPanel(QtWidgets.QWidget):
         for name, ctl in self.params.items():
             if name not in visible:
                 ctl.setVisible(False)
+        self._update_more_btn()
 
         # Etiquetas adaptadas al tipo. Γ1 es la anchura absoluta (global, mm/s)
         # y Γ2/Γ3 son relativas a ella; los números de línea (1,6 / 2,5) solo

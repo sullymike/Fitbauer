@@ -8,6 +8,33 @@ from core.data_io import update_settings
 from gui.main_layout import fit_mode_labels
 from gui.themes import COLOR_THEMES
 
+# Disposición de la barra de menús, por pasos del trabajo. Las acciones se
+# crean en ``_build_menubar`` (con su conexión y estado); aquí solo se decide
+# en qué menú y en qué orden aparecen. Para reagrupar, basta con mover ids.
+# "-" = separador; "@nombre" = submenú (``self._submenus[nombre]``); un id =
+# acción registrada con ``_reg`` (``self._action_registry[id]``).
+MENU_LAYOUT: list[tuple[str, list[str]]] = [
+    ("menu.file", ["file.open", "file.import", "@recent", "-", "@web", "-",
+                   "file.save_session", "file.load_session", "-", "file.exit"]),
+    ("menu.data", ["file.instruments", "file.use_as_calibration", "fit.find_center", "-",
+                   "file.compare_spectrum", "file.clear_comparison"]),
+    ("menu.model", ["fit.init_from_minima", "fit.auto_from_minima", "fit.auto_residual",
+                    "fit.edit_minima", "-",
+                    "model.phase_predict", "fit.identify_phases", "-",
+                    "fit.free_all", "fit.fix_all", "fit.constraints", "fit.physical_presets", "-",
+                    "model.param_limits", "fit.component_limits"]),
+    ("menu.fit", ["fit.run", "fit.undo_fit", "fit.history", "-", "@mode", "-", "fit.advanced_options"]),
+    ("menu.results", ["results.diagnostics", "results.show_distribution", "-",
+                      "fit.bootstrap", "fit.profile_likelihood", "fit.lcurve", "-",
+                      "file.copy_results", "file.save_fit", "file.export_distribution",
+                      "file.export_report", "file.export_short_report"]),
+    ("menu.tools", ["fit.batch_fit", "fit.global_neel_fit", "-", "@normos", "-",
+                    "fit.ollama_start"]),
+    ("menu.view", ["view.guided_mode", "-", "view.show_residual", "view.show_legend", "view.show_component_fill",
+                   "view.compact_params", "view.delta_vs_alpha", "-", "@theme", "@plot_style", "@color_theme",
+                   "@language", "-", "view.configure_layout"]),
+]
+
 # Registro canónico de atajos configurables por el usuario.
 # Cada entrada: (action_id, menu_label_key, action_label_key, default_shortcut)
 # El action_id coincide con la clave de traducción de la acción salvo donde se
@@ -16,62 +43,74 @@ from gui.themes import COLOR_THEMES
 # usuario puede asignarle uno.
 SHORTCUT_REGISTRY: list[tuple[str, str, str, str]] = [
     # ── Archivo ──
-    ("file.open",              "menu.file", "file.open",              "Ctrl+O"),
-    ("file.import",            "menu.file", "file.import",            "Ctrl+I"),
-    ("file.instruments",       "menu.file", "file.instruments",       ""),
-    ("file.compare_spectrum",  "menu.file", "file.compare_spectrum",  ""),
-    ("file.clear_comparison",  "menu.file", "file.clear_comparison",  ""),
-    ("file.use_as_calibration","menu.file", "file.use_as_calibration",""),
-    ("file.copy_results",         "menu.file", "file.copy_results",         "Ctrl+Shift+C"),
-    ("file.save_fit",             "menu.file", "file.save_fit",             ""),
-    ("file.export_report",        "menu.file", "file.export_report",        ""),
-    ("file.export_short_report",  "menu.file", "file.export_short_report",  ""),
-    ("file.save_session",      "menu.file", "file.save_session",      "Ctrl+S"),
-    ("file.load_session",      "menu.file", "file.load_session",      "Ctrl+L"),
-    ("file.import_normos_job", "menu.file", "file.import_normos_job", ""),
-    ("file.export_normos_job", "menu.file", "file.export_normos_job", ""),
-    ("file.exit",              "menu.file", "file.exit",              "Ctrl+Q"),
+    ("file.open", "menu.file", "file.open", "Ctrl+O"),
+    ("file.import", "menu.file", "file.import", "Ctrl+I"),
+    ("file.save_session", "menu.file", "file.save_session", "Ctrl+S"),
+    ("file.load_session", "menu.file", "file.load_session", "Ctrl+L"),
+    ("file.exit", "menu.file", "file.exit", "Ctrl+Q"),
+    # ── Datos ──
+    ("file.instruments", "menu.data", "file.instruments", ""),
+    ("file.use_as_calibration", "menu.data", "file.use_as_calibration", ""),
+    ("fit.find_center", "menu.data", "fit.find_center", ""),
+    ("file.compare_spectrum", "menu.data", "file.compare_spectrum", ""),
+    ("file.clear_comparison", "menu.data", "file.clear_comparison", ""),
+    # ── Modelo ──
+    ("fit.init_from_minima", "menu.model", "fit.init_from_minima", "Ctrl+M"),
+    ("fit.auto_from_minima", "menu.model", "fit.auto_from_minima", "Ctrl+Shift+M"),
+    ("fit.auto_residual", "menu.model", "fit.auto_residual", ""),
+    ("fit.edit_minima", "menu.model", "minima.edit_action", "Ctrl+E"),
+    ("model.phase_predict", "menu.model", "phase.predict_toggle", ""),
+    ("fit.identify_phases", "menu.model", "phase.identify", ""),
+    ("fit.free_all", "menu.model", "fit.free_all", "Ctrl+F"),
+    ("fit.fix_all", "menu.model", "fit.fix_all", "Ctrl+Shift+F"),
+    ("fit.constraints", "menu.model", "options.constraints", ""),
+    ("fit.physical_presets", "menu.model", "options.physical_presets", ""),
+    ("model.param_limits", "menu.model", "view.param_limits", ""),
+    ("fit.component_limits", "menu.model", "limits.menu_table", ""),
     # ── Ajuste ──
-    ("fit.run",                "menu.fit",  "fit.run",                "Ctrl+R"),
-    ("fit.undo_fit",           "menu.fit",  "fit.undo_fit",           "Ctrl+Z"),
-    ("fit.history",            "menu.fit",  "history.title",          ""),
-    ("fit.find_center",        "menu.fit",  "fit.find_center",        ""),
-    ("fit.init_from_minima",   "menu.fit",  "fit.init_from_minima",   "Ctrl+M"),
-    ("fit.identify_phases",    "menu.fit",  "phase.identify",         ""),
-    ("fit.edit_minima",        "menu.fit",  "minima.edit_action",     "Ctrl+E"),
-    ("fit.auto_residual",      "menu.fit",  "fit.auto_residual",      ""),
-    ("fit.auto_from_minima",   "menu.fit",  "fit.auto_from_minima",   "Ctrl+Shift+M"),
-    ("fit.ollama_start",       "menu.fit",  "fit.ollama_start",       ""),
-    ("fit.bootstrap",          "menu.fit",  "fit.bootstrap",          ""),
-    ("fit.profile_likelihood", "menu.fit",  "fit.profile_likelihood", ""),
-    ("fit.lcurve",             "menu.fit",  "bhf.lcurve_alpha",       ""),
-    ("fit.batch_fit",          "menu.fit",  "fit.batch_fit",          ""),
-    ("fit.global_neel_fit",    "menu.fit",  "fit.global_neel_fit",    ""),
-    ("fit.free_all",           "menu.fit",  "fit.free_all",           "Ctrl+F"),
-    ("fit.fix_all",            "menu.fit",  "fit.fix_all",            "Ctrl+Shift+F"),
-    ("fit.constraints",        "menu.fit",  "options.constraints",    ""),
-    ("fit.component_limits",   "menu.fit",  "limits.menu_table",      ""),
-    ("fit.physical_presets",   "menu.fit",  "options.physical_presets",""),
+    ("fit.run", "menu.fit", "fit.run", "Ctrl+R"),
+    ("fit.undo_fit", "menu.fit", "fit.undo_fit", "Ctrl+Z"),
+    ("fit.history", "menu.fit", "history.title", ""),
+    ("fit.advanced_options", "menu.fit", "options.advanced_fit", ""),
+    # ── Resultados ──
+    ("results.diagnostics", "menu.results", "results.diagnostics", ""),
+    ("results.show_distribution", "menu.results", "button.show_distribution", ""),
+    ("fit.bootstrap", "menu.results", "fit.bootstrap", ""),
+    ("fit.profile_likelihood", "menu.results", "fit.profile_likelihood", ""),
+    ("fit.lcurve", "menu.results", "bhf.lcurve_alpha", ""),
+    ("file.copy_results", "menu.results", "file.copy_results", "Ctrl+Shift+C"),
+    ("file.save_fit", "menu.results", "file.save_fit", ""),
+    ("file.export_distribution", "menu.results", "file.export_distribution", ""),
+    ("file.export_report", "menu.results", "file.export_report", ""),
+    ("file.export_short_report", "menu.results", "file.export_short_report", ""),
+    # ── Herramientas ──
+    ("fit.batch_fit", "menu.tools", "fit.batch_fit", ""),
+    ("fit.global_neel_fit", "menu.tools", "fit.global_neel_fit", ""),
+    ("file.import_normos_job", "menu.tools", "file.import_normos_job", ""),
+    ("file.export_normos_job", "menu.tools", "file.export_normos_job", ""),
+    ("fit.ollama_start", "menu.tools", "fit.ollama_start", ""),
     # ── Vista ──
-    ("view.show_residual",     "menu.view", "options.show_residual",  ""),
-    ("view.show_legend",       "menu.view", "options.show_legend",    ""),
+    ("view.guided_mode", "menu.view", "guided.menu", ""),
+    ("view.show_residual", "menu.view", "options.show_residual", ""),
+    ("view.show_legend", "menu.view", "options.show_legend", ""),
     ("view.show_component_fill", "menu.view", "options.show_component_fill", ""),
-    ("view.compact_params",    "menu.view", "options.compact_params", ""),
-    ("view.delta_vs_alpha",    "menu.view", "delta_ref.option", ""),
-    ("view.configure_layout",  "menu.view", "view.configure_layout",  ""),
+    ("view.compact_params", "menu.view", "options.compact_params", ""),
+    ("view.delta_vs_alpha", "menu.view", "delta_ref.option", ""),
+    ("view.configure_layout", "menu.view", "view.configure_layout", ""),
     # ── Ayuda ──
-    ("help.open",              "menu.help", "help.open",              "F1"),
-    ("help.manual",            "menu.help", "help.manual",            ""),
-    ("help.about",             "menu.help", "help.about",             ""),
-    ("help.changelog",         "menu.help", "help.changelog",         ""),
-    ("help.check_updates",     "menu.help", "help.check_updates",     ""),
+    ("help.open", "menu.help", "help.open", "F1"),
+    ("help.manual", "menu.help", "help.manual", ""),
+    ("help.about", "menu.help", "help.about", ""),
+    ("help.changelog", "menu.help", "help.changelog", ""),
+    ("help.check_updates", "menu.help", "help.check_updates", ""),
     ("help.configure_updates", "menu.help", "help.configure_updates", ""),
 ]
 
 
 class MenuBuilderMixin:
     # ── Menubar ──────────────────────────────────────────────────────────
-    # Estructura: Archivo / Ajuste / Vista / Ayuda. El antiguo menú
+    # Estructura (``MENU_LAYOUT``): Archivo / Datos / Modelo / Ajuste /
+    # Resultados / Herramientas / Vista / Ayuda. El antiguo menú
     # "Opciones" (herencia Tk) se eliminó: duplicaba entradas de Ajuste y
     # Vista compartiendo los mismos QActionGroup exclusivos, con lo que sus
     # checkmarks nunca podían reflejar el estado (mismo problema que el
@@ -104,10 +143,13 @@ class MenuBuilderMixin:
 
     def _build_menubar(self) -> None:
         self._action_registry: dict[str, QtGui.QAction] = {}
+        self._submenus: dict[str, QtWidgets.QMenu] = {}
         mb = self.menuBar()
+        # Las acciones se crean en menús de trabajo sin barra; al final,
+        # ``_arrange_menus`` las coloca según ``MENU_LAYOUT``.
 
         # ── Archivo ──────────────────────────────────────────────────────
-        file_menu = mb.addMenu(tr("menu.file"))
+        file_menu = QtWidgets.QMenu(self)
         act_open = QtGui.QAction(tr("file.open"), self)
         act_open.triggered.connect(self.on_open)
         file_menu.addAction(act_open)
@@ -123,6 +165,7 @@ class MenuBuilderMixin:
         self._reg("file.instruments", act_instruments)
         self.recent_menu = file_menu.addMenu(tr("file.open_recent", default="Abrir recientes"))
         self._rebuild_recent_menu()
+        self._submenus["recent"] = self.recent_menu
         act_compare = QtGui.QAction(tr("file.compare_spectrum"), self)
         act_compare.triggered.connect(self.on_open_comparison)
         file_menu.addAction(act_compare)
@@ -139,6 +182,7 @@ class MenuBuilderMixin:
         self._reg("file.use_as_calibration", self.act_use_as_calib)
         file_menu.addSeparator()
         web_menu = file_menu.addMenu(tr("file.web"))
+        self._submenus["web"] = web_menu
         act_web_meas = QtGui.QAction(tr("file.web_measurements"), self)
         act_web_meas.triggered.connect(lambda: self._open_web_dialog("measurements"))
         web_menu.addAction(act_web_meas)
@@ -187,6 +231,7 @@ class MenuBuilderMixin:
         # Interoperabilidad con NORMOS: solo ficheros, no se ejecuta nada suyo.
         normos_menu = file_menu.addMenu(
             tr("file.normos", default="NORMOS (.JOB)"))
+        self._submenus["normos"] = normos_menu
         act_import_job = QtGui.QAction(tr("file.import_normos_job"), self)
         act_import_job.triggered.connect(self.on_import_normos_job)
         normos_menu.addAction(act_import_job)
@@ -202,7 +247,7 @@ class MenuBuilderMixin:
         self._reg("file.exit", act_exit)
 
         # ── Ajuste ───────────────────────────────────────────────────────
-        fit_menu = mb.addMenu(tr("menu.fit"))
+        fit_menu = QtWidgets.QMenu(self)
         self.act_fit = QtGui.QAction(tr("fit.run"), self)
         self.act_fit.triggered.connect(self.on_fit)
         self.act_fit.setEnabled(False)
@@ -222,6 +267,7 @@ class MenuBuilderMixin:
         # Modo de ajuste: radios para TODOS los modos del combo lateral
         # (sincronizados en ambos sentidos vía _on_mode_changed).
         mode_menu = fit_menu.addMenu(tr("fit.mode_menu", default="Modo de ajuste"))
+        self._submenus["mode"] = mode_menu
         self.mode_action_group = QtGui.QActionGroup(self)
         self._mode_menu_actions = []
         for idx, label in enumerate(fit_mode_labels()):
@@ -254,6 +300,7 @@ class MenuBuilderMixin:
         self.act_phase_predict.setChecked(getattr(self, "phase_predict_enabled", False))
         self.act_phase_predict.toggled.connect(self._on_phase_predict_toggled)
         prep_menu.addAction(self.act_phase_predict)
+        self._reg("model.phase_predict", self.act_phase_predict)
         self.act_identify_phases = QtGui.QAction(
             tr("phase.identify", default="Identificar fases…"), self)
         self.act_identify_phases.triggered.connect(
@@ -334,7 +381,14 @@ class MenuBuilderMixin:
         self._reg("fit.physical_presets", act_presets)
         fit_menu.addSeparator()
         # Submenú de opciones avanzadas.
+        # Las opciones avanzadas viven en una ventana con pestañas
+        # (gui/advanced_options_dialog.py). Este submenú ya no está en la
+        # barra: sus acciones son el estado que la ventana muestra y cambia
+        # (y que leen la sesión, los presets y el ajuste).
         adv_menu = fit_menu.addMenu(tr("options.advanced_fit"))
+        act_adv = QtGui.QAction(tr("options.advanced_fit") + "…", self)
+        act_adv.triggered.connect(lambda _checked=False: self.on_advanced_options())
+        self._reg("fit.advanced_options", act_adv)
         # Perfil de línea
         prof_menu = adv_menu.addMenu(tr("options.line_profile"))
         self.profile_action_group = QtGui.QActionGroup(self)
@@ -507,11 +561,19 @@ class MenuBuilderMixin:
         self.act_show_distribution = QtGui.QAction(
             tr("button.show_distribution", default="Ver distribución…"), self)
         self.act_show_distribution.triggered.connect(self._on_reopen_map_dialog)
-        adv_menu.addAction(self.act_show_distribution)
+        self._reg("results.show_distribution", self.act_show_distribution)
+        # Ventana de diagnóstico del último ajuste (también desde el indicador
+        # de la barra de estado); activa solo cuando hay comprobaciones.
+        self.act_fit_diagnostics = QtGui.QAction(
+            tr("results.diagnostics", default="Diagnóstico del ajuste…"), self)
+        self.act_fit_diagnostics.triggered.connect(
+            lambda _checked=False: self.show_fit_diagnostics())
+        self.act_fit_diagnostics.setEnabled(False)
+        self._reg("results.diagnostics", self.act_fit_diagnostics)
 
 
         # ── Vista ────────────────────────────────────────────────────────
-        view_menu = mb.addMenu(tr("menu.view"))
+        view_menu = QtWidgets.QMenu(self)
         self.act_show_residual = QtGui.QAction(tr("options.show_residual"), self,
                                                 checkable=True, checked=self._show_residual_pref)
         self.act_show_residual.toggled.connect(self._on_show_residual_toggled)
@@ -538,17 +600,23 @@ class MenuBuilderMixin:
         self.act_compact_params.toggled.connect(self._on_compact_params_toggled)
         view_menu.addAction(self.act_compact_params)
         self._reg("view.compact_params", self.act_compact_params)
+        # Modo guiado: panel lateral con los pasos de un ajuste.
+        self.act_guided_mode = QtGui.QAction(
+            tr("guided.menu", default="Modo guiado"), self, checkable=True)
+        self.act_guided_mode.setChecked(getattr(self, "guided_mode", False))
+        self.act_guided_mode.toggled.connect(self._on_guided_toggled)
+        self._reg("view.guided_mode", self.act_guided_mode)
         # δ de los paneles respecto al α-Fe de la calibración (solo se ve
         # distinto: el ajuste sigue respecto a la fuente).
         self.act_delta_vs_alpha = QtGui.QAction(tr("delta_ref.option"), self, checkable=True)
         self.act_delta_vs_alpha.setChecked(getattr(self, "delta_vs_alpha", False))
         self.act_delta_vs_alpha.setToolTip(tr("delta_ref.option_tip"))
         self.act_delta_vs_alpha.toggled.connect(self._on_delta_vs_alpha_toggled)
-        view_menu.addAction(self.act_delta_vs_alpha)
         self._reg("view.delta_vs_alpha", self.act_delta_vs_alpha)
         view_menu.addSeparator()
         # Tema UI (QStyle de Qt). Por defecto Fusion.
         theme_menu = view_menu.addMenu(tr("options.theme"))
+        self._submenus["theme"] = theme_menu
         self.theme_action_group = QtGui.QActionGroup(self)
         from PySide6 import QtWidgets as _qw
         available_styles = _qw.QStyleFactory.keys()
@@ -559,6 +627,7 @@ class MenuBuilderMixin:
             a.triggered.connect(lambda _c=False, s=style_name: self._set_qt_style(s))
             theme_menu.addAction(a); self.theme_action_group.addAction(a)
         style_menu = view_menu.addMenu(tr("options.plot_style"))
+        self._submenus["plot_style"] = style_menu
         self.style_action_group = QtGui.QActionGroup(self)
         for value, label_key in (
             ("classic", "plot_style.classic"),
@@ -575,6 +644,7 @@ class MenuBuilderMixin:
 
         # Tema de color de la interfaz (paleta de la aplicación).
         color_menu = view_menu.addMenu(tr("options.color_theme", default="Tema de color"))
+        self._submenus["color_theme"] = color_menu
         self.color_theme_group = QtGui.QActionGroup(self)
         for value, theme in COLOR_THEMES.items():
             act = QtGui.QAction(tr(f"theme.{value}", default=theme.get("label", value)), self, checkable=True)
@@ -584,6 +654,7 @@ class MenuBuilderMixin:
             color_menu.addAction(act)
             self.color_theme_group.addAction(act)
         lang_menu = view_menu.addMenu(tr("menu.language"))
+        self._submenus["language"] = lang_menu
         self.lang_action_group = QtGui.QActionGroup(self)
         current_lang = get_language()
         for code, name in available_languages().items():
@@ -601,7 +672,7 @@ class MenuBuilderMixin:
             tr("view.param_limits", default="Límites de parámetros…"), self
         )
         act_param_limits.triggered.connect(self.on_param_limits)
-        view_menu.addAction(act_param_limits)
+        self._reg("model.param_limits", act_param_limits)
 
         # ── Ayuda ────────────────────────────────────────────────────────
         help_menu = mb.addMenu(tr("menu.help"))
@@ -633,6 +704,24 @@ class MenuBuilderMixin:
         act_configure_updates.triggered.connect(self.on_configure_updates)
         help_menu.addAction(act_configure_updates)
         self._reg("help.configure_updates", act_configure_updates)
+        self._arrange_menus(help_menu)
+
+    def _arrange_menus(self, before: QtWidgets.QMenu) -> None:
+        """Coloca en la barra los menús de ``MENU_LAYOUT`` delante de ``before``."""
+        mb = self.menuBar()
+        self._menus: dict[str, QtWidgets.QMenu] = {}
+        for title_key, items in MENU_LAYOUT:
+            menu = QtWidgets.QMenu(tr(title_key), mb)
+            menu.setToolTipsVisible(True)
+            for item in items:
+                if item == "-":
+                    menu.addSeparator()
+                elif item.startswith("@"):
+                    menu.addMenu(self._submenus[item[1:]])
+                else:
+                    menu.addAction(self._action_registry[item])
+            mb.insertMenu(before.menuAction(), menu)
+            self._menus[title_key] = menu
 
 
     def on_param_limits(self) -> None:

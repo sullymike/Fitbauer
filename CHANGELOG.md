@@ -2,6 +2,11 @@
 
 ## Sin publicar
 
+- **Modo guiado: δ en la referencia de los paneles.** La tabla del paso 6 y
+  los «δ ≈» de la detección y de «Buscar lo que falta» siguen Vista ›
+  Mostrar δ respecto al α-Fe (la cabecera dice «δ (α-Fe)»), y la fase
+  sugerida de la tabla se busca con δ respecto al α-Fe, como el sugeridor.
+
 - **La identificación de fases compara δ respecto al α-Fe.** La base de fases
   da δ respecto al α-Fe y el panel respecto a la fuente, pero se comparaban
   sin restar el δ(α-Fe) de la calibración: con la del Fe₃O₄ (−0.11 mm/s), el
@@ -35,6 +40,96 @@
   parámetros, siempre respecto a la fuente. Los avisos de cotas y las
   restricciones nombran δ «(fuente)», porque dan valores internos. Se
   recuerda entre sesiones.
+
+- **Modo guiado en la columna izquierda, en pestañas.** El asistente ya no es
+  un panel acoplado a la derecha (una tercera columna de ~500 px que dejaba
+  sin sitio al gráfico y a los parámetros): ocupa el sitio de la columna
+  izquierda, con el mismo ancho, en dos pestañas, «Paneles» (lo de siempre:
+  fichero, estado, velocidad y fondo) y «Guiado», que se abre al entrar en el
+  modo. Al salir del modo guiado la
+  columna vuelve a ser la de antes. Los botones de cada paso van en dos
+  columnas para caber en ese ancho.
+
+- **Modo guiado: candado en el paso «Ajustar».** El mismo candado global que
+  hay junto a «Ajustar» (fijar todo / volver a como estaba), y una línea con
+  cuántos parámetros se van a ajustar. «Más/Menos» de cada componente sigue
+  al candado: al fijar en bloque los secundarios se pueden plegar y, si se
+  liberan estando plegados, aparecen.
+
+- **Modo guiado: las propuestas de la detección.** El paso «Componentes» dice
+  cuántas propuestas se compararon por BIC, cuál ganó y su ΔBIC frente a las
+  reglas, y cada simplificación o componente añadida desde el residuo; el
+  botón «Ver propuestas…» abre la tabla completa.
+
+- **Modo guiado: la calibración es el primer paso.** Explica qué fija (Vmax y
+  el origen de δ, el IS del α-Fe) y cómo conseguirla: equipo dado de alta (se
+  elige sola por la fecha al cargar), calibraciones web o calibrar con un α-Fe
+  ajustado en los pasos siguientes («Usar el ajustado como calibración…»,
+  activo tras ajustar). Muestra la activa con su origen, Vmax e IS ± σ, o el
+  aviso de que no hay. Los demás pasos pasan a 2–6.
+
+- **Fijar un parámetro secundario permite ocultarlo.** Al fijar uno a la vista
+  (p. ej. las Γ relativas tras un ajuste) no se esconde en el acto: el botón
+  pasa a «Menos (n) ◂» y, al pulsarlo, se ocultan los fijos. Antes el botón no
+  se enteraba del cambio y seguía ofreciendo solo «Más».
+
+- **El botón «Más ▸» de cada componente está siempre.** Antes aparecía y
+  desaparecía según el tipo o lo que estuviera fijo; ahora, si no hay nada que
+  plegar, queda desactivado y su tooltip dice por qué.
+
+- **Modo guiado: errores en la tabla de resultados.** δ, ΔEQ, BHF y el área
+  llevan debajo su ± (covarianza del ajuste; el del área, propagado como en el
+  informe); un parámetro fijo sale sin ±. Unidades en la cabecera y celdas en
+  dos líneas para que la tabla quepa en el panel sin barra horizontal.
+
+- **El modo guiado cuenta lo que hace cada paso.** Detectar: cuántos mínimos
+  y cómo se agruparon (componente, nº de líneas, δ/BHF/ΔEQ de partida, los no
+  usados), marcados en la gráfica (▼ con el número de su componente) hasta el
+  siguiente ajuste. Ajustar: nº de parámetros libres y arranques y los que más
+  se movieron (antes → después ± error, ordenados respecto a su rango).
+  Buscar lo que falta: qué se propuso y la decisión con su ΔBIC, en el panel y
+  no en una ventana emergente; si se descarta, el relato vuelve al ajuste
+  restaurado. El paso 1 avisa si no hay calibración (δ sin referir al α-Fe:
+  δ y la fase probable pueden salir desplazados).
+
+- **Modo guiado** (Vista › Modo guiado). Panel lateral con los pasos de un
+  ajuste discreto para quien no conoce el programa: 1) espectro y calibración,
+  2) detectar componentes desde los mínimos, con la fase de referencia más
+  parecida (solo si la similitud es ≥ 75 %), 3) ajustar y «buscar lo que
+  falta» (autoajuste del residuo), 4) «¿es fiable?»: el veredicto del
+  diagnóstico en lenguaje llano con un botón de arreglo por aviso (añadir
+  componente, cambiar límites, probar varios arranques), 5) resultado (tipo,
+  δ, ΔEQ, BHF, área, fase probable) con informe PDF y guardar sesión. Solo
+  llama a acciones que ya existían; el resto de la ventana sigue igual y lo
+  que se cambie allí se ve en el panel. Se recuerda entre arranques
+  (`gui/guided_mode.py`).
+
+- **Panel de componente en dos niveles.** Se ven δ, ΔEQ, BHF, Γ, profundidad y
+  los parámetros propios de cada tipo de relajación; los secundarios (Γ
+  relativas, intensidades, textura, β/η/φ, Bex/Gax, polarización, campo
+  externo, σ/τ₀/bins de Néel) se esconden tras «Más (n) ▸» **solo si están
+  fijos**: uno libre se ve siempre, también si lo libera una sesión o un preset
+  estando plegado. Ocultar es solo presentación: no cambia lo que se ajusta
+  (`SECONDARY_PARAMS` en `gui/panels.py`).
+
+- **Opciones avanzadas en una ventana.** Ajuste › Opciones avanzadas de ajuste…
+  abre una ventana con pestañas (Modelo físico, Estadística, Búsqueda del
+  mínimo, Convenios NORMOS, Distribución) y una línea de explicación por opción,
+  en lugar de seis submenús. Las acciones del menú siguen siendo el estado (lo
+  que leen sesión, presets y ajuste); la ventana las refleja y las cambia, en
+  los dos sentidos (`gui/advanced_options_dialog.py`).
+
+- **Menús por pasos del trabajo.** La barra pasa de Archivo / Ajuste / Vista /
+  Ayuda a Archivo / Datos / Modelo / Ajuste / Resultados / Herramientas / Vista /
+  Ayuda. Ajuste tenía ~20 entradas que mezclaban preparación, errores, serie,
+  Néel e IA: ahora Datos reúne equipos, calibración, centro y comparación;
+  Modelo, la inicialización desde mínimos, fases, fijar/liberar, restricciones y
+  límites (Límites de parámetros sale de Vista); Resultados, el diagnóstico
+  (nueva entrada), la distribución, los errores y la exportación; Herramientas,
+  serie, Néel, NORMOS e IA local. La disposición es una lista declarativa
+  (`MENU_LAYOUT` en `gui/menu_builder.py`) y los atajos indican su menú nuevo.
+  La ayuda (8 idiomas), los avisos y los README nombran las rutas nuevas; los
+  capítulos de la ayuda siguen organizados por los menús antiguos.
 
 - **Cotas de ajuste por componente, fuera del panel.** Las casillas mín/máx
   junto a «fijo» (Vista › Mostrar cotas de ajuste por componente) eran dos

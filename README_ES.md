@@ -205,7 +205,7 @@ lo pendiente, con qué habría que tocar y cómo validarlo, en
 - Cuadrupolo avanzado: primer orden, Kündig fijo, Kündig polvo; textura de intensidades de sextete.
 - Presets físicos de restricciones (3:2:1 polvo, anchuras ligadas, δ/Γ atados entre componentes).
 - Modelos de relajación: fenomenológico, Blume–Tjon dos estados, Néel–Arrhenius con distribución lognormal de tamaños.
-- Límites de parámetros configurables desde la GUI (Vista → Límites de parámetros…).
+- Límites de parámetros configurables desde la GUI (Modelo → Límites de parámetros…).
 - Figura Matplotlib interactiva con editor semi-manual de mínimos.
 - Ajuste en serie (batch) con warm-start.
 - Exportación del ajuste como TSV con **subespectros por componente** y cabecera informativa.

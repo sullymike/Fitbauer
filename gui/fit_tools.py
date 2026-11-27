@@ -38,8 +38,7 @@ class FitToolsMixin:
             return
         previas = [c for c in self._active_component_states()]
         if not previas:
-            QtWidgets.QMessageBox.information(
-                self, tr("fit.auto_residual"), tr("msg.auto_residual_no_components"))
+            self._residual_notice("none", tr("msg.auto_residual_no_components"))
             return
         state = self._build_state()
         if state is None:
@@ -68,9 +67,9 @@ class FitToolsMixin:
         ocupados = {c.idx for c in previas}
         libres = [i for i in range(1, len(self.components_panels) + 1) if i not in ocupados]
         if not peaks or not libres:
-            QtWidgets.QMessageBox.information(
-                self, tr("fit.auto_residual"),
-                tr("msg.auto_residual_none") if not peaks else tr("msg.auto_residual_full"))
+            self._residual_notice(
+                "none", tr("msg.auto_residual_none") if not peaks else tr("msg.auto_residual_full"),
+                threshold=umbral)
             return
         nuevas, params = self._components_from_peaks(peaks, baseline, slope)
         # Las nuevas van a los huecos libres, en orden.
@@ -90,6 +89,7 @@ class FitToolsMixin:
         snapshot = self._project_state().to_session_payload()
         prev_result = self.runtime_results.fit_result
         prev_gui = self.runtime_results.gui_result
+        prev_story = getattr(self, "_last_fit_story", None)
         prev_checks = (self.fit_checks(), getattr(self, "_fit_checks_note", ""),
                        self.fit_summary_label.text() if hasattr(self, "fit_summary_label") else "")
         sigma = (np.asarray(state.sigma_data, dtype=float) if state.sigma_data is not None
@@ -121,6 +121,11 @@ class FitToolsMixin:
         resumen = ", ".join(
             tr("text.component_kind_label", idx=idx, kind=tr(f"kind.{kind}", default=kind))
             for idx, kind, _g in nuevas)
+        propuestas = [{"idx": idx, "kind": kind,
+                       "delta": valores.get(f"s{idx}_delta"),
+                       "bhf": valores.get(f"s{idx}_bhf") if kind not in ("Doblete", "Singlete") else None,
+                       "quad": valores.get(f"s{idx}_quad") if kind == "Doblete" else None}
+                      for idx, kind, _g in nuevas]
         try:
             self.on_fit()
         finally:
@@ -153,13 +158,26 @@ class FitToolsMixin:
             else:
                 self.runtime_results.clear()
             self._set_fit_diagnostics(*prev_checks)
+            # El relato del ajuste vuelve al del modelo restaurado.
+            self._last_fit_story = prev_story
             self._refresh_plot()
-            QtWidgets.QMessageBox.information(
-                self, tr("fit.auto_residual"),
-                tr("msg.auto_residual_rejected", summary=resumen, dbic=f"{d_bic:+.1f}"))
+            self._residual_notice(
+                "rejected", tr("msg.auto_residual_rejected", summary=resumen, dbic=f"{d_bic:+.1f}"),
+                proposed=propuestas, dbic=d_bic)
             return
-        self.statusBar().showMessage(
-            tr("msg.auto_residual_done", summary=resumen) + f"  ΔBIC = {d_bic:+.1f}", 8000)
+        self._residual_notice("accepted", tr("msg.auto_residual_done", summary=resumen)
+                              + f"  ΔBIC = {d_bic:+.1f}", proposed=propuestas, dbic=d_bic)
+
+    def _residual_notice(self, outcome: str, text: str, **info) -> None:
+        """Guarda qué hizo «Autoajustar el residuo» y lo comunica: en modo
+        guiado lo cuenta el panel (con los números); fuera, como siempre."""
+        self._last_residual_story = {"outcome": outcome, "text": text, **info}
+        if getattr(self, "guided_mode", False):
+            self.statusBar().showMessage(text, 8000)
+        elif outcome == "accepted":
+            self.statusBar().showMessage(text, 8000)
+        else:
+            QtWidgets.QMessageBox.information(self, tr("fit.auto_residual"), text)
 
     def on_ai_summary(self) -> None:
         """Muestra un resumen JSON del espectro listo para pegar en un LLM."""

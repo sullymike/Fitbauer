@@ -152,6 +152,8 @@ class LayoutSettingsMixin:
         if hasattr(self, "_left_scroll"):
             self._left_scroll.setMinimumWidth(left_w)
             self._left_scroll.setMaximumWidth(left_w)
+            if hasattr(self, "_sync_left_width"):
+                self._sync_left_width()
         if hasattr(self, "_right_column"):
             self._right_column.setVisible(right_w > 0)
             self._right_column.setMinimumWidth(right_w if right_w > 0 else 0)
@@ -533,6 +535,7 @@ class LayoutSettingsMixin:
             wide_delta=getattr(self, "wide_delta", False),
             auto_global=getattr(self, "auto_global", True),
             compact_params=getattr(self, "compact_params", False),
+            guided_mode=getattr(self, "guided_mode", False),
             delta_vs_alpha=getattr(self, "delta_vs_alpha", False),
             # Solo lo elegido en el menú es preferencia: los convenios que trae
             # una sesión o un .JOB son de ese análisis (una sesión antigua con
@@ -584,6 +587,7 @@ class LayoutSettingsMixin:
         self.auto_global = bool(prefs.auto_global)
         self.compact_params = bool(prefs.compact_params)
         self._apply_compact_params()
+        self.guided_mode = bool(prefs.guided_mode)
         self.delta_vs_alpha = bool(prefs.delta_vs_alpha)
         self._refresh_delta_reference()
         # Convenios NORMOS: la preferencia guardada es el punto de partida de

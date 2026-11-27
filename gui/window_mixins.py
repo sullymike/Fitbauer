@@ -16,6 +16,8 @@ from gui.layout_manager import LayoutSettingsMixin
 from gui.model_workflow import ModelWorkflowMixin
 from gui.fit_workflow import FitWorkflowMixin
 from gui.fit_diagnostics import FitDiagnosticsMixin
+from gui.advanced_options_dialog import AdvancedOptionsMixin
+from gui.guided_mode import GuidedModeMixin
 from gui.discrete_fit import DiscreteFitMixin
 from gui.distribution_fit import DistributionFitMixin
 from gui.minima_analysis import MinimaAnalysisMixin
@@ -42,6 +44,8 @@ class WindowMixins(
     ModelWorkflowMixin,
     FitWorkflowMixin,
     FitDiagnosticsMixin,
+    AdvancedOptionsMixin,
+    GuidedModeMixin,
     # Ajustes y herramientas científicas
     DiscreteFitMixin,
     DistributionFitMixin,

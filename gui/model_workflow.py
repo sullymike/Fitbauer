@@ -562,6 +562,9 @@ class ModelWorkflowMixin:
         if group is None:
             return
         self.btn_sim_free_all.refresh()
+        guided = getattr(self, "guided_panel", None)
+        if guided is not None:
+            guided.refresh_lock()
         for cp in getattr(self, "components_panels", []):
             cp.lock_btn.refresh()
 

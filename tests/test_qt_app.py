@@ -2358,6 +2358,10 @@ def test_el_panel_solo_muestra_los_parametros_ajustables(win, app):
     cp._set_intensity_mode("free")
     app.processEvents()
 
+    # Plegado: lo aplicable menos los secundarios fijos; desplegado, todo.
+    assert _visibles(cp) == cp.relevant_params() - set(cp._hidden_secondary())
+    cp.set_show_more(True)
+    app.processEvents()
     assert _visibles(cp) == cp.relevant_params()
     # η/φ/β pertenecen al sextete pero solo existen con el Hamiltoniano.
     assert not (_visibles(cp) & {"eta", "phi", "beta", "bex", "gax", "texture"})
@@ -3354,7 +3358,9 @@ def test_bext_de_blume_tjon_en_el_panel(win):
     cp = win.components_panels[0]
     cp.type_combo.setCurrentText("BlumeTjon")
     ctl = cp.params["relax_bext"]
-    assert ctl.isVisibleTo(cp) and ctl.is_fixed()
+    assert ctl.is_fixed() and not ctl.isVisibleTo(cp)     # secundario fijo: plegado
+    cp.set_show_more(True)
+    assert ctl.isVisibleTo(cp)
     win._set_all_fixed(False)
     assert ctl.is_fixed() and not cp.params["relax_log_nu"].is_fixed()
     cp.type_combo.setCurrentText("Sextete")
@@ -3982,6 +3988,229 @@ def test_candados_fijan_y_vuelven_a_como_estaba(win):
     assert win.fix_group.state() == FREE
 
 
+def test_menus_por_pasos_del_trabajo(win):
+    """La barra sigue ``MENU_LAYOUT`` y cada atajo está en el menú que dice."""
+    from gui.menu_builder import MENU_LAYOUT, SHORTCUT_REGISTRY
+    from mossbauer_i18n import tr
+    titulos = [a.text() for a in win.menuBar().actions()]
+    assert titulos == [tr(k) for k, _ in MENU_LAYOUT] + [tr("menu.help")]
+    en_menu = {i: k for k, items in MENU_LAYOUT for i in items}
+    for action_id, menu_key, _, _ in SHORTCUT_REGISTRY:
+        assert action_id in win._action_registry, action_id
+        if menu_key == "menu.help":
+            continue
+        if action_id.startswith("file.") and "normos" in action_id:
+            assert en_menu["@normos"] == menu_key
+        else:
+            assert en_menu[action_id] == menu_key, action_id
+    # El diagnóstico se activa al haber comprobaciones.
+    assert not win.act_fit_diagnostics.isEnabled()
+
+
+def test_ventana_de_opciones_avanzadas_refleja_y_cambia_el_estado(win):
+    """La ventana con pestañas cambia las mismas opciones que leía el menú
+    (y que guarda la sesión), y se actualiza si cambian por otro lado."""
+    from PySide6 import QtWidgets
+    win.on_advanced_options()
+    dlg = win._adv_dialog
+    assert dlg.isVisible() and dlg.tabs.count() == 5
+    combos = dlg.findChildren(QtWidgets.QComboBox)
+    textos = {a.text().replace("&", ""): a for a in win.likelihood_action_group.actions()}
+    lik = next(c for c in combos if c.itemText(0) in textos or c.itemText(1) in textos)
+    i_poisson = next(i for i in range(lik.count())
+                     if textos.get(lik.itemText(i)) is not None
+                     and textos[lik.itemText(i)] is win.likelihood_action_group.actions()[1])
+    lik.activated.emit(i_poisson)
+    assert win.likelihood == "poisson"
+    # Al revés: el estado cambia fuera (p. ej. al cargar una sesión).
+    win.likelihood_action_group.actions()[0].trigger()
+    assert win.likelihood == "gauss" and lik.currentIndex() != i_poisson
+    checks = {c.text(): c for c in dlg.findChildren(QtWidgets.QCheckBox)}
+    cb = checks[win.act_wide_delta.text().replace("&", "")]
+    cb.setChecked(not win.act_wide_delta.isChecked())
+    assert win.wide_delta == cb.isChecked()
+    win.act_wide_delta.setChecked(False)
+    assert not cb.isChecked()
+    spins = dlg.findChildren(QtWidgets.QSpinBox)
+    sp = next(s for s in spins if s.value() == win._multistart_spin.value()
+              and s.maximum() == win._multistart_spin.maximum())
+    sp.setValue(3)
+    assert win.multistart_n == 3
+    dlg.close()
+
+
+def test_panel_de_componente_en_dos_niveles(win, app):
+    """Plegado se ve lo básico; los secundarios fijos van tras «Más (n)» y
+    uno secundario LIBRE se ve siempre, porque se ajusta."""
+    cp = win.components_panels[0]
+    cp.type_combo.setCurrentText("Sextete")
+    cp._set_quad_treatment("1st_order")
+    cp._set_intensity_mode("free")
+    cp.set_show_more(False)
+    app.processEvents()
+    assert {"delta", "quad", "bhf", "gamma1", "depth"} <= _visibles(cp)
+    ocultos = set(cp._hidden_secondary())
+    assert ocultos and not (ocultos & _visibles(cp))
+    assert cp.more_btn.isVisibleTo(cp) and str(len(ocultos)) in cp.more_btn.text()
+    # Una sesión libera Γ2 estando plegado: aparece sin tocar nada.
+    cp.params["gamma2"].set_fixed(False)
+    app.processEvents()
+    assert "gamma2" in _visibles(cp)
+    cp.more_btn.click()
+    app.processEvents()
+    assert _visibles(cp) == cp.relevant_params()
+    # Ocultar no cambia lo que se ajusta.
+    claves = set(win.active_param_keys())
+    cp.more_btn.click()
+    assert set(win.active_param_keys()) == claves
+    # El botón está siempre: sin nada que plegar, visible y desactivado.
+    from gui.panels import SECONDARY_PARAMS
+    for n in SECONDARY_PARAMS:
+        if n in cp.params:
+            cp.params[n].set_fixed(False)
+    cp.set_show_more(False)
+    app.processEvents()
+    assert cp.more_btn.isVisibleTo(cp) and not cp.more_btn.isEnabled()
+    assert "gamma2" in _visibles(cp)
+    # Fijar uno a la vista no lo esconde de golpe: el botón ofrece ocultarlo.
+    cp.params["gamma2"].set_fixed(True)
+    app.processEvents()
+    assert "gamma2" in _visibles(cp)
+    assert cp.more_btn.isEnabled() and "(1)" in cp.more_btn.text()
+    cp.more_btn.click()
+    app.processEvents()
+    assert "gamma2" not in _visibles(cp) and cp.more_btn.isEnabled()
+    cp.type_combo.setCurrentText("Singlete")
+    app.processEvents()
+    assert cp.more_btn.isVisibleTo(cp)
+
+
+def test_modo_guiado_pasos_y_arreglos(win, app):
+    """Vista › Modo guiado: el panel lateral sigue los pasos (cargar,
+    detectar, ajustar, diagnóstico, resultado) y ofrece el arreglo de cada
+    aviso; la preferencia se guarda."""
+    from pathlib import Path
+    from PySide6 import QtWidgets
+    win.show()
+    win.act_guided_mode.setChecked(True)
+    app.processEvents()
+    panel = win.guided_panel
+    # El asistente sustituye a la columna izquierda (pestañas), no añade otra.
+    assert win._main_splitter.indexOf(win._left_tabs) == 0
+    assert win._left_tabs.widget(0) is win._left_scroll and win._left_tabs.widget(1) is panel
+    assert win._left_tabs.currentWidget() is panel and win._ui_preferences_state().guided_mode
+    panel.refresh()
+    assert not panel.s_comp.isEnabled() and not panel.s_fit.isEnabled()
+    win._open_spectrum(Path(__file__).resolve().parents[1] / "data_sample" / "Fe3O4.adt")
+    panel.refresh()
+    assert panel.s_comp.isEnabled() and "Fe3O4.adt" in panel.s_file.status.text()
+    panel.btn_detect.click()
+    panel.refresh()
+    assert [c.kind for c in win._active_component_states()] == ["Sextete", "Sextete"]
+    panel.btn_fit.click()
+    panel.refresh()
+    assert win.runtime_results.fit_result is not None
+    assert panel.table.rowCount() == 2 and panel.btn_report.isEnabled()
+    avisos = [c for c in win.fit_checks() if c.status in ("warn", "fail")]
+    botones = [b.text() for b in panel.findChildren(QtWidgets.QPushButton)]
+    if any(c.key in ("chi2", "residual") for c in avisos):
+        from mossbauer_i18n import tr
+        assert tr("guided.fix_residual") in botones
+    # «Probar con varios arranques» cambia a exploración y ajusta.
+    win._guided_fit_explore()
+    assert win._fit_strategy() == "explore"
+    win.act_guided_mode.setChecked(False)
+    app.processEvents()
+    assert win._main_splitter.indexOf(win._left_scroll) == 0
+    assert win._left_scroll.isVisible() and not win._left_tabs.isVisible()
+    assert not win._ui_preferences_state().guided_mode
+    win.mark_saved()
+
+
+def test_modo_guiado_cuenta_lo_que_hace(win, app):
+    """Cada paso cuenta lo que hizo: mínimos y su agrupación (con marcas en
+    la gráfica), parámetros antes → después y la decisión ΔBIC de «Buscar lo
+    que falta» en el panel, sin ventana emergente; y avisa si no hay
+    calibración de δ."""
+    from pathlib import Path
+    from PySide6 import QtWidgets
+    from mossbauer_i18n import tr
+    emergentes = []
+    orig = QtWidgets.QMessageBox.information
+    QtWidgets.QMessageBox.information = staticmethod(lambda *a, **k: emergentes.append(a) or 0)
+    try:
+        win.show()
+        win.act_guided_mode.setChecked(True)
+        p = win.guided_panel
+        win._open_spectrum(Path(__file__).resolve().parents[1] / "data_sample" / "Fe3O4.adt")
+        win.calibration_info = {}
+        p.refresh()
+        assert "⚠" in p.s_file.status.text()                      # sin calibración
+        assert "⚠" in p.s_cal.status.text() and not p.btn_use_calib.isEnabled()
+        p.btn_detect.click(); p.refresh()
+        det = win._last_detection
+        assert det["n_peaks"] >= 6 and len(det["components"]) == 2
+        assert str(det["n_peaks"]) in p.s_comp.status.text()
+        # Propuestas evaluadas: se cuenta cuál ganó y se pueden ver todas.
+        assert "BIC" in p.s_comp.status.text() and p.btn_proposals.isEnabled()
+        # Marcas de la detección en la gráfica (▼).
+        assert any(getattr(c, "get_paths", None) for c in win.canvas.ax.collections)
+        p.btn_fit.click(); p.refresh()
+        st = win._last_fit_story
+        assert st and set(st["end"]) <= set(st["start"])
+        assert "→" in p.s_fit.status.text()
+        # Paso 1: tras ajustar se puede usar como calibración; con una
+        # calibración fijada se ve su origen, Vmax e IS con σ.
+        assert p.btn_use_calib.isEnabled()
+        win.calibration_info = {"source": "local", "calibration_sample": "aFe",
+                                "calibration_file_name": "aFe.adt",
+                                "velocity_calibrated": 12.03, "isomer_shift": -0.11,
+                                "vmax_uncertainty": 0.0011, "isomer_shift_uncertainty": 0.0007,
+                                "sextet_pattern": "normos"}
+        win._refresh_calib_label(); p.refresh()
+        cal = p.s_cal.status.text()
+        assert "✓" in cal and "aFe.adt" in cal and "± 0.0011" in cal and "± 0.0007" in cal
+        # Tabla de resultados con errores (δ libre → «± …»; área con su error).
+        assert "±" in p.table.item(0, 1).text() and "±" in p.table.item(0, 4).text()
+        historia = win._last_fit_story
+        p.btn_residual.click(); p.refresh()
+        r = win._last_residual_story
+        assert r["outcome"] in ("accepted", "rejected", "none") and not emergentes
+        assert tr("guided.res_title") in p.s_fit.status.text()
+        if r["outcome"] == "rejected":
+            assert win._last_fit_story is historia               # relato restaurado
+    finally:
+        QtWidgets.QMessageBox.information = orig
+        win.mark_saved()
+
+
+def test_aviso_de_limites_nombra_la_pestana():
+    """El texto del aviso lleva la pestaña (Componentes o Calibración)."""
+    from mossbauer_i18n import tr
+    t = tr("valid.limits_hint", tab=tr("param_limits.tab_calibration"))
+    assert tr("param_limits.tab_calibration") in t and "{tab}" not in t
+
+
+def test_guiado_candado_del_paso_ajustar(win):
+    """El paso Ajustar del modo guiado tiene el candado global y dice
+    cuántos parámetros se ajustan; «Más/Menos» sigue al candado."""
+    from gui.fix_lock import FIXED
+    from mossbauer_i18n import tr
+    win.act_guided_mode.setChecked(True)
+    win._load_file(DATA / "hierro_metalico_alphaFe.adt")
+    p, cp = win.guided_panel, win.components_panels[0]
+    p.btn_lock.click()
+    assert win.fix_group.state() == FIXED
+    p._sig = None
+    p.refresh()
+    assert tr("guided.s3_free_none") in p.s_fit.status.text()
+    # Todo fijo: los secundarios se pueden plegar (Más/Menos con los 4).
+    assert "(4)" in cp.more_btn.text() and cp.more_btn.isEnabled()
+    p.btn_lock.click()
+    assert win.fix_group.state() != FIXED
+    assert win.btn_sim_free_all.text() == p.btn_lock.text()
+
+
 def test_delta_respecto_al_alpha_fe_solo_cambia_lo_mostrado(win):
     """Vista › Mostrar δ respecto al α-Fe: el panel enseña y edita
     δ − δ(α-Fe) de la calibración, con la referencia en el rótulo; el valor
@@ -4098,4 +4327,28 @@ def test_identificar_fases_usa_delta_respecto_al_alpha_fe(win):
     win._apply_match_to_panel(cp, m, "Sextete")
     assert cp.params["delta"].value() == pytest.approx(m.delta + iso, abs=1e-3)
     assert "δ(α-Fe)=" in win._component_header(2, "Sextete", 0.66, 0.0, 46.0)
+    win.mark_saved()
+
+
+def test_tabla_del_guiado_sigue_la_referencia_de_delta(win):
+    """La tabla del paso 6 da δ en la referencia de los paneles y la fase
+    sugerida se busca con δ respecto al α-Fe."""
+    from pathlib import Path
+    from mossbauer_i18n import tr
+    root = Path(__file__).resolve().parents[1] / "data_sample"
+    win._open_spectrum(root / "Fe3O4.adt")
+    win.load_session_file(root / "Fe3O4_session.json")
+    win.set_guided_mode(True)
+    gp = win.guided_panel
+    iso = win.calibration_iso_ref()
+    d2 = win.components_panels[1].params["delta"].value()
+    gp._fill_table(True)
+    assert gp.table.item(1, 1).text().split("\n")[0] == f"{d2:.3f}"
+    assert "Magnetite" in gp.table.item(1, 5).text()
+    win.act_delta_vs_alpha.setChecked(True)
+    gp._fill_table(True)
+    assert gp.table.horizontalHeaderItem(1).text().startswith(tr("delta_ref.short_alpha"))
+    assert gp.table.item(1, 1).text().split("\n")[0] == f"{d2 - iso:.3f}"
+    win.act_delta_vs_alpha.setChecked(False)
+    win.set_guided_mode(False)
     win.mark_saved()

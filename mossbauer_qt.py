@@ -124,6 +124,8 @@ class MossbauerQtWindow(WindowMixins, QtWidgets.QMainWindow):
         # _load_settings() corre antes de que existan los paneles, así que la
         # preferencia de parámetros compactos se aplica aquí, ya con la UI viva.
         self._apply_compact_params()
+        if getattr(self, "guided_mode", False):
+            self.set_guided_mode(True)
         self._refresh_delta_reference()
         self._apply_color_theme(self.color_theme, persist=False)
         # Reserva (o no) el espacio de la subgráfica de diferencia desde el

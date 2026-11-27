@@ -118,6 +118,15 @@ class DiscreteFitMixin:
         if hasattr(self, "act_undo_fit"):
             self.act_undo_fit.setEnabled(True)
         self.mark_dirty()
+        self._last_fit_story = {
+            "start": {k: float(state.values[k]) for k in result.free_keys if k in state.values},
+            "end": {k: float(result.values[k]) for k in result.free_keys if k in result.values},
+            "errors": dict(result.errors), "bounds": dict(result.bounds),
+            "n_starts": int(result.n_starts),
+            "best": str((result.best_start or {}).get("label", "")),
+            "strategy": str(getattr(state, "fit_strategy", "explore")),
+        }
+        self._detection_fresh = False
         self._apply_discrete_result_values(state, result)
         red = result.stats.get("red_chi2", float("nan"))
         chi2 = result.stats.get("chi2", float("nan"))
