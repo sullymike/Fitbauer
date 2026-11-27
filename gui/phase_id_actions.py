@@ -39,14 +39,21 @@ class PhaseIdMixin:
         return _val("delta"), _val("quad"), _val("bhf"), kind
 
     def _gather_suggestions(self) -> list[tuple[int, str, tuple, list[PhaseMatch]]]:
-        """Para cada componente activo: (idx, kind, (δ,ΔEQ,B), matches)."""
+        """Para cada componente activo: (idx, kind, (δ,ΔEQ,B), matches).
+
+        La base de fases da δ respecto al α-Fe y el panel respecto a la
+        fuente: se resta el δ(α-Fe) de la calibración (antes se comparaban
+        sin restar y, p. ej., el sitio B de la magnetita salía lepidocrocita).
+        """
         out: list[tuple[int, str, tuple, list[PhaseMatch]]] = []
+        off = self.phase_delta_offset() if hasattr(self, "phase_delta_offset") else 0.0
         for cp in getattr(self, "components_panels", []):
             if not cp.enabled.isChecked():
                 continue
             delta, quad, bhf, kind = self._component_query(cp)
             if delta is None:
                 continue
+            delta -= off
             matches = suggest_phases(delta, quad=quad, bhf=bhf, kind=kind, top_n=6)
             out.append((cp.idx, kind, (delta, quad, bhf), matches))
         return out
@@ -165,8 +172,10 @@ class PhaseIdMixin:
                 tr("phase.applied", n=applied,
                    default=f"Valores de referencia aplicados a {applied} componente(s)"), 5000)
 
-    @staticmethod
-    def _apply_match_to_panel(cp, m: PhaseMatch, kind: str) -> None:
+    def _apply_match_to_panel(self, cp, m: PhaseMatch, kind: str) -> None:
+        # δ de la base (respecto al α-Fe) → respecto a la fuente, como el panel.
+        off = self.phase_delta_offset() if hasattr(self, "phase_delta_offset") else 0.0
+
         def _set(name: str, value: float | None) -> None:
             if value is None:
                 return
@@ -174,7 +183,7 @@ class PhaseIdMixin:
             if ctl is not None:
                 ctl.set_value(float(value))
 
-        _set("delta", m.delta)
+        _set("delta", None if m.delta is None else m.delta + off)
         if kind in ("Sextete", "Doblete"):
             _set("quad", abs(m.quad) if (m.quad is not None and kind == "Sextete") else m.quad)
         if kind == "Sextete":
@@ -194,9 +203,9 @@ class PhaseIdMixin:
         self._show_phase_dialog(data, allow_apply=True)
 
     # ── Formato ──────────────────────────────────────────────────────────
-    @staticmethod
-    def _component_header(idx, kind, delta, quad, bhf) -> str:
-        parts = [f"δ={delta:.2f}"]
+    def _component_header(self, idx, kind, delta, quad, bhf) -> str:
+        off = self.phase_delta_offset() if hasattr(self, "phase_delta_offset") else 0.0
+        parts = [f"δ(α-Fe)={delta:.2f}" if off else f"δ={delta:.2f}"]
         if quad is not None:
             parts.append(f"ΔEQ={quad:.2f}")
         if bhf is not None and bhf > 5.0:
