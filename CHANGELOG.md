@@ -5,8 +5,9 @@
 - **Modo guiado en la columna izquierda, en pestañas.** El asistente ya no es
   un panel acoplado a la derecha (una tercera columna de ~500 px que dejaba
   sin sitio al gráfico y a los parámetros): ocupa el sitio de la columna
-  izquierda, con el mismo ancho, en dos pestañas, «Guiado» y «Paneles» (lo de
-  siempre: fichero, estado, velocidad y fondo). Al salir del modo guiado la
+  izquierda, con el mismo ancho, en dos pestañas, «Paneles» (lo de siempre:
+  fichero, estado, velocidad y fondo) y «Guiado», que se abre al entrar en el
+  modo. Al salir del modo guiado la
   columna vuelve a ser la de antes. Los botones de cada paso van en dos
   columnas para caber en ese ancho.
 

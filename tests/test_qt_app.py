@@ -4097,6 +4097,7 @@ def test_modo_guiado_pasos_y_arreglos(win, app):
     panel = win.guided_panel
     # El asistente sustituye a la columna izquierda (pestañas), no añade otra.
     assert win._main_splitter.indexOf(win._left_tabs) == 0
+    assert win._left_tabs.widget(0) is win._left_scroll and win._left_tabs.widget(1) is panel
     assert win._left_tabs.currentWidget() is panel and win._ui_preferences_state().guided_mode
     panel.refresh()
     assert not panel.s_comp.isEnabled() and not panel.s_fit.isEnabled()

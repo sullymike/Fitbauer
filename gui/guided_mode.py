@@ -545,8 +545,8 @@ class GuidedModeMixin:
     """Acción Vista › Modo guiado y dock del asistente."""
 
     def _ensure_guided_tabs(self) -> QtWidgets.QTabWidget:
-        """Pestañas de la columna izquierda en modo guiado: «Guiado» (el
-        asistente) y «Paneles» (lo de siempre: fichero, estado, velocidad…).
+        """Pestañas de la columna izquierda en modo guiado: «Paneles» (lo de
+        siempre: fichero, estado, velocidad…) y «Guiado» (el asistente).
 
         Antes el asistente era un panel acoplado a la derecha: una tercera
         columna de ~500 px que dejaba sin sitio al gráfico y a los parámetros.
@@ -574,10 +574,12 @@ class GuidedModeMixin:
             idx = splitter.indexOf(scroll)
             sizes = splitter.sizes()
             splitter.replaceWidget(idx, tabs)
-            tabs.addTab(self.guided_panel, tr("guided.tab"))
+            # «Paneles» primero (lo de siempre) y «Guiado» después; al entrar
+            # en el modo se abre «Guiado».
             tabs.addTab(scroll, tr("guided.tab_panels"))
+            tabs.addTab(self.guided_panel, tr("guided.tab"))
             self._sync_left_width()
-            tabs.setCurrentIndex(0)
+            tabs.setCurrentWidget(self.guided_panel)
             tabs.show()
             splitter.setSizes(sizes)
         elif not on and en_splitter:
