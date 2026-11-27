@@ -4146,6 +4146,8 @@ def test_modo_guiado_cuenta_lo_que_hace(win, app):
         det = win._last_detection
         assert det["n_peaks"] >= 6 and len(det["components"]) == 2
         assert str(det["n_peaks"]) in p.s_comp.status.text()
+        # Propuestas evaluadas: se cuenta cuál ganó y se pueden ver todas.
+        assert "BIC" in p.s_comp.status.text() and p.btn_proposals.isEnabled()
         # Marcas de la detección en la gráfica (▼).
         assert any(getattr(c, "get_paths", None) for c in win.canvas.ax.collections)
         p.btn_fit.click(); p.refresh()

@@ -1698,6 +1698,8 @@
   "guided.s1_empty": "Todavía no hay espectro.",
   "guided.s2_title": "Componentes",
   "guided.s2_hint": "Busca los mínimos de absorción y propone sextetes, dobletes o singletes. Revisa el tipo y el número en el panel de componentes.",
+  "guided.s2_proposals": "Ver propuestas…",
+  "guided.det_proposals": "Se compararon {n} propuestas por BIC; gana «{origin}» (ΔBIC {dbic} frente a las reglas).",
   "guided.s2_detect": "Detectar componentes",
   "guided.s2_edit": "Editar mínimos…",
   "guided.s2_comp": "Componente {idx}: {kind}",

@@ -144,6 +144,10 @@ class GuidedPanel(QtWidgets.QWidget):
             primary=True)
         self.btn_edit_minima = self.s_comp.add_button(
             tr("guided.s2_edit"), lambda: w.on_edit_minima())
+        self.btn_proposals = self.s_comp.add_button(
+            tr("guided.s2_proposals"),
+            lambda: w._show_detection_report(w._last_detection_report)
+            if getattr(w, "_last_detection_report", None) is not None else None)
         self.s_fit = _Step(4, tr("guided.s3_title"), tr("guided.s3_hint"))
         self.btn_fit = self.s_fit.add_button(tr("guided.s3_fit"), w.on_fit, primary=True)
         self.btn_residual = self.s_fit.add_button(
@@ -222,6 +226,7 @@ class GuidedPanel(QtWidgets.QWidget):
                 getattr(w, "_fit_strategy", lambda: "")(),
                 id(getattr(w, "calibration_info", None)),
                 id(getattr(w, "_last_detection", None)),
+                id(getattr(w, "_last_detection_report", None)),
                 id(getattr(w, "_last_fit_story", None)),
                 id(getattr(w, "_last_residual_story", None)))
 
@@ -255,6 +260,7 @@ class GuidedPanel(QtWidgets.QWidget):
         else:
             self.s_file.status.setText(tr("guided.s1_empty"))
 
+        self.btn_proposals.setEnabled(getattr(w, "_last_detection_report", None) is not None)
         # 2. Componentes
         comps = self._components()
         if comps:
@@ -383,6 +389,19 @@ class GuidedPanel(QtWidgets.QWidget):
             txt += "<br>&nbsp;&nbsp;" + tr(
                 "guided.det_unused", n=len(det["unused"]),
                 pos=", ".join(_fmt(x, 2) for x in det["unused"][:6]))
+        rep = getattr(self._win, "_last_detection_report", None)
+        if rep is not None:
+            reglas = next((p for p in rep.proposals if p.origin[0] == "detect.origin_rules"), None)
+            from gui.minima_analysis import origin_text
+            txt += "<br>&nbsp;&nbsp;" + tr(
+                "guided.det_proposals", n=len(rep.proposals),
+                origin=origin_text(rep.chosen.origin),
+                dbic=f"{rep.final.bic - reglas.bic:+.0f}" if reglas is not None else "—")
+            for st in rep.residual_steps:
+                if st["accepted"]:
+                    clave = "detect.step_removed" if "removed" in st else "detect.step_added"
+                    txt += "<br>&nbsp;&nbsp;" + tr(clave, what=origin_text(st["origin"]),
+                                                   dbic=f"{st['dbic']:+.1f}")
         if getattr(self._win, "_detection_fresh", False):
             txt += "<br><i>" + tr("guided.det_marks") + "</i>"
         return txt

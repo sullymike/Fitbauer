@@ -1698,6 +1698,8 @@
   "guided.s1_empty": "Ainda não há espetro.",
   "guided.s2_title": "Componentes",
   "guided.s2_hint": "Procura os mínimos de absorção e propõe sextetos, dupletos ou singletos. Revê o tipo e o número no painel de componentes.",
+  "guided.s2_proposals": "Ver propostas…",
+  "guided.det_proposals": "Compararam-se {n} propostas pelo BIC; ganha «{origin}» (ΔBIC {dbic} face às regras).",
   "guided.s2_detect": "Detetar componentes",
   "guided.s2_edit": "Editar mínimos…",
   "guided.s2_comp": "Componente {idx}: {kind}",

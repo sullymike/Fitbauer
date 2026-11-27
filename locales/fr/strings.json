@@ -1698,6 +1698,8 @@
   "guided.s1_empty": "Pas encore de spectre.",
   "guided.s2_title": "Composantes",
   "guided.s2_hint": "Cherche les minima d'absorption et propose des sextets, doublets ou singulets. Vérifiez le type et le nombre dans le panneau des composantes.",
+  "guided.s2_proposals": "Voir les propositions…",
+  "guided.det_proposals": "{n} propositions comparées par le BIC ; la gagnante est « {origin} » (ΔBIC {dbic} par rapport aux règles).",
   "guided.s2_detect": "Détecter les composantes",
   "guided.s2_edit": "Éditer les minima…",
   "guided.s2_comp": "Composante {idx} : {kind}",

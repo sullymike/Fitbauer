@@ -1698,6 +1698,8 @@
   "guided.s1_empty": "No spectrum yet.",
   "guided.s2_title": "Components",
   "guided.s2_hint": "Finds the absorption minima and proposes sextets, doublets or singlets. Check the type and number in the components panel.",
+  "guided.s2_proposals": "View proposals…",
+  "guided.det_proposals": "{n} proposals compared by BIC; the winner is «{origin}» (ΔBIC {dbic} versus the rules).",
   "guided.s2_detect": "Detect components",
   "guided.s2_edit": "Edit minima…",
   "guided.s2_comp": "Component {idx}: {kind}",

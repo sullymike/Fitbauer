@@ -2,6 +2,11 @@
 
 ## Sin publicar
 
+- **Modo guiado: las propuestas de la detección.** El paso «Componentes» dice
+  cuántas propuestas se compararon por BIC, cuál ganó y su ΔBIC frente a las
+  reglas, y cada simplificación o componente añadida desde el residuo; el
+  botón «Ver propuestas…» abre la tabla completa.
+
 - **Modo guiado: la calibración es el primer paso.** Explica qué fija (Vmax y
   el origen de δ, el IS del α-Fe) y cómo conseguirla: equipo dado de alta (se
   elige sola por la fecha al cargar), calibraciones web o calibrar con un α-Fe

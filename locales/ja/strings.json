@@ -1698,6 +1698,8 @@
   "guided.s1_empty": "スペクトルはまだありません。",
   "guided.s2_title": "成分",
   "guided.s2_hint": "吸収の極小値を探し、六重線・二重線・一重線を提案します。成分パネルで種類と数を確認してください。",
+  "guided.s2_proposals": "候補を見る…",
+  "guided.det_proposals": "{n} 個の候補を BIC で比較し、「{origin}」を採用（規則に対し ΔBIC {dbic}）。",
   "guided.s2_detect": "成分を検出",
   "guided.s2_edit": "極小値を編集…",
   "guided.s2_comp": "成分 {idx}：{kind}",

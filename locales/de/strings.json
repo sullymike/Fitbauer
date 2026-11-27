@@ -1698,6 +1698,8 @@
   "guided.s1_empty": "Noch kein Spektrum.",
   "guided.s2_title": "Komponenten",
   "guided.s2_hint": "Sucht die Absorptionsminima und schlägt Sextette, Dubletts oder Singuletts vor. Prüfen Sie Typ und Anzahl im Komponentenpanel.",
+  "guided.s2_proposals": "Vorschläge ansehen…",
+  "guided.det_proposals": "{n} Vorschläge per BIC verglichen; es gewinnt «{origin}» (ΔBIC {dbic} gegenüber den Regeln).",
   "guided.s2_detect": "Komponenten erkennen",
   "guided.s2_edit": "Minima bearbeiten…",
   "guided.s2_comp": "Komponente {idx}: {kind}",

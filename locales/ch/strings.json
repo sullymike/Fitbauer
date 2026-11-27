@@ -1698,6 +1698,8 @@
   "guided.s1_empty": "尚未加载谱。",
   "guided.s2_title": "分量",
   "guided.s2_hint": "查找吸收极小值并建议六线谱、双线或单线。请在分量面板中检查类型和数量。",
+  "guided.s2_proposals": "查看候选…",
+  "guided.det_proposals": "按 BIC 比较了 {n} 个候选；胜出的是「{origin}」（相对规则 ΔBIC {dbic}）。",
   "guided.s2_detect": "检测分量",
   "guided.s2_edit": "编辑极小值…",
   "guided.s2_comp": "分量 {idx}：{kind}",
