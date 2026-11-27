@@ -13,8 +13,15 @@ import numpy as np
 # ── Metadatos de la aplicación ────────────────────────────────────────────────
 APP_NAME = "Fitbauer"
 APP_VERSION = "5.3.0"
-APP_AUTHOR = "Jorge Sánchez Marcos, Nieves Menéndez González"
+#: Autores: fuente única para la cabecera, «Acerca de» y los informes.
+APP_AUTHORS: tuple[str, ...] = ("Jorge Sánchez Marcos", "Nieves Menéndez González")
+APP_AUTHOR = ", ".join(APP_AUTHORS)
 APP_DEPARTMENT = "Departamento de Química Física · UAM"
+APP_REPO_URL = "https://github.com/sullymike/Fitbauer"
+#: Agradecimientos de «Acerca de»: (nombre, aportación) de quienes colaboran
+#: probando, informando de errores o proponiendo mejoras. La aportación es
+#: texto libre (vacío si no se quiere detallar); se muestra tal cual.
+APP_ACKNOWLEDGMENTS: tuple[tuple[str, str], ...] = ()
 
 # ── Rutas del proyecto ────────────────────────────────────────────────────────
 # Raíz del repositorio (carpeta padre de core/).

@@ -3888,3 +3888,26 @@ def test_calibracion_guarda_sigmas_y_delta_corregido_con_error(win):
     assert "±" in txt and "σ" in txt                 # solo el del ajuste, y lo dice
     win.calibration_info = {}
     win.mark_saved()
+
+
+def test_acerca_de_con_autores_y_agradecimientos(win, app, monkeypatch):
+    """«Acerca de» muestra los autores, la sección de agradecimientos (con
+    los colaboradores de APP_ACKNOWLEDGMENTS) y el enlace al repositorio."""
+    from PySide6 import QtCore, QtWidgets
+    import gui.help as gh
+    from core.constants import APP_AUTHORS, APP_REPO_URL
+    monkeypatch.setattr(gh, "APP_ACKNOWLEDGMENTS", (("Ana Prueba", "pruebas"),))
+    textos = []
+
+    def leer_y_cerrar():
+        dlg = win._about_dialog
+        textos.extend(lb.text() for lb in dlg.findChildren(QtWidgets.QLabel))
+        dlg.reject()
+    QtCore.QTimer.singleShot(0, leer_y_cerrar)
+    win.on_about()
+    todo = "\n".join(textos)
+    for autor in APP_AUTHORS:
+        assert autor in todo
+    assert "Ana Prueba" in todo and APP_REPO_URL in todo
+    from mossbauer_i18n import tr
+    assert tr("help.about_thanks") in todo

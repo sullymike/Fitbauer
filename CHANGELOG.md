@@ -2,6 +2,14 @@
 
 ## Sin publicar
 
+- **«Acerca de» renovado.** Muestra los autores (Jorge Sánchez Marcos, Nieves
+  Menéndez González) y el departamento, una sección de **agradecimientos** a
+  quienes prueban el programa, informan de errores y proponen mejoras, la
+  licencia y el enlace al repositorio; se cierra con «Cerrar» en vez de al
+  pulsar. Los nombres salen de `core/constants.py`: `APP_AUTHORS` (también la
+  cabecera) y `APP_ACKNOWLEDGMENTS`, una lista (nombre, aportación) para
+  añadir colaboradores.
+
 - **El ± del panel de estado está siempre.** Cada parámetro lleva su error,
   «(fijo)», «(ligado)» o «± —» (sin ajustar todavía o valor cambiado después,
   con una línea que lo explica). Antes desaparecía sin aviso: el redondeo de la

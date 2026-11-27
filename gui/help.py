@@ -8,7 +8,8 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from mossbauer_i18n import tr, get_language
 from mossbauer_help import get_help_sections, get_help_groups
-from core.constants import APP_NAME, APP_VERSION
+from core.constants import (APP_ACKNOWLEDGMENTS, APP_AUTHORS, APP_DEPARTMENT, APP_NAME,
+                            APP_REPO_URL, APP_VERSION)
 from core.data_io import SETTINGS_PATH
 from gui.branding import _logo_pixmap
 
@@ -750,28 +751,54 @@ class HelpMixin:
             QtGui.QDesktopServices.openUrl(QtCore.QUrl(MANUAL_EN_URL))
 
     def on_about(self) -> None:
+        """Acerca de: versión, autores, agradecimientos, licencia y enlace al
+        repositorio. Se cierra con «Cerrar» (no al pulsar, por los enlaces)."""
         dlg = QtWidgets.QDialog(self)
+        dlg.setObjectName("AboutDialog")
         dlg.setWindowTitle(tr("help.about_title", version=APP_VERSION))
-        v = QtWidgets.QVBoxLayout(dlg); v.setContentsMargins(24, 20, 24, 20)
-        _pix = _logo_pixmap(110)
+        dlg.setMinimumWidth(460)
+        v = QtWidgets.QVBoxLayout(dlg); v.setContentsMargins(24, 20, 24, 16)
+        _pix = _logo_pixmap(96)
         if _pix is not None:
             logo = QtWidgets.QLabel(); logo.setPixmap(_pix)
             logo.setAlignment(QtCore.Qt.AlignCenter)
             v.addWidget(logo)
-        title = QtWidgets.QLabel(f"<h2>{APP_NAME}</h2>"); title.setAlignment(QtCore.Qt.AlignCenter)
-        v.addWidget(title)
-        v.addWidget(QtWidgets.QLabel(
-            f"<center>{tr('splash.version', version=APP_VERSION)}<br>"
-            f"<i>{tr('main.subtitle')}</i></center>"))
-        v.addSpacing(8)
-        # Aviso de licencias. La LGPLv3 de Qt/PySide6 exige que el uso de la
-        # biblioteca sea visible para el usuario; el detalle está en
-        # THIRD-PARTY-LICENSES.md. Sin enlaces: al pulsar, el diálogo se cierra.
-        lic = QtWidgets.QLabel(f"<center><small>{tr('help.about_license')}</small></center>")
-        lic.setWordWrap(True)
-        v.addWidget(lic)
-        v.addSpacing(8)
-        v.addWidget(QtWidgets.QLabel(
-            f"<center><i>{tr('splash.click_to_continue')}</i></center>"))
-        dlg.mousePressEvent = lambda _e: dlg.accept()
+        esc = html.escape
+
+        def label(text: str, center: bool = True) -> QtWidgets.QLabel:
+            lb = QtWidgets.QLabel(text)
+            lb.setWordWrap(True)
+            lb.setTextFormat(QtCore.Qt.RichText)
+            if center:
+                lb.setAlignment(QtCore.Qt.AlignCenter)
+            v.addWidget(lb)
+            return lb
+
+        label(f"<h2 style='margin:0'>{esc(APP_NAME)}</h2>"
+              f"{esc(tr('splash.version', version=APP_VERSION))}<br>"
+              f"<i>{esc(tr('main.subtitle'))}</i>")
+        v.addSpacing(10)
+        autores = "<br>".join(f"<b>{esc(a)}</b>" for a in APP_AUTHORS)
+        label(f"<p style='margin:0'><u>{esc(tr('help.about_authors'))}</u></p>"
+              f"{autores}<br>{esc(APP_DEPARTMENT)}")
+        v.addSpacing(10)
+        gracias = esc(tr("help.about_thanks_text"))
+        if APP_ACKNOWLEDGMENTS:
+            filas = "<br>".join(
+                f"{esc(n)}" + (f" — <i>{esc(c)}</i>" if c else "")
+                for n, c in APP_ACKNOWLEDGMENTS)
+            gracias += f"<br><br>{filas}"
+        label(
+            f"<p style='margin:0'><u>{esc(tr('help.about_thanks'))}</u></p>{gracias}")
+        v.addSpacing(10)
+        # Licencias: la LGPLv3 de Qt/PySide6 exige que el uso de la biblioteca
+        # sea visible; el detalle está en THIRD-PARTY-LICENSES.md.
+        label(f"<small>{tr('help.about_license')}</small>")
+        repo = label(f"<a href='{APP_REPO_URL}'>{esc(APP_REPO_URL)}</a>")
+        repo.setOpenExternalLinks(True)
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Close)
+        bb.rejected.connect(dlg.reject)
+        v.addSpacing(6)
+        v.addWidget(bb)
+        self._about_dialog = dlg
         dlg.exec()
