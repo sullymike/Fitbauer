@@ -1653,7 +1653,7 @@
   "diag.sharp_action": "Disable it or fix its parameters from external information.",
   "valid.open_limits": "Change limits…",
   "valid.limits_hint": "Correct the value in the panel or change the limit in View › Parameter limits › {tab} (it applies to the fit and to the input boxes).",
-  "valid.limits_hint_own": "That limit is a bound of this component only: change it in its min/max boxes in the panel (View › Show fit bounds per component).",
+  "valid.limits_hint_own": "That limit is a bound of this component only: change it by right-clicking the parameter → «Fit bounds…» or in Fit › Bounds per component…",
   "diag.reg_title": "Regularization",
   "diag.reg_thr": "k_eff < {pct} % of the possible parameters",
   "diag.reg_value": "k_eff = {k} of {n} possible · log α = {la}",

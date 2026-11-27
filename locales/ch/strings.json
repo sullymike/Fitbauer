@@ -1653,7 +1653,7 @@
   "diag.sharp_action": "禁用它，或依据外部信息固定其参数。",
   "valid.open_limits": "更改限制…",
   "valid.limits_hint": "在面板中修正数值，或在 视图 › 参数范围 › {tab} 中修改限制（同时作用于拟合和输入框）。",
-  "valid.limits_hint_own": "该限制仅属于此组分：请在面板中其最小/最大框内修改（视图 › 显示各组分的拟合界限）。",
+  "valid.limits_hint_own": "该限制是此组分的专属范围：右键单击参数 →“拟合范围…”或在 拟合 › 按组分设置范围… 中修改。",
   "diag.reg_title": "正则化",
   "diag.reg_thr": "k_eff < 可能参数数的 {pct} %",
   "diag.reg_value": "k_eff = {k}（可能 {n}）· log α = {la}",

@@ -1653,7 +1653,7 @@
   "diag.sharp_action": "Desactívala o fija sus parámetros con información externa.",
   "valid.open_limits": "Cambiar límites…",
   "valid.limits_hint": "Corrige el valor en el panel o cambia el límite en Vista › Límites de parámetros › {tab} (vale para el ajuste y para las casillas).",
-  "valid.limits_hint_own": "Ese límite es una cota propia de esta componente: cámbiala en sus casillas mín./máx. del panel (Vista › Mostrar cotas de ajuste por componente).",
+  "valid.limits_hint_own": "Ese límite es una cota propia de esta componente: cámbiala con clic derecho sobre el parámetro → «Cotas de ajuste…» o en Ajuste › Cotas por componente…",
   "diag.reg_title": "Regularización",
   "diag.reg_thr": "k_eff < {pct} % de los parámetros posibles",
   "diag.reg_value": "k_eff = {k} de {n} posibles · log α = {la}",
