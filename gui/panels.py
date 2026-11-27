@@ -460,6 +460,8 @@ class ComponentPanel(QtWidgets.QWidget):
     """
 
     paramChanged = QtCore.Signal()
+    #: Solo cambió qué está fijo (candado): no hace falta recalcular la curva.
+    fixStateChanged = QtCore.Signal()
 
     # Qué parámetros usa cada tipo (los demás se agrisan).
     # 'int3' es la intensidad de referencia (=1, oculta y siempre fija, igual
@@ -564,7 +566,7 @@ class ComponentPanel(QtWidgets.QWidget):
             self.params[k].set_fixed(True)
         self.fix_group = FixGroup(self.lockable_params)
         self.lock_btn = FixLockButton(self.fix_group, parent=self,
-                                      on_changed=self.paramChanged.emit)
+                                      on_changed=self._on_lock_used)
         row.insertWidget(self._lock_slot, self.lock_btn)
         for ctl in self.params.values():
             ctl.fixedChanged.connect(lambda *_: self._on_fixed_changed())
@@ -662,6 +664,15 @@ class ComponentPanel(QtWidgets.QWidget):
         del imán nunca lo son), en el orden del panel."""
         used = self.relevant_params() - {"int3", "relax_bext"}
         return [ctl for name, ctl in self.params.items() if name in used]
+
+    def after_bulk_fix(self) -> None:
+        """Tras fijar/liberar en bloque con las señales de cada parámetro
+        calladas: lo que esas señales habrían actualizado en el panel."""
+        self.lock_btn.refresh()
+
+    def _on_lock_used(self) -> None:
+        self.after_bulk_fix()
+        self.fixStateChanged.emit()
 
     def _on_fixed_changed(self) -> None:
         group = getattr(self, "fix_group", None)

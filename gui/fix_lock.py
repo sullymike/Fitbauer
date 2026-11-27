@@ -44,10 +44,18 @@ class FixGroup:
         return FIXED if n == len(ctls) else FREE if n == 0 else PARTIAL
 
     def _apply(self, values: dict) -> None:
+        """Cambia las casillas sin la cadena de cada parámetro (fixedChanged →
+        paramChanged → recalcular y redibujar el modelo): con 11 parámetros
+        eran 11 refrescos del gráfico por clic, y fijar no cambia la curva.
+        Quien usa el grupo hace luego una sola actualización ligera."""
         self.busy = True
         try:
             for ctl, v in values.items():
-                ctl.set_fixed(bool(v))
+                old = ctl.blockSignals(True)
+                try:
+                    ctl.set_fixed(bool(v))
+                finally:
+                    ctl.blockSignals(old)
         finally:
             self.busy = False
 

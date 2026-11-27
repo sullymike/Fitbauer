@@ -12,6 +12,9 @@
   todos». Liberar una componente tras fijar todo vuelve a lo que tenía antes.
   Sirve para ajustar por partes (fijar el sextete A del Fe3O4 y ajustar el
   B) o para congelar una fase conocida.
+  Al pulsar el candado no se recalcula ni se redibuja el modelo (fijar no
+  cambia la curva): antes cada parámetro disparaba su propio refresco del
+  gráfico y el clic tardaba en responder.
 
 - **Detección de componentes: propuestas evaluadas por BIC.** «Inicializar
   desde mínimos» ya no aplica solo las reglas fijas (mejor sextete, dobletes

@@ -3952,6 +3952,15 @@ def test_candados_fijan_y_vuelven_a_como_estaba(win):
     win.btn_sim_free_all.click()
     assert fijos() == antes
 
+    # Rápido: fijar no cambia la curva, así que no se recalcula ni redibuja
+    # (antes, un refresco del gráfico por cada parámetro).
+    llamadas = []
+    win._refresh_plot = lambda *a, **k: llamadas.append(1)
+    cp.lock_btn.click()
+    win.btn_sim_free_all.click()
+    assert llamadas == []
+    assert win._dirty
+
     win.fix_group.set_all(False)
     assert win.fix_group.state() == FREE
     assert cp.params["int3"].is_fixed()     # nunca se libera

@@ -338,6 +338,7 @@ class MainLayoutMixin:
             # propia, vuelve a lo que tenía antes de ese «fijar todo».
             cp.fix_group._fallback = lambda: self.fix_group.memory
             cp.paramChanged.connect(self._on_model_param_changed)
+            cp.fixStateChanged.connect(self._on_fix_state_changed)
             # Al cambiar el tipo, el panel puede crecer (p.ej. NeelSize tiene
             # más parámetros que Sextete): revisar si sigue cabiendo apilado.
             cp.type_combo.codeChanged.connect(

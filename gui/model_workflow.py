@@ -528,8 +528,17 @@ class ModelWorkflowMixin:
         # Las memorias de cada componente ya no valen tras un cambio global.
         for cp in self.components_panels:
             cp.fix_group.memory = None
+            cp.after_bulk_fix()
+        self._on_fix_state_changed()
+
+    def _on_fix_state_changed(self) -> None:
+        """Solo cambió qué está fijo (candados): sesión modificada, panel de
+        estado (marca «fijo») y candados; la curva es la misma, no se
+        recalcula ni se redibuja."""
+        if not self._building:
+            self.mark_dirty()
         self._refresh_fix_locks()
-        self._refresh_plot()
+        self._update_info_panel()
 
     def _set_all_fixed(self, value: bool) -> None:
         if getattr(self, "fix_group", None) is not None:
