@@ -2,6 +2,19 @@
 
 ## Sin publicar
 
+- **Historial de ajustes en árbol** (Ajuste › Historial de ajustes). Cada
+  ajuste guarda de cuál partió: restaurar una entrada y volver a ajustar abre
+  una rama nueva desde ella, sin perder las posteriores (como en Olex2). El
+  diálogo agrupa por espectro, marca el nodo actual, da Δχ²ᵣ respecto al
+  padre, admite una nota por entrada y, para la elegida, dice qué cambió
+  respecto a su padre (componentes, tipo, tratamiento del cuadrupolo,
+  parámetros fijados o liberados, restricciones, cotas propias, opciones y
+  χ²ᵣ). Cargar otro espectro o sesión empieza árbol; «Deshacer ajuste» vuelve
+  al padre. El tope pasa a ser por espectro (y 20 espectros); al recortar se
+  quitan primero las ramas abandonadas, nunca las entradas con nota ni el
+  nodo actual. El historial antiguo se encadena en orden por fichero. Lógica
+  sin Qt en `gui/history_tree.py`; entrada nueva en la ayuda (8 idiomas).
+
 - **δ respecto al α-Fe en los paneles de componente** (Vista › Mostrar δ
   respecto al α-Fe). Con la opción activa y una calibración con δ(α-Fe), el
   panel muestra y edita δ − δ(α-Fe), para comparar a cada paso con valores de
