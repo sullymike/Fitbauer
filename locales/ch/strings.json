@@ -1681,6 +1681,8 @@
   "component.less_tip": "隐藏此分量中固定的次要参数。自由参数因参与拟合而保持显示。",
   "component.more_tip": "显示此分量中固定的次要参数（相对 Γ、强度、织构、哈密顿量…）。自由参数因参与拟合而始终显示。",
   "guided.menu": "引导模式",
+  "guided.tab": "引导",
+  "guided.tab_panels": "面板",
   "guided.title": "引导拟合",
   "guided.intro": "按顺序完成各步骤。窗口的其他部分照常工作：在那里所做的修改会显示在这里。",
   "guided.s0_title": "校准",

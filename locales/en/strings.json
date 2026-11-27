@@ -1681,6 +1681,8 @@
   "component.less_tip": "Hides this component's fixed secondary parameters. Free ones stay visible, because they are fitted.",
   "component.more_tip": "Shows this component's fixed secondary parameters (relative Γ, intensities, texture, Hamiltonian…). Free ones are always shown, because they are fitted.",
   "guided.menu": "Guided mode",
+  "guided.tab": "Guided",
+  "guided.tab_panels": "Panels",
   "guided.title": "Guided fit",
   "guided.intro": "Follow the steps in order. Everything else in the window keeps working: what you change there shows up here.",
   "guided.s0_title": "Calibration",

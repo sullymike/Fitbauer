@@ -1681,6 +1681,8 @@
   "component.less_tip": "Oculta os parâmetros secundários fixos desta componente. Os livres continuam visíveis, porque são ajustados.",
   "component.more_tip": "Mostra os parâmetros secundários fixos desta componente (Γ relativas, intensidades, textura, Hamiltoniano…). Os livres veem-se sempre, porque são ajustados.",
   "guided.menu": "Modo guiado",
+  "guided.tab": "Guiado",
+  "guided.tab_panels": "Painéis",
   "guided.title": "Ajuste guiado",
   "guided.intro": "Segue os passos por ordem. Todo o resto da janela continua a funcionar: o que mudares lá vê-se aqui.",
   "guided.s0_title": "Calibração",

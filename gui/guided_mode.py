@@ -93,8 +93,13 @@ class _Step(QtWidgets.QFrame):
         self.body = QtWidgets.QVBoxLayout()
         self.body.setSpacing(4)
         lay.addLayout(self.body)
-        self.buttons = QtWidgets.QHBoxLayout()
+        # Rejilla de dos columnas: en la columna izquierda (~430 px) tres
+        # botones en fila no caben y se cortaban.
+        self.buttons = QtWidgets.QGridLayout()
+        self.buttons.setHorizontalSpacing(6)
+        self.buttons.setVerticalSpacing(4)
         lay.addLayout(self.buttons)
+        self._n_buttons = 0
 
     def add_button(self, text: str, slot, primary: bool = False) -> QtWidgets.QPushButton:
         b = QtWidgets.QPushButton(text)
@@ -103,8 +108,13 @@ class _Step(QtWidgets.QFrame):
             f.setBold(True)
             b.setFont(f)
         b.clicked.connect(lambda _c=False: slot())
-        self.buttons.addWidget(b)
+        self.add_widget(b)
         return b
+
+    def add_widget(self, widget: QtWidgets.QWidget) -> None:
+        n = self._n_buttons
+        self.buttons.addWidget(widget, n // 2, n % 2)
+        self._n_buttons += 1
 
 
 class GuidedPanel(QtWidgets.QWidget):
@@ -159,7 +169,7 @@ class GuidedPanel(QtWidgets.QWidget):
                                       on_changed=w._on_global_lock_used)
         self.btn_lock.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                                     QtWidgets.QSizePolicy.Policy.Fixed)
-        self.s_fit.buttons.addWidget(self.btn_lock)
+        self.s_fit.add_widget(self.btn_lock)
         self.s_diag = _Step(5, tr("guided.s4_title"), tr("guided.s4_hint"))
         self.btn_details = self.s_diag.add_button(
             tr("guided.s4_details"), lambda: w.show_fit_diagnostics())
@@ -534,21 +544,50 @@ class GuidedPanel(QtWidgets.QWidget):
 class GuidedModeMixin:
     """Acción Vista › Modo guiado y dock del asistente."""
 
-    def _ensure_guided_dock(self) -> QtWidgets.QDockWidget:
-        dock = getattr(self, "_guided_dock", None)
-        if dock is None:
-            dock = QtWidgets.QDockWidget(tr("guided.title"), self)
-            dock.setObjectName("guided_dock")
-            dock.setAllowedAreas(QtCore.Qt.DockWidgetArea.LeftDockWidgetArea
-                                 | QtCore.Qt.DockWidgetArea.RightDockWidgetArea)
+    def _ensure_guided_tabs(self) -> QtWidgets.QTabWidget:
+        """Pestañas de la columna izquierda en modo guiado: «Guiado» (el
+        asistente) y «Paneles» (lo de siempre: fichero, estado, velocidad…).
+
+        Antes el asistente era un panel acoplado a la derecha: una tercera
+        columna de ~500 px que dejaba sin sitio al gráfico y a los parámetros.
+        Ahora ocupa el sitio de la columna izquierda, con el mismo ancho."""
+        tabs = getattr(self, "_left_tabs", None)
+        if tabs is None:
+            tabs = QtWidgets.QTabWidget()
+            tabs.setObjectName("guided_tabs")
+            tabs.setDocumentMode(True)
             self.guided_panel = GuidedPanel(self)
-            dock.setWidget(self.guided_panel)
-            dock.setMinimumWidth(400)
-            self.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, dock)
-            # Cerrar el dock con su «×» apaga el modo (y la casilla del menú).
-            dock.visibilityChanged.connect(self._on_guided_dock_visibility)
-            self._guided_dock = dock
-        return dock
+            self._left_tabs = tabs
+        return tabs
+
+    def _sync_left_width(self) -> None:
+        tabs = getattr(self, "_left_tabs", None)
+        if tabs is not None:
+            tabs.setMinimumWidth(self._left_scroll.minimumWidth())
+            tabs.setMaximumWidth(self._left_scroll.maximumWidth())
+
+    def _show_guided_tabs(self, on: bool) -> None:
+        splitter, scroll = self._main_splitter, self._left_scroll
+        tabs = self._ensure_guided_tabs()
+        en_splitter = splitter.indexOf(tabs) >= 0
+        if on and not en_splitter:
+            idx = splitter.indexOf(scroll)
+            sizes = splitter.sizes()
+            splitter.replaceWidget(idx, tabs)
+            tabs.addTab(self.guided_panel, tr("guided.tab"))
+            tabs.addTab(scroll, tr("guided.tab_panels"))
+            self._sync_left_width()
+            tabs.setCurrentIndex(0)
+            tabs.show()
+            splitter.setSizes(sizes)
+        elif not on and en_splitter:
+            idx = splitter.indexOf(tabs)
+            sizes = splitter.sizes()
+            tabs.removeTab(tabs.indexOf(scroll))
+            splitter.replaceWidget(idx, scroll)
+            scroll.show()
+            tabs.hide()
+            splitter.setSizes(sizes)
 
     def set_guided_mode(self, enabled: bool) -> None:
         self.guided_mode = bool(enabled)
@@ -557,23 +596,14 @@ class GuidedModeMixin:
             act.blockSignals(True)
             act.setChecked(self.guided_mode)
             act.blockSignals(False)
-        if self.guided_mode:
-            self._ensure_guided_dock().show()
-        elif getattr(self, "_guided_dock", None) is not None:
-            self._guided_dock.hide()
+        if self.guided_mode or getattr(self, "_left_tabs", None) is not None:
+            self._show_guided_tabs(self.guided_mode)
         if getattr(self.file, "velocity", None) is not None:
             self._refresh_plot()      # pone o quita las marcas de la detección
 
     def _on_guided_toggled(self, checked: bool) -> None:
         self.set_guided_mode(checked)
         self._save_settings()
-
-    def _on_guided_dock_visibility(self, visible: bool) -> None:
-        # Solo el cierre explícito (no minimizar la ventana) apaga el modo.
-        if not visible and self.isVisible() and not self.isMinimized() \
-                and getattr(self, "guided_mode", False) and self._guided_dock.isHidden():
-            self.set_guided_mode(False)
-            self._save_settings()
 
     def _draw_guided_overlay(self) -> None:
         """En modo guiado y tras «Detectar», marca sobre los datos los mínimos

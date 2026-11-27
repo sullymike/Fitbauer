@@ -1681,6 +1681,8 @@
   "component.less_tip": "Blendet die festen Nebenparameter dieser Komponente aus. Freie bleiben sichtbar, weil sie angepasst werden.",
   "component.more_tip": "Zeigt die festen Nebenparameter dieser Komponente (relative Γ, Intensitäten, Textur, Hamiltonoperator…). Freie werden immer angezeigt, weil sie angepasst werden.",
   "guided.menu": "Geführter Modus",
+  "guided.tab": "Geführt",
+  "guided.tab_panels": "Bereiche",
   "guided.title": "Geführter Fit",
   "guided.intro": "Folgen Sie den Schritten der Reihe nach. Der Rest des Fensters funktioniert weiter: Was Sie dort ändern, erscheint hier.",
   "guided.s0_title": "Kalibrierung",

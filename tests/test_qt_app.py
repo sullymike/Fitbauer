@@ -4095,7 +4095,9 @@ def test_modo_guiado_pasos_y_arreglos(win, app):
     win.act_guided_mode.setChecked(True)
     app.processEvents()
     panel = win.guided_panel
-    assert win._guided_dock.isVisible() and win._ui_preferences_state().guided_mode
+    # El asistente sustituye a la columna izquierda (pestañas), no añade otra.
+    assert win._main_splitter.indexOf(win._left_tabs) == 0
+    assert win._left_tabs.currentWidget() is panel and win._ui_preferences_state().guided_mode
     panel.refresh()
     assert not panel.s_comp.isEnabled() and not panel.s_fit.isEnabled()
     win._open_spectrum(Path(__file__).resolve().parents[1] / "data_sample" / "Fe3O4.adt")
@@ -4118,7 +4120,9 @@ def test_modo_guiado_pasos_y_arreglos(win, app):
     assert win._fit_strategy() == "explore"
     win.act_guided_mode.setChecked(False)
     app.processEvents()
-    assert not win._guided_dock.isVisible() and not win._ui_preferences_state().guided_mode
+    assert win._main_splitter.indexOf(win._left_scroll) == 0
+    assert win._left_scroll.isVisible() and not win._left_tabs.isVisible()
+    assert not win._ui_preferences_state().guided_mode
     win.mark_saved()
 
 

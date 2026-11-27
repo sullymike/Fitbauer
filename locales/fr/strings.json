@@ -1681,6 +1681,8 @@
   "component.less_tip": "Masque les paramètres secondaires fixes de cette composante. Les libres restent visibles, car ils sont ajustés.",
   "component.more_tip": "Affiche les paramètres secondaires fixes de cette composante (Γ relatives, intensités, texture, hamiltonien…). Les libres sont toujours visibles, car ils sont ajustés.",
   "guided.menu": "Mode guidé",
+  "guided.tab": "Guidé",
+  "guided.tab_panels": "Panneaux",
   "guided.title": "Ajustement guidé",
   "guided.intro": "Suivez les étapes dans l'ordre. Tout le reste de la fenêtre continue de fonctionner : ce que vous y changez apparaît ici.",
   "guided.s0_title": "Étalonnage",

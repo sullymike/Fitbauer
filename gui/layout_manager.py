@@ -152,6 +152,8 @@ class LayoutSettingsMixin:
         if hasattr(self, "_left_scroll"):
             self._left_scroll.setMinimumWidth(left_w)
             self._left_scroll.setMaximumWidth(left_w)
+            if hasattr(self, "_sync_left_width"):
+                self._sync_left_width()
         if hasattr(self, "_right_column"):
             self._right_column.setVisible(right_w > 0)
             self._right_column.setMinimumWidth(right_w if right_w > 0 else 0)
