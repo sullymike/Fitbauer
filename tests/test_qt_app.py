@@ -443,7 +443,7 @@ def test_init_from_minima_proposes_sextet(win):
 
 
 def test_init_from_minima_action_shows_detected_message(win, monkeypatch):
-    """El QAction de Init from minima conserva el diálogo informativo."""
+    """El QAction de Init from minima enseña el informe de la detección."""
     win._load_file(DATA / "hierro_metalico_alphaFe.adt")
     captured = {}
 
@@ -456,9 +456,14 @@ def test_init_from_minima_action_shows_detected_message(win, monkeypatch):
                         staticmethod(fake_information))
     win.act_init.trigger()
 
-    assert "Auto" in captured["title"]
-    assert "Detected" in captured["text"] or "Detectados" in captured["text"]
-    assert "Comp. 1" in captured["text"]
+    # Con las propuestas evaluadas, el informe va en una ventana no modal con
+    # la tabla de propuestas (χ²red, ΔBIC) y la regla de elección.
+    dlg = win._detection_dialog
+    assert dlg.isVisible()
+    html = dlg.view.toPlainText()
+    assert "ΔBIC" in html and "χ²red" in html
+    assert win._last_detection_report.final.kinds == ("Sextete",)
+    dlg.close()
 
 
 def test_mode_switch_to_pbhf_and_fit(win):

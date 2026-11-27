@@ -2,6 +2,33 @@
 
 ## Sin publicar
 
+- **Detección de componentes: propuestas evaluadas por BIC.** «Inicializar
+  desde mínimos» ya no aplica solo las reglas fijas (mejor sextete, dobletes
+  por separación, singletes con lo que sobra), que no comprobaban si la
+  propuesta explicaba el espectro. Ahora, con los mismos mínimos,
+  `core.component_detection.evaluate_detection`:
+  1. genera varias interpretaciones: la de las reglas, las reglas sin cada
+     componente, cada singlete como doblete con otro mínimo, y una búsqueda
+     en haz con un ajuste lineal de profundidades (NNLS) sobre singletes,
+     dobletes —también los que comparten una línea— y los sextetes de las
+     reglas;
+  2. ajusta en local las mejores y gana la de menor BIC; una con más
+     componentes tiene que bajarlo al menos 6. Para comparar, dobletes
+     simétricos y sextetes con las tres anchuras iguales (si no, un doblete
+     y dos singletes empatan);
+  3. simplifica: quita una componente o junta dos singletes en un doblete
+     (asimétrico) si el BIC no sube 6;
+  4. mira el residuo y añade una componente donde quede estructura, solo si
+     baja el BIC al menos 6.
+
+  Una ventana enseña todas las propuestas con su χ²red y ΔBIC, la regla de
+  elección y cada paso posterior; los paneles quedan con los valores del
+  ajuste rápido de la ganadora. Con contribuciones marcadas a mano en el
+  editor de mínimos se respetan las reglas. En los 21 espectros de ejemplo
+  con respuesta conocida acierta los tipos en 21 (las reglas, 17: fallaban
+  doblete + singlete, sextete + doblete, pirrotita y un singlete que salía
+  doble); test `tests/test_component_detection.py`.
+
 - **La detección de componentes pasa a `core/component_detection.py`.** Era
   código de la interfaz (`gui/minima_analysis.py`); ahora es un módulo del
   núcleo sin Qt, utilizable desde un CLI o un test, y la GUI solo aplica su
