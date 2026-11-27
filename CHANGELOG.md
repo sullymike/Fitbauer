@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **Modo guiado: la calibración es el primer paso.** Explica qué fija (Vmax y
+  el origen de δ, el IS del α-Fe) y cómo conseguirla: equipo dado de alta (se
+  elige sola por la fecha al cargar), calibraciones web o calibrar con un α-Fe
+  ajustado en los pasos siguientes («Usar el ajustado como calibración…»,
+  activo tras ajustar). Muestra la activa con su origen, Vmax e IS ± σ, o el
+  aviso de que no hay. Los demás pasos pasan a 2–6.
+
 - **Fijar un parámetro secundario permite ocultarlo.** Al fijar uno a la vista
   (p. ej. las Γ relativas tras un ajuste) no se esconde en el acto: el botón
   pasa a «Menos (n) ◂» y, al pulsarlo, se ocultan los fijos. Antes el botón no

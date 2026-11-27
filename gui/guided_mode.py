@@ -6,12 +6,14 @@ cómo va y tiene un botón que llama a la acción que ya existe en la ventana
 diagnóstico, informe). No tiene lógica de ajuste propia: el resto de la
 interfaz sigue funcionando igual y lo que se haga allí se refleja aquí.
 
-1. Espectro        — fichero y calibración.
-2. Componentes     — detectar desde los mínimos; tipo y fase probable.
-3. Ajustar         — ajuste (estrategia de la ventana) y «buscar lo que falta».
-4. ¿Es fiable?     — veredicto del diagnóstico en lenguaje llano, con un
+1. Calibración     — la activa (Vmax e IS del α-Fe) y cómo fijarla: equipo,
+                     web o un α-Fe ajustado aquí mismo.
+2. Espectro        — fichero y Vmax.
+3. Componentes     — detectar desde los mínimos; tipo y fase probable.
+4. Ajustar         — ajuste (estrategia de la ventana) y «buscar lo que falta».
+5. ¿Es fiable?     — veredicto del diagnóstico en lenguaje llano, con un
                      botón para el arreglo de cada aviso.
-5. Resultado       — tabla sencilla (tipo, δ, ΔEQ, BHF, área, fase) e informe.
+6. Resultado       — tabla sencilla (tipo, δ, ΔEQ, BHF, área, fase) e informe.
 
 El panel se refresca solo mientras está visible, comparando una firma del
 estado para no reconstruir los widgets si nada cambió.
@@ -126,22 +128,30 @@ class GuidedPanel(QtWidgets.QWidget):
         outer.addWidget(scroll, stretch=1)
 
         w = win
-        self.s_file = _Step(1, tr("guided.s1_title"), tr("guided.s1_hint"))
+        self.s_cal = _Step(1, tr("guided.s0_title"), tr("guided.s0_hint"))
+        self.s_cal.add_button(tr("guided.s0_instruments"), lambda: w.on_instruments(),
+                              primary=True)
+        self.s_cal.add_button(tr("guided.s0_web"),
+                              lambda: w._open_web_dialog("calibrations"))
+        self.btn_use_calib = self.s_cal.add_button(
+            tr("guided.s0_use"), lambda: w._use_as_calibration_detailed())
+        self.btn_use_calib.setToolTip(tr("guided.s0_use_tip"))
+        self.s_file = _Step(2, tr("guided.s1_title"), tr("guided.s1_hint"))
         self.s_file.add_button(tr("guided.s1_open"), w.on_open, primary=True)
-        self.s_comp = _Step(2, tr("guided.s2_title"), tr("guided.s2_hint"))
+        self.s_comp = _Step(3, tr("guided.s2_title"), tr("guided.s2_hint"))
         self.btn_detect = self.s_comp.add_button(
             tr("guided.s2_detect"), lambda: w.on_init_from_minima(show_message=False),
             primary=True)
         self.btn_edit_minima = self.s_comp.add_button(
             tr("guided.s2_edit"), lambda: w.on_edit_minima())
-        self.s_fit = _Step(3, tr("guided.s3_title"), tr("guided.s3_hint"))
+        self.s_fit = _Step(4, tr("guided.s3_title"), tr("guided.s3_hint"))
         self.btn_fit = self.s_fit.add_button(tr("guided.s3_fit"), w.on_fit, primary=True)
         self.btn_residual = self.s_fit.add_button(
             tr("guided.s3_residual"), lambda: w.on_auto_fit_residual())
-        self.s_diag = _Step(4, tr("guided.s4_title"), tr("guided.s4_hint"))
+        self.s_diag = _Step(5, tr("guided.s4_title"), tr("guided.s4_hint"))
         self.btn_details = self.s_diag.add_button(
             tr("guided.s4_details"), lambda: w.show_fit_diagnostics())
-        self.s_res = _Step(5, tr("guided.s5_title"), tr("guided.s5_hint"))
+        self.s_res = _Step(6, tr("guided.s5_title"), tr("guided.s5_hint"))
         self.table = QtWidgets.QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels([
             tr("guided.col_kind"), "δ\n(mm/s)", "ΔEQ\n(mm/s)", "BHF\n(T)",
@@ -155,7 +165,7 @@ class GuidedPanel(QtWidgets.QWidget):
         self.btn_report = self.s_res.add_button(
             tr("guided.s5_report"), lambda: w.on_export_short_report(), primary=True)
         self.btn_save = self.s_res.add_button(tr("guided.s5_save"), lambda: w.on_save_session())
-        for s in (self.s_file, self.s_comp, self.s_fit, self.s_diag, self.s_res):
+        for s in (self.s_cal, self.s_file, self.s_comp, self.s_fit, self.s_diag, self.s_res):
             self._lay.addWidget(s)
         self.dist_note = QtWidgets.QLabel(tr("guided.dist_note"))
         self.dist_note.setWordWrap(True)
@@ -227,20 +237,20 @@ class GuidedPanel(QtWidgets.QWidget):
         for s in (self.s_comp, self.s_fit, self.s_diag, self.s_res):
             s.setEnabled(loaded and not dist)
 
-        # 1. Espectro
+        # 1. Calibración
+        self.s_cal.status.setText(self._calibration_text())
+        self.btn_use_calib.setEnabled(
+            loaded and not dist and getattr(w.runtime_results, "fit_result", None) is not None)
+
+        # 2. Espectro
         if loaded:
             nombre = getattr(w.file.path, "name", None) or str(w.file.path or "")
             vmax = w.calib.to_view_state().values_dict().get("vmax")
             texto = tr("guided.s1_status", file=nombre, vmax=_fmt(vmax, 4))
             iso = w.calibration_iso_ref() if hasattr(w, "calibration_iso_ref") else None
-            info = getattr(w, "calibration_info", None) or {}
             if iso is None:
                 texto += ("<br><span style='color:%s'>⚠ %s</span>"
                           % (_COLOR["warn"], tr("guided.s1_no_calib")))
-            else:
-                cal = (info.get("calibration_sample") or info.get("calibration_file_name")
-                       or info.get("source") or "")
-                texto += "<br>" + tr("guided.s1_calib", name=cal, iso=_fmt(iso, 4))
             self.s_file.status.setText(texto)
         else:
             self.s_file.status.setText(tr("guided.s1_empty"))
@@ -324,6 +334,35 @@ class GuidedPanel(QtWidgets.QWidget):
         QtCore.QTimer.singleShot(0, self._fit_labels)
 
     # ── relatos de lo que hizo cada acción ───────────────────────────────
+    def _calibration_text(self) -> str:
+        """La calibración activa con su origen, Vmax e IS (± σ si constan),
+        o el aviso de que no hay ninguna."""
+        w = self._win
+        info = getattr(w, "calibration_info", None) or {}
+        iso = w.calibration_iso_ref() if hasattr(w, "calibration_iso_ref") else None
+        vmax = w._fixed_calibration_vmax() if hasattr(w, "_fixed_calibration_vmax") else None
+        if not info or (iso is None and vmax is None):
+            return ("<span style='color:%s'>⚠ %s</span>"
+                    % (_COLOR["warn"], tr("guided.s0_none")))
+        origen = (w.calib_label.text().split("<br>")[0]
+                  if hasattr(w, "calib_label") else str(info.get("source", "")))
+        escala = w._calibration_scale() if hasattr(w, "_calibration_scale") else 1.0
+
+        def con_sigma(x, clave):
+            sig = info.get(clave)
+            try:
+                sig = float(sig) * escala if sig not in (None, "") else None
+            except (TypeError, ValueError):
+                sig = None
+            return _fmt(x, 4) + (f" ± {_fmt(sig, 4)}" if sig else "")
+        partes = []
+        if vmax is not None:
+            partes.append(f"Vmax = {con_sigma(vmax, 'vmax_uncertainty')} mm/s")
+        if iso is not None:
+            partes.append(tr("guided.s0_iso", iso=con_sigma(iso, "isomer_shift_uncertainty")))
+        return (f"<span style='color:{_COLOR['ok']}'>✓</span> {origen}<br>"
+                + " · ".join(partes))
+
     def _detection_text(self) -> str:
         det = getattr(self._win, "_last_detection", None)
         if not det:

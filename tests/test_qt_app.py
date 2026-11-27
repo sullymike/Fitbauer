@@ -4141,6 +4141,7 @@ def test_modo_guiado_cuenta_lo_que_hace(win, app):
         win.calibration_info = {}
         p.refresh()
         assert "⚠" in p.s_file.status.text()                      # sin calibración
+        assert "⚠" in p.s_cal.status.text() and not p.btn_use_calib.isEnabled()
         p.btn_detect.click(); p.refresh()
         det = win._last_detection
         assert det["n_peaks"] >= 6 and len(det["components"]) == 2
@@ -4151,6 +4152,17 @@ def test_modo_guiado_cuenta_lo_que_hace(win, app):
         st = win._last_fit_story
         assert st and set(st["end"]) <= set(st["start"])
         assert "→" in p.s_fit.status.text()
+        # Paso 1: tras ajustar se puede usar como calibración; con una
+        # calibración fijada se ve su origen, Vmax e IS con σ.
+        assert p.btn_use_calib.isEnabled()
+        win.calibration_info = {"source": "local", "calibration_sample": "aFe",
+                                "calibration_file_name": "aFe.adt",
+                                "velocity_calibrated": 12.03, "isomer_shift": -0.11,
+                                "vmax_uncertainty": 0.0011, "isomer_shift_uncertainty": 0.0007,
+                                "sextet_pattern": "normos"}
+        win._refresh_calib_label(); p.refresh()
+        cal = p.s_cal.status.text()
+        assert "✓" in cal and "aFe.adt" in cal and "± 0.0011" in cal and "± 0.0007" in cal
         # Tabla de resultados con errores (δ libre → «± …»; área con su error).
         assert "±" in p.table.item(0, 1).text() and "±" in p.table.item(0, 4).text()
         historia = win._last_fit_story
