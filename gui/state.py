@@ -653,6 +653,8 @@ class UiPreferencesState:
     # Modo compacto: los ParamControl pierden el slider y ocupan una fila en
     # vez de dos, para que quepan varios componentes a la vez.
     compact_params: bool = False
+    # δ de los paneles de componente respecto al α-Fe de la calibración.
+    delta_vs_alpha: bool = False
     # Casillas mín/máx de las cotas de ajuste por componente.
     show_fit_limits: bool = False
     # Modo guiado (panel lateral con los pasos del ajuste).
@@ -688,6 +690,7 @@ class UiPreferencesState:
             wide_delta=bool(data.get("wide_delta", False)),
             auto_global=bool(data.get("auto_global", True)),
             compact_params=bool(data.get("compact_params", False)),
+            delta_vs_alpha=bool(data.get("delta_vs_alpha", False)),
             show_fit_limits=bool(data.get("show_fit_limits", False)),
             guided_mode=bool(data.get("guided_mode", False)),
             sextet_pattern=(
@@ -713,6 +716,7 @@ class UiPreferencesState:
             "wide_delta": bool(self.wide_delta),
             "auto_global": bool(self.auto_global),
             "compact_params": bool(self.compact_params),
+            "delta_vs_alpha": bool(self.delta_vs_alpha),
             "show_fit_limits": bool(self.show_fit_limits),
             "guided_mode": bool(self.guided_mode),
             "sextet_pattern": self.sextet_pattern,

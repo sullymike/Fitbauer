@@ -2,6 +2,19 @@
 
 ## Sin publicar
 
+- **δ respecto al α-Fe en los paneles de componente** (Vista › Mostrar δ
+  respecto al α-Fe). Con la opción activa y una calibración con δ(α-Fe), el
+  panel muestra y edita δ − δ(α-Fe), para comparar a cada paso con valores de
+  tablas al ajustar mezclas de fases conocidas. El rótulo dice siempre la
+  referencia: «δ (α-Fe)» o «δ (fuente)»; si falta el δ(α-Fe), se ve respecto a
+  la fuente con el rótulo en color de aviso. Solo cambia lo mostrado: el
+  valor interno (sin perder decimales), el ajuste, la sesión, las plantillas
+  y las cotas siguen respecto a la fuente. Las cotas por componente se ven y
+  se escriben en la referencia del valor; la general de Límites de
+  parámetros, siempre respecto a la fuente. Los avisos de cotas y las
+  restricciones nombran δ «(fuente)», porque dan valores internos. Se
+  recuerda entre sesiones.
+
 - **Modo guiado en la columna izquierda, en pestañas.** El asistente ya no es
   un panel acoplado a la derecha (una tercera columna de ~500 px que dejaba
   sin sitio al gráfico y a los parámetros): ocupa el sitio de la columna

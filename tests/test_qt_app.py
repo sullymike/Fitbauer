@@ -4209,3 +4209,45 @@ def test_guiado_candado_del_paso_ajustar(win):
     p.btn_lock.click()
     assert win.fix_group.state() != FIXED
     assert win.btn_sim_free_all.text() == p.btn_lock.text()
+
+
+def test_delta_respecto_al_alpha_fe_solo_cambia_lo_mostrado(win):
+    """Vista › Mostrar δ respecto al α-Fe: el panel enseña y edita
+    δ − δ(α-Fe) de la calibración, con la referencia en el rótulo; el valor
+    interno, las cotas y la sesión siguen respecto a la fuente."""
+    from gui.fit_limits_dialog import ParamLimitsDialog
+    from mossbauer_i18n import tr
+    win.calibration_info = {"source": "local", "velocity_calibrated": 12.03,
+                            "isomer_shift": -0.11}
+    iso = win.calibration_iso_ref()
+    assert iso is not None
+    cp = win.components_panels[0]
+    ctl = cp.params["delta"]
+    ctl.set_value(0.25)
+    assert ctl.label.text() == tr("delta_ref.short_source")
+    win.act_delta_vs_alpha.setChecked(True)
+    assert ctl.label.text() == tr("delta_ref.short_alpha")
+    assert ctl.spin.value() == pytest.approx(0.25 - iso, abs=1e-4)
+    assert ctl.value() == 0.25                        # exacto, sin redondeo
+    assert win._component_states()[0].value("delta") == 0.25
+    # Lo que se escribe está en la referencia mostrada.
+    ctl.spin.setValue(0.40)
+    assert ctl.value() == pytest.approx(0.40 + iso)
+    # Cotas: se ven y se escriben respecto al α-Fe, se guardan respecto a la fuente.
+    dlg = ParamLimitsDialog(cp, ctl, "δ", "delta")
+    dlg.ed_lo.setText("0.30")
+    dlg.ed_hi.setText("0.45")
+    dlg._accept()
+    lo, hi = ctl.fit_limits()
+    assert (lo, hi) == (pytest.approx(0.30 + iso), pytest.approx(0.45 + iso))
+    assert ParamLimitsDialog(cp, ctl, "δ", "delta").ed_lo.text() == "0.3000"
+    # Los avisos dan valores internos: su rótulo es el de la fuente.
+    assert win._param_label("s1_delta")[0] == tr("delta_ref.short_source")
+    # Sin δ(α-Fe) en la calibración: respecto a la fuente y en color de aviso.
+    win.calibration_info = None
+    assert ctl.label.text() == tr("delta_ref.short_source") + " ↔"
+    assert "color" in ctl.label.styleSheet()
+    assert ctl.spin.value() == pytest.approx(0.40 + iso, abs=1e-4)
+    win.act_delta_vs_alpha.setChecked(False)
+    assert ctl.label.styleSheet() == ""
+    win.mark_saved()

@@ -63,6 +63,15 @@ class ParamControl(QtWidgets.QWidget):
         self.limits_enabled = False
         self._syncing = False
         self._label_text = label
+        #: Rótulo válido para el valor interno (``value()``): los avisos y las
+        #: restricciones, que trabajan con él, lo usan aunque se vea otro.
+        self.source_label = label
+        #: Lo que se resta al valor para mostrarlo (δ respecto al α-Fe); el
+        #: valor interno, el rango y las cotas siguen en su referencia propia.
+        self._offset = 0.0
+        #: Valor interno exacto, para no perder decimales al desplazarlo.
+        self._raw: float | None = None
+        self._extra_tip = ""
 
         v = QtWidgets.QVBoxLayout(self)
         v.setContentsMargins(0, 2, 0, 2)
@@ -133,7 +142,29 @@ class ParamControl(QtWidgets.QWidget):
         self.updateGeometry()
 
     def value(self) -> float:
-        return float(self.spin.value())
+        shown = float(self.spin.value())
+        if not self._offset:
+            return shown
+        tol = 0.5 * 10.0 ** -self.spin.decimals() + 1e-12
+        if self._raw is not None and abs(self._raw - self._offset - shown) <= tol:
+            return self._raw
+        return shown + self._offset
+
+    @property
+    def display_offset(self) -> float:
+        return self._offset
+
+    def set_display_offset(self, offset: float) -> None:
+        """Muestra ``valor − offset`` sin cambiar el valor interno, el rango
+        ni las cotas, y sin emitir señal (no es un cambio del modelo)."""
+        offset = float(offset or 0.0)
+        if offset == self._offset:
+            return
+        v = self.value()
+        self._offset = offset
+        self.set_range(self._lo, self._hi)
+        self.set_value(v)
+        self._update_limits_marker()
 
     def set_value(self, v: float, *, widen: bool = False) -> None:
         """Pone el valor sin emitir señal. Fuera del rango se recorta, salvo
@@ -145,8 +176,9 @@ class ParamControl(QtWidgets.QWidget):
         self._syncing = True
         self.spin.blockSignals(True)
         self.slider.blockSignals(True)
-        self.spin.setValue(float(v))
-        self.slider.setValue(self._value_to_slider(self.spin.value()))
+        self.spin.setValue(v - self._offset)
+        self._raw = max(self._lo, min(self._hi, v))
+        self.slider.setValue(self._value_to_slider(self.value()))
         self.slider.blockSignals(False)
         self.spin.blockSignals(False)
         self._syncing = False
@@ -154,15 +186,16 @@ class ParamControl(QtWidgets.QWidget):
     def set_range(self, lo: float, hi: float, step: float | None = None) -> None:
         self._lo = float(lo)
         self._hi = float(hi)
-        value = max(self._lo, min(self._hi, float(self.spin.value())))
+        value = max(self._lo, min(self._hi, self.value()))
         self._syncing = True
         self.spin.blockSignals(True)
         self.slider.blockSignals(True)
-        self.spin.setRange(self._lo, self._hi)
+        self.spin.setRange(self._lo - self._offset, self._hi - self._offset)
         if step is not None:
             self.spin.setSingleStep(float(step))
-        self.spin.setValue(value)
-        self.slider.setValue(self._value_to_slider(self.spin.value()))
+        self.spin.setValue(value - self._offset)
+        self._raw = value
+        self.slider.setValue(self._value_to_slider(self.value()))
         self.slider.blockSignals(False)
         self.spin.blockSignals(False)
         self._syncing = False
@@ -174,7 +207,7 @@ class ParamControl(QtWidgets.QWidget):
         actual no se toca: si queda fuera del rango nuevo, el rango se amplía
         para contenerlo (como al volcar un resultado).
         """
-        value = float(self.spin.value())
+        value = self.value()
         self.spin.blockSignals(True)
         self.spin.setDecimals(int(spec.decimals))
         self.spin.blockSignals(False)
@@ -225,7 +258,7 @@ class ParamControl(QtWidgets.QWidget):
             hi = u_hi
         if hi <= lo:
             hi = lo + max(abs(lo) * 1e-3, 10.0 ** -self.spin.decimals())
-        value = float(self.spin.value())
+        value = self.value()
         self.set_range(min(lo, value), max(hi, value))
 
     def _update_limits_marker(self) -> None:
@@ -233,13 +266,25 @@ class ParamControl(QtWidgets.QWidget):
         mark = self.has_fit_limits()
         self.label.setText(f"{self._label_text} ↔" if mark else self._label_text)
         tip = getattr(self, "_help", "")
+        if self._extra_tip:
+            tip = f"{tip}\n\n{self._extra_tip}" if tip else self._extra_tip
         if self.has_fit_limits():
             lo, hi = self._fit_limits
-            txt = tr("tooltip.fit_limits_set", lo="−∞" if lo is None else f"{lo:g}",
-                     hi="+∞" if hi is None else f"{hi:g}",
+            off = self._offset
+            txt = tr("tooltip.fit_limits_set", lo="−∞" if lo is None else f"{lo - off:.6g}",
+                     hi="+∞" if hi is None else f"{hi - off:.6g}",
                      default="Cotas del ajuste: {lo} … {hi}")
             tip = f"{tip}\n\n{txt}" if tip else txt
         self.label.setToolTip(tip)
+
+    def set_extra_tip(self, text: str) -> None:
+        """Texto añadido al globo del rótulo (p. ej. la referencia de δ)."""
+        self._extra_tip = text or ""
+        self._update_limits_marker()
+
+    def set_label_warning(self, warn: bool) -> None:
+        """Rótulo en color de aviso (lo mostrado no es lo que se pidió)."""
+        self.label.setStyleSheet("color: #b45309" if warn else "")
 
     def set_label(self, text: str) -> None:
         """Cambia el rótulo conservando la marca de cotas propias."""
@@ -258,9 +303,11 @@ class ParamControl(QtWidgets.QWidget):
         frac = float(pos) / float(self.slider.maximum())
         return self._lo + frac * (self._hi - self._lo)
 
-    def _on_spin_changed(self, value: float) -> None:
+    def _on_spin_changed(self, shown: float) -> None:
         if self._syncing:
             return
+        value = float(shown) + self._offset
+        self._raw = value
         self._syncing = True
         self.slider.blockSignals(True)
         self.slider.setValue(self._value_to_slider(value))
@@ -274,8 +321,9 @@ class ParamControl(QtWidgets.QWidget):
         value = self._slider_to_value(pos)
         self._syncing = True
         self.spin.blockSignals(True)
-        self.spin.setValue(value)
-        value = float(self.spin.value())
+        self.spin.setValue(value - self._offset)
+        value = float(self.spin.value()) + self._offset
+        self._raw = value
         self.spin.blockSignals(False)
         self._syncing = False
         self.valueChanged.emit(value)

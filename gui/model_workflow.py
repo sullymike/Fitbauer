@@ -311,6 +311,50 @@ class ModelWorkflowMixin:
                 self.canvas.show_no_file()
         self._save_settings()
 
+    # ── Referencia de δ en los paneles (fuente / α-Fe) ──────────────────
+    @property
+    def calibration_info(self) -> dict | None:
+        return getattr(self, "_calibration_info", None)
+
+    @calibration_info.setter
+    def calibration_info(self, info: dict | None) -> None:
+        # Cambiar de calibración cambia la referencia con la que se ve δ.
+        self._calibration_info = info
+        self._refresh_delta_reference()
+
+    def delta_reference(self) -> tuple[float, str]:
+        """(δ(α-Fe) que se resta al mostrar δ, estado): "alpha" si la opción
+        está activa y la calibración trae δ(α-Fe); "missing" si está activa
+        pero no lo trae; "source" si está desactivada."""
+        if not getattr(self, "delta_vs_alpha", False):
+            return 0.0, "source"
+        iso = self.calibration_iso_ref()
+        return (0.0, "missing") if iso is None else (float(iso), "alpha")
+
+    def _refresh_delta_reference(self) -> None:
+        panels = getattr(self, "components_panels", None)
+        if not panels:
+            return
+        iso, state = self.delta_reference()
+        if state == "alpha":
+            tip = tr("delta_ref.tip_alpha", iso=f"{iso:+.4f}")
+        elif state == "missing":
+            tip = tr("delta_ref.tip_missing")
+        else:
+            tip = tr("delta_ref.tip_source")
+        key = (iso, state, tip)
+        if key == getattr(self, "_delta_ref_applied", None):
+            return
+        self._delta_ref_applied = key
+        for cp in panels:
+            cp.set_delta_reference(iso, state, tip)
+
+    def _on_delta_vs_alpha_toggled(self, checked: bool) -> None:
+        self.delta_vs_alpha = bool(checked)
+        self._refresh_delta_reference()
+        self._update_info_panel()
+        self._save_settings()
+
     def _on_compact_params_toggled(self, checked: bool) -> None:
         self.compact_params = bool(checked)
         self._apply_compact_params()
@@ -329,7 +373,10 @@ class ModelWorkflowMixin:
             idx, name = int(m.group(1)), m.group(2)
             panels = getattr(self, "components_panels", [])
             ctl = panels[idx - 1].params.get(name) if 0 < idx <= len(panels) else None
-            label = (getattr(ctl, "_label_text", None)
+            # El rótulo de la referencia del valor interno (δ «fuente»): los
+            # avisos que lo usan dan valores internos, no los mostrados.
+            label = (getattr(ctl, "source_label", None)
+                     or getattr(ctl, "_label_text", None)
                      or tr(f"slider.s_{name}", default=name))
             return label, idx
         ctl = getattr(getattr(self, "calib", None), key, None)
@@ -912,6 +959,9 @@ class ModelWorkflowMixin:
         return float(np.sqrt(np.mean(reconstruction.residual ** 2)))
 
     def _update_info_panel(self) -> None:
+        # Por si la calibración cambió por dentro o cambió el patrón (su δ(α-Fe)
+        # se convierte al patrón activo): no cuesta nada si nada cambió.
+        self._refresh_delta_reference()
         if not hasattr(self, "info_panel"):
             return
         if self.file.counts is None or self.file.folded is None:
