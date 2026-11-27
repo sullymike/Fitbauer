@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- **La detección de componentes pasa a `core/component_detection.py`.** Era
+  código de la interfaz (`gui/minima_analysis.py`); ahora es un módulo del
+  núcleo sin Qt, utilizable desde un CLI o un test, y la GUI solo aplica su
+  resultado. Mismo comportamiento (mismos tipos en los 21 espectros de
+  ejemplo).
+
 - **«Acerca de» renovado.** Muestra los autores (Jorge Sánchez Marcos, Nieves
   Menéndez González) y el departamento, una sección de **agradecimientos** a
   quienes prueban el programa, informan de errores y proponen mejoras, la

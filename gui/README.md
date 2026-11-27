@@ -24,7 +24,7 @@ compone `WindowMixins` y contiene `main()`. La lógica de interfaz vive aquí.
 - `discrete_fit.py` — ajuste discreto y bootstrap.
 - `distribution_fit.py` — ajuste de distribuciones, L-curve, componentes nítidos y
   gráfico de P(x) (banda 1σ y curva de correlación δ/ΔEQ).
-- `minima_analysis.py` — detección de mínimos e inicialización automática.
+- `minima_analysis.py` — aplica a los paneles la detección de `core/component_detection.py`.
 - `minima_editor.py` — editor semi-manual de mínimos sobre el canvas Matplotlib.
 - `fit_tools.py` — batch, restricciones, perfil likelihood, presets físicos y resumen IA.
 - `state.py` — estado runtime (`FileState`, `RuntimeResultState`) y snapshots serializables

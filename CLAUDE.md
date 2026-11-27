@@ -62,6 +62,8 @@ del código de la GUI.**
   sentido) y la **prioridad entre calibraciones** al cargar (`calibration_after_load`:
   eje propio del fichero > equipo > la fijada), con `calibration_vmax` para el patrón activo.
 - `fit_engine.py` — motor de ajuste discreto (singlete/doblete/sextete).
+- `component_detection.py` — detección de mínimos y propuesta de componentes (reglas y
+  propuestas evaluadas por BIC); la GUI (`gui/minima_analysis.py`) solo aplica el resultado.
 - `profile_likelihood.py` — intervalos de confianza por verosimilitud perfilada.
 - `batch_fit.py` — ajuste en serie por warm-start.
 - `session.py` — **capa headless** `ModelState` + `HeadlessSession`: orquesta cargar →

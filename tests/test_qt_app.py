@@ -3642,7 +3642,8 @@ def test_limites_de_parametros_se_aplican_sin_reiniciar(win):
     assert ctl.spin.minimum() == pytest.approx(0.1) and ctl.spin.maximum() == pytest.approx(0.5)
     assert win.calib.baseline.spin.maximum() == pytest.approx(1.1)
     try:
-        assert minima_analysis._FI["sextet_bhf_min"].default == 12.0
+        from core import component_detection
+        assert component_detection._FI["sextet_bhf_min"].default == 12.0
     finally:
         param_overrides.save_raw({})                       # no contaminar otros tests
         minima_analysis.reload_param_specs()
