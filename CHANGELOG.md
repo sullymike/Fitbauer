@@ -2,6 +2,11 @@
 
 ## Sin publicar
 
+- **Modo guiado: δ en la referencia de los paneles.** La tabla del paso 6 y
+  los «δ ≈» de la detección y de «Buscar lo que falta» siguen Vista ›
+  Mostrar δ respecto al α-Fe (la cabecera dice «δ (α-Fe)»), y la fase
+  sugerida de la tabla se busca con δ respecto al α-Fe, como el sugeridor.
+
 - **La identificación de fases compara δ respecto al α-Fe.** La base de fases
   da δ respecto al α-Fe y el panel respecto a la fuente, pero se comparaban
   sin restar el δ(α-Fe) de la calibración: con la del Fe₃O₄ (−0.11 mm/s), el

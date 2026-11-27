@@ -4328,3 +4328,27 @@ def test_identificar_fases_usa_delta_respecto_al_alpha_fe(win):
     assert cp.params["delta"].value() == pytest.approx(m.delta + iso, abs=1e-3)
     assert "δ(α-Fe)=" in win._component_header(2, "Sextete", 0.66, 0.0, 46.0)
     win.mark_saved()
+
+
+def test_tabla_del_guiado_sigue_la_referencia_de_delta(win):
+    """La tabla del paso 6 da δ en la referencia de los paneles y la fase
+    sugerida se busca con δ respecto al α-Fe."""
+    from pathlib import Path
+    from mossbauer_i18n import tr
+    root = Path(__file__).resolve().parents[1] / "data_sample"
+    win._open_spectrum(root / "Fe3O4.adt")
+    win.load_session_file(root / "Fe3O4_session.json")
+    win.set_guided_mode(True)
+    gp = win.guided_panel
+    iso = win.calibration_iso_ref()
+    d2 = win.components_panels[1].params["delta"].value()
+    gp._fill_table(True)
+    assert gp.table.item(1, 1).text().split("\n")[0] == f"{d2:.3f}"
+    assert "Magnetite" in gp.table.item(1, 5).text()
+    win.act_delta_vs_alpha.setChecked(True)
+    gp._fill_table(True)
+    assert gp.table.horizontalHeaderItem(1).text().startswith(tr("delta_ref.short_alpha"))
+    assert gp.table.item(1, 1).text().split("\n")[0] == f"{d2 - iso:.3f}"
+    win.act_delta_vs_alpha.setChecked(False)
+    win.set_guided_mode(False)
+    win.mark_saved()

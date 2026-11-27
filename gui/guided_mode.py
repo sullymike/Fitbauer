@@ -296,7 +296,8 @@ class GuidedPanel(QtWidgets.QWidget):
                 id(getattr(w, "_last_detection_report", None)),
                 id(getattr(w, "_last_fit_story", None)),
                 id(getattr(w, "_last_residual_story", None)),
-                tuple(c.is_fixed() for c in w._lockable_controls()))
+                tuple(c.is_fixed() for c in w._lockable_controls()),
+                w.delta_reference())
 
     def refresh(self) -> None:
         sig = self._signature()
@@ -445,7 +446,7 @@ class GuidedPanel(QtWidgets.QWidget):
         partes = []
         for c in det["components"]:
             kind = tr(f"kind.{c['kind']}", default=c["kind"])
-            datos = [f"δ ≈ {_fmt(c.get('delta'), 2)}"]
+            datos = [f"δ ≈ {_fmt(self._shown_delta(c.get('delta')), 2)}"]
             if c["kind"] == "Doblete":
                 datos.append(f"ΔEQ ≈ {_fmt(c.get('quad'), 2)}")
             elif c["kind"] not in ("Singlete",):
@@ -508,7 +509,7 @@ class GuidedPanel(QtWidgets.QWidget):
         if out == "none":
             return "<br><b>" + tr("guided.res_title") + ":</b> " + st.get("text", "")
         prop = "; ".join(
-            tr(f"kind.{p['kind']}", default=p["kind"]) + f" (δ ≈ {_fmt(p.get('delta'), 2)}"
+            tr(f"kind.{p['kind']}", default=p["kind"]) + f" (δ ≈ {_fmt(self._shown_delta(p.get('delta')), 2)}"
             + (f", BHF ≈ {_fmt(p.get('bhf'), 1)} T" if p.get("bhf") is not None else "")
             + (f", ΔEQ ≈ {_fmt(p.get('quad'), 2)}" if p.get("quad") is not None else "") + ")"
             for p in st.get("proposed", []))
@@ -519,12 +520,21 @@ class GuidedPanel(QtWidgets.QWidget):
                 + f"<br>&nbsp;&nbsp;<span style='color:{color}'>"
                 + tr(clave, dbic=dbic) + "</span>")
 
+    def _shown_delta(self, d):
+        """δ en la referencia de los paneles (fuente o α-Fe)."""
+        if d is None:
+            return None
+        off, _state = self._win.delta_reference()
+        return float(d) - off
+
     def _phase(self, kind, d, q, b) -> str:
         if d is None:
             return ""
         try:
             from core.phase_id import suggest_phases
-            m = suggest_phases(d, quad=q, bhf=b, kind=kind, top_n=1)
+            # La base de fases va respecto al α-Fe; d, respecto a la fuente.
+            m = suggest_phases(d - self._win.phase_delta_offset(), quad=q, bhf=b,
+                               kind=kind, top_n=1)
         except Exception:
             return ""
         if not m or m[0].score_pct < 75:
@@ -549,12 +559,17 @@ class GuidedPanel(QtWidgets.QWidget):
                 pct_err = {int(i): float(e) for i, e in w.component_percentage_errors().items()}
             except Exception:
                 pct_err = {}
+        # δ en la misma referencia que los paneles (Vista › δ respecto al α-Fe).
+        off, state = w.delta_reference()
+        head = tr("delta_ref.short_alpha") if state == "alpha" else "δ"
+        self.table.horizontalHeaderItem(1).setText(f"{head}\n(mm/s)")
         self.table.setRowCount(len(comps))
         for r, (idx, kind, d, q, b) in enumerate(comps):
             magnet = kind not in ("Doblete", "Singlete")
             e = lambda name: errs.get(f"s{idx}_{name}")
             cells = [f"{idx} · " + tr(f"kind.{kind}", default=kind),
-                     _fmt_err(d, e("delta")), _fmt_err(q, e("quad")),
+                     _fmt_err(None if d is None else d - off, e("delta")),
+                     _fmt_err(q, e("quad")),
                      _fmt_err(b, e("bhf"), 2) if magnet else "—",
                      _fmt_err(pct[idx], pct_err.get(idx), 1) if idx in pct else "—",
                      (self._phase(kind, d, q, b) or "—").replace(" (", "\n(", 1)]
